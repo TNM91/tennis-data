@@ -41,7 +41,13 @@ export function followedTarget(item:FollowedEntity):FollowedTarget|null {
  return {kind:'league',scope:{layer:layer as FollowedLeagueScope['layer'],name,flight,section,district}}
 }
 export function followedLeagueRows(rows:LeagueCard[],scope:FollowedLeagueScope){
- const matching=rows.filter(row=>(!scope.layer||row.competitionLayer===scope.layer)&&row.leagueName===scope.name&&row.flight===scope.flight&&row.ustaSection===scope.section&&row.districtArea===scope.district)
+ const savedParts=[scope.name,scope.flight,scope.section,scope.district]
+ const matching=rows.filter(row=>{
+  if(scope.layer&&row.competitionLayer!==scope.layer)return false
+  const parts=[row.leagueName,row.flight,row.ustaSection,row.districtArea]
+  // Website league-directory keys lowercase every dimension; detail-page keys retain display case.
+  return parts.every((part,index)=>part===savedParts[index])||Boolean(scope.layer&&parts.every((part,index)=>typeof part==='string'&&part.trim().toLowerCase()===savedParts[index]))
+ })
  if(!scope.layer&&new Set(matching.map(row=>row.competitionLayer)).size>1)throw Error('Saved league context is ambiguous.')
  return matching
 }
