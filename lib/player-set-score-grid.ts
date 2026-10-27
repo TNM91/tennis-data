@@ -20,16 +20,21 @@ export type SetScoreBucket = {
   matches: Array<{ match: PlayerSetScoreMatch; wins: number; losses: number }>
 }
 
-export function readPlayerSetScores(score: string | null | undefined, result: 'W' | 'L' | null) {
+export function readPlayerMatchSets(score: string | null | undefined, result: 'W' | 'L' | null) {
   const cleaned = (score || '').trim().replace(/–/g, '-').replace(/\s*-\s*/g, '-').replace(/\s+\(/g, '(')
   const parsed = validateTiqTennisMatchScore(cleaned)
   if (!parsed.valid || !result) return null
   const firstColumnWon = parsed.parsedSets.filter((set) => set.sideAGames > set.sideBGames).length === 2
   const flip = firstColumnWon !== (result === 'W')
-  return parsed.parsedSets.filter((set) => set.kind !== 'match_tiebreak').map((set) => ({
+  return parsed.parsedSets.map((set) => ({
+    kind: set.kind === 'match_tiebreak' ? 'match_tiebreak' as const : 'set' as const,
     gamesFor: flip ? set.sideBGames : set.sideAGames,
     gamesAgainst: flip ? set.sideAGames : set.sideBGames,
   }))
+}
+
+export function readPlayerSetScores(score: string | null | undefined, result: 'W' | 'L' | null) {
+  return readPlayerMatchSets(score, result)?.filter(set => set.kind !== 'match_tiebreak').map(({gamesFor, gamesAgainst}) => ({gamesFor, gamesAgainst})) ?? null
 }
 
 export function buildPlayerSetScoreGrid(matches: PlayerSetScoreMatch[], mode: SetScoreMode) {

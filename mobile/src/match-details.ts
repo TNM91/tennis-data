@@ -1,3 +1,4 @@
+import {renderMatchSetScores} from './match-set-scores'
 import {openScorecardShare} from './match-scorecard-share'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { matchDate, matchResult, type RecentMatchRow } from './recent-results'
@@ -38,7 +39,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
     app.querySelector('#match-detail')?.remove()
     const detail = document.createElement('section')
     detail.id = 'match-detail'
-    detail.innerHTML = `<button class="secondary" id="back-matches">${html(labels.backLabel || 'Back to My Lab')}</button><h1 tabindex="-1">Match details</h1><p>${html(matchDate(row.match_date))} · ${html(row.match_type || 'Match')}</p><dl><dt>Result</dt><dd>${html(matchResult(row, playerId))}</dd><dt>League</dt><dd>${html(row.league_name || 'League unavailable')}</dd><dt>Recorded score</dt><dd>${html(row.score || 'Score unavailable')}</dd></dl><p>Scores follow the source’s court order.</p><button type="button" class="secondary" data-share-scorecard>Review scorecard sharing</button><div id="match-players" aria-live="polite" data-state="loading"><p role="status">Loading the players…</p></div>`
+    detail.innerHTML = `<button class="secondary" id="back-matches">${html(labels.backLabel || 'Back to My Lab')}</button><h1 tabindex="-1">Match details</h1><p>${html(matchDate(row.match_date))} · ${html(row.match_type || 'Match')}</p><dl><dt>Result</dt><dd>${html(matchResult(row, playerId))}</dd><dt>League</dt><dd>${html(row.league_name || 'League unavailable')}</dd><dt>Recorded score</dt><dd>${html(row.score || 'Score unavailable')}</dd></dl>${renderMatchSetScores(row, playerId, labels.sideLabel || 'Your side')}<p>The recorded score follows the source’s court order.</p><button type="button" class="secondary" data-share-scorecard>Review scorecard sharing</button><div id="match-players" aria-live="polite" data-state="loading"><p role="status">Loading the players…</p></div>`
     app.append(detail)
     detail.querySelector<HTMLButtonElement>('[data-share-scorecard]')!.onclick=()=>{if(!valid()||version!==request||!detail.isConnected)return;sharing?.dispose();sharing=openScorecardShare(client,row.id,playerId,()=>valid()&&version===request&&detail.isConnected)}
     detail.querySelector<HTMLButtonElement>('#back-matches')!.onclick = () => {if(labels.local)close();else history.back()}

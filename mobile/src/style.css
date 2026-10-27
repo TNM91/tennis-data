@@ -136,3 +136,13 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 .import-outcome-counts>div { min-width: 0; padding: 12px; border: 1px solid var(--card-border-soft,#344b65); border-radius: 12px; }
 .import-outcome-counts dt { font-size: .85rem; }
 .import-outcome-counts dd { font-size: clamp(1.1rem,5vw,1.75rem); font-weight: 700; margin: 8px 0 0; overflow-wrap: anywhere; }
+
+.match-set-scores { min-width:0; margin-block:1.25rem; }
+.match-set-scores table { width:100%; table-layout:fixed; border-collapse:collapse; }
+.match-set-scores caption { text-align:left; margin-bottom:.65rem; }
+.match-set-scores th,.match-set-scores td { padding:.65rem .35rem; text-align:center; overflow-wrap:anywhere; border-bottom:1px solid currentColor; }
+.match-set-scores th:first-child { width:40%; text-align:left; font-size:.85rem; }
+.match-set-scores td { font-size:1.3rem; font-variant-numeric:tabular-nums; }
+.match-set-scores strong { text-decoration:underline; text-underline-offset:.25rem; }
+.match-set-scores p { font-size:.85rem; }
+.match-set-scores thead th:not(:first-child) { white-space:nowrap; font-size:.8rem; }
