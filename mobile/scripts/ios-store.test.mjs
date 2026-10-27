@@ -78,3 +78,10 @@ test('camera purposes are top-level plist values even with nested scene dictiona
  }
  assert.throws(()=>cameraPrivacyPlist('<plist><string>Unexpected</string></plist>'))
 })
+
+test('camera purposes migrate the known team-only copy without replacing custom permission copy',()=>{
+ const old='<plist><dict><key>NSCameraUsageDescription</key><string>Take a photo to share with your tennis team.</string><key>NSPhotoLibraryUsageDescription</key><string>Choose a photo to share with your tennis team.</string></dict></plist>'
+ const migrated=cameraPrivacyPlist(old)
+ assert.ok(migrated.includes('scorecard photo'))
+ assert.throws(()=>cameraPrivacyPlist(old.replace('Take a photo to share with your tennis team.','Custom camera purpose')),/Review custom/)
+})
