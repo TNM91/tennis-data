@@ -114,3 +114,13 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 .import-calendar { margin-block: 20px; min-width: 0; }
 .import-calendar ol { padding-left: 22px; }
 .import-calendar li { margin-block: 16px; overflow-wrap: anywhere; }
+
+.import-sources { margin-block: 20px; min-width: 0; }
+.import-sources ol { padding-left: 22px; }
+.import-sources li { margin-block: 16px; overflow-wrap: anywhere; }
+.import-sources figure { margin: 16px 0; }
+.import-sources img { display: block; width: 100%; height: auto; border-radius: 12px; }
+.import-sources figcaption { margin-top: 10px; overflow-wrap: anywhere; }
+
+.source-photo-frame { width: 100%; max-width: 100%; min-width: 0; overflow: auto; max-height: 65dvh; overscroll-behavior: contain; }
+.import-sources .source-photo-zoomed img { width: auto; max-width: none; }
