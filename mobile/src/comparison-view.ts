@@ -1,3 +1,4 @@
+import {comparisonSeedPlayers} from './roster-comparison-selection'
 import {loadHistoricalCheck,historicalCheckHtml} from './historical-rating-check'
 import type {HistoricalCheck} from '../../lib/historical-rating-check'
 import {loadOpponentMeetings,opposingMeetings,opponentHistoryHtml,type OpponentHistory} from './opponent-meetings'
@@ -12,9 +13,10 @@ import {findPlayers,type PlayerChoice} from './player-connection'
 import {loadComparison,comparisonCard,type ComparedPlayer} from './comparison-data'
 import {showExplore as showPlayer} from './explore'
 import {html,createMatchDetails} from './match-details'
-export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean) {
+export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initial?:{players:readonly PlayerChoice[];localMatches?:boolean;scrollHost?:HTMLElement}) {
  let notes:ReturnType<typeof openLabGoals>|null=null,matchType:'singles'|'doubles'='singles';let disposed=false,revision=0,view:RatingView='overall',data:ComparedPlayer[]|null=null,detail:ReturnType<typeof showPlayer>|null=null,scroll=0
  let meetings:ReturnType<typeof createMatchDetails>|null=null
+ let seeds=comparisonSeedPlayers(initial?.players);if(seeds)view='singles'
  const valid=()=>!disposed && isCurrent()
  app.innerHTML='<h1 tabindex="-1">Matchup</h1><p role="status">Checking your player access…</p>'
  app.querySelector<HTMLElement>('h1')!.focus()
@@ -22,12 +24,13 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
   try {
    const allowed=await canUsePlayerInsights(client,valid)
    if(!valid())return
-   if(!allowed){app.innerHTML=`<h1 tabindex="-1">Matchup</h1><p>Player comparison is included with ${html(MEMBERSHIP_TIERS.player_plus.name)} access.</p>`;return}
+   if(!allowed){app.innerHTML=`<h1 tabindex="-1">Matchup</h1><p>Player comparison is included with ${html(MEMBERSHIP_TIERS.player_plus.name)} access.</p>`;app.querySelector<HTMLElement>('h1')!.focus();return}
    setup()
   }catch{
    if(!valid())return
    app.innerHTML='<h1 tabindex="-1">Matchup</h1><p role="alert">Can’t check your access. Check your connection and try again.</p><button type="button" class="secondary">Retry access</button>'
    app.querySelector<HTMLButtonElement>('button')!.onclick=()=>{void start()}
+   app.querySelector<HTMLElement>('h1')!.focus()
   }
  }
  function setup(){
@@ -47,7 +50,7 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
     finally{if(valid()&&request===revision){opponentBusy=false;updateOpponents()}}
    }
    const rows=opponentHistory?opposingMeetings(opponentHistory.rows,data.map(p=>p.player.id),view):[]
-   host.querySelectorAll<HTMLButtonElement>('[data-opponent-meeting]').forEach(button=>{button.onclick=()=>{if(!valid()||!data)return;meetings?.dispose();meetings=createMatchDetails(app,client,valid,{backLabel:'Back to comparison',sideLabel:data.slice(0,data.length/2).map(p=>p.player.name).join(' / ')});meetings.open(rows[Number(button.dataset.opponentMeeting)],data[0].player.id)}})
+   host.querySelectorAll<HTMLButtonElement>('[data-opponent-meeting]').forEach(button=>{button.onclick=()=>{if(!valid()||!data)return;meetings?.dispose();meetings=createMatchDetails(app,client,valid,{backLabel:'Back to comparison',sideLabel:data.slice(0,data.length/2).map(p=>p.player.name).join(' / '),local:initial?.localMatches,scrollHost:initial?.scrollHost});meetings.open(rows[Number(button.dataset.opponentMeeting)],data[0].player.id)}})
    if(focus)host.querySelector<HTMLElement>(opponentBusy?'[role="status"]':'[data-load-opponents]')?.focus({preventScroll:true})
   }
   const updateCheck=()=>{
@@ -65,7 +68,7 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
   app.innerHTML=`<div id="comparison-list"><small>Matchup</small><h1 tabindex="-1">${html(MATCHUP_STORY.headline)}</h1><p>Compare singles or doubles, review the rating-based read, and save a courtside plan.</p><div role="group" aria-label="Match type"><button type="button" class="secondary" data-match-type="singles" aria-pressed="${matchType==='singles'}">Singles</button><button type="button" class="secondary" data-match-type="doubles" aria-pressed="${matchType==='doubles'}">Doubles</button></div><div id="comparison-pickers"></div><button type="button" id="compare-players" disabled>Compare players</button><p role="status" id="comparison-status"></p><div id="comparison-result"></div></div><div id="comparison-player" hidden></div>`
   app.querySelector<HTMLElement>('h1')!.focus()
   const list=app.querySelector<HTMLElement>('#comparison-list')!,playerHost=app.querySelector<HTMLElement>('#comparison-player')!,result=list.querySelector<HTMLElement>('#comparison-result')!,status=list.querySelector<HTMLElement>('#comparison-status')!,compare=list.querySelector<HTMLButtonElement>('#compare-players')!
-  const chosen:Array<PlayerChoice|null>=Array.from({length:matchType==='doubles'?4:2},()=>null)
+  const chosen:Array<PlayerChoice|null>=seeds?seeds.map(player=>({...player})):Array.from({length:matchType==='doubles'?4:2},()=>null);seeds=null
   const pickerRevision=chosen.map(()=>0)
   list.querySelectorAll<HTMLButtonElement>('[data-match-type]').forEach(b=>{b.onclick=()=>{if(!valid()||notes?.isOpen())return;revision++;data=null;meetings?.dispose();meetings=null;matchType=b.dataset.matchType as 'singles'|'doubles';view=matchType;setup();app.querySelector<HTMLElement>('[data-match-type="'+matchType+'"]')?.focus()}})
   const pickers=list.querySelector<HTMLElement>('#comparison-pickers')!
@@ -73,6 +76,7 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
   const reset=()=>{historical=null;checkBusy=false;checkNotice='';opponentHistory=null;opponentBusy=false;opponentNotice='';histories=null;historyBusy=false;historyNotice='';meetings?.dispose();meetings=null;revision++;data=null;result.innerHTML='';status.textContent='';compare.disabled=chosen.some(p=>!p)||new Set(chosen.filter(p=>p).map(p=>p!.id)).size!==chosen.filter(p=>p).length;if(new Set(chosen.filter(p=>p).map(p=>p!.id)).size!==chosen.filter(p=>p).length)status.textContent='Choose different players for every slot.'}
   pickers.querySelectorAll<HTMLElement>('[data-picker]').forEach(panel=>{
    const index=Number(panel.dataset.picker),form=panel.querySelector<HTMLFormElement>('form')!,input=form.querySelector<HTMLInputElement>('input')!,button=form.querySelector<HTMLButtonElement>('button')!,notice=panel.querySelector<HTMLElement>('[role="status"]')!,choices=panel.querySelector<HTMLElement>('.comparison-choices')!
+   const seed=chosen[index];if(seed){input.value=seed.name.slice(0,80);notice.textContent=`Selected: ${seed.name} · ${seed.location||'Location unavailable'} · ${seed.flight||'Flight unavailable'}`}
    input.oninput=()=>{pickerRevision[index]++;chosen[index]=null;notice.textContent='Search, then choose a player.';choices.innerHTML='';button.disabled=false;reset()}
    form.onsubmit=async event=>{
     event.preventDefault();if(button.disabled || !valid())return
@@ -87,7 +91,8 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
     finally{if(valid() && request===pickerRevision[index])button.disabled=false}
    }
   })
-  const back=()=>{detail?.dispose();detail=null;playerHost.hidden=true;playerHost.innerHTML='';list.hidden=false;window.scrollTo(0,scroll);result.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}
+  reset()
+  const back=()=>{detail?.dispose();detail=null;playerHost.hidden=true;playerHost.innerHTML='';list.hidden=false;if(initial?.scrollHost)initial.scrollHost.scrollTop=scroll;else window.scrollTo(0,scroll);result.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}
   const render=()=>{
    if(!data)return
    const prep=comparisonPreparation(data)
@@ -106,7 +111,7 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
     finally{if(prepCurrent())button.disabled=false}
    })()})
    result.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button=>{button.onclick=()=>{meetings?.dispose();meetings=null;view=button.dataset.view as RatingView;render();result.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus({preventScroll:true})}})
-   result.querySelectorAll<HTMLButtonElement>('[data-comparison-player]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;meetings?.dispose();meetings=null;scroll=window.scrollY;list.hidden=true;playerHost.hidden=false;detail=showPlayer(playerHost,client,valid,{player:data[Number(button.dataset.comparisonPlayer)].player,back,backLabel:'Back to comparison'})}})
+   result.querySelectorAll<HTMLButtonElement>('[data-comparison-player]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;meetings?.dispose();meetings=null;scroll=initial?.scrollHost?.scrollTop??window.scrollY;list.hidden=true;playerHost.hidden=false;detail=showPlayer(playerHost,client,valid,{player:data[Number(button.dataset.comparisonPlayer)].player,back,backLabel:'Back to comparison',localMatches:initial?.localMatches,scrollHost:initial?.scrollHost})}})
   }
   compare.onclick=async()=>{
    if(!valid() || chosen.some(p=>!p) || compare.disabled)return
@@ -128,5 +133,5 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
   }
  }
  void start()
- return {isNotebookOpen:()=>Boolean(notes?.isOpen()),dispose:()=>{disposed=true;revision++;notes?.dispose();notes=null;detail?.dispose();meetings?.dispose()},back:()=>{if(notes?.isOpen()){notes.back();return true}if(meetings?.isOpen()){history.back();return true}if(!detail)return false;if(detail.closeOverlay())return true;app.querySelector<HTMLButtonElement>('#back-explore')?.click();return true}}
+ return {isNotebookOpen:()=>Boolean(notes?.isOpen()),dispose:()=>{disposed=true;revision++;notes?.dispose();notes=null;detail?.dispose();meetings?.dispose()},back:()=>{if(notes?.isOpen()){notes.back();return true}if(meetings?.isOpen()){meetings.back();return true}if(!detail)return false;if(detail.closeOverlay())return true;app.querySelector<HTMLButtonElement>('#back-explore')?.click();return true}}
 }

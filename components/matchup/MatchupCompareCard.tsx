@@ -52,14 +52,14 @@ export default function CompareCard({
       </div>
 
       <div style={ratingSectionLabelStyle}>TIQ DYNAMIC</div>
-      <div style={dynamicRatingGrid}>
+      <div data-comparison-rating-grid style={dynamicRatingGrid}>
         <RatingPill displayValue={display?.tiq.overall} label="Overall" value={ratings.overall} active={ratingView === 'overall'} selfRated={selfRated} />
         <RatingPill displayValue={display?.tiq.singles} label="Singles" value={ratings.singles} active={ratingView === 'singles'} selfRated={selfRated} />
         <RatingPill displayValue={display?.tiq.doubles} label="Doubles" value={ratings.doubles} active={ratingView === 'doubles'} selfRated={selfRated} />
       </div>
 
       <div style={{ ...ratingSectionLabelStyle, marginTop: 10 }}>USTA DYNAMIC</div>
-      <div style={dynamicRatingGrid}>
+      <div data-comparison-rating-grid style={dynamicRatingGrid}>
         <RatingPill displayValue={display?.usta.overall} label="Overall" value={selfRated ? null : ustaRatings.overall} active={ratingView === 'overall'} pendingLabel={selfRated ? 'Pending' : undefined} />
         <RatingPill displayValue={display?.usta.singles} label="Singles" value={selfRated ? null : ustaRatings.singles} active={ratingView === 'singles'} pendingLabel={selfRated ? 'Pending' : undefined} />
         <RatingPill displayValue={display?.usta.doubles} label="Doubles" value={selfRated ? null : ustaRatings.doubles} active={ratingView === 'doubles'} pendingLabel={selfRated ? 'Pending' : undefined} />
