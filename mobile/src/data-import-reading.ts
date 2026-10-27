@@ -7,7 +7,7 @@ type Snapshot={batch:ImportBatch;detail:ImportDetail|null}
 export type ReadingOps={load:(id:string,current:()=>boolean)=>Promise<Snapshot>;read:(snapshot:Snapshot,current:()=>boolean)=>Promise<unknown>}
 export type ReadingItem={id:string;state:'ready'|'checking'|'reading'|'imported'|'duplicate'|'review'|'blocked'|'uncertain';message:string}
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-export function createScorecardReader(client:SupabaseClient,owner:string,ids:string[],injected?:ReadingOps){
+export function createScorecardReader(client:SupabaseClient,owner:string,ids:string[],injected?:ReadingOps,unconfirmed=new Set<string>()){
  if(!uuid.test(owner)||ids.length<2||ids.length>DATA_ASSIST_MAX_BULK_SCORECARDS||ids.some(id=>!uuid.test(id))||new Set(ids).size!==ids.length)throw Error('Choose the saved scorecards again.')
  const ops:ReadingOps=injected||{
   load:async(id,current)=>{const batch=await loadImportBatch(client,owner,id,current);const detail=await loadImportDetail(client,batch,current);return {batch,detail}},
@@ -17,8 +17,9 @@ export function createScorecardReader(client:SupabaseClient,owner:string,ids:str
  let running=false
  const checked=(item:ReadingItem,snapshot:Snapshot,wasUncertain=false)=>{
   const {batch,detail}=snapshot
-  if(batch.id!==item.id||batch.owner!==owner||batch.kind!=='scorecard')throw Error('This saved file changed.')
+  if(batch.id!==item.id||batch.owner!==owner||batch.kind!=='scorecard'||batch.files!==1)throw Error('This saved file changed.')
   if(!detail){item.state='blocked';item.message='No saved draft. Open the file to check its status.';return}
+  if(detail.ocr==='processed'||detail.ocr==='failed'||batch.status==='imported'||detail.status==='imported')unconfirmed.delete(item.id)
   const counts=detail.outcome.map(([label,value])=>label+': '+value).join(' · ')
   if(batch.status==='imported'||detail.status==='imported'){
    item.state=Number(detail.outcome.find(([label])=>label==='Failed')?.[1]||0)>0?'review':detail.duplicate?'duplicate':'imported'
@@ -40,20 +41,20 @@ export function createScorecardReader(client:SupabaseClient,owner:string,ids:str
   if(!current())return null
   checked(item,snapshot,wasUncertain);changed();return snapshot
  }
- return {items,isRunning:()=>running,canRead:()=>!running&&!items.some(i=>i.state==='uncertain')&&items.some(i=>i.state==='ready'),
+ return {items,isRunning:()=>running,hasUnconfirmed:()=>items.some(i=>unconfirmed.has(i.id)),canRead:()=>!running&&!items.some(i=>unconfirmed.has(i.id)||i.state==='uncertain')&&items.some(i=>i.state==='ready'),
   async refresh(current:()=>boolean,changed:()=>void){
    if(running||!current())return;running=true
-   try{for(const item of items){if(!current())break;const uncertain=item.state==='uncertain';try{await load(item,current,changed,uncertain)}catch{if(!current())break;item.state=uncertain?'uncertain':'blocked';item.message='Status could not be checked. Refresh later or open the saved file.';changed();break}}}finally{running=false}
+   try{for(const item of items){if(!current())break;const uncertain=item.state==='uncertain'||unconfirmed.has(item.id);try{await load(item,current,changed,uncertain)}catch{if(!current())break;item.state=uncertain?'uncertain':'blocked';item.message='Status could not be checked. Refresh later or open the saved file.';changed();break}}}finally{running=false}
   },
   async readRemaining(current:()=>boolean,changed:()=>void){
-   if(running||!current()||items.some(i=>i.state==='uncertain'))return;running=true
+   if(running||!current()||items.some(i=>unconfirmed.has(i.id)||i.state==='uncertain'))return;running=true
    try{for(const item of items){
     if(!current())break;if(item.state!=='ready')continue
     let requested=false
     try{
      const snapshot=await load(item,current,changed);if(!snapshot||!current())break
      if(item.state!=='ready')continue
-     requested=true;item.state='reading';item.message='Reading saved scorecard…';changed()
+     requested=true;unconfirmed.add(item.id);item.state='reading';item.message='Reading saved scorecard…';changed()
      await ops.read(snapshot,current);if(!current())break
      await load(item,current,changed,true);if(!current())break
      if(items.some(i=>i===item&&i.state==='uncertain'))break

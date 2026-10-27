@@ -97,3 +97,11 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 
 .data-imports-dialog .import-bulk { padding: 0; border: 0; background: transparent; box-shadow: none; }
 .import-bulk li button { width: 100%; margin: 0; }
+
+.import-history { list-style: none; padding: 0; display: grid; gap: 16px; min-width: 0; }
+.import-history>li { padding: 16px; border: 1px solid var(--card-border-soft,#344b65); border-radius: 16px; background: var(--portal-active-card-bg,#102944); min-width: 0; }
+.import-history h2 { margin: 0 0 8px; }
+.import-history p { margin: 8px 0; overflow-wrap: anywhere; }
+.import-history .import-consent { margin: 12px 0; }
+.import-history>li>button { width: 100%; margin: 8px 0 0; }
+.import-history-selection { margin-block: 16px; }

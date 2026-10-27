@@ -7,7 +7,7 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const kinds = ['scorecard','schedule','team_summary'] as const
 const statuses = ['uploaded','layout_detected','needs_review','ready_to_import','rejected','verified','imported'] as const
 export type ImportKind = typeof kinds[number]
-export type ImportBatch = {id:string;owner:string;kind:ImportKind;status:string;created:string;updated:string;files:number;note:string}
+export type ImportBatch = {id:string;owner:string;kind:ImportKind;status:string;created:string;updated:string;files:number;note:string;fileName?:string}
 export type ImportRow = {title:string;values:Array<[string,string]>}
 export type ImportDetail = {draftId:string;status:string;ocr:string;notes:string[];context:Array<[string,string]>;rows:ImportRow[];total:number;outcome:Array<[string,string]>;schedule?:DataAssistScheduleParsedDraft;duplicate?:boolean}
 function object(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))throw Error('This saved upload needs review on TenAceIQ.');return value as Record<string,unknown>}
@@ -53,11 +53,21 @@ async function ownerSession(client:SupabaseClient,owner:string,current:()=>boole
  if(!uuid.test(owner)||!current())throw Error('Close this screen and sign in again.')
  const {data,error}=await client.auth.getSession();if(error||data.session?.user.id!==owner||!current())throw Error('Close this screen and sign in again.')
 }
-export async function loadImportBatches(client:SupabaseClient,owner:string,current:()=>boolean){
+export async function loadImportBatches(client:SupabaseClient,owner:string,current:()=>boolean):Promise<{batches:ImportBatch[];limited:boolean;namesUnavailable:boolean}>{
  await ownerSession(client,owner,current)
  const r=await client.from('data_assist_batches').select('id,submitted_by_user_id,requested_import_type,status,screenshot_count,review_note,rejection_reason,created_at,updated_at').eq('submitted_by_user_id',owner).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(41).abortSignal(AbortSignal.timeout(12000))
  await ownerSession(client,owner,current);if(r.error)throw Error('Could not load your uploads. Check your connection and try again.')
- return readImportBatches(r.data,owner)
+ const result=readImportBatches(r.data,owner)
+ if(!result.batches.length)return {...result,namesUnavailable:false}
+ let names=new Map<string,string>(),namesUnavailable=false
+ try{
+  const namesResult=await client.from('data_assist_screenshots').select('batch_id,file_name,submitted_by_user_id').eq('submitted_by_user_id',owner).eq('upload_order',1).in('batch_id',result.batches.map(b=>b.id)).limit(41).abortSignal(AbortSignal.timeout(12000))
+  await ownerSession(client,owner,current)
+  if(namesResult.error)throw Error('Source names unavailable.')
+  names=readImportSourceNames(namesResult.data,result.batches,owner)
+ }catch{namesUnavailable=true}
+ await ownerSession(client,owner,current)
+ return {...result,batches:result.batches.map(b=>({...b,...(names.get(b.id)?{fileName:names.get(b.id)}:{})})),namesUnavailable}
 }
 export async function loadImportDetail(client:SupabaseClient,batch:ImportBatch,current:()=>boolean){
  if(!uuid.test(batch.id))throw Error('Choose a saved upload again.')
@@ -73,4 +83,14 @@ export async function loadImportBatch(client:SupabaseClient,owner:string,id:stri
  const r=await client.from('data_assist_batches').select('id,submitted_by_user_id,requested_import_type,status,screenshot_count,review_note,rejection_reason,created_at,updated_at').eq('submitted_by_user_id',owner).eq('id',id).limit(2).abortSignal(AbortSignal.timeout(12000))
  await ownerSession(client,owner,current);if(r.error||!Array.isArray(r.data)||r.data.length!==1)throw Error('Refresh saved uploads to find this file.')
  const batch=readImportBatches(r.data,owner).batches[0];if(batch.id!==id)throw Error('Choose the saved upload again.');return batch
+}
+
+export function readImportSourceNames(value:unknown,batches:ImportBatch[],owner:string){
+ if(!Array.isArray(value)||value.length>41)throw Error('Source names unavailable.')
+ const allowed=new Set(batches.filter(b=>b.owner===owner).map(b=>b.id)),names=new Map<string,string>()
+ for(const valueRow of value){const row=object(valueRow),id=text(row.batch_id),name=text(row.file_name,500)
+  if(row.submitted_by_user_id!==owner||!allowed.has(id)||names.has(id))throw Error('Source names unavailable.')
+  names.set(id,name)
+ }
+ return names
 }
