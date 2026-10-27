@@ -285,3 +285,7 @@ body[data-screen="lab"] #recent-results .recent-form dd { font-size:25px; }
 .import-review-actions button { flex:1 1 180px; min-width:0; white-space:normal; word-break:normal; overflow-wrap:normal; }
 .import-consent { display:flex; align-items:flex-start; gap:12px; line-height:1.5; }
 .import-consent input[type="checkbox"] { flex:0 0 22px; width:22px; height:22px; margin-top:2px; accent-color:#42aaff; }
+
+.import-file-label { display:grid; gap:12px; margin:16px 0; font-weight:600; }
+.import-file-label input[type="file"] { width:100%; max-width:100%; min-width:0; box-sizing:border-box; font-size:14px; }
+[data-import-upload] button { white-space:normal; word-break:normal; overflow-wrap:normal; }
