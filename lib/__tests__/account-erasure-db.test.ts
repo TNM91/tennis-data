@@ -3,11 +3,12 @@ import {PGlite} from '@electric-sql/pglite'
 import {readFile} from 'node:fs/promises'
 type Result={ok:boolean;blocked?:string;job:{id:string;account_id:string;lease_token:string}|null;objects?:unknown[];request?:{id:string}}
 const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',room='33333333-3333-4333-8333-333333333333',message='44444444-4444-4444-8444-444444444444'
-it('automates only consented exact-owner erasure, fences workers, revokes sessions and preserves teammate history across the audited FK graph',async()=>{
+it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure across the audited FK graph (%s checkout)',async newline=>{
+ const readSql=async(file:URL)=>{const text=(await readFile(file,'utf8')).replace(/\r\n/g,'\n');return newline==='CRLF'?text.replace(/\n/g,'\r\n'):text}
  const db=new PGlite()
  try{
-  await db.exec(await readFile(new URL('./fixtures/account-erasure-audited-schema.sql',import.meta.url),'utf8'))
-  for(const file of ['20261028000100_native_account_requests.sql','20261028000200_automated_account_erasure.sql'])await db.exec(await readFile(new URL('../../supabase/migrations/'+file,import.meta.url),'utf8'))
+  await db.exec(await readSql(new URL('./fixtures/account-erasure-audited-schema.sql',import.meta.url)))
+  for(const file of ['20261028000100_native_account_requests.sql','20261028000200_automated_account_erasure.sql'])await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
 
   await db.query("insert into internal_messages(conversation_id,sender_user_id,body,metadata) values($1,$2,'Keep this reply',$3)",[room,b,JSON.stringify({quote:{author:a,body:'Private copied message'},other:'Keep'})])

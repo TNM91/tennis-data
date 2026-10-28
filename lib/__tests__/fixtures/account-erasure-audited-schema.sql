@@ -477,23 +477,9 @@ alter table public.tiq_tournaments add constraint tiq_tournaments_event_id_fkey 
 alter table public.tiq_tournaments add constraint tiq_tournaments_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 alter table public.user_follows add constraint user_follows_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 alter table team_chat_signals add unique(conversation_id);
+-- Preserve the audited trigger's stored CRLF body independently of Git checkout line endings.
 create or replace function public.touch_team_chat_signal()
-returns trigger language plpgsql security definer set search_path = '' as $$
-declare target_id uuid;
-begin
- for target_id in select distinct targets.id from unnest(case
-  when TG_OP='INSERT' then array[NEW.conversation_id]
-  when TG_OP='DELETE' then array[OLD.conversation_id]
-  else array[OLD.conversation_id,NEW.conversation_id] end) as targets(id)
- loop
-  if exists(select 1 from public.internal_conversations c where c.id=target_id and c.related_entity_type in ('team_room','team_room_chat')) then
-   insert into public.team_chat_signals as s(conversation_id) values(target_id)
-    on conflict(conversation_id) do update set revision=s.revision+1,changed_at=clock_timestamp();
-  end if;
- end loop;
- if TG_OP='DELETE' then return OLD; else return NEW; end if;
-end;
-$$;
+returns trigger language plpgsql security definer set search_path = '' as E'\r\ndeclare target_id uuid;\r\nbegin\r\n for target_id in select distinct targets.id from unnest(case\r\n  when TG_OP=''INSERT'' then array[NEW.conversation_id]\r\n  when TG_OP=''DELETE'' then array[OLD.conversation_id]\r\n  else array[OLD.conversation_id,NEW.conversation_id] end) as targets(id)\r\n loop\r\n  if exists(select 1 from public.internal_conversations c where c.id=target_id and c.related_entity_type in (''team_room'',''team_room_chat'')) then\r\n   insert into public.team_chat_signals as s(conversation_id) values(target_id)\r\n    on conflict(conversation_id) do update set revision=s.revision+1,changed_at=clock_timestamp();\r\n  end if;\r\n end loop;\r\n if TG_OP=''DELETE'' then return OLD; else return NEW; end if;\r\nend;\r\n';
 CREATE TRIGGER internal_messages_team_chat_signal AFTER INSERT OR DELETE OR UPDATE ON public.internal_messages FOR EACH ROW EXECUTE FUNCTION touch_team_chat_signal();
 CREATE TRIGGER team_room_reactions_chat_signal AFTER INSERT OR DELETE OR UPDATE ON public.team_room_message_reactions FOR EACH ROW EXECUTE FUNCTION touch_team_chat_signal();
 grant usage on schema public,auth,storage to service_role;grant select,insert,update,delete on all tables in schema public to service_role;grant select on storage.objects to service_role;
