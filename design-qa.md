@@ -1043,3 +1043,84 @@ Evidence is local and uses synthetic accounts/results only:
 - [x] Package and verify byte-identical approved assets and stylesheet in the final iOS bundle.
 
 Final result: passed (visual and browser interaction QA; physical-device checks pending).
+
+
+## Build 140 — clear team actions, compact reactions and practice form fit
+
+Source target: the user-provided iPhone chat screenshots and the current shipped
+conversation. Private screenshots, participants and message text are not included
+in this repository. Synthetic captures use fictional team/member information.
+This is a focused correction to existing production UI, not a replacement app.
+
+1. Open General, then the header team control. The former ellipsis displayed a tall
+   grid of views, nested planning/search controls, status text and maintenance
+   buttons at once (P2: unclear hierarchy and excessive obstruction).
+2. Open a message reaction picker. Six large bordered tiles expanded inside the
+   bubble (P2: visual clutter and conversation movement).
+3. From Add to message → Plan a practice, open Create practice, enter details,
+   review, edit and discard, then return to the same chat.
+
+Changes and comparison result:
+
+- A labelled Team control opens icon rows for Match day, Members & alerts and
+  Captain tools, with short explanations. Captains can post an announcement.
+  More team tools starts closed and retains the existing hub, loaded-message
+  filters/search, team switching, joining and refresh. Current views are omitted;
+  other views offer Back to chat. Exact team/league/flight selection is retained.
+- Reactions open one six-column tray above the composer, with sender context,
+  selected state and Done. Count pills stay with the message. Opening another
+  floating control closes the previous one; Escape restores summary focus.
+- Create and Edit practice use bounded one-column forms. Dialog, labels and
+  controls can shrink; date/time fields explicitly constrain WebKit intrinsic
+  sizing and retain their native input types. Long text remains editable inside
+  its own field. No horizontal overflow is hidden as a substitute for sizing.
+
+Evidence opened and inspected:
+
+- `tmp/build140-design-proof/build140-design-comparison.png`: before/revised menu
+  at the same 390×844 CSS viewport, plus revised reactions. Typography, row
+  rhythm, navy/blue colors, real library icons, source copy and imagery checked.
+- `tmp/build140-design-proof/build140-final-reactions-390.png`: focused reaction
+  state, saved Love count and selected emoji. A private comparison against the
+  supplied reaction screenshot was also inspected. Device insets, message data
+  and platform emoji differ; it is a functional/design correction, not a pixel
+  match or a claim of physical iPhone equivalence.
+- `tmp/build140-design-proof/build140-after-create-practice-390.png` and
+  `build140-create-practice-fields-320.png`: bounded date/time/location/focus.
+- `tmp/build140-design-proof/build140-practice-review-320.png`: dates, time range,
+  long location, focus and capacity survive review/edit; discard confirms first.
+- `tmp/build140-design-proof/build140-named-room-menu-390.png`: named rooms keep
+  Members & alerts and omit General-only Match day/Captain/announcement tools.
+
+Observed behavior:
+
+- At 320/390/430/768 CSS px, root scrollWidth equals clientWidth. Create form and
+  review dialog scrollWidth equals clientWidth; no overflowing descendants.
+- At 320, all six reaction choices fit one row and measure about 46×48 CSS px.
+  At 390, the tray is 360×114 and choices about 57×48. No bubble layout shift.
+- Reaction save closes the tray, shows the persisted count and pressed state.
+  General draft survives Members/Match day navigation. Named-room selection,
+  room-specific tools, Escape and Done dismissal were checked.
+- Dialog is vertically scrollable; native date/time inputs remain date/time.
+  Existing review, confirmation, exact-team and uncertain-write guards remain.
+- No production QA writes, new API requests, schema/grants, dependencies, signing
+  permissions, brand artwork or rating values were introduced.
+
+Limits: desktop Chromium did not reproduce the original practice overflow before
+this change. The fix addresses the intrinsic-width path in iPhone WebKit, but
+physical iPhone date/time, keyboard, safe-area, Dynamic Type and VoiceOver checks
+remain pending. Screenshots cannot establish full accessibility compliance.
+
+Final local visual result: pass for the inspected browser states; no unresolved
+P1/P2 browser-layout finding. Internal beta release remains subject to required
+full verification, CI, signed archive and Apple validation recorded separately.
+
+Build 140 follow-up comparison: a synthetic 320 px message with five/six counted
+reactions exposed an additional P2: the previous absolutely positioned count row
+wrapped upward across the message. Changed count rows to normal flow with a small
+relative offset below the bubble. Rechecked all six counts: message text ends at
+240.4 px, reaction rows begin at 258.4 px and end at 342.4 px, next bubble begins
+at 348.4 px. No text overlap, bubble collision or horizontal overflow remains.
+`tmp/build140-design-proof/build140-multiple-reactions-320.png` records the result.
+The deliberately uncertain Celebrate save/retry also confirmed the same desired
+reaction once, without inflating its count. The fixed tray remains viewport-bound.

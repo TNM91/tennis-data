@@ -11,7 +11,7 @@ describe('conversation-first chrome and recorded home scoreboard',()=>{
  it('keeps exact teams and existing tools inside a closed options menu with named icon controls',()=>{
   const markup=chatRoomHeaderHtml(room,teams,'Conversation',false)
   expect(markup).toContain('aria-label="All team chats"');expect(markup).toContain('aria-label="Rooms · General"');expect(markup).toContain('aria-label="Search team history"')
-  expect(markup).toContain('<details class="chat-room-options">');expect(markup).toContain('Team conversation options');expect(markup).not.toContain('<details class="chat-room-options" open')
+  expect(markup).toContain('<details class="chat-room-options">');expect(markup).toContain('aria-label="Team tools"');expect(markup).not.toContain('<details class="chat-room-options" open')
   expect(markup).toContain('Aces &lt;one&gt;');expect(markup).toContain('City &amp; Court');expect(markup).not.toContain('<one>');expect(markup).toContain('Other league')
   expect(markup.match(/id="linked-team"/g)).toHaveLength(1);expect(markup).toContain('data-team-tab="Captain"');expect(markup).toContain('id="refresh-team"')
  })
