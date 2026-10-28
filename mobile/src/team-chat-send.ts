@@ -8,7 +8,7 @@ import type {TeamScope} from './team-room-data'
 export type ChatAction =
   | {action:'edit_chat_post'|'remove_chat_post';conversationId:string;messageId:string;body:string;expectedBody:string;expectedEditedAt:string}
   | {action:'respond_lineup_change';messageId:string;response:'accepted'|'declined';replacementToken:string}
-  | {action:'respond';messageId:string;response:'yes'|'maybe'|'no'}
+  | {action:'respond';messageId:string;response:'yes'|'maybe'|'no';availabilityOnly?:true}
   | {action:'acknowledge_lineup';messageId:string;lineupVersion:number}
   | {action:'set_arrival_status';messageId:string;arrivalStatus:'on_my_way'|'here'|'running_late'}
   | {action:'ack_final_lineup';messageId:string}

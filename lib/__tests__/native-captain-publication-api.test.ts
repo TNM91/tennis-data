@@ -1,5 +1,6 @@
+vi.mock('@/lib/native-availability-requests',()=>({publishNativeAvailability:m.availability}))
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
-const m=vi.hoisted(()=>({chatRows:vi.fn(),follow:vi.fn(),replace:vi.fn(),replaceReview:vi.fn(),replaceNotify:vi.fn(),captain:vi.fn(),publish:vi.fn(),load:vi.fn(),create:vi.fn(),push:vi.fn(),nativePush:vi.fn(),recipients:vi.fn()}))
+const m=vi.hoisted(()=>({availability:vi.fn(),chatRows:vi.fn(),follow:vi.fn(),replace:vi.fn(),replaceReview:vi.fn(),replaceNotify:vi.fn(),captain:vi.fn(),publish:vi.fn(),load:vi.fn(),create:vi.fn(),push:vi.fn(),nativePush:vi.fn(),recipients:vi.fn()}))
 vi.mock('@/lib/team-chat-updates',()=>({loadTeamChatRows:m.chatRows,checkTeamChatAccess:vi.fn()}))
 vi.mock('server-only',()=>({}))
 vi.mock('@supabase/supabase-js',()=>({createClient:m.create}))
@@ -62,4 +63,15 @@ describe('native media exact-scope guard',()=>{
   for(const action of ['send_chat_photo','read_chat_photo'])expect((await POST(post({action,flight:'4.5',photoMimeType:'image/gif'}))).status).toBe(403)
   expect(calls.every(c=>c.table==='team_profile_links')).toBe(true);expect(m.push).not.toHaveBeenCalled();expect(m.nativePush).not.toHaveBeenCalled()
  })
+})
+
+
+describe('native availability request API boundary',()=>{
+ it('requires Captain entitlement and exact General scope before publication',async()=>{m.captain.mockResolvedValueOnce({ok:false,response:Response.json({ok:false},{status:403})});expect((await POST(post({action:'publish_native_availability'}))).status).toBe(403);expect((await POST(post({action:'publish_native_availability',flight:'4.5'}))).status).toBe(403);expect((await POST(post({action:'publish_native_availability',chatRoomId:'11111111-1111-4111-8111-111111111111'}))).status).toBe(400);expect(m.availability).not.toHaveBeenCalled()})
+ it('returns an exact committed receipt without repeat defaults or alerts',async()=>{m.availability.mockResolvedValue({ok:true,status:200,owner:'owner',scope,fixtureId:'fixture',publicationId:'operation',messageId:'saved',conversationId:'verified-room',replayed:true});const r=await POST(post({action:'publish_native_availability',fixtureId:'fixture',publicationId:'operation',lookup:true}));expect(r.status).toBe(200);expect(await r.json()).toMatchObject({owner:'owner',scope,fixtureId:'fixture',publicationId:'operation',messageId:'saved',replayed:true});expect(m.push).not.toHaveBeenCalled();expect(m.nativePush).not.toHaveBeenCalled();expect(calls.every(c=>c.table==='team_profile_links')).toBe(true)})
+})
+
+
+it('emits availability announcement effects only for the successful insert, never a receipt replay',async()=>{
+ const receipt={ok:true,status:200,owner:'owner',scope,fixtureId:'fixture',publicationId:'operation',messageId:'message',conversationId:'room',matchDate:'2026-10-30',body:'Can you play?'};m.availability.mockResolvedValueOnce({...receipt,replayed:false}).mockResolvedValueOnce({...receipt,replayed:true});expect((await POST(post({action:'publish_native_availability'}))).status).toBe(200);expect((await POST(post({action:'publish_native_availability'}))).status).toBe(200);expect(m.push).toHaveBeenCalledTimes(1);expect(m.nativePush).toHaveBeenCalledTimes(1);expect(calls.filter(c=>c.table==='internal_notifications'&&c.method==='insert')).toHaveLength(1)
 })

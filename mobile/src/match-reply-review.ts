@@ -1,3 +1,4 @@
+import {availabilityReplyRoom} from './chat-match-card'
 import {ChatActionError} from './team-chat-send'
 import type {NativeTeamRoom} from './team-room-data'
 import type {MatchAction} from './team-match-actions'
@@ -5,6 +6,7 @@ import {currentTeamPlan,ownTeamCourt,teamMatchOverview} from './team-hub'
 import {html} from './match-details'
 import {matchDate} from './recent-results'
 export function matchReplyReview(room:NativeTeamRoom,owner:string,action:MatchAction){
+ if(action.action==='respond'&&action.availabilityOnly){const selected=availabilityReplyRoom(room,action.messageId);if(!selected)throw new ChatActionError('This availability request changed. Close and refresh the conversation.',false);room=selected}
  const message=currentTeamPlan(room),card=message?.card
  const changed=()=>{throw new ChatActionError('The match or lineup changed. Close and refresh Match day.',false)}
  if(!message||!card||!room.chatReady) return changed()

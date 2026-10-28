@@ -22,7 +22,7 @@ export function nativeSharedLineupIsComplete(value:unknown){
  }
  return names.size>0
 }
-function cardId(room:string,date:string){const hex=createHash('sha256').update(`tenaceiq-native-card:${room}:${date}`).digest('hex');return `${hex.slice(0,8)}-${hex.slice(8,12)}-4${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`}
+export function nativeTeamCardId(room:string,date:string){const hex=createHash('sha256').update(`tenaceiq-native-card:${room}:${date}`).digest('hex');return `${hex.slice(0,8)}-${hex.slice(8,12)}-4${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`}
 /** Exact Captain access, roster and fixture checks precede all shared-card reads/writes. */
 export async function loadNativePublication(service:SupabaseClient,owner:string,scope:TeamRoomScope,matchId:string){
  const draft=await loadNativeLineup(service,owner,scope,matchId);if(!draft.ok)return draft
@@ -72,7 +72,7 @@ export async function publishNativeLineup(service:SupabaseClient,owner:string,sc
  const now=new Date().toISOString(),version=Math.max(1,Number(previous.lineupVersion)||0)+(changes.length&&Number(previous.lineupVersion)>0?1:0)
  const metadata={...previous,...state.proposal,lineupVersion:version,lineupChanges:changes,lineupChangedAt:now,lineupChangeNotice:null,finalLineup:null,arrivalCheckIns:[],arrivalOutreach:[],nativePublication:{id:requestId,owner,draftVersion:state.draftVersion}}
  const payload={body:`Proposed lineup for ${state.match.date} vs ${state.match.opponent}. Please confirm whether you can play.`,message_kind:'announcement',metadata}
- const result=state.card?await service.from('internal_messages').update({...payload,edited_at:now}).eq('id',state.card.id).eq('conversation_id',state.conversationId).is('deleted_at',null).filter('metadata','eq',JSON.stringify(previous)).select('id').maybeSingle():await service.from('internal_messages').insert({...payload,id:cardId(state.conversationId,state.match.date),conversation_id:state.conversationId,sender_user_id:owner}).select('id').maybeSingle()
+ const result=state.card?await service.from('internal_messages').update({...payload,edited_at:now}).eq('id',state.card.id).eq('conversation_id',state.conversationId).is('deleted_at',null).filter('metadata','eq',JSON.stringify(previous)).select('id').maybeSingle():await service.from('internal_messages').insert({...payload,id:nativeTeamCardId(state.conversationId,state.match.date),conversation_id:state.conversationId,sender_user_id:owner}).select('id').maybeSingle()
  if(result.error&&result.error.code!=='23505')return fail(503,'Publication could not be confirmed. Retry the same request.')
  if(!result.data){
   const current=await loadNativePublication(service,owner,scope,str(body.fixtureId));if(!current.ok)return current

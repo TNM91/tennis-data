@@ -1,3 +1,4 @@
+import {publishNativeAvailability,canReplyNativeAvailability} from '@/lib/native-availability-requests'
 import {namedTeamChatRooms,type NamedChatRoom} from '@/lib/named-team-chat-rooms'
 import {loadTeamFixtures} from '@/lib/team-fixtures'
 import {seasonToday} from '@/lib/season-kickoff-server'
@@ -220,6 +221,8 @@ type TeamRoomActionBody = {
   draftVersion?: unknown
   expectedCardToken?: unknown
   publicationId?: unknown
+  lookup?: unknown
+  availabilityOnly?: unknown
   courtLabel?: unknown
   outgoingPlayerName?: unknown
   replacementKey?: unknown
@@ -477,13 +480,22 @@ export async function POST(request: Request) {
     selected.namedRoom={id:named.id,name:named.name,parentId:named.parentId,teamMuted:named.teamMuted}
   }
   const action = cleanText(body.action)
-  if (action === 'native_replacement_followup' || action === 'publish_native_replacement' || action === 'publish_native_lineup' || (body.nativeClient === true && action === 'send_final_lineup')) {
+  if (action === 'publish_native_availability' || action === 'native_replacement_followup' || action === 'publish_native_replacement' || action === 'publish_native_lineup' || (body.nativeClient === true && action === 'send_final_lineup')) {
     const captain=await getCaptainApiAuth(request)
     if(!captain.ok)return captain.response
     if(captain.userId!==auth.userId)return Response.json({ok:false},{status:403})
     const scope={teamName:cleanText(body.teamName),leagueName:cleanText(body.leagueName),flight:cleanText(body.flight)}
     if(scope.teamName!==selected.team_name||scope.leagueName!==selected.league_name||scope.flight!==selected.flight)return Response.json({ok:false},{status:403})
     try {
+      if(action==='publish_native_availability'){
+        const result=await publishNativeAvailability(auth.service,auth.userId,scope,body as Record<string,unknown>)
+        if(!result.ok)return Response.json(result,{status:result.status,headers:{'Cache-Control':'private, no-store'}})
+        if(!result.replayed){
+          try{await applySeasonAvailabilityDefaults(auth.service,{conversationId:result.conversationId,messageId:result.messageId,matchDate:result.matchDate!,scope:selected})}catch{console.warn('Availability defaults unavailable')}
+          try{await auth.service.from('internal_conversations').update({updated_at:new Date().toISOString()}).eq('id',result.conversationId);await notifyTeamRoom(auth.service,{conversationId:result.conversationId,actorUserId:auth.userId,teamName:selected.team_name,scope:selected,body:result.body!,announcement:true})}catch{console.warn('Availability announcement alerts unavailable')}
+        }
+        return Response.json({ok:true,owner:auth.userId,scope,fixtureId:result.fixtureId,publicationId:result.publicationId,messageId:result.messageId,replayed:result.replayed},{headers:{'Cache-Control':'private, no-store'}})
+      }
       if(action==='native_replacement_followup'){
         const result=await saveNativeReplacementFollowup(auth.service,auth.userId,scope,body as Record<string,unknown>)
         if(!result.ok)return Response.json(result,{status:result.status})
@@ -553,9 +565,10 @@ export async function POST(request: Request) {
     if (!existing.ok) return Response.json(existing, {status: existing.status})
     const access = await checkTeamChatAccess(auth.service, auth.userId, existing.id, canManageTeamRoom(teamRoles(selected)))
     if (!access.ok) return Response.json(access, {status: access.status})
-    const current = await loadActionableMatchCard(auth.service, existing.id, '')
+    const availabilityOnly=action==='respond'&&body.availabilityOnly===true
+    const current = await loadActionableMatchCard(auth.service, existing.id, availabilityOnly?cleanText(body.messageId):'')
     if (!current.ok) return Response.json(current, {status: current.status})
-    if (!nativeMatchTargetIsCurrent(action, body.messageId, current.messageId, current.metadata)) {
+    if (availabilityOnly?!await canReplyNativeAvailability(auth.service,{teamName:selected.team_name,leagueName:selected.league_name,flight:selected.flight},existing.id,current.messageId,current.metadata):!nativeMatchTargetIsCurrent(action, body.messageId, current.messageId, current.metadata)) {
       return Response.json({ok:false,message:'The match changed. Refresh Match day.'}, {status:409})
     }
     if (action === 'ack_final_lineup') {
