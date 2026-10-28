@@ -1,3 +1,4 @@
+import {withAppleAccess} from './apple-effective-access'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { buildProductAccessState } from './access-model-core'
 import { normalizeSubscriptionStatus } from './subscription-status'
@@ -38,7 +39,8 @@ export async function getPlayerApiAuth(request: Request): Promise<PlayerApiAuth>
   const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth
 
-  const access = await loadPlayerAccess(auth.supabase, auth.userId)
+  let access:Awaited<ReturnType<typeof loadPlayerAccess>>
+  try{access=await loadPlayerAccess(auth.supabase,auth.userId)}catch{return {ok:false,response:Response.json({ok:false,message:'Account access is temporarily unavailable.'},{status:503})}}
   if (!access.canUseAdvancedPlayerInsights) {
     return {
       ok: false,
@@ -93,7 +95,7 @@ export async function loadPlayerAccess(supabase: SupabaseClient, userId: string)
     .maybeSingle()
 
   const row = (data ?? {}) as ProfileEntitlementRow
-  return buildProductAccessState(normalizeUserRole(row.role), {
+  return buildProductAccessState(normalizeUserRole(row.role), await withAppleAccess(supabase,userId,{
     playerPlusSubscriptionActive: Boolean(row.player_plus_subscription_active),
     playerPlusSubscriptionStatus: normalizeSubscriptionStatus(row.player_plus_subscription_status),
     playerPlusAccessExpiresAt: row.player_plus_access_expires_at ?? null,
@@ -106,7 +108,7 @@ export async function loadPlayerAccess(supabase: SupabaseClient, userId: string)
     tiqTeamLeagueEntryEnabled: Boolean(row.tiq_team_league_entry_enabled),
     tiqIndividualLeagueCreatorEnabled: Boolean(row.tiq_individual_league_creator_enabled),
     leagueAccessExpiresAt: row.league_access_expires_at ?? null,
-  })
+  }))
 }
 
 function getBearerToken(request: Request) {

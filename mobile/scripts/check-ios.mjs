@@ -33,3 +33,8 @@ assert.equal(((await read('ios/App/App.xcodeproj/project.pbxproj')).match(/CODE_
 const privacy=spawnSync(process.platform==='win32'?'python':'python3',[fileURLToPath(new URL('scripts/validate-ios-privacy.py',root)),fileURLToPath(new URL('ios/App/App/Info.plist',root))],{encoding:'utf8'})
 assert.equal(privacy.status,0,privacy.stderr || privacy.error?.message || 'Camera privacy plist validation failed')
 console.log(privacy.stdout.trim())
+
+assert.match(await read('ios/App/App/Base.lproj/Main.storyboard'),/customClass="TenAceIQBridgeViewController"/)
+assert.deepEqual(await readFile(new URL('ios/App/App/TenAceIQPurchases.swift',root)),await readFile(new URL('native/TenAceIQPurchases.swift',root)))
+assert.match(await read('ios/App/App.xcodeproj/project.pbxproj'),/TenAceIQPurchases.swift in Sources/)
+console.log('Native StoreKit bridge sources and registration match the reviewed source.')

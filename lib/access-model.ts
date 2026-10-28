@@ -1,73 +1,20 @@
 'use client'
-
-import { supabase } from './supabase'
-import {
-  DEFAULT_ENTITLEMENTS,
-  normalizeSubscriptionStatus,
-  type ProductEntitlementRow,
-  type ProductEntitlementSnapshot,
-} from './access-model-core'
-
+import {Capacitor,CapacitorHttp} from '@capacitor/core'
+import {supabase} from './supabase'
+import {parseAccountAccess} from './account-access-contract'
+import type {ProductEntitlementSnapshot} from './access-model-core'
 export * from './access-model-core'
-
-export async function getClientEntitlementSnapshot(
-  userId: string | null | undefined,
-): Promise<ProductEntitlementSnapshot | null> {
-  if (!userId) return null
-
-  try {
-    const result = await supabase
-      .from('profiles')
-      .select(
-        'player_plus_subscription_active, player_plus_subscription_status, player_plus_access_expires_at, coach_subscription_active, coach_subscription_status, coach_access_expires_at, captain_subscription_active, captain_subscription_status, captain_access_expires_at, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled, league_access_expires_at',
-      )
-      .eq('id', userId)
-      .maybeSingle()
-
-    let data = result.data
-    if (result.error) {
-      const legacyResult = await supabase
-        .from('profiles')
-        .select(
-          'captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
-        )
-        .eq('id', userId)
-        .maybeSingle()
-
-      if (legacyResult.error) throw legacyResult.error
-      data = legacyResult.data
-        ? {
-            ...legacyResult.data,
-            player_plus_subscription_active: false,
-            player_plus_subscription_status: 'inactive',
-            player_plus_access_expires_at: null,
-            coach_subscription_active: false,
-            coach_subscription_status: 'inactive',
-            coach_access_expires_at: null,
-            captain_access_expires_at: null,
-            league_access_expires_at: null,
-          }
-        : null
-    }
-
-    const row = (data || null) as ProductEntitlementRow | null
-    if (!row) return DEFAULT_ENTITLEMENTS
-
-    return {
-      playerPlusSubscriptionActive: Boolean(row.player_plus_subscription_active),
-      playerPlusSubscriptionStatus: normalizeSubscriptionStatus(row.player_plus_subscription_status),
-      playerPlusAccessExpiresAt: row.player_plus_access_expires_at ?? null,
-      coachSubscriptionActive: Boolean(row.coach_subscription_active),
-      coachSubscriptionStatus: normalizeSubscriptionStatus(row.coach_subscription_status),
-      coachAccessExpiresAt: row.coach_access_expires_at ?? null,
-      captainSubscriptionActive: Boolean(row.captain_subscription_active),
-      captainSubscriptionStatus: normalizeSubscriptionStatus(row.captain_subscription_status),
-      captainAccessExpiresAt: row.captain_access_expires_at ?? null,
-      tiqTeamLeagueEntryEnabled: Boolean(row.tiq_team_league_entry_enabled),
-      tiqIndividualLeagueCreatorEnabled: Boolean(row.tiq_individual_league_creator_enabled),
-      leagueAccessExpiresAt: row.league_access_expires_at ?? null,
-    }
-  } catch {
-    return null
-  }
+export async function getClientEntitlementSnapshot(userId:string|null|undefined):Promise<ProductEntitlementSnapshot|null>{
+ if(!userId)return null
+ try{
+  const before=await supabase.auth.getSession()
+  if(before.error||before.data.session?.user.id!==userId)return null
+  const headers={Authorization:'Bearer '+before.data.session.access_token}
+  const response=Capacitor.isNativePlatform()
+   ?await CapacitorHttp.get({url:'https://www.tenaceiq.com/api/auth/access',headers,responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000})
+   :await fetch('/api/auth/access',{headers,cache:'no-store',redirect:'error',signal:AbortSignal.timeout(12000)}).then(async r=>({status:r.status,data:await r.json()}))
+  const after=await supabase.auth.getSession()
+  if(after.error||after.data.session?.user.id!==userId||response.status!==200)return null
+  return parseAccountAccess(response.data)?.entitlements||null
+ }catch{return null}
 }

@@ -20,7 +20,7 @@ describe('authenticated access snapshot route', () => {
 
   it('returns a complete non-cacheable role and entitlement snapshot', () => {
     expect(source).toContain('role: normalizeUserRole(row?.role ?? \'member\')')
-    expect(source).toContain('entitlements: toEntitlements(row)')
+    expect(source).toContain('entitlements=await withAppleAccess(database,userId,toEntitlements(row),true)')
     expect(source).toContain("'Cache-Control': 'no-store'")
     expect(source).toContain('captainSubscriptionActive')
     expect(source).toContain('tiqTeamLeagueEntryEnabled')

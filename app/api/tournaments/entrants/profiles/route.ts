@@ -1,3 +1,4 @@
+import {withAppleAccess} from '@/lib/apple-effective-access'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { buildProductAccessState } from '@/lib/access-model-core'
 import { normalizeSubscriptionStatus } from '@/lib/subscription-status'
@@ -147,7 +148,7 @@ async function getRequesterUser(token: string) {
   }
 
   const profile = (profileResult.data || {}) as ProfileEntitlementRow
-  const access = buildProductAccessState(normalizeUserRole(profile.role), {
+  const access = buildProductAccessState(normalizeUserRole(profile.role), await withAppleAccess(supabase,userId,{
     playerPlusSubscriptionActive: Boolean(profile.player_plus_subscription_active),
     playerPlusSubscriptionStatus: normalizeSubscriptionStatus(profile.player_plus_subscription_status),
     playerPlusAccessExpiresAt: profile.player_plus_access_expires_at || null,
@@ -160,7 +161,7 @@ async function getRequesterUser(token: string) {
     tiqTeamLeagueEntryEnabled: Boolean(profile.tiq_team_league_entry_enabled),
     tiqIndividualLeagueCreatorEnabled: Boolean(profile.tiq_individual_league_creator_enabled),
     leagueAccessExpiresAt: profile.league_access_expires_at || null,
-  })
+  }))
   if (!access.canUseLeagueTools) {
     return {
       ok: false as const,

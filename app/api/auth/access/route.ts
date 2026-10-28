@@ -1,3 +1,4 @@
+import {withAppleAccess} from '@/lib/apple-effective-access'
 import { createClient } from '@supabase/supabase-js'
 import type { ProductEntitlementSnapshot } from '@/lib/access-model-core'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
@@ -100,9 +101,11 @@ export async function GET(request: Request) {
   }
 
   const row = result.data as ProfileAccessRow | null
+  let entitlements:ProductEntitlementSnapshot
+  try{entitlements=await withAppleAccess(database,userId,toEntitlements(row),true)}catch{return Response.json({ok:false,message:'Account access is temporarily unavailable.'},{status:503,headers:{'Cache-Control':'no-store'}})}
   const access = {
     role: normalizeUserRole(row?.role ?? 'member') as UserRole,
-    entitlements: toEntitlements(row),
+    entitlements,
   }
   void cacheServerAccountRole(userId, access.role)
 
