@@ -1,3 +1,4 @@
+import {showPublicSignIn,type PublicBrowseAccess} from './public-browse-access'
 import {directoryFollowItem} from './directory-follow-data'
 import {showDirectoryFollow} from './directory-follow-control'
 import {followedLeagueRows,type FollowedLeagueScope} from './followed-entities'
@@ -13,7 +14,7 @@ const count=(value:unknown)=>typeof value==='number' && Number.isFinite(value) &
 export function leagueDetails(row:LeagueCard) {
   return `<h1 tabindex="-1">${html(row.leagueName)}</h1><p>${[row.flight,row.ustaSection,row.districtArea].filter(Boolean).map(html).join(' · ') || 'Area unavailable'}</p><dl><dt>Season</dt><dd>${html([row.year,row.season].filter(Boolean).join(' ') || 'Unavailable')}</dd><dt>Teams in directory</dt><dd>${count(row.teamCount)}</dd><dt>Matches in summary</dt><dd>${count(row.matchCount)}</dd><dt>Latest recorded match</dt><dd>${html(matchDate(row.latestMatchDate))}</dd></dl><p>Counts reflect the available directory summary, not a complete season record.</p>`
 }
-export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',initial?:{team?:TeamChoice;league?:FollowedLeagueScope;back?:()=>void}) {
+export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',initial?:{team?:TeamChoice;league?:FollowedLeagueScope;back?:()=>void},access?:PublicBrowseAccess) {
   let disposed=false,request=0,selected=false,scroll=0
   let previousFocus:HTMLElement|null=null
   let roster:ReturnType<typeof showTeamRoster>|null=null
@@ -43,8 +44,9 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
     if(!valid())return
     open(`<h1 tabindex="-1">${html(team.name)}</h1><p>${html(team.league || 'League unavailable')} · ${html(team.flight || 'Flight unavailable')}</p><p>${team.source==='observation'?'Public source observation':'Recorded team context'}</p><div id="team-follow-control"></div><h2>Recorded fixtures</h2><div id="team-records" aria-live="polite"></div><div id="team-roster-details"></div>`)
     const version=request,content=detail.querySelector<HTMLElement>('#team-records')!
-    const follow=directoryFollowItem(team);if(follow){const host=detail.querySelector<HTMLElement>('#team-follow-control')!;showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}
-    roster=showTeamRoster(detail.querySelector<HTMLElement>('#team-roster-details')!,client,team,()=>valid()&&request===version)
+    if(access)showPublicSignIn(detail.querySelector<HTMLElement>('#team-follow-control')!,access,()=>valid()&&selected&&request===version)
+    const follow=directoryFollowItem(team);if(!access&&follow){const host=detail.querySelector<HTMLElement>('#team-follow-control')!;showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}
+    if(!access)roster=showTeamRoster(detail.querySelector<HTMLElement>('#team-roster-details')!,client,team,()=>valid()&&request===version)
     const load=async()=>{
       content.innerHTML='<p role="status">Loading team records…</p>'
       try {
@@ -77,7 +79,7 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
         const filtered=filterLeagues(initial?.league?followedLeagueRows(result.rows,initial.league):result.rows,text),rows=filtered.slice(0,12)
         status.textContent=`${filtered.length} league record${filtered.length===1?'':'s'} found. Showing ${rows.length}.${filtered.length>12?' Search a name, flight, or area to narrow the list.':''}${result.notice?' '+result.notice:''}`
         choices.innerHTML=rows.length?`<ul class="player-choices">${rows.map((league,index)=>`<li><h2>${html(league.leagueName)}</h2><p>${[league.year,league.season,league.flight,league.ustaSection,league.districtArea].filter(Boolean).map(html).join(' · ') || 'Area unavailable'}</p><button type="button" class="secondary" data-choice="${index}">View league<span class="sr-only"> ${html(league.leagueName)} ${html([league.year,league.season,league.flight].filter(Boolean).join(' '))}</span></button></li>`).join('')}</ul>`:initial?.league?'<p>No matching seasons in the available league summary. Return to Following or check again later.</p>':'<p>No leagues found. Try another name or area.</p>'
-        choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>{if(valid()){const row=rows[Number(control.dataset.choice)];open(leagueDetails(row));const follow=directoryFollowItem(row),version=request;if(follow){const host=document.createElement('div');detail.append(host);showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}}}})
+        choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>{if(valid()){const row=rows[Number(control.dataset.choice)];open(leagueDetails(row));const follow=directoryFollowItem(row),version=request;if(access){const host=document.createElement('div');detail.append(host);showPublicSignIn(host,access,()=>valid()&&selected&&request===version)}else if(follow){const host=document.createElement('div');detail.append(host);showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}}}})
       }
     } catch {
       if(!valid() || version!==request)return

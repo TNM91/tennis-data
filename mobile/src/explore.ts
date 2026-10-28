@@ -1,3 +1,4 @@
+import {showPublicSignIn,type PublicBrowseAccess} from './public-browse-access'
 import {showPlayerRosterTeams} from './player-roster-view'
 import {showPlayerProfileHeader} from './player-profile-header-view'
 import {createPlayerProfileFormat} from './player-profile-format'
@@ -14,7 +15,7 @@ export function playerSummary(player: PlayerChoice) {
   return `<h1 tabindex="-1">${html(player.name)}</h1><dl><dt>Location</dt><dd>${html(player.location || 'Location unavailable')}</dd><dt>Flight</dt><dd>${html(player.flight || 'Flight unavailable')}</dd></dl>`
 }
 
-export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string;localMatches?:boolean;scrollHost?:HTMLElement;hideRootBack?:boolean;onPlayerChange?:(player:PlayerChoice)=>void},initialTerm='') {
+export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string;localMatches?:boolean;scrollHost?:HTMLElement;hideRootBack?:boolean;onPlayerChange?:(player:PlayerChoice)=>void},initialTerm='',access?:PublicBrowseAccess) {
   let roster:ReturnType<typeof showPlayerRosterTeams>|null=null
   let header:ReturnType<typeof showPlayerProfileHeader>|null=null
   let performance: ReturnType<typeof showPlayerPerformance> | null = null
@@ -76,14 +77,17 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     playerPanel.querySelector<HTMLButtonElement>('#back-explore')!.onclick = back
     playerPanel.querySelector<HTMLElement>('h1')!.focus()
     window.scrollTo(0,0)
-    matchDetails = createMatchDetails(app,client,valid,{backLabel:'Back to player',sideLabel:player.name,local:initial?.localMatches,scrollHost:initial?.scrollHost})
-    showFollowControl(playerPanel.querySelector<HTMLElement>('#player-follow')!,client,player,()=>valid() && version===request)
+    matchDetails = createMatchDetails(app,client,valid,{backLabel:'Back to player',sideLabel:player.name,local:access?true:initial?.localMatches,scrollHost:initial?.scrollHost,publicBrowse:access})
+    if(!access)showFollowControl(playerPanel.querySelector<HTMLElement>('#player-follow')!,client,player,()=>valid() && version===request)
     const rosterDisclosure=playerPanel.querySelector<HTMLDetailsElement>('#explore-roster')!
-    rosterDisclosure.ontoggle=()=>{if(rosterDisclosure.open&&!roster&&valid()&&version===request)roster=showPlayerRosterTeams(playerPanel.querySelector<HTMLElement>('#explore-roster-content')!,client,player.id,()=>valid()&&version===request)}
+    rosterDisclosure.hidden=Boolean(access)
+    if(access)showPublicSignIn(playerPanel.querySelector<HTMLElement>('#player-follow')!,access,()=>valid()&&version===request)
+    rosterDisclosure.ontoggle=()=>{if(!access&&rosterDisclosure.open&&!roster&&valid()&&version===request)roster=showPlayerRosterTeams(playerPanel.querySelector<HTMLElement>('#explore-roster-content')!,client,player.id,()=>valid()&&version===request)}
+    if(access)for(const selector of ['#explore-journey','#explore-performance'])playerPanel.querySelector<HTMLElement>(selector)!.hidden=true
     const format=createPlayerProfileFormat()
-    header=showPlayerProfileHeader(playerPanel.querySelector<HTMLElement>('#explore-profile-header')!,client,player,()=>valid()&&version===request,format,target=>{if(!valid()||version!==request)return;const element=playerPanel.querySelector<HTMLElement>(target==='overview'?'#explore-profile-header h1':target==='results'?'#explore-performance [data-match-history-title], #explore-results-title':target==='journey'?'#explore-journey h2':'#explore-performance h2');if(!element)return;element.tabIndex=-1;element.scrollIntoView({block:'start'});element.focus({preventScroll:true})})
-    journey=showPlayerJourney(playerPanel.querySelector<HTMLElement>('#explore-journey')!,client,player.id,()=>valid() && version===request,format,data=>{if(valid()&&version===request)header?.history(data)})
-    performance=showPlayerPerformance(playerPanel.querySelector<HTMLElement>('#explore-performance')!,client,player.id,()=>valid() && version===request,next=>{if(!valid()||version!==request||next.id===player.id)return;profileHistory.push({player});void open(next,true)},(data,state)=>{if(valid()&&version===request)header?.performance(data,state)},format,player.name,row=>{if(valid()&&version===request)matchDetails?.open(row,player.id)})
+    header=showPlayerProfileHeader(playerPanel.querySelector<HTMLElement>('#explore-profile-header')!,client,player,()=>valid()&&version===request,format,access?undefined:target=>{if(!valid()||version!==request)return;const element=playerPanel.querySelector<HTMLElement>(target==='overview'?'#explore-profile-header h1':target==='results'?'#explore-performance [data-match-history-title], #explore-results-title':target==='journey'?'#explore-journey h2':'#explore-performance h2');if(!element)return;element.tabIndex=-1;element.scrollIntoView({block:'start'});element.focus({preventScroll:true})},Boolean(access))
+    if(!access)journey=showPlayerJourney(playerPanel.querySelector<HTMLElement>('#explore-journey')!,client,player.id,()=>valid() && version===request,format,data=>{if(valid()&&version===request)header?.history(data)})
+    if(!access)performance=showPlayerPerformance(playerPanel.querySelector<HTMLElement>('#explore-performance')!,client,player.id,()=>valid() && version===request,next=>{if(!valid()||version!==request||next.id===player.id)return;profileHistory.push({player});void open(next,true)},(data,state)=>{if(valid()&&version===request)header?.performance(data,state)},format,player.name,row=>{if(valid()&&version===request)matchDetails?.open(row,player.id)})
     const content = playerPanel.querySelector<HTMLElement>('#explore-results')!
     const load = async () => {
       content.innerHTML = '<p role="status">Loading recent matches…</p>'
