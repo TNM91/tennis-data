@@ -81,6 +81,8 @@ import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
 import { playerRecentRecord } from '@/lib/player-recent-record'
+import { PLAYER_RECENT_MATCH_LIMIT, playerMatchHistoryQuery } from '@/lib/player-match-history'
+import { matchupOutcome } from '@/lib/matchup-outcome'
 import {publishedUstaRating,publishedUstaLabel} from '@/lib/published-usta-rating'
 import { playerLevelPath } from '@/lib/player-level-path'
 import { playerResultBreakdown } from '@/lib/player-result-breakdown'
@@ -1442,12 +1444,18 @@ function MyLabPageInner() {
         .order('snapshot_date', { ascending: false })
         .order('id', { ascending: false })
         .limit(12)
-      const { data: playerMatchRefs } = await supabase
-        .from('match_players')
-        .select('match_id')
-        .eq('player_id', linkedPlayerIdForWorkshop)
-        .limit(80)
-      const { data: ratingSnapshotRows, error: ratingSnapshotsError } = await ratingSnapshotsRequest
+      const [
+        {data: personalMatchRows, error: personalMatchesError},
+        {data: ratingSnapshotRows, error: ratingSnapshotsError},
+      ] = await Promise.all([
+        playerMatchHistoryQuery(supabase, linkedPlayerIdForWorkshop)
+          .limit(PLAYER_RECENT_MATCH_LIMIT)
+          .abortSignal(AbortSignal.timeout(12000)),
+        ratingSnapshotsRequest,
+      ])
+      if (personalMatchesError) {
+        setError('Your personal match history could not be loaded. Refresh My Lab to try again.')
+      }
 
       if (ratingSnapshotsError) {
         console.warn('Rating Journey snapshots unavailable:', ratingSnapshotsError.message)
@@ -1466,24 +1474,17 @@ function MyLabPageInner() {
         })),
       )
 
-      const personalMatchIds = [...new Set((playerMatchRefs || []).map((row) => row.match_id).filter(Boolean))]
+      const personalMatchIds = (personalMatchRows || []).map(row => row.id)
 
       if (personalMatchIds.length) {
-        const [
-          { data: personalMatchRows },
-          { data: personalParticipantRows },
-        ] = await Promise.all([
-          supabase
-            .from('matches')
-            .select('id, match_date, match_type, league_name, score, winner_side')
-            .in('id', personalMatchIds)
-            .order('match_date', { ascending: false })
-            .limit(8),
-          supabase
-            .from('match_players')
-            .select('match_id, player_id, side, seat, players(id, name)')
-            .in('match_id', personalMatchIds),
-        ])
+        const {data: personalParticipantRows, error: participantsError} = await supabase
+          .from('match_players')
+          .select('match_id, player_id, side, seat, players(id, name)')
+          .in('match_id', personalMatchIds)
+          .abortSignal(AbortSignal.timeout(12000))
+        if (participantsError) {
+          setError('Your personal scorecards could not be loaded. Refresh My Lab to try again.')
+        }
 
         const participantsByMatch = new Map<string, PersonalParticipantRow[]>()
         for (const row of (personalParticipantRows || []) as unknown as PersonalParticipantRow[]) {
@@ -1515,12 +1516,8 @@ function MyLabPageInner() {
                   name: player?.name || 'Player',
                 }
               })
-            const result =
-              playerSide && match.winner_side
-                ? playerSide === match.winner_side
-                  ? 'W'
-                  : 'L'
-                : '-'
+            const outcome = matchupOutcome(playerSide, match.winner_side)
+            const result = outcome === 'A' ? 'W' : outcome === 'B' ? 'L' : '-'
 
             return {
               id: match.id,

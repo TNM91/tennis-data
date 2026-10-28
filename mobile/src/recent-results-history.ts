@@ -1,3 +1,4 @@
+import {playerMatchHistoryQuery} from '../../lib/player-match-history'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {RecentMatchRow} from './recent-results'
 import {isValidCalendarDate} from '../../lib/calendar-date'
@@ -16,7 +17,7 @@ export function appendRecentHistory(loaded:RecentMatchRow[],page:unknown,playerI
 export async function loadOlderResults(client:SupabaseClient,playerId:string,loaded:RecentMatchRow[]){
  if(!uuid.test(playerId)||!loaded.length||loaded.length>=RECENT_HISTORY_LIMIT)throw Error('Refresh your profile before loading older matches.')
  const count=Math.min(20,RECENT_HISTORY_LIMIT-loaded.length)
- const {data,error}=await client.from('matches').select('id,match_date,match_type,league_name,score,winner_side,match_players!inner(player_id,side)').eq('match_players.player_id',playerId).order('match_date',{ascending:false,nullsFirst:false}).order('id',{ascending:false}).range(loaded.length,loaded.length+count).abortSignal(AbortSignal.timeout(12000))
+ const {data,error}=await playerMatchHistoryQuery(client,playerId).range(loaded.length,loaded.length+count).abortSignal(AbortSignal.timeout(12000))
  if(error)throw Error('Older matches unavailable.')
  return appendRecentHistory(loaded,data,playerId,count)
 }

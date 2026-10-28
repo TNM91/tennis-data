@@ -1,15 +1,8 @@
 import {matchupOutcome} from '../../lib/matchup-outcome'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export type RecentMatchRow = {
-  id: string
-  match_date: string | null
-  match_type: string | null
-  league_name: string | null
-  score: string | null
-  winner_side: string | null
-  match_players: { player_id: string; side: string | null }[]
-}
+export type {PlayerMatchHistoryRow as RecentMatchRow} from '../../lib/player-match-history'
+import {PLAYER_RECENT_MATCH_LIMIT, playerMatchHistoryQuery, type PlayerMatchHistoryRow as RecentMatchRow} from '../../lib/player-match-history'
 
 export function matchResult(row: RecentMatchRow, playerId: string): 'Won' | 'Lost' | 'Result pending' {
   const participant = row.match_players.find(player => player.player_id === playerId)
@@ -27,13 +20,7 @@ export function matchDate(value: string | null): string {
 }
 
 export async function loadRecentResults(client: SupabaseClient, playerId: string) {
-  // Inner join filters the parent matches before ordering/limiting, so older
-  // participation rows cannot hide the player's newest results.
-  return client.from('matches')
-    .select('id,match_date,match_type,league_name,score,winner_side,match_players!inner(player_id,side)')
-    .eq('match_players.player_id', playerId)
-    .order('match_date', { ascending: false, nullsFirst: false })
-    .order('id', { ascending: false })
-    .limit(10)
+  return playerMatchHistoryQuery(client, playerId)
+    .limit(PLAYER_RECENT_MATCH_LIMIT)
     .abortSignal(AbortSignal.timeout(12000))
 }
