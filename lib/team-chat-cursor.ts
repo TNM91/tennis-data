@@ -1,3 +1,4 @@
+export const teamChatMessageId=(v:unknown):v is string=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v)
 /** A strict tuple cursor preserves PostgreSQL microseconds and deterministic UUID ties. */
 export function readTeamChatCursor(value:unknown):{createdAt:string;id:string}|null {
  if(typeof value!=='string' || value.length>100)return null

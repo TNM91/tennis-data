@@ -1,11 +1,12 @@
 import {namedChatRoomId,namedChatRoomName,type NamedChatRoom} from '../../lib/named-team-chat-rooms'
 import {readChatMentions,type ChatMention} from '../../lib/team-chat-mentions'
-import {readTeamChatCursor} from '../../lib/team-chat-cursor'
+import {readTeamChatCursor,teamChatMessageId} from '../../lib/team-chat-cursor'
 import {parseChatReactions,type ChatReaction} from './chat-reactions'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 export class TeamRoomAccessError extends Error {}
 export type TeamScope={teamName:string;leagueName:string;flight:string;chatRoomId?:string}
+export type TeamChatDestination=TeamScope & {messageId?:string}
 export type ReplacementRequest={courtLabel:string;outgoingPlayerName:string;replacementPlayerName:string;afterPlayers:string[];response:'accepted'|'declined'|'';deadlineAt:string;token:string;canRespond:boolean}
 export function parseReplacement(value:unknown):ReplacementRequest|null{const row=record(value);if(!str(row.courtLabel)||!str(row.replacementPlayerName)||!Array.isArray(row.afterPlayers)||!/^[a-f0-9]{64}$/.test(str(row.token)))return null;const response=row.response==='accepted'||row.response==='declined'?row.response:'';return {courtLabel:str(row.courtLabel).slice(0,80),outgoingPlayerName:str(row.outgoingPlayerName).slice(0,120),replacementPlayerName:str(row.replacementPlayerName).slice(0,120),afterPlayers:row.afterPlayers.filter((v):v is string=>typeof v==='string').slice(0,4).map(v=>v.slice(0,120)),response,deadlineAt:str(row.deadlineAt).slice(0,40),token:str(row.token),canRespond:row.canRespond===true&&!response}}
 export type TeamMessage={mentions?:ChatMention[];editedAt?:string;canManageOwn?:boolean;response?:string;hasPhoto?:boolean;isGif?:boolean;reactions?:ChatReaction[];id:string;senderUserId:string;senderName:string;body:string;kind:string;createdAt:string;deletedAt:string;isMine:boolean;replyToMessageId:string;hasAttachment:boolean;card:{availabilityReady?:boolean;replacement?:ReplacementRequest|null;cardType?:string;lineupVersion?:number;acknowledged?:boolean;completed?:boolean;published?:boolean;arrivals?:{profileId:string;status:string;playerName:string;courtLabel:string}[];matchDate:string;opponent:string;facility:string;matchTime:string;state:string;lineup:{label:string;players:string[];defaulted:boolean}[]}|null}
@@ -46,7 +47,8 @@ export async function loadTeamRoom(client:SupabaseClient,userId:string,isCurrent
  if(selected && parsed.room && (parsed.room.teamName!==selected.teamName || parsed.room.leagueName!==selected.leagueName || parsed.room.flight!==selected.flight))throw Error('Team scope mismatch')
  return parsed
 }
-export async function loadTeamChatUpdate(client:SupabaseClient,userId:string,isCurrent:()=>boolean,selected:TeamScope,roomId:string,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options),before='') {
+export async function loadTeamChatUpdate(client:SupabaseClient,userId:string,isCurrent:()=>boolean,selected:TeamScope,roomId:string,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options),before='',focus='') {
+ if(focus&&(!teamChatMessageId(focus)||before))throw Error('Invalid conversation message')
  if(before && !readTeamChatCursor(before))throw Error('Invalid conversation page')
  const {data,error}=await client.auth.getSession()
  if(error || data.session?.user.id!==userId || !isCurrent())throw Error('Sign in again to open your team.')
@@ -54,14 +56,18 @@ export async function loadTeamChatUpdate(client:SupabaseClient,userId:string,isC
  for(const [key,value] of [['team',selected.teamName],['league',selected.leagueName],['flight',selected.flight],['chatUpdates','1']])url.searchParams.set(key,value)
  if(selected.chatRoomId)url.searchParams.set('chatRoom',selected.chatRoomId)
  if(before)url.searchParams.set('before',before)
+ if(focus)url.searchParams.set('focus',focus)
  const response=await send({url:url.toString(),headers:{Authorization:`Bearer ${data.session.access_token}`},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000})
  if(response.status===401 || response.status===403)throw new TeamRoomAccessError('Team access is unavailable.')
  const root=record(response.data),room=record(root.room)
  if(response.status!==200 || root.ok!==true || root.chatUpdate!==true || !Array.isArray(room.blockedUserIds) || room.id!==roomId)throw Error('Conversation updates are unavailable.')
  if((before || root.beforeCursor!==undefined) && root.beforeCursor!==before)throw Error('Conversation page mismatch')
+ const focusCursor=typeof root.focusCursor==='string'?root.focusCursor:''
+ if(focus&&(root.focusMessageId!==focus||readTeamChatCursor(focusCursor)?.id!==focus)||!focus&&(root.focusMessageId!==undefined||root.focusCursor!==undefined))throw Error('Conversation message mismatch')
  const nextCursor=typeof root.nextCursor==='string'?root.nextCursor:''
  if(nextCursor && !readTeamChatCursor(nextCursor))throw Error('Invalid conversation page')
  const parsed=parseTeamData({ok:true,teams:[selected],room:{...selected,...room,members:[]}}).room!
+ if(focus&&!parsed.messages.some(m=>m.id===focus))throw Error('Conversation message missing')
  if(selected.chatRoomId&&parsed.chatRoom?.id!==selected.chatRoomId)throw Error('Conversation scope mismatch')
- return {...(selected.chatRoomId?{chatRoom:parsed.chatRoom}:{}),beforeCursor:before,nextCursor,messages:parsed.messages,lastReadAt:parsed.lastReadAt,blockedUserIds:array(room.blockedUserIds).filter((id):id is string=>typeof id==='string').slice(0,1000)}
+ return {...(focus?{focusMessageId:focus,focusCursor}:{}),...(selected.chatRoomId?{chatRoom:parsed.chatRoom}:{}),beforeCursor:before,nextCursor,messages:parsed.messages,lastReadAt:parsed.lastReadAt,blockedUserIds:array(room.blockedUserIds).filter((id):id is string=>typeof id==='string').slice(0,1000)}
 }

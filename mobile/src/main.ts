@@ -1,3 +1,4 @@
+import type {TeamChatDestination} from './team-room-data'
 import {nativeActionIcon} from './native-action-icons'
 import {labRecentFormHtml} from './lab-recent-form'
 import {labLevelPathHtml} from './lab-level-path'
@@ -15,7 +16,6 @@ import {showExplore as showPlayerDetail} from './explore'
 import {openLevelUp} from './level-up-view'
 import {createTeamNavigationGuard} from './navigation-warning'
 import {labIdentityHtml,labActionsHtml} from './lab-home'
-import type {TeamScope} from './team-room-data'
 import {createNativePush} from './native-push'
 import { showTeamRoom } from './team-room-view'
 import { showComparison } from './comparison-view'
@@ -174,7 +174,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="matchup"]')!.onclick=
   })
 }
 
-function openTeamRoom(initialScope?:TeamScope){
+function openTeamRoom(initialScope?:TeamChatDestination){
   if(comparison?.isNotebookOpen()){comparison.back();return}
   if(goals?.isOpen()){goals.back();return}
   if(!session || connection?.isSaving())return

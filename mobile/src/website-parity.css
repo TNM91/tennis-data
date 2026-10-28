@@ -753,3 +753,5 @@ body.native-chat-conversation .chat-match-card .chat-match-open{background:trans
 .availability-reply-lists p{margin:0;color:#a8bfd6;font-size:.9rem}
 
 .availability-reply-about{margin-block:14px;color:#aec6df;font-size:.85rem}.availability-reply-about summary{min-block-size:44px;display:flex;align-items:center;cursor:pointer;color:#a7d7ff}
+
+.availability-reminder-names{display:grid;gap:10px;padding-inline-start:20px;min-inline-size:0}.availability-reminder-names li{overflow-wrap:anywhere;line-height:1.5}

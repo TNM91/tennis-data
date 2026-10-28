@@ -5,11 +5,12 @@ import {PushNotifications,type PushNotificationsPlugin} from '@capacitor/push-no
 import type {Session,SupabaseClient} from '@supabase/supabase-js'
 import type {SupportedStorage} from '@supabase/auth-js'
 import {getNativeAuthStorage} from '../../lib/native-auth-storage'
-import type {TeamScope} from './team-room-data'
+import {teamChatMessageId} from '../../lib/team-chat-cursor'
+import type {TeamChatDestination} from './team-room-data'
 const storageKey='native-push-installation-v1'
 type Installation={id:string;secret:string;owner:string}
 type PushReply={ok:boolean;available?:boolean}
-export function pushTeamDestination(data:unknown,userId:string):TeamScope|null {
+export function pushTeamDestination(data:unknown,userId:string):TeamChatDestination|null {
  const row=data && typeof data==='object'?data as Record<string,unknown>:{}
  if(row.recipient!==userId || typeof row.href!=='string' || !row.href.startsWith('/team-room?') || row.href.length>1200)return null
  const url=new URL(row.href,'https://www.tenaceiq.com')
@@ -17,7 +18,8 @@ export function pushTeamDestination(data:unknown,userId:string):TeamScope|null {
  const teamName=url.searchParams.get('team') || '',leagueName=url.searchParams.get('league') || '',flight=url.searchParams.get('flight') || ''
  if(!teamName || !leagueName || [teamName,leagueName,flight].some(value=>value.length>200))return null
  const chatRoomId=url.searchParams.get('chatRoom');if(chatRoomId!==null&&!namedChatRoomId(chatRoomId))return null
- return {teamName,leagueName,flight,...(chatRoomId?{chatRoomId}:{})}
+ const messageId=url.searchParams.get('message');if(url.searchParams.getAll('message').length>1||messageId!==null&&!teamChatMessageId(messageId))return null
+ return {teamName,leagueName,flight,...(messageId?{messageId}:{}),...(chatRoomId?{chatRoomId}:{})}
 }
 export async function nativePushRequest(session:Session,data?:unknown,transport=CapacitorHttp):Promise<PushReply>{
  const options={url:'https://www.tenaceiq.com/api/mobile/push',headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json'},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:12000}
@@ -25,7 +27,7 @@ export async function nativePushRequest(session:Session,data?:unknown,transport=
  if(response.status!==200 || response.data?.ok!==true)throw Error('Team alert settings could not be saved.')
  return response.data
 }
-export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamScope)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;request?:(session:Session,data?:unknown)=>Promise<PushReply>}={}) {
+export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;request?:(session:Session,data?:unknown)=>Promise<PushReply>}={}) {
  const supported=(deps.platform || Capacitor.getPlatform())==='ios'
  const plugin=deps.plugin || PushNotifications,storage=deps.storage || (supported?getNativeAuthStorage():undefined),request=deps.request || nativePushRequest
  let disposed=false,resumeHandle:PluginListenerHandle|null=null,initialized=false,current:Session|null=null,version=0,host:HTMLElement|null=null,installation:Installation|null=null,available=false,busy=false,notice='Checking team alerts…',actionHandle:PluginListenerHandle|null=null

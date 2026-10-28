@@ -66,8 +66,8 @@ export async function publishNativeAvailability(service:SupabaseClient,owner:str
 }
 
 /** Caller has rechecked accepted team membership and current conversation access. */
-export async function canReplyNativeAvailability(service:SupabaseClient,scope:TeamRoomScope,roomId:string,id:string,metadata:Record<string,unknown>){
- if(metadata.cardType!=='availability'||metadata.matchCompletedAt||!fixtureId(metadata.matchId)||!fixtureId(object(metadata.nativeAvailabilityRequest).id)||typeof metadata.matchDate!=='string'||metadata.matchDate<seasonToday())return false
+export async function nativeAvailabilityFixtureOpen(service:SupabaseClient,scope:TeamRoomScope,roomId:string,id:string,metadata:Record<string,unknown>){
+ if(!['availability','projected_lineup'].includes(String(metadata.cardType))||metadata.matchCompletedAt||!fixtureId(metadata.matchId)||typeof metadata.matchDate!=='string'||metadata.matchDate<seasonToday())return false
  const escaped=scope.teamName.replace(/\\/g,'\\\\').replace(/"/g,'\\"')
  let q=service.from('matches').select('id,match_date,match_time,home_team,away_team,facility,status,score,league_name,flight,line_number,match_type').eq('league_name',scope.leagueName).eq('match_date',metadata.matchDate).is('line_number',null).or(`home_team.eq."${escaped}",away_team.eq."${escaped}"`)
  q=scope.flight?q.eq('flight',scope.flight):q.or('flight.is.null,flight.eq.')
@@ -76,5 +76,8 @@ export async function canReplyNativeAvailability(service:SupabaseClient,scope:Te
  const rows=(matches.data||[]).map(row=>publicTeamFixture(row,scope)).filter(Boolean)
  if(rows.length!==1)return false
  const fixture=rows[0]!
- return fixture.id===metadata.matchId&&fixture.time===metadata.matchTime&&fixture.facility===metadata.facility&&fixtureOpponent(fixture,scope)===metadata.opponent&&!fixtureCancelled(fixture)&&!fixture.score&&!/^(completed?|final|played)$/i.test(fixture.status)
+ return fixture.id===metadata.matchId&&(metadata.cardType==='projected_lineup'||fixture.time===metadata.matchTime&&fixture.facility===metadata.facility)&&fixtureOpponent(fixture,scope)===metadata.opponent&&!fixtureCancelled(fixture)&&!fixture.score&&!/^(completed?|final|played)$/i.test(fixture.status)
 }
+
+/** The existing independent reply path remains restricted to newly created native requests. */
+export async function canReplyNativeAvailability(service:SupabaseClient,scope:TeamRoomScope,roomId:string,id:string,metadata:Record<string,unknown>){return metadata.cardType==='availability'&&fixtureId(object(metadata.nativeAvailabilityRequest).id)?nativeAvailabilityFixtureOpen(service,scope,roomId,id,metadata):false}
