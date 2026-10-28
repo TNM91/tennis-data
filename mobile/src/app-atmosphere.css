@@ -2,10 +2,10 @@
 body[data-screen]:not(.native-chat-conversation) { isolation:isolate; position:relative; background:#041426; }
 .app-atmosphere { display:none; position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
 body[data-screen]:not(.native-chat-conversation) .app-atmosphere { display:block; }
-.app-court-backdrop { position:absolute; top:62px; right:0; width:min(100%,760px); height:auto; max-height:calc(100dvh - 70px); object-fit:contain; object-position:top right; opacity:.38; }
-/* My Lab uses the court once inside its scoreboard, avoiding duplicate figures/balls. */
-body[data-screen="lab"]:has(.lab-scoreboard) .app-court-backdrop { display:none; }
-.app-brand-watermark { position:absolute; right:16px; bottom:126px; width:min(68vw,370px); height:auto; object-fit:contain; opacity:.065; }
+.app-court-backdrop { position:absolute; top:78px; right:0; width:min(100%,760px); height:auto; max-height:min(46dvh,400px); object-fit:contain; object-position:top right; opacity:.6; }
+/* The scoreboard owns its court scene and keeps the TiQ mark in a separate title row. */
+body[data-screen="lab"]:has(.lab-scoreboard) :is(.app-court-backdrop,.app-brand-watermark) { display:none; }
+.app-brand-watermark { position:absolute; right:16px; bottom:126px; width:min(52vw,280px); height:auto; object-fit:contain; opacity:.09; }
 body[data-screen]:not(.native-chat-conversation) .app-header { padding:16px 2px 14px; border-color:#29445c; }
 body[data-screen]:not(.native-chat-conversation) main { padding-top:20px; }
 body[data-screen]:not(.native-chat-conversation) main>section:not(.lab-scoreboard) { background:#091f34ed; border-color:#25435d; box-shadow:0 12px 30px #0002; }
@@ -22,15 +22,15 @@ body[data-screen="lab"]:not(.native-chat-conversation) main { padding-top:0; }
 .lab-scoreboard-intro h1 { font-size:32px; font-weight:800; letter-spacing:-.045em; line-height:1.12; margin:5px 0 3px; }
 .lab-scoreboard-intro p { font-size:12px; color:#a9c4d9; line-height:18px; margin:0; }
 .lab-scoreboard-intro .lab-profile-action { background:#0c2b43; border-color:#315774; color:#b4dfff; }
-body[data-screen="lab"] section.lab-scoreboard { position:relative; margin-top:0; padding:16px 18px 8px; background:#031326 url('./brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png') no-repeat right 12px / min(85%,320px) auto; border:1px solid #3e6d8c; border-radius:24px; box-shadow:0 20px 40px #0004; }
-.lab-scoreboard h2 { color:#b7d9ef; margin:0; font-size:15px; font-weight:650; letter-spacing:0; }
+body[data-screen="lab"] section.lab-scoreboard { position:relative; margin-top:0; padding:16px 18px 8px; background:#031326; border:1px solid #3e6d8c; border-radius:24px; box-shadow:0 20px 40px #0004; }
+.lab-scoreboard h2 { padding-right:76px; color:#b7d9ef; margin:0; font-size:15px; font-weight:650; letter-spacing:0; }
 .lab-scoreboard .lab-rating-chart { gap:0; margin:4px 0 0; }
-.lab-scoreboard .lab-rating-chart>div:first-child { position:relative; min-height:0; padding:12px 0 10px; background:transparent; border:0; border-radius:0; overflow:visible; }
+.lab-scoreboard .lab-rating-chart>div:first-child { position:relative; min-height:clamp(180px,48vw,254px); padding:12px 0 10px; background:transparent url('./brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png') no-repeat right center / min(100%,480px) auto; border:0; border-radius:0; overflow:visible; }
 .lab-scoreboard .lab-rating-chart>div:first-child>dt,.lab-scoreboard .lab-rating-chart>div:first-child>dd { margin-left:0; margin-right:0; }
 .lab-scoreboard .lab-rating-chart>div:first-child>dt { font-size:12px; letter-spacing:.16em; color:#add0eb; }
 .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { margin:4px 0 0; font-size:82px; line-height:1; font-weight:800; letter-spacing:-.06em; color:#f5faff; }
-.lab-scoreboard .rating-brand-mark { position:absolute; right:0; top:27px; width:124px; height:62px; object-fit:contain; opacity:.2; }
-.lab-scoreboard .lab-rating-chart>div:first-child .rating-note { max-width:none; margin:5px 0 0; font-size:10px; color:#b4cee0; }
+.lab-scoreboard .rating-brand-mark { position:absolute; right:0; top:-32px; width:64px; height:32px; object-fit:contain; opacity:.72; }
+.lab-scoreboard .lab-rating-chart>div:first-child .rating-note { max-width:58%; margin:5px 0 0; font-size:10px; color:#b4cee0; }
 .lab-scoreboard .lab-rating-chart>div:first-child .rating-scale { margin:13px 0 0; max-width:58%; }
 .lab-scoreboard .lab-rating-chart>div:not(:first-child) { padding:10px 14px; border:0; border-top:1px solid #335674; background:#0c2943cc; border-radius:0; }
 .lab-scoreboard .lab-rating-chart>div:nth-child(2) { border-right:1px solid #335674; border-radius:14px 0 0 14px; }
@@ -73,7 +73,6 @@ body[data-screen]:not(.native-chat-conversation) .tennis-tool-grid button.tennis
  .lab-scoreboard-intro h1 { font-size:29px; }
  body[data-screen="lab"] section.lab-scoreboard { padding:16px 14px 6px; }
  .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { font-size:76px; }
- .lab-scoreboard .rating-brand-mark { width:100px; height:50px; top:34px; }
  .native-explore-hero h1 { font-size:32px; }
 }
 

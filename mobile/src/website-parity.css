@@ -479,8 +479,8 @@ body.native-chat-conversation main#app { position:fixed; top:env(safe-area-inset
 .chat-room-options-panel .chat-tool-row { display:block; }
 .chat-room-options-panel .team-hub { margin:12px 0; }
 .chat-room-options-panel #refresh-team,.chat-room-options-panel #join-team { margin-top:8px; }
-body.native-chat-conversation #team-panel { display:flex; flex:1; flex-direction:column; min-height:0; overflow:visible; }
-body.native-chat-conversation .team-conversation { flex:1; min-height:0; max-height:none; margin:4px 0 8px; padding:0 0 8px; overflow-y:auto; border:0; border-radius:0; background:transparent; }
+body.native-chat-conversation #team-panel { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0; overflow:visible; }
+body.native-chat-conversation .team-conversation { flex:1; min-width:0; min-height:0; max-height:none; margin:4px 0 8px; padding:0 0 8px; overflow-y:auto; border:0; border-radius:0; background:transparent; }
 body.native-chat-conversation .chat-history-heading { flex-shrink:0; gap:6px; margin:0; }
 body.native-chat-conversation .chat-history-heading button.secondary { min-width:0; padding:6px 8px; min-height:40px; font-size:11px; background:transparent; border:0; color:#a8c1dd; }
 body.native-chat-conversation .chat-history-heading:not(:has(button:not([hidden]))) { display:none; }
@@ -695,6 +695,8 @@ body.native-chat-conversation .chat-reaction-choices .chat-reaction-choice:activ
 .poll-review-options{padding-inline-start:24px}.poll-review-options li{padding-block:6px}.poll-close{margin-block-start:18px}.poll-close summary{padding-block:12px}
 /* Shared match plans stay in the conversation; details open only when needed. */
 body.native-chat-conversation .team-bubble-match{max-inline-size:100%;inline-size:100%;box-sizing:border-box;margin-inline:0;background:transparent;padding:0;border:0;box-shadow:none}
+/* Full-width plan cards have no bubble inset to absorb reaction overhang. */
+body.native-chat-conversation .team-bubble-match>.chat-reactions{margin-inline:0}
 body.native-chat-conversation .chat-match-card{box-sizing:border-box;min-inline-size:0;max-inline-size:100%;padding:18px;border:1px solid #4b9fd665;border-radius:20px;background:linear-gradient(145deg,#0c2b49,#081c33 68%);box-shadow:inset 0 1px #89ceff12,0 12px 30px #010b1829;color:#eff7ff;text-align:left;overflow-wrap:anywhere}
 body.native-chat-conversation .chat-match-kicker{display:flex;align-items:center;gap:8px;color:#83cbff;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
 body.native-chat-conversation .chat-match-kicker svg{inline-size:18px;block-size:18px;flex:0 0 18px}
