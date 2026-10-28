@@ -2778,7 +2778,7 @@ async function loadNativeTeamFixtures(service:SupabaseClient,userId:string,selec
 async function loadNativeChatSearch(service:SupabaseClient,userId:string,selected:TeamLinkRow,query:string,kind:string,before:string){
  const conversation=await findNativeChatConversation(service,selected);if(!conversation.ok)return conversation
  const loaded=await searchTeamChatRows(service,userId,conversation.id,query,kind,before);if(!loaded.ok)return loaded
- try{const profiles=await loadProfileMap(service,loaded.rows.map(row=>row.sender_user_id));return {ok:true as const,chatSearch:1,roomId:conversation.id,query:loaded.query,kind:loaded.kind,beforeCursor:loaded.beforeCursor,nextCursor:loaded.nextCursor,results:loaded.rows.map(row=>publicChatSearchResult(row,profiles.get(row.sender_user_id)?.message_display_name?.trim()||profiles.get(row.sender_user_id)?.linked_player_name?.trim()||'Team member',conversation.id,loaded.query))}}
+ try{const profiles=await loadProfileMap(service,loaded.rows.map(row=>row.sender_user_id));return {ok:true as const,chatSearch:1,roomId:conversation.id,query:loaded.query,kind:loaded.kind,beforeCursor:loaded.beforeCursor,nextCursor:loaded.nextCursor,results:loaded.rows.map(row=>publicChatSearchResult(row,profiles.get(row.sender_user_id)?.message_display_name?.trim()||profiles.get(row.sender_user_id)?.linked_player_name?.trim()||'Team member',conversation.id,loaded.query,loaded.kind))}}
  catch{return {ok:false as const,status:503}}
 }
 

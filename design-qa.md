@@ -1251,3 +1251,14 @@ A notification for an availability card older than the newest 75 messages opens 
 Forty-four long unbroken names and a long opponent label remain contained at 320x568, 390x844, 430x932 and 768x1024. Root scroll widths equal 320/390/430/768; open dialog client/scroll widths equal 271/341/381/503. Confirmation controls are 48–50px high. The long sheet scrolls vertically. Existing navy surfaces, electric-blue accents and approved brand artwork are preserved. Console error count: zero in the final bounded pass.
 
 Private evidence: build147-native-qa.json, build147-reminder-review-390.png, build147-reminder-long-320.png and build147-older-alert-390.png in the local Apple release evidence folder. All positive flows use synthetic team/player services: production writes and notifications are zero. Physical iPhone acceptance remains pending. This records local interaction/layout QA; distribution gates are tracked separately.
+
+
+## Candidate 148 — compact Team plans
+
+Actual native-entry synthetic QA: one Team plans row lives inside the existing Team menu; no extra conversation-header button. Shared cards appear before an optional collapsed search form. Four contained collection controls filter matches, polls and practice invitations, with a visible selected state and a sticky Close control. Match cards show opponent/date/type and one Open match in chat action. Poll/practice actions open the existing native sheet. Result counts receive focus; returning from a child restores the selected collection, query and initiating action. Closing restores focus to the visible Team control and retains the conversation draft.
+
+An older November request opens with its exact heading focused, while Match day still retains the active October lineup. A named Practice room lists only its own invitation and opens its exact conversation message with the room draft retained. Missing-message handling preserves the conversation; revoked access clears private content. Failed browsing supports explicit exact-part retry; closing a slow read discards its late result. Empty results retain usable collection/search/close controls. No production data or notifications were written.
+
+Long unbroken opponents at 320x568, 390x844, 430x932 and 768x1024: root scroll widths equal the viewport; dialog client/scroll widths equal 275/345/385/503. Collection controls are 46px high; sticky Close is 50px high. Two columns on phones become four on tablet. The selected collection has a contrasting blue surface/border and underline rather than relying on text color alone. Existing navy surfaces and approved artwork are retained. Final bounded browser console error count: zero.
+
+Private evidence: build148-native-qa.json, build148-team-plans-390.png, build148-team-plans-long-320.png and build148-older-match-390.png in the local Apple evidence folder. Physical iPhone acceptance remains pending. Local layout/interaction evidence is separate from distribution gates.
