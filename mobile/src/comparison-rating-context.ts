@@ -1,5 +1,5 @@
 import {trajectoryGeometry} from '../../lib/rating-trajectory'
-import {ratingSignal} from '../../lib/rating-signal'
+import {publishedUstaLabel} from '../../lib/published-usta-rating'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {ComparedPlayer} from './comparison-data'
 import type {RatingView} from '../../lib/player-rating-display'
@@ -13,18 +13,18 @@ const validRating=(value:unknown):value is number=>typeof value==='number'&&Numb
 export function sharedComparisonCards(players:ComparedPlayer[],view:RatingView){
  if(![2,4].includes(players.length))return ''
  const engine=players.length===4?'doubles':'singles',split=players.length/2,sides=[players.slice(0,split),players.slice(split)]
- const average=(side:ComparedPlayer[],track:'tiq'|'usta',kind:RatingView)=>{const values=side.map(p=>p.ratings?.[(track==='tiq'?`${kind}_dynamic_rating`:`${kind}_usta_dynamic_rating`) as keyof NonNullable<ComparedPlayer['ratings']>]);return values.every(validRating)?values.reduce((sum,n)=>sum+n,0)/values.length:null}
+ const average=(side:ComparedPlayer[],kind:RatingView)=>{const values=side.map(p=>p.ratings?.[`${kind}_dynamic_rating` as keyof NonNullable<ComparedPlayer['ratings']>]);return values.every(validRating)?values.reduce((sum,n)=>sum+n,0)/values.length:null}
  const projection=(side:ComparedPlayer[])=>{const values=side.map(p=>p.ratings?.[`${engine}_dynamic_rating`]??p.ratings?.overall_dynamic_rating);return values.every(validRating)?values.reduce((sum,n)=>sum+n,0)/values.length:null}
  const projections=sides.map(projection)
  return '<div class="website-ui website-comparison-cards">'+sides.map((side,index)=>{
-  const self=side.some(p=>p.ratings?.rating_source==='self'),tiq=average(side,'tiq',view),usta=average(side,'usta',view),diff=tiq!==null&&usta!==null?tiq-usta:null
-  const tone=self?'self':diff===null?'none':ratingSignal(diff).tone,signal=self?'Self-rated - verified results will replace the S signal.':diff===null?'':`${ratingSignal(diff).label} - TIQ signal ${diff>=0?'+':''}${diff.toFixed(2)}`
+  const self=side.some(p=>p.ratings?.rating_source==='self')
+  const tone=self?'self':'none',signal=self?'Self-rated — verified results will build your TIQ estimate.':''
   const favored=projections.every(validRating)&&projections[index]!>projections[1-index]!
-  const values:Record<string,string>={TIQ_COMPARE_TITLE:side.map(p=>p.player.name).join(' / '),TIQ_COMPARE_SUBTITLE:players.length===4?index===0?'Your side':'Other side':side[0].player.location||'No location set',TIQ_COMPARE_PROJECTION:formatRating(projections[index])+(self?' S':''),TIQ_COMPARE_SIGNAL:signal}
-  for(const kind of ['overall','singles','doubles'] as const){const value=average(side,'tiq',kind);values['TIQ_TIQ_'+kind.toUpperCase()]=formatRating(value)+(self&&value!==null?' S':'');values['TIQ_USTA_'+kind.toUpperCase()]=self?'Pending':formatRating(average(side,'usta',kind))}
+  const values:Record<string,string>={TIQ_COMPARE_TITLE:side.map(p=>p.player.name).join(' / '),TIQ_COMPARE_SUBTITLE:players.length===4?index===0?'Your side':'Other side':side[0].player.location||'No location set',TIQ_COMPARE_PROJECTION:formatRating(projections[index])+(self?' S':''),TIQ_COMPARE_SIGNAL:signal,TIQ_USTA_CURRENT:side.map(p=>(side.length>1?p.player.name+': ':'')+publishedUstaLabel(p.ratings)).join(' / ')}
+  for(const kind of ['overall','singles','doubles'] as const){const value=average(side,kind);values['TIQ_TIQ_'+kind.toUpperCase()]=formatRating(value)+(self&&value!==null?' S':'')}
   const key=`${view}:${Number(favored)}:${tone}` as keyof typeof websiteUi.compareCards
   return websiteUi.compareCards[key].replace('Singles projection rating',engine==='doubles'?'Doubles projection rating':'Singles projection rating').replace(/TIQ_[A-Z_]+/g,key=>html(values[key]??key))
- }).join('')+'</div><p class="rating-context">USTA dynamic is a recorded estimate, not an official USTA rating. Missing split ratings stay blank; projection ratings may use Overall. Side ratings average both players only when both are recorded.</p>'
+ }).join('')+'</div><p class="rating-context">TIQ provides the dynamic Overall, Singles and Doubles estimates. USTA current shows each player’s verified published level; missing levels stay pending. TIQ side ratings average both players only when both are recorded.</p>'
 }
 export type RatingSnapshot={id:string;player_id:string;rating_type:string;snapshot_date:string;dynamic_rating:number|null;delta:number|null;track:'tiq'}
 export type PlayerRatingHistory={playerId:string;overall:RatingSnapshot[];specific:RatingSnapshot[];moreOverall:boolean;moreSpecific:boolean;unavailable:boolean}

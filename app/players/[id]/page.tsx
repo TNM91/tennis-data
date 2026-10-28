@@ -1,4 +1,6 @@
 'use client'
+
+import {publishedUstaRating} from '@/lib/published-usta-rating'
 import {PlayerSeasonReview} from '../../components/player-season-review'
 import {playerSeasonReview} from '../../../lib/player-season-review'
 import {PlayerIdentityHeader,PlayerEvidenceRail} from '../../components/player-profile-header'
@@ -42,11 +44,8 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import { buildProductAccessState } from '@/lib/access-model'
 import {
   formatRatingValue,
-  hasVerifiedUstaBaseline,
   getRatingViewLabel,
   getTiqRating,
-  getUstaDynamicRating,
-  getUstaRating,
 } from '@/lib/player-rating-display'
 import {
   listTiqPlayerParticipations,
@@ -885,20 +884,11 @@ function PlayerProfileContent() {
 
   const selectedDynamicRating = useMemo(() => getTiqRating(player, ratingView), [player, ratingView])
   const selectedTiqEvidence = getTiqEvidence(player, ratingView)
-  const ustaDynamicRating = useMemo(() => getUstaDynamicRating(player, ratingView), [player, ratingView])
-  const hasPendingUstaBaseline = !hasVerifiedUstaBaseline(player)
+  const hasPendingUstaBaseline = publishedUstaRating(player)===null
   const isSelfRatedProfile = isSelfRatedPlayer(player)
   const hasInferredUstaBaseline = hasInferredAdultFlightBaseline(player)
 
-  const staticOverall = useMemo(() => getUstaRating(player, 'overall'), [player])
-  const staticSingles = useMemo(() => getUstaRating(player, 'singles'), [player])
-  const staticDoubles = useMemo(() => getUstaRating(player, 'doubles'), [player])
-
-  const baseRating = useMemo(() => {
-    if (ratingView === 'singles') return staticSingles
-    if (ratingView === 'doubles') return staticDoubles
-    return staticOverall
-  }, [ratingView, staticSingles, staticDoubles, staticOverall])
+  const baseRating = publishedUstaRating(player) ?? 3.5
 
   const nextThreshold = useMemo(
     () => getNextThreshold(selectedDynamicRating),
@@ -2521,7 +2511,6 @@ function PlayerProfileContent() {
 
                 <div style={dynamicFocusMetrics}>
                   <StatChip label={canViewExactTiqRating ? 'TIQ' : 'TIQ 🔒'} value={selectedTiqRatingLabel} accent />
-                  <StatChip label="USTA-match estimate" value={hasPendingUstaBaseline ? 'Pending' : ustaDynamicRating.toFixed(2)} />
                   <StatChip label="USTA Base" value={hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)} />
                   <StatChip label="Trend" value={hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'} />
                   <StatChip label="Rating history" value={ratingHistoryLabel} />
@@ -2869,11 +2858,6 @@ function PlayerProfileContent() {
           <article style={{ ...statCard, ...statCardAccentGreen }}>
             <div style={statLabel}>TIQ {ratingViewLabel}</div>
             <div style={statValue}>{selectedTiqRatingLabel}</div>
-          </article>
-
-          <article style={statCard}>
-            <div style={statLabel}>USTA-match estimate {ratingViewLabel}</div>
-            <div style={statValue}>{hasPendingUstaBaseline ? 'Pending' : ustaDynamicRating.toFixed(2)}</div>
           </article>
 
           <article style={statCard}>

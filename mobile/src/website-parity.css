@@ -644,3 +644,7 @@ body.native-chat-conversation .chat-reply-context button.secondary { grid-column
  .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { font-size:62px; }
  .lab-scoreboard .rating-court-art { top:25px; height:112px; width:40%; }
 }
+
+/* Keep the three TIQ format labels on one line at narrow phone widths. */
+.website-comparison-cards [data-comparison-rating-grid]>div { padding:14px 8px; }
+.website-comparison-cards [data-comparison-rating-grid]>div>div:first-child { white-space:nowrap; }
