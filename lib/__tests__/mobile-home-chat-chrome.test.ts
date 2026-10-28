@@ -23,8 +23,8 @@ describe('conversation-first chrome and recorded home scoreboard',()=>{
  it('shows the same recorded numbers and fallbacks while preserving source context and approved art',()=>{
   const player={overall_dynamic_rating:4.249,singles_dynamic_rating:null,doubles_dynamic_rating:4.4,rating_source:'self'}
   const markup=ratingsHtml(player,true,true)
-  expect(markup).toContain('4.25');expect(markup).toContain('4.40');expect(markup).toContain('Overall used');expect(markup).toContain('Self-rated TIQ');expect(markup).toContain('About these ratings');expect(markup).toContain('not official USTA ratings');expect(markup).toContain('./brand/courts/tiq-court-approved-20261024-v2.png');expect(markup).not.toContain('lab-level-path')
-  expect(ratingsHtml(player,true)).toContain('lab-level-path');expect(ratingsHtml(player)).not.toContain('rating-court-art')
+  expect(markup).toContain('4.25');expect(markup).toContain('4.40');expect(markup).toContain('Overall used');expect(markup).toContain('Self-rated TIQ');expect(markup).toContain('About these ratings');expect(markup).toContain('not official USTA ratings');expect(markup).toContain('./brand/approved/TiQ_White_Transparent_Refined.png');expect(markup).not.toContain('lab-level-path')
+  expect(ratingsHtml(player,true)).toContain('lab-level-path');expect(ratingsHtml(player)).not.toContain('rating-brand-mark')
   expect(ratingsHtml({...player,rating_source:null},true,true)).toContain('Source unavailable')
   expect(ratingsHtml(null,true,true)).not.toContain('<meter')
  })
