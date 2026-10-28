@@ -1,10 +1,10 @@
 # Native accounts and automatic deletion — build 150 candidate
 
-Status: local candidate, not production activated. The owner selected automated fulfillment, replacing the unapproved manual seven-day staffing proposal. Production permission changes still need review. No real account has been erased by this candidate.
+Build 150 candidate. The approved production schema is installed with private tables, RLS, service-only functions and the reviewed shared-author references. Member activation is a separate gate after controlled provider verification. The runtime release evidence is kept with the candidate.
 
 ## Member experience
 
-Email-code signup/sign-in creates a Free account using the existing inactive paid-plan defaults. Account settings include recovery, existing web billing and permanent deletion. A deletion request requires a remotely verified email, password/OTP authentication within ten minutes, explicit consent to erasure and cancellation of existing TenAceIQ web billing, and typed DELETE. The service derives account/email from Auth. Retries return the original request; queued does not mean deleted.
+Email-code signup/sign-in accepts six- or eight-digit provider codes (the October 28 read-only provider check showed eight digits) and creates a Free account using the existing inactive paid-plan defaults. Account settings include recovery, existing web billing and permanent deletion. A deletion request requires a remotely verified email, password/OTP authentication within ten minutes, explicit consent to erasure and cancellation of existing TenAceIQ web billing, and typed DELETE. The service derives account/email from Auth. Retries return the original request; queued does not mean deleted.
 
 The account is signed out as processing begins. Automatic cleanup finishes within seven days and sends completion email. Club owners must hand off ownership first, and the last platform administrator cannot be removed. Unsupported file ownership, schema changes or ambiguous billing stop processing rather than guessing. Apple subscriptions must be canceled in Apple subscription settings; this adds no native purchasing.
 
@@ -22,7 +22,7 @@ Claims use a two-minute lease and random fencing token. A stale worker cannot ad
 
 ## Database and schema guard
 
-The first unapplied migration creates private request/rate-limit tables. The second adds opt-in automation state and service-only functions, replaces readiness/request/review behavior, and changes 17 shared-author references to nullable ON DELETE SET NULL. Existing client insert/update checks still require the acting author. No role or business ownership is automatically transferred.
+The first migration creates private request/rate-limit tables. The second adds opt-in automation state and service-only functions, replaces readiness/request/review behavior, and changes 17 shared-author references to nullable ON DELETE SET NULL. Existing client insert/update checks still require the acting author. No role or business ownership is automatically transferred.
 
 The privileged worker derives destructive targets from a consented leased request, not caller IDs. Anonymous/authenticated access is revoked. Readiness checks all 1,981 audited public columns, account/profile FKs, and the exact two reviewed delete-signal triggers. Future schema changes require a fresh erasure review/contract update. Never bypass a mismatch.
 
@@ -30,15 +30,15 @@ The PostgreSQL fixture includes all audited public columns/types/nullability, 30
 
 ## Configuration and cost
 
-Activation requires ACCOUNT_ERASURE_ENABLED=true and the audited ACCOUNT_ERASURE_MAX_JWT_SECONDS value, plus existing service/mail/billing credentials. No production activation flag has been set.
+Activation requires ACCOUNT_ERASURE_ENABLED=true and the audited ACCOUNT_ERASURE_MAX_JWT_SECONDS value, plus existing service/mail/billing credentials. Set the activation flag only after the approved schema and controlled provider test are verified.
 
 The proposed protected cron runs every 15 minutes: 96 empty queue reads/day, about 2,880/month. Idle runs do not contact Auth, Storage, Stripe or email. Each invocation processes one leased job, with a 40-second worker budget and 60-second route cap. An accepted request also starts one after-response attempt. Existing collectors/reminders are unchanged. No paid preview or infrastructure upgrade is required.
 
 ## Verification and release gates
 
-Local tests use disposable synthetic accounts, PostgreSQL and mocked provider calls. They cover owner isolation, reauthentication/consent, failed preflight, stale leases, refresh revocation, Storage isolation, private contact copies, quoted content, moderation preservation, cross-customer billing rejection and honest email failure.
+Local tests use disposable synthetic accounts, PostgreSQL (with both LF and CRLF checkouts) and mocked provider calls. They cover owner isolation, reauthentication/consent, failed preflight, stale leases, refresh revocation, Storage isolation, private contact copies, quoted content, moderation preservation, cross-customer billing rejection and honest email failure.
 
-Before activation: complete full repository/native verification and exact-head CI; review the two migrations and retention copy; apply/verify only reviewed SQL; confirm Auth expiry and private grants; run a dedicated temporary provider account through signup/deletion. Resend's labeled delivered@resend.dev recipients support delivery simulation without another inbox. Do not print OTPs/tokens. A signed-in test must wait for its actual token expiry. Simulation does not establish delivery to a human inbox.
+Before activation: complete full repository/native verification and exact-head CI; review the two migrations and retention copy; apply/verify only reviewed SQL; confirm Auth expiry and private grants; run a dedicated temporary provider account through signup/deletion. Resend's labeled delivered@resend.dev recipients support delivery simulation without another inbox. Do not print OTPs/tokens. A signed-in test must wait for its actual token expiry. Simulation does not establish delivery to a human inbox. Free members retain the existing profile-upload restriction; provider cleanup fixtures are service-uploaded under only the disposable account's two reviewed path formats. Auth-owned object selection is also covered by the PostgreSQL fixture.
 
 No existing member is a test target. Public submission, physical iPhone/accessibility acceptance, storefront/payment behavior and published retention/backup acceptance remain separate gates.
 

@@ -399,6 +399,6 @@ Official references: [App Review Guidelines](https://developer.apple.com/app-sto
 
 Adds native email-code signup/sign-in, Account settings, recovery, existing web billing and explicitly consented automatic permanent deletion. The previous manual staffing proposal is superseded.
 
-The durable worker verifies exact ownership, revokes sessions and waits for existing JWT expiry, removes personal files/data, handles uniquely owned web billing, preserves shared structures, verifies Auth removal and sends completion confirmation. The admin page observes failures rather than certifying deletion. New service permissions and 17 shared-author FK changes require migration approval; production remains inactive.
+The durable worker verifies exact ownership, revokes sessions and waits for existing JWT expiry, removes personal files/data, handles uniquely owned web billing, preserves shared structures, verifies Auth removal and sends completion confirmation. The admin page observes failures rather than certifying deletion. The approved schema adds service-only cleanup permissions and 17 shared-author FK changes. Activate member access only after the controlled provider test and candidate verification pass.
 
 See [native account lifecycle](native-account-lifecycle.md) for schema coverage, bounded retries/cost, retained records and controlled provider testing. Real temporary-account execution and physical-device acceptance remain release gates. This is not public App Store approval.

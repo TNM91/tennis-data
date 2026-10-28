@@ -18,5 +18,5 @@ it('never applies a late, failed or wrong-owner code result to secure account st
  await expect(verifyNativeAccountCode(main,'player@example.test','123456',()=>current,owner,late as never)).rejects.toThrow('closed');expect(apply).not.toHaveBeenCalled()
  current=true;const wrong={verifyOtp:vi.fn(async()=>({...result,data:{...result.data,user:{id:'another-owner',email:'player@example.test'}}}))}
  await expect(verifyNativeAccountCode(main,'player@example.test','123456',()=>current,owner,wrong as never)).rejects.toThrow('not verified');expect(apply).not.toHaveBeenCalled()
- const valid={verifyOtp:vi.fn(async()=>result)};apply.mockResolvedValue({error:null});await verifyNativeAccountCode(main,'player@example.test','123456',()=>current,owner,valid as never);expect(apply).toHaveBeenCalledOnce();expect(apply).toHaveBeenCalledWith({access_token:'synthetic-access',refresh_token:'synthetic-refresh'})
+ const valid={verifyOtp:vi.fn(async()=>result)};apply.mockResolvedValue({error:null});for(const token of ['123456','12345678']){await verifyNativeAccountCode(main,'player@example.test',token,()=>current,owner,valid as never);expect(valid.verifyOtp).toHaveBeenLastCalledWith({email:'player@example.test',token,type:'email'})}expect(apply).toHaveBeenCalledTimes(2);expect(apply).toHaveBeenCalledWith({access_token:'synthetic-access',refresh_token:'synthetic-refresh'})
 })
