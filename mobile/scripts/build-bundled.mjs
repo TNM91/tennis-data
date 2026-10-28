@@ -1,7 +1,7 @@
 import './build-website-ui.mjs'
 import {scopeNativeStyles} from './style-scope.mjs'
 import { build } from 'esbuild'
-import { mkdir, copyFile, writeFile, readFile } from 'node:fs/promises'
+import { mkdir, copyFile, writeFile, readFile, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 const root = new URL('../', import.meta.url)
@@ -19,9 +19,10 @@ await copyFile(new URL('src/app-atmosphere.css', root), new URL('bundled/app-atm
 await copyFile(new URL('generated/website-ui.css', root), new URL('bundled/website-ui.css', root))
 await mkdir(new URL('bundled/brand/courts/',root),{recursive:true})
 await mkdir(new URL('bundled/brand/approved/',root),{recursive:true})
-await mkdir(new URL('bundled/brand/social/',root),{recursive:true})
 await copyFile(new URL('../../public/brand/approved/TiQ_White_Transparent_Refined.png',import.meta.url),new URL('bundled/brand/approved/TiQ_White_Transparent_Refined.png',root))
-await copyFile(new URL('../../public/brand/social/og-background-v2.png',import.meta.url),new URL('bundled/brand/social/og-background-v2.png',root))
+await copyFile(new URL('../../public/brand/courts/tiq-native-ace-serve-20261027-v1.png',import.meta.url),new URL('bundled/brand/courts/tiq-native-ace-serve-20261027-v1.png',root))
+// Retire the unused multi-ball mobile copy; the website's original stays in public/brand.
+await rm(new URL('bundled/brand/social/og-background-v2.png',root),{force:true})
 await mkdir(new URL('bundled/tiq/tokens/',root),{recursive:true})
 await copyFile(new URL('../../public/brand/courts/tiq-court-approved-20261024-v2.png',import.meta.url),new URL('bundled/brand/courts/tiq-court-approved-20261024-v2.png',root))
 await copyFile(new URL('../../public/tiq/tokens/tennis-ball-reference.png',import.meta.url),new URL('bundled/tiq/tokens/tennis-ball-reference.png',root))
