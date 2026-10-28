@@ -1,3 +1,4 @@
+import type {PublicBrowseAccess} from './public-browse-access'
 import websiteUi from '../generated/website-ui.json'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { showExplore as showPlayers } from './explore'
@@ -13,7 +14,7 @@ export const exploreTools=[
  {category:'Rankings',title:'Check rankings',detail:'Compare the field by recorded TIQ rating.'},
 ] as const
 export function exploreHomeHtml(){return `<div class="native-explore-hero"><h1 tabindex="-1">Find players, teams, leagues.</h1><form id="native-search"><label class="sr-only" for="native-search-kind">Search category</label><select id="native-search-kind" name="category"><option value="Players">Players</option><option value="Teams">Teams</option><option value="Leagues">Leagues</option><option value="Rankings">Rankings by location</option></select><label class="sr-only" for="native-search-term">Search tennis</label><input id="native-search-term" name="term" type="search" minlength="2" maxlength="80" required placeholder="Search a player, team, league or area"><button type="submit">Search</button></form><div class="website-ui website-explore">${websiteUi.explore}</div></div>`}
-export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initial:Category='Overview') {
+export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initial:Category='Overview',access?:PublicBrowseAccess) {
   let disposed=false
   let currentCategory:Category|null=null
   let active:ReturnType<typeof showPlayers>|ReturnType<typeof showDirectory>|ReturnType<typeof showRankings>|null=null
@@ -27,7 +28,7 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
     active?.dispose();active=null
     app.querySelectorAll<HTMLButtonElement>('[data-category]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.category===category)))
     if(category==='Overview'){content.innerHTML=exploreHomeHtml();content.querySelectorAll<HTMLButtonElement>('[data-native-ui-action]').forEach(b=>{b.onclick=()=>{const action=b.dataset.nativeUiAction||'';if(action==='search'){content.querySelector<HTMLInputElement>('#native-search-term')?.focus();return}if(action.startsWith('explore:'))select(action.slice(8) as ExploreCategory)}});content.querySelector<HTMLFormElement>('#native-search')!.onsubmit=e=>{e.preventDefault();const form=e.currentTarget as HTMLFormElement,fields=new FormData(form),term=String(fields.get('term')||'').trim();if(term.length<2||term.length>80)return;const category=String(fields.get('category')) as ExploreCategory;if(!['Players','Teams','Leagues','Rankings'].includes(category))return;select(category,term)};content.querySelector<HTMLElement>('h1')?.focus();window.scrollTo(0,0);return}
-    active=category==='Players'?showPlayers(content,client,valid,undefined,term):category==='Rankings'?showRankings(content,client,valid,term):showDirectory(content,category,client,valid,term)
+    active=category==='Players'?showPlayers(content,client,valid,undefined,term,access):category==='Rankings'?showRankings(content,client,valid,term,access):showDirectory(content,category,client,valid,term,undefined,access)
   }
   app.querySelectorAll<HTMLButtonElement>('[data-category]').forEach(button=>{button.onclick=()=>select(button.dataset.category as Category)})
   select(initial)

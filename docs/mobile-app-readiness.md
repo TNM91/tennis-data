@@ -1,5 +1,7 @@
 # TenAceIQ mobile readiness — 2026-10-23
 
+> Historical baseline: the October 23 audit below predates the signed iPhone beta. For the current launch gates, use the October 28 public-entry update at the end of this document.
+
 ## Decision
 
 Evaluate Capacitor using an isolated local device harness before selecting a production mobile architecture. Keep the Next.js website and server APIs running as the web platform. Do not set the existing application to static export or submit a remote-website wrapper as the release candidate.
@@ -372,3 +374,22 @@ Linked players with Player access can read/create/edit the same account goals an
 ### Build 70 — goal notebook release guard
 
 Build 69 was withheld from the internal group. Build 70 includes the shared notebook and an atomic non-null-payload condition so an in-flight edit cannot restore an equal-revision website removal. See `docs/mobile-website-parity.md`; all prior scope and physical-device limitations remain.
+
+
+## October 28 — public entry and remaining App Store gates (build 149 candidate)
+
+Build 148 is already in the existing internal TestFlight group. The bundled iPhone app, signing, uploads and APNs have been established since the original audit. Build 149 adds a signed-out welcome and **Explore without signing in** using the existing Players, Teams, Leagues and Rankings views. Public player ratings, recent results and participant scorecards retain their existing source bounds. This improves first-launch usefulness and website parity; it is not a claim that Apple requires guest mode for this account-based product.
+
+Public browsing uses a separate, nonpersistent Supabase client with an isolated storage key, no account session, no native secure storage and no token refresh. It never creates an anonymous user. My Lab, follows, deep Player analytics, roster access, scorecard sharing and team chats retain their authenticated paths. A public profile offers sign-in instead of making private requests. Sign-in closes the public visit, nested dialogs and pending presentation work; late reads or failed sign-in responses cannot replace the next visit. Existing signed-in ownership checks remain intact. Secure account-storage failure still permits public browsing and honestly withholds sign-in.
+
+A bounded anonymous production probe confirmed the existing public profile and latest-results read boundary with no permission changes or writes. Positive lifecycle/navigation QA uses synthetic accounts and data. Physical iPhone keyboard, Dynamic Type, VoiceOver, secure-storage failure and new first-launch acceptance still need device evidence.
+
+Remaining public App Store gates, to resolve before submission:
+
+- Audit and implement account lifecycle and an authenticated deletion path with explicit data-retention/subscription handling; do not substitute a support email or add native signup before this is ready. Apple account-deletion guidance applies when account creation is supported.
+- Choose the offered storefronts and approved purchase/entitlement path. Existing web Stripe integration alone does not establish compliant iPhone purchase, restore, refund or expiry behavior.
+- Reconcile the privacy policy and App Privacy answers with the SDKs and data actually collected; finish age rating, rights, support and store metadata.
+- Prepare a controlled reviewer account and instructions covering the role-gated features, plus screenshots from the actual candidate.
+- Complete physical-device release acceptance and review the final shipping scope before authorizing public App Store submission. Standing beta approval does not authorize public submission or new testers.
+
+Official references: [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), [Account deletion](https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion/), [Complete App Review](https://developer.apple.com/help/app-review/before-submitting-for-review/complete-review).

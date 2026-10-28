@@ -1,3 +1,4 @@
+import type {PublicBrowseAccess} from './public-browse-access'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getRatingViewLabel, type RatingView } from '../../lib/player-rating-display'
 import { html } from './match-details'
@@ -7,7 +8,7 @@ import { createRankingLoader, type RankingRow } from './rankings-data'
 export function rankingCards(rows:RankingRow[]) {
   return `<ol class="player-choices rankings-list">${rows.map((row,index)=>`<li><div class="ranking-heading"><h2>${index+1}. ${html(row.player.name)}</h2><strong class="ranking-value">${html(row.display)}</strong></div><p>${html(row.player.location || 'Location unavailable')}</p><p class="ranking-note">${row.fallback?'Overall TIQ rating used; no separate rating recorded for this view.':'Recorded TIQ rating.'}${row.player.rating_source==='self'?' Self-rated record.':row.player.rating_source==null?' Rating source unavailable.':''}</p><button type="button" class="secondary" data-ranking-player="${index}">View player<span class="sr-only"> ${html(row.player.name)}</span></button></li>`).join('')}</ol>`
 }
-export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='') {
+export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',access?:PublicBrowseAccess) {
   let disposed=false,request=0,view:RatingView='overall',selected=false,scroll=0
   let player:ReturnType<typeof showPlayer>|null=null
   let previousFocus:HTMLElement|null=null
@@ -38,7 +39,7 @@ export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=
       content.querySelectorAll<HTMLButtonElement>('[data-ranking-player]').forEach(button=>{button.onclick=()=>{
         if(!valid())return
         selected=true;scroll=window.scrollY;previousFocus=document.activeElement as HTMLElement|null;list.hidden=true;detail.hidden=false
-        player=showPlayer(detail,client,valid,{player:rows[Number(button.dataset.rankingPlayer)].player,back})
+        player=showPlayer(detail,client,valid,{player:rows[Number(button.dataset.rankingPlayer)].player,back},'',access)
       }})
     } catch {
       if(!valid() || version!==request)return

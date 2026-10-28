@@ -1,3 +1,5 @@
+import {showGuestExplore} from './guest-explore'
+import {PRODUCT_MOTTO} from '../../lib/product-story'
 import type {TeamChatDestination} from './team-room-data'
 import {nativeActionIcon} from './native-action-icons'
 import {labRecentFormHtml} from './lab-recent-form'
@@ -53,6 +55,8 @@ let teamRoom:ReturnType<typeof showTeamRoom>|null=null
 let comparison:ReturnType<typeof showComparison>|null=null
 let following:ReturnType<typeof showFollowing>|null=null
 let explore: ReturnType<typeof showExplore> | null = null
+let guest:ReturnType<typeof showGuestExplore>|null=null
+let storageUnavailable=false
 let session: Session | null = null
 let revision = 0
 let profileOpen=false
@@ -62,7 +66,8 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if(dataImports?.isOpen()){dataImports.back()}
+    if(guest){guest.back()}
+    else if(dataImports?.isOpen()){dataImports.back()}
     else if(leagueOffice?.isOpen()){leagueOffice.back()}
     else if(goals?.isOpen()){goals.back()}
     else if(training?.isOpen()){training.back()}
@@ -79,6 +84,9 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  const visit=++revision
+  guest?.dispose();guest=null
+  document.body.dataset.screen='welcome'
   labRatingTrends?.dispose();labRatingTrends=null
   dataImports?.dispose();dataImports=null
   leagueOffice?.dispose();leagueOffice=null
@@ -98,23 +106,40 @@ function login(message = '') {
   details?.dispose()
   details = null
   app.dataset.state = 'signed-out'
-  app.innerHTML = `<h1>Your tennis, connected.</h1><p>Sign in to see your player profile in My Lab.</p><form><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><p role="alert">${escape(message)}</p><button>Sign in</button></form><button class="secondary" id="forgot-password">Forgot password?</button>${accountLinksHtml}`
+  app.innerHTML = `<div class="native-welcome"><small>Tennis intelligence</small><h1 tabindex="-1">${escape(PRODUCT_MOTTO)}</h1><p>Your game. Your team. Your next ace.</p><button type="button" id="browse-public">Explore without signing in <span aria-hidden="true">↗</span></button><p class="welcome-browse-note">Players, teams, leagues and TIQ rankings.</p><div class="welcome-account"><h2>Your tennis, connected.</h2>${storageUnavailable?'<p role="alert">Secure sign-in storage is unavailable. Close the app and try again to sign in. You can still explore public tennis.</p>':`<p>Sign in for My Lab and your team chats.</p><form><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><p role="alert">${escape(message)}</p><button>Sign in</button></form><button type="button" class="secondary" id="forgot-password">Forgot password?</button>`}</div>${accountLinksHtml}</div>`
+  app.querySelector<HTMLButtonElement>('#browse-public')!.onclick=openGuest
   bindAccountLinks(app)
-  app.querySelector<HTMLButtonElement>('#forgot-password')!.onclick = () => {
+  app.querySelector<HTMLElement>('h1')!.focus({preventScroll:true})
+  const forgot=app.querySelector<HTMLButtonElement>('#forgot-password')
+  if(forgot)forgot.onclick = () => {
     recovery = showPasswordRecovery(app, client, () => login())
   }
-  app.querySelector('form')!.onsubmit = async event => {
+  const signInForm=app.querySelector<HTMLFormElement>('form')
+  if(signInForm)signInForm.onsubmit = async event => {
     event.preventDefault()
     const form = event.currentTarget as HTMLFormElement
+    if(visit!==revision||session||!form.isConnected)return
     const fields = new FormData(form)
     const button = form.querySelector('button')!
     button.disabled = true
     button.textContent = 'Signing in…'
     try {
       const { error } = await client.auth.signInWithPassword({email: String(fields.get('email')).trim(), password: String(fields.get('password'))})
-      if (error) login('Could not sign in. Check your email, password, and connection.')
-    } catch { login('Could not sign in. Check your connection and try again.') }
+      if (error&&visit===revision&&!session&&form.isConnected) login('Could not sign in. Check your email, password, and connection.')
+    } catch { if(visit===revision&&!session&&form.isConnected)login('Could not sign in. Check your connection and try again.') }
   }
+}
+
+function openGuest() {
+  if(session)return
+  recovery?.dispose();recovery=null
+  guest?.dispose();guest=null
+  const visit=++revision
+  navigation.hidden=true
+  document.body.dataset.screen='explore'
+  app.dataset.state='public-explore'
+  window.scrollTo(0,0)
+  guest=showGuestExplore(app,()=>!session&&visit===revision,()=>login())
 }
 
 function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup' | 'teams') {
@@ -320,6 +345,9 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
+  // A late signed-out event must not reset an active public visit.
+  if(!next&&!session&&guest){setTimeout(()=>nativePush.setSession(null),0);return}
+  if(next){guest?.dispose();guest=null}
   if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
   session = next
   revision++
@@ -330,8 +358,8 @@ client.auth.onAuthStateChange((_event, next) => {
   }, 0)
 })
 client.auth.getSession().catch(() => {
-  app.dataset.state = 'storage-error'
-  app.innerHTML = '<h1>Couldn’t open your account</h1><p role="alert">Close the app and try again. Secure sign-in storage is unavailable.</p>'
+  storageUnavailable=true
+  if(!session&&!guest)login()
 })
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }

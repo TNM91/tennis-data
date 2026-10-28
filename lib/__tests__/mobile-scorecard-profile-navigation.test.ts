@@ -4,7 +4,7 @@ const opened=vi.hoisted(()=>vi.fn())
 vi.mock('../../mobile/src/roster-player-profile',()=>({openRosterPlayerProfile:opened}))
 import {createMatchDetails} from '../../mobile/src/match-details'
 afterEach(()=>{vi.unstubAllGlobals();vi.clearAllMocks()})
-function fixture(deferred=false){
+function fixture(deferred=false,publicBrowse?:{signIn:()=>void}){
  let current=true,detail:Record<string,unknown>|null=null,resolve!:(value:unknown)=>void
  const profileButton={dataset:{matchPlayer:'0'},onclick:null as null|(()=>void)},backButton={onclick:null as null|(()=>void)}
  const content={dataset:{},innerHTML:'',querySelectorAll:()=>[profileButton]},history={pushState:vi.fn(),replaceState:vi.fn(),back:vi.fn()}
@@ -15,9 +15,9 @@ function fixture(deferred=false){
  const q={select:vi.fn(),eq:vi.fn(),order:vi.fn(),limit:vi.fn(),abortSignal:vi.fn(()=>deferred?new Promise(r=>{resolve=r}):Promise.resolve(response))}
  for(const method of [q.select,q.eq,q.order,q.limit])method.mockReturnValue(q)
  const child={isOpen:()=>true,back:vi.fn(),dispose:vi.fn()};opened.mockReturnValue(child)
- const controller=createMatchDetails(app as unknown as HTMLElement,{from:()=>q} as unknown as SupabaseClient,()=>current)
+ const controller=createMatchDetails(app as unknown as HTMLElement,{from:()=>q} as unknown as SupabaseClient,()=>current,{publicBrowse})
  controller.open({id:'match',match_date:'2026-10-25',match_type:'Singles',league_name:'City',score:'6-4 6-3',winner_side:'A',match_players:[{player_id:'me',side:'A'}]},'me')
- return {controller,content,profileButton,child,history,q,closeVisit:()=>{current=false},finish:()=>resolve(response)}
+ return {controller,content,profileButton,child,history,q,closeVisit:()=>{current=false},finish:()=>resolve(response),markup:()=>String(detail?.innerHTML)}
 }
 describe('scorecard child profiles',()=>{
  it('opens the exact selected participant and gives the child a match-specific return label',async()=>{
@@ -39,4 +39,8 @@ describe('scorecard child profiles',()=>{
  it('reuses the bounded participant query without a profile read until tapped',async()=>{
   const f=fixture();await Promise.resolve();expect(f.q.eq).toHaveBeenCalledWith('match_id','match');expect(f.q.limit).toHaveBeenCalledWith(8);expect(f.q.abortSignal).toHaveBeenCalledWith(expect.any(AbortSignal));expect(opened).not.toHaveBeenCalled()
  })
+})
+
+it('keeps a guest scorecard public through participant navigation and hides account-only sharing',async()=>{
+ const access={signIn:vi.fn()},f=fixture(false,access);await Promise.resolve();expect(f.markup()).not.toContain('data-share-scorecard');f.profileButton.onclick!();expect(opened.mock.calls[0][4]).toBe(access)
 })

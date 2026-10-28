@@ -35,9 +35,21 @@ export async function loadProfileHeader(client:SupabaseClient,id:string,current:
  if(!current()||!/^[a-zA-Z0-9_-]{1,100}$/.test(id))throw Error('Player visit closed.')
  const own=async(owner?:string)=>{const {data,error}=await client.auth.getSession();if(error||!current()||!data.session||owner&&owner!==data.session.user.id)throw Error('Player visit closed.');return data.session.user.id}
  const owner=await own()
+ const result=await readPublicHeader(client,id,request)
+ await own(owner);return result
+}
+
+/** The supplied client is isolated and anonymous; only existing public sources are read. */
+export async function loadGuestProfileHeader(client:SupabaseClient,id:string,current:()=>boolean,request:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options)) {
+ if(!current()||!/^[a-zA-Z0-9_-]{1,100}$/.test(id))throw Error('Player visit closed.')
+ const result=await readPublicHeader(client,id,request)
+ if(!current())throw Error('Player visit closed.')
+ return result
+}
+async function readPublicHeader(client:SupabaseClient,id:string,request:typeof CapacitorHttp.get) {
  const [player,freshness]=await Promise.all([
  (async()=>{try{const {data,error}=await client.from('players').select('id,name,location,flight,overall_rating,singles_rating,doubles_rating,overall_dynamic_rating,singles_dynamic_rating,doubles_dynamic_rating,rating_source,tiq_rating_status,tiq_rating_model,tiq_rating_season,tiq_singles_matches,tiq_doubles_matches').eq('id',id).limit(1).abortSignal(AbortSignal.timeout(12000)).maybeSingle();return error?null:parseProfileHeaderPlayer(data,id)}catch{return null}})(),
  (async()=>{if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))return {...unknownImportFreshness};try{const response=await request({url:'https://www.tenaceiq.com/api/player/import-freshness?playerId='+encodeURIComponent(id),responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000});return response.status===200?parseHeaderFreshness(response.data):{...unknownImportFreshness}}catch{return {...unknownImportFreshness}}})()
  ])
- await own(owner);return {player,freshness}
+ return {player,freshness}
 }
