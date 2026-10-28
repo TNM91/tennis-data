@@ -736,3 +736,20 @@ body.native-chat-conversation .chat-match-card .chat-match-open{background:trans
 .availability-request-dialog .availability-fixtures>li{padding:16px;border:1px solid rgba(100,180,237,.25);border-radius:18px;background:#0c253d}
 .availability-request-dialog .availability-fixtures p{margin-block:8px}
 .availability-request-dialog button{max-inline-size:100%;white-space:normal;min-block-size:46px}
+
+/* Captain replies use the existing private sheet; four outcomes stay readable on phones. */
+.availability-reply-scoreboard{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-block:18px}
+.availability-reply-scoreboard>div{display:flex;flex-direction:column;gap:5px;padding:16px 12px;min-inline-size:0;border:1px solid #315577;border-radius:16px;background:linear-gradient(145deg,#102b48,#091a30)}
+.availability-reply-scoreboard strong{font-size:2rem;line-height:1.1;color:#f4f8ff;font-variant-numeric:tabular-nums}
+.availability-reply-scoreboard span{font-size:.85rem;color:#bed0e4;overflow-wrap:anywhere}
+.availability-reply-scoreboard [data-reply-group="yes"]{border-color:#6d9d50}
+.availability-reply-lists{display:grid;gap:12px;min-inline-size:0}
+.availability-reply-lists section{padding:14px;border:1px solid #294968;border-radius:14px;min-inline-size:0;background:#091b30}
+.availability-reply-lists h3{margin:0 0 10px;display:flex;justify-content:space-between;gap:10px;font-size:1rem;color:#e5f0ff}
+.availability-reply-lists h3 span{font-variant-numeric:tabular-nums;color:#82c7ff}
+.availability-reply-lists ul{list-style:none;padding:0;margin:0;display:grid;gap:9px}
+.availability-reply-lists li,.availability-replies-dialog p{overflow-wrap:anywhere;min-inline-size:0}
+.availability-reply-lists li{color:#d6e5f4;line-height:1.5}
+.availability-reply-lists p{margin:0;color:#a8bfd6;font-size:.9rem}
+
+.availability-reply-about{margin-block:14px;color:#aec6df;font-size:.85rem}.availability-reply-about summary{min-block-size:44px;display:flex;align-items:center;cursor:pointer;color:#a7d7ff}
