@@ -45,8 +45,26 @@ Native app court update — October 27, 2026 (user-directed)
   one ad-side server in a cross-court trophy pose and one tossed ball, under the existing blue
   night-court lighting. Created with built-in Image Gen from the existing
   unbranded og-background-v2.png reference, then corrected for baseline position
-  and service-box markings. This file is the native production source of truth.
+  and service-box markings. This is the retained historical ad-side source; the current replacement is listed below.
   It contains no TiQ artwork; the approved watermark/logo remain separate.
   Use the complete image proportionally. Do not crop, filter or stretch it.
   The interactive court, website social background and approved logos remain
   their existing originals. See NATIVE_ACE_SERVE_PROMPT.txt for the art brief.
+
+Native app court correction — October 28, 2026 (user-directed)
+  courts/tiq-native-ace-deuce-generic-20261028-v2.png — current native
+  candidate backdrop. An original fictional right-handed athlete uses the approved separated-foot trophy pose at the deuce-side
+  near baseline, faces across the net and prepares a diagonal serve. One
+  racket and one tossed ball. Existing navy/blue night court and lights kept.
+  1727 x 911 opaque PNG. Use complete image proportionally, without mirroring.
+  TiQ watermark, logos, app icon and interactive court remain their originals.
+  Historical ad-side asset is preserved; do not substitute it into the app.
+
+  courts/tiq-generic-right-handed-trophy-pose-20261028-v2.png - transparent illustrated
+  pose master with a generic face, short hair, stubble and blue/navy kit; racket in anatomical
+  right hand, left arm extended, separated feet and bent knees. No logo.
+  Do not mirror this figure or regenerate its stance during placement.
+
+  October 28 identity correction: the original photo-based character drafts
+  are superseded and removed from public assets. Use the generic v2 masters.
+  The right-handed serve stance, court placement and lighting are retained.

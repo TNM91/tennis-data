@@ -393,3 +393,12 @@ Remaining public App Store gates, to resolve before submission:
 - Complete physical-device release acceptance and review the final shipping scope before authorizing public App Store submission. Standing beta approval does not authorize public submission or new testers.
 
 Official references: [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), [Account deletion](https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion/), [Complete App Review](https://developer.apple.com/help/app-review/before-submitting-for-review/complete-review).
+
+
+## Build 150 candidate — native accounts and automatic deletion
+
+Adds native email-code signup/sign-in, Account settings, recovery, existing web billing and explicitly consented automatic permanent deletion. The previous manual staffing proposal is superseded.
+
+The durable worker verifies exact ownership, revokes sessions and waits for existing JWT expiry, removes personal files/data, handles uniquely owned web billing, preserves shared structures, verifies Auth removal and sends completion confirmation. The admin page observes failures rather than certifying deletion. The approved schema adds service-only cleanup permissions and 17 shared-author FK changes. Activate member access only after the controlled provider test and candidate verification pass.
+
+See [native account lifecycle](native-account-lifecycle.md) for schema coverage, bounded retries/cost, retained records and controlled provider testing. Real temporary-account execution and physical-device acceptance remain release gates. This is not public App Store approval.

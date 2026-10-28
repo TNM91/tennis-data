@@ -20,7 +20,7 @@ await copyFile(new URL('generated/website-ui.css', root), new URL('bundled/websi
 await mkdir(new URL('bundled/brand/courts/',root),{recursive:true})
 await mkdir(new URL('bundled/brand/approved/',root),{recursive:true})
 await copyFile(new URL('../../public/brand/approved/TiQ_White_Transparent_Refined.png',import.meta.url),new URL('bundled/brand/approved/TiQ_White_Transparent_Refined.png',root))
-await copyFile(new URL('../../public/brand/courts/tiq-native-ace-serve-20261027-v1.png',import.meta.url),new URL('bundled/brand/courts/tiq-native-ace-serve-20261027-v1.png',root))
+await copyFile(new URL('../../public/brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png',import.meta.url),new URL('bundled/brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png',root))
 // Retire the unused multi-ball mobile copy; the website's original stays in public/brand.
 await rm(new URL('bundled/brand/social/og-background-v2.png',root),{force:true})
 await mkdir(new URL('bundled/tiq/tokens/',root),{recursive:true})
@@ -33,3 +33,7 @@ await writeFile(new URL('capacitor.config.json', root), JSON.stringify({
   plugins: {PushNotifications: {presentationOptions: []}},
 }, null, 2) + '\n')
 console.log('Built bundled client. No development server URL. Run cap sync android before building the APK.')
+
+// Retire superseded character drafts from the packaged app.
+await rm(new URL('bundled/brand/courts/tiq-native-ace-deuce-righthanded-20261028-v1.png',root),{force:true})
+await rm(new URL('bundled/brand/courts/tiq-right-handed-trophy-pose-20261028-v1.png',root),{force:true})

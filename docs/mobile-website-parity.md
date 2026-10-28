@@ -965,3 +965,10 @@ No schema, grants, migration, new secret, dependency, alert fan-out, encryption 
 The first launch now offers public Players, Teams, Leagues and Rankings alongside account sign-in. Reuses the existing website-derived Explore and player-header presentation, approved court/watermark assets, public query bounds, TIQ evidence and published USTA wording. Guest profiles show public ratings and the latest ten results without blank paid-history tiles. Match participant profiles preserve the same public mode; Back restores the owning profile/scorecard/category.
 
 Public browsing has its own nonpersistent, anonymous client. It skips account-only follow, roster, journey, performance and sharing loaders rather than showing their authorization errors. Sign-in remains available on the toolbar and detail prompts; personal tabs appear only after a real account session. No signup, purchase, schema, grants, credential, dependency, artwork or encryption changes. The signed-in defaults and account ownership checks remain unchanged. App Store lifecycle, purchasing, metadata and physical-device acceptance remain separate release gates in `docs/mobile-app-readiness.md`.
+
+
+## Build 150 candidate — in-app account lifecycle
+
+Email-code signup/sign-in and Account settings reduce first-launch browser handoffs. New members stay Free; existing password login and public Explore remain available.
+
+The owner selected automatic deletion. Recent verification, explicit deletion/web-billing consent and typed DELETE queue the exact account. A resumable worker handles cleanup and honest completion; the prior manual certification workflow is removed. Shared-history preservation, private contact copies, safe provider boundaries and remaining activation gates are documented in [native account lifecycle](native-account-lifecycle.md). The approved production migrations are installed; member activation requires controlled provider verification. Native purchasing/public App Store readiness are separate work.

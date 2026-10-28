@@ -1,5 +1,7 @@
+import {showEmailAuth} from './email-auth'
+import {openAccountSettings} from './account-settings'
 import {showGuestExplore} from './guest-explore'
-import {PRODUCT_MOTTO} from '../../lib/product-story'
+import {PRODUCT_MOTTO,MEMBERSHIP_TIERS} from '../../lib/product-story'
 import type {TeamChatDestination} from './team-room-data'
 import {nativeActionIcon} from './native-action-icons'
 import {labRecentFormHtml} from './lab-recent-form'
@@ -46,6 +48,10 @@ navigation.setAttribute('aria-label','Main navigation')
 navigation.hidden = true
 navigation.innerHTML = (['lab','explore','following','matchup','teams'] as const).map(key=>`<button type="button" data-screen="${key}"><span aria-hidden="true">${websiteUi.icons[key]}</span><span>${({lab:'My Lab',explore:'Explore',following:'Following',matchup:'Matchup',teams:'Chats'})[key]}</span></button>`).join('')
 app.after(navigation)
+const accountEntry=document.createElement('button')
+accountEntry.type='button';accountEntry.className='secondary native-account-entry';accountEntry.hidden=true;accountEntry.textContent='Account';accountEntry.setAttribute('aria-label','Account settings')
+document.querySelector('.app-header')!.append(accountEntry)
+accountEntry.onclick=()=>{if(!session||accountSettings?.isOpen()||connection?.isSaving())return;const owner=session.user.id,visit=revision;accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id)}
 let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof openDataImports>|null=null
 let leagueOffice:ReturnType<typeof openLeagueOffice>|null=null
@@ -55,6 +61,8 @@ let teamRoom:ReturnType<typeof showTeamRoom>|null=null
 let comparison:ReturnType<typeof showComparison>|null=null
 let following:ReturnType<typeof showFollowing>|null=null
 let explore: ReturnType<typeof showExplore> | null = null
+let emailAuth:ReturnType<typeof showEmailAuth>|null=null
+let accountSettings:ReturnType<typeof openAccountSettings>|null=null
 let guest:ReturnType<typeof showGuestExplore>|null=null
 let storageUnavailable=false
 let session: Session | null = null
@@ -66,7 +74,9 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if(guest){guest.back()}
+    if(accountSettings?.isOpen()){accountSettings.back()}
+    else if(emailAuth){login()}
+    else if(guest){guest.back()}
     else if(dataImports?.isOpen()){dataImports.back()}
     else if(leagueOffice?.isOpen()){leagueOffice.back()}
     else if(goals?.isOpen()){goals.back()}
@@ -85,6 +95,8 @@ if (Capacitor.getPlatform() === 'android') {
 
 function login(message = '') {
   const visit=++revision
+  emailAuth?.dispose();emailAuth=null
+  accountSettings?.dispose();accountSettings=null
   guest?.dispose();guest=null
   document.body.dataset.screen='welcome'
   labRatingTrends?.dispose();labRatingTrends=null
@@ -99,6 +111,7 @@ function login(message = '') {
   explore?.dispose()
   explore = null
   navigation.hidden = true
+  accountEntry.hidden=true
   connection?.dispose()
   connection = null
   recovery?.dispose()
@@ -106,10 +119,12 @@ function login(message = '') {
   details?.dispose()
   details = null
   app.dataset.state = 'signed-out'
-  app.innerHTML = `<div class="native-welcome"><small>Tennis intelligence</small><h1 tabindex="-1">${escape(PRODUCT_MOTTO)}</h1><p>Your game. Your team. Your next ace.</p><button type="button" id="browse-public">Explore without signing in <span aria-hidden="true">↗</span></button><p class="welcome-browse-note">Players, teams, leagues and TIQ rankings.</p><div class="welcome-account"><h2>Your tennis, connected.</h2>${storageUnavailable?'<p role="alert">Secure sign-in storage is unavailable. Close the app and try again to sign in. You can still explore public tennis.</p>':`<p>Sign in for My Lab and your team chats.</p><form><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><p role="alert">${escape(message)}</p><button>Sign in</button></form><button type="button" class="secondary" id="forgot-password">Forgot password?</button>`}</div>${accountLinksHtml}</div>`
+  app.innerHTML = `<div class="native-welcome"><small>Tennis intelligence</small><h1 tabindex="-1">${escape(PRODUCT_MOTTO)}</h1><p>Your game. Your team. Your next ace.</p><button type="button" id="browse-public">Explore without signing in <span aria-hidden="true">↗</span></button><p class="welcome-browse-note">Players, teams, leagues and TIQ rankings.</p><div class="welcome-account"><h2>Your tennis, connected.</h2>${storageUnavailable?'<p role="alert">Secure sign-in storage is unavailable. Close the app and try again to sign in. You can still explore public tennis.</p>':`<p>Sign in for My Lab and your team chats.</p><button type="button" class="secondary" id="email-sign-in">Create account or use an email code</button><p class="welcome-email-note">New accounts start ${escape(MEMBERSHIP_TIERS.free.name)}. Existing access stays the same.</p><form><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><p role="alert">${escape(message)}</p><button>Sign in</button></form><button type="button" class="secondary" id="forgot-password">Forgot password?</button>`}</div>${accountLinksHtml}</div>`
   app.querySelector<HTMLButtonElement>('#browse-public')!.onclick=openGuest
   bindAccountLinks(app)
   app.querySelector<HTMLElement>('h1')!.focus({preventScroll:true})
+  const emailEntry=app.querySelector<HTMLButtonElement>('#email-sign-in')
+  if(emailEntry)emailEntry.onclick=()=>{if(session)return;const visit=++revision;emailAuth?.dispose();emailAuth=showEmailAuth(app,client,()=>visit===revision&&!session,()=>login())}
   const forgot=app.querySelector<HTMLButtonElement>('#forgot-password')
   if(forgot)forgot.onclick = () => {
     recovery = showPasswordRecovery(app, client, () => login())
@@ -133,6 +148,7 @@ function login(message = '') {
 function openGuest() {
   if(session)return
   recovery?.dispose();recovery=null
+  emailAuth?.dispose();emailAuth=null
   guest?.dispose();guest=null
   const visit=++revision
   navigation.hidden=true
@@ -147,6 +163,7 @@ function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup' | 
   dataImports?.dispose();dataImports=null
   leagueOffice?.dispose();leagueOffice=null
   navigation.hidden = false
+  accountEntry.hidden=false
   document.body.dataset.screen=screen
   window.scrollTo(0,0)
   navigation.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
@@ -216,6 +233,8 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
 
 async function lab() {
+  emailAuth?.dispose();emailAuth=null
+  accountSettings?.dispose();accountSettings=null
   goals?.dispose();goals=null
   training?.dispose();training=null
   document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
@@ -244,6 +263,7 @@ async function lab() {
   app.innerHTML = `${error
     ? '<h1 tabindex="-1">My Lab</h1><section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
     : `${data?.linked_player_id&&data.linked_player_name?'<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">My Lab</small><h1 tabindex="-1">'+escape(data.linked_player_name)+'</h1><p>'+escape(data.linked_team_name||'Your tennis, in focus')+'</p></div><button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">'+nativeActionIcon('profile')+'</button></header>':''}<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
+
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
@@ -346,9 +366,9 @@ async function lab() {
 
 client.auth.onAuthStateChange((_event, next) => {
   // A late signed-out event must not reset an active public visit.
-  if(!next&&!session&&guest){setTimeout(()=>nativePush.setSession(null),0);return}
+  if(!next&&!session&&(guest||emailAuth)){setTimeout(()=>nativePush.setSession(null),0);return}
   if(next){guest?.dispose();guest=null}
-  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
+  if (next?.user.id === session?.user.id && (accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -362,7 +382,7 @@ client.auth.getSession().catch(() => {
   if(!session&&!guest)login()
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
   else {labRatingTrends?.dispose();labRatingTrends=null;client.auth.stopAutoRefresh()}
 })
-window.addEventListener('online', () => { if (session && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })
+window.addEventListener('online', () => { if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })

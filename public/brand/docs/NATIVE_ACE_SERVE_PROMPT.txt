@@ -1,8 +1,28 @@
-TENACEIQ NATIVE ACE SERVE BACKDROP — October 27, 2026
+TENACEIQ NATIVE ACE SERVE BACKDROP — October 28, 2026
+
+Current native candidate master: public/brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png
+Dimensions: 1727 x 911, opaque PNG. SHA-256: ec2a543632aa4d6b0078e01b97036ecea29b63fd1d3044b27e47ac530a7de062
+
+User-directed correction: right-handed, deuce side, facing diagonally across
+the net. Both feet behind the near baseline. Right hand holds the racket;
+left hand tosses the single ball. The court/light composition stays navy/blue,
+with the TiQ watermark still separate and unchanged. Built-in Image Gen edit;
+no CLI/API-key fallback. The prior ad-side source below is retained history.
+
+Earlier arm-correction prompt summary (superseded by the user-photo pose):
+Preserve the scene, foot position behind the near deuce-side baseline and
+head/torso facing up-right across the net. Do not mirror. Correct to a right-
+handed trophy serve: the right arm emerges from the screen-right shoulder
+and holds the racket on the right; the left arm emerges from the screen-left
+shoulder and reaches upward toward one tossed ball. Keep the full body and
+shoes in frame, existing navy/electric-blue court, lights, lines, net, camera,
+shadow and dark left space. No text, logos, extra people or extra balls.
+
+--- Historical October 27 brief and provenance ---
 
 Purpose: decorative native app court atmosphere. Keep the TiQ watermark as its
 separate, unchanged approved artwork. This asset contains no logo or text.
-Production master: public/brand/courts/tiq-native-ace-serve-20261027-v1.png
+Historical master: public/brand/courts/tiq-native-ace-serve-20261027-v1.png
 Dimensions: 1727 × 911, opaque PNG; use the complete image proportionally.
 SHA-256: 4bfd4c929c485da9196d54e18f49d0947cd7f81e37b368bf7ae07ce1938bf216
 
@@ -19,3 +39,22 @@ No CLI/API-key fallback. Existing logos, icons and interactive court unchanged.
 
 Final image edit prompt (verbatim):
 Precise tennis positioning correction, following the tennis player's feedback. Preserve this exact dark navy/electric-blue stadium court, lights, camera angle, net, service-box lines, negative space, single athlete, single racket, single tossed ball, and trophy-pose style. DO NOT mirror the entire scene. The player currently occupies the wrong half of the near baseline. Move him along and behind the baseline to the AD SIDE: the LEFT HALF of the near baseline when the player looks across the net. In this image that means move the player noticeably toward the UPPER LEFT along the near diagonal baseline, away from its lower-right end. Keep both feet fully OUTSIDE and behind that baseline, not in the service box. Put a small normal white tennis center mark at the true midpoint of the near baseline, and place the server clearly on the upper-left/ad side of that center mark. Keep his whole body and both feet in frame. The serve must be aimed CROSS-COURT into the diagonally opposite far service box on the RIGHT side of the far court in this image, beyond the net—not into the box straight ahead on his own side of the center line. Orient his feet, side-on hips/shoulders, head and one tossed ball toward that far-right diagonal target. Keep a realistic loaded trophy pose and one racket behind his serving shoulder; the ball must sit in front of his hitting shoulder toward that cross-court target. Show this naturally through body orientation only: NO arrow, NO flight line, NO extra ball, NO target marker, NO annotations. Keep all existing court geometry fixed apart from adding the tiny baseline center mark. No extra people, limbs, words, logos or watermark. Priority: correct ad-side baseline placement and unmistakable cross-court serving direction.
+
+
+October 28 final refinement:
+The user supplied a second right-handed serve photograph. Its bent knees,
+separated feet, torso lean, racket arm and raised toss arm are the pose
+authority. Built-in Image Gen first created the isolated illustrated figure,
+then inserted that figure into the existing night court. The previous
+close-footed drafts are superseded. The supplied private photos are not
+added to the repository. The reusable illustrated pose master is
+courts/tiq-generic-right-handed-trophy-pose-20261028-v2.png.
+See NATIVE_DEUCE_SERVE_FINAL_PROMPT.txt for the two final verbatim prompts.
+The candidate is packaged locally; this does not record a TestFlight release.
+
+October 28 fictional-character revision (current):
+The user approved the motion but requested a generic character. The v2
+master has a different face, close-cropped hair, short stubble, no headband,
+an electric-blue crew-neck shirt, navy shorts and cyan racket trim. The
+right-handed trophy stance and court placement are preserved. Earlier
+character drafts are removed from public assets and the iPhone package.
