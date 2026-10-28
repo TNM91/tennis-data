@@ -1,3 +1,5 @@
+import {firstChatPlan} from './team-chat-plan-links'
+import {pollId} from './team-poll-contract'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {SentTeamMessage} from './team-room-message-send'
 import {checkTeamChatAccess} from './team-chat-updates'
@@ -10,6 +12,7 @@ export function searchPhotoMime(row:SentTeamMessage,room:string){
  const file=value as Record<string,unknown>,size=Number(file.size)
  return file.bucket==='team-room-files'&&typeof file.path==='string'&&file.path.startsWith(room+'/'+row.sender_user_id+'/')&&file.path.split('/').length===3&&!file.path.split('/')[2].includes('..')&&Number.isFinite(size)&&size>0&&size<=2097152&&['image/jpeg','image/png','image/webp','image/gif'].includes(String(file.mimeType))?String(file.mimeType):''
 }
+export function isPublishedChatPoll(row:SentTeamMessage){const p=row.metadata?.nativePoll as Record<string,unknown>|undefined;return !!p&&p.version===1&&p.id===row.id&&pollId(row.id)}
 export function chatSearchPreview(body:string,query:string){const at=query?body.toLocaleLowerCase().indexOf(query.toLocaleLowerCase()):0,start=Math.max(0,at-80),text=body.slice(start,start+240);return (start?'…':'')+text+(start+240<body.length?'…':'')}
 /** Exact accepted scope is resolved by caller. At most 201 rows fetched, 200 inspected, 25 returned per explicit request. No storage calls or writes. */
 export async function searchTeamChatRows(service:SupabaseClient,owner:string,room:string,query:unknown,kind:unknown,before:unknown){
@@ -23,7 +26,7 @@ export async function searchTeamChatRows(service:SupabaseClient,owner:string,roo
  if(loaded.error||!Array.isArray(loaded.data))return {ok:false as const,status:503}
  const candidates=loaded.data.slice(0,200) as SentTeamMessage[],rows:SentTeamMessage[]=[],text=input.query.toLocaleLowerCase();let inspected=0,last:SentTeamMessage|undefined
  for(const row of candidates){inspected++;last=row;if(row.deleted_at||blocked.has(row.sender_user_id))continue
-  if(input.kind==='announcements'&&row.message_kind!=='announcement'||input.kind==='media'&&!searchPhotoMime(row,room)||input.kind==='mentions'&&!readChatMentions(row.metadata?.nativeMentions,row.body||'').some(tag=>tag.profileId===owner))continue
+  if(input.kind==='polls'&&!isPublishedChatPoll(row)||input.kind==='announcements'&&row.message_kind!=='announcement'||input.kind==='media'&&!searchPhotoMime(row,room)||input.kind==='mentions'&&!readChatMentions(row.metadata?.nativeMentions,row.body||'').some(tag=>tag.profileId===owner))continue
   if(text&&!String(row.body||'').toLocaleLowerCase().includes(text))continue
   rows.push(row);if(rows.length===25)break
  }
@@ -32,4 +35,4 @@ export async function searchTeamChatRows(service:SupabaseClient,owner:string,roo
  return {ok:true as const,...input,beforeCursor:input.before,nextCursor,rows}
 }
 
-export function publicChatSearchResult(row:SentTeamMessage,senderName:string,room:string,query:string):ChatSearchResult{return {id:row.id,senderName:senderName.slice(0,120),preview:chatSearchPreview(String(row.body||''),query),kind:row.message_kind==='announcement'?'announcement':row.message_kind==='system'?'system':'message',createdAt:row.created_at||'',photoMimeType:searchPhotoMime(row,room)}}
+export function publicChatSearchResult(row:SentTeamMessage,senderName:string,room:string,query:string):ChatSearchResult{const plan=firstChatPlan(String(row.body||''));return {id:row.id,senderName:senderName.slice(0,120),preview:chatSearchPreview(String(row.body||''),query),kind:row.message_kind==='announcement'?'announcement':row.message_kind==='system'?'system':'message',createdAt:row.created_at||'',photoMimeType:searchPhotoMime(row,room),...(plan?{plan}:{})}}

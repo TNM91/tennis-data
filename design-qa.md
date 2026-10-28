@@ -1203,3 +1203,12 @@ Interaction proof: General create/review/post → one stored poll card; change/r
 Evidence saved in the private build142 design proof set: full phone poll/results at 390, narrow and tablet variants, six-option composer, targeted practice flow and synthetic counters. Browser inspection is not physical-iPhone/VoiceOver/Dynamic-Type or real APNs delivery acceptance. Production migration and beta release are pending explicit schema approval; do not label this build shipped.
 
 Verification: full local `npm run verify` exited 0: lint, typecheck, 5,156 tests across 924 files, extension checks and Next production build. Final review adjustments passed focused lint and the final production TypeScript check. Ten native Node guards, one upload-helper Python guard, bundled build, iOS preparation and iOS source checks passed. No signed build, cloud deployment, production migration or release was started for this candidate.
+
+
+## Candidate 143 — find and act on older team plans
+
+Scope: a Polls collection in the existing native chat-history sheet; contained plan actions on authorized search results and full messages opened from search; contextual return labels and focus restoration. Existing navy conversation surfaces and approved artwork are unchanged.
+
+Observed actual mobile entry with synthetic team data at 320/390/430/768 CSS pixels: root and nested history/poll dialog scroll widths equal their client widths. At 320×568, long results and poll choices scroll vertically; controls remain within the sheet. Poll results in search retain their action even when the 240-character snippet omits the link. Open and closed polls, saved vote, full-message → poll → message → search, practice invitation → reviewed RSVP → saved waitlist → same search, unsaved RSVP → Keep reply, More/Previous results, and an unsent conversation draft returning intact were checked. Add-menu → empty poll → Back restores Add to message focus with the menu closed. Named Practice-room search returns and opens that room’s poll with its room label; General polls do not appear there.
+
+Proof remains private in build143-poll-history-390/320 and build143-history-poll-390/320 screenshots and the synthetic verification record. No positive production app-data or notification writes are used. These browser checks do not establish physical iPhone keyboard/safe-area, Dynamic Type, VoiceOver or notification acceptance. The local candidate verification and final distribution gates are tracked separately.
