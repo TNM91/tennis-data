@@ -1,5 +1,6 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {Browser} from '@capacitor/browser'
+import {mountAccountAccess} from './account-access'
 import {html} from './match-details'
 import {accountLinksHtml,bindAccountLinks,showPasswordRecovery} from './account-actions'
 import {showEmailAuth} from './email-auth'
@@ -8,15 +9,17 @@ export function openAccountSettings(client:SupabaseClient,owner:string,current:(
  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,dialog=document.createElement('dialog'),host=document.createElement('div'),close=document.createElement('button')
  dialog.className='account-settings-dialog';dialog.setAttribute('aria-label','Account settings');close.type='button';close.className='secondary account-dialog-close';close.textContent='Close account settings';dialog.append(close,host)
  let disposed=false,request=0,pane='settings',data:AccountSettings|null=null,child:ReturnType<typeof showEmailAuth>|ReturnType<typeof showPasswordRecovery>|null=null
+ let accessPanel:ReturnType<typeof mountAccountAccess>|null=null
  const valid=()=>!disposed&&current()&&dialog.isConnected
- const clearChild=()=>{child?.dispose();child=null}
+ const clearChild=()=>{child?.dispose();child=null;accessPanel?.dispose();accessPanel=null}
  const dispose=()=>{if(disposed)return;disposed=true;request++;clearChild();dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const back=()=>{if(disposed)return false;if(pane!=='settings'){void load();return true}dispose();return true}
  close.onclick=dispose;dialog.oncancel=e=>{e.preventDefault();back()};document.body.append(dialog);dialog.showModal()
  function render(){
   if(!valid()||!data)return;clearChild();request++;pane='settings'
   const pending=data.request
-  host.innerHTML=`<h1 tabindex="-1">Your account</h1><p class="account-email">${html(data.email)}</p><div class="account-action-list"><button type="button" class="secondary" data-password>Reset password</button><button type="button" class="secondary" data-billing>Manage existing web billing</button><button type="button" class="secondary" data-delete>${pending?'Deletion request status':'Delete account'}</button></div><p role="alert" data-account-error></p>${pending?requestHtml(pending):''}${accountLinksHtml}`
+  host.innerHTML=`<h1 tabindex="-1">Your account</h1><p class="account-email">${html(data.email)}</p><section class="account-access-panel" data-account-access aria-label="Your tennis tools"></section><div class="account-action-list"><button type="button" class="secondary" data-password>Reset password</button><button type="button" class="secondary" data-billing>Manage existing web billing</button><button type="button" class="secondary" data-delete>${pending?'Deletion request status':'Delete account'}</button></div><p role="alert" data-account-error></p>${pending?requestHtml(pending):''}${accountLinksHtml}`
+  accessPanel=mountAccountAccess(host.querySelector<HTMLElement>('[data-account-access]')!,client,owner,()=>valid()&&pane==='settings')
   bindReceipt();bindAccountLinks(host);host.querySelector<HTMLElement>('h1')!.focus();host.querySelector<HTMLButtonElement>('[data-password]')!.onclick=()=>{clearChild();request++;pane='recovery';child=showPasswordRecovery(host,client,()=>{void load()});host.querySelector<HTMLButtonElement>('#back-login')!.textContent='Back to account'}
   host.querySelector<HTMLButtonElement>('[data-delete]')!.onclick=()=>deletion()
   host.querySelector<HTMLButtonElement>('[data-billing]')!.onclick=async()=>{const b=host.querySelector<HTMLButtonElement>('[data-billing]')!,error=host.querySelector<HTMLElement>('[data-account-error]')!;if(b.disabled||!valid())return;const visit=++request;b.disabled=true;error.textContent='';try{const url=await loadBillingPortal(client,owner,()=>valid()&&visit===request);if(valid()&&visit===request)await Browser.open({url})}catch(e){if(valid()&&visit===request)error.textContent=e instanceof Error&&e.message==='billing_not_found'?'No existing web billing account was found.':'Couldn’t open billing. Check your connection and try again.'}finally{if(valid()&&visit===request&&b.isConnected)b.disabled=false}}
