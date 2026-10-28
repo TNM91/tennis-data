@@ -1,5 +1,5 @@
-import {pollId} from '../../lib/team-poll-contract'
-import {resolvePracticeToken,practiceRsvpPath} from '../../lib/captain-practice-rsvp'
+import {chatPlanLink,type ChatPlan} from '../../lib/team-chat-plan-links'
+export {chatPlanLink} from '../../lib/team-chat-plan-links'
 import {Browser} from '@capacitor/browser'
 import {tokenizeTeamRoomMessageBody} from '../../lib/team-room-message-links'
 import {html} from './match-details'
@@ -7,14 +7,8 @@ export function chatWebLink(value:string){
  if(value.length>2048||/[\\\s\u0000-\u001f\u007f]/.test(value))return null
  try{const url=new URL(value);return url.protocol==='https:'&&!!url.hostname&&!url.username&&!url.password?url.href:null}catch{return null}
 }
-export function chatPlanLink(value:string):{kind:'poll'|'practice';id:string}|null{
- const valid=chatWebLink(value);if(!valid)return null
- const u=new URL(valid);if(u.origin!=='https://www.tenaceiq.com'||u.hash)return null
- if(u.pathname==='/team-room'&&Array.from(u.searchParams).length===1&&pollId(u.searchParams.get('poll')))return {kind:'poll',id:u.searchParams.get('poll')!}
- if(!u.search&&/^\/(?:pr|practice)\/[^/]+$/.test(u.pathname)){const token=resolvePracticeToken(u.pathname.split('/')[2]);if(token&&practiceRsvpPath(token)===u.pathname)return {kind:'practice',id:token}}
- return null
-}
-export function chatBodyHtml(body:string,plans=false){return tokenizeTeamRoomMessageBody(body).map(part=>{const url=part.href&&chatWebLink(part.href),plan=url&&plans?chatPlanLink(url):null;return plan?`<button type="button" class="chat-plan-card" data-chat-${plan.kind}="${html(plan.id)}"><strong>${plan.kind==='poll'?'Team poll':'Team practice'}</strong><span>${plan.kind==='poll'?'Vote · view results':'View practice · RSVP'} →</span></button>`:url?`<button type="button" class="chat-web-link" data-chat-url="${html(url)}">${html(part.text)}</button>`:html(part.text)}).join('')}
+export function chatPlanCardHtml(plan:ChatPlan){return `<button type="button" class="chat-plan-card" data-chat-${plan.kind}="${html(plan.id)}"><strong>${plan.kind==='poll'?'Team poll':'Team practice'}</strong><span>${plan.kind==='poll'?'Vote · view results':'View practice · RSVP'} →</span></button>`}
+export function chatBodyHtml(body:string,plans=false){return tokenizeTeamRoomMessageBody(body).map(part=>{const url=part.href&&chatWebLink(part.href),plan=url&&plans?chatPlanLink(url):null;return plan?chatPlanCardHtml(plan):url?`<button type="button" class="chat-web-link" data-chat-url="${html(url)}">${html(part.text)}</button>`:html(part.text)}).join('')}
 
 export function openChatLink(value:string,current:()=>boolean,open:typeof Browser.open=options=>Browser.open(options)){
  const url=chatWebLink(value);if(!url||!current())return {dispose:()=>{},isOpen:()=>false}

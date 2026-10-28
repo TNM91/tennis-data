@@ -1,12 +1,13 @@
+import type {ChatPlan} from './team-chat-plan-links'
 import {readTeamChatCursor} from './team-chat-cursor'
-export const chatSearchKinds=['all','announcements','media','mentions'] as const
+export const chatSearchKinds=['all','announcements','media','mentions','polls'] as const
 export type ChatSearchKind=typeof chatSearchKinds[number]
 export function chatSearchInput(query:unknown,kind:unknown,before:unknown){
  if(typeof query!=='string'||query.length>120||/[\u0000-\u001f\u007f]/u.test(query)||typeof kind!=='string'||!chatSearchKinds.some(value=>value===kind)||typeof before!=='string'||before&&!readTeamChatCursor(before))return null
  const text=query.trim();if(text&&text.length<2)return null
  return {query:text,kind:kind as ChatSearchKind,before}
 }
-export type ChatSearchResult={id:string;senderName:string;preview:string;kind:'message'|'announcement'|'system';createdAt:string;photoMimeType:string}
+export type ChatSearchResult={id:string;senderName:string;preview:string;kind:'message'|'announcement'|'system';createdAt:string;photoMimeType:string;plan?:ChatPlan}
 export type ChatSearchPage={roomId:string;query:string;kind:ChatSearchKind;beforeCursor:string;nextCursor:string;results:ChatSearchResult[]}
 
 export function chatSearchCursorProgress(next:string,before:string){

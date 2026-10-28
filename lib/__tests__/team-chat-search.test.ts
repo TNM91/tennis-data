@@ -1,6 +1,8 @@
+import {firstChatPlan,parseChatPlan} from '../team-chat-plan-links'
+import {practiceRsvpPath} from '../captain-practice-rsvp'
 import {describe,it,expect,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {searchTeamChatRows,searchPhotoMime,publicChatSearchResult,chatSearchPreview} from '../team-chat-search'
+import {isPublishedChatPoll,searchTeamChatRows,searchPhotoMime,publicChatSearchResult,chatSearchPreview} from '../team-chat-search'
 import {chatSearchInput,chatSearchCursorProgress} from '../team-chat-search-contract'
 import {teamChatCursor} from '../team-chat-cursor'
 import {readChatSearch,parseChatSearch,searchResultHtml} from '../../mobile/src/chat-history-search'
@@ -27,3 +29,33 @@ describe('native search transport and result validation',()=>{
 })
 
 it('requires older cursor progress with PostgreSQL microseconds, equivalent UTC offsets and UUID tie breaks',()=>{const before=teamChatCursor('2026-10-24T12:00:00.123456+00:00',id(20));expect(chatSearchCursorProgress(teamChatCursor('2026-10-24T12:00:00.123455Z',id(99)),before)).toBe(true);expect(chatSearchCursorProgress(teamChatCursor('2026-10-24T12:00:00.123456Z',id(19)),before)).toBe(true);expect(chatSearchCursorProgress(teamChatCursor('2026-10-24T12:00:00.123456Z',id(20)),before)).toBe(false);expect(chatSearchCursorProgress(teamChatCursor('2026-10-24T12:00:00.123457Z',id(1)),before)).toBe(false)})
+
+const publishedPoll=(n:number,patch:Record<string,unknown>={})=>post(n,{body:'Team poll: When?\n1. Tuesday\n2. Thursday\nhttps://www.tenaceiq.com/team-room?poll='+id(n),metadata:{nativePoll:{version:1,id:id(n)}},...patch})
+it('browses only published polls with matching immutable message identity, preserving blocks and deletion',async()=>{
+ const good=publishedPoll(9),rows=[good,publishedPoll(8,{sender_user_id:'blocked'}),publishedPoll(7,{deleted_at:'now'}),publishedPoll(6,{metadata:null}),publishedPoll(5,{metadata:{nativePoll:{version:1,id:id(4)}}}),publishedPoll(3,{metadata:{nativePoll:{version:2,id:id(3)}}}),post(2,{body:'Let us run a poll'})]
+ const result=await searchTeamChatRows(database(rows,{team_chat_blocks:{data:[{blocked_user_id:'blocked'}]}}).service,owner,'room','','polls','')
+ expect(result).toMatchObject({ok:true,kind:'polls',rows:[good]});expect(isPublishedChatPoll(good)).toBe(true)
+})
+it('keeps poll browsing bounded and resumes after the last inspected candidate even with no matches',async()=>{
+ const rows=Array.from({length:201},(_,i)=>post(1000-i)),db=database(rows),result=await searchTeamChatRows(db.service,owner,'room','','polls','')
+ expect(result).toMatchObject({rows:[],nextCursor:teamChatCursor(rows[199].created_at,rows[199].id)});expect(db.calls).toContainEqual({table:'internal_messages',method:'limit',args:[201]});expect(db.calls.filter(c=>c.table==='internal_messages'&&c.method==='select')).toHaveLength(1)
+})
+it('carries one canonical plan from the complete authorized body even when the snippet omits its URL',()=>{
+ const row=publishedPoll(1,{body:'x'.repeat(500)+' https://www.tenaceiq.com/team-room?poll='+id(1)}),value=publicChatSearchResult(row,'Alex','room','')
+ expect(value.preview).not.toContain('https:');expect(value.plan).toEqual({kind:'poll',id:id(1)});expect(searchResultHtml(value)).toContain('data-chat-poll="'+id(1)+'"')
+ const practice='https://www.tenaceiq.com'+practiceRsvpPath(id(2));expect(firstChatPlan('Invite '+practice+'.')).toEqual({kind:'practice',id:id(2)});expect(publicChatSearchResult(post(2,{body:practice}),'Alex','room','').plan).toEqual({kind:'practice',id:id(2)})
+})
+it('does not promote noncanonical or external links and returns only the first approved plan',()=>{
+ const poll='https://www.tenaceiq.com/team-room?poll='+id(1)
+ for(const bad of [poll+'&team=Other',poll+'#fake',poll.replace('https:','http:'),poll.replace('www.tenaceiq.com','evil.test'),'https://www.tenaceiq.com/practice/'+id(1)])expect(firstChatPlan(bad)).toBeNull()
+ expect(firstChatPlan(poll+' '+poll.replace(id(1),id(2)))).toEqual({kind:'poll',id:id(1)})
+})
+it('rejects malformed plan descriptors and strips unexpected fields without weakening legacy receipts',()=>{
+ for(const plan of [{kind:'practice',id:''},{kind:'poll',id:'invalid'},{kind:'practice',id:'<img>'},{kind:'external',id:id(1)},[],42])expect(()=>parseChatSearch({...root,results:[{...root.results[0],plan}]},'room','court','all','')).toThrow()
+ const parsed=parseChatSearch({...root,results:[{...root.results[0],plan:{kind:'poll',id:id(1),voters:['private']}}]},'room','court','all','')
+ expect(parsed.results[0].plan).toEqual({kind:'poll',id:id(1)});expect(parseChatSearch(root,'room','court','all','').results[0]).not.toHaveProperty('plan');expect(parseChatPlan(null)).toBeNull()
+})
+it('withholds a late search response if the account changes while the request is in flight',async()=>{
+ const session=vi.fn().mockResolvedValueOnce({data:{session:{user:{id:owner},access_token:'synthetic'}}}).mockResolvedValueOnce({data:{session:{user:{id:'other'},access_token:'other'}}}),send=vi.fn().mockResolvedValue({status:200,data:root}),client={auth:{getSession:session}} as unknown as SupabaseClient
+ await expect(readChatSearch(client,owner,()=>true,scope,'room','court','all','',send)).rejects.toThrow('no longer open');expect(send).toHaveBeenCalledTimes(1)
+})
