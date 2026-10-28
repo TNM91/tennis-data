@@ -2,7 +2,9 @@
 
 ## Destination
 
-TenAceIQ's iPhone app is the primary product. Bring the website's useful features, account data, role-based access, and premium brand experience into an app designed for phone use. Feature parity is a tracked release goal, not a claim that the first beta already has it. Keep the existing website working throughout the transition; later retain a small public discovery, download, support, privacy, and recovery presence.
+TenAceIQ's app is the final product; Apple comes first and Android follows later. Bring the website's useful features, account data, role-based access, and premium brand experience into an app designed for phone use. Feature parity is a tracked release goal, not a claim that the current beta already has it. The owner reaffirmed on October 28, 2026 that a second full website product is not the end state.
+
+Keep the existing website working during migration. Once the app and member transition are ready, redirect public product pages to an app-download destination, retaining essential support, privacy, terms and account recovery. Keep the shared API, authentication, database, chat, notifications, import and Apple-purchase endpoints available for the app. A future redirect must exclude these service routes. Focus new feature work on the app and shared services; do not build another independent platform.
 
 Reuse the existing backend and central tier language in `lib/product-story.ts`. Preserve existing memberships and data. Do not prompt existing subscribers to buy access they already have. Store billing, restore purchases, and entitlement reconciliation require their own implementation and verification before native purchase flows ship.
 

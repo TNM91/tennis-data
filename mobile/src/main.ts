@@ -1,3 +1,4 @@
+import {applePurchases} from './apple-purchases'
 import {showEmailAuth} from './email-auth'
 import {openAccountSettings} from './account-settings'
 import {showGuestExplore} from './guest-explore'
@@ -231,6 +232,8 @@ function openTeamRoom(initialScope?:TeamChatDestination){
 
 navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()=>openTeamRoom()
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
+const nativePurchases=applePurchases(client)
+function setNativeSession(next:typeof session){nativePush.setSession(next);nativePurchases.setOwner(next?.user.id||null)}
 
 async function lab() {
   emailAuth?.dispose();emailAuth=null
@@ -366,15 +369,15 @@ async function lab() {
 
 client.auth.onAuthStateChange((_event, next) => {
   // A late signed-out event must not reset an active public visit.
-  if(!next&&!session&&(guest||emailAuth)){setTimeout(()=>nativePush.setSession(null),0);return}
+  if(!next&&!session&&(guest||emailAuth)){setTimeout(()=>setNativeSession(null),0);return}
   if(next){guest?.dispose();guest=null}
-  if (next?.user.id === session?.user.id && (accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
+  if (next?.user.id === session?.user.id && (accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
   setTimeout(() => {
     if(next?.user.id!==session?.user.id)return
-    void (async()=>{if(session)await lab();else login();if(next?.user.id===session?.user.id)nativePush.setSession(session)})()
+    void (async()=>{if(session)await lab();else login();if(next?.user.id===session?.user.id)setNativeSession(session)})()
   }, 0)
 })
 client.auth.getSession().catch(() => {
@@ -382,7 +385,7 @@ client.auth.getSession().catch(() => {
   if(!session&&!guest)login()
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
   else {labRatingTrends?.dispose();labRatingTrends=null;client.auth.stopAutoRefresh()}
 })
 window.addEventListener('online', () => { if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })

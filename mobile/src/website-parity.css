@@ -774,3 +774,16 @@ body.native-chat-conversation .chat-match-card .chat-match-open{background:trans
 .account-tool-access small{margin-top:4px;font-size:11px;line-height:1.45;color:#b4cee2}
 .account-access-badge{padding:5px 8px;border-radius:8px;background:#16476b;color:#d8efff;font-size:10px;font-weight:700}
 .account-access-panel button.secondary{margin:8px 0 0;min-height:44px}
+
+.apple-membership-panel{min-width:0;margin-block:16px;padding:16px;border:1px solid #315774;border-radius:18px;background:#081f35}
+.apple-membership-panel[hidden]{display:none}
+.apple-membership-panel h2{font-size:18px;margin:0 0 12px}
+.apple-membership-panel p,.apple-membership-panel small{overflow-wrap:anywhere;line-height:1.5}
+.apple-membership-panel p{font-size:13px;color:#c4d6e7}
+.apple-membership-panel small{display:block;font-size:11px;color:#a8c2da;margin-block:14px}
+.apple-plan{min-width:0;padding-block:14px;border-bottom:1px solid #315774}
+.apple-plan h3{margin:0;font-size:17px;color:#f4f8ff}
+.apple-plan button{width:100%;min-width:0;min-height:48px;white-space:normal;overflow-wrap:anywhere}
+.apple-membership-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:16px}
+.apple-membership-actions button{width:100%;min-width:0;min-height:44px;white-space:normal;overflow-wrap:anywhere}
+.apple-test-label{color:#c6ed93!important;font-weight:700}

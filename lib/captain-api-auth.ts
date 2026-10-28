@@ -1,3 +1,4 @@
+import {withAppleAccess} from './apple-effective-access'
 import 'server-only'
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
@@ -13,10 +14,13 @@ type CaptainApiAuth =
 type ProfileEntitlementRow = {
   role?: string | null
   player_plus_subscription_active?: boolean | null
+  player_plus_access_expires_at?: string | null
   player_plus_subscription_status?: string | null
   coach_subscription_active?: boolean | null
+  coach_access_expires_at?: string | null
   coach_subscription_status?: string | null
   captain_subscription_active?: boolean | null
+  captain_access_expires_at?: string | null
   captain_subscription_status?: string | null
   tiq_team_league_entry_enabled?: boolean | null
   tiq_individual_league_creator_enabled?: boolean | null
@@ -54,7 +58,7 @@ export async function getCaptainApiAuth(request: Request): Promise<CaptainApiAut
     : await supabase
       .from('profiles')
       .select(
-        'role, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled'
+        'role, player_plus_subscription_active, player_plus_subscription_status, player_plus_access_expires_at, coach_subscription_active, coach_subscription_status, coach_access_expires_at, captain_subscription_active, captain_subscription_status, captain_access_expires_at, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled'
       )
       .eq('id', userId)
       .maybeSingle()
@@ -62,16 +66,20 @@ export async function getCaptainApiAuth(request: Request): Promise<CaptainApiAut
   // Admin is a platform role, not a paid subscription. Preserve its built-in
   // Captain authority instead of downgrading it to a plain member during a
   // server-side Captain request.
-  const access = buildProductAccessState(row.role === 'admin' ? 'admin' : 'member', {
+  let access:ReturnType<typeof buildProductAccessState>
+  try{access = buildProductAccessState(row.role === 'admin' ? 'admin' : 'member', await withAppleAccess(supabase,userId,{
     playerPlusSubscriptionActive: Boolean(row.player_plus_subscription_active),
     playerPlusSubscriptionStatus: normalizeSubscriptionStatus(row.player_plus_subscription_status),
+    playerPlusAccessExpiresAt: row.player_plus_access_expires_at ?? null,
     coachSubscriptionActive: Boolean(row.coach_subscription_active),
     coachSubscriptionStatus: normalizeSubscriptionStatus(row.coach_subscription_status),
+    coachAccessExpiresAt: row.coach_access_expires_at ?? null,
     captainSubscriptionActive: Boolean(row.captain_subscription_active),
     captainSubscriptionStatus: normalizeSubscriptionStatus(row.captain_subscription_status),
+    captainAccessExpiresAt: row.captain_access_expires_at ?? null,
     tiqTeamLeagueEntryEnabled: Boolean(row.tiq_team_league_entry_enabled),
     tiqIndividualLeagueCreatorEnabled: Boolean(row.tiq_individual_league_creator_enabled),
-  })
+  }))}catch{return {ok:false,response:Response.json({ok:false,message:'Account access is temporarily unavailable.'},{status:503})}}
   if (row.role === 'admin') void cacheServerAccountRole(userId, 'admin')
 
   if (!access.canUseCaptainWorkflow) {
