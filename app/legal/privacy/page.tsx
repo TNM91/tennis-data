@@ -6,7 +6,7 @@ import LegalPage from '@/app/components/legal-page'
 import { buildSupportMessageHref } from '@/lib/message-links'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
-import { ACCOUNT_BACKUP_RETENTION, ACCOUNT_DELETION_DETAILS, ACCOUNT_DELETION_SUMMARY, ACCOUNT_PRIVACY_SECTIONS } from '@/lib/account-privacy'
+import { APPLE_PURCHASE_PRIVACY_SUMMARY, ACCOUNT_BACKUP_RETENTION, ACCOUNT_DELETION_DETAILS, ACCOUNT_DELETION_SUMMARY, ACCOUNT_PRIVACY_SECTIONS } from '@/lib/account-privacy'
 import { CONTACT_EMAILS, PUBLIC_EMAIL_CONTACTS } from '@/lib/contact-details'
 
 const privacySupportEmailHref = PUBLIC_EMAIL_CONTACTS.find(contact => contact.key === 'support')?.href
@@ -95,9 +95,10 @@ export default function PrivacyPage() {
           <p>
             These services include Supabase for accounts, database and file services;
             Vercel for hosting; Resend for account emails; Apple for iPhone notification
-            delivery; and Stripe for existing web billing. They process information needed
-            to provide those services.
+            delivery and iPhone purchases; and Stripe for existing web billing. They process
+            information needed to provide those services.
           </p>
+          <p>{APPLE_PURCHASE_PRIVACY_SUMMARY}</p>
           <p>
             We may also disclose information if required by law, to protect our rights, or to
             respond to valid legal requests.

@@ -1,6 +1,6 @@
 import {mountAppleMemberships} from './apple-memberships'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {Browser} from '@capacitor/browser'
+import {Browser} from './native-browser'
 import {mountAccountAccess} from './account-access'
 import {html} from './match-details'
 import {accountLinksHtml,bindAccountLinks,showPasswordRecovery} from './account-actions'

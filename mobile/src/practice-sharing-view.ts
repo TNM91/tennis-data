@@ -1,5 +1,5 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {Browser} from '@capacitor/browser'
+import {Browser} from './native-browser'
 import {practiceCalendarPreview} from '../../lib/native-practice-calendar'
 import {Share} from '@capacitor/share'
 import {Clipboard} from '@capacitor/clipboard'

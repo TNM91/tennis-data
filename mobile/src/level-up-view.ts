@@ -1,7 +1,7 @@
 import {openWeeklyCoachReply} from './weekly-coach-reply-view'
 import {openCoachCheckIn} from './coach-check-in-view'
 import {newWeeklyChange,completionWeeklyChange,saveWeeklyChange,checkWeeklyChange,WeeklyChangeError,type WeeklyChange} from './weekly-plan-actions'
-import {Browser} from '@capacitor/browser'
+import {Browser} from './native-browser'
 import {loadTrainingPlans,loadTrainingCoachWork,type TrainingCoachWork} from './training-inbox-data'
 import {trainingPlansHtml,trainingCoachWorkHtml,trainingInboxLaunches} from './training-inbox-view'
 import type {WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'

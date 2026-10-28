@@ -1,4 +1,4 @@
-import { Browser } from '@capacitor/browser'
+import { Browser } from './native-browser'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { ACCOUNT_HELP_LINKS } from '../../lib/account-privacy'
 import { openAccountPrivacy } from './account-privacy'

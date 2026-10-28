@@ -1,6 +1,6 @@
 import {chatPlanLink,type ChatPlan} from '../../lib/team-chat-plan-links'
 export {chatPlanLink} from '../../lib/team-chat-plan-links'
-import {Browser} from '@capacitor/browser'
+import {Browser} from './native-browser'
 import {tokenizeTeamRoomMessageBody} from '../../lib/team-room-message-links'
 import {html} from './match-details'
 export function chatWebLink(value:string){

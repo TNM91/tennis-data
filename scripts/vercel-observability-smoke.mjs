@@ -70,19 +70,22 @@ function checkPackageDependencies() {
 
 function checkRootLayoutMounts() {
   const layoutSource = readFileSync(join(process.cwd(), 'app/layout.tsx'), 'utf8')
+  const serviceSource = readFileSync(join(process.cwd(), 'app/components/web-service-scripts.tsx'), 'utf8')
   const requiredSnippets = [
-    "import { Analytics } from '@vercel/analytics/next'",
-    "import { SpeedInsights } from '@vercel/speed-insights/next'",
-    '<Analytics />',
-    '<SpeedInsights />',
+    [layoutSource, '<WebServiceScripts observabilityEnabled={VERCEL_OBSERVABILITY_ENABLED} />'],
+    [serviceSource, "from '@vercel/analytics/next'"],
+    [serviceSource, "from '@vercel/speed-insights/next'"],
+    [serviceSource, 'if (privateVisit) return null'],
+    [serviceSource, '<Analytics />'],
+    [serviceSource, '<SpeedInsights />'],
   ]
-  const missing = requiredSnippets.filter((snippet) => !layoutSource.includes(snippet))
+  const missing = requiredSnippets.filter(([source, snippet]) => !source.includes(snippet)).map(([, snippet]) => snippet)
 
   return {
-    name: 'Root app shell mounts Web Analytics and Speed Insights',
+    name: 'Public-web observability stays behind the native privacy boundary',
     ok: missing.length === 0,
     next: missing.length
-      ? `Restore missing app/layout.tsx wiring: ${missing.join(', ')}.`
+      ? `Restore missing app-shell privacy wiring: ${missing.join(', ')}.`
       : undefined,
   }
 }
