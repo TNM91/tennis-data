@@ -680,3 +680,16 @@ body.native-chat-conversation .chat-reaction-caption button.secondary { flex:0 0
 body.native-chat-conversation .chat-reaction-choices .chat-reaction-choice { display:grid; place-items:center; width:100%; min-width:0; min-height:48px; margin:0; padding:4px; border:0; border-radius:50%; background:transparent; font-size:28px; line-height:1; }
 body.native-chat-conversation .chat-reaction-choices .chat-reaction-choice[aria-pressed=true] { background:#1b5075; box-shadow:inset 0 0 0 1px #78c9ff; }
 body.native-chat-conversation .chat-reaction-choices .chat-reaction-choice:active:not(:disabled) { background:#245d87; }
+
+/* Chat team plans: bounded cards and a focused poll sheet, with no extra toolbar. */
+.chat-plan-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;inline-size:100%;min-inline-size:0;max-inline-size:100%;margin:12px 0 2px;padding:14px;text-align:left;white-space:normal;overflow-wrap:anywhere;border:1px solid #55a9e066;border-radius:16px;background:#0a2b47;color:#eff8ff;font:inherit;line-height:1.35}
+.chat-plan-card strong{font-size:15px}.chat-plan-card span{color:#acd9f6;font-size:13px}
+.team-poll-dialog{box-sizing:border-box;inline-size:calc(100% - 24px);max-inline-size:480px;max-block-size:calc(100dvh - 48px);overflow-y:auto;overscroll-behavior:contain;overflow-wrap:anywhere}
+.team-poll-dialog form,.poll-option-fields{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.team-poll-dialog label,.team-poll-dialog input,.team-poll-dialog button,.poll-choices,.poll-choice span{box-sizing:border-box;min-inline-size:0;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}
+.team-poll-dialog input{inline-size:100%;font-size:16px}.team-poll-dialog>button{inline-size:100%;margin-block-start:10px}
+.poll-edit-actions{display:flex;flex-wrap:wrap;gap:8px}.poll-edit-actions button{flex:1 1 120px}
+.poll-choices{display:grid;gap:10px}.poll-choice{display:grid!important;grid-template-columns:minmax(0,1fr);gap:10px;inline-size:100%;text-align:left;padding:14px!important;border-radius:14px!important}
+.poll-choice span{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px}.poll-choice small{color:#b6d6e8}.poll-choice[aria-pressed="true"]{border-color:#5cbcf8!important;background:#123e60!important}
+.poll-choice progress{appearance:none;inline-size:100%;block-size:5px;border:0;border-radius:99px;background:#061a2e;accent-color:#59b8f7}.poll-choice progress::-webkit-progress-bar{background:#061a2e;border-radius:99px}.poll-choice progress::-webkit-progress-value{background:#59b8f7;border-radius:99px}
+.poll-review-options{padding-inline-start:24px}.poll-review-options li{padding-block:6px}.poll-close{margin-block-start:18px}.poll-close summary{padding-block:12px}

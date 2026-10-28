@@ -1190,3 +1190,16 @@ P1/P2 finding. The pose is decorative, not a coaching diagram or ball-flight
 simulation. Physical iPhone safe-area, color and readability confirmation remains
 pending TestFlight. Source art is not an actual device screenshot; browser checks
 do not establish full accessibility compliance.
+
+
+## Candidate 142 — connected chat plans and team polls
+
+Scope: existing native chat entry, Add-menu action and native sheets; no logo, icon, court artwork, main-page theme or website layout changes. Public proof uses only synthetic team/player data; screenshot files remain private. Source contracts: existing team-room scope, named rooms, player practice RSVP, match-day actions and native notification membership/mute/block checks.
+
+Observed: actual mobile entry at 320/390/430/768 CSS pixels. Poll sheet root/dialog widths matched exactly (320/320 and 279/279 at320;390/390 and 349/349 at 390;430/430 and 389/389 at430;768/768 and 463/463 at768). At 320x568 a long sheet scrolls vertically; six 80-character-bounded option inputs and unbroken long labels remain contained. Vote choices remain at least 44px high, selected state includes text plus a progress bar and aria-pressed, and field text is 16px. Dark navy/electric-blue styling follows existing conversation surfaces.
+
+Interaction proof: General create/review/post → one stored poll card; change/remove vote → one ballot; final close → disabled choices with readable counts. Named Practice room retains its label and scope. Dirty review Back → Keep working preserves six options. Lost publication response → exact lookup finds the original poll with one write attempt and one stored post. A shared invitation opens the exact linked practice and existing reviewed RSVP/save/waitlist state, then returns with an unsent chat draft intact. Current match card opens refreshed Match day availability; other existing menus/reactions remain available. No production app-data/notification writes used.
+
+Evidence saved in the private build142 design proof set: full phone poll/results at 390, narrow and tablet variants, six-option composer, targeted practice flow and synthetic counters. Browser inspection is not physical-iPhone/VoiceOver/Dynamic-Type or real APNs delivery acceptance. Production migration and beta release are pending explicit schema approval; do not label this build shipped.
+
+Verification: full local `npm run verify` exited 0: lint, typecheck, 5,156 tests across 924 files, extension checks and Next production build. Final review adjustments passed focused lint and the final production TypeScript check. Ten native Node guards, one upload-helper Python guard, bundled build, iOS preparation and iOS source checks passed. No signed build, cloud deployment, production migration or release was started for this candidate.

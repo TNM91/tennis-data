@@ -1,6 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {buildTeamRoomScopeId,normalizeTeamRoomKey,type TeamRoomScope} from './team-room'
 import {checkTeamChatAccess} from './team-chat-updates'
+import {resolvePracticeToken} from './captain-practice-rsvp'
 import {assignPracticeDisplayStatuses} from './captain-practice-rsvp'
 import {practiceId,practiceStamp,validPlayerPracticeReply,type PlayerPractice} from './native-player-practice-contract'
 export async function authorizePlayerPracticeScope(service:SupabaseClient,owner:string,scope:TeamRoomScope){
@@ -42,4 +43,16 @@ export async function replyToPlayerPractice(service:SupabaseClient,owner:string,
  if(r.error||r.data?.ok!==true)return {ok:false as const,status:[400,403,404,409].includes(r.data?.status)?r.data.status:503}
  if(r.data.nativePracticeReply!==1||r.data.eventId!==body.eventId)return {ok:false as const,status:503}
  return loadPlayerPractices(service,owner,scope,body.eventId)
+}
+
+/** A shared URL never grants team or roster access. Resolve only after current scope authorization. */
+export async function loadPlayerPracticeInvitation(service:SupabaseClient,owner:string,scope:TeamRoomScope,token:unknown){
+ if(typeof token!=='string'||resolvePracticeToken(token)!==token)return {ok:false as const,status:400}
+ const access=await authorizePlayerPracticeScope(service,owner,scope);if(!access.ok)return access
+ const invite=await service.from('captain_practice_invites').select('event_id').eq('public_token',token).maybeSingle()
+ if(invite.error)return {ok:false as const,status:503};if(!invite.data||!practiceId(invite.data.event_id))return {ok:false as const,status:404}
+ const result=await loadPlayerPractices(service,owner,scope,invite.data.event_id)
+ if(!result.ok)return result
+ if(result.practices.length!==1||result.practices[0].id!==invite.data.event_id)return {ok:false as const,status:404}
+ return result
 }
