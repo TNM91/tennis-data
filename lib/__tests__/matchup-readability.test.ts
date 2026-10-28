@@ -19,7 +19,7 @@ describe('matchup readability surfaces', () => {
     expect(matchupSource).not.toContain('\u2193 Softening')
     expect(matchupSource).not.toContain('\u2192 Stable')
     expect(matchupSource).not.toContain(' · ')
-    expect(matchupSource).toContain("{label} - TIQ signal")
+    expect(matchupSource).not.toContain("{label} - TIQ signal");expect(matchupSource).toContain("USTA CURRENT")
     expect(matchupSource).not.toContain("color: '#f8fbff'")
     expect(matchupSource).not.toContain("m.score || '—'")
     expect(matchupSource).not.toContain("return '—'")

@@ -1,4 +1,3 @@
-import {ratingSignal} from '../../lib/rating-signal'
 import type {CSSProperties} from 'react'
 import Link from 'next/link'
 import {formatRating} from '../../lib/captain-formatters'
@@ -8,7 +7,7 @@ export default function CompareCard({
   title,
   subtitle,
   ratings,
-  ustaRatings,
+  ustaCurrent,
   projectionRating,
   ratingView,
   projectionView,
@@ -21,14 +20,14 @@ export default function CompareCard({
   title: string
   subtitle: string
   ratings: { overall: number | null; singles: number | null; doubles: number | null }
-  ustaRatings: { overall: number | null; singles: number | null; doubles: number | null }
+  ustaCurrent: string
   projectionRating: number | null
   ratingView: RatingView
   projectionView: RatingView
   profileHref: string | null
   favored: boolean
   selfRated: boolean
-  display?: {tiq:Record<RatingView,string>;usta:Record<RatingView,string>;projection:string;signal:string;signalColor:string}
+  display?: {tiq:Record<RatingView,string>;ustaCurrent:string;projection:string;signal:string;signalColor:string}
   dynamicRatingGrid: CSSProperties
 }) {
   return (
@@ -58,12 +57,8 @@ export default function CompareCard({
         <RatingPill displayValue={display?.tiq.doubles} label="Doubles" value={ratings.doubles} active={ratingView === 'doubles'} selfRated={selfRated} />
       </div>
 
-      <div style={{ ...ratingSectionLabelStyle, marginTop: 10 }}>USTA DYNAMIC</div>
-      <div data-comparison-rating-grid style={dynamicRatingGrid}>
-        <RatingPill displayValue={display?.usta.overall} label="Overall" value={selfRated ? null : ustaRatings.overall} active={ratingView === 'overall'} pendingLabel={selfRated ? 'Pending' : undefined} />
-        <RatingPill displayValue={display?.usta.singles} label="Singles" value={selfRated ? null : ustaRatings.singles} active={ratingView === 'singles'} pendingLabel={selfRated ? 'Pending' : undefined} />
-        <RatingPill displayValue={display?.usta.doubles} label="Doubles" value={selfRated ? null : ustaRatings.doubles} active={ratingView === 'doubles'} pendingLabel={selfRated ? 'Pending' : undefined} />
-      </div>
+      <div style={{ ...ratingSectionLabelStyle, marginTop: 10 }}>USTA CURRENT</div>
+      <p>{display?.ustaCurrent ?? ustaCurrent}</p>
 
       <div style={highlightBox}>
         <div style={highlightLabel}>
@@ -72,23 +67,7 @@ export default function CompareCard({
         <div style={highlightValue}>{display?.projection ?? `${formatRating(projectionRating)}${selfRated ? ' S' : ''}`}</div>
       </div>
 
-      {display ? (display.signal ? <div style={{...ratingSignalStyle,color:display.signalColor}}>{display.signal}</div> : null) : (() => {
-        if (selfRated) return (
-          <div style={{ ...ratingSignalStyle, color: 'var(--brand-lime)' }}>
-            Self-rated - verified results will replace the S signal.
-          </div>
-        )
-        const tiqVal = ratingView === 'singles' ? ratings.singles : ratingView === 'doubles' ? ratings.doubles : ratings.overall
-        const ustaVal = ratingView === 'singles' ? ustaRatings.singles : ratingView === 'doubles' ? ustaRatings.doubles : ustaRatings.overall
-        if (tiqVal == null || ustaVal == null) return null
-        const diff = tiqVal - ustaVal
-        const {label,color} = ratingSignal(diff)
-        return (
-          <div style={{ ...ratingSignalStyle, color }}>
-            {label} - TIQ signal {diff >= 0 ? '+' : ''}{diff.toFixed(2)}
-          </div>
-        )
-      })()}
+      {display?.signal ? <div style={{...ratingSignalStyle,color:display.signalColor}}>{display.signal}</div> : selfRated ? <div style={{...ratingSignalStyle,color:'var(--brand-lime)'}}>Self-rated — verified results will build your TIQ estimate.</div> : null}
     </div>
   )
 }

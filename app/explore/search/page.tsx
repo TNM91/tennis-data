@@ -1,5 +1,7 @@
 'use client'
 
+import {publishedUstaLabel} from '@/lib/published-usta-rating'
+
 import Link from 'next/link'
 import { track } from '@vercel/analytics'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
@@ -42,6 +44,7 @@ type PlayerSearchRow = {
   location?: string | null
   recent_match_team?: string | null
   recent_match_date?: string | null
+  rating_source?: string | null
   overall_rating?: number | null
   overall_dynamic_rating?: number | null
   overall_usta_dynamic_rating?: number | null
@@ -406,7 +409,7 @@ function ExploreSearchContent() {
   const filteredPlayers = useMemo(() => {
     if (ratingBand === 'all') return players
     return players.filter((p) => {
-      const r = p.overall_dynamic_rating ?? p.overall_rating
+      const r = p.overall_dynamic_rating
       if (typeof r !== 'number') return false
       if (ratingBand === '2.5') return r >= 2.25 && r < 2.75
       if (ratingBand === '3.0') return r >= 2.75 && r < 3.25
@@ -797,14 +800,12 @@ function ExploreSearchContent() {
                         <div style={resultTitleStyle}>{player.name}</div>
                         <div style={resultMetaStyle}>{getPlayerSearchMeta(player)}</div>
                         <span style={playerSearchContextStyle}>
-                          {typeof player.overall_usta_dynamic_rating === 'number'
-                            ? `USTA ${player.overall_usta_dynamic_rating.toFixed(2)} baseline`
-                            : 'Public player record'}
+                          {`USTA current: ${publishedUstaLabel(player)}`}
                         </span>
                       </div>
                       <div style={playerSearchRatingStyle}>
                         <span style={playerSearchRatingLabelStyle}>TIQ overall</span>
-                        <strong style={playerSearchRatingValueStyle}>{typeof (player.overall_dynamic_rating ?? player.overall_rating) === 'number' ? (player.overall_dynamic_rating ?? player.overall_rating)!.toFixed(2) : '—'}</strong>
+                        <strong style={playerSearchRatingValueStyle}>{typeof (player.overall_dynamic_rating) === 'number' ? (player.overall_dynamic_rating)!.toFixed(2) : '—'}</strong>
                         <small style={playerSearchRatingActionStyle}>View profile</small>
                       </div>
                     </Link>

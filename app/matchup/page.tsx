@@ -1,5 +1,7 @@
 'use client'
 
+import {publishedUstaLabel} from '@/lib/published-usta-rating'
+
 import RatingTrajectoryChart from '../../components/matchup/RatingTrajectoryChart'
 
 import HistoricalRatingCheck from '../../components/matchup/HistoricalRatingCheck'
@@ -50,6 +52,7 @@ type Player = {
   id: string
   name: string
   location?: string | null
+  overall_rating?: number | string | null
   overall_dynamic_rating?: number | null
   singles_dynamic_rating?: number | null
   doubles_dynamic_rating?: number | null
@@ -121,16 +124,8 @@ type ComparisonState = {
     singles: number | null
     doubles: number | null
   }
-  leftUstaRatings: {
-    overall: number | null
-    singles: number | null
-    doubles: number | null
-  }
-  rightUstaRatings: {
-    overall: number | null
-    singles: number | null
-    doubles: number | null
-  }
+  leftUstaCurrent: string
+  rightUstaCurrent: string
   leftSelfRated: boolean
   rightSelfRated: boolean
   leftSelected: number
@@ -171,6 +166,7 @@ const MATCHUP_PLAYER_SELECT_BASE = `
   id,
   name,
   location,
+  overall_rating,
   overall_dynamic_rating,
   singles_dynamic_rating,
   doubles_dynamic_rating,
@@ -1090,16 +1086,8 @@ export default function MatchupPage() {
           singles: rightSingles,
           doubles: rightDoubles,
         },
-        leftUstaRatings: {
-          overall: playerA.overall_usta_dynamic_rating ?? null,
-          singles: playerA.singles_usta_dynamic_rating ?? null,
-          doubles: playerA.doubles_usta_dynamic_rating ?? null,
-        },
-        rightUstaRatings: {
-          overall: playerB.overall_usta_dynamic_rating ?? null,
-          singles: playerB.singles_usta_dynamic_rating ?? null,
-          doubles: playerB.doubles_usta_dynamic_rating ?? null,
-        },
+        leftUstaCurrent: publishedUstaLabel(playerA),
+        rightUstaCurrent: publishedUstaLabel(playerB),
         leftSelfRated: isSelfRatedPlayer(playerA),
         rightSelfRated: isSelfRatedPlayer(playerB),
         leftSelected: left,
@@ -1164,16 +1152,8 @@ export default function MatchupPage() {
       rightLocation: 'Other side',
       leftRatings: teamARatings,
       rightRatings: teamBRatings,
-      leftUstaRatings: {
-        overall: [teamA1.overall_usta_dynamic_rating ?? null, teamA2.overall_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamA1.overall_usta_dynamic_rating!, teamA2.overall_usta_dynamic_rating!]) : null,
-        singles: [teamA1.singles_usta_dynamic_rating ?? null, teamA2.singles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamA1.singles_usta_dynamic_rating!, teamA2.singles_usta_dynamic_rating!]) : null,
-        doubles: [teamA1.doubles_usta_dynamic_rating ?? null, teamA2.doubles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamA1.doubles_usta_dynamic_rating!, teamA2.doubles_usta_dynamic_rating!]) : null,
-      },
-      rightUstaRatings: {
-        overall: [teamB1.overall_usta_dynamic_rating ?? null, teamB2.overall_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.overall_usta_dynamic_rating!, teamB2.overall_usta_dynamic_rating!]) : null,
-        singles: [teamB1.singles_usta_dynamic_rating ?? null, teamB2.singles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.singles_usta_dynamic_rating!, teamB2.singles_usta_dynamic_rating!]) : null,
-        doubles: [teamB1.doubles_usta_dynamic_rating ?? null, teamB2.doubles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.doubles_usta_dynamic_rating!, teamB2.doubles_usta_dynamic_rating!]) : null,
-      },
+      leftUstaCurrent: [teamA1,teamA2].map(player=>player.name+': '+publishedUstaLabel(player)).join(' / '),
+      rightUstaCurrent: [teamB1,teamB2].map(player=>player.name+': '+publishedUstaLabel(player)).join(' / '),
       leftSelfRated: [teamA1, teamA2].some(isSelfRatedPlayer),
       rightSelfRated: [teamB1, teamB2].some(isSelfRatedPlayer),
       leftSelected: left,
@@ -2296,7 +2276,7 @@ export default function MatchupPage() {
                   title={comparison.leftLabel}
                   subtitle={comparison.leftLocation}
                   ratings={comparison.leftRatings}
-                  ustaRatings={comparison.leftUstaRatings}
+                  ustaCurrent={comparison.leftUstaCurrent}
                   projectionRating={comparison.leftSelected}
                   ratingView={ratingView}
                   projectionView={comparison.engineRatingView}
@@ -2320,7 +2300,7 @@ export default function MatchupPage() {
                   title={comparison.rightLabel}
                   subtitle={comparison.rightLocation}
                   ratings={comparison.rightRatings}
-                  ustaRatings={comparison.rightUstaRatings}
+                  ustaCurrent={comparison.rightUstaCurrent}
                   projectionRating={comparison.rightSelected}
                   ratingView={ratingView}
                   projectionView={comparison.engineRatingView}

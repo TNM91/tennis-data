@@ -54,7 +54,7 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('How am I improving?')
     expect(source).toContain('What should I work on?')
     expect(source).toContain('Today&apos;s next move')
-    expect(source).toContain('Level-up meter')
+    expect(source).toContain('TIQ level-up meter')
     expect(source).not.toContain('USTA API')
     expect(source).not.toContain('direct USTA feed')
   })

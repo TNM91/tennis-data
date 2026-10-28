@@ -164,7 +164,7 @@ describe('Explore responsive surfaces', () => {
     expect(exploreSearchSource).toContain('compactSearchNextActionsGridStyle')
     expect(exploreSearchSource).toContain('getPlayerSearchResultStyle()')
     expect(exploreSearchSource).toContain('TIQ overall')
-    expect(exploreSearchSource).toContain('USTA ${player.overall_usta_dynamic_rating.toFixed(2)} baseline')
+    expect(exploreSearchSource).toContain('USTA current: ${publishedUstaLabel(player)}');expect(exploreSearchSource).not.toContain('USTA ${player.overall_usta_dynamic_rating.toFixed(2)} baseline')
     expect(exploreSearchSource).toContain('{!isMobile ? <span style={searchNextActionsTextStyle}>{action.body}</span> : null}')
     expect(styleBlock(exploreSearchSource, 'compactSearchNextActionsGridStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(styleBlock(exploreSearchSource, 'compactSearchNextActionCardStyle')).toContain('minHeight: 94')

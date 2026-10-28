@@ -81,6 +81,7 @@ import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
 import { playerRecentRecord } from '@/lib/player-recent-record'
+import {publishedUstaRating,publishedUstaLabel} from '@/lib/published-usta-rating'
 import { playerLevelPath } from '@/lib/player-level-path'
 import { playerResultBreakdown } from '@/lib/player-result-breakdown'
 import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
@@ -158,6 +159,7 @@ type PlayerRow = {
   flight: string | null
   singles_dynamic_rating: number | null
   doubles_dynamic_rating: number | null
+  overall_rating?: number | string | null
   overall_dynamic_rating: number | null
   singles_usta_dynamic_rating: number | null
   doubles_usta_dynamic_rating: number | null
@@ -226,7 +228,7 @@ type TeamSummary = {
 }
 
 const MY_LAB_PLAYER_SELECT_BASE =
-  'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,overall_usta_dynamic_rating'
+  'id,name,location,flight,overall_rating,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,overall_usta_dynamic_rating'
 
 const MY_LAB_PLAYER_SELECT_WITH_SOURCE = `${MY_LAB_PLAYER_SELECT_BASE},rating_source`
 
@@ -2285,13 +2287,13 @@ function MyLabPageInner() {
         id: `rating-${player.id}`,
         type: 'rating',
         title: `${player.name} rating snapshot`,
-        body: `TIQ overall: ${formatRating(player.overall_dynamic_rating)} (USTA: ${formatRating(player.overall_usta_dynamic_rating)}). Singles TIQ: ${formatRating(player.singles_dynamic_rating)}. Doubles TIQ: ${formatRating(player.doubles_dynamic_rating)}.`,
+        body: `TIQ overall: ${formatRating(player.overall_dynamic_rating)} (USTA: ${publishedUstaLabel(player)}). Singles TIQ: ${formatRating(player.singles_dynamic_rating)}. Doubles TIQ: ${formatRating(player.doubles_dynamic_rating)}.`,
         entityType: 'player',
         entityId: player.id,
         entityName: player.name,
         createdAt: null,
         mobileTitle: `${player.name} rating`,
-        mobileBody: `TIQ ${formatRating(player.overall_dynamic_rating)} · USTA ${formatRating(player.overall_usta_dynamic_rating)}`,
+        mobileBody: `TIQ ${formatRating(player.overall_dynamic_rating)} · USTA ${publishedUstaLabel(player)}`,
         mobileContext: `Singles ${formatRating(player.singles_dynamic_rating)} · Doubles ${formatRating(player.doubles_dynamic_rating)}`,
         freshnessLabel: 'Current rating',
         score: 98,
@@ -2631,15 +2633,7 @@ function MyLabPageInner() {
         const player = playerMap.get(f.entity_id)
         if (!player) return null
         const base = player.overall_dynamic_rating
-        const usta = player.overall_usta_dynamic_rating
-        if (base == null || usta == null) return { id: f.entity_id, name: f.entity_name, status: null as null, tiq: base }
-        const diff = usta - base
-        const status =
-          diff >= 0.15 ? 'Bump Up Pace' :
-          diff >= 0.07 ? 'Trending Up' :
-          diff > -0.07 ? 'Holding' :
-          diff > -0.15 ? 'At Risk' : 'Drop Watch'
-        return { id: f.entity_id, name: f.entity_name, status, tiq: base }
+        return { id: f.entity_id, name: f.entity_name, status: null as string|null, tiq: base }
       })
       .filter((s): s is NonNullable<typeof s> => s !== null)
   }, [follows, playerMap])
@@ -2920,8 +2914,8 @@ function MyLabPageInner() {
   const personalSinglesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('singles')).length
   const personalDoublesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('doubles')).length
   const currentTiq = linkedPlayer?.overall_dynamic_rating ?? null
-  const ustaDynamic = isSelfRatedProfile ? null : linkedPlayer?.overall_usta_dynamic_rating ?? null
-  const {ustaBase,nextUstaLevel,hasLevelProgress,levelProgress,tiqVsUsta,levelStatus,ratingToGo} = playerLevelPath(currentTiq,ustaDynamic,isSelfRatedProfile)
+  const ustaCurrent = publishedUstaRating(linkedPlayer)
+  const {tiqBase,nextTiqBand,hasLevelProgress,levelProgress,levelStatus,ratingToGo} = playerLevelPath(currentTiq,ustaCurrent,isSelfRatedProfile)
   const confidenceLabel =
     recentDecisionMatches.length >= 8 ? 'High confidence' : recentDecisionMatches.length >= 4 ? 'Medium confidence' : 'Low confidence'
   const {bestWinStreak,currentWinStreak} = playerRecentRecord(personalMatches)
@@ -3447,16 +3441,7 @@ function MyLabPageInner() {
     },
   ]
   const ratingVisuals = [
-    {
-      label: 'USTA base',
-      value: ustaBase,
-      display: isSelfRatedProfile ? 'Pending' : ustaBase == null ? 'New' : ustaBase.toFixed(2),
-    },
-    {
-      label: 'USTA dynamic',
-      value: ustaDynamic,
-      display: isSelfRatedProfile ? 'Pending' : formatRating(ustaDynamic),
-    },
+    {label:'USTA current',value:ustaCurrent,display:publishedUstaLabel(linkedPlayer)},
     {
       label: 'Overall',
       value: currentTiq,
@@ -4055,9 +4040,9 @@ function MyLabPageInner() {
                 <div style={levelMeterStyle}>
                   <div style={levelMeterHeaderStyle}>
                     <div style={sectionHeaderCopyStyle}>
-                      <div style={levelMeterTitleStyle}>Level-up meter</div>
+                      <div style={levelMeterTitleStyle}>TIQ level-up meter</div>
                       <div style={levelBadgeRowStyle}>
-                        <span style={levelStatus === 'Trending up' ? pillGreenStyle : levelStatus === 'Needs work' ? pillRedStyle : pillBlueStyle}>
+                        <span style={levelStatus === 'Upper TIQ band' ? pillGreenStyle : levelStatus === 'Starting estimate' ? pillRedStyle : pillBlueStyle}>
                           {levelStatus}
                         </span>
                         <span style={pillSlateStyle}>{confidenceLabel}</span>
@@ -4066,24 +4051,24 @@ function MyLabPageInner() {
                     <div style={levelRatingBlockStyle}>
                       <strong style={levelRatingNumberStyle}>{formatRating(currentTiq)}</strong>
                       <span>
-                        {ustaBase == null || nextUstaLevel == null
+                        {tiqBase == null || nextTiqBand == null
                           ? 'Build match history'
-                          : `USTA ${ustaBase.toFixed(2)} - next ${nextUstaLevel.toFixed(1)}`}
+                          : `TIQ ${tiqBase.toFixed(1)} - next TIQ band ${nextTiqBand.toFixed(1)}`}
                       </span>
-                      <small>{tiqVsUsta == null ? 'TIQ vs USTA appears after linking' : `TIQ vs USTA ${tiqVsUsta >= 0 ? '+' : ''}${tiqVsUsta.toFixed(2)}`}</small>
+                      <small>{`USTA current: ${publishedUstaLabel(linkedPlayer)}`}</small>
                     </div>
                   </div>
                   <div style={levelMeterMetaStyle}>
-                    <strong>{ustaBase == null ? 'USTA base pending' : `USTA ${ustaBase.toFixed(2)} - TIQ overall ${formatRating(currentTiq)}`}</strong>
+                    <strong>{`TIQ Overall ${formatRating(currentTiq)} · USTA current ${publishedUstaLabel(linkedPlayer)}`}</strong>
                     <span>{ratingToGo == null ? 'Set your profile to show your next level path.' : `${ratingToGo.toFixed(2)} to go`}</span>
                   </div>
-                  <div style={progressTrackStyle} aria-label={hasLevelProgress ? `Level progress ${Math.round(levelProgress)} percent` : 'Level progress pending'}>
+                  <div style={progressTrackStyle} aria-label={hasLevelProgress ? `TIQ band progress ${Math.round(levelProgress)} percent` : 'TIQ band progress pending'}>
                     <div style={levelProgressFillStyle(levelProgress, hasLevelProgress)} />
                   </div>
                   <div style={levelMeterScaleStyle}>
-                    <span>{ustaBase == null ? 'Base' : ustaBase.toFixed(1)}</span>
+                    <span>{tiqBase == null ? 'TIQ band' : tiqBase.toFixed(1)}</span>
                     <span>{ratingToGo == null ? 'Next level' : `${ratingToGo.toFixed(2)} to go`}</span>
-                    <span>{nextUstaLevel == null ? 'Next' : nextUstaLevel.toFixed(1)}</span>
+                    <span>{nextTiqBand == null ? 'Next TIQ band' : nextTiqBand.toFixed(1)}</span>
                   </div>
                 </div>
 
@@ -4127,7 +4112,7 @@ function MyLabPageInner() {
                     <div style={ratingJourneyCardStyle}>
                       <div style={metricLabelStyle}>Latest TIQ update</div>
                       <div style={todayReadValueStyle}>{ratingJourney.latestDeltaLabel}</div>
-                      <div style={metricNoteStyle}>{ustaBase == null ? 'Add your USTA context to compare your current starting point.' : `USTA reference: ${ustaBase.toFixed(1)}.`}</div>
+                      <div style={metricNoteStyle}>{ustaCurrent == null ? 'Published USTA level pending verification.' : `USTA current: ${ustaCurrent.toFixed(1)}. TIQ estimates playing strength separately.`}</div>
                     </div>
                   </div>
                   <div style={ratingJourneyTrendStyle}>
