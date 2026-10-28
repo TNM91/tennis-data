@@ -1240,3 +1240,14 @@ Verification: full local lint and typecheck passed; the corrected full suite pas
 - Initial failed read shows an unavailable state without zero counts; explicit refresh recovers. A failed access refresh removes previously displayed names/totals. Escape during a slow read closes the sheet and its late result cannot reopen it.
 - Long opponent labels and 44 synthetic names: 320×568, 390×844, 430×932, 768×1024 root and dialog scroll widths equal their client widths. Action buttons are 48/50px high; vertical scrolling is intentional. No browser console errors, production app-data writes or notifications from QA.
 - Private proof: build146-team-replies-390.png, build146-replies-long-320.png, build146-native-qa.json under the existing local signing evidence folder. Physical iPhone acceptance remains pending.
+
+
+## Candidate 147 — reviewed captain follow-ups and exact alert cards
+
+Observed in the actual native entry with synthetic services: reminder review displays the exact future match, two eligible names and aggregate exclusions. One send yields a saved-notification receipt; checking it does not send again. A simulated committed save followed by a lost response recovers by lookup with one send attempt. A recorded-only receipt explicitly does not confirm notification delivery. A stale review disables retry and focuses the leave/keep heading; close retains the unsent draft. Busy confirmation blocks Escape/Back until the attempt settles. No eligible recipients and a six-hour cooldown expose no Send control. A denied read can be explicitly refreshed before confirmation.
+
+A notification for an availability card older than the newest 75 messages opens that exact November request and keeps heading focus through live refresh. Match day still shows the active October fixture and selected lineup. Latest restores the newest page. The focused older page makes no read-position write across the unseen gap. A missing target leaves the conversation available with a clear notice. UI QA caught and fixed focus loss caused by the first live redraw.
+
+Forty-four long unbroken names and a long opponent label remain contained at 320x568, 390x844, 430x932 and 768x1024. Root scroll widths equal 320/390/430/768; open dialog client/scroll widths equal 271/341/381/503. Confirmation controls are 48–50px high. The long sheet scrolls vertically. Existing navy surfaces, electric-blue accents and approved brand artwork are preserved. Console error count: zero in the final bounded pass.
+
+Private evidence: build147-native-qa.json, build147-reminder-review-390.png, build147-reminder-long-320.png and build147-older-alert-390.png in the local Apple release evidence folder. All positive flows use synthetic team/player services: production writes and notifications are zero. Physical iPhone acceptance remains pending. This records local interaction/layout QA; distribution gates are tracked separately.

@@ -52,10 +52,12 @@ describe('read-only native conversation history API',()=>{
   m.chatRows.mockResolvedValue({ok:true,rows:[],beforeCursor:before,nextCursor:'',lastReadAt:'',blockedUserIds:[]})
   const response=await GET(read()),data=await response.json()
   expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('private, no-store');expect(data).toMatchObject({chatUpdate:true,beforeCursor:before,nextCursor:'',room:{id:'verified-room',messages:[]}})
-  expect(m.chatRows).toHaveBeenCalledWith(expect.anything(),'owner','verified-room',true,before)
+  expect(m.chatRows).toHaveBeenCalledWith(expect.anything(),'owner','verified-room',true,before,'')
   expect(calls.some(c=>['insert','update'].includes(c.method))).toBe(false)
   expect(calls.some(c=>c.table==='internal_conversation_participants')).toBe(false)
  })
+ it('forwards an exact alert message separately from pagination and returns its validated anchor',async()=>{const id='1959be10-0000-4000-8000-000000000075',cursor='2026-10-24T08:00:00.123456Z|'+id;m.chatRows.mockResolvedValue({ok:true,rows:[],beforeCursor:'',nextCursor:'',focusMessageId:id,focusCursor:cursor,lastReadAt:'',blockedUserIds:[]});const r=await GET(read({before:'',focus:id}));expect(r.status).toBe(200);expect(await r.json()).toMatchObject({focusMessageId:id,focusCursor:cursor});expect(m.chatRows).toHaveBeenCalledWith(expect.anything(),'owner','verified-room',true,'',id);expect(calls.some(c=>['insert','update','delete','upsert'].includes(c.method))).toBe(false)})
+
 })
 
 describe('native media exact-scope guard',()=>{

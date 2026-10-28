@@ -382,7 +382,7 @@ export async function GET(request: Request) {
       ? await loadNativeChatSearch(auth.service,auth.userId,selected,url.searchParams.get('q')||'',url.searchParams.get('kind')||'all',url.searchParams.get('before')||'')
       : url.searchParams.get('chatMessage')==='1'
       ? await loadNativeChatMessage(auth.service,auth.userId,selected,url.searchParams.get('message')||'',url.searchParams.get('view')||'')
-      : await loadNativeChatUpdate(auth.service, auth.userId, selected, url.searchParams.get('before') || '')
+      : await loadNativeChatUpdate(auth.service, auth.userId, selected, url.searchParams.get('before') || '', url.searchParams.get('focus') || '')
     return Response.json(result, { status: result.ok ? 200 : result.status, headers: { 'Cache-Control': 'private, no-store' } })
   }
 
@@ -2782,18 +2782,18 @@ async function loadNativeChatSearch(service:SupabaseClient,userId:string,selecte
  catch{return {ok:false as const,status:503}}
 }
 
-async function loadNativeChatUpdate(service: SupabaseClient, userId: string, selected: TeamLinkRow, before = '') {
+async function loadNativeChatUpdate(service: SupabaseClient, userId: string, selected: TeamLinkRow, before = '', focus = '') {
   const conversation = await findNativeChatConversation(service, selected)
   if (!conversation.ok) return conversation
   const id = conversation.id
-  const loaded = await loadTeamChatRows(service, userId, id, canManageTeamRoom(teamRoles(selected)), before)
+  const loaded = await loadTeamChatRows(service, userId, id, canManageTeamRoom(teamRoles(selected)), before, focus)
   if (!loaded.ok) return loaded
   try {
     const [profiles, reactions] = await Promise.all([
       loadProfileMap(service, [userId, ...loaded.rows.map(row => row.sender_user_id)]),
       loadNativeReactionSummary(service, userId, id, loaded.rows.map(row => row.id)),
     ])
-    return {ok: true as const, chatUpdate: true, beforeCursor: loaded.beforeCursor, nextCursor: loaded.nextCursor, room: {id,...(selected.namedRoom?{chatRoom:selected.namedRoom}:{}), blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => ({...toMessage(row, profiles, userId), reactions: reactions.get(row.id) || []}))}}
+    return {ok: true as const, chatUpdate: true, ...(focus?{focusMessageId:loaded.focusMessageId,focusCursor:loaded.focusCursor}:{}), beforeCursor: loaded.beforeCursor, nextCursor: loaded.nextCursor, room: {id,...(selected.namedRoom?{chatRoom:selected.namedRoom}:{}), blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => ({...toMessage(row, profiles, userId), reactions: reactions.get(row.id) || []}))}}
   } catch { return {ok: false as const, status: 503, message: 'Conversation updates are unavailable.'} }
 }
 

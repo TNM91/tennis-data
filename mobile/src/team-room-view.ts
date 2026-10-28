@@ -37,7 +37,7 @@ import {chatReactionButtons,type ChatReactionKind} from './chat-reactions'
 import {watchTeamChat,type TeamLiveStatus} from './team-chat-live'
 import {newerChatTime} from './team-chat-read'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {loadTeamRoom,loadTeamChatUpdate,TeamRoomAccessError,type NativeTeamData,type NativeTeamRoom,type TeamScope} from './team-room-data'
+import {loadTeamRoom,loadTeamChatUpdate,TeamRoomAccessError,type NativeTeamData,type NativeTeamRoom,type TeamScope,type TeamChatDestination} from './team-room-data'
 import {ChatActionError,TeamChatDraft,postTeamChat,type ChatAction} from './team-chat-send'
 import {html} from './match-details'
 import {matchDate} from './recent-results'
@@ -57,9 +57,10 @@ export function teamMatchDayHtml(room:NativeTeamRoom) {
  const next=teamMatchOverview(room),card=currentTeamPlan(room)?.card
  return `<section><h2>Next team match</h2>${next?`<dl><dt>Date</dt><dd>${html(matchDate(next.matchDate))}</dd><dt>Opponent</dt><dd>${html(next.opponent || 'Not recorded')}</dd><dt>Time</dt><dd>${html(next.matchTime || 'Not recorded')}</dd><dt>Facility</dt><dd>${html(next.facility || 'Not recorded')}</dd></dl>`:'<p>No upcoming match is recorded for this team.</p>'}</section><section><h2>Shared court plan</h2>${card?`<p>${html(matchDate(card.matchDate))} · ${html(card.opponent || 'Opponent unavailable')}</p><p class="rating-context">${html(card.state==='archived'?'Archived match card':card.state==='active'?'Active match card':'Upcoming match card')}. This is the plan shared in Team Room; check captain announcements for final changes.</p>${card.lineup.length?`<ul class="team-courts">${card.lineup.map(court=>`<li><h3>${html(court.label || 'Court')}</h3><p>${court.defaulted?'Defaulted court':court.players.length?court.players.map(html).join(' &amp; '):'Players not assigned'}</p></li>`).join('')}</ul>`:'<p>No court assignments are recorded on this card.</p>'}`:'<p>Your captain has not shared a current court plan.</p>'}</section>`
 }
-export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string,isCurrent:()=>boolean,initialScope?:TeamScope) {
+export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string,isCurrent:()=>boolean,initialScope?:TeamChatDestination) {
+ let initialMessageId=initialScope?.messageId||'',historyFocusId='',alertFocusId=''
  let inbox=!initialScope
- let disposed=false,revision=0,selected:TeamScope|undefined=initialScope,tab:'Match day'|'Conversation'|'Members'|'Captain'='Conversation',snapshot:NativeTeamData|null=null
+ let disposed=false,revision=0,selected:TeamScope|undefined=initialScope?{teamName:initialScope.teamName,leagueName:initialScope.leagueName,flight:initialScope.flight,...(initialScope.chatRoomId?{chatRoomId:initialScope.chatRoomId}:{})}:undefined,tab:'Match day'|'Conversation'|'Members'|'Captain'='Conversation',snapshot:NativeTeamData|null=null
  let roomPicker:ReturnType<typeof openChatRooms>|null=null
  let historySearch:ReturnType<typeof openChatHistory>|null=null
  let practicesView:ReturnType<typeof openPlayerPractices>|ReturnType<typeof openCaptainPractices>|null=null
@@ -226,6 +227,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const renderLiveHistory=(room:NativeTeamRoom,latest:boolean)=>{
   const list=app.querySelector<HTMLElement>('.team-conversation')
   if(!list)return
+  const active=document.activeElement as HTMLElement|null,keepAlertFocus=Boolean(alertFocusId&&active?.closest<HTMLElement>('[data-chat-message]')?.dataset.chatMessage===alertFocusId&&(active.matches('.chat-match-card h3')||active.matches('[data-chat-message]')))
   const previous=list.scrollTop,top=list.getBoundingClientRect().top
   const first=Array.from(list.children).find(child=>child.getBoundingClientRect().bottom>top+1) as HTMLElement|undefined
   const anchor=first?{id:first.dataset.chatMessage,delta:first.getBoundingClientRect().top-top}:null
@@ -239,13 +241,14 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   if(!draft.reply){const context=app.querySelector('#chat-reply-context');if(context)context.replaceChildren()}
   const oldHub=app.querySelector('.team-hub');if(oldHub){oldHub.outerHTML=teamHubHtml(room,userId,hubOpen);bindTeamHub(room)}
   bindMessageActions(room);updateLabels();markLatest()
+  if(keepAlertFocus){const item=Array.from(list.querySelectorAll<HTMLElement>('[data-chat-message]')).find(el=>el.dataset.chatMessage===alertFocusId);const target=item?.querySelector<HTMLElement>('.chat-match-card h3')||item;if(target){target.tabIndex=-1;target.focus({preventScroll:true})}}
  }
  const refreshLive=async()=>{
   if(!snapshot?.room || !selected || !valid())return
   if(roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || fixturesView?.isOpen() || historySearch?.isOpen() || matchReview?.isOpen() || historyLoading || busy || reactionSending || draft.sending || fullLoads>0 || app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]')){needsLiveRefresh=true;return}
   const room=snapshot.room,scope={...selected},version=++revision,followLatest=!catchingUp && tab==='Conversation' && nearLatest()
   try{
-   const update=await loadTeamChatUpdate(client,userId,valid,scope,room.id,undefined,historyBefore)
+   const update=await loadTeamChatUpdate(client,userId,valid,scope,room.id,undefined,historyFocusId?'':historyBefore,historyFocusId)
    if(!valid() || version!==revision || snapshot?.room?.id!==room.id)return
    historyNext=update.nextCursor
    const {blockedUserIds,...fields}=update,blocked=new Set(blockedUserIds)
@@ -264,7 +267,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   try{
    const update=await loadTeamChatUpdate(client,userId,valid,scope,room.id,undefined,before)
    if(!valid() || version!==revision || epoch!==reactionEpoch || snapshot?.room?.id!==room.id)return
-   historyBefore=before;historyNext=update.nextCursor;historyNotice=before?(update.messages.length?'Earlier messages. Choose Back to latest to catch up.':'You’ve reached the beginning of this conversation.'):''
+   historyFocusId='';alertFocusId='';historyBefore=before;historyNext=update.nextCursor;historyNotice=before?(update.messages.length?'Earlier messages. Choose Back to latest to catch up.':'You’ve reached the beginning of this conversation.'):''
    const blocked=new Set(update.blockedUserIds)
    if(draft.reply && blocked.has(draft.reply.senderUserId || ''))draft.reply=null
    snapshot={...snapshot,room:{...snapshot.room,messages:update.messages,lastReadAt:update.lastReadAt,activeCard:room.activeCard && !blocked.has(room.activeCard.senderUserId)?room.activeCard:null,blockedMembers:update.blockedUserIds.map(id=>({id,name:room.blockedMembers.find(member=>member.id===id)?.name || 'Team member'}))}}
@@ -286,7 +289,8 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const currentScope=():TeamScope=>{if(!selected)throw Error('Open a team first.');return {...selected}}
  let draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))
  let matchActions=new TeamMatchActions(action=>postTeamChat(client,userId,valid,currentScope(),action))
- const freshDraft=()=>{roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchEssentialsVersion++;chatMatchNoticeId='';hubOpen=false;reviewNeedsRefresh=false;matchReview?.dispose();matchReview=null;matchShare?.dispose();matchShare=null;closeMentions();gifChooser?.abort();gifChooser=null;gifs.clear();historyBefore='';historyNext='';historyNotice='';historyLoading=false;captainView?.dispose();captainView=null;messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;chatFilter='all';findOpen=false;searchText='';postEditor?.dispose();postEditor=null;matchActions.dispose();matchActions=new TeamMatchActions(action=>postTeamChat(client,userId,valid,currentScope(),action));muteSending=false;mutePending=null;muteNotice='';previews.clear();closePhoto();photoChoosing=false;reactionEpoch++;reactionSending=false;reactionNotice='';pendingReactions.clear();live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';catchingUp=false;catchupStart='';initialCatchup=false;savedReadThrough='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
+ const freshDraft=()=>{initialMessageId='';historyFocusId='';alertFocusId='';roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchEssentialsVersion++;chatMatchNoticeId='';hubOpen=false;reviewNeedsRefresh=false;matchReview?.dispose();matchReview=null;matchShare?.dispose();matchShare=null;closeMentions();gifChooser?.abort();gifChooser=null;gifs.clear();historyBefore='';historyNext='';historyNotice='';historyLoading=false;captainView?.dispose();captainView=null;messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;chatFilter='all';findOpen=false;searchText='';postEditor?.dispose();postEditor=null;matchActions.dispose();matchActions=new TeamMatchActions(action=>postTeamChat(client,userId,valid,currentScope(),action));muteSending=false;mutePending=null;muteNotice='';previews.clear();closePhoto();photoChoosing=false;reactionEpoch++;reactionSending=false;reactionNotice='';pendingReactions.clear();live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';catchingUp=false;catchupStart='';initialCatchup=false;savedReadThrough='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
+ const focusAlertMessage=async(id:string)=>{if(!valid()||!snapshot?.room||!selected)return;alertFocusId=id;const room=snapshot.room,scope={...selected},epoch=reactionEpoch,version=revision;const focus=()=>{const item=Array.from(app.querySelectorAll<HTMLElement>('[data-chat-message]')).find(el=>el.dataset.chatMessage===id);if(item){item.scrollIntoView({block:'nearest'});const target=item.querySelector<HTMLElement>('.chat-match-card h3')||item;target.tabIndex=-1;target.focus({preventScroll:true})}};if(room.messages.some(m=>m.id===id)){focus();return}historyLoading=true;historyNotice='Opening the message from your team alert…';updateLabels();try{const update=await loadTeamChatUpdate(client,userId,()=>valid()&&epoch===reactionEpoch&&version===revision,scope,room.id,undefined,'',id);if(!valid()||epoch!==reactionEpoch||version!==revision)return;historyFocusId=id;historyBefore=update.focusCursor||'';historyNext=update.nextCursor;historyNotice='Opened from your team alert. Choose Latest to catch up.';snapshot={...snapshot!,room:{...room,messages:update.messages,lastReadAt:update.lastReadAt}};const blocked=new Set(update.blockedUserIds);if(snapshot.room!.activeCard&&blocked.has(snapshot.room!.activeCard.senderUserId))snapshot.room!.activeCard=null;updateUnread(snapshot.room!);historyLoading=false;render();focus()}catch(error){if(!valid()||epoch!==reactionEpoch||version!==revision)return;if(error instanceof TeamRoomAccessError){freshDraft();snapshot=null;app.innerHTML='<h1>Team unavailable</h1><p role="alert">Your team access changed. Open Chats again to check your connections.</p>'}else{historyNotice='This alert message could not be opened. Your conversation is still here; choose Latest or refresh your team.';updateLabels()}}finally{if(valid()&&epoch===reactionEpoch&&version===revision){historyLoading=false;updateLabels()}}}
  const load=async(preserve=false,latest=false)=>{
   historyLoading=false
   fullLoads++
@@ -295,11 +299,13 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   try{
    const result=await loadTeamRoom(client,userId,valid,selected)
    if(!valid() || version!==revision)return
-   historyBefore='';historyNotice='';historyLoading=false;const first=result.room?.messages[0];historyNext=result.room?.messages.length===75 && first?teamChatCursor(first.createdAt,first.id):''
+   historyFocusId='';historyBefore='';historyNotice='';historyLoading=false;const first=result.room?.messages[0];historyNext=result.room?.messages.length===75 && first?teamChatCursor(first.createdAt,first.id):''
    snapshot=result;matchDetailsDirty=false;selected=result.room?{teamName:result.room.teamName,leagueName:result.room.leagueName,flight:result.room.flight,...(result.room.chatRoom?{chatRoomId:result.room.chatRoom.id}:{})}:undefined
    if(result.room)updateUnread(result.room)
+   if(initialMessageId)initialCatchup=false
    if(result.room&&!inbox)ensureLive(result.room)
    render(latest || !preserve)
+   if(initialMessageId&&result.room&&!inbox){const id=initialMessageId;initialMessageId='';await focusAlertMessage(id)}
   }catch(cause){
    if(!valid() || version!==revision)return
    if(cause instanceof TeamRoomAccessError){freshDraft();snapshot=null}
