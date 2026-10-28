@@ -395,10 +395,20 @@ Remaining public App Store gates, to resolve before submission:
 Official references: [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), [Account deletion](https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion/), [Complete App Review](https://developer.apple.com/help/app-review/before-submitting-for-review/complete-review).
 
 
-## Build 150 candidate — native accounts and automatic deletion
+## Build 150 — native accounts and automatic deletion
 
 Adds native email-code signup/sign-in, Account settings, recovery, existing web billing and explicitly consented automatic permanent deletion. The previous manual staffing proposal is superseded.
 
-The durable worker verifies exact ownership, revokes sessions and waits for existing JWT expiry, removes personal files/data, handles uniquely owned web billing, preserves shared structures, verifies Auth removal and sends completion confirmation. The admin page observes failures rather than certifying deletion. The approved schema adds service-only cleanup permissions and 17 shared-author FK changes. Activate member access only after the controlled provider test and candidate verification pass.
+The durable worker verifies exact ownership, revokes sessions and waits for existing JWT expiry, removes personal files/data, handles uniquely owned web billing, preserves shared structures, verifies Auth removal and sends completion confirmation. The admin page observes failures rather than certifying deletion. The approved schema adds service-only cleanup permissions and 17 shared-author FK changes. Member access was activated after the controlled provider test and candidate verification passed.
 
-See [native account lifecycle](native-account-lifecycle.md) for schema coverage, bounded retries/cost, retained records and controlled provider testing. Real temporary-account execution and physical-device acceptance remain release gates. This is not public App Store approval.
+See [native account lifecycle](native-account-lifecycle.md) for schema coverage, bounded retries/cost, retained records and controlled provider testing. The disposable provider test completed; physical-device acceptance remains a public-launch gate. This is not public App Store approval.
+
+## Build 151 candidate — privacy information and U.S. launch preparation
+
+Build 150 is now in the existing internal group, with native email accounts and automatic deletion enabled after the controlled provider pilot. The owner selected a U.S.-first public launch. Public submission remains unapproved.
+
+Privacy opens bundled, account-neutral information from welcome, recovery, email-code entry, My Lab and Account settings. It explains account data, team sharing/imports, optional photo/alert permissions, automatic deletion, retained structures/audit information and separate backup retention. Full policy and support are explicit external actions to fixed destinations with no account data in the URL. The sheet lives in its owning view, restores focus on Close/Escape and disappears with that view. No account action, permission prompt, network read, notification or deletion occurs just by opening it.
+
+The public Privacy policy describes the same native flows, existing service providers, deletion/billing consequences and a public support email that does not require sign-in. Shared copy keeps the native summary and public explanation aligned. A read-only backup inspection confirmed daily database backups, excluded Storage bytes and no enabled point-in-time add-on; settings and cadence are unchanged. [Recovery procedure](account-erasure-recovery.md) records the remaining isolated rehearsal/retention acceptance limits.
+
+The [subscription plan](ios-subscription-readiness.md) specifies the existing monthly prices and the required StoreKit/server/provenance/restore/deletion boundaries. It does not implement or activate Apple purchasing, accept a paid agreement, configure products/keys, change production database permissions or submit the app. Accurate App Privacy/age-rating answers, Apple purchasing, final store metadata/reviewer access/screenshots and physical iPhone acceptance remain public-launch work.

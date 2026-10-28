@@ -1,6 +1,8 @@
-# Native accounts and automatic deletion — build 150 candidate
+# Native accounts and automatic deletion — build 150
 
-Build 150 candidate. The approved production schema is installed with private tables, RLS, service-only functions and the reviewed shared-author references. Member activation is a separate gate after controlled provider verification. The runtime release evidence is kept with the candidate.
+Build 150 was released to the existing internal TestFlight group after the approved production schema, private grants, candidate/master CI and controlled provider verification passed. The runtime release evidence is private. This does not establish public App Store or physical-device acceptance.
+
+The controlled provider test used one disposable, unbilled Free account: email-code signup, default access, refresh rejection and the real JWT expiry wait passed. Its durable deletion request resumed after a file-step retry and completed with Storage/Auth/profile removal, queue identity clearing and provider acceptance of the completion email. No source change was needed for the retry. The original access token existed only in the stopped first process, so its post-deletion getUser probe was not repeated; the actual expiry wait and prior refresh rejection were observed. No existing member or real paid subscription was a test target, and Resend delivery simulation does not establish human-inbox receipt.
 
 ## Member experience
 
@@ -46,6 +48,6 @@ No existing member is a test target. Public submission, physical iPhone/accessib
 
 Independent public tennis history and shared organizational structures remain; the erased account's authored private content/contact copies are removed. Payment providers may retain required transaction records. The minimal request audit/hash is pseudonymous, not anonymous.
 
-Before restoring backups, preserve the current deletion ledger separately, compare restored account IDs to completed hashes, and rerun removal before exposing restored data. Backup/archive expiry and recovery procedures must be documented before public launch. Normal automatic erasure does not require daily manual account cleanup.
+Before restoring backups, preserve the current deletion ledger separately, compare restored account IDs to completed hashes, and rerun removal before exposing restored data. Follow [account-erasure recovery](account-erasure-recovery.md); it documents the procedure and remaining rehearsal/acceptance limits rather than claiming an automatic restore scrubber. Backup retention is separate from the active-account removal window. Normal automatic erasure does not require daily manual account cleanup.
 
 References: [Apple deletion requirements](https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion), [Supabase user removal/JWTs](https://supabase.com/docs/guides/auth/managing-user-data), [Storage removal](https://supabase.com/docs/reference/javascript/storage-from-remove), [Stripe cancellation](https://docs.stripe.com/api/subscriptions/cancel), [Resend test recipients](https://resend.com/docs/dashboard/emails/send-test-emails).

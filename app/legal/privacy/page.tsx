@@ -6,6 +6,10 @@ import LegalPage from '@/app/components/legal-page'
 import { buildSupportMessageHref } from '@/lib/message-links'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
+import { ACCOUNT_BACKUP_RETENTION, ACCOUNT_DELETION_DETAILS, ACCOUNT_DELETION_SUMMARY, ACCOUNT_PRIVACY_SECTIONS } from '@/lib/account-privacy'
+import { CONTACT_EMAILS, PUBLIC_EMAIL_CONTACTS } from '@/lib/contact-details'
+
+const privacySupportEmailHref = PUBLIC_EMAIL_CONTACTS.find(contact => contact.key === 'support')?.href
 
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Privacy Policy',
@@ -28,11 +32,12 @@ export default function PrivacyPage() {
   return (
     <SiteShell active="/legal/privacy">
       <JsonLd id="privacy-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Privacy Policy', '/legal/privacy')} />
-      <LegalPage title="Privacy Policy" effectiveDate="October 11, 2026">
+      <LegalPage title="Privacy Policy" effectiveDate="October 28, 2026">
         <p>
           TenAceIQ (&quot;TenAceIQ,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) respects your privacy and is
           committed to protecting your information. This Privacy Policy explains what
-          information we collect, how we use it, and what choices you have.
+          information we collect, how we use it, and what choices you have on our website
+          and in the TenAceIQ iPhone app.
         </p>
 
         <div>
@@ -51,6 +56,10 @@ export default function PrivacyPage() {
             information, lineup details, availability inputs, team messages, league
             context, and similar platform data.
           </p>
+          <h3 className="section-title" style={{ fontSize: '1.05rem' }}>Using the iPhone app</h3>
+          {ACCOUNT_PRIVACY_SECTIONS.slice(0, 3).map(section => (
+            <p key={section.title}>{section.body}</p>
+          ))}
         </div>
 
         <div>
@@ -82,6 +91,12 @@ export default function PrivacyPage() {
             We may share information with infrastructure and service providers that help us
             operate TenAceIQ, such as hosting, authentication, analytics, database, and
             communications providers.
+          </p>
+          <p>
+            These services include Supabase for accounts, database and file services;
+            Vercel for hosting; Resend for account emails; Apple for iPhone notification
+            delivery; and Stripe for existing web billing. They process information needed
+            to provide those services.
           </p>
           <p>
             We may also disclose information if required by law, to protect our rights, or to
@@ -121,6 +136,7 @@ export default function PrivacyPage() {
             support legitimate business purposes, comply with legal obligations, resolve
             disputes, and enforce agreements.
           </p>
+          <p>{ACCOUNT_BACKUP_RETENTION}</p>
         </div>
 
         <div>
@@ -129,6 +145,15 @@ export default function PrivacyPage() {
             Depending on where you live, you may have rights to access, correct, delete,
             or restrict certain personal information. To make a request, contact us through
             the contact information provided on the site.
+          </p>
+          <h3 className="section-title" style={{ fontSize: '1.05rem' }}>Delete your TenAceIQ account</h3>
+          <p>{ACCOUNT_DELETION_SUMMARY}</p>
+          {ACCOUNT_DELETION_DETAILS.map(text => <p key={text}>{text}</p>)}
+          <p>
+            Club owners must transfer ownership before deletion, and the last platform
+            administrator must add another administrator first. If you cannot access
+            your account or need help with a privacy request, contact{' '}
+            <a href={privacySupportEmailHref}>{CONTACT_EMAILS.support}</a>.
           </p>
         </div>
 
@@ -161,6 +186,7 @@ export default function PrivacyPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>11. Contact</h2>
           <p>
             For privacy or data handling questions, open a <Link href={privacySupportHref}>TenAceIQ support thread</Link>.
+            {' '}You can also email <a href={privacySupportEmailHref}>{CONTACT_EMAILS.support}</a> without signing in.
           </p>
         </div>
       </LegalPage>

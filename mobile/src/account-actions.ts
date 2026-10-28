@@ -1,11 +1,9 @@
 import { Browser } from '@capacitor/browser'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { ACCOUNT_HELP_LINKS } from '../../lib/account-privacy'
+import { openAccountPrivacy } from './account-privacy'
 
-const ACCOUNT_LINKS = {
-  privacy: 'https://www.tenaceiq.com/legal/privacy',
-  terms: 'https://www.tenaceiq.com/legal/terms',
-  support: 'https://www.tenaceiq.com/contact',
-} as const
+const ACCOUNT_LINKS = ACCOUNT_HELP_LINKS
 export const PASSWORD_RESET_URL = 'https://www.tenaceiq.com/reset-password'
 export function accountLink(key: string): string | null {
   return Object.hasOwn(ACCOUNT_LINKS, key) ? ACCOUNT_LINKS[key as keyof typeof ACCOUNT_LINKS] : null
@@ -14,6 +12,8 @@ export function accountLink(key: string): string | null {
 export function bindAccountLinks(container: HTMLElement) {
   container.querySelectorAll<HTMLButtonElement>('[data-account-link]').forEach(button => {
     button.onclick = async () => {
+      if (!container.isConnected || !button.isConnected) return
+      if (button.dataset.accountLink === 'privacy') { openAccountPrivacy(container); return }
       const url = accountLink(button.dataset.accountLink || '')
       if (!url) return
       button.disabled = true
