@@ -3,7 +3,6 @@ export const ADSENSE_PUBLISHER_ID = 'ca-pub-1351888380884789'
 export const ADSENSE_ALLOWED_PATH_PREFIXES = [
   '/',
   '/about',
-  '/contact',
   '/explore',
   '/faq',
   '/how-it-works',

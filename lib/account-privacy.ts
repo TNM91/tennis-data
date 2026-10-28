@@ -7,6 +7,8 @@ export const ACCOUNT_HELP_LINKS = {
 
 export const ACCOUNT_DELETION_SUMMARY = 'Open Account → Delete account. Verify your identity, review the consequences, and confirm permanent deletion. Cleanup runs automatically within seven days, and we email you when it is complete. Your account and associated private data and files are removed; you are signed out as processing begins.'
 
+export const APPLE_PURCHASE_PRIVACY_SUMMARY = 'Apple handles payment for iPhone memberships. We keep purchase identifiers, the selected plan, and subscription status linked to your TenAceIQ account to verify access and restore purchases. We do not receive your payment card number from Apple. You can manage or cancel an Apple membership in your Apple subscription settings.'
+
 export const ACCOUNT_PRIVACY_SECTIONS = [
   {
     title: 'Your tennis account',
@@ -19,6 +21,10 @@ export const ACCOUNT_PRIVACY_SECTIONS = [
   {
     title: 'Photos and team alerts',
     body: 'You choose when to use your camera, select a photo or GIF, or paste a GIF. Team alerts are optional. Alert delivery uses your device token and an installation identifier linked to your account. You can turn team alerts off in My Lab and change camera, photo, or notification permissions in iPhone Settings.',
+  },
+  {
+    title: 'Apple memberships',
+    body: APPLE_PURCHASE_PRIVACY_SUMMARY,
   },
   {
     title: 'Delete your account',

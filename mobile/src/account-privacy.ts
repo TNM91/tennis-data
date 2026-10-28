@@ -1,4 +1,4 @@
-import { Browser } from '@capacitor/browser'
+import { Browser } from './native-browser'
 import { ACCOUNT_BACKUP_RETENTION, ACCOUNT_DELETION_DETAILS, ACCOUNT_HELP_LINKS, ACCOUNT_PRIVACY_SECTIONS } from '../../lib/account-privacy'
 import { html } from './match-details'
 

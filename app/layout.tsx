@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
-import { Analytics } from '@vercel/analytics/next'
-import { SpeedInsights } from '@vercel/speed-insights/next'
+import WebServiceScripts from '@/app/components/web-service-scripts'
 import JsonLd from '@/app/components/json-ld'
 import NavigationScrollManager from '@/app/components/navigation-scroll-manager'
 import SeasonPrivacyBoundary from '@/app/components/season-privacy-boundary'
@@ -139,17 +138,8 @@ export default function RootLayout({
         <JsonLd id="tenaceiq-website-jsonld" data={buildWebSiteJsonLd()} />
         <NavigationScrollManager />
         <ThemeProvider>{children}</ThemeProvider>
-        <SeasonPrivacyBoundary>{VERCEL_OBSERVABILITY_ENABLED ? (
-          <>
-            <Analytics />
-            <SpeedInsights />
-          </>
-        ) : null}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
-          crossOrigin="anonymous"
-        />
+        <SeasonPrivacyBoundary>
+          <WebServiceScripts observabilityEnabled={VERCEL_OBSERVABILITY_ENABLED} />
         </SeasonPrivacyBoundary>
       </body>
     </html>

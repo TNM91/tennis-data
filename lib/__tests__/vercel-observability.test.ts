@@ -3,9 +3,10 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('Vercel observability wiring', () => {
-  it('keeps Web Analytics and Speed Insights mounted in the app shell', () => {
+  it('keeps public-web observability behind the native privacy boundary', () => {
     const packageJson = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
     const layoutSource = readFileSync(join(process.cwd(), 'app/layout.tsx'), 'utf8')
+    const serviceSource = readFileSync(join(process.cwd(), 'app/components/web-service-scripts.tsx'), 'utf8')
     const deployChecklist = readFileSync(join(process.cwd(), 'docs/deploy-checklist.md'), 'utf8')
     const closeoutLog = readFileSync(join(process.cwd(), 'docs/platform-closeout-verification-log.md'), 'utf8')
     const qaIndex = readFileSync(join(process.cwd(), 'docs/customer-journey-qa-index.md'), 'utf8')
@@ -18,10 +19,14 @@ describe('Vercel observability wiring', () => {
     expect(packageJson).toContain('"@vercel/speed-insights"')
     expect(packageJson).toContain('"qa:observability": "node scripts/vercel-observability-smoke.mjs"')
 
-    expect(layoutSource).toContain("import { Analytics } from '@vercel/analytics/next'")
-    expect(layoutSource).toContain("import { SpeedInsights } from '@vercel/speed-insights/next'")
-    expect(layoutSource).toContain('<Analytics />')
-    expect(layoutSource).toContain('<SpeedInsights />')
+    expect(layoutSource).toContain('<WebServiceScripts observabilityEnabled={VERCEL_OBSERVABILITY_ENABLED} />')
+    expect(layoutSource).not.toContain('<Analytics />')
+    expect(layoutSource).not.toContain('<SpeedInsights />')
+    expect(serviceSource).toContain("from '@vercel/analytics/next'")
+    expect(serviceSource).toContain("from '@vercel/speed-insights/next'")
+    expect(serviceSource).toContain('if (privateVisit) return null')
+    expect(serviceSource).toContain('<Analytics />')
+    expect(serviceSource).toContain('<SpeedInsights />')
 
     expect(smokeScript).toContain('@vercel/analytics')
     expect(smokeScript).toContain('@vercel/speed-insights')

@@ -25,7 +25,7 @@ Signed V2 notifications use `/api/apple/notifications/production` and `/api/appl
 
 ## Database and access
 
-Three **unapplied** migrations accompany this candidate:
+The three migrations below were applied and catalog-verified for the sandbox-only build 154 release. Physical-iPhone purchase acceptance and public sales remain pending:
 
 - `20261028000300_apple_purchase_records.sql`: three RLS-protected private tables, service-only account/claim/commit/access functions, one authenticated own-account access read and an exact catalog guard. No anonymous/authenticated raw-table access. Sandbox grants require an explicit per-account allowlist.
 - `20261028000400_apple_purchase_erasure_guard.sql`: retains the entire existing audited erasure guard and adds the private purchase catalog guard. All private owner records cascade only with their Auth account. An unexpected private column, FK, grant or deletion trigger blocks automated erasure.

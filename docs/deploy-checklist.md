@@ -93,6 +93,7 @@ For routine releases, follow `docs/deployment-workflow.md` and run only the appl
 - Confirm the deployment to promote is `Ready`, tied to the expected `master` commit, and has passed the relevant QA gates.
 - After promotion, run `npm run verify:closeout:live` and `npm run qa:prod-logs` to confirm recent production runtime health.
 - Vercel Web Analytics and Speed Insights are mounted in the root app shell; review `https://vercel.com/tennis-data/tennis-data/analytics` and `https://vercel.com/tennis-data/tennis-data/speed-insights` during the first hour and daily launch-week checks.
+- Pages opened from the iPhone app carry `tiq_app=ios`; the app shell suppresses advertising and browser analytics for that tab, including navigation and reloads. Direct privacy, support, and account pages do not bootstrap AdSense. Verify both a fresh public-web tab and a fresh app-origin tab locally when changing this boundary.
 
 ## Database
 

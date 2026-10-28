@@ -20,6 +20,7 @@ describe('AdSense private route exclusions', () => {
     expect(isAdSafePath('/coach')).toBe(false)
     expect(isAdSafePath('/coach/invite/test-token')).toBe(false)
     expect(isAdSafePath('/tactics')).toBe(false)
+    for (const path of ['/contact', '/legal/privacy', '/legal/terms', '/season-availability', '/reset-password']) expect(isAdSafePath(path)).toBe(false)
 
     expect(ADSENSE_IMPLEMENTATION_GUIDELINES.join(' ')).toContain('Coach')
     expect(ADSENSE_IMPLEMENTATION_GUIDELINES.join(' ')).toContain('Tactical Studio')
