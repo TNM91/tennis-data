@@ -51,7 +51,8 @@ begin
   on conflict(scope,key_hash) do update set hits=case when l.window_started_at<=moment-make_interval(secs=>item.seconds) then 1 else l.hits+1 end,
    window_started_at=case when l.window_started_at<=moment-make_interval(secs=>item.seconds) then moment else l.window_started_at end;
  end loop;
- delete from public.native_email_auth_limits where (scope,key_hash) in (select l.scope,l.key_hash from public.native_email_auth_limits l where window_started_at<moment-interval '2 days' order by window_started_at limit 100);
+ -- Recheck the target expiry after any row-lock wait; a concurrent renewal must survive cleanup.
+ delete from public.native_email_auth_limits where window_started_at<moment-interval '2 days' and (scope,key_hash) in (select l.scope,l.key_hash from public.native_email_auth_limits l where window_started_at<moment-interval '2 days' order by window_started_at limit 100);
  return true;
 end;$$;
 revoke all on function public.consume_native_email_auth(text,text) from public,anon,authenticated,service_role;
