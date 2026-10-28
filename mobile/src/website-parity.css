@@ -693,3 +693,32 @@ body.native-chat-conversation .chat-reaction-choices .chat-reaction-choice:activ
 .poll-choice span{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px}.poll-choice small{color:#b6d6e8}.poll-choice[aria-pressed="true"]{border-color:#5cbcf8!important;background:#123e60!important}
 .poll-choice progress{appearance:none;inline-size:100%;block-size:5px;border:0;border-radius:99px;background:#061a2e;accent-color:#59b8f7}.poll-choice progress::-webkit-progress-bar{background:#061a2e;border-radius:99px}.poll-choice progress::-webkit-progress-value{background:#59b8f7;border-radius:99px}
 .poll-review-options{padding-inline-start:24px}.poll-review-options li{padding-block:6px}.poll-close{margin-block-start:18px}.poll-close summary{padding-block:12px}
+/* Shared match plans stay in the conversation; details open only when needed. */
+body.native-chat-conversation .team-bubble-match{max-inline-size:100%;inline-size:100%;box-sizing:border-box;margin-inline:0;background:transparent;padding:0;border:0;box-shadow:none}
+body.native-chat-conversation .chat-match-card{box-sizing:border-box;min-inline-size:0;max-inline-size:100%;padding:18px;border:1px solid #4b9fd665;border-radius:20px;background:linear-gradient(145deg,#0c2b49,#081c33 68%);box-shadow:inset 0 1px #89ceff12,0 12px 30px #010b1829;color:#eff7ff;text-align:left;overflow-wrap:anywhere}
+body.native-chat-conversation .chat-match-kicker{display:flex;align-items:center;gap:8px;color:#83cbff;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+body.native-chat-conversation .chat-match-kicker svg{inline-size:18px;block-size:18px;flex:0 0 18px}
+body.native-chat-conversation .chat-match-card h3{margin:12px 0 6px;font-size:23px;line-height:1.18;letter-spacing:-.02em}
+body.native-chat-conversation .chat-match-card h4{margin:12px 0 6px;font-size:16px}
+body.native-chat-conversation .chat-match-card p{margin:7px 0;line-height:1.45;font-size:14px}
+body.native-chat-conversation .chat-match-card .chat-match-date{color:#d6eafd;font-weight:700}
+body.native-chat-conversation .chat-match-card .chat-match-facility{color:#a9c7dd}
+body.native-chat-conversation .chat-match-own,body.native-chat-conversation .chat-match-court{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 12px;min-inline-size:0;margin-block:15px 10px;padding:12px;border-radius:12px;background:#17436473}
+body.native-chat-conversation .chat-match-own>span,body.native-chat-conversation .chat-match-court>span{font-size:12px;color:#c0d7e9}
+body.native-chat-conversation .chat-match-own strong{font-size:16px;color:#a7e0ff}
+body.native-chat-conversation .chat-match-court strong{font-size:18px;color:#f3faff}
+body.native-chat-conversation .chat-match-court>span:last-child{flex-basis:100%}
+body.native-chat-conversation .chat-match-choices{display:flex;flex-wrap:wrap;gap:7px;min-inline-size:0}
+body.native-chat-conversation .chat-match-card .chat-match-choices button.secondary{box-sizing:border-box;flex:1 1 76px;min-inline-size:0;max-inline-size:100%;min-block-size:46px;margin:0;padding:10px 6px;font:inherit;font-size:13px;font-weight:750;line-height:1.25;text-align:center;white-space:normal;overflow-wrap:anywhere;border:1px solid #4a86b366;border-radius:12px;background:#071a2e;color:#d9edfb}
+body.native-chat-conversation .chat-match-card .chat-match-choices button[aria-pressed=true]{background:#154f78;color:#fff;border-color:#75c9ff;box-shadow:inset 0 0 0 1px #75c9ff55}
+body.native-chat-conversation .chat-match-card button:disabled{opacity:.55}
+body.native-chat-conversation .chat-match-card .chat-match-help,body.native-chat-conversation .chat-match-card .chat-match-readonly{font-size:12px;line-height:1.45;color:#acc8dd}
+body.native-chat-conversation .chat-match-card [data-chat-match-status]:empty{display:none}
+body.native-chat-conversation .chat-match-card details{min-inline-size:0;margin-block-start:12px;border-block-start:1px solid #5f9ec333;padding-block-start:3px}
+body.native-chat-conversation .chat-match-card details>summary{min-block-size:44px;padding:12px 0;box-sizing:border-box;font-size:13px;font-weight:700;color:#b9def6;cursor:pointer}
+body.native-chat-conversation .chat-match-card details ul{display:grid;gap:8px;list-style:none;padding:0;margin:4px 0 12px}
+body.native-chat-conversation .chat-match-card details li{display:grid;gap:3px;min-inline-size:0;font-size:13px;line-height:1.4}
+body.native-chat-conversation .chat-match-card details li>span{color:#b8cfdf}
+body.native-chat-conversation .chat-match-note-body{font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+body.native-chat-conversation .chat-match-card>button.secondary,body.native-chat-conversation .chat-match-card details>button.secondary{box-sizing:border-box;inline-size:100%;min-inline-size:0;max-inline-size:100%;min-block-size:44px;white-space:normal;overflow-wrap:anywhere;margin:10px 0 0;font-size:13px}
+body.native-chat-conversation .chat-match-card .chat-match-open{background:transparent;border:0;color:#8dcfff;text-align:left;padding:10px 0}
