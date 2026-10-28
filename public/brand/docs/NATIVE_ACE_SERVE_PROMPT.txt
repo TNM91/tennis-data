@@ -1,0 +1,21 @@
+TENACEIQ NATIVE ACE SERVE BACKDROP — October 27, 2026
+
+Purpose: decorative native app court atmosphere. Keep the TiQ watermark as its
+separate, unchanged approved artwork. This asset contains no logo or text.
+Production master: public/brand/courts/tiq-native-ace-serve-20261027-v1.png
+Dimensions: 1727 × 911, opaque PNG; use the complete image proportionally.
+SHA-256: 4bfd4c929c485da9196d54e18f49d0947cd7f81e37b368bf7ae07ce1938bf216
+
+Art direction: one generic serving figure in trophy pose behind the ad-side
+half of the near baseline, directed cross-court toward the diagonally opposite
+service box. One racquet and one tossed lime ball. Navy/electric blue night
+court with stadium lights, dark left-hand space and standard service markings.
+The selected figure is left-handed; handedness is incidental to this artwork.
+
+Provenance: built-in image_gen edit of the unbranded existing reference
+public/brand/social/og-background-v2.png, refined for single-ball imagery,
+baseline position, service markings and the user's serving-direction guidance.
+No CLI/API-key fallback. Existing logos, icons and interactive court unchanged.
+
+Final image edit prompt (verbatim):
+Precise tennis positioning correction, following the tennis player's feedback. Preserve this exact dark navy/electric-blue stadium court, lights, camera angle, net, service-box lines, negative space, single athlete, single racket, single tossed ball, and trophy-pose style. DO NOT mirror the entire scene. The player currently occupies the wrong half of the near baseline. Move him along and behind the baseline to the AD SIDE: the LEFT HALF of the near baseline when the player looks across the net. In this image that means move the player noticeably toward the UPPER LEFT along the near diagonal baseline, away from its lower-right end. Keep both feet fully OUTSIDE and behind that baseline, not in the service box. Put a small normal white tennis center mark at the true midpoint of the near baseline, and place the server clearly on the upper-left/ad side of that center mark. Keep his whole body and both feet in frame. The serve must be aimed CROSS-COURT into the diagonally opposite far service box on the RIGHT side of the far court in this image, beyond the net—not into the box straight ahead on his own side of the center line. Orient his feet, side-on hips/shoulders, head and one tossed ball toward that far-right diagonal target. Keep a realistic loaded trophy pose and one racket behind his serving shoulder; the ball must sit in front of his hitting shoulder toward that cross-court target. Show this naturally through body orientation only: NO arrow, NO flight line, NO extra ball, NO target marker, NO annotations. Keep all existing court geometry fixed apart from adding the tiny baseline center mark. No extra people, limbs, words, logos or watermark. Priority: correct ad-side baseline placement and unmistakable cross-court serving direction.

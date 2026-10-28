@@ -1124,3 +1124,69 @@ at 348.4 px. No text overlap, bubble collision or horizontal overflow remains.
 `tmp/build140-design-proof/build140-multiple-reactions-320.png` records the result.
 The deliberately uncertain Celebrate save/retry also confirmed the same desired
 reaction once, without inflating its count. The fixed tray remains viewport-bound.
+
+
+## Build 141 — one ad-side serving scene under the court lights
+
+Target: keep the supplied TiQ watermark and blue night-court mood, replace the
+multiple decorative balls with one trophy-pose server and one tossed ball. The
+user clarified that this stance belongs on the ad side and the serve must be
+cross-court. The native background is a new versioned, unbranded raster asset;
+existing approved logos, icons, interactive court and website social art retain
+their original bytes. Its brief/final built-in Image Gen prompt is in
+`public/brand/docs/NATIVE_ACE_SERVE_PROMPT.txt`.
+
+Current-run capture steps:
+
+1. Render the released master index/atmosphere CSS with the same actual mobile
+   entry and synthetic player fixture. Capture the duplicate page/card court.
+2. Render the new scene in My Lab, preserving the scoreboard values, source
+   notes, typography, card dimensions, controls and separate TiQ layers.
+3. Check 320/390/430/768 px widths, Explore image loading, and focused chat.
+
+Source review and fixes:
+
+- Removed the original multi-ball trajectory/bounce graphics. The selected source
+  contains one serving figure, one racquet and one tossed lime ball. The figure
+  is behind the ad half of the near baseline, to the left of its center mark
+  when looking across the net, oriented toward the diagonal opposite box.
+- The first figure was too far inside the court; subsequent source review fixed
+  its baseline placement and near service markings. User feedback then corrected
+  body direction and ad-side placement. Only the final selected PNG is bundled.
+- First app comparison placed the figure near the rating meter (P2: competing
+  visual detail). Fit the complete source to a bounded right-hand area, without
+  cropping/filtering/stretching, leaving the progress bar and values readable.
+- My Lab previously showed the scene twice. When its scoreboard exists, the
+  page-level court is hidden; the scoreboard draws it once. The watermark stays
+  visible, with its original source and opacity. Other main pages use one page
+  backdrop; focused chat continues to hide decorative atmosphere.
+
+Opened/inspected comparison evidence (private synthetic captures):
+
+- `tmp/build141-design-proof/build141-design-comparison.png` — released/revised
+  My Lab captured in this run at 390×844 CSS px. Both rasters are 375×812 due to
+  the desktop capture's scrollbar/scaling. Same player, numbers, state and scroll.
+- `tmp/build141-design-proof/build141-scoreboard-focus.png` — focused comparison
+  of imagery, watermark, number/progress separation and format values.
+- `tmp/build141-design-proof/build141-lab-320.png`, `build141-lab-430.png`,
+  `build141-lab-768.png` — complete scene stays proportional and within card;
+  root scrollWidth equals clientWidth (305, 415 and 753 px respectively).
+- `tmp/build141-design-proof/build141-explore-390.png` — final scene loads at its
+  1727×911 natural ratio; the approved separate watermark still loads/contains.
+
+Fidelity pass: system/website typography and spacing remain; navy/blue artwork
+and the separate approved mark match the requested mood. Overall/Singles/Doubles
+remain 4.63/4.63/4.40 in this fixture, with unchanged source notes. Decoration is
+aria-hidden/noninteractive, adds no focusable controls, and cannot trap scrolling.
+No new product copy, API calls, data imports, permissions, dependencies or schema.
+No unexpected browser console errors or production QA writes.
+
+The production asset is copied byte-for-byte from public/brand; the unused old
+multi-ball copy is removed only from native bundled output. The original website
+asset remains in place. Existing icon and approved logo masters are untouched.
+
+Final result: passed for source and inspected browser composition; no unresolved
+P1/P2 finding. The pose is decorative, not a coaching diagram or ball-flight
+simulation. Physical iPhone safe-area, color and readability confirmation remains
+pending TestFlight. Source art is not an actual device screenshot; browser checks
+do not establish full accessibility compliance.

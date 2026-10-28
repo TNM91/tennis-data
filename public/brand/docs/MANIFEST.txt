@@ -39,3 +39,14 @@ the existing tour background code; it never generates or redraws logos.
 Media originals are backed up outside public/ before replacement.
 
 No approved maskable asset was supplied. PWA icons use purpose=any.
+
+Native app court update — October 27, 2026 (user-directed)
+  courts/tiq-native-ace-serve-20261027-v1.png — unbranded native backdrop with
+  one ad-side server in a cross-court trophy pose and one tossed ball, under the existing blue
+  night-court lighting. Created with built-in Image Gen from the existing
+  unbranded og-background-v2.png reference, then corrected for baseline position
+  and service-box markings. This file is the native production source of truth.
+  It contains no TiQ artwork; the approved watermark/logo remain separate.
+  Use the complete image proportionally. Do not crop, filter or stretch it.
+  The interactive court, website social background and approved logos remain
+  their existing originals. See NATIVE_ACE_SERVE_PROMPT.txt for the art brief.
