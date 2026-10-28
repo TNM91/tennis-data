@@ -17,10 +17,10 @@ describe('GIF clipboard file boundaries',()=>{
 })
 describe('chat entry points reuse team plans',()=>{
  it('shows captain planning only in General and preserves member practice entry in named rooms',()=>{
-  const captain=chatTeamActionsHtml(room,false);expect(captain).toContain('Practice RSVPs');expect(captain).toContain('Match availability');expect(captain).toContain('Plan a practice');expect(captain).not.toContain('disabled')
-  expect(chatTeamActionsHtml({...room,canManage:false},false)).not.toContain('Plan a practice')
+  const captain=chatTeamActionsHtml(room,false);expect(captain).toContain('Practice RSVPs');expect(captain).toContain('Request match availability');expect(captain).toContain('Plan a practice');expect(captain).not.toContain('disabled')
+  const member=chatTeamActionsHtml({...room,canManage:false},false);expect(member).not.toContain('Plan a practice');expect(member).toContain('Match availability');expect(member).not.toContain('Request match availability')
   const named=chatTeamActionsHtml({...room,chatRoom:{id:'child',parentId:'parent',name:'Practice',teamMuted:false}},false)
-  expect(named).toContain('Practice RSVPs');expect(named).not.toContain('Match availability');expect(named).not.toContain('Plan a practice')
+  expect(named).toContain('Practice RSVPs');expect(named).not.toContain('data-chat-availability');expect(named).not.toContain('Plan a practice')
  })
  it('freezes all team actions while the composer is processing a send or media selection',()=>{
   expect(chatTeamActionsHtml(room,true).match(/disabled/g)).toHaveLength(4)

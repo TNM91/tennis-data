@@ -722,3 +722,17 @@ body.native-chat-conversation .chat-match-card details li>span{color:#b8cfdf}
 body.native-chat-conversation .chat-match-note-body{font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
 body.native-chat-conversation .chat-match-card>button.secondary,body.native-chat-conversation .chat-match-card details>button.secondary{box-sizing:border-box;inline-size:100%;min-inline-size:0;max-inline-size:100%;min-block-size:44px;white-space:normal;overflow-wrap:anywhere;margin:10px 0 0;font-size:13px}
 body.native-chat-conversation .chat-match-card .chat-match-open{background:transparent;border:0;color:#8dcfff;text-align:left;padding:10px 0}
+
+/* Captain match requests share the contained dark conversation surfaces. */
+.availability-request-dialog,.availability-request-dialog *{box-sizing:border-box;min-inline-size:0;overflow-wrap:anywhere}
+.availability-request-dialog .availability-match-preview{padding:18px;border:1px solid rgba(100,180,237,.35);border-radius:20px;background:linear-gradient(145deg,#102e47,#081b30);margin-block:16px}
+.availability-request-dialog .availability-match-preview h3{font-size:24px;line-height:1.15;margin-block:10px}
+.availability-request-dialog .availability-match-preview>p:first-child{font-size:11px;letter-spacing:.12em;color:#92ccf7;font-weight:800}
+.availability-request-dialog .availability-roster{margin-block:16px;border-block:1px solid rgba(100,180,237,.22);padding-block:4px}
+.availability-request-dialog .availability-roster>summary{min-block-size:46px;display:flex;align-items:center;font-weight:700;cursor:pointer}
+.availability-request-dialog .availability-roster>summary::before{content:'▸';margin-inline-end:8px}
+.availability-request-dialog .availability-roster[open]>summary::before{content:'▾'}
+.availability-request-dialog .availability-fixtures{list-style:none;padding:0;display:grid;gap:14px}
+.availability-request-dialog .availability-fixtures>li{padding:16px;border:1px solid rgba(100,180,237,.25);border-radius:18px;background:#0c253d}
+.availability-request-dialog .availability-fixtures p{margin-block:8px}
+.availability-request-dialog button{max-inline-size:100%;white-space:normal;min-block-size:46px}
