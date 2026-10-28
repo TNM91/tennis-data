@@ -964,3 +964,82 @@ Final-source synthetic save → acknowledged read → refreshed outcome also pas
 ## Build 109 — scorecard photo preview and availability
 
 Actual mobile entry with synthetic auth, availability, Camera, private storage and OCR outcome fixtures. Sample1600×2400 image becomes a58KB1000×1500 JPEG with inline preview and an unchecked save acknowledgement. Save makes three metadata writes, leaves both statuses Needs review and reading not_started, and sends no OCR request. Explicit read separately refreshes both statuses and the sample recorded outcome. Availability is read once before picking and again before save. Disabled availability yields no preview or upload writes. Camera and library paths both reached preview. At390 root375/375 and dialog330/330; at320 root305/305, dialog260/260 and preview178×267. Final checks show no console errors. Initial browser data-URL fetch was blocked by CSP; local decoding corrected it without broadening policy. Private screenshots build109-photo-preview-390.png and build109-photo-preview-320.png. No live private data, production uploads or real OCR/imports were used. Physical iPhone camera/library/Files permissions, cancel/backgrounding, OCR accuracy, Dynamic Type and VoiceOver remain pending.
+
+
+## Build 139 — athletic native shell and scoreboard
+
+Source visual truth: approved `public/brand/approved/TiQ_White_Transparent_Refined.png`,
+`public/brand/social/og-background-v2.png`, the live `https://www.tenaceiq.com/explore`
+visual language, and the existing native My Lab baseline. This is a native adaptation,
+not a pixel clone of the website's navigation or marketing panels.
+
+Evidence is local and uses synthetic accounts/results only:
+- Full opening-state comparison: `tmp/build139-design-proof/lab-comparison.png`.
+- Website/native discovery comparison: `tmp/build139-design-proof/explore-comparison.png`.
+- Focused number, label and artwork comparison: `tmp/build139-design-proof/scoreboard-focus.png`.
+- Phone checks: 320x740, 390x844, 430x932 CSS pixels; tablet: 768x1024.
+- Source and final 390x844 opening-state captures are both 375x812 raster pixels from
+  the browser capture surface. The comparison board scales both equally to 390x844;
+  no different device frames, zoom states or production art substitutions are compared.
+- Additional captures cover a long name, pending USTA current, no recent results,
+  Following, Matchup singles/doubles, Chats inbox and the quiet conversation state.
+
+### Comparison history and corrections
+
+1. [P1, fixed] The initial shared section rule overrode the scoreboard's approved
+   stadium background. Excluded the scoreboard from that generic surface rule and
+   verified its computed background is the approved local image.
+2. [P2, fixed] Initial specificity and spacing pushed the scoreboard to y=228.9 and
+   recent form below the opening viewport. Corrected the Lab padding rule, removed
+   the enclosing recent-form card, paired Singles/Doubles in one surface, and tightened
+   footer spacing. Final standard 390 viewport: scoreboard y=171.7, recent form ends
+   at y=739.8, navigation begins at y=770.5.
+3. [P2, fixed] Existing Matchup format buttons stacked at full width and the two
+   player forms consumed the page vertically. Added a two-segment format selector
+   and paired search cards, with a one-column fallback below 361px. Verified search,
+   selection, Compare, and the four-player Doubles state.
+4. [P2, fixed] Compact footer labels became too small in the first layout pass.
+   Raised format/source labels and gave About these ratings a 44px tap target.
+5. [P2, fixed] Unbounded decorative background sizing could clip art on short/wide
+   screens. Contained the page artwork by viewport height and capped the scoreboard
+   image width while retaining the complete source aspect ratio.
+
+### Required fidelity surfaces
+
+- Fonts/typography: native system font retained intentionally for iOS; strong 82px
+  Overall and 34px split ratings, with a 76px narrow-phone Overall. Values, fallback
+  notes, USTA verification and source descriptions are unchanged. No fabricated stats.
+- Spacing/layout: one stadium scoreboard surface replaces the tiny nested net card;
+  12px page gutters remain. All sampled roots have scrollWidth equal to clientWidth
+  (305/305, 375/375, 415/415 and 753/753). Wide data retains its existing inner scroll.
+- Colors/tokens: navy, sky blue and the website's tennis-lime accents. Artwork remains
+  behind readable text; selected format/navigation states remain visible. The
+  conversation keeps its prior opaque navy surface and hides the atmosphere layer.
+- Image quality: exact approved PNG files, proportional contain sizing, no redrawing,
+  recoloring, cropping, filters or new remote asset service. Watermark opacity is a
+  placement treatment consistent with the website. Original brand files are unchanged.
+- Copy/content: tennis-specific existing copy retained; no design rationale or internal
+  implementation language added to user-facing screens. Pending USTA remains pending;
+  no-results fixtures do not invent recent-form wins or losses.
+- Accessibility/interactions: decoration is aria-hidden with empty alt text and cannot
+  receive taps. Existing focus styles, 16px inputs and reduced-motion behavior remain.
+  Profile and main controls retain 44px+ targets. Recent-form tap opens the same
+  scorecard, player search/selection loads the existing comparison, and Doubles exposes
+  all four inputs. No browser console errors observed; no production writes performed.
+
+### Follow-up polish and device limits
+
+- P3: a long hyphenated name can occupy three lines at 320px. It remains fully readable,
+  separated from the profile button, and scrolls vertically without clipping.
+- Physical iPhone typography, safe areas, Dynamic Type and VoiceOver remain device
+  checks. Browser captures and source checks are not physical-device verification.
+
+### Implementation checklist
+
+- [x] Compare full screens and focused scoreboard region against captured references.
+- [x] Fix P1/P2 layout, artwork and readability findings and recapture.
+- [x] Check phone widths, tablet, long names, empty/pending data and core interactions.
+- [x] Retain the simple chat conversation and existing navigation/data contracts.
+- [x] Package and verify byte-identical approved assets and stylesheet in the final iOS bundle.
+
+Final result: passed (visual and browser interaction QA; physical-device checks pending).

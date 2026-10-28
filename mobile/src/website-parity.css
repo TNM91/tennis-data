@@ -526,7 +526,6 @@ section.lab-scoreboard { padding:18px 14px 14px; border-radius:26px; border:1px 
 .lab-scoreboard .lab-rating-chart { gap:8px; margin:0; }
 .lab-scoreboard .lab-rating-chart>div { padding:14px; background:#0e2a48; border:1px solid #254b6d; border-radius:18px; }
 .lab-scoreboard .lab-rating-chart>div:first-child { position:relative; min-height:190px; padding:18px; overflow:hidden; background:#06172d; border:1px solid #3174aa; }
-.lab-scoreboard .rating-court-art { position:absolute; right:0; top:16px; width:49%; height:140px; object-fit:contain; }
 .lab-scoreboard .lab-rating-chart>div:first-child>dt,.lab-scoreboard .lab-rating-chart>div:first-child>dd { position:relative; z-index:1; }
 .lab-scoreboard .lab-rating-chart>div:first-child>dt { color:#a9c9e7; font-size:12px; text-transform:uppercase; letter-spacing:.12em; }
 .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { margin:10px 0 0; font-size:78px; letter-spacing:-.065em; font-weight:780; line-height:1; }
@@ -591,7 +590,6 @@ section.lab-scoreboard { padding:18px 16px 8px; background:#06172d; border-color
 .lab-scoreboard h2 { margin:0 0 8px; font-size:17px; color:#a8d6fa; }
 .lab-scoreboard .lab-rating-chart>div:first-child { padding:14px 0; min-height:180px; background:#000a16; border:0; border-radius:20px; }
 .lab-scoreboard .lab-rating-chart>div:first-child>dt,.lab-scoreboard .lab-rating-chart>div:first-child>dd { margin-left:14px; margin-right:14px; }
-.lab-scoreboard .rating-court-art { top:12px; right:0; height:138px; width:49%; }
 .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { font-size:78px; }
 .lab-scoreboard .lab-rating-chart>div:not(:first-child) { padding:12px 14px; background:#0d2e4e; border-color:#1c466c; }
 .lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale) { font-size:34px; margin-top:5px; }
@@ -643,7 +641,6 @@ body.native-chat-conversation .chat-reply-context button.secondary { grid-column
 
 @media(max-width:360px) {
  .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { font-size:62px; }
- .lab-scoreboard .rating-court-art { top:25px; height:112px; width:40%; }
 }
 
 /* Keep the three TIQ format labels on one line at narrow phone widths. */
