@@ -23,6 +23,6 @@ describe('chat entry points reuse team plans',()=>{
   expect(named).toContain('Practice RSVPs');expect(named).not.toContain('Match availability');expect(named).not.toContain('Plan a practice')
  })
  it('freezes all team actions while the composer is processing a send or media selection',()=>{
-  expect(chatTeamActionsHtml(room,true).match(/disabled/g)).toHaveLength(3)
+  expect(chatTeamActionsHtml(room,true).match(/disabled/g)).toHaveLength(4)
  })
 })
