@@ -26,8 +26,8 @@ describe('bounded older My Lab matches',()=>{
   expect(()=>appendRecentHistory([...loaded,undated],[row(11)],player,20)).toThrow()
  })
  it('uses the existing exact player join and bounded ordered range with a timeout',async()=>{
-  const q={select:vi.fn(),eq:vi.fn(),order:vi.fn(),range:vi.fn(),abortSignal:vi.fn().mockResolvedValue({data:rows(10,21),error:null})}
-  q.select.mockReturnValue(q);q.eq.mockReturnValue(q);q.order.mockReturnValue(q);q.range.mockReturnValue(q)
+  const q={select:vi.fn(),eq:vi.fn(),in:vi.fn(),order:vi.fn(),range:vi.fn(),abortSignal:vi.fn().mockResolvedValue({data:rows(10,21),error:null})}
+  q.select.mockReturnValue(q);q.eq.mockReturnValue(q);q.in.mockReturnValue(q);q.order.mockReturnValue(q);q.range.mockReturnValue(q)
   const client={from:vi.fn().mockReturnValue(q)} as unknown as SupabaseClient
   expect((await loadOlderResults(client,player,rows(0,10))).rows).toHaveLength(30)
   expect(client.from).toHaveBeenCalledWith('matches');expect(q.eq).toHaveBeenCalledWith('match_players.player_id',player);expect(q.range).toHaveBeenCalledWith(10,30);expect(q.order).toHaveBeenCalledWith('match_date',{ascending:false,nullsFirst:false});expect(q.order).toHaveBeenCalledWith('id',{ascending:false});expect(q.abortSignal).toHaveBeenCalledWith(expect.any(AbortSignal))

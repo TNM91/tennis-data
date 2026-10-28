@@ -1,3 +1,4 @@
+import {PLAYER_MATCH_TYPES} from '../../lib/player-match-history'
 import websiteUi from '../generated/website-ui.json'
 import {matchupOutcome} from '../../lib/matchup-outcome'
 import type {SupabaseClient} from '@supabase/supabase-js'
@@ -30,14 +31,14 @@ export async function loadOpponentMeetings(client:SupabaseClient,players:Compare
  const own=async(owner?:string)=>{const {data,error}=await client.auth.getSession();if(error||!current()||!data.session||owner&&data.session.user.id!==owner)throw Error('Comparison is no longer open.');return data.session.user.id}
  const owner=await own();if(!await canFollowPlayers(client,current))throw Error('Player access is required.');await own(owner)
  // Two reads per explicit request, at most 201 candidate matches and 200 hydrated matches.
- const candidates=await client.from('matches').select('id,match_players!inner(player_id)').eq('match_players.player_id',ids[0]).order('match_date',{ascending:false,nullsFirst:false}).order('id',{ascending:false}).limit(LIMIT+1).abortSignal(AbortSignal.timeout(12000))
+ const candidates=await client.from('matches').select('id,match_players!inner(player_id)').eq('match_players.player_id',ids[0]).eq('public_history_eligible',true).in('match_type',PLAYER_MATCH_TYPES).order('match_date',{ascending:false,nullsFirst:false}).order('id',{ascending:false}).limit(LIMIT+1).abortSignal(AbortSignal.timeout(12000))
  await own(owner)
  if(candidates.error||!Array.isArray(candidates.data)||candidates.data.length>LIMIT+1)throw Error('Meeting history unavailable.')
  const selected=candidates.data.slice(0,LIMIT).map(r=>r.id)
  if(selected.some(id=>typeof id!=='string'||!id)||new Set(selected).size!==selected.length)throw Error('Meeting history unavailable.')
  if(!selected.length)return {rows:[],limited:false}
  // No inner filter here: retain every participant, rather than only the anchor player.
- const details=await client.from('matches').select('id,match_date,match_type,league_name,score,winner_side,match_players(player_id,side)').in('id',selected).order('match_date',{ascending:false,nullsFirst:false}).order('id',{ascending:false}).limit(LIMIT).abortSignal(AbortSignal.timeout(12000))
+ const details=await client.from('matches').select('id,match_date,match_type,league_name,score,winner_side,match_players(player_id,side)').in('id',selected).eq('public_history_eligible',true).in('match_type',PLAYER_MATCH_TYPES).order('match_date',{ascending:false,nullsFirst:false}).order('id',{ascending:false}).limit(LIMIT).abortSignal(AbortSignal.timeout(12000))
  await own(owner)
  if(details.error||!Array.isArray(details.data)||details.data.length!==selected.length||new Set(details.data.map(r=>r.id)).size!==selected.length)throw Error('Meeting history unavailable. Refresh to try again.')
  const rows=details.data as unknown as RecentMatchRow[]
