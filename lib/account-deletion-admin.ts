@@ -1,0 +1,8 @@
+import type {SupabaseClient} from '@supabase/supabase-js'
+export const deletionEvidenceKeys=['personalDataErased','filesErased','billingReviewed','retentionReviewed','sessionsHandled','sharedDataPreserved'] as const
+export function hasDeletionEvidence(value:unknown){if(!value||typeof value!=='object'||Array.isArray(value))return false;const r=value as Record<string,unknown>;return Object.keys(r).length===deletionEvidenceKeys.length&&deletionEvidenceKeys.every(k=>r[k]===true)}
+export async function accountActuallyRemoved(service:SupabaseClient,id:string){try{const result=await service.auth.admin.getUserById(id);return !result.data.user&&result.error?.status===404&&result.error.code==='user_not_found'}catch{return false}}
+export async function sendDeletionConfirmation(email:string,requestId:string,key:string,send:typeof fetch=fetch){
+ const response=await send('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json','Idempotency-Key':'account-deletion-completed-'+requestId},body:JSON.stringify({from:'TenAceIQ <support@'+(process.env.RESEND_EMAIL_DOMAIN?.trim()||'tenaceiq.com')+'>',to:[email],subject:'Your TenAceIQ account has been deleted',html:'<!doctype html><html lang="en"><body><h1>Your TenAceIQ account has been deleted</h1><p>Your permanent-deletion request is complete. Your account and associated personal data have been removed. Any records required for legal or financial retention are handled under our privacy policy.</p><p>Request reference: '+requestId+'</p><p><a href="https://www.tenaceiq.com/legal/privacy">Privacy policy</a></p></body></html>'}),redirect:'error',signal:AbortSignal.timeout(12000)})
+ return response.ok
+}

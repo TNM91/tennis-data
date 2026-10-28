@@ -393,3 +393,12 @@ Remaining public App Store gates, to resolve before submission:
 - Complete physical-device release acceptance and review the final shipping scope before authorizing public App Store submission. Standing beta approval does not authorize public submission or new testers.
 
 Official references: [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), [Account deletion](https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion/), [Complete App Review](https://developer.apple.com/help/app-review/before-submitting-for-review/complete-review).
+
+
+## Build 150 candidate — native email accounts and reviewed deletion requests
+
+Adds native email-code signup/sign-in, a persistent signed-in Account entry, password recovery, existing web-billing management and an authenticated permanent-deletion request/status. New accounts retain the existing Free defaults. Recent password/OTP verification and typed DELETE are required to request erasure. No automatic account deletion or subscription cancellation is added.
+
+The proposed fulfillment is administrator-run erasure within seven days with completion email. This is an operating commitment requiring owner approval, not an already established service. A private service-only migration adds the request queue and durable email/IP-hash rate limits without altering existing data, ownership or permissions. Missing migration fails closed before signup email/Auth creation. Review uses fresh admin authorization, six operator attestations, Auth absence and known residual-data checks; it is not an exhaustive erasure engine.
+
+See [the account lifecycle runbook](native-account-lifecycle.md) for the 170-relationship catalog findings, ownership/cascade hazards, Storage/JWT/billing requirements, exact approval boundaries and public-launch acceptance gaps. Positive tests are synthetic; real delivery, full reviewed erasure and physical-device acceptance remain outstanding. Build 150 must not ship until migration and seven-day operating policy are approved and verified. Public App Store submission and storefront/payment decisions remain separate gates.

@@ -30,6 +30,7 @@ type AdminTool = {
 }
 
 const adminTools: AdminTool[] = [
+  {title:'Account deletion requests',href:'/admin/account-deletions',description:'Review permanent-deletion requests and confirm completed erasure.',badge:'Privacy',accent:'slate',icon:'accountSecurity',highlights:['Private request queue','Seven-day review','Erasure evidence','Completion email'],statLabel:'Best for',statValue:'Account privacy'},
   {
     title: 'Admin Import Center',
     href: '/admin/import',
