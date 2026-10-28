@@ -12,7 +12,7 @@ export function chatPlanLink(value:string):ChatPlan|null{
 }
 
 /** Descriptor only; opening still authorizes the exact team, room and player. */
-export function firstChatPlan(body:string):ChatPlan|null{for(const part of tokenizeTeamRoomMessageBody(body)){const plan=part.href&&chatPlanLink(part.href);if(plan)return plan}return null}
+export function firstChatPlan(body:string,kind?:ChatPlan['kind']):ChatPlan|null{for(const part of tokenizeTeamRoomMessageBody(body)){const plan=part.href&&chatPlanLink(part.href);if(plan&&(!kind||plan.kind===kind))return plan}return null}
 export function parseChatPlan(value:unknown):ChatPlan|null{
  if(value===undefined||value===null)return null
  if(typeof value!=='object'||Array.isArray(value))throw Error('Team plan unavailable.')

@@ -2,13 +2,14 @@ import {firstChatPlan,parseChatPlan} from '../team-chat-plan-links'
 import {practiceRsvpPath} from '../captain-practice-rsvp'
 import {describe,it,expect,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {isPublishedChatPoll,searchTeamChatRows,searchPhotoMime,publicChatSearchResult,chatSearchPreview} from '../team-chat-search'
-import {chatSearchInput,chatSearchCursorProgress} from '../team-chat-search-contract'
+import type {SentTeamMessage} from '../team-room-message-send'
+import {chatSearchMatch,isPublishedChatPoll,searchTeamChatRows,searchPhotoMime,publicChatSearchResult,chatSearchPreview} from '../team-chat-search'
+import {chatSearchInput,chatSearchCursorProgress,parseChatSearchMatch} from '../team-chat-search-contract'
 import {teamChatCursor} from '../team-chat-cursor'
 import {readChatSearch,parseChatSearch,searchResultHtml} from '../../mobile/src/chat-history-search'
 const owner='11111111-1111-4111-8111-111111111111',id=(n:number)=>`22222222-2222-4222-8222-${String(n).padStart(12,'0')}`
 const post=(n:number,patch:Record<string,unknown>={})=>({id:id(n),sender_user_id:'sender',body:'Practice court 3',message_kind:'message',metadata:null,created_at:'2026-10-24T12:00:00.123456+00:00',edited_at:null,deleted_at:null,reply_to_message_id:null,...patch})
-function database(rows:ReturnType<typeof post>[]=[],patch:Record<string,unknown>={}){const calls:{table:string;method:string;args:unknown[]}[]=[],results:Record<string,unknown>={internal_messages:{data:rows,error:null},participant:{data:{last_read_at:''}},removal:{data:null},team_chat_blocks:{data:[]},...patch};const service={from:(table:string)=>{const q:Record<string,unknown>={};for(const method of ['select','eq','is','not','order','or','limit'])q[method]=(...args:unknown[])=>{calls.push({table,method,args});return q};q.maybeSingle=async()=>results[table==='internal_conversation_participants'?'participant':'removal'];q.then=(resolve:(value:unknown)=>void)=>Promise.resolve(resolve(results[table]));return q}} as unknown as SupabaseClient;return {service,calls}}
+function database(rows:SentTeamMessage[]=[],patch:Record<string,unknown>={}){const calls:{table:string;method:string;args:unknown[]}[]=[],results:Record<string,unknown>={internal_messages:{data:rows,error:null},participant:{data:{last_read_at:''}},removal:{data:null},team_chat_blocks:{data:[]},...patch};const service={from:(table:string)=>{const q:Record<string,unknown>={};for(const method of ['select','eq','is','not','order','or','limit'])q[method]=(...args:unknown[])=>{calls.push({table,method,args});return q};q.maybeSingle=async()=>results[table==='internal_conversation_participants'?'participant':'removal'];q.then=(resolve:(value:unknown)=>void)=>Promise.resolve(resolve(results[table]));return q}} as unknown as SupabaseClient;return {service,calls}}
 describe('private bounded team history search',()=>{
  it('validates literal query, collection and cursor without reading rows for malformed requests',async()=>{for(const args of [['x','all',''],['x'.repeat(121),'all',''],['a\nb','all',''],['court','everyone',''],['court','all','bad cursor']]){const db=database();expect(await searchTeamChatRows(db.service,owner,'room',...args as [string,string,string])).toMatchObject({status:400});expect(db.calls).toEqual([])}expect(chatSearchInput('  Court 3  ','all','')).toEqual({query:'Court 3',kind:'all',before:''})})
  it('checks current membership, removals for every role and blocks before reading content',async()=>{for(const patch of [{participant:{data:null}},{removal:{data:{profile_id:owner}}},{participant:{error:{}}},{team_chat_blocks:{error:{}}}]){const db=database([post(1)],patch);expect(await searchTeamChatRows(db.service,owner,'room','court','all','')).toMatchObject({ok:false});expect(db.calls.some(call=>call.table==='internal_messages')).toBe(false)}})
@@ -58,4 +59,58 @@ it('rejects malformed plan descriptors and strips unexpected fields without weak
 it('withholds a late search response if the account changes while the request is in flight',async()=>{
  const session=vi.fn().mockResolvedValueOnce({data:{session:{user:{id:owner},access_token:'synthetic'}}}).mockResolvedValueOnce({data:{session:{user:{id:'other'},access_token:'other'}}}),send=vi.fn().mockResolvedValue({status:200,data:root}),client={auth:{getSession:session}} as unknown as SupabaseClient
  await expect(readChatSearch(client,owner,()=>true,scope,'room','court','all','',send)).rejects.toThrow('no longer open');expect(send).toHaveBeenCalledTimes(1)
+})
+
+
+describe('team plans and shared-match discovery',()=>{
+ const match=(n:number,patch:Record<string,unknown>={})=>post(n,{body:'Captain match request',metadata:{teamRoomCard:true,cardType:'availability',matchDate:'2026-11-03',opponent:'November Aces',privateNotes:'private captain note',roster:['private roster'],...patch}})
+ const practice='https://www.tenaceiq.com'+practiceRsvpPath(id(40)),poll='https://www.tenaceiq.com/team-room?poll='+id(41)
+ it('promotes only a stored, supported shared card with an exact calendar date, never typed match text',()=>{
+  expect(chatSearchMatch(match(1))).toEqual({matchDate:'2026-11-03',opponent:'November Aces',kind:'availability'})
+  expect(chatSearchMatch(match(2,{cardType:'projected_lineup'}))?.kind).toBe('lineup')
+  for(const patch of [{teamRoomCard:false},{cardType:'practice'},{matchDate:'2026-02-30'},{matchDate:'2026-13-03'},{matchDate:'<script>'}])expect(chatSearchMatch(match(1,patch))).toBeNull()
+  expect(chatSearchMatch(post(1,{body:'Match availability on 2026-11-03 vs November Aces'}))).toBeNull()
+ })
+ it('browses all three plan types without inferring a published poll from a typed link',async()=>{
+  const rows=[match(5),match(4,{cardType:'projected_lineup'}),post(3,{metadata:{nativePoll:{version:1,id:id(3)}}}),post(2,{body:practice}),post(1,{body:poll})]
+  const db=database(rows),r=await searchTeamChatRows(db.service,owner,'room','','plans','')
+  expect(r).toMatchObject({ok:true,rows:rows.slice(0,4)})
+  expect(await searchTeamChatRows(database(rows).service,owner,'room','','matches','')).toMatchObject({rows:rows.slice(0,2)})
+  expect(db.calls.filter(c=>c.table==='internal_messages'&&c.method==='select')).toHaveLength(1)
+  expect(db.calls).toContainEqual({table:'internal_messages',method:'limit',args:[201]})
+ })
+ it('finds and opens the practice descriptor even when a poll link precedes it',async()=>{
+  const row=post(2,{body:poll+' '+practice}),bad=post(1,{body:practice.replace('www.tenaceiq.com','external.invalid')})
+  expect(await searchTeamChatRows(database([row,bad]).service,owner,'room','','practices','')).toMatchObject({rows:[row]})
+  const result=publicChatSearchResult(row,'Alex','room','','practices');expect(result.plan).toEqual({kind:'practice',id:id(40)})
+  expect(firstChatPlan(row.body)).toEqual({kind:'poll',id:id(41)})
+  expect(publicChatSearchResult(post(3,{body:'Poll',metadata:{nativePoll:{version:1,id:id(3)}}}),'Alex','room','','plans').plan).toEqual({kind:'poll',id:id(3)})
+ })
+ it('keeps the empty-page continuation and 25-result cap for sparse older plans',async()=>{
+  const rows=Array.from({length:201},(_,i)=>i===200?match(1):post(1000-i)),result=await searchTeamChatRows(database(rows).service,owner,'room','','plans','')
+  expect(result).toMatchObject({rows:[],nextCursor:teamChatCursor(rows[199].created_at,rows[199].id)})
+  expect(await searchTeamChatRows(database([rows[200]]).service,owner,'room','','plans',teamChatCursor(rows[199].created_at,rows[199].id))).toMatchObject({rows:[rows[200]],nextCursor:''})
+  const capped=await searchTeamChatRows(database(Array.from({length:30},(_,i)=>match(100-i))).service,owner,'room','','matches','');expect(capped.ok&&capped.rows).toHaveLength(25)
+ })
+ it('retains current-room access and redaction for every new collection',async()=>{
+  for(const kind of ['plans','matches','practices']){const db=database([match(1)],{removal:{data:{profile_id:owner}}});expect(await searchTeamChatRows(db.service,owner,'room','',''+kind,'')).toMatchObject({ok:false});expect(db.calls.some(c=>c.table==='internal_messages')).toBe(false)}
+  const rows=[match(3),{...match(2),sender_user_id:'blocked'},{...match(1),deleted_at:'now'}],r=await searchTeamChatRows(database(rows,{team_chat_blocks:{data:[{blocked_user_id:'blocked'}]}}).service,owner,'room','','plans','');expect(r).toMatchObject({rows:[rows[0]]})
+ })
+ it('returns only match date/opponent/type and rejects malformed or wrong-collection native results',()=>{
+  const value=publicChatSearchResult(match(1,{opponent:'<img src=x>'}),'Captain','room','','matches'),page={...root,query:'',kind:'matches',results:[value]}
+  expect(value.sharedMatch).toEqual({matchDate:'2026-11-03',opponent:'<img src=x>',kind:'availability'})
+  for(const secret of ['privateNotes','private captain note','roster','metadata','sender_user_id'])expect(JSON.stringify(value)).not.toContain(secret)
+  const parsed=parseChatSearch({...page,results:[{...value,sharedMatch:{...value.sharedMatch,recipients:['secret']}}]},'room','','matches','');expect(parsed.results[0].sharedMatch).not.toHaveProperty('recipients')
+  expect(searchResultHtml(value,true)).toContain('Open match in chat');expect(searchResultHtml(value,true)).toContain('&lt;img src=x&gt;');expect(searchResultHtml(value,true)).not.toContain('<img src=x>')
+  for(const sharedMatch of [{...value.sharedMatch,matchDate:'2026-02-30'},{...value.sharedMatch,kind:'other'},[],42])expect(()=>parseChatSearch({...page,results:[{...value,sharedMatch}]},'room','','matches','')).toThrow()
+  expect(()=>parseChatSearch({...page,results:root.results},'room','','matches','')).toThrow()
+  expect(()=>parseChatSearch({...page,kind:'practices'},'room','','practices','')).toThrow()
+  expect(parseChatSearch({...root,kind:'plans',query:'',results:[value]},'room','','plans','').results).toHaveLength(1)
+  expect(parseChatSearchMatch(null)).toBeNull()
+ })
+ it('sends the explicit collection and named-room scope without a read or mutation',async()=>{
+  const client={auth:{getSession:async()=>({data:{session:{user:{id:owner},access_token:'synthetic'}}})}} as unknown as SupabaseClient,send=vi.fn().mockResolvedValue({status:200,data:{...root,query:'',kind:'practices',results:[{...root.results[0],plan:{kind:'practice',id:id(40)}}]}})
+  await readChatSearch(client,owner,()=>true,{...scope,chatRoomId:id(42)},'room','','practices','',send)
+  const url=new URL(send.mock.calls[0][0].url);expect(url.searchParams.get('kind')).toBe('practices');expect(url.searchParams.get('chatRoom')).toBe(id(42));expect(url.searchParams.has('read')).toBe(false);expect(send).toHaveBeenCalledTimes(1)
+ })
 })
