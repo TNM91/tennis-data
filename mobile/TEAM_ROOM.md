@@ -81,3 +81,30 @@ Conversation search filters the latest loaded 75 moderated messages by body or s
 Own ordinary text/photo posts expose Edit and Remove. Dedicated native actions check current accepted participation and exact room/owner. Formal announcements, match cards and unknown workflow metadata are excluded. Conditional updates match original body, edit timestamp and metadata; conflicting newer changes fail closed. Identical saved edits/removals can be replayed without another write. Removal is a soft message marker; private attachment objects and metadata are retained for moderation, while normal message/photo reads reject the deleted post. No purge, new grant or storage policy is introduced. The editor closes and clears on background/team/session disposal; uncertain retries freeze the same payload.
 
 Verification uses synthetic auth/data and blocks external browser requests. No real RSVP, arrival, acknowledgment, edit/removal, chat post or notification is sent by agent testing. Real iPhone keyboard and match participation remain beta acceptance checks.
+
+
+### Chat team actions and saved GIFs (build 138)
+
+The conversation keeps its compact layout on a navy canvas, with blue own-message
+bubbles and dark composer, reactions and popovers. The Plus menu opens existing
+practice RSVPs from any room using only the exact team/league/flight. General also
+opens Match day for match availability, and captains can open the existing practice
+planner and its reviewed Post to team chat workflow. These are entry points to the
+same saved practices and responses, not separate chat signups. Normal unfinished
+text/reply/attachment drafts survive these views; sends/media selection lock them.
+Official match/captain shortcuts remain in General. No new database permissions.
+
+The original 12 tennis GIFs remain available. Choose a saved GIF uses the existing
+file chooser and original-byte validation (2 MB maximum). Explicit paste accepts
+one GIF file when the keyboard/clipboard supplies it, then previews it in the draft;
+Send remains explicit. Text paste stays normal. Flattened PNG/JPEG clipboard images,
+multiple files, invalid or oversized GIFs are rejected without replacing an existing
+attachment. Backgrounding, team changes and disposal invalidate pending GIF imports.
+Apple Messages #images is not an embedded TenAceIQ picker. Actual Photos/Files and
+keyboard behavior still requires physical iPhone testing.
+
+Next: first-class chat poll cards with a question, choices, one saved vote per
+member, change-vote behavior, results and captain close controls; practice and match
+cards should open their existing responses from the conversation. Reactions do not
+stand in for saved poll votes. Any new production tables/grants require a separately
+reviewed migration before release. No poll buttons are advertised as working yet.
