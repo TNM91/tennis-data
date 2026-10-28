@@ -6,22 +6,28 @@ import AdminGate from '@/app/components/admin-gate'
 import {useAuth} from '@/app/components/auth-provider'
 import {supabase} from '@/lib/supabase'
 import styles from './requests.module.css'
-type RequestRow={id:string;account_id:string;verified_email:string;status:'requested'|'reviewing'|'erased';requested_at:string;due_at:string}
-const evidenceLabels={personalDataErased:'Associated personal data and user-generated content erased',filesErased:'Personal files and attachment copies erased',billingReviewed:'Subscriptions and billing reviewed; continuing charges addressed',retentionReviewed:'Required legal/financial retention reviewed',sessionsHandled:'Old sessions and outstanding JWT access handled',sharedDataPreserved:'Other members’ team, club and league data preserved'}
-type Evidence=Record<keyof typeof evidenceLabels,boolean>
+type RequestRow={id:string;status:string;phase:string;requested_at:string;due_at:string;attempts:number;next_attempt_at:string;last_error:string|null}
+const phases:Record<string,string>={queued:'Queued',waiting:'Signing out devices',billing:'Ending web renewals',files:'Removing uploads',data:'Removing private data',auth:'Removing login',confirmation:'Sending completion email'}
 function Queue({owner}:{owner:string}){
- const [rows,setRows]=useState<RequestRow[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[evidence,setEvidence]=useState<Record<string,Partial<Evidence>>>({}),active=useRef(true),pending=useRef<AbortController|null>(null)
+ const [rows,setRows]=useState<RequestRow[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),active=useRef(true),pending=useRef<AbortController|null>(null)
  useEffect(()=>{active.current=true;return()=>{active.current=false;pending.current?.abort()}},[])
- async function api(body?:unknown){
-  const session=await supabase.auth.getSession();if(!active.current||session.error||session.data.session?.user.id!==owner)throw Error('Account visit closed.')
-  const controller=new AbortController();pending.current=controller;const timeout=setTimeout(()=>controller.abort(),12000)
-  try{const response=await fetch('/api/admin/account-deletions',{method:body?'POST':'GET',headers:{Authorization:'Bearer '+session.data.session.access_token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',signal:controller.signal});const value=await response.json();const next=await supabase.auth.getSession();if(!active.current||next.data.session?.user.id!==owner)throw Error('Account visit closed.');if(!response.ok||value?.ok!==true)throw Error(typeof value?.message==='string'?value.message:'The request could not be completed.');return value}finally{clearTimeout(timeout)}
+ async function load(){
+  if(busy)return;setBusy(true);setError('')
+  try{
+   const session=await supabase.auth.getSession();if(!active.current||session.error||session.data.session?.user.id!==owner)throw Error('Account visit closed.')
+   const controller=new AbortController();pending.current=controller;const timeout=setTimeout(()=>controller.abort(),12000)
+   try{
+    const response=await fetch('/api/admin/account-deletions',{headers:{Authorization:'Bearer '+session.data.session.access_token},cache:'no-store',signal:controller.signal})
+    const value=await response.json(),next=await supabase.auth.getSession()
+    if(!active.current||next.data.session?.user.id!==owner)throw Error('Account visit closed.')
+    if(!response.ok||value?.ok!==true||!Array.isArray(value.rows)||value.rows.length>25)throw Error('Deletion progress could not be loaded.')
+    setRows(value.rows);setLoaded(true)
+   }finally{clearTimeout(timeout)}
+  }catch(e){if(active.current)setError(e instanceof Error?e.message:'Deletion progress could not be loaded.')}
+  finally{if(active.current)setBusy(false)}
  }
- async function refresh(){const value=await api();if(!Array.isArray(value.rows)||value.rows.length>25)throw Error('The request list was not valid.');if(active.current){setRows(value.rows);setLoaded(true);setEvidence({})}}
- async function load(){if(busy)return;setBusy(true);setError('');try{await refresh()}catch(e){if(active.current)setError(e instanceof Error?e.message:'The request list could not be loaded.')}finally{if(active.current)setBusy(false)}}
- async function change(row:RequestRow,action:'review'|'complete'){if(busy)return;setBusy(true);setError('');try{await api({id:row.id,action,...(action==='complete'?{evidence:evidence[row.id]}:{})});if(active.current)await refresh()}catch(e){if(active.current)setError(e instanceof Error?e.message:'The review could not be saved.')}finally{if(active.current)setBusy(false)}}
- const date=(v:string)=>new Date(v).toLocaleString()
- return <><button type="button" onClick={()=>{void load()}} disabled={busy}>{busy?'Working…':loaded?'Refresh requests':'Load deletion requests'}</button><p role="alert">{error}</p>{loaded&&!rows.length?<p>No pending deletion requests.</p>:null}{rows.map(row=><article className={styles.request} key={row.id}><h2>{row.verified_email}</h2><p>{row.status==='requested'?'Awaiting review':row.status==='reviewing'?'Review in progress':'Erasure verified · confirmation pending'}</p><dl><dt>Account</dt><dd>{row.account_id}</dd><dt>Requested</dt><dd>{date(row.requested_at)}</dd><dt>Completion due</dt><dd>{date(row.due_at)}</dd><dt>Reference</dt><dd>{row.id}</dd></dl>{row.status==='requested'?<button type="button" disabled={busy} onClick={()=>{void change(row,'review')}}>Start review</button>:<><p>Complete the reviewed erasure through the authorized administration tools first. This page never deletes an Auth account. Confirm the exact account and every item below before sending its completion email.</p><fieldset disabled={busy}><legend>Erasure evidence</legend>{(Object.keys(evidenceLabels) as Array<keyof Evidence>).map(key=><label key={key}><input type="checkbox" checked={Boolean(evidence[row.id]?.[key])} onChange={event=>setEvidence(previous=>({...previous,[row.id]:{...previous[row.id],[key]:event.target.checked}}))}/><span>{evidenceLabels[key]}</span></label>)}</fieldset><button type="button" disabled={busy||!Object.keys(evidenceLabels).every(key=>evidence[row.id]?.[key as keyof Evidence])} onClick={()=>{void change(row,'complete')}}>Confirm reviewed erasure and send completion email</button></>}</article>)}<p>Showing the first 25 pending requests, oldest deadline first. Refresh after completing these to see the next requests. Request details stay out of browser storage.</p></>
+ const date=(value:string)=>new Date(value).toLocaleString()
+ return <><button type="button" onClick={()=>{void load()}} disabled={busy}>{busy?'Loading…':loaded?'Refresh requests':'Load deletion requests'}</button><p role="alert">{error}</p>{loaded&&!rows.length?<p>No pending deletion requests.</p>:null}{rows.map(row=><article className={styles.request} key={row.id}><h2>{phases[row.phase]||'Processing deletion'}</h2><dl><dt>Requested</dt><dd>{date(row.requested_at)}</dd><dt>Completion due</dt><dd>{date(row.due_at)}</dd><dt>Reference</dt><dd>{row.id}</dd></dl>{row.last_error?<p role="status">{row.attempts>=10?'Automatic retries paused. Investigate the failed service before resuming.':'The service will retry automatically.'} Step: {row.last_error}.</p>:null}</article>)}<p>Showing the first 25 pending requests, oldest deadline first. Deletion runs automatically; this page does not approve or certify erasure.</p></>
 }
-function AccountDeletionContent(){const {userId}=useAuth();return <div className={styles.page}><Link href="/admin">Back to Admin</Link><small>Account privacy</small><h1>Account deletion requests</h1><p>Review permanent-deletion requests within the agreed seven-day window. Protect shared team and league records, finish personal-data erasure, handle billing and old-session access, then confirm completion.</p>{userId?<Queue key={userId} owner={userId}/>:null}</div>}
+function AccountDeletionContent(){const {userId}=useAuth();return <div className={styles.page}><Link href="/admin">Back to Admin</Link><small>Account privacy</small><h1>Account deletion requests</h1><p>Follow automatic deletion progress and investigate service failures. Completion is recorded only after removal has been verified and the completion email accepted.</p>{userId?<Queue key={userId} owner={userId}/>:null}</div>}
 export default function AccountDeletionRequests(){return <SiteShell><AdminGate><AccountDeletionContent/></AdminGate></SiteShell>}

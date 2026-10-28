@@ -22,7 +22,7 @@ body[data-screen="lab"]:not(.native-chat-conversation) main { padding-top:0; }
 .lab-scoreboard-intro h1 { font-size:32px; font-weight:800; letter-spacing:-.045em; line-height:1.12; margin:5px 0 3px; }
 .lab-scoreboard-intro p { font-size:12px; color:#a9c4d9; line-height:18px; margin:0; }
 .lab-scoreboard-intro .lab-profile-action { background:#0c2b43; border-color:#315774; color:#b4dfff; }
-body[data-screen="lab"] section.lab-scoreboard { position:relative; margin-top:0; padding:16px 18px 8px; background:#031326 url('./brand/courts/tiq-native-ace-serve-20261027-v1.png') no-repeat right 12px / min(85%,320px) auto; border:1px solid #3e6d8c; border-radius:24px; box-shadow:0 20px 40px #0004; }
+body[data-screen="lab"] section.lab-scoreboard { position:relative; margin-top:0; padding:16px 18px 8px; background:#031326 url('./brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png') no-repeat right 12px / min(85%,320px) auto; border:1px solid #3e6d8c; border-radius:24px; box-shadow:0 20px 40px #0004; }
 .lab-scoreboard h2 { color:#b7d9ef; margin:0; font-size:15px; font-weight:650; letter-spacing:0; }
 .lab-scoreboard .lab-rating-chart { gap:0; margin:4px 0 0; }
 .lab-scoreboard .lab-rating-chart>div:first-child { position:relative; min-height:0; padding:12px 0 10px; background:transparent; border:0; border-radius:0; overflow:visible; }

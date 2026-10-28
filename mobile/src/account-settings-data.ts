@@ -2,19 +2,20 @@ import {CapacitorHttp} from '@capacitor/core'
 import {createClient,type SupabaseClient} from '@supabase/supabase-js'
 import {supabaseUrl,supabaseKey} from '../../lib/supabase-public-config'
 export type DeletionRequest={id:string;status:'requested'|'reviewing'|'erased'|'completed';requestedAt:string;dueAt:string}
-export type AccountSettings={email:string;reviewDays:7;verificationRequired:boolean;request:DeletionRequest|null}
+export type AccountSettings={email:string;reviewDays:7;fulfillment:'automated';verificationRequired:boolean;request:DeletionRequest|null}
 export function parseAccountSettings(value:unknown):AccountSettings|null{
  if(!value||typeof value!=='object')return null;const row=value as Record<string,unknown>
- if(row.ok!==true||row.reviewDays!==7||typeof row.email!=='string'||row.email.length>320||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)||typeof row.verificationRequired!=='boolean')return null
+ if(row.ok!==true||row.fulfillment!=='automated'||row.reviewDays!==7||typeof row.email!=='string'||row.email.length>320||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)||typeof row.verificationRequired!=='boolean')return null
  if(row.request!==null){const r=row.request as Record<string,unknown>;if(!r||typeof r.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.id)||!['requested','reviewing','erased','completed'].includes(String(r.status)))return null;for(const key of ['requestedAt','dueAt'])if(typeof r[key]!=='string'||String(r[key]).length>40||!Number.isFinite(Date.parse(String(r[key]))))return null;if(Date.parse(String(r.dueAt))<Date.parse(String(r.requestedAt)))return null}
- return {email:row.email,reviewDays:7,verificationRequired:row.verificationRequired,request:row.request as DeletionRequest|null}
+ return {email:row.email,reviewDays:7,fulfillment:'automated',verificationRequired:row.verificationRequired,request:row.request as DeletionRequest|null}
 }
 async function ownedSession(client:SupabaseClient,owner:string,current:()=>boolean){if(!current())throw Error('Visit closed');const {data,error}=await client.auth.getSession();if(error||!current()||data.session?.user.id!==owner)throw Error('Visit closed');return data.session}
 export async function readAccountSettings(client:SupabaseClient,owner:string,current:()=>boolean,create=false,transport=CapacitorHttp){
  const session=await ownedSession(client,owner,current),options={url:'https://www.tenaceiq.com/api/mobile/account',headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:12000}
- const response=create?await transport.post({...options,data:{confirmation:'DELETE'}}):await transport.get(options)
+ const response=create?await transport.post({...options,data:{confirmation:'DELETE',automatic:true,cancelWebBilling:true}}):await transport.get(options)
  await ownedSession(client,owner,current)
  if(response.status===403&&response.data?.verificationRequired===true)throw Error('verification_required')
+ if(response.status===409&&['ownership','last_admin','billing'].includes(response.data?.blocked))throw Error('deletion_'+response.data.blocked)
  const parsed=parseAccountSettings(response.data);if(![200,202].includes(response.status)||!parsed||create&&!parsed.request)throw Error('Account unavailable')
  return parsed
 }

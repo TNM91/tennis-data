@@ -1,5 +1,11 @@
 {
-  "git": { "deploymentEnabled": { "**": false, "master": true, "staging": true } },
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "master": true,
+      "staging": true
+    }
+  },
   "crons": [
     {
       "path": "/api/team-rooms/reminders",
@@ -16,6 +22,10 @@
     {
       "path": "/api/cron/league-weekly-reminders",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/account-erasure",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

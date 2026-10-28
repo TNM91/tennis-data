@@ -1,0 +1,21 @@
+Built-in Image Gen; no CLI/API-key fallback.
+User-directed original fictional character variant. Previous photograph-based character drafts are superseded and are not production assets.
+Court candidate: courts/tiq-native-ace-deuce-generic-20261028-v2.png
+Illustrated pose master: courts/tiq-generic-right-handed-trophy-pose-20261028-v2.png
+The private reference photographs are not public project assets.
+
+Character variant prompt (verbatim):
+Use case: precise-object-edit.
+Edit target: the supplied transparent illustrated tennis server. Replace the character identity with an ORIGINAL FICTIONAL recreational athlete, while retaining the right-handed trophy-serve motion the user approved.
+Make a clearly different person: short close-cropped dark hair, NO headband, a rounder face with a broad jaw, broader nose and subtle short stubble, medium warm brown complexion. Use simplified expressive illustrated facial features, not a portrait or the likeness of any professional tennis player.
+Change the kit to a clean electric-blue crew-neck athletic T-shirt without the original white collar details, dark navy shorts, plain navy wristband and white unbranded tennis shoes. Change the racket's red trim to light cyan; no logos anywhere.
+Preserve the exact anatomical RIGHT hand holding the racket on screen-left, LEFT tossing arm extended up on screen-right, one airborne ball, bent elbows/knees, separated shoes, foot directions, body lean, full figure framing and alpha transparency. Do not mirror, rotate, reposition limbs, add hands or change the serve stance. Keep the same premium clean animated-character illustration style.
+Only the face, haircut, complexion, clothing details and racket trim change. Exactly one person, one racket and one ball. Transparent background, no court, text, arrows or extra objects.
+
+Court composite prompt (verbatim):
+Use case: compositing.
+Image 1 is the existing wide navy night-court backdrop to edit. Image 2 is the new ORIGINAL FICTIONAL illustrated tennis athlete on transparency, the identity and outfit authority.
+Replace ONLY the old headband-wearing player in image 1, including his racket and ball, with the complete new figure+racket+ball from image 2. Insert image 2 faithfully, proportionally at the old figure's exact size and position, keeping the same separated-foot, bent-knee trophy-serve pose and foot placement at the near deuce-side baseline. Preserve image 2's anatomical RIGHT racket hand on screen-left and LEFT toss arm on screen-right. Do NOT mirror, turn the figure or change any limb angles.
+The new figure must have image 2's close-cropped hair, short stubble, different rounder face, medium warm brown complexion, electric-blue crew-neck shirt, navy shorts, navy wristband, cyan-trim racket and white unbranded shoes. NO headband, NO flowing hair, NO old face, NO professional-player likeness. Keep this fictional character's simplified illustrated face.
+Keep the blue ground shadow consistent with the floodlights. One player, one racket, one tossed ball total.
+Preserve the entire wide 1727-by-911 composition: dark navy negative space on the left, blue court geometry and all court lines, net, floodlights, texture and lighting. Do not add court details, text, logos, watermark, people, arrows or extra balls. This is a precise character-identity replacement; the approved stance, placement and overall court are invariants.

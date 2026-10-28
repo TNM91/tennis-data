@@ -1,3 +1,4 @@
+import {erasureConfiguration} from './account-erasure'
 import {createClient} from '@supabase/supabase-js'
 import {supabaseUrl,supabaseKey} from './supabase-public-config'
 export const accountResponse=(body:unknown,status=200,extra:Record<string,string>={})=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store',...extra}})
@@ -12,7 +13,7 @@ export async function readAccountJson(request:Request,limit=2048):Promise<Record
  let bytes=0,text='';const decoder=new TextDecoder()
  try{while(true){const part=await reader.read();if(part.done)break;bytes+=part.value.length;if(bytes>limit){await reader.cancel();return null}text+=decoder.decode(part.value,{stream:true})}text+=decoder.decode();const value=JSON.parse(text);return value&&typeof value==='object'&&!Array.isArray(value)?value:null}catch{return null}finally{reader.releaseLock()}
 }
-export async function accountLifecycleReady(service:ReturnType<typeof accountClient>){const {data,error}=await service.rpc('native_account_lifecycle_config');return !error&&data?.version===1&&data?.deletionReviewDays===7&&data?.fulfillment==='administrator_review'&&data?.queueReady===true}
+export async function accountLifecycleReady(service:ReturnType<typeof accountClient>){const {data,error}=await service.rpc('native_account_lifecycle_config');return !!erasureConfiguration()&&!!process.env.RESEND_API_KEY?.trim()&&!!process.env.CRON_SECRET?.trim()&&!error&&data?.version===2&&data?.deletionReviewDays===7&&data?.fulfillment==='automated'&&data?.queueReady===true}
 
 // Called only after getUser has remotely verified this exact JWT. Refresh iat is not reauthentication.
 export function recentAccountAuthentication(verifiedToken:string,owner:string,now=Date.now()) {
