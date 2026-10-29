@@ -27,7 +27,7 @@ export type DataAssistImportPreview = {
 export function buildScorecardImportFingerprint(row: ScorecardImportRow) {
   return JSON.stringify({
     externalMatchId: clean(row.externalMatchId),
-    matchDate: clean(row.matchDate),
+    matchDate: fingerprintDate(row.matchDate),
     homeTeam: normalizeName(row.homeTeam),
     awayTeam: normalizeName(row.awayTeam),
     lines: row.lines
@@ -134,7 +134,7 @@ function toScorecardImportLine(line: DataAssistScorecardParsedLine, index: numbe
   } satisfies ScorecardImportRow['lines'][number]
 }
 
-function parseLineLabel(value: string, index: number): { lineNumber: number; matchType: MatchType } {
+export function parseLineLabel(value: string, index: number): { lineNumber: number; matchType: MatchType } {
   const normalized = value.toLowerCase()
   const lineNumber = Number.parseInt(normalized, 10)
   return {
@@ -178,4 +178,10 @@ function clean(value: unknown) {
 
 function normalizeName(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function fingerprintDate(value:unknown){
+ const v=clean(value),iso=/^(20\d{2})-(\d{2})-(\d{2})(?:$|T)/.exec(v),us=/^(\d{1,2})\/(\d{1,2})\/(20\d{2})$/.exec(v)
+ const y=Number(iso?.[1]||us?.[3]),m=Number(iso?.[2]||us?.[1]),d=Number(iso?.[3]||us?.[2]),date=new Date(Date.UTC(y,m-1,d))
+ return date.getUTCFullYear()===y&&date.getUTCMonth()===m-1&&date.getUTCDate()===d?`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`:v
 }
