@@ -78,9 +78,19 @@ for(const width of [320,390])test(`poll actions and six options stay usable at $
  await expectBounded(page,350)
  expect(await page.locator('.poll-sheet-body').evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true)
  await page.getByLabel('Option 6',{exact:true}).focus()
+ await expect.poll(async()=>{
+  const input=await page.getByLabel('Option 6',{exact:true}).boundingBox(),body=await page.locator('.poll-sheet-body').boundingBox()
+  return Boolean(input&&body&&input.y>=body.y&&input.y+input.height<=body.y+body.height)
+ }).toBe(true)
  await page.screenshot({path:info.outputPath('chat-poll-keyboard-viewport.png'),fullPage:true})
  await page.getByRole('button',{name:'Review poll',exact:true}).click()
  await expect(page.getByRole('heading',{name:'Review your poll'})).toBeVisible()
+ await page.evaluate(()=>{
+  const viewport=window.visualViewport!
+  Object.defineProperties(viewport,{height:{configurable:true,get:()=>window.innerHeight},offsetTop:{configurable:true,get:()=>0}})
+  viewport.dispatchEvent(new Event('resize'))
+ })
+ await expect(page.locator('.poll-review-options li')).toHaveCount(6)
  await expect(page.getByRole('button',{name:'Post poll',exact:true})).toBeVisible()
  expect(actions).toHaveLength(0)
  await page.screenshot({path:info.outputPath('chat-poll-review.png'),fullPage:true})
