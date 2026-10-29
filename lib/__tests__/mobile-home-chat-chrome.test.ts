@@ -36,7 +36,7 @@ describe('conversation-first chrome and recorded home scoreboard',()=>{
 describe('home form from the already loaded results',()=>{
  it('uses only five decided player results, keeps source indexes and never counts pending rows',()=>{
   const row={id:'court',match_date:'2026-10-20',match_type:'doubles',league_name:'City',score:'6-4',winner_side:'A',match_players:[{player_id:'owner',side:'A'}]} as RecentMatchRow
-  const rows=[{...row,winner_side:null},row,{...row,winner_side:'B'},row,row,row,row]
+  const rows=[{...row,winner_side:null},row,{...row,winner_side:'B'},row,row,row,row].map((entry,index)=>({...entry,id:'court-'+index}))
   const markup=labRecentFormHtml(rows,'owner')
   expect(markup.match(/data-lab-form-index=/g)).toHaveLength(5);expect(markup).toContain('4W · 1L');expect(markup).toContain('data-lab-form-index="1"');expect(markup).not.toContain('data-lab-form-index="0"');expect(markup).toContain('Latest 5 decided results in your loaded matches')
   expect(labRecentFormHtml(rows,'outsider')).toBe('');expect(labRecentFormHtml([], 'owner')).toBe('')

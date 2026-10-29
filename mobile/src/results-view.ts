@@ -1,3 +1,4 @@
+import {statDonutHtml} from './stat-donut'
 import {RECENT_HISTORY_LIMIT} from './recent-results-history'
 import {labResultBreakdownHtml,type BreakdownView} from './lab-result-breakdown'
 import {playerRecentRecord} from '../../lib/player-recent-record'
@@ -25,7 +26,7 @@ export function recentForm(rows: RecentMatchRow[], playerId: string) {
 export function recentPulseHtml(rows:RecentMatchRow[],playerId:string) {
   const form=recentForm(rows,playerId),decided=form.wins+form.losses
   const percent=decided?Math.round(form.wins/decided*100):null
-  return `<div class="match-pulse"><div class="match-pulse-rate"><span>Decided win rate</span><strong>${percent===null?'—':percent+'<small>%</small>'}</strong>${percent===null?'<p>No decided results yet.</p>':`<meter min="0" max="100" value="${percent}" aria-label="Win percentage in loaded recent results">${percent}%</meter><p>${form.wins} ${form.wins===1?'win':'wins'} · ${form.losses} ${form.losses===1?'loss':'losses'}</p>`}</div><div class="match-pulse-form"><span>Latest form</span><ol aria-label="Latest results, newest first">${rows.slice(0,5).map(row=>{const result=matchResult(row,playerId),symbol=result==='Won'?'W':result==='Lost'?'L':'—';return `<li data-outcome="${symbol}" aria-label="${html(matchDate(row.match_date))}: ${result}">${symbol}</li>`}).join('')}</ol><p>Newest first · ${form.pending} pending</p></div></div>`
+  return `<div class="match-pulse"><div class="match-pulse-rate"><span>Decided win rate</span>${statDonutHtml(percent,'Decided win rate in loaded recent results')}${percent===null?'<p>No decided results yet.</p>':`<meter class="sr-only" aria-hidden="true" min="0" max="100" value="${percent}" aria-label="Win percentage in loaded recent results">${percent}%</meter><p>${form.wins} ${form.wins===1?'win':'wins'} · ${form.losses} ${form.losses===1?'loss':'losses'}</p>`}</div><div class="match-pulse-form"><span>Latest form</span><ol aria-label="Latest results, newest first">${rows.slice(0,5).map(row=>{const result=matchResult(row,playerId),symbol=result==='Won'?'W':result==='Lost'?'L':'—';return `<li data-outcome="${symbol}" aria-label="${html(matchDate(row.match_date))}: ${result}">${symbol}</li>`}).join('')}</ol><p>Newest first · ${form.pending} pending</p></div></div>`
 }
 export function recentStatsHtml(rows:RecentMatchRow[],playerId:string,filter:MatchFilter,view:'all'|'form'|'formats'='all'){
  const record=(matches:RecentMatchRow[])=>playerRecentRecord(matches.map(row=>({date:row.match_date,result:matchResult(row,playerId)==='Won'?'W':matchResult(row,playerId)==='Lost'?'L':'pending'})))
