@@ -59,7 +59,7 @@ test('missing, fallback and extreme records stay honest and bounded',async({page
  for(const scenario of ['empty','pending','fallback','self','all-losses','all-wins','long']){
   await page.evaluate(scenario=>(window as unknown as {labFixture:Fixture}).labFixture.render(scenario),scenario)
   await bounded(page)
-  if(scenario==='empty'){await expect(page.locator('.lab-scoreboard meter')).toHaveCount(0);await expect(page.locator('.lab-form-strip')).toHaveCount(0);await expect(page.locator('#results-content')).toContainText('No matches of this type')}
+  if(scenario==='empty'){await expect(page.locator('.lab-scoreboard meter')).toHaveCount(0);await expect(page.locator('.lab-form-strip')).toHaveCount(0);await expect(page.locator('#results-content')).toContainText('No matches are connected to this player record yet.')}
   if(scenario==='pending')await expect(page.locator('#results-content').getByRole('img',{name:'Decided win rate in loaded recent results: no decided results',exact:true})).toBeVisible()
   if(scenario==='fallback')await expect(page.locator('.lab-scoreboard')).toContainText('Overall used')
   if(scenario==='self')await expect(page.locator('.lab-level-path meter')).toHaveCount(0)
