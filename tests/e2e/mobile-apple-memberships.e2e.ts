@@ -16,8 +16,8 @@ test.beforeAll(async()=>{
  products:async()=>{state.productCalls++;if(mode==='failed'&&state.productCalls===1)throw new AppleProductError('products_request_failed','NSURLErrorDomain:-1009');return mode==='partial'?rows.slice(0,1):rows},
  purchase:async()=>{state.buyCalls++;return 'cancelled'},recover:async()=>0,restore:async()=>{state.restoreCalls++;return 0},manage:async()=>{state.manageCalls++},subscribe:()=>()=>{}};
  mountAppleMemberships(document.querySelector('#membership')!,{} as never,'synthetic-owner',()=>true,()=>{},service as never);
- `},bundle:true,platform:'browser',format:'esm',write:false})
- javascript=bundled.outputFiles[0].text
+ `},bundle:true,platform:'browser',format:'esm',outfile:'apple-membership-fixture.js',loader:{'.module.css':'local-css'},jsx:'automatic',write:false})
+ javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  stylesheet=(await Promise.all(['mobile/src/style.css','mobile/src/website-parity.css'].map(file=>readFile(file,'utf8')))).join('\n')
 })
 test.beforeEach(async({page})=>{
