@@ -364,7 +364,7 @@ function normalizeVerticalScoreToken(value: string) {
   return `${first}-${value[1]}`
 }
 
-function withExtensionScoreMetadata(line: DataAssistScorecardParsedLine): DataAssistScorecardParsedLine {
+export function withExtensionScoreMetadata(line: DataAssistScorecardParsedLine): DataAssistScorecardParsedLine {
   const sets = extractSetPairsFromText(line.score)
   const score = formatSetsAsScore(sets) || line.score
   const setWinnerSide = determineWinnerSideFromSets(sets)
