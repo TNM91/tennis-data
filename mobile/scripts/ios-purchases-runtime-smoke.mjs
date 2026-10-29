@@ -31,7 +31,11 @@ export function instrumentPurchaseSmoke(source){
                            try {
                                await Promise.race([cap.Plugins.TiqPurchases.finish({}), new Promise((_, reject) => setTimeout(() => reject(new Error('bridge_timeout')), 2000))]);
                            } catch (error) { rejected = error.code === 'receipt_mismatch'; }
-                           return JSON.stringify({ready: true, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected});
+                           let productRejected = false;
+                           try {
+                               await Promise.race([cap.Plugins.TiqPurchases.products({environment: 'invalid'}), new Promise((_, reject) => setTimeout(() => reject(new Error('bridge_timeout')), 2000))]);
+                           } catch (error) { productRejected = error.code === 'environment_mismatch'; }
+                           return JSON.stringify({ready: true, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected});
                            """, arguments: [:], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
@@ -53,7 +57,8 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.platform,'ios','The check must run inside the iOS app')
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
- return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true}
+ assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
+ return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)

@@ -100,3 +100,19 @@ jobs:
 
       - name: Verify the captain-to-player match week
         run: npm run test:e2e:captain-week
+
+      - name: Verify Apple membership loading and recovery
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4259
+        run: |
+          node mobile/scripts/build-website-ui.mjs
+          npx playwright test tests/e2e/mobile-apple-memberships.e2e.ts --project=mobile-chrome
+
+      - name: Save Apple membership UI fixtures
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: apple-membership-ui-fixtures-${{ github.sha }}
+          path: .next/playwright-results/**/apple-membership-*.png
+          if-no-files-found: ignore
+          retention-days: 3
