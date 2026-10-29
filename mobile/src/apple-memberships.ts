@@ -6,7 +6,12 @@ const messages:Record<string,string>={owner_changed:'Sign in to the original acc
 export function mountAppleMemberships(host:HTMLElement,client:SupabaseClient,owner:string,isCurrent:()=>boolean,changed:()=>void,service:ApplePurchases=applePurchases(client)){
  let disposed=false,busy=false,version=0,pendingApproval=false,needsSync=false
  const current=()=>!disposed&&host.isConnected&&isCurrent()
- if(!service.available){host.hidden=true;return {dispose(){disposed=true}}}
+ if(!service.available){
+  host.hidden=!service.isIos
+  if(service.isIos)host.innerHTML='<h2>Apple membership</h2><p role="status">Apple memberships couldn’t start. Update TenAceIQ and reopen the app.</p>'
+  return {dispose(){disposed=true;host.replaceChildren()}}
+ }
+ host.hidden=false
  host.innerHTML='<h2>Apple membership</h2><div data-apple-content></div><p role="status" aria-live="polite" data-apple-status></p>'
  const content=host.querySelector<HTMLElement>('[data-apple-content]')!,status=host.querySelector<HTMLElement>('[data-apple-status]')!
  const showError=(error:unknown)=>{status.textContent=messages[error instanceof Error?error.message:'']||'Couldn’t sync with Apple. If you already purchased, use Sync purchase or Restore purchases.'}

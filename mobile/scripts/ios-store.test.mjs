@@ -62,7 +62,7 @@ test('signed workflow restricts secret use and defaults to no upload', async () 
   const artifact = steps.find(s=>s.uses?.startsWith('actions/upload-artifact@'))
   assert.equal(artifact.with.path, '${{ runner.temp }}/tiq-export/App.ipa')
   assert.equal(steps.at(-1).if,'always()')
-  assert.doesNotMatch(JSON.stringify(workflow), /-allowProvisioningUpdates|pull_request_target/)
+  assert.doesNotMatch(JSON.stringify(workflow), /-allowProvisioningUpdates|pull_request_target|ios-purchases-runtime-smoke/)
 })
 
 test('camera purposes are top-level plist values even with nested scene dictionaries',()=>{

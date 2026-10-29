@@ -1,4 +1,12 @@
 import assert from 'node:assert/strict'
+
+export function iosPurchaseSceneDelegate(source) {
+ assert.match(source,/class SceneDelegate: UIResponder, UIWindowSceneDelegate/,'Unknown scene delegate; review before registering StoreKit')
+ assert.equal((source.match(/window\?\.rootViewController\s*=/g)||[]).length,1,'Review multiple scene root controllers')
+ assert.match(source,/window\?\.rootViewController = (?:CAPBridgeViewController|TenAceIQBridgeViewController)\(\)/,'Unknown scene root controller; review before replacing')
+ return source.replace('window?.rootViewController = CAPBridgeViewController()','window?.rootViewController = TenAceIQBridgeViewController()')
+}
+
 export function iosPurchaseSources(project,storyboard){
  const file='TenAceIQPurchases.swift',ref='715100012026102800000001',build='715100012026102800000002'
  if(!project.includes(file)){
