@@ -21,3 +21,12 @@ it('accepts equivalent native JSON key ordering while retaining row order and va
  expect(applyImportReviewCorrection(source,{edits:{'rows.1.winner':'away'},base:reordered})).toMatchObject({externalMatchId:source.externalMatchId})
  expect(()=>applyImportReviewCorrection(source,{base:{...base,rows:[...base.rows].reverse()},edits:{'rows.1.winner':'away'}})).toThrow('changed')
 })
+
+it('recomputes only derived division details when the roster league or flight is corrected',()=>{
+ const source=structuredClone(reviewRoster);source.players[0].mixedPairRole='man';source.players[0].ageDivision='40 & Over';const base=importReviewSource(source)!
+ const corrected=applyImportReviewCorrection(source,{base,edits:{leagueName:'2026 Adult 18 & Over',flight:'Women 4.0','rows.1.ntrp':'4'}}) as typeof source
+ expect(corrected.players[0]).toMatchObject({mixedPairRole:'woman',ageDivision:'18 & Over',ratingSource:'verified',email:source.players[0].email})
+ expect(source.players[0].mixedPairRole).toBe('man')
+ const unchanged=applyImportReviewCorrection(source,{base,edits:{'rows.1.ntrp':'4'}}) as typeof source
+ expect(unchanged.players[0]).toMatchObject({mixedPairRole:'man',ageDivision:'40 & Over'})
+})

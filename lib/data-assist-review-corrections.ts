@@ -1,3 +1,4 @@
+import {inferLeagueAgeDivision,inferMixedPairRole} from './player-eligibility'
 import {withExtensionScoreMetadata} from './data-assist-scorecard-parser'
 import type {DataAssistScorecardParsedDraft} from './data-assist-ocr'
 import type {DataAssistTeamSummaryParsedDraft} from './data-assist-team-summary-parser'
@@ -91,6 +92,8 @@ export function applyImportReviewCorrection(stored:unknown,correction:unknown):D
  const p=stored as DataAssistTeamSummaryParsedDraft
  // Contact details stay private and unchanged. A unique matching name follows its roster correction.
  if(new Set(base.rows.map(row=>row.name.trim().toLowerCase())).size!==base.rows.length)throw Error('Repeated player names need review in Data Assist.')
+ const contextChanged=value.fields.leagueName.trim()!==base.fields.leagueName.trim()||value.fields.flight.trim()!==base.fields.flight.trim()
+ const context=contextChanged?{mixedPairRole:inferMixedPairRole(value.fields.leagueName,value.fields.flight),ageDivision:inferLeagueAgeDivision(value.fields.leagueName,value.fields.flight)}:{}
  const names=new Map(base.rows.map((row,i)=>[row.name,value.rows[i].name.trim()]))
- return {...p,...Object.fromEntries(Object.entries(value.fields).map(([k,v])=>[k,v.trim()])),players:p.players.map((player,i)=>({...player,name:value.rows[i].name.trim(),teamName:(value.rows[i].teamName||value.fields.rosterTeamName).trim(),ntrp:Number(value.rows[i].ntrp),...(value.rows[i].ntrp!==base.rows[i].ntrp?{ratingSource:'self' as const}:{})})),contacts:p.contacts?.map(contact=>({...contact,name:names.get(contact.name)||contact.name}))}
+ return {...p,...Object.fromEntries(Object.entries(value.fields).map(([k,v])=>[k,v.trim()])),players:p.players.map((player,i)=>({...player,...context,name:value.rows[i].name.trim(),teamName:(value.rows[i].teamName||value.fields.rosterTeamName).trim(),ntrp:Number(value.rows[i].ntrp),...(value.rows[i].ntrp!==base.rows[i].ntrp?{ratingSource:'self' as const}:{})})),contacts:p.contacts?.map(contact=>({...contact,name:names.get(contact.name)||contact.name}))}
 }
