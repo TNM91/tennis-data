@@ -29,6 +29,15 @@ export function instrumentPurchaseSmoke(source){
                     return
                 }
                 #endif`)
+ source=source.replace('let environmentMatches = try await self.matchesEnvironment(call)',String.raw`#if DEBUG
+                    if let probe = call.getString("tiqPurchaseFailureSmoke") {
+                        if probe == "cancel" { stage = "confirmation"; throw StoreKitError.userCancelled }
+                        if probe == "confirmation" { stage = "confirmation"; throw NSError(domain: SKErrorDomain, code: 0, userInfo: [NSLocalizedDescriptionKey: "private smoke details"]) }
+                        throw NSError(domain: NSURLErrorDomain, code: -1009, userInfo: [NSLocalizedDescriptionKey: "private smoke details"])
+                    }
+                    #endif
+                    let environmentMatches = try await self.matchesEnvironment(call)`)
+
  const before=String.raw`
         #if DEBUG
         let startedURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json.started")
@@ -64,9 +73,18 @@ export function instrumentPurchaseSmoke(source){
                            const purchaseArgs = {productId:'com.tenaceiq.app.player.monthly', accountToken:'11111111-1111-4111-8111-111111111111', environment:'Sandbox', tiqReadTimeoutSmoke:true};
                            const prepareTimeout = await expires('purchase', purchaseArgs, 'purchase_preparation_timeout');
                            const retryTimeout = await expires('purchase', purchaseArgs, 'purchase_preparation_timeout');
+                           const diagnostic = async (kind, code, support) => {
+                               try { await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqPurchaseFailureSmoke:kind}); return false; }
+                               catch (error) { return error.code === code && error.data?.supportCode === support && !JSON.stringify(error).includes('private smoke details'); }
+                           };
+                           const prepareTagged = await diagnostic('prepare','purchase_preparation_failed','app_receipt/NSURLErrorDomain:-1009');
+                           const confirmTagged = await diagnostic('confirmation','store_unavailable','confirmation/SKErrorDomain:0');
+                           let cancelResolved = false;
+                           try { const result = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqPurchaseFailureSmoke:'cancel'}); cancelResolved = result.state === 'cancelled'; } catch {}
+
                            let deadlineStopped = false;
                            try { const value = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqReadDeadlineStoppedSmoke:true}); deadlineStopped = value.state === 'cancelled'; } catch {}
-                           return JSON.stringify({ready: rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped});
+                           return JSON.stringify({ready: rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved});
                            """, arguments: [:], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
@@ -89,8 +107,8 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
  assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
- for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
- return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true}
+ for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
+ return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)

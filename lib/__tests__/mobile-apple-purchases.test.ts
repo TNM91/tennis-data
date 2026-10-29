@@ -77,3 +77,13 @@ it('keeps purchase stage updates separate from successful transaction delivery',
 it('discards a native failure received after the account changes',async()=>{
  const f=fixture();f.store.purchase.mockImplementationOnce(async()=>{f.switchOwner();throw {code:'purchase_preparation_timeout'}});await expect(f.service.purchase(owner,sku)).rejects.toThrow('owner_changed');expect(f.store.finish).not.toHaveBeenCalled()
 })
+
+it('keeps safe native failure details without acknowledging or retrying a failed purchase',async()=>{
+ const f=fixture();f.store.purchase.mockRejectedValueOnce({code:'store_unavailable',data:{supportCode:'confirmation/SKErrorDomain:0',build:'168'},message:'private Apple account'})
+ await expect(f.service.purchase(owner,sku)).rejects.toMatchObject({message:'store_unavailable',supportCode:'confirmation/SKErrorDomain:0',build:'168',beforeConfirmation:false});expect(f.store.purchase).toHaveBeenCalledOnce();expect(f.store.finish).not.toHaveBeenCalled();expect(f.post).toHaveBeenCalledOnce()
+})
+it('normalizes restore failures and rejects them after an account switch',async()=>{
+ const f=fixture();f.store.restore.mockRejectedValueOnce({code:'store_unavailable',data:{supportCode:'restore/StoreKit.StoreKitError:0'},message:'private Apple account'})
+ await expect(f.service.restore(owner,'Sandbox')).rejects.toMatchObject({message:'store_unavailable',supportCode:'restore/StoreKit.StoreKitError:0'});expect(f.store.finish).not.toHaveBeenCalled();expect(f.post).not.toHaveBeenCalled()
+ const changed=fixture();changed.store.restore.mockImplementationOnce(async()=>{changed.switchOwner();throw {code:'store_unavailable'}});await expect(changed.service.restore(owner,'Sandbox')).rejects.toThrow('owner_changed')
+})
