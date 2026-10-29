@@ -15,10 +15,11 @@ export function parseChatReactions(value:unknown):ChatReaction[]{
   return [{reaction,count:item.count,reacted:item.reacted && item.count>0}]
  })
 }
-export function chatReactionButtons(message:TeamMessage){
+export function chatReactionButtons(message:TeamMessage,compact=false){
  const button=({reaction,label,emoji}:typeof chatReactions[number],picker=false)=>{
   const item=message.reactions?.find(item=>item.reaction===reaction),count=item?.count||0
   return `<button type="button" class="secondary chat-reaction${picker?' chat-reaction-choice':''}" data-chat-reaction="${reaction}" data-reaction-message="${html(message.id)}" aria-label="${label}: ${count} reactions" aria-pressed="${item?.reacted===true}"><span aria-hidden="true">${emoji}</span>${picker?`<span class="sr-only">${label}</span>`:''}${!picker?`<span>${count}</span>`:''}</button>`
  }
+ if(compact)return `<div class="chat-reactions" role="group" aria-label="Message reactions">${chatReactions.filter(kind=>(message.reactions?.find(item=>item.reaction===kind.reaction)?.count||0)>0).map(kind=>button(kind)).join('')}<div data-chat-reaction-sources hidden>${chatReactions.map(kind=>button(kind,true)).join('')}</div></div>`
  return `<div class="chat-reactions" role="group" aria-label="Message reactions">${chatReactions.filter(kind=>(message.reactions?.find(item=>item.reaction===kind.reaction)?.count||0)>0).map(kind=>button(kind)).join('')}<details class="chat-reaction-picker"><summary aria-label="Add a reaction to ${html(message.senderName)}'s message">${nativeActionIcon('react')}<span class="sr-only">React</span></summary><div class="chat-reaction-choices" role="group" aria-label="Choose a message reaction"><div class="chat-reaction-caption"><span>React to ${html(message.senderName)}</span><button type="button" class="secondary" data-close-reactions>Done</button></div>${chatReactions.map(kind=>button(kind,true)).join('')}</div></details></div>`
 }
