@@ -125,6 +125,20 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4262
         run: npx playwright test tests/e2e/mobile-lab-scoreboard.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/lab-scoreboard-results
 
+      - name: Verify native rating windows, records and scorecard drilldowns
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4263
+        run: npx playwright test tests/e2e/mobile-insights.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/native-insights-results
+
+      - name: Save native insights UI fixtures
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: native-insights-ui-fixtures-${{ github.sha }}
+          path: .next/native-insights-results/**/native-insights-*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
       - name: Save My Lab scoreboard UI fixtures
         if: always()
         uses: actions/upload-artifact@v6
