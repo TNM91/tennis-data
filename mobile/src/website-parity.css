@@ -787,3 +787,12 @@ body.native-chat-conversation .chat-match-card .chat-match-open{background:trans
 .apple-membership-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:16px}
 .apple-membership-actions button{width:100%;min-width:0;min-height:44px;white-space:normal;overflow-wrap:anywhere}
 .apple-test-label{color:#c6ed93!important;font-weight:700}
+
+/* Product-loading failures stay beside the missing plans, ahead of recovery tools. */
+.apple-prices-notice{padding:16px;border:1px solid #4e7898;border-radius:14px;background:#0d2a43}
+.apple-prices-notice h3{margin:0;font-size:17px;line-height:1.3}
+.apple-prices-notice button{margin:10px 0;min-height:48px;white-space:normal;overflow-wrap:anywhere}
+.apple-prices-notice summary,.apple-membership-recovery>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:13px;color:#b8ddf7}
+.apple-prices-notice details p{font-size:12px;overflow-wrap:anywhere}
+.apple-membership-recovery{margin-top:18px;border-top:1px solid #315774;padding-top:6px}
+.apple-membership-recovery>summary{font-weight:650}

@@ -1,7 +1,8 @@
 import {Capacitor,CapacitorHttp,registerPlugin,type HttpOptions,type HttpResponse,type PluginListenerHandle} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {appleMembershipProduct,APPLE_MEMBERSHIP_PRODUCTS} from '../../lib/apple-membership-products'
+import {appleMembershipProduct} from '../../lib/apple-membership-products'
 import {appleUuid,appleTransactionId,type AppleEnvironment} from '../../lib/apple-purchase-contract'
+import {appleProductError,parseAppleProducts} from './apple-product-catalog'
 export type AppleTransaction={transactionId:string;accountToken:string;signedTransaction:string}
 export type AppleStore={products:(options:{environment:AppleEnvironment})=>Promise<{available:boolean;products:{id:string;price:string}[]}>;purchase:(options:{productId:string;accountToken:string;environment:AppleEnvironment})=>Promise<{state:'purchased'|'cancelled'|'pending'}&Partial<AppleTransaction>>;pending:()=>Promise<{transactions:AppleTransaction[]}>;restore:(options:{environment:AppleEnvironment})=>Promise<{transactions:AppleTransaction[]}>;finish:(options:AppleTransaction)=>Promise<{finished:boolean}>;manage:()=>Promise<void>;addListener:(event:'transactionsChanged',listener:()=>void)=>Promise<PluginListenerHandle>}
 export type AppleContext={enabled:false}|{enabled:true;environment:AppleEnvironment;canPurchase:boolean;webAccess:boolean;activeProductId:string|null}
@@ -49,7 +50,12 @@ export function createApplePurchases(client:SupabaseClient,options:{store?:Apple
  return {available,isIos:platform==='ios',context,
   setOwner(next:string|null){if(next===owner)return;owner=next;operations.clear();if(next&&available)void recover(next).catch(()=>{})},
   recover,
-  async products(expected:string,environment:AppleEnvironment){await session(expected);const r=await store.products({environment});await session(expected);if(r.available!==true||!Array.isArray(r.products)||r.products.length!==2||new Set(r.products.map(p=>p.id)).size!==2||r.products.some(p=>!appleMembershipProduct(p.id)||typeof p.price!=='string'||!p.price.trim()||p.price.length>64))throw Error('products_unavailable');return APPLE_MEMBERSHIP_PRODUCTS.map(p=>({...p,price:r.products.find(v=>v.id===p.productId)!.price}))},
+  async products(expected:string,environment:AppleEnvironment){
+   await session(expected)
+   let result:Awaited<ReturnType<AppleStore['products']>>
+   try{result=await store.products({environment})}catch(error){await session(expected);throw appleProductError(error)}
+   await session(expected);return parseAppleProducts(result)
+  },
   async purchase(expected:string,productId:string){
    if(!available||!appleMembershipProduct(productId))throw Error('apple_unavailable')
    await recover(expected)
