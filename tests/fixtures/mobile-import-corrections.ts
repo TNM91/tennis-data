@@ -13,12 +13,12 @@ const client={auth:{getSession:async()=>({data:{session:{user:{id:owner},access_
 const send:ImportSend=async options=>{
  const data=options.data,revision=(state.impactChanged?'b':'a').repeat(64)
  if(data.decision==='preview'){
-  state.previews++;const corrected=applyImportReviewCorrection(payload,data.reviewCorrection)
+  state.previews++;const corrected=applyImportReviewCorrection(draft().parsed_payload,data.reviewCorrection)
   return {status:200,data:{ok:true,impact:{kind,revision,newCount:state.duplicate?0:kind==='scorecard'?1:('players' in corrected?corrected.players.length:0),updateCount:0,duplicateCount:state.duplicate?1:0,courtCount:'lines' in corrected?corrected.lines.length:0,preservedPlayers:0,preservedDetails:0,playerMatches:[]}},headers:{},url:options.url}
  }
  if(data.expectedRevision!==revision)return {status:409,data:{ok:false,code:'preview_changed'},headers:{},url:options.url}
  state.posts++;state.last=data;if(state.lose)throw Error('lost response')
- payload=applyImportReviewCorrection(payload,data.reviewCorrection);status='imported';draftStatus='imported';outcome={importSummary:{...(state.duplicate?{duplicate:true}:{}),importResult:{result:{successCount:2,updatedCount:0,skippedCount:0,failedCount:0}}}}
+ payload=applyImportReviewCorrection(draft().parsed_payload,data.reviewCorrection);status='imported';draftStatus='imported';outcome={importSummary:{...(state.duplicate?{duplicate:true}:{}),importResult:{result:{successCount:2,updatedCount:0,skippedCount:0,failedCount:0}}}}
  return {status:200,data:{ok:true,autoImport:{ok:true}},headers:{},url:options.url}
 }
 Object.assign(window,{importFixture:state})
