@@ -106,7 +106,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4259
         run: |
           node mobile/scripts/build-website-ui.mjs
-          npx playwright test tests/e2e/mobile-apple-memberships.e2e.ts --project=mobile-chrome
+          npx playwright test tests/e2e/mobile-apple-memberships.e2e.ts --project=mobile-chrome --project=mobile-webkit
 
       - name: Verify iPhone poll sheets and team tools
         env:

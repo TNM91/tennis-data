@@ -63,3 +63,11 @@ Sources checked October 29, 2026:
 - [Offer auto-renewable subscriptions](https://developer.apple.com/help/app-store-connect/manage-subscriptions/offer-auto-renewable-subscriptions/)
 - [Submit an In-App Purchase — first subscriptions accompany an app version](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-in-app-purchase)
 - [Read a subscription's App Review screenshot](https://developer.apple.com/documentation/appstoreconnectapi/get-v1-subscriptions-_id_-appstorereviewscreenshot)
+
+## Purchase preparation recovery candidate
+
+The current candidate addresses unbounded native preparation and purchase-sheet context after a tester reported the whole app becoming unresponsive. It does not establish the cause of that physical-device freeze. On iOS 18.2+, purchase confirmation is tied to the actual attached, visible foreground controller; compatible scene/fallback APIs remain for older iOS. Presentation is rechecked after all asynchronous preparation, and another native modal prevents starting a purchase.
+
+Earlier-purchase reads have a 15-second deadline and native purchase preparation a 30-second deadline. Expired continuations cannot start a purchase, resolve twice or release a newer operation's lock. The deadline ends before Apple's payment confirmation starts; that confirmation is not timed out or retried automatically. Client recovery checks coalesce, and a second purchase, restore or subscription-management operation is rejected while a purchase remains unresolved, including after closing/reopening account settings.
+
+Progress and support codes distinguish earlier-purchase checks, preparation, confirmation, verification and finishing. Known pre-confirmation failures let the user explicitly retry; uncertain purchase results require Sync/Restore. Slow confirmation leaves the parent Close action available. These client/native changes require compilation and a launched JavaScript-to-native deadline probe on a Mac simulator, browser checks and a protected signed beta before another physical-device test. Test-only forced delays are injected exclusively into the generated unsigned Debug source and must be absent from the signed release.

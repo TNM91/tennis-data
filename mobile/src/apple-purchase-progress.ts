@@ -1,0 +1,11 @@
+export type ApplePurchasePhase='history'|'prepare'|'confirm'|'sync'|'finish'
+export const applePurchasePhaseText:Record<ApplePurchasePhase,string>={history:'Checking earlier Apple purchases…',prepare:'Preparing your membership…',confirm:'Opening Apple’s confirmation screen…',sync:'Verifying your Apple membership…',finish:'Finishing your Apple purchase…'}
+export class ApplePurchaseError extends Error{
+ constructor(code:string,readonly beforeConfirmation=false){super(code)}
+}
+const nativeCodes=['purchase_history_timeout','purchase_preparation_timeout','purchase_presenter_unavailable','environment_mismatch','unsupported_storefront','store_busy','store_unavailable','existing_purchase','account_mismatch','unverified_transaction']
+export function appleNativePurchaseError(error:unknown){
+ const code=error&&typeof error==='object'&&'code' in error&&typeof error.code==='string'&&nativeCodes.includes(error.code)?error.code:'store_unavailable'
+ return new ApplePurchaseError(code,['purchase_history_timeout','purchase_preparation_timeout','purchase_presenter_unavailable','environment_mismatch','unsupported_storefront'].includes(code))
+}
+export const applePurchaseFailureText:Record<string,string>={purchase_history_timeout:'Apple’s earlier purchases could not be checked. No new purchase was started. Try again shortly.',purchase_preparation_timeout:'Apple’s purchase screen did not get ready in time. No new purchase was started. Try again shortly.',purchase_presenter_unavailable:'Close account settings, reopen them, then try your membership again.',purchase_prepare_failed:'Your membership could not be prepared. No new purchase was started. Check your connection, then try again.',purchase_in_progress:'An Apple purchase is still open or being checked. Finish or cancel it with Apple before starting another.',environment_mismatch:'Open the current TenAceIQ TestFlight build and try again.',unsupported_storefront:'TenAceIQ memberships are currently available in the U.S. App Store.',store_busy:'Apple is already open. Finish or cancel that screen first.',store_unavailable:'Apple did not confirm the purchase result. Use Sync purchase before trying another subscription.',unverified_transaction:'Your Apple result could not be verified. Use Sync purchase or Restore purchases.'}
