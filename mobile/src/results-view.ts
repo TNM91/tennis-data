@@ -32,7 +32,7 @@ export function recentStatsHtml(rows:RecentMatchRow[],playerId:string,filter:Mat
  const record=(matches:RecentMatchRow[])=>playerRecentRecord(matches.map(row=>({date:row.match_date,result:matchResult(row,playerId)==='Won'?'W':matchResult(row,playerId)==='Lost'?'L':'pending'})))
  const stats=record(filteredMatches(rows,filter))
  const streak=`<h3>Build your next run</h3><dl class="lab-streak-grid"><div><dt>Current win streak</dt><dd>${stats.currentWinStreak}<small> decided ${stats.currentWinStreak===1?'win':'wins'}</small></dd></div><div><dt>Best win streak</dt><dd>${stats.bestWinStreak}<small> in this sample</small></dd></div></dl><p class="rating-context">${filter==='All'?'All formats':filter} \u00b7 latest ${rows.length} connected results. Pending results do not end a decided-result streak. This is not your full-history record.</p>`
- const formats=`<h3>Singles &amp; doubles</h3><div class="lab-format-grid">${(['Singles','Doubles'] as const).map(mode=>{const matches=filteredMatches(rows,mode),r=record(matches);return `<div><h4>${mode}</h4><strong>${r.winRate===null?'&mdash;':r.winRate+'%'}</strong><span> decided win rate</span>${r.winRate===null?'':`<meter min="0" max="100" value="${r.winRate}" aria-label="${mode} decided win percentage in loaded recent results">${r.winRate}%</meter>`}<p>${r.wins} ${r.wins===1?'win':'wins'} \u00b7 ${r.losses} ${r.losses===1?'loss':'losses'} \u00b7 ${r.pending} pending</p><small>${matches.length?'From your loaded recent results.':'No '+mode.toLowerCase()+' results in this sample.'}</small></div>`}).join('')}</div><p class="rating-context">Format comparison always uses the same loaded sample. Use the match-type filter for your form, streaks, league/year records and match list.</p>`
+ const formats=`<h3>Singles &amp; doubles</h3><div class="lab-format-grid">${(['Singles','Doubles'] as const).map(mode=>{const matches=filteredMatches(rows,mode),r=record(matches);return `<div><h4>${mode}</h4><div class="lab-format-read">${statDonutHtml(r.winRate,mode+' decided win rate in loaded results')}<div><strong>${r.wins}W · ${r.losses}L</strong><span>Decided win rate</span></div></div>${r.winRate===null?'':`<meter class="sr-only" aria-hidden="true" min="0" max="100" value="${r.winRate}" aria-label="${mode} decided win percentage in loaded recent results">${r.winRate}%</meter>`}<p>${r.wins} ${r.wins===1?'win':'wins'} \u00b7 ${r.losses} ${r.losses===1?'loss':'losses'} \u00b7 ${r.pending} pending</p><small>${matches.length?'From your loaded recent results.':'No '+mode.toLowerCase()+' results in this sample.'}</small>${matches.length?`<button type="button" class="secondary lab-format-open" data-format-matches="${mode}" aria-label="View ${mode.toLowerCase()} match sample">View ${matches.length} ${matches.length===1?'match':'matches'} <span aria-hidden="true">→</span></button>`:''}</div>`}).join('')}</div><p class="rating-context">Format comparison always uses the same loaded sample. Use the match-type filter for your form, streaks, league/year records and match list.</p>`
  return `<section class="lab-recent-stats" aria-label="Recent result insights">${view!=='formats'?streak:''}${view!=='form'?formats:''}</section>`
 }
 export function resultsHtml(rows: RecentMatchRow[], playerId: string, filter: MatchFilter, owner = 'your', compact=false,breakdown:BreakdownView='leagues',view:ResultView=breakdown==='seasons'?'years':'form') {
@@ -57,9 +57,14 @@ export function showRecentResults(content: HTMLElement, initialRows: RecentMatch
     content.querySelectorAll<HTMLButtonElement>('[data-match-filter]').forEach(button => {
       button.onclick = () => render(button.dataset.matchFilter as MatchFilter, true)
     })
+    content.querySelectorAll<HTMLButtonElement>('[data-format-matches]').forEach(button=>{button.onclick=()=>{
+      if(!valid())return
+      activeView='form';render(button.dataset.formatMatches as MatchFilter)
+      const list=content.querySelector<HTMLDetailsElement>('.recent-match-list');if(list){list.open=true;list.querySelector<HTMLElement>('summary')?.focus({preventScroll:true});list.scrollIntoView({block:'start'})}
+    }})
     const shown = filteredMatches(rows, filter)
     content.querySelectorAll<HTMLButtonElement>('.match-open').forEach(button => {
-      button.onclick = () => open(shown[Number(button.dataset.index)])
+      button.onclick = () => {const row=shown[Number(button.dataset.index)];if(valid()&&row)open(row)}
     })
     const older=content.querySelector<HTMLButtonElement>('[data-older-results]')
     if(older&&history)older.onclick=async()=>{

@@ -173,3 +173,57 @@ body[data-screen="lab"] #recent-results .lab-recent-stats{padding:0;margin-top:1
 #recent-results .lab-recent-stats>h3{font-size:18px;color:#e6f4ff;letter-spacing:-.025em}
 #recent-results .lab-format-grid>div{background:#0b2941;border-color:#315b79;border-radius:16px}
 #recent-results .lab-format-grid>div>strong{font-size:32px;font-weight:800;letter-spacing:-.045em;color:#dff4ff}
+
+/* The same recorded-result language across My Lab, profiles and team courts. */
+.native-record-scoreboard { display:grid; grid-template-columns:110px minmax(0,1fr); gap:18px; align-items:center; min-width:0; padding:18px 14px; margin:16px 0; border:1px solid #3c7094; border-radius:20px; background:linear-gradient(135deg,#123b55,#092036); }
+.native-record-scoreboard .stat-donut { inline-size:110px; }
+.record-scoreboard-read { display:grid; gap:7px; min-width:0; }
+.record-scoreboard-read>small { font-size:11px; font-weight:700; line-height:1.5; color:#a9d4ef; }
+.record-scoreboard-read>strong { font-size:30px; font-weight:850; font-variant-numeric:tabular-nums; line-height:1.15; letter-spacing:-.045em; color:#f0f8ff; overflow-wrap:anywhere; }
+.record-scoreboard-read>span { font-size:12px; line-height:1.5; color:#bdd6e8; }
+.native-profile-scoreboard article[aria-label="Player profile overview"] { border-color:#3b6d91; box-shadow:0 16px 38px #0004; }
+.native-profile-scoreboard strong[data-rating=true] { color:#f0f9ff; font-variant-numeric:tabular-nums; letter-spacing:-.05em; }
+.native-profile-scoreboard [aria-label="Profile rating format"] { padding:5px; border:1px solid #315b79; border-radius:16px; background:#081c32; }
+.native-profile-scoreboard [aria-label="Profile rating format"] button { border-radius:11px; }
+.native-profile-scoreboard [aria-label="Public player performance at a glance"] { border:1px solid #39617e; border-radius:17px; background:#0d2d45; }
+.native-team-court-insights { min-width:0; }
+.native-team-court-insights>p { color:#afcadd; font-size:12px; line-height:1.6; }
+.native-team-court-insights>label { display:block; margin-top:14px; font-size:12px; font-weight:700; color:#b8d7ed; }
+.native-team-court-insights>select,.native-team-court-insights>input { min-width:0; max-width:100%; border-radius:13px; }
+.native-team-court-insights>.native-record-scoreboard { margin-top:0; }
+#recent-results .lab-format-grid { grid-template-columns:1fr; gap:12px; }
+#recent-results .lab-format-grid>div { padding:18px 14px; background:linear-gradient(140deg,#10344d,#082036); }
+#recent-results .lab-format-grid h4 { color:#e5f5ff; font-size:17px; margin-bottom:12px; }
+.lab-format-read { display:grid; grid-template-columns:90px minmax(0,1fr); gap:14px; align-items:center; }
+.lab-format-read .stat-donut { inline-size:90px; }
+.lab-format-read .stat-donut-value { font-size:31px; color:#f0f8ff; }
+.lab-format-read>div:last-child>strong { font-size:28px; line-height:1.3; letter-spacing:-.04em; }
+.lab-format-read>div:last-child>span { font-size:12px; color:#abcde6; }
+.lab-format-grid meter.sr-only { position:absolute!important; inline-size:1px!important; block-size:1px!important; margin:-1px!important; overflow:hidden!important; }
+.lab-format-grid .lab-format-open.secondary { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:14px 0 0; min-height:48px; padding:10px 12px; background:#164365; border-color:#4c84ab; border-radius:13px; font-size:13px; }
+.lab-format-open>span { color:#d7eeff; font-size:21px; }
+.lab-breakdown-list>li { padding:18px 14px; border-color:#366180; background:linear-gradient(145deg,#102f48,#081f34); border-radius:19px; }
+.lab-breakdown-list .lab-breakdown-record strong { color:#edf8ff; font-size:29px; letter-spacing:-.035em; }
+.lab-breakdown-matches { margin-top:12px; border-top:1px solid #2f5672; }
+.lab-breakdown-matches>summary { display:flex; align-items:center; min-height:48px; padding:10px 0; color:#9ed8ff; font-size:13px; cursor:pointer; }
+.lab-sample-matches { list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+.lab-breakdown-list .lab-sample-matches>li { padding:12px; border-radius:14px; border-color:#305571; background:#081e33; }
+.lab-sample-matches li>div { display:grid; gap:5px; }
+.lab-sample-matches strong { font-size:14px; color:#e6f4ff; }
+.lab-sample-matches span { color:#accce3; font-size:11px; }
+.lab-sample-matches .match-open.secondary { padding:10px 12px; margin:10px 0 0; min-height:46px; font-size:12px; background:#153b57; border-color:#3e7094; border-radius:12px; }
+@media(max-width:360px){
+ .native-record-scoreboard { grid-template-columns:86px minmax(0,1fr); gap:12px; padding:16px 12px; }
+ .native-record-scoreboard .stat-donut { inline-size:86px; }
+ .record-scoreboard-read>strong { font-size:26px; }
+}
+
+.native-profile-scoreboard strong[data-rating=true] { font-size:64px; line-height:1.1; }
+.native-profile-scoreboard [aria-label="Public player performance at a glance"] { grid-template-columns:minmax(0,.9fr) minmax(0,1.2fr); }
+.native-profile-scoreboard [aria-label="Public player performance at a glance"]>div:last-child { grid-column:1/-1; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px 10px; align-items:center; border-left:0; border-top:1px solid #315670; }
+.native-profile-scoreboard [aria-label="Public player performance at a glance"]>div:last-child>small { grid-column:1/-1; }
+.native-profile-scoreboard [aria-label="Public player performance at a glance"]>div>span { font-size:9px; letter-spacing:.07em; overflow-wrap:normal; word-break:normal; }
+.native-profile-scoreboard [aria-label="Public player performance at a glance"]>div>strong { font-size:20px; }
+.native-profile-scoreboard [aria-label="Public player performance at a glance"]>div>small { font-size:10px; white-space:normal; }
+
+.lab-format-grid meter.sr-only { clip-path:inset(50%); padding:0; border:0; white-space:nowrap; }

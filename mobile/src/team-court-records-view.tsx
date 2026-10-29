@@ -1,5 +1,5 @@
 import {filterTeamCourts,teamCourtGroups} from './team-court-insights'
-import {RecordBars} from './record-graphics'
+import {RecordBars,RecordScoreboard} from './record-graphics'
 import {useEffect,useId,useRef,useState} from 'react'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {RosterTeamScope} from './team-roster-data'
@@ -12,7 +12,8 @@ export function TeamCourtSampleView({sample}:{sample:TeamCourtSample}) {
  const [format,setFormat]=useState<'all'|'singles'|'doubles'>('all'),[year,setYear]=useState('all'),[result,setResult]=useState<'all'|'W'|'L'>('all'),[query,setQuery]=useState(''),[breakdown,setBreakdown]=useState<'players'|'opponents'>('players'),id=useId()
  const resetFocus=useRef<HTMLButtonElement>(null)
  const years=[...new Set(sample.records.map(r=>r.date.slice(0,4)))].sort().reverse(),rows=filterTeamCourts(sample.records,{format,year,result,query}),wins=rows.filter(r=>r.result==='W').length,pairs=teamCourtPairs(rows),doubles=rows.filter(r=>r.format==='doubles'),named=doubles.filter(r=>r.players!==null).length,groups=teamCourtGroups(rows,breakdown),identified=rows.filter(row=>row.players!==null).length
- return <>
+ return <div className="native-team-court-insights">
+  <RecordScoreboard wins={wins} losses={rows.length-wins} label="Shown court win rate" unit="courts"/>
   <p>Up to 25 scored public courts from up to ten linked fixtures for this team, league and flight. This is a sample, not a team-tie record or a season standing.</p>
   <p>{sample.parentCount} linked fixture{sample.parentCount===1?'':'s'} checked. {sample.sampled?'Showing the latest 25 supported court results.':'Only confirmed public courts are shown.'}</p>
   <div className={`${rosterStyles.controls} ${rosterStyles.courtFormats}`} role="group" aria-label="Team court format">{(['all','singles','doubles'] as const).map(value=><button type="button" className={styles.button} key={value} ref={value==='all'?resetFocus:undefined} aria-pressed={format===value} onClick={()=>setFormat(value)}>{value==='all'?'All courts':value==='singles'?'Singles':'Doubles'}</button>)}</div>
@@ -31,7 +32,7 @@ export function TeamCourtSampleView({sample}:{sample:TeamCourtSample}) {
   {rows.length?<details className={rosterStyles.depth}><summary>View scored court list</summary><ol className={`${cards.list} ${rosterStyles.fixtures}`}>{rows.map(row=><li key={row.id} className={`${cards.season} ${rosterStyles.row}`}><strong>Court {row.result==='W'?'win':'loss'} · {row.format==='singles'?'Singles':'Doubles'}</strong><p>{matchDate(row.date)} · vs {row.opponent}</p><p>Recorded score: {row.score}</p><p>{row.players?row.players.map(p=>p.name).join(' / '):'Team player names unavailable'}</p></li>)}</ol></details>:<p>No scored public courts are confirmed for these filters in the loaded fixture sample.</p>}
   <details className={rosterStyles.depth}><summary>Recorded doubles pairs</summary><p>Doubles courts with confirmed player identities: {named} of {doubles.length}. Pair records use only these courts.</p>{pairs.length?<><p>Win rates show the first {Math.min(6,pairs.length)} of {pairs.length} observed pairs, most shared courts first. The list includes every confirmed pair in the filtered sample.</p><RecordBars label="Doubles pair records in filtered court sample" rows={pairs.slice(0,6).map(pair=>({...pair,label:pair.names.join(' / ')}))}/><ul className={`${cards.list} ${rosterStyles.fixtures}`}>{pairs.map(pair=><li key={pair.key} className={`${cards.season} ${rosterStyles.row}`}><strong>{pair.names.join(' / ')}</strong><p>Together: {pair.played} court{pair.played===1?'':'s'} · {pair.wins}W-{pair.losses}L</p></li>)}</ul></>:<p>{format==='singles'?'Choose All courts or Doubles to review recorded pairs.':'No doubles pairs can be confirmed in the shown court sample.'}</p>}<p>These are observed court results, not predicted chemistry or availability.</p></details>
   <p>Scores follow the source court order. Roster ratings and these match results may cover different dates.</p>
- </>
+ </div>
 }
 export function TeamCourtRecords({client,team,current}:{client:SupabaseClient;team:RosterTeamScope;current:()=>boolean}) {
  const [state,setState]=useState<'idle'|'loading'|'ready'|'failed'>('idle'),[sample,setSample]=useState<TeamCourtSample|null>(null),alive=useRef(true),busy=useRef(false),revision=useRef(0)

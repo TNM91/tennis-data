@@ -5,7 +5,8 @@ import styles from './tennis-insight-cards.module.css'
 
 export type RatingJourneyPoint = { id: string; date: string; rating: number; delta: number | null; matchId?:string|null; opponent?: string; score?: string; result?: string }
 
-export default function RatingJourneyExplorer({ points,onOpenMatch }: { points: RatingJourneyPoint[];onOpenMatch?:(point:RatingJourneyPoint)=>void }) {
+export default function RatingJourneyExplorer({ points,onOpenMatch,terminology='results' }: { points: RatingJourneyPoint[];terminology?:'results'|'snapshots';onOpenMatch?:(point:RatingJourneyPoint)=>void }) {
+  const snapshots=terminology==='snapshots'
   const [selectedId, setSelectedId] = useState<string | null>(null)
   if (!points.length) return null
   const foundIndex = selectedId === null ? -1 : points.findIndex(point => point.id === selectedId)
@@ -20,32 +21,32 @@ export default function RatingJourneyExplorer({ points,onOpenMatch }: { points: 
   const date = new Date(selected.date)
   const dateLabel = Number.isNaN(date.getTime()) ? 'Date unavailable' : date.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })
   return <section className={styles.card} aria-label="Explore your rating journey">
-    <h3>Every result has a story</h3>
-    <p className={styles.muted}>Choose a reviewed result to connect the rating move to the match.</p>
+    <h3>{snapshots?'Follow your TIQ':'Every result has a story'}</h3>
+    <p className={styles.muted}>{snapshots?'Choose a saved rating to review its movement and linked match.':'Choose a reviewed result to connect the rating move to the match.'}</p>
     <div className={styles.chartLayout}>
     <div className={styles.chartScale} aria-hidden="true"><span>{(bounds.high + .05).toFixed(2)}</span><span>TIQ</span><span>{low.toFixed(2)}</span></div>
-    <svg className={styles.chart} viewBox="0 0 600 130" preserveAspectRatio="none" role="img" aria-label={`Rating trend across ${points.length} reviewed results`}>
+    <svg className={styles.chart} viewBox="0 0 600 130" preserveAspectRatio="none" role="img" aria-label={`Rating trend across ${points.length} ${snapshots?(points.length===1?'saved rating':'saved ratings'):'reviewed results'}`}>
       {[12, 62, 112].map(height => <line key={height} x1="12" x2="588" y1={height} y2={height} className={styles.chartGridline} />)}
       <polyline points={points.map((point, index) => `${x(index)},${y(point.rating)}`).join(' ')} fill="none" stroke="#9be11d" strokeWidth="3" />
       <line x1={x(selectedIndex)} x2={x(selectedIndex)} y1="8" y2="122" className={styles.chartMarker} strokeDasharray="4 4" />
       <circle cx={x(selectedIndex)} cy={y(selected.rating)} r="6" fill="#9be11d" />
     </svg>
     </div>
-    <div className={styles.chartDates}><span>First reviewed result</span><span>Latest reviewed result</span></div>
-    <label>Reviewed result {selectedIndex + 1} of {points.length}
+    <div className={styles.chartDates}><span>{snapshots?'First saved rating':'First reviewed result'}</span><span>{snapshots?'Latest saved rating':'Latest reviewed result'}</span></div>
+    <label>{snapshots?'Saved rating':'Reviewed result'} {selectedIndex + 1} of {points.length}
       <input className={styles.range} type="range" min="0" max={points.length - 1} value={selectedIndex} disabled={points.length === 1} onChange={event => setSelectedId(points[Number(event.target.value)].id)} aria-valuetext={`${dateLabel}, rating ${selected.rating.toFixed(3)}`} />
     </label>
-    <div className={styles.chartNavigation} role="group" aria-label="Navigate reviewed results">
-      <button className={styles.button} type="button" aria-label="Previous result" disabled={selectedIndex === 0} onClick={() => setSelectedId(points[selectedIndex - 1].id)}>Previous</button>
-      <button className={styles.button} type="button" aria-label="Next result" disabled={selectedIndex === points.length - 1} onClick={() => setSelectedId(points[selectedIndex + 1].id)}>Next</button>
-      <button className={styles.button} type="button" aria-label="Latest result" disabled={selectedIndex === points.length - 1} onClick={() => setSelectedId(points[points.length - 1].id)}>Latest</button>
+    <div className={styles.chartNavigation} role="group" aria-label={snapshots?'Navigate saved ratings':'Navigate reviewed results'}>
+      <button className={styles.button} type="button" aria-label={snapshots?'Previous rating':'Previous result'} disabled={selectedIndex === 0} onClick={() => setSelectedId(points[selectedIndex - 1].id)}>Previous</button>
+      <button className={styles.button} type="button" aria-label={snapshots?'Next rating':'Next result'} disabled={selectedIndex === points.length - 1} onClick={() => setSelectedId(points[selectedIndex + 1].id)}>Next</button>
+      <button className={styles.button} type="button" aria-label={snapshots?'Latest rating':'Latest result'} disabled={selectedIndex === points.length - 1} onClick={() => setSelectedId(points[points.length - 1].id)}>Latest</button>
     </div>
     <div className={styles.detail} aria-live="polite">
       <span>{dateLabel}</span><strong>TIQ {selected.rating.toFixed(3)}</strong>
-      <p>{selected.delta === null ? 'Rating change unavailable for this result.' : `${selected.delta >= 0 ? '+' : ''}${selected.delta.toFixed(3)} rating change after this reviewed result.`}</p>
+      <p>{selected.delta === null ? (snapshots?'Rating change unavailable for this saved rating.':'Rating change unavailable for this result.') : `${selected.delta >= 0 ? '+' : ''}${selected.delta.toFixed(3)} ${snapshots?'recorded change at this saved rating.':'rating change after this reviewed result.'}`}</p>
       <p>{selected.opponent ? `${selected.result || 'Result'} vs ${selected.opponent} · ${selected.score || 'Score unavailable'}` : hasMatch?'Open the recorded scorecard for match details.':'Match details are unavailable for this rating snapshot.'}</p>
       {hasMatch?onOpenMatch?<button className={styles.button} type="button" onClick={()=>onOpenMatch(selected)}>Open scorecard</button>:<a className={styles.button} href={`/matches/${encodeURIComponent(selected.matchId!)}`}>Open scorecard</a>:null}
     </div>
-    <p className={styles.muted}>{points.length < 8 ? 'Limited history: a few results can move the trend quickly.' : 'The trend reflects reviewed results in the selected window.'} Rating movement reflects the rating model, not a diagnosis of your technique.</p>
+    <p className={styles.muted}>{snapshots?(points.length<8?'Limited history: a few saved ratings can move the trend quickly.':'The trend uses saved ratings in the selected window.'):(points.length < 8 ? 'Limited history: a few results can move the trend quickly.' : 'The trend reflects reviewed results in the selected window.')} Rating movement reflects the rating model, not a diagnosis of your technique.</p>
   </section>
 }

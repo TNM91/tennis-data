@@ -27,3 +27,9 @@ export function journeyPoints(history:JourneyHistory,view:RatingView,window:Jour
   const cutoff=window==='all'?-Infinity:now-(window==='90d'?90:30)*86400000
   return [...history[view].rows].reverse().filter(row=>row.dynamic_rating!==null&&Date.parse(row.snapshot_date)>=cutoff).map(row=>({id:row.id,matchId:row.match_id??null,date:row.snapshot_date,rating:row.dynamic_rating!,delta:row.delta}))
 }
+
+/** Change across the selected saved-rating window, never a sum of snapshot deltas. */
+export function journeyWindowSummary(points:Array<{rating:number}>){
+ const first=points[0]?.rating??null,latest=points.at(-1)?.rating??null
+ return {first,latest,change:points.length>1&&first!==null&&latest!==null?latest-first:null,count:points.length}
+}
