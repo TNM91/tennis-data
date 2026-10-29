@@ -48,13 +48,13 @@ test('scene registration refuses unknown or ambiguous startup paths',()=>{
 })
 
 test('runtime smoke requires a real iOS JavaScript-to-native response, not just a registered file',()=>{
- const ready={ready:true,platform:'ios',available:true,nativePendingSucceeded:true}
+ const ready={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true}
  assert.deepEqual(verifyPurchaseSmoke(ready),ready)
- for(const invalid of [{...ready,ready:false},{...ready,platform:'web'},{...ready,available:false},{...ready,nativePendingSucceeded:false}])assert.throws(()=>verifyPurchaseSmoke(invalid))
+ for(const invalid of [{...ready,ready:false},{...ready,platform:'web'},{...ready,available:false},{...ready,nativeInvalidReceiptRejected:false}])assert.throws(()=>verifyPurchaseSmoke(invalid))
  const swift=instrumentPurchaseSmoke('import StoreKit\nbridge?.registerPluginInstance(TenAceIQPurchases())')
  assert.match(swift,/import StoreKit\nimport WebKit/)
  assert.match(swift,/#if DEBUG/)
- assert.match(swift,/await cap.Plugins.TiqPurchases.pending\(\)/)
+ assert.match(swift,/cap.Plugins.TiqPurchases.finish\(\{\}\)/)
  assert.throws(()=>instrumentPurchaseSmoke(swift))
  assert.throws(()=>instrumentPurchaseSmoke('unknown source'))
 })

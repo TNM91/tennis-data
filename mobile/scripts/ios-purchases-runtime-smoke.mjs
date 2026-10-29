@@ -13,18 +13,23 @@ export function instrumentPurchaseSmoke(source){
         if CommandLine.arguments.contains("--tiq-storekit-smoke") {
             Task { @MainActor [weak self] in
                 let reportURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json")
+                try? FileManager.default.createDirectory(at: reportURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try? Data(#"{"controllerLoaded":true}"#.utf8).write(to: reportURL.appendingPathExtension("started"), options: .atomic)
                 for _ in 0..<80 {
                     if let webView = self?.webView,
                        let value = try? await webView.callAsyncJavaScript("""
                            const cap = window.Capacitor;
                            if (cap?.getPlatform?.() !== 'ios' || !cap.isPluginAvailable('TiqPurchases') || !cap.Plugins?.TiqPurchases) return null;
-                           const result = await cap.Plugins.TiqPurchases.pending();
-                           return JSON.stringify({ready: true, platform: cap.getPlatform(), available: true, nativePendingSucceeded: Array.isArray(result.transactions)});
+                           let rejected = false;
+                           try {
+                               await Promise.race([cap.Plugins.TiqPurchases.finish({}), new Promise((_, reject) => setTimeout(() => reject(new Error('bridge_timeout')), 2000))]);
+                           } catch (error) { rejected = error.code === 'receipt_mismatch'; }
+                           return JSON.stringify({ready: true, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected});
                            """, arguments: [:], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
                        let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-                       result["nativePendingSucceeded"] as? Bool == true,
+                       result["nativeInvalidReceiptRejected"] as? Bool == true,
                        self?.bridge?.plugin(withName: "TiqPurchases") != nil {
                         try? data.write(to: reportURL, options: .atomic)
                         return
@@ -40,8 +45,8 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.ready,true,'The launched app did not report a ready bridge')
  assert.equal(report.platform,'ios','The check must run inside the iOS app')
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
- assert.equal(report.nativePendingSucceeded,true,'JavaScript could not call native StoreKit')
- return {ready:true,platform:'ios',available:true,nativePendingSucceeded:true}
+ assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
+ return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)

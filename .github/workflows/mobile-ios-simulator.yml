@@ -72,6 +72,10 @@ jobs:
             test -f "$CONTAINER/Documents/tiq-storekit-smoke.json" && break
             sleep 1
           done
+          if ! test -f "$CONTAINER/Documents/tiq-storekit-smoke.json"; then
+            test ! -f "$CONTAINER/Documents/tiq-storekit-smoke.json.started" || cat "$CONTAINER/Documents/tiq-storekit-smoke.json.started"
+            xcrun simctl spawn "$DEVICE" log show --style compact --last 2m --predicate 'process == "App"' | tail -n 100
+          fi
           node mobile/scripts/ios-purchases-runtime-smoke.mjs --verify "$CONTAINER/Documents/tiq-storekit-smoke.json"
           cp "$CONTAINER/Documents/tiq-storekit-smoke.json" mobile/ios-storekit-smoke.json
           xcrun simctl shutdown "$DEVICE"
