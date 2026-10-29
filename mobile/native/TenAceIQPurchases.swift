@@ -62,12 +62,23 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     @objc func products(_ call: CAPPluginCall) {
         Task { @MainActor in
             do {
-                guard try await matchesEnvironment(call), await Storefront.current?.countryCode == "USA" else { call.resolve(["available": false, "products": []]); return }
+                guard let expected = call.getString("environment"), ["Sandbox", "Production"].contains(expected) else { call.reject("Open the correct app build.", "environment_mismatch"); return }
+                guard Bundle.main.bundleIdentifier == "com.tenaceiq.app" else { call.reject("Update the app before loading plans.", "app_identity_mismatch"); return }
+                // Price discovery does not need an app receipt or an existing purchase.
+                // Purchase and restore still verify the signed AppTransaction environment.
                 let products = try await Product.products(for: Array(allowed))
+                guard let storefront = await Storefront.current else { call.reject("App Store region unavailable.", "storefront_unavailable"); return }
+                guard storefront.countryCode == "USA" else { call.reject("U.S. App Store required.", "unsupported_storefront"); return }
                 let valid = products.filter { allowed.contains($0.id) && monthly($0) }
-                guard valid.count == 2 else { call.resolve(["available": false, "products": []]); return }
+                guard !valid.isEmpty else { call.reject("Apple has not returned the membership plans.", "products_not_found"); return }
                 call.resolve(["available": true, "products": valid.map { ["id": $0.id, "price": $0.displayPrice] }])
-            } catch { call.reject("Apple products are unavailable.", "store_unavailable") }
+            } catch {
+                let failure = error as NSError
+                let safeDomains = [NSURLErrorDomain, SKErrorDomain, "ASDErrorDomain", "AMSErrorDomain"]
+                let domain = safeDomains.contains(failure.domain) ? failure.domain : "StoreKit"
+                // Never expose receipt data, account identifiers or localized error text.
+                call.reject("Apple could not load membership prices.", "products_request_failed", nil, ["supportCode": "\(domain):\(failure.code)"])
+            }
         }
     }
     @objc func purchase(_ call: CAPPluginCall) {

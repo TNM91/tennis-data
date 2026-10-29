@@ -40,3 +40,17 @@ describe('native Apple purchase delivery',()=>{
   const f=fixture();await expect(f.service.purchase(owner,'com.tenaceiq.app.coach.monthly')).rejects.toThrow();expect(f.post).not.toHaveBeenCalled();expect(f.store.purchase).not.toHaveBeenCalled()
  })
 })
+
+it('price discovery never starts a purchase, restores, grants access or finishes a transaction',async()=>{
+ const f=fixture();f.store.products.mockResolvedValueOnce({available:true,products:[{id:sku,price:'$1.99'}]})
+ expect(await f.service.products(owner,'Sandbox')).toMatchObject([{productId:sku,price:'$1.99'}])
+ expect(f.store.products).toHaveBeenCalledExactlyOnceWith({environment:'Sandbox'})
+ for(const method of [f.store.purchase,f.store.restore,f.store.finish,f.post])expect(method).not.toHaveBeenCalled()
+})
+it('keeps safe native product failure details and refuses prices after an account switch',async()=>{
+ const f=fixture();f.store.products.mockRejectedValueOnce({code:'products_request_failed',data:{supportCode:'ASDErrorDomain:500'},message:'private'})
+ await expect(f.service.products(owner,'Sandbox')).rejects.toMatchObject({code:'products_request_failed',supportCode:'ASDErrorDomain:500'})
+ const changed=fixture();changed.store.products.mockImplementationOnce(async()=>{changed.switchOwner();return {available:true,products:[{id:sku,price:'$1.99'}]}})
+ await expect(changed.service.products(owner,'Sandbox')).rejects.toThrow('owner_changed')
+ expect(changed.store.purchase).not.toHaveBeenCalled();expect(changed.post).not.toHaveBeenCalled()
+})
