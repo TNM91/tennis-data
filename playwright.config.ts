@@ -34,5 +34,10 @@ export default defineConfig({
       name: 'mobile-chrome',
       use: { ...devices['Pixel 7'] },
     },
+    {
+      name: 'mobile-webkit',
+      testMatch: '**/mobile-chat-poll-sheets.e2e.ts',
+      use: { ...devices['iPhone 13'] },
+    },
   ],
 })
