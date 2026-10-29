@@ -36,7 +36,7 @@ export default defineConfig({
     },
     {
       name: 'mobile-webkit',
-      testMatch: ['**/mobile-chat-poll-sheets.e2e.ts','**/mobile-chat-experience.e2e.ts','**/mobile-lab-scoreboard.e2e.ts','**/mobile-insights.e2e.ts'],
+      testMatch: ['**/mobile-chat-poll-sheets.e2e.ts','**/mobile-chat-experience.e2e.ts','**/mobile-lab-scoreboard.e2e.ts','**/mobile-insights.e2e.ts','**/mobile-import-corrections.e2e.ts'],
       use: { ...devices['iPhone 13'] },
     },
   ],

@@ -1,3 +1,4 @@
+import {applyImportReviewCorrection} from '@/lib/data-assist-review-corrections'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { apiServerError } from '@/lib/api-error-response'
 import { scheduleDataAssistRatingRefresh } from '@/lib/data-assist-rating-refresh'
@@ -22,6 +23,7 @@ type ReviewRequestBody = {
   draftId?: unknown
   decision?: unknown
   parsedDraft?: unknown
+  reviewCorrection?: unknown
 }
 
 type DataAssistStatsBatchRow = {
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
   const [batchResult, draftResult] = await Promise.all([
     supabase
       .from('data_assist_batches')
-      .select('submitted_by_user_id, status')
+      .select('submitted_by_user_id, status, requested_import_type')
       .eq('id', batchId)
       .maybeSingle(),
     supabase
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
   if (batchResult.error) return apiServerError('Could not load Data Assist review batch', batchResult.error, 'That Data Assist review is temporarily unavailable.')
   if (draftResult.error) return apiServerError('Could not load Data Assist review draft', draftResult.error, 'That Data Assist review is temporarily unavailable.')
 
-  const batch = batchResult.data as { submitted_by_user_id?: string | null; status?: string | null } | null
+  const batch = batchResult.data as { submitted_by_user_id?: string | null; status?: string | null; requested_import_type?: string | null } | null
   const draft = draftResult.data as {
     submitted_by_user_id?: string | null
     status?: string | null
@@ -110,7 +112,20 @@ export async function POST(request: Request) {
   const draftLabel = getParsedDraftLabel(draft.parsed_payload)
 
   if (decision === 'confirmed') {
-    const parsedDraft = toReviewedParsedDraft(draft.parsed_payload, body.parsedDraft)
+    let parsedDraft
+    try {
+      if (body.reviewCorrection !== undefined) {
+        if (!['needs_review','ready_to_import','layout_detected'].includes(cleanText(batch.status)) || !['needs_review','ready_for_verification'].includes(cleanText(draft.status))) {
+          return Response.json({ok:false,message:'Refresh this upload before reviewing it again.'},{status:409})
+        }
+        if (body.parsedDraft !== undefined) return Response.json({ok:false,message:'Choose one review format.'},{status:400})
+        parsedDraft = applyImportReviewCorrection(draft.parsed_payload, body.reviewCorrection)
+        const correctedKind = 'draftKind' in parsedDraft ? parsedDraft.draftKind : 'scorecard'
+        if (correctedKind !== batch.requested_import_type) return Response.json({ok:false,message:'The saved file type changed. Refresh this upload.'},{status:409})
+      } else parsedDraft = toReviewedParsedDraft(draft.parsed_payload, body.parsedDraft)
+    } catch (error) {
+      return Response.json({ok:false,message:error instanceof Error?error.message:'Check the corrected details.'},{status:400})
+    }
     if (!parsedDraft) {
       return Response.json({ ok: false, message: 'This OCR draft does not have a complete parsed payload to import.' }, { status: 400 })
     }
