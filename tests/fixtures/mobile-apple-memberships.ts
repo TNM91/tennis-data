@@ -5,7 +5,7 @@ import {APPLE_MEMBERSHIP_PRODUCTS} from '../../lib/apple-membership-products'
 import type {SupabaseClient} from '@supabase/supabase-js'
 const owner='11111111-1111-4111-8111-111111111111',accountToken='33333333-3333-4333-8333-333333333333'
 const mode=new URL(location.href).searchParams.get('mode')
-const state={active:true,productCalls:0,buyCalls:0,restoreCalls:0,manageCalls:0,pendingCalls:0,prepareCalls:0,reconcileCalls:0,finishCalls:0,releasePurchase:(_state:string)=>{}}
+const state={active:true,productCalls:0,buyCalls:0,restoreCalls:0,manageCalls:0,pendingCalls:0,prepareCalls:0,reconcileCalls:0,finishCalls:0,releasePurchase:undefined as ((result:string)=>void)|undefined}
 Object.assign(window,{membershipFixture:state})
 const client={auth:{getSession:async()=>({data:{session:{user:{id:owner},access_token:'synthetic-only'}},error:null})}} as unknown as SupabaseClient
 const store:AppleStore={

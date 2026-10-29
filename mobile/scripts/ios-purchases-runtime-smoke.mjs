@@ -12,11 +12,17 @@ export function instrumentPurchaseSmoke(source){
  const historyMarker='let gate = TiqStoreRead(call, nanoseconds: 15_000_000_000, code: "purchase_history_timeout")'
  assert.equal(source.split(purchaseMarker).length,2,'Expected one bounded purchase preparation')
  assert.equal(source.split(historyMarker).length,2,'Expected one bounded history read')
- source=source.replace(purchaseMarker,purchaseMarker.replace('30_000_000_000','(call.getBool("tiqReadTimeoutSmoke") == true ? 5_000_000 : 30_000_000_000)'))
- source=source.replace(historyMarker,historyMarker.replace('15_000_000_000','(call.getBool("tiqReadTimeoutSmoke") == true ? 5_000_000 : 15_000_000_000)'))
+ source=source.replace(purchaseMarker,purchaseMarker.replace('30_000_000_000','((call.getBool("tiqReadTimeoutSmoke") == true || call.getBool("tiqReadDeadlineStoppedSmoke") == true) ? 5_000_000 : 30_000_000_000)'))
+ source=source.replace(historyMarker,historyMarker.replace('15_000_000_000','((call.getBool("tiqReadTimeoutSmoke") == true || call.getBool("tiqReadDeadlineStoppedSmoke") == true) ? 5_000_000 : 15_000_000_000)'))
  assert.equal(source.split('gate.start { gate in').length,3,'Expected purchase and history read tasks')
  source=source.replaceAll('gate.start { gate in',`gate.start { gate in
                 #if DEBUG
+                if call.getBool("tiqReadDeadlineStoppedSmoke") == true {
+                    gate.stopDeadline()
+                    do { try await Task.sleep(nanoseconds: 50_000_000) } catch { }
+                    gate.resolve(["state": "cancelled"])
+                    return
+                }
                 if call.getBool("tiqReadTimeoutSmoke") == true {
                     do { try await Task.sleep(nanoseconds: 250_000_000) } catch { }
                     gate.resolve(["unexpectedLateSuccess": true])
@@ -58,7 +64,9 @@ export function instrumentPurchaseSmoke(source){
                            const purchaseArgs = {productId:'com.tenaceiq.app.player.monthly', accountToken:'11111111-1111-4111-8111-111111111111', environment:'Sandbox', tiqReadTimeoutSmoke:true};
                            const prepareTimeout = await expires('purchase', purchaseArgs, 'purchase_preparation_timeout');
                            const retryTimeout = await expires('purchase', purchaseArgs, 'purchase_preparation_timeout');
-                           return JSON.stringify({ready: rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout});
+                           let deadlineStopped = false;
+                           try { const value = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqReadDeadlineStoppedSmoke:true}); deadlineStopped = value.state === 'cancelled'; } catch {}
+                           return JSON.stringify({ready: rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped});
                            """, arguments: [:], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
@@ -81,8 +89,8 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
  assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
- for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
- return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true}
+ for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
+ return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)

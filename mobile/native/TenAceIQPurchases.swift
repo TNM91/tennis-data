@@ -17,11 +17,12 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
     private var timer: Task<Void, Never>?
     private var work: Task<Void, Never>?
     private(set) var active = true
+    private var deadlineActive = true
     init(_ call: CAPPluginCall, nanoseconds: UInt64, code: String, onTimeout: @escaping () -> Void = {}) {
         self.call = call; self.code = code; self.onTimeout = onTimeout
         timer = Task { @MainActor [weak self] in
             do { try await Task.sleep(nanoseconds: nanoseconds) } catch { return }
-            guard let self, self.active else { return }
+            guard !Task.isCancelled, let self, self.active, self.deadlineActive else { return }
             self.active = false
             self.work?.cancel(); self.work = nil; self.timer = nil
             self.onTimeout()
@@ -31,7 +32,7 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
     func start(_ action: @escaping @MainActor (TiqStoreRead) async -> Void) {
         work = Task { @MainActor in await action(self) }
     }
-    func stopDeadline() { timer?.cancel(); timer = nil }
+    func stopDeadline() { deadlineActive = false; timer?.cancel(); timer = nil }
     func resolve(_ data: [String: Any]) {
         guard active else { return }
         active = false; stopDeadline(); work = nil; call.resolve(data)

@@ -49,7 +49,7 @@ test('scene registration refuses unknown or ambiguous startup paths',()=>{
 })
 
 test('runtime smoke requires a real iOS JavaScript-to-native response, not just a registered file',()=>{
- const ready={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true}
+ const ready={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true}
  assert.deepEqual(verifyPurchaseSmoke(ready),ready)
  for(const invalid of [{...ready,ready:false},{...ready,platform:'web'},{...ready,available:false},{...ready,nativeInvalidReceiptRejected:false},{...ready,nativeInvalidProductRequestRejected:false}])assert.throws(()=>verifyPurchaseSmoke(invalid))
  const swift=instrumentPurchaseSmoke(readFileSync(new URL('../native/TenAceIQPurchases.swift',import.meta.url),'utf8'))
@@ -63,11 +63,13 @@ test('runtime smoke requires a real iOS JavaScript-to-native response, not just 
 test('preparation deadlines cannot cancel Apple confirmation or allow an expired task to make a purchase',()=>{
  const swift=readFileSync(new URL('../native/TenAceIQPurchases.swift',import.meta.url),'utf8')
  assert.ok(swift.indexOf('gate.stopDeadline()')<swift.indexOf('product.purchase(confirmIn: presenter'))
+ assert.match(swift,/guard !Task\.isCancelled, let self, self\.active, self\.deadlineActive/)
+ assert.match(swift,/func stopDeadline\(\) \{ deadlineActive = false/)
  assert.match(swift,/window\.windowScene\?\.activationState == \.foregroundActive/)
  assert.match(swift,/presenter\.presentedViewController == nil/)
  assert.match(swift,/#available\(iOS 18\.2, \*\).*product\.purchase\(confirmIn: presenter/)
  assert.match(swift,/if self\.purchaseOperation == operation/)
- assert.doesNotMatch(swift,/tiqReadTimeoutSmoke|tiq-storekit-smoke/)
- const report={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true}
- for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased'])assert.throws(()=>verifyPurchaseSmoke({...report,[key]:false}))
+ assert.doesNotMatch(swift,/tiqReadTimeoutSmoke|tiqReadDeadlineStoppedSmoke|tiq-storekit-smoke/)
+ const report={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true}
+ for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed'])assert.throws(()=>verifyPurchaseSmoke({...report,[key]:false}))
 })
