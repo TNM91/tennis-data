@@ -54,3 +54,26 @@ it('keeps safe native product failure details and refuses prices after an accoun
  await expect(changed.service.products(owner,'Sandbox')).rejects.toThrow('owner_changed')
  expect(changed.store.purchase).not.toHaveBeenCalled();expect(changed.post).not.toHaveBeenCalled()
 })
+
+it('coalesces earlier-purchase checks instead of starting overlapping StoreKit reads',async()=>{
+ const f=fixture();let release!:(v:{transactions:[]})=>void;f.store.pending.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve}))
+ const first=f.service.recover(owner),second=f.service.recover(owner);await vi.waitFor(()=>expect(f.store.pending).toHaveBeenCalledOnce());release({transactions:[]});expect(await Promise.all([first,second])).toEqual([0,0]);expect(f.post).not.toHaveBeenCalled()
+})
+it('refuses another purchase, restore or manage while confirmation is unresolved, then unlocks after cancellation',async()=>{
+ const f=fixture();let finish!:(v:never)=>void;f.store.purchase.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve}))
+ const first=f.service.purchase(owner,sku);await vi.waitFor(()=>expect(f.store.purchase).toHaveBeenCalledOnce())
+ await expect(f.service.purchase(owner,sku)).rejects.toThrow('purchase_in_progress');await expect(f.service.restore(owner,'Sandbox')).rejects.toThrow('purchase_in_progress');await expect(f.service.manage(owner)).rejects.toThrow('purchase_in_progress');expect(f.post).toHaveBeenCalledOnce()
+ finish({state:'cancelled'} as never);expect(await first).toBe('cancelled');expect(await f.service.purchase(owner,sku)).toBe('purchased');expect(f.store.purchase).toHaveBeenCalledTimes(2)
+})
+it('reports safe pre-confirmation timeouts without granting or retrying a purchase automatically',async()=>{
+ for(const phase of ['history','prepare','native'] as const){const f=fixture();if(phase==='history')f.store.pending.mockRejectedValueOnce({code:'purchase_history_timeout',message:'private'});else if(phase==='prepare')f.fail();else f.store.purchase.mockRejectedValueOnce({code:'purchase_preparation_timeout',message:'private'})
+ await expect(f.service.purchase(owner,sku)).rejects.toMatchObject({beforeConfirmation:true});expect(f.store.finish).not.toHaveBeenCalled();expect(f.post).toHaveBeenCalledTimes(phase==='history'?0:1);expect(f.store.purchase).toHaveBeenCalledTimes(phase==='native'?1:0)
+ }
+})
+it('keeps purchase stage updates separate from successful transaction delivery',async()=>{
+ const f=fixture(),phases:string[]=[];await f.service.purchase(owner,sku,phase=>{phases.push(phase);if(phase==='confirm')throw Error('display callback')});expect(phases).toEqual(['history','prepare','confirm','sync','finish']);expect(f.store.finish).toHaveBeenCalledOnce()
+ const g=fixture();g.store.purchase.mockRejectedValueOnce({code:'private-secret',message:'private text'});await expect(g.service.purchase(owner,sku)).rejects.toMatchObject({message:'store_unavailable',beforeConfirmation:false})
+})
+it('discards a native failure received after the account changes',async()=>{
+ const f=fixture();f.store.purchase.mockImplementationOnce(async()=>{f.switchOwner();throw {code:'purchase_preparation_timeout'}});await expect(f.service.purchase(owner,sku)).rejects.toThrow('owner_changed');expect(f.store.finish).not.toHaveBeenCalled()
+})

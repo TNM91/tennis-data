@@ -4,19 +4,7 @@ import {readFile} from 'node:fs/promises'
 const origin='http://127.0.0.1:4259',prefix='/__apple-membership-fixture/'
 let javascript='',stylesheet=''
 test.beforeAll(async()=>{
- const bundled=await build({stdin:{resolveDir:process.cwd(),sourcefile:'apple-membership-fixture.ts',loader:'ts',contents:`
- import {mountAppleMemberships} from './mobile/src/apple-memberships';
- import {AppleProductError} from './mobile/src/apple-product-catalog';
- import {APPLE_MEMBERSHIP_PRODUCTS} from './lib/apple-membership-products';
- const mode=new URL(location.href).searchParams.get('mode');
- const state={productCalls:0,buyCalls:0,restoreCalls:0,manageCalls:0};
- (window as any).membershipFixture=state;
- const rows=APPLE_MEMBERSHIP_PRODUCTS.map((p,i)=>({...p,price:i?'$4.99':'$1.99'}));
- const service={available:true,isIos:true,context:async()=>({enabled:true,environment:'Sandbox',canPurchase:true,webAccess:false,activeProductId:null}),
- products:async()=>{state.productCalls++;if(mode==='failed'&&state.productCalls===1)throw new AppleProductError('products_request_failed','NSURLErrorDomain:-1009');return mode==='partial'?rows.slice(0,1):rows},
- purchase:async()=>{state.buyCalls++;return 'cancelled'},recover:async()=>0,restore:async()=>{state.restoreCalls++;return 0},manage:async()=>{state.manageCalls++},subscribe:()=>()=>{}};
- mountAppleMemberships(document.querySelector('#membership')!,{} as never,'synthetic-owner',()=>true,()=>{},service as never);
- `},bundle:true,platform:'browser',format:'esm',outfile:'apple-membership-fixture.js',loader:{'.module.css':'local-css'},jsx:'automatic',write:false})
+ const bundled=await build({entryPoints:['tests/fixtures/mobile-apple-memberships.ts'],bundle:true,platform:'browser',format:'esm',outfile:'apple-membership-fixture.js',loader:{'.module.css':'local-css'},jsx:'automatic',write:false})
  javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  stylesheet=(await Promise.all(['mobile/src/style.css','mobile/src/website-parity.css'].map(file=>readFile(file,'utf8')))).join('\n')
 })
@@ -26,7 +14,7 @@ test.beforeEach(async({page})=>{
   if(url.origin!==origin||!url.pathname.startsWith(prefix))return route.abort()
   if(url.pathname.endsWith('app.js'))return route.fulfill({contentType:'text/javascript',body:javascript})
   if(url.pathname.endsWith('style.css'))return route.fulfill({contentType:'text/css',body:stylesheet})
-  return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css"></head><body><main><p>QA fixture · no account or live purchase</p><section id="membership" class="apple-membership-panel"></section></main><script type="module" src="./app.js"></script></body></html>'})
+  return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css"></head><body><main><p>QA fixture · no account or live purchase</p><section id="membership" class="apple-membership-panel"></section></main><script type="module" src="./app.js"></script></body></html>'})
  })
 })
 for(const width of [320,390])test(`plan errors and retry stay usable at ${width}px`,async({page},info)=>{
@@ -60,4 +48,20 @@ test('one returned plan remains purchasable without inventing the missing plan p
  await expect(page.getByRole('button',{name:'Subscribe · $1.99/month',exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'Subscribe · $4.99/month',exact:true})).toHaveCount(0)
  await expect(page.getByRole('button',{name:'Check other plans',exact:true})).toBeVisible()
+})
+
+for(const width of [320,390]){
+ for(const mode of ['history-timeout','prepare-timeout'])test(`${mode} keeps preparation errors retryable at ${width}px`,async({page},info)=>{
+  await page.setViewportSize({width,height:844});await page.goto(origin+prefix+'?mode='+mode);const buy=page.getByRole('button',{name:'Subscribe · $1.99/month',exact:true});await buy.click();await expect(page.getByText('No new purchase was started.',{exact:false})).toBeVisible();await expect(buy).toBeEnabled();await expect(page.getByRole('button',{name:'Close account settings',exact:true})).toBeEnabled();await page.getByText('Details for support',{exact:true}).click();await expect(page.getByText(mode==='history-timeout'?'purchase_history_timeout':'purchase_preparation_timeout',{exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:info.outputPath('apple-membership-'+mode+'.png'),fullPage:true});
+  const before=await page.evaluate(()=>(window as unknown as {membershipFixture:{buyCalls:number;prepareCalls:number;finishCalls:number;reconcileCalls:number}}).membershipFixture);expect(before.buyCalls).toBe(mode==='history-timeout'?0:1);expect(before.reconcileCalls).toBe(0);expect(before.finishCalls).toBe(0)
+  await buy.click();await expect(page.getByText('Purchase canceled.',{exact:true})).toBeVisible()
+ })
+ test(`an unresolved confirmation keeps close usable and blocks a second purchase after reopening at ${width}px`,async({page},info)=>{
+  await page.clock.install();await page.setViewportSize({width,height:844});await page.goto(origin+prefix+'?mode=stalled');const buy=()=>page.getByRole('button',{name:'Subscribe · $1.99/month',exact:true});await buy().click();await expect(page.getByText('Opening Apple’s confirmation screen…',{exact:true})).toBeVisible();await page.clock.fastForward(60000);await expect(page.getByText('Apple is taking longer than expected.',{exact:false})).toBeVisible();await expect(buy()).toBeDisabled();await expect(page.getByRole('button',{name:'Close account settings',exact:true})).toBeEnabled();await page.screenshot({path:info.outputPath('apple-membership-waiting-confirmation.png'),fullPage:true})
+  await page.getByRole('button',{name:'Close account settings',exact:true}).click();await page.getByRole('button',{name:'Reopen account settings',exact:true}).click();await buy().click();await expect(page.getByText('An Apple purchase is still open or being checked.',{exact:false})).toBeVisible();expect(await page.evaluate(()=>(window as unknown as {membershipFixture:{buyCalls:number;prepareCalls:number}}).membershipFixture)).toMatchObject({buyCalls:1,prepareCalls:1})
+  await page.evaluate(()=>(window as unknown as {membershipFixture:{releasePurchase:(v:string)=>void}}).membershipFixture.releasePurchase('cancelled'));await page.getByRole('button',{name:'Sync purchase',exact:true}).click();await expect(page.getByText('No unfinished purchase was found.',{exact:false})).toBeVisible();await expect(buy()).toBeEnabled();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ })
+}
+test('an unknown purchase result opens recovery and keeps new purchases locked until explicit sync',async({page})=>{
+ await page.goto(origin+prefix+'?mode=unknown-result');const buy=page.getByRole('button',{name:'Subscribe · $1.99/month',exact:true});await buy.click();await expect(page.getByText('Apple did not confirm the purchase result.',{exact:false})).toBeVisible();await expect(buy).toBeDisabled();await expect(page.getByRole('button',{name:'Sync purchase',exact:true})).toBeVisible();await expect(page.locator('main')).not.toContainText('Private Apple account text');await page.getByRole('button',{name:'Sync purchase',exact:true}).click();await expect(buy).toBeEnabled()
 })
