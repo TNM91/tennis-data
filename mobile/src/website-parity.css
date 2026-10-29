@@ -684,11 +684,30 @@ body.native-chat-conversation .chat-reaction-choices .chat-reaction-choice:activ
 /* Chat team plans: bounded cards and a focused poll sheet, with no extra toolbar. */
 .chat-plan-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;inline-size:100%;min-inline-size:0;max-inline-size:100%;margin:12px 0 2px;padding:14px;text-align:left;white-space:normal;overflow-wrap:anywhere;border:1px solid #55a9e066;border-radius:16px;background:#0a2b47;color:#eff8ff;font:inherit;line-height:1.35}
 .chat-plan-card strong{font-size:15px}.chat-plan-card span{color:#acd9f6;font-size:13px}
-.team-poll-dialog{box-sizing:border-box;inline-size:calc(100% - 24px);max-inline-size:480px;max-block-size:calc(100dvh - 48px);overflow-y:auto;overscroll-behavior:contain;overflow-wrap:anywhere}
+/* The action bar stays visible while fields scroll, including above the iOS keyboard. */
+dialog :is(h1,h2,h3)[tabindex="-1"]:focus{outline:none}
+.team-poll-dialog{box-sizing:border-box;position:fixed;inset:calc(var(--poll-viewport-top,0px) + env(safe-area-inset-top) + 12px) 0 auto;margin:0 auto;inline-size:calc(100% - 24px);max-inline-size:480px;max-block-size:calc(var(--poll-viewport-height,100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);padding:0;overflow:hidden;overflow-wrap:anywhere}
+.team-poll-dialog[open]{display:flex;flex-direction:column}
+.poll-sheet-heading{display:flex;flex:0 0 auto;align-items:flex-start;gap:12px;padding:18px 18px 14px;border-bottom:1px solid #294b68}
+.poll-sheet-heading>div{flex:1;min-inline-size:0}
+.team-poll-dialog .poll-sheet-heading h2{font-size:23px;line-height:1.2;margin:0;letter-spacing:-.025em}
+.poll-sheet-heading .rating-context{margin:6px 0 0;font-size:12px;line-height:1.4;color:#abc4dc}
+.team-poll-dialog .poll-sheet-close{flex:0 0 44px;inline-size:44px;min-block-size:44px;margin:-6px -6px 0 0;padding:4px;border:0;background:transparent;color:#bddcf3;font-size:28px;line-height:1}
+.poll-sheet-body{flex:1 1 auto;min-block-size:0;min-inline-size:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 18px;scroll-padding-block:16px}
 .team-poll-dialog form,.poll-option-fields{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
 .team-poll-dialog label,.team-poll-dialog input,.team-poll-dialog button,.poll-choices,.poll-choice span{box-sizing:border-box;min-inline-size:0;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}
-.team-poll-dialog input{inline-size:100%;font-size:16px}.team-poll-dialog>button{inline-size:100%;margin-block-start:10px}
-.poll-edit-actions{display:flex;flex-wrap:wrap;gap:8px}.poll-edit-actions button{flex:1 1 120px}
+.team-poll-dialog label{display:grid;gap:7px;margin:0;font-size:14px;line-height:1.4;color:#d8e9f7}
+.team-poll-dialog input{inline-size:100%;min-block-size:48px;margin:0;padding:12px;font-size:16px;border-radius:12px}
+.team-poll-dialog .rating-context{font-size:12px;line-height:1.5}
+.poll-sheet-body form>.rating-context{margin:0}
+.poll-sheet-body>h3{margin:0 0 10px;font-size:20px;line-height:1.3}
+.poll-edit-actions{display:flex;flex-wrap:wrap;gap:8px}
+.team-poll-dialog .poll-edit-actions button{flex:1 1 120px;min-block-size:44px;margin:0;padding:8px 10px;font-size:13px}
+.poll-sheet-actions{display:flex;flex:0 0 auto;flex-wrap:wrap;gap:8px;padding:12px 18px;background:#0a2139;border-top:1px solid #294b68}
+.team-poll-dialog .poll-sheet-actions button{flex:1 1 120px;min-block-size:48px;margin:0;padding:11px 12px;border-radius:12px;font-size:14px;line-height:1.3}
+.chat-room-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.chat-room-panel-heading button.secondary{inline-size:auto;min-block-size:44px;margin:-8px -4px -4px 0;padding:8px 10px;border:0;background:transparent;color:#8ed0ff;font-size:13px}
+
 .poll-choices{display:grid;gap:10px}.poll-choice{display:grid!important;grid-template-columns:minmax(0,1fr);gap:10px;inline-size:100%;text-align:left;padding:14px!important;border-radius:14px!important}
 .poll-choice span{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px}.poll-choice small{color:#b6d6e8}.poll-choice[aria-pressed="true"]{border-color:#5cbcf8!important;background:#123e60!important}
 .poll-choice progress{appearance:none;inline-size:100%;block-size:5px;border:0;border-radius:99px;background:#061a2e;accent-color:#59b8f7}.poll-choice progress::-webkit-progress-bar{background:#061a2e;border-radius:99px}.poll-choice progress::-webkit-progress-value{background:#59b8f7;border-radius:99px}
