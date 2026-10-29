@@ -1,4 +1,5 @@
-import {previewImportReview} from '@/lib/data-assist-review-preview'
+import {assertScorecardCourtCoverage} from '@/lib/data-assist-scorecard-coverage'
+import {createImportPreviewReader,previewImportReview} from '@/lib/data-assist-review-preview'
 import {applyImportReviewCorrection} from '@/lib/data-assist-review-corrections'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { apiServerError } from '@/lib/api-error-response'
@@ -146,6 +147,12 @@ export async function POST(request: Request) {
       } catch {
         return Response.json({ok:false,code:'preview_unavailable',message:'Current records could not be compared. Preview again before confirming.'},{status:503})
       }
+    }
+
+    // Older native clients do not send a preview receipt. Protect their corrections too.
+    if (decision === 'confirmed' && body.reviewCorrection !== undefined && body.expectedRevision === undefined && !isScheduleParsedDraft(parsedDraft) && !isTeamSummaryParsedDraft(parsedDraft)) {
+      try { await assertScorecardCourtCoverage(createImportPreviewReader(supabase).client,parsedDraft) }
+      catch { return Response.json({ok:false,code:'preview_unavailable',message:'Saved courts could not be compared or are missing from this read. Complete every court from the source file or finish review in Data Assist.'},{status:503}) }
     }
 
     const parsedLineCount = getParsedLineCount(parsedDraft)

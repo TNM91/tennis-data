@@ -15,3 +15,5 @@ Some source labels repeat a number across singles/doubles. The existing importer
 Duplicate fingerprints treat equivalent source calendar dates and saved ISO dates alike. Score, winner, date, participant or court changes still require an update.
 
 Validation uses synthetic exports and owner-scoped fixtures. Chromium/WebKit browser coverage checks 320/390px layouts, added rows, read-only previews, stale evidence, duplicate skips, uncertain responses and saved-result navigation. Physical iPhone keyboard/Files/VoiceOver/Dynamic Type and sandbox purchase/restore remain separate device checks. No real member upload is submitted for QA.
+
+Scorecard refreshes replace the saved child-court set. Preview and receipt rechecks refuse a source read that omits, renumbers or changes the type of an existing saved court. Older native correction confirmations receive the same read-only coverage check before writes. Complete missing courts from the original source or finish exception review in Data Assist. This does not change the legacy web import protocol or rewrite saved IDs. The coverage comparison adds one bounded child-court read to each comparison pass.

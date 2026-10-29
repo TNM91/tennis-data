@@ -1,3 +1,4 @@
+import {assertScorecardCourtCoverage} from './data-assist-scorecard-coverage'
 import {createHash} from 'node:crypto'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {runDataAssistScorecardImportAction,runDataAssistTeamSummaryImportAction} from './data-assist-import-runner'
@@ -54,6 +55,7 @@ export async function previewImportReview(input:{supabase:SupabaseClient;parsedD
   if(!result.ok||!counts||counts.failedCount||counts.totalPlayers!==input.parsedDraft.players.length)throw Error('The roster could not be validated. Check its details and try previewing again.')
   impact={kind:'team_summary',newCount:counts.createdCount,updateCount:counts.updatedCount,duplicateCount:0,courtCount:0,preservedPlayers:result.refreshComparison?.preservedPlayerNames.length||0,preservedDetails:result.refreshComparison?.preservedDetailCount||0,playerMatches:[]}
  }else{
+  await assertScorecardCourtCoverage(reader.client,input.parsedDraft as DataAssistScorecardParsedDraft)
   const result=await runDataAssistScorecardImportAction({...args,parsedDraft:input.parsedDraft as DataAssistScorecardParsedDraft})
   const preview=result.importPreview
   if(!result.ok||!preview||preview.unresolvedWinnerCount||result.importResult?.result.failedCount)throw Error('The scorecard could not be validated. Check its details and try previewing again.')
