@@ -120,7 +120,7 @@ test('an interrupted post keeps one identity and checks the saved poll without p
 test('team tools fit a narrow phone and close back to the same trigger',async({page},info)=>{
  await page.setViewportSize({width:320,height:568})
  await page.goto(origin+prefix)
- const trigger=page.getByLabel('Team tools',{exact:true})
+ const trigger=page.locator('summary[aria-label="Team tools"]')
  await trigger.click()
  await expect(page.getByRole('button',{name:'Close team tools',exact:true})).toBeVisible()
  expect(await page.locator('.chat-room-options-panel').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
