@@ -1,4 +1,4 @@
-import {iosPurchaseSources} from './ios-purchases.mjs'
+import {iosPurchaseSources,iosPurchaseSceneDelegate} from './ios-purchases.mjs'
 import {cameraPrivacyPlist} from './ios-camera.mjs'
 import {iosPushSources,pushEntitlements} from './ios-push.mjs'
 import { readFile, writeFile, access, mkdir } from 'node:fs/promises'
@@ -67,6 +67,9 @@ await writeFile(infoPath,cameraPrivacyPlist(await readFile(infoPath,'utf8')))
 
 const storyboardPath=resolve(ios,'App/App/Base.lproj/Main.storyboard')
 const purchases=iosPurchaseSources(await readFile(resolve(project,'project.pbxproj'),'utf8'),await readFile(storyboardPath,'utf8'))
+const scenePath=resolve(ios,'App/App/SceneDelegate.swift')
+const sceneDelegate=iosPurchaseSceneDelegate(await readFile(scenePath,'utf8'))
 await writeFile(resolve(project,'project.pbxproj'),purchases.project)
 await writeFile(storyboardPath,purchases.storyboard)
+await writeFile(scenePath,sceneDelegate)
 await writeFile(resolve(ios,'App/App/TenAceIQPurchases.swift'),await readFile(resolve(mobile,'native/TenAceIQPurchases.swift')))

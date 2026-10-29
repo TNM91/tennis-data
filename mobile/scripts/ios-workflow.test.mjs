@@ -28,3 +28,14 @@ test('the simulator lane cannot archive, sign, or upload to Apple', () => {
   assert.doesNotMatch(commands, /-allowProvisioningUpdates|-exportArchive|\baltool\b|\bfastlane\b|\barchive\b/)
   assert.doesNotMatch(JSON.stringify(workflow), /secrets\./)
 })
+
+
+test('the simulator launches and exercises StoreKit before saving its artifact',()=>{
+ const steps=workflow.jobs.simulator.steps
+ const prepare=steps.findIndex(s=>s.name==='Add unsigned Debug runtime probe'),compile=steps.findIndex(s=>s.name==='Compile simulator app without signing'),runtime=steps.findIndex(s=>s.name==='Verify the launched StoreKit bridge'),pack=steps.findIndex(s=>s.name==='Package simulator app')
+ assert.ok(prepare>=0&&prepare<compile&&compile<runtime&&runtime<pack)
+ assert.match(steps[runtime].run,/simctl launch .*com\.tenaceiq\.prototype --tiq-storekit-smoke/)
+ assert.match(steps[runtime].run,/ios-purchases-runtime-smoke\.mjs --verify/)
+ assert.ok(steps[runtime]['timeout-minutes']<=4)
+ assert.match(steps[pack].run,/ios-storekit-smoke\.json/)
+})

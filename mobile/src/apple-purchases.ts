@@ -15,8 +15,8 @@ export function parseAppleContext(value:unknown):AppleContext{
  if(!['Production','Sandbox'].includes(String(r.environment))||typeof r.canPurchase!=='boolean'||typeof r.webAccess!=='boolean'||r.activeProductId!==null&&!appleMembershipProduct(r.activeProductId)||!Array.isArray(r.products)||r.products.length!==2||new Set(r.products.map(p=>p?.id)).size!==2||r.products.some(p=>!appleMembershipProduct(p?.id)))throw Error('apple_unavailable')
  return {enabled:true,environment:r.environment as AppleEnvironment,canPurchase:r.canPurchase,webAccess:r.webAccess,activeProductId:r.activeProductId as string|null}
 }
-export function createApplePurchases(client:SupabaseClient,options:{store?:AppleStore;available?:boolean;http?:{get:(o:HttpOptions)=>Promise<HttpResponse>;post:(o:HttpOptions)=>Promise<HttpResponse>}}={}){
- const store=options.store||NativeApple,http=options.http||CapacitorHttp,available=options.available??(Capacitor.getPlatform()==='ios'&&Capacitor.isPluginAvailable('TiqPurchases'))
+export function createApplePurchases(client:SupabaseClient,options:{store?:AppleStore;available?:boolean;platform?:string;http?:{get:(o:HttpOptions)=>Promise<HttpResponse>;post:(o:HttpOptions)=>Promise<HttpResponse>}}={}){
+ const platform=options.platform??Capacitor.getPlatform(),store=options.store||NativeApple,http=options.http||CapacitorHttp,available=options.available??(platform==='ios'&&Capacitor.isPluginAvailable('TiqPurchases'))
  let owner:string|null=null
  const operations=new Map<string,{jws:string;id:string}>(),inflight=new Map<string,Promise<void>>(),listeners=new Set<()=>void>()
  async function session(expected:string){const s=await client.auth.getSession();if(s.error||s.data.session?.user.id!==expected)throw Error('owner_changed');return s.data.session}
@@ -46,7 +46,7 @@ export function createApplePurchases(client:SupabaseClient,options:{store?:Apple
  function transactions(value:{transactions:AppleTransaction[]}){if(!Array.isArray(value.transactions)||value.transactions.length>50||value.transactions.some(tx=>!transaction(tx)))throw Error('apple_unavailable');return value.transactions}
  async function recover(expected:string){if(!available)return 0;await session(expected);const rows=transactions(await store.pending());for(const tx of rows)await reconcile(expected,tx);return rows.length}
  if(available)void store.addListener('transactionsChanged',()=>{if(owner)void recover(owner).catch(()=>{})}).catch(()=>{})
- return {available,context,
+ return {available,isIos:platform==='ios',context,
   setOwner(next:string|null){if(next===owner)return;owner=next;operations.clear();if(next&&available)void recover(next).catch(()=>{})},
   recover,
   async products(expected:string,environment:AppleEnvironment){await session(expected);const r=await store.products({environment});await session(expected);if(r.available!==true||!Array.isArray(r.products)||r.products.length!==2||new Set(r.products.map(p=>p.id)).size!==2||r.products.some(p=>!appleMembershipProduct(p.id)||typeof p.price!=='string'||!p.price.trim()||p.price.length>64))throw Error('products_unavailable');return APPLE_MEMBERSHIP_PRODUCTS.map(p=>({...p,price:r.products.find(v=>v.id===p.productId)!.price}))},
