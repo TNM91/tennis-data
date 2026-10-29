@@ -7,13 +7,20 @@ import {resolve} from 'node:path'
 export function instrumentPurchaseSmoke(source){
  const marker='bridge?.registerPluginInstance(TenAceIQPurchases())'
  assert.equal(source.split(marker).length,2,'Expected one local purchase registration')
- assert.ok(!source.includes('--tiq-storekit-smoke'),'Refuse duplicate smoke instrumentation')
- return source.replace('import StoreKit','import StoreKit\nimport WebKit').replace(marker,marker+String.raw`
+ assert.ok(!source.includes('tiq-storekit-smoke.json'),'Refuse duplicate smoke instrumentation')
+ const before=String.raw`
         #if DEBUG
-        if CommandLine.arguments.contains("--tiq-storekit-smoke") {
+        let startedURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json.started")
+        try? FileManager.default.createDirectory(at: startedURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? Data(#"{"controllerEntered":true}"#.utf8).write(to: startedURL, options: .atomic)
+        #endif
+        `
+ return source.replace('import StoreKit','import StoreKit\nimport WebKit').replace(marker,before+marker+String.raw`
+        #if DEBUG
+        do {
             let reportURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json")
             try? FileManager.default.createDirectory(at: reportURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? Data(#"{"controllerLoaded":true}"#.utf8).write(to: reportURL.appendingPathExtension("started"), options: .atomic)
+            try? Data(#"{"controllerEntered":true,"pluginRegistered":true}"#.utf8).write(to: reportURL.appendingPathExtension("started"), options: .atomic)
             Task { @MainActor [weak self] in
                 for _ in 0..<120 {
                     if let webView = self?.webView, webView.url != nil, !webView.isLoading, self?.viewIfLoaded?.window != nil,
