@@ -87,7 +87,7 @@ export function createApplePurchases(client:SupabaseClient,options:{store?:Apple
     progress('sync');await reconcile(expected,r,progress);return 'purchased' as const
    }finally{purchaseRunning=false}
   },
-  async restore(expected:string,environment:AppleEnvironment){if(purchaseRunning)throw new ApplePurchaseError('purchase_in_progress');await session(expected);const rows=transactions(await store.restore({environment}));await session(expected);for(const tx of rows)await reconcile(expected,tx);return rows.length},
+  async restore(expected:string,environment:AppleEnvironment){if(purchaseRunning)throw new ApplePurchaseError('purchase_in_progress');await session(expected);let result:Awaited<ReturnType<AppleStore['restore']>>;try{result=await store.restore({environment})}catch(error){await session(expected);throw appleNativePurchaseError(error)}const rows=transactions(result);await session(expected);for(const tx of rows)await reconcile(expected,tx);return rows.length},
   async manage(expected:string){if(purchaseRunning)throw new ApplePurchaseError('purchase_in_progress');await session(expected);await store.manage()},
   subscribe(fn:()=>void){listeners.add(fn);return()=>listeners.delete(fn)}
  }

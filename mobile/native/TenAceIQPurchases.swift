@@ -37,9 +37,9 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
         guard active else { return }
         active = false; stopDeadline(); work = nil; call.resolve(data)
     }
-    func reject(_ message: String, _ code: String) {
+    func reject(_ message: String, _ code: String, data: [String: Any]? = nil) {
         guard active else { return }
-        active = false; stopDeadline(); work = nil; call.reject(message, code)
+        active = false; stopDeadline(); work = nil; call.reject(message, code, nil, data)
     }
 }
 
@@ -125,10 +125,41 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
               !presenter.isBeingDismissed, !presenter.isBeingPresented else { return nil }
         return presenter
     }
+    // Only fixed stages and allowlisted error domains/codes cross the bridge.
+    // Never forward localized descriptions, receipts, account details or arbitrary userInfo.
+    @MainActor private func purchaseFailure(_ error: Error, stage: String) -> (String, [String: Any]) {
+        let stages: Set<String> = ["app_receipt", "storefront", "products", "entitlements", "confirmation", "restore"]
+        let safeStage = stages.contains(stage) ? stage : "confirmation"
+        let domains: Set<String> = [NSURLErrorDomain, SKErrorDomain, "ASDErrorDomain", "AMSErrorDomain", "SKServerErrorDomain", "StoreKit.StoreKitError", "StoreKit.Product.PurchaseError"]
+        var chain: [String] = [], failure = error as NSError
+        for _ in 0..<3 {
+            let domain = domains.contains(failure.domain) ? failure.domain : "StoreKit"
+            chain.append("\(domain):\(failure.code)")
+            guard let underlying = failure.userInfo[NSUnderlyingErrorKey] as? NSError else { break }
+            failure = underlying
+        }
+        var code = ["app_receipt", "storefront", "products", "entitlements"].contains(safeStage) ? "purchase_preparation_failed" : "store_unavailable"
+        if let purchase = error as? Product.PurchaseError {
+            switch purchase {
+            case .productUnavailable: code = "purchase_product_unavailable"
+            case .purchaseNotAllowed: code = "purchase_not_allowed"
+            default: break
+            }
+        }
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        let safeBuild = build.range(of: #"^\d{1,6}$"#, options: .regularExpression) != nil ? build : ""
+        return (code, ["supportCode": safeStage + "/" + chain.joined(separator: "/"), "build": safeBuild])
+    }
+    @MainActor private func purchaseCancelled(_ error: Error) -> Bool {
+        if let store = error as? StoreKitError, case .userCancelled = store { return true }
+        let failure = error as NSError
+        return failure.domain == SKErrorDomain && failure.code == SKError.Code.paymentCancelled.rawValue
+    }
     @objc func purchase(_ call: CAPPluginCall) {
         Task { @MainActor in
-            guard !showingStoreSheet, let id = call.getString("productId"), allowed.contains(id),
-                  let rawToken = call.getString("accountToken"), let token = UUID(uuidString: rawToken) else { call.reject("Purchase is unavailable.", "store_unavailable"); return }
+            guard !showingStoreSheet else { call.reject("Apple is already open.", "store_busy"); return }
+            guard let id = call.getString("productId"), allowed.contains(id),
+                  let rawToken = call.getString("accountToken"), let token = UUID(uuidString: rawToken) else { call.reject("Purchase request is invalid.", "purchase_request_invalid"); return }
             guard purchasePresenter() != nil else { call.reject("Reopen account settings before purchasing.", "purchase_presenter_unavailable"); return }
             let operation = UUID()
             showingStoreSheet = true; purchaseOperation = operation
@@ -137,17 +168,22 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
             }
             gate.start { gate in
                 defer { if self.purchaseOperation == operation { self.purchaseOperation = nil; self.showingStoreSheet = false } }
+                var stage = "app_receipt"
                 do {
                     let environmentMatches = try await self.matchesEnvironment(call)
                     guard gate.active else { return }
                     guard environmentMatches else { gate.reject("Apple environment does not match this account.", "environment_mismatch"); return }
+                    stage = "storefront"
                     let storefront = await Storefront.current
                     guard gate.active else { return }
                     guard storefront?.countryCode == "USA" else { gate.reject("U.S. App Store required.", "unsupported_storefront"); return }
+                    stage = "products"
                     let products = try await Product.products(for: [id])
                     guard gate.active else { return }
-                    guard let product = products.first, self.monthly(product), self.waiting.count < 50 else { gate.reject("Purchase is unavailable.", "store_unavailable"); return }
+                    guard let product = products.first, self.monthly(product) else { gate.reject("Apple did not return the requested plan.", "purchase_product_unavailable"); return }
+                    guard self.waiting.count < 50 else { gate.reject("Sync earlier purchases first.", "purchase_sync_pending"); return }
                     // Reject an existing membership bound to either account before another buy.
+                    stage = "entitlements"
                     for await entitlement in Transaction.currentEntitlements {
                         guard gate.active else { return }
                         if case .verified(let current) = entitlement, self.allowed.contains(current.productID) {
@@ -159,6 +195,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                     // Refresh the actual visible controller after all asynchronous preparation.
                     guard let presenter = self.purchasePresenter(), let scene = presenter.viewIfLoaded?.window?.windowScene else { gate.reject("Reopen the account screen before purchasing.", "purchase_presenter_unavailable"); return }
                     gate.stopDeadline()
+                    stage = "confirmation"
                     let result: Product.PurchaseResult
                     if #available(iOS 18.2, *) { result = try await product.purchase(confirmIn: presenter, options: [.appAccountToken(token)]) }
                     else if #available(iOS 17.0, *) { result = try await product.purchase(confirmIn: scene, options: [.appAccountToken(token)]) }
@@ -173,7 +210,11 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                     case .userCancelled: gate.resolve(["state": "cancelled"])
                     @unknown default: gate.reject("Purchase is unavailable.", "store_unavailable")
                     }
-                } catch { gate.reject("Apple purchase did not complete.", "store_unavailable") }
+                } catch {
+                    if self.purchaseCancelled(error) { gate.resolve(["state": "cancelled"]); return }
+                    let (code, details) = self.purchaseFailure(error, stage: stage)
+                    gate.reject("Apple purchase did not complete.", code, data: details)
+                }
             }
         }
     }
@@ -201,7 +242,10 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                 for await result in Transaction.unfinished { capture(result, announce: false) }
                 for await result in Transaction.currentEntitlements { capture(result, announce: false) }
                 call.resolve(["transactions": entries()])
-            } catch { call.reject("Restore did not complete.", "store_unavailable") }
+            } catch {
+                let (code, details) = self.purchaseFailure(error, stage: "restore")
+                call.reject("Restore did not complete.", code, nil, details)
+            }
         }
     }
     @objc func finish(_ call: CAPPluginCall) {
