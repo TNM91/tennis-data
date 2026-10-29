@@ -93,3 +93,83 @@ body[data-screen]:not(.native-chat-conversation) .tennis-tool-grid button.tennis
 @media(max-width:360px) { #comparison-pickers { grid-template-columns:1fr; } }
 
 .lab-form-marks .lab-form-mark span { font-size:10px; line-height:14px; }
+
+/* A readable scoreboard, followed by evidence and a practical next step. */
+body[data-screen="lab"] section.lab-scoreboard{border-color:#3b6a8e;background:linear-gradient(155deg,#0b2941,#031326 56%);box-shadow:0 16px 40px #0005}
+.lab-scoreboard h2{font-size:14px;line-height:20px;color:#b7d9ef}
+.lab-scoreboard .lab-rating-chart>div:first-child{min-height:168px;margin:0;padding-top:10px;background-size:min(100%,480px) auto}
+.lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale){font-size:80px;letter-spacing:-.055em}
+.lab-scoreboard .lab-rating-chart>div:first-child>.rating-scale{margin-top:10px}
+.lab-scoreboard .lab-rating-chart>div:not(:first-child){padding:12px 14px;background:#10324c;border-top-color:#315b7a}
+.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dt{font-size:11px;color:#a9cee8}
+.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale){font-size:35px;letter-spacing:-.035em}
+.lab-scoreboard .rating-scale-caption{margin-top:8px}
+.lab-scoreboard .rating-context-info{margin-top:3px}
+.stat-donut{position:relative;display:grid;place-items:center;flex:0 0 auto;inline-size:108px;aspect-ratio:1;min-inline-size:0;color:#f1f8ff}
+.stat-donut svg{display:block;inline-size:100%;block-size:auto;overflow:visible}
+.stat-donut circle{fill:none;stroke-width:8}
+.stat-donut-track{stroke:#254961}
+.stat-donut-fill{stroke:#a7e846;stroke-linecap:round}
+.stat-donut-value{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:1px;font-size:34px;font-weight:800;letter-spacing:-.055em;font-variant-numeric:tabular-nums;line-height:1}
+.stat-donut-value small{align-self:center;font-size:15px;font-weight:600;letter-spacing:0;color:#afd0e5}
+.stat-donut.is-empty .stat-donut-value{color:#a2bed0}
+.lab-form-host .lab-form-strip{margin-top:16px;padding:18px 16px 8px;border:1px solid #2e5573;border-radius:22px;background:linear-gradient(140deg,#0d2c44,#071d31);box-shadow:0 12px 30px #0002}
+.lab-form-heading h2{font-size:19px;line-height:1.3;color:#edf7ff}
+.lab-form-heading>span{padding:4px 8px;border:1px solid #315873;border-radius:20px;background:#12344d;font-size:10px;line-height:1.4;white-space:nowrap}
+.lab-form-strip>p{font-size:11px;line-height:1.5;color:#adc7db;margin:7px 0 12px}
+.lab-form-overview{display:grid;grid-template-columns:108px minmax(0,1fr);gap:16px;align-items:center;margin:10px 0 16px}
+.lab-form-record{min-inline-size:0}
+.lab-form-record>strong{display:block;font-size:30px;font-weight:800;line-height:1.15;letter-spacing:-.045em;color:#f2f8ff;font-variant-numeric:tabular-nums}
+.lab-form-record>span{font-size:11px;color:#a6c4da;line-height:1.5}
+.lab-form-record dl{display:grid;gap:5px;margin:10px 0 0}
+.lab-form-record dl>div{display:flex;justify-content:space-between;gap:6px;align-items:baseline;min-inline-size:0}
+.lab-form-record dt{margin:0;font-size:10px;color:#b3d2e8}
+.lab-form-record dd{margin:0;font-size:11px;line-height:1.4;font-weight:650;color:#e2f2ff;overflow-wrap:anywhere}
+.lab-form-host .lab-form-marks{gap:6px}
+.lab-form-host .lab-form-marks .lab-form-mark{min-block-size:56px;padding:8px 2px;border-radius:12px;background:#0d2940;border-color:#335875}
+.lab-form-host .lab-form-mark.is-win{border-color:#6b984a;background:#1a382d}
+.lab-form-host .lab-form-mark.is-loss{border-color:#795267;background:#312837}
+.lab-form-strip>p.lab-form-help{margin:10px 0 2px;font-size:10px;color:#a5c5db}
+body[data-screen="lab"] main>section.lab-rating-trends{margin-top:20px;padding:0;background:transparent;border:0;box-shadow:none}
+.lab-rating-trends>h2{font-size:18px;margin:0 0 12px;color:#edf7ff;letter-spacing:-.025em}
+.lab-rating-trends .lab-trend-entry.secondary{display:flex;align-items:center;gap:12px;inline-size:100%;min-inline-size:0;min-block-size:80px;margin:0;padding:14px;border:1px solid #315c7b;border-radius:18px;background:linear-gradient(120deg,#133a56,#0a253b);color:#ebf7ff;text-align:left}
+.lab-trend-entry-icon{display:grid;place-items:center;flex:0 0 42px;inline-size:42px;block-size:42px;border-radius:13px;background:#204c6a;color:#98d6ff}
+.lab-trend-entry-icon svg{inline-size:25px;block-size:25px}
+.lab-trend-entry>span:nth-child(2){display:grid;gap:5px;min-inline-size:0;flex:1}
+.lab-trend-entry strong{font-size:14px;line-height:1.3;overflow-wrap:anywhere}
+.lab-trend-entry small{font-size:11px;line-height:1.4;color:#a9cde6;font-weight:400;overflow-wrap:anywhere}
+.lab-trend-entry .lab-trend-arrow{font-size:23px;color:#96d7ff}
+.lab-rating-trends>p{font-size:11px;line-height:1.5;color:#a7c6dd;margin:9px 2px 0}
+.match-pulse-rate .stat-donut{margin:10px auto;inline-size:116px}
+.match-pulse-rate>meter.sr-only{position:absolute!important;inline-size:1px!important;block-size:1px!important;margin:-1px!important;overflow:hidden!important}
+.lab-next-band .lab-level-path{padding:20px 18px;border:1px solid #356384;border-radius:22px;background:linear-gradient(140deg,#11334b,#071e32);box-shadow:0 14px 32px #0003}
+.lab-level-path>h3{margin:7px 0 15px;font-size:21px;line-height:1.25;letter-spacing:-.035em;color:#f0f8ff}
+.lab-band-target{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:16px;margin-bottom:18px}
+.lab-band-target>strong{font-size:52px;line-height:1;font-weight:800;letter-spacing:-.055em;color:#f5faff;font-variant-numeric:tabular-nums}
+.lab-band-target>strong>span{display:block;font-size:11px;letter-spacing:.14em;line-height:1.6;color:#93d4ff}
+.lab-band-target p{margin:0 0 4px;font-size:14px;line-height:1.5;color:#d6eafa}
+.lab-band-target>div>span{font-size:11px;color:#9ac6e3}
+.lab-level-path>label{font-size:11px;line-height:1.5;color:#b3cee1}
+.lab-level-path .lab-level-scale strong{font-size:14px;line-height:1.2;color:#9cd9ff}
+.lab-level-path .lab-band-practice.secondary{display:flex;align-items:center;justify-content:space-between;gap:10px;inline-size:100%;min-inline-size:0;min-block-size:50px;margin:18px 0 4px;padding:12px 14px;border:1px solid #598a40;border-radius:14px;background:#a6e735;color:#082219;font-size:13px;font-weight:750;line-height:1.4;text-align:left;white-space:normal;overflow-wrap:anywhere}
+.lab-band-practice>span{font-size:21px;line-height:1}
+.lab-level-path .lab-level-about{border-top:1px solid #31536b;margin-top:12px}
+.lab-level-about .lab-level-values dd{font-size:23px}
+@media(max-width:360px){
+ .lab-scoreboard .lab-rating-chart>div:first-child{min-height:158px}
+ .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale){font-size:72px}
+ .lab-form-host .lab-form-strip{padding:16px 12px 8px}
+ .lab-form-overview{grid-template-columns:90px minmax(0,1fr);gap:12px}
+ .lab-form-overview .stat-donut{inline-size:90px}
+ .lab-form-record>strong{font-size:27px}
+ .lab-form-record dd{font-size:10px}
+ .lab-form-record dt{font-size:10px}
+ .lab-band-target{gap:12px}
+ .lab-band-target>strong{font-size:46px}
+}
+
+body[data-screen="lab"]:not(.native-chat-conversation) main>section.lab-rating-trends{padding:0;background:transparent;border:0;box-shadow:none}
+body[data-screen="lab"] #recent-results .lab-recent-stats{padding:0;margin-top:18px;border:0;border-radius:0;background:transparent;box-shadow:none}
+#recent-results .lab-recent-stats>h3{font-size:18px;color:#e6f4ff;letter-spacing:-.025em}
+#recent-results .lab-format-grid>div{background:#0b2941;border-color:#315b79;border-radius:16px}
+#recent-results .lab-format-grid>div>strong{font-size:32px;font-weight:800;letter-spacing:-.045em;color:#dff4ff}
