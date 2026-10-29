@@ -1,4 +1,4 @@
-import {assertScorecardCourtCoverage} from '@/lib/data-assist-scorecard-coverage'
+import {assertScorecardCourtCoverage,ImportCourtCoverageError} from '@/lib/data-assist-scorecard-coverage'
 import {createImportPreviewReader,previewImportReview} from '@/lib/data-assist-review-preview'
 import {applyImportReviewCorrection} from '@/lib/data-assist-review-corrections'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
@@ -144,7 +144,8 @@ export async function POST(request: Request) {
         const impact=await previewImportReview({supabase,parsedDraft,batchId,draftId,reviewedBy:requester.userId})
         if (decision === 'preview') return Response.json({ok:true,impact})
         if (impact.revision !== body.expectedRevision) return Response.json({ok:false,code:'preview_changed',message:'The records changed. Preview this import again before confirming.'},{status:409})
-      } catch {
+      } catch (cause) {
+        if(cause instanceof ImportCourtCoverageError)return Response.json({ok:false,code:'preview_unavailable',reviewIssue:cause.issue,message:cause.message},{status:409})
         return Response.json({ok:false,code:'preview_unavailable',message:'Current records could not be compared. Preview again before confirming.'},{status:503})
       }
     }
@@ -152,7 +153,7 @@ export async function POST(request: Request) {
     // Older native clients do not send a preview receipt. Protect their corrections too.
     if (decision === 'confirmed' && body.reviewCorrection !== undefined && body.expectedRevision === undefined && !isScheduleParsedDraft(parsedDraft) && !isTeamSummaryParsedDraft(parsedDraft)) {
       try { await assertScorecardCourtCoverage(createImportPreviewReader(supabase).client,parsedDraft) }
-      catch { return Response.json({ok:false,code:'preview_unavailable',message:'Saved courts could not be compared or are missing from this read. Complete every court from the source file or finish review in Data Assist.'},{status:503}) }
+      catch (cause) { if(cause instanceof ImportCourtCoverageError)return Response.json({ok:false,code:'preview_unavailable',reviewIssue:cause.issue,message:cause.message},{status:409}); return Response.json({ok:false,code:'preview_unavailable',message:'Saved courts could not be compared or are missing from this read. Complete every court from the source file or finish review in Data Assist.'},{status:503}) }
     }
 
     const parsedLineCount = getParsedLineCount(parsedDraft)

@@ -2,12 +2,13 @@ import {beforeEach,it,expect,vi} from 'vitest'
 import {reviewScorecard,reviewRoster} from '../../tests/fixtures/import-review-data'
 import {importReviewSource} from '../data-assist-review-corrections'
 const s=vi.hoisted(()=>({user:'owner',owner:'owner',status:'needs_review',kind:'scorecard',writes:[] as unknown[],score:vi.fn(),roster:vi.fn(),refresh:vi.fn(),preview:vi.fn(),coverage:vi.fn()}))
-vi.mock('@/lib/data-assist-scorecard-coverage',()=>({assertScorecardCourtCoverage:s.coverage}))
+vi.mock('@/lib/data-assist-scorecard-coverage',async importOriginal=>({...await importOriginal<typeof import('../data-assist-scorecard-coverage')>(),assertScorecardCourtCoverage:s.coverage}))
 vi.mock('@/lib/data-assist-review-preview',()=>({previewImportReview:s.preview,createImportPreviewReader:(client:unknown)=>({client})}))
 vi.mock('@/lib/supabase',()=>({supabaseUrl:'https://synthetic.invalid',supabaseKey:'public'}))
 vi.mock('@/lib/data-assist-rating-refresh',()=>({scheduleDataAssistRatingRefresh:s.refresh}))
 vi.mock('@/lib/data-assist-import-runner',()=>({runDataAssistScorecardImportAction:s.score,runDataAssistTeamSummaryImportAction:s.roster,runDataAssistScheduleImportAction:vi.fn()}))
 vi.mock('@supabase/supabase-js',()=>({createClient:()=>({auth:{getUser:async()=>({data:{user:s.user?{id:s.user}:null}})},from:(table:string)=>{let update=false;const q={select:()=>q,eq:()=>q,update:(v:unknown)=>{update=true;s.writes.push(v);return q},upsert:(v:unknown)=>{s.writes.push(v);return q},maybeSingle:async()=>({data:table==='data_assist_batches'?{submitted_by_user_id:s.owner,status:s.status,requested_import_type:s.kind}:{submitted_by_user_id:s.owner,status:'ready_for_verification',ocr_status:'processed',parsed_payload:s.kind==='team_summary'?reviewRoster:reviewScorecard,validation_summary:{}}}),then:(resolve:(v:unknown)=>unknown)=>Promise.resolve({data:update?null:[],error:null}).then(resolve)};return q}})}))
+import {ImportCourtCoverageError} from '../data-assist-scorecard-coverage'
 import {POST} from '../../app/api/data-assist/review/route'
 const body=()=>({batchId:'batch',draftId:'draft',decision:'confirmed',reviewCorrection:{base:importReviewSource(reviewScorecard),edits:{'rows.1.winner':'away'}}})
 const request=(data:unknown)=>new Request('https://synthetic.invalid/api/data-assist/review',{method:'POST',headers:{Authorization:'Bearer synthetic'},body:JSON.stringify(data)})
@@ -34,4 +35,14 @@ it('accepts a current preview but refuses malformed or unsupported receipts',asy
 it('blocks older native confirmations before all writes when an extracted court set omits saved courts',async()=>{
  s.coverage.mockRejectedValue(Error('Missing saved court'))
  const response=await POST(request(body()));expect(response.status).toBe(503);expect(await response.json()).toMatchObject({code:'preview_unavailable'});expect(s.writes).toHaveLength(0);expect(s.score).not.toHaveBeenCalled();expect(s.refresh).not.toHaveBeenCalled()
+})
+
+it('returns safe court guidance on preview, current receipt and older confirmation before all writes',async()=>{
+ const issue={courts:[{number:3,type:'singles' as const,reason:'missing' as const}]}
+ s.preview.mockRejectedValue(new ImportCourtCoverageError(issue));s.coverage.mockRejectedValue(new ImportCourtCoverageError(issue))
+ for(const extra of [{decision:'preview'},{expectedRevision:'a'.repeat(64)},{}]){
+  const response=await POST(request({...body(),...extra}));expect(response.status).toBe(409);expect(await response.json()).toMatchObject({ok:false,code:'preview_unavailable',reviewIssue:issue})
+ }
+ expect(s.writes).toHaveLength(0);expect(s.score).not.toHaveBeenCalled();expect(s.refresh).not.toHaveBeenCalled()
+ s.user='someone-else';s.preview.mockClear();const response=await POST(request({...body(),decision:'preview'}));expect(response.status).toBe(403);expect(await response.text()).not.toContain('reviewIssue');expect(s.preview).not.toHaveBeenCalled()
 })

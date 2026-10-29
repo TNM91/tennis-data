@@ -17,3 +17,11 @@ Duplicate fingerprints treat equivalent source calendar dates and saved ISO date
 Validation uses synthetic exports and owner-scoped fixtures. Chromium/WebKit browser coverage checks 320/390px layouts, added rows, read-only previews, stale evidence, duplicate skips, uncertain responses and saved-result navigation. Physical iPhone keyboard/Files/VoiceOver/Dynamic Type and sandbox purchase/restore remain separate device checks. No real member upload is submitted for QA.
 
 Scorecard refreshes replace the saved child-court set. Preview and receipt rechecks refuse a source read that omits, renumbers or changes the type of an existing saved court. Older native correction confirmations receive the same read-only coverage check before writes. Complete missing courts from the original source or finish exception review in Data Assist. This does not change the legacy web import protocol or rewrite saved IDs. The coverage comparison adds one bounded child-court read to each comparison pass.
+
+## Missing saved courts
+
+When a native scorecard preview or confirmation omits a saved court, the API returns a bounded court-only report before any mutation. The app names each missing court and can prefill its number and type. Players, score and winner remain blank until the uploader supplies them from the source file. Existing corrections survive this block; no confirmation is possible until another successful preview and acknowledgement.
+
+A conflicting saved court type opens the Data Assist recovery path rather than relabelling a source row. Read failures and malformed saved identities remain comparison errors with no partial report. Reports contain only court numbers, singles/doubles and missing/type-changed reasons; no saved player names, contacts or source text. Older native clients retain their existing safe preview-refresh response. These reports are fresh comparisons, not a transaction-wide lock, and do not change the legacy web import protocol.
+
+Browser fixtures cover missing-court recovery, type conflicts, failed comparisons and a court appearing between preview and confirmation in Chromium and WebKit at 320 and 390 pixels. Real Files selection, the iPhone keyboard, VoiceOver and Dynamic Type still require device verification.

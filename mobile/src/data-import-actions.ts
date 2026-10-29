@@ -1,3 +1,4 @@
+import {readImportCourtReviewIssue,type ImportCourtReviewIssue} from '../../lib/data-assist-court-review-issue'
 import {readImportReviewImpact} from '../../lib/data-assist-review-impact'
 import {importReviewProblem,type ImportReviewEdits,type ImportReviewAddedRows} from '../../lib/data-assist-review-corrections'
 import {reviewedSchedule,type ScheduleDates,type ScheduleCorrections} from './data-import-schedule'
@@ -33,6 +34,8 @@ export async function actOnImport(client:SupabaseClient,owner:string,current:()=
  try{response=await send({url:'https://www.tenaceiq.com/api/data-assist/'+(action==='read'?'ocr':'review'),headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},data:{batchId:batch.id,draftId:detail.draftId,...(action==='read'?{}:{decision:action}),...(parsedDraft?{parsedDraft}:{}),...(reviewCorrection?{reviewCorrection,...(expectedRevision?{expectedRevision}:{})}:{})},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:100000})}
  catch{throw Error('The result could not be confirmed. This action may still finish. Refresh the saved upload before trying again.')}
  await own()
+ const issue=response.status===409&&response.data?.code==='preview_unavailable'?readImportCourtReviewIssue(response.data.reviewIssue):null
+ if(issue&&latest.reviewSource?.kind==='scorecard')throw new ImportCourtReviewError(issue)
  if([409,503].includes(response.status)&&['preview_changed','preview_unavailable'].includes(response.data?.code))throw new ImportPreviewRefreshError('Current records changed or could not be compared. Preview again before confirming.')
  const data=response.data as {ok?:boolean;autoImport?:{ok?:boolean}}|null
  if(response.status!==200||!data||data.ok!==true)throw Error('The action did not return a confirmed result. Refresh the saved upload to check its status before trying again.')
@@ -40,6 +43,9 @@ export async function actOnImport(client:SupabaseClient,owner:string,current:()=
 }
 
 export class ImportPreviewRefreshError extends Error {}
+export class ImportCourtReviewError extends ImportPreviewRefreshError{
+ constructor(readonly issue:ImportCourtReviewIssue){super('Complete the saved courts before importing. Your corrections are still here.')}
+}
 export async function previewImportAction(client:SupabaseClient,owner:string,current:()=>boolean,batch:ImportBatch,detail:ImportDetail,edits:ImportReviewEdits,addedRows:ImportReviewAddedRows,send:ImportSend=o=>CapacitorHttp.post(o)){
  const session=async()=>{const {data,error}=await client.auth.getSession();if(error||!current()||data.session?.user.id!==owner||owner!==batch.owner||!uuid.test(batch.id)||!uuid.test(detail.draftId))throw Error('Close this screen and sign in again.');return data.session.access_token}
  await session()
@@ -49,6 +55,8 @@ export async function previewImportAction(client:SupabaseClient,owner:string,cur
  const token=await session()
  const response=await send({url:'https://www.tenaceiq.com/api/data-assist/review',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},data:{batchId:batch.id,draftId:detail.draftId,decision:'preview',reviewCorrection:{base:latest.reviewSource,edits,addedRows}},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:45000})
  await session()
+ const issue=response.status===409&&response.data?.code==='preview_unavailable'?readImportCourtReviewIssue(response.data.reviewIssue):null
+ if(issue&&latest.reviewSource.kind==='scorecard')throw new ImportCourtReviewError(issue)
  if(response.status!==200||response.data?.ok!==true)throw Error('The preview could not be loaded. Check your connection and try previewing again.')
  const impact=readImportReviewImpact(response.data.impact)
  if(impact.kind!==latest.reviewSource.kind)throw Error('The preview type changed. Refresh this upload.')
