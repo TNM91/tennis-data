@@ -44,5 +44,5 @@ it('reports an exact saved duplicate, and detects a changed saved court before c
 it('refuses a partial source preview that would drop an existing saved court',async()=>{
  const source=structuredClone(reviewScorecard),parsedDraft=applyImportReviewCorrection(source,{base:importReviewSource(source),edits:{'rows.1.winner':'away'}}) as typeof source
  const rows={matches:[{id:'court-3',external_match_id:source.externalMatchId+'::line:3',line_number:'3',match_type:'singles'}]}
- await expect(previewImportReview({supabase:database(rows).client,parsedDraft,batchId:'batch',draftId:'draft',reviewedBy:'owner'})).rejects.toThrow('Saved courts')
+ await expect(previewImportReview({supabase:database(rows).client,parsedDraft,batchId:'batch',draftId:'draft',reviewedBy:'owner'})).rejects.toThrow('Complete the saved courts')
 })
