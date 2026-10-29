@@ -6,7 +6,7 @@ import {chatTeamActionsHtml} from './chat-team-actions'
 import {pastedChatGif} from './chat-gif-paste'
 import {gifFileData} from './chat-gifs'
 import {openCaptainPractices} from './captain-practices-view'
-import {chatRoomHeaderHtml} from './chat-room-chrome'
+import {chatRoomHeaderHtml,bindTeamToolsClose} from './chat-room-chrome'
 import {nativeActionIcon as actionIcon} from './native-action-icons'
 import {openChatRooms} from './named-chat-rooms'
 import {isTeamChatReaction} from '../../lib/team-chat-reaction-kinds'
@@ -360,7 +360,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   app.innerHTML=chatRoomHeaderHtml(room,snapshot.teams,tab,Boolean(draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending),Boolean(draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending||draft.text.trim()||draft.photo||draft.reply))+`<p id="chat-reaction-status" role="status" class="chat-inline-status"></p><p id="chat-active-filter" class="chat-active-filter" hidden></p><div id="team-panel"></div><p id="chat-read-status" role="status" class="chat-inline-status"></p><p role="status" class="chat-safety-status">${html(safetyNotice)}</p>`
   app.querySelector<HTMLButtonElement>('#join-team')!.onclick=openInvite
   app.querySelector<HTMLButtonElement>('#all-team-chats')!.onclick=openInbox
-  app.querySelector<HTMLButtonElement>('[data-close-team-tools]')!.onclick=()=>{const menu=app.querySelector<HTMLDetailsElement>('.chat-room-options');if(menu){menu.open=false;menu.querySelector<HTMLElement>('summary')?.focus({preventScroll:true})}}
+  bindTeamToolsClose(app)
   app.querySelector<HTMLButtonElement>('#open-team-rooms')!.onclick=()=>{
    if(!valid()||roomPicker?.isOpen())return
    if(captainView||draft.pending||draft.sending||busy||photoChoosing||draft.text.trim()||draft.photo||draft.reply||reactionSending||pendingReactions.size||matchActions.pending||matchActions.sending||muteSending){safetyNotice=captainView?'Open Conversation before switching rooms.':'Finish your current action or clear your draft before switching rooms.';const status=app.querySelector('.chat-safety-status');if(status){status.textContent=safetyNotice;status.scrollIntoView({block:'nearest'})}return}
