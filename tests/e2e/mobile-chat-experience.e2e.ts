@@ -1,6 +1,7 @@
 import {test,expect,type Page,type Locator} from '@playwright/test'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
+import {practiceRsvpPath} from '../../lib/captain-practice-rsvp'
 import type {ChatAction} from '../../mobile/src/team-chat-send'
 test.describe.configure({retries:0,timeout:15000})
 const origin='http://127.0.0.1:4261',prefix='/__chat-experience/'
@@ -30,7 +31,7 @@ test.beforeEach(async({page})=>{
  messages=[
   {...base,id:ownId,senderUserId:owner,senderName:'Jordan Lee',isMine:true,canManageOwn:true,createdAt:'2026-10-28T16:00:00Z',body:'Ready for Saturday!'},
   {...base,id:pollId,createdAt:'2026-10-28T16:01:00Z',body:`Poll: When should we practice?\n1. Saturday morning\n2. Sunday afternoon\nhttps://www.tenaceiq.com/team-room?poll=${pollId}`},
-  {...base,id:practiceId,createdAt:'2026-10-28T16:02:00Z',body:`Practice cancelled\nDoubles drills\nReview Aces · City Tennis League · 4.0\nDate: 2026-11-03\nTime: 18:00\nLocation: North courts\nRain expected; bring cover.\nThis occurrence is cancelled. Already-saved future practices are unchanged.\nhttps://www.tenaceiq.com/practice/${practiceId}`},
+  {...base,id:practiceId,createdAt:'2026-10-28T16:02:00Z',body:`Practice cancelled\nDoubles drills\nReview Aces · City Tennis League · 4.0\nDate: 2026-11-03\nTime: 18:00\nLocation: North courts\nRain expected; bring cover.\nThis occurrence is cancelled. Already-saved future practices are unchanged.\nhttps://www.tenaceiq.com${practiceRsvpPath(practiceId)}`},
   {...base,id:messageId,createdAt:'2026-10-28T16:03:00Z',body:'Who is up for doubles this weekend?',reactions:[{reaction:'laugh',count:2,reacted:false}]}
  ]
  await page.route('**/*',async route=>{
@@ -64,6 +65,7 @@ test.beforeEach(async({page})=>{
 const post=(page:Page,id=messageId)=>page.locator(`[data-chat-message="${id}"]`)
 async function hold(target:Locator){
  await target.scrollIntoViewIfNeeded()
+ await target.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))))
  await target.dispatchEvent('pointerdown',{isPrimary:true,button:0,pointerId:1,clientX:80,clientY:200,pointerType:'touch'})
  await target.page().waitForTimeout(550)
  await target.dispatchEvent('pointerup',{isPrimary:true,button:0,pointerId:1,pointerType:'touch'})
