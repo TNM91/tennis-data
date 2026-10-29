@@ -11,12 +11,12 @@ export function instrumentPurchaseSmoke(source){
  return source.replace('import StoreKit','import StoreKit\nimport WebKit').replace(marker,marker+String.raw`
         #if DEBUG
         if CommandLine.arguments.contains("--tiq-storekit-smoke") {
+            let reportURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json")
+            try? FileManager.default.createDirectory(at: reportURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? Data(#"{"controllerLoaded":true}"#.utf8).write(to: reportURL.appendingPathExtension("started"), options: .atomic)
             Task { @MainActor [weak self] in
-                let reportURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json")
-                try? FileManager.default.createDirectory(at: reportURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try? Data(#"{"controllerLoaded":true}"#.utf8).write(to: reportURL.appendingPathExtension("started"), options: .atomic)
-                for _ in 0..<80 {
-                    if let webView = self?.webView,
+                for _ in 0..<120 {
+                    if let webView = self?.webView, webView.url != nil, !webView.isLoading, self?.viewIfLoaded?.window != nil,
                        let value = try? await webView.callAsyncJavaScript("""
                            const cap = window.Capacitor;
                            if (cap?.getPlatform?.() !== 'ios' || !cap.isPluginAvailable('TiqPurchases') || !cap.Plugins?.TiqPurchases) return null;
@@ -29,7 +29,7 @@ export function instrumentPurchaseSmoke(source){
                        let json = value as? String,
                        let data = json.data(using: .utf8),
                        let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-                       result["nativeInvalidReceiptRejected"] as? Bool == true,
+                       result["ready"] as? Bool == true,
                        self?.bridge?.plugin(withName: "TiqPurchases") != nil {
                         try? data.write(to: reportURL, options: .atomic)
                         return

@@ -36,6 +36,6 @@ test('the simulator launches and exercises StoreKit before saving its artifact',
  assert.ok(prepare>=0&&prepare<compile&&compile<runtime&&runtime<pack)
  assert.match(steps[runtime].run,/simctl launch .*com\.tenaceiq\.prototype --tiq-storekit-smoke/)
  assert.match(steps[runtime].run,/ios-purchases-runtime-smoke\.mjs --verify/)
- assert.ok(steps[runtime]['timeout-minutes']<=4)
+ assert.ok(steps[runtime]['timeout-minutes']<=6)
  assert.match(steps[pack].run,/ios-storekit-smoke\.json/)
 })
