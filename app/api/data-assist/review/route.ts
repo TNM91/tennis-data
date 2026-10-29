@@ -1,3 +1,4 @@
+import {previewImportReview} from '@/lib/data-assist-review-preview'
 import {applyImportReviewCorrection} from '@/lib/data-assist-review-corrections'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { apiServerError } from '@/lib/api-error-response'
@@ -24,6 +25,7 @@ type ReviewRequestBody = {
   decision?: unknown
   parsedDraft?: unknown
   reviewCorrection?: unknown
+  expectedRevision?: unknown
 }
 
 type DataAssistStatsBatchRow = {
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
   const batchId = cleanText(body.batchId)
   const draftId = cleanText(body.draftId)
   const decision = cleanText(body.decision)
-  if (!batchId || !draftId || (decision !== 'confirmed' && decision !== 'flagged')) {
+  if (!batchId || !draftId || (decision !== 'confirmed' && decision !== 'flagged' && decision !== 'preview')) {
     return Response.json({ ok: false, message: 'Missing Data Assist review details.' }, { status: 400 })
   }
 
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
   const reviewedAt = new Date().toISOString()
   const draftLabel = getParsedDraftLabel(draft.parsed_payload)
 
-  if (decision === 'confirmed') {
+  if (decision === 'confirmed' || decision === 'preview') {
     let parsedDraft
     try {
       if (body.reviewCorrection !== undefined) {
@@ -131,6 +133,19 @@ export async function POST(request: Request) {
     }
     if (isScheduleParsedDraft(parsedDraft) && !isScheduleDraftReadyForImport(parsedDraft)) {
       return Response.json({ ok: false, message: 'Complete the highlighted schedule details before importing.' }, { status: 400 })
+    }
+
+    // Preview and freshness comparison happen before every write or notification.
+    if (decision === 'preview' || body.expectedRevision !== undefined) {
+      if (body.reviewCorrection === undefined || isScheduleParsedDraft(parsedDraft)) return Response.json({ok:false,message:'Use the supported scorecard or roster review.'},{status:400})
+      if (body.expectedRevision !== undefined && (typeof body.expectedRevision !== 'string' || !/^[a-f0-9]{64}$/.test(body.expectedRevision))) return Response.json({ok:false,message:'Preview this import again.'},{status:400})
+      try {
+        const impact=await previewImportReview({supabase,parsedDraft,batchId,draftId,reviewedBy:requester.userId})
+        if (decision === 'preview') return Response.json({ok:true,impact})
+        if (impact.revision !== body.expectedRevision) return Response.json({ok:false,code:'preview_changed',message:'The records changed. Preview this import again before confirming.'},{status:409})
+      } catch {
+        return Response.json({ok:false,code:'preview_unavailable',message:'Current records could not be compared. Preview again before confirming.'},{status:503})
+      }
     }
 
     const parsedLineCount = getParsedLineCount(parsedDraft)

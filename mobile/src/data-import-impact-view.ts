@@ -1,0 +1,7 @@
+import type {ImportReviewImpact} from '../../lib/data-assist-review-impact'
+import {html} from './match-details'
+export function importImpactHtml(impact:ImportReviewImpact|null){
+ if(!impact)return '<p>Preview the import to compare it with saved records. Nothing is saved by previewing.</p>'
+ const scorecard=impact.kind==='scorecard'
+ return '<section class="import-impact"><h3 tabindex="-1" data-import-impact-heading>Before you import</h3><dl class="import-fields"><div><dt>New '+(scorecard?'scorecards':'players')+'</dt><dd>'+impact.newCount+'</dd></div><div><dt>'+(scorecard?'Scorecards to update':'Existing players to refresh')+'</dt><dd>'+impact.updateCount+'</dd></div>'+(scorecard?'<div><dt>Unchanged scorecards to skip</dt><dd>'+impact.duplicateCount+'</dd></div><div><dt>Individual courts in this file</dt><dd>'+impact.courtCount+'</dd></div>':'')+'</dl>'+(scorecard?'<p>One team scorecard contains the individual court results. A team win does not count as another player win.</p>':'<p>Existing team members and contact details missing from this file are preserved. '+impact.preservedPlayers+' members and '+impact.preservedDetails+' contact details will be kept.</p>')+(impact.playerMatches.length?'<h4>Player name matches</h4><ul>'+impact.playerMatches.map(m=>'<li>'+html(m.entered)+' → '+html(m.recorded)+'</li>').join('')+'</ul><p>Check these matched names against your source file.</p>':'')+'<p>This comparison has not saved anything. Editing requires another preview. Records are checked again when you confirm.</p></section>'
+}

@@ -14,7 +14,7 @@ const count=(value:unknown)=>typeof value==='number' && Number.isFinite(value) &
 export function leagueDetails(row:LeagueCard) {
   return `<h1 tabindex="-1">${html(row.leagueName)}</h1><p>${[row.flight,row.ustaSection,row.districtArea].filter(Boolean).map(html).join(' · ') || 'Area unavailable'}</p><dl><dt>Season</dt><dd>${html([row.year,row.season].filter(Boolean).join(' ') || 'Unavailable')}</dd><dt>Teams in directory</dt><dd>${count(row.teamCount)}</dd><dt>Matches in summary</dt><dd>${count(row.matchCount)}</dd><dt>Latest recorded match</dt><dd>${html(matchDate(row.latestMatchDate))}</dd></dl><p>Counts reflect the available directory summary, not a complete season record.</p>`
 }
-export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',initial?:{team?:TeamChoice;league?:FollowedLeagueScope;back?:()=>void},access?:PublicBrowseAccess) {
+export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',initial?:{team?:TeamChoice;league?:FollowedLeagueScope;back?:()=>void;backLabel?:string},access?:PublicBrowseAccess) {
   let disposed=false,request=0,selected=false,scroll=0
   let previousFocus:HTMLElement|null=null
   let roster:ReturnType<typeof showTeamRoster>|null=null
@@ -37,7 +37,7 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
     search.hidden=true;detail.hidden=false
     detail.innerHTML=`<button type="button" class="secondary" id="directory-back">Back to ${mode.toLowerCase()}</button>${markup}`
     detail.querySelector<HTMLButtonElement>('#directory-back')!.onclick=initial?.team&&initial.back?initial.back:back
-    if(initial?.team&&initial.back)detail.querySelector<HTMLButtonElement>('#directory-back')!.textContent='Back to following'
+    if(initial?.team&&initial.back)detail.querySelector<HTMLButtonElement>('#directory-back')!.textContent=initial.backLabel||'Back to following'
     window.scrollTo(0,0);detail.querySelector<HTMLElement>('h1')!.focus({preventScroll:true})
   }
   const openTeam=(team:TeamChoice)=>{

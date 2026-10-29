@@ -109,3 +109,9 @@ describe('Data Assist import transformer', () => {
     expect(buildScorecardImportFingerprint(corrected)).not.toBe(buildScorecardImportFingerprint(original))
   })
 })
+
+it('compares source calendar dates with saved ISO dates without treating them as changed matches',()=>{
+ const original=buildDataAssistScorecardImportRow(parsedDraft()).row
+ expect(buildScorecardImportFingerprint({...original,matchDate:'2026-01-18'})).toBe(buildScorecardImportFingerprint(original))
+ expect(buildScorecardImportFingerprint({...original,matchDate:'2026-01-19'})).not.toBe(buildScorecardImportFingerprint(original))
+})

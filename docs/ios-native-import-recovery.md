@@ -1,0 +1,17 @@
+# Native import repair and preview
+
+The bundled app can append a missed court or roster player to a supported saved read (up to 10 courts or 100 players). Use the original file for every correction. Extracted rows cannot be removed or relabeled; only added rows can be removed. Added facts retain the original source provenance and do not gain parser confidence. Added or corrected roster ratings are self-rated, not verified or TIQ dynamic ratings. Contacts remain private.
+
+Preview import compares unsaved corrections and additions against saved records without saving, refreshing ratings, sending notifications, or invoking OCR. Scorecards show new, updated, or unchanged-to-skip counts separately from individual courts. Roster previews show new players, existing players to refresh, and preserved members/contact-detail counts. Matched player-name substitutions appear for review; the existing bounded name matcher does not support a global new-player count for scorecards.
+
+Each edit, addition, removal, reset, or refresh discards the receipt and acknowledgement. Confirmation recomputes a server-side evidence hash before any review writes. Changed or unavailable evidence requires another preview. This is an optimistic comparison, not a database-wide transaction lock. A lost commit response keeps actions locked until the saved upload is refreshed. Existing clients retain their previous confirmation protocol.
+
+The preview uses the existing importer through a read-only allowlist: at most 120 queries, a 30-second total deadline and 12-second per-query timeout. The existing player-matching sample remains capped at 5,000; current roster/contact comparisons at 500 rows; scorecard courts at 10 and participants at 40. Other reads fail closed. Requests are explicit, with no automatic polling, retry, paid OCR call, new credential, schema migration, or permission change. Confirmation adds one bounded read-only comparison before the existing import.
+
+After a refreshed saved imported outcome, Open imported records offers native team views, exact-name player profiles, and saved individual courts. Ambiguous names are not guessed. Court reads require the selected external match ID, completed status, public-history eligibility, and singles/doubles type; parent team totals cannot become individual results. Owner/session and visit guards also apply to nested views.
+
+Some source labels repeat a number across singles/doubles. The existing importer persists court identity by number alone. The correction path now refuses collisions rather than silently overwriting a court. Such files, zero-row reads, larger drafts, contact edits and unsupported formats still need Data Assist review. This change does not rewrite legacy match IDs or repair past imports.
+
+Duplicate fingerprints treat equivalent source calendar dates and saved ISO dates alike. Score, winner, date, participant or court changes still require an update.
+
+Validation uses synthetic exports and owner-scoped fixtures. Chromium/WebKit browser coverage checks 320/390px layouts, added rows, read-only previews, stale evidence, duplicate skips, uncertain responses and saved-result navigation. Physical iPhone keyboard/Files/VoiceOver/Dynamic Type and sandbox purchase/restore remain separate device checks. No real member upload is submitted for QA.
