@@ -1,6 +1,6 @@
 # TenAceIQ mobile readiness — 2026-10-23
 
-> Historical baseline: the October 23 audit below predates the signed iPhone beta. For the current launch gates, use the October 28 public-entry update at the end of this document.
+> Historical baseline: the audit and build notes below predate the current beta. For the October 29 build 166 release and read-only App Store launch audit, use [iPhone subscriptions and launch readiness](ios-subscription-readiness.md).
 
 ## Decision
 
