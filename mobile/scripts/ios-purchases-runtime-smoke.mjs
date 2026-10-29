@@ -3,6 +3,42 @@ import {readFile,writeFile} from 'node:fs/promises'
 import {fileURLToPath} from 'node:url'
 import {resolve} from 'node:path'
 
+const receiptProbe=String.raw`
+#if DEBUG
+@MainActor private func tiqReceiptRecoveryProbe() async -> Bool {
+    var reads = 0, refreshes = 0, events: [String] = []
+    do {
+        let recovered: String? = try await TiqAppReceipt.verified(read: {
+            reads += 1; events.append("read")
+            throw NSError(domain: "StoreKit.StoreKitError", code: 2)
+        }, refresh: { refreshes += 1; events.append("refresh"); return "verified" }, willRefresh: { events.append("prompt") })
+        guard recovered == "verified", reads == 1, refreshes == 1, events == ["read", "prompt", "refresh"] else { return false }
+        let cached: String? = try await TiqAppReceipt.verified(read: { "cached" }, refresh: { refreshes += 1; return "unexpected" }, willRefresh: { events.append("unexpected") })
+        guard cached == "cached", refreshes == 1, events.count == 3 else { return false }
+        let unverified: String? = try await TiqAppReceipt.verified(read: { nil }, refresh: { refreshes += 1; return nil }, willRefresh: {})
+        guard unverified == nil, refreshes == 2 else { return false }
+        let refreshed: String? = try await TiqAppReceipt.verified(read: { nil }, refresh: { refreshes += 1; return "verified" }, willRefresh: {})
+        guard refreshed == "verified", refreshes == 3 else { return false }
+        do {
+            let _: String? = try await TiqAppReceipt.verified(read: { nil }, refresh: { refreshes += 1; throw URLError(.notConnectedToInternet) }, willRefresh: {})
+            return false
+        } catch { guard (error as NSError).domain == NSURLErrorDomain, refreshes == 4 else { return false } }
+        for error in [StoreKitError.userCancelled as Error, CancellationError() as Error] {
+            do {
+                let _: String? = try await TiqAppReceipt.verified(read: { throw error }, refresh: { refreshes += 1; return "unexpected" }, willRefresh: { events.append("unexpected") })
+                return false
+            } catch { guard TiqAppReceipt.cancelled(error), refreshes == 4, events.count == 3 else { return false } }
+        }
+        do {
+            let _: String? = try await TiqAppReceipt.verified(read: { nil }, refresh: { refreshes += 1; return "unexpected" }, willRefresh: { throw CancellationError() })
+            return false
+        } catch { guard error is CancellationError, refreshes == 4 else { return false } }
+        return true
+    } catch { return false }
+}
+#endif
+`
+
 // Instrument only the generated unsigned Debug project, never the shipped source.
 export function instrumentPurchaseSmoke(source){
  const marker='bridge?.registerPluginInstance(TenAceIQPurchases())'
@@ -29,14 +65,16 @@ export function instrumentPurchaseSmoke(source){
                     return
                 }
                 #endif`)
- source=source.replace('let environmentMatches = try await self.matchesEnvironment(call)',String.raw`#if DEBUG
+ const environmentMarker='let environmentMatches = try await self.matchesEnvironment(call, willRefresh: {'
+ assert.equal(source.split(environmentMarker).length,2,'Expected explicit-action receipt recovery')
+ source=source.replace(environmentMarker,String.raw`#if DEBUG
                     if let probe = call.getString("tiqPurchaseFailureSmoke") {
                         if probe == "cancel" { stage = "confirmation"; throw StoreKitError.userCancelled }
                         if probe == "confirmation" { stage = "confirmation"; throw NSError(domain: SKErrorDomain, code: 0, userInfo: [NSLocalizedDescriptionKey: "private smoke details"]) }
                         throw NSError(domain: NSURLErrorDomain, code: -1009, userInfo: [NSLocalizedDescriptionKey: "private smoke details"])
                     }
                     #endif
-                    let environmentMatches = try await self.matchesEnvironment(call)`)
+                    let environmentMatches = try await self.matchesEnvironment(call, willRefresh: {`)
 
  const before=String.raw`
         #if DEBUG
@@ -45,13 +83,14 @@ export function instrumentPurchaseSmoke(source){
         try? Data(#"{"controllerEntered":true}"#.utf8).write(to: startedURL, options: .atomic)
         #endif
         `
- return source.replace('import StoreKit','import StoreKit\nimport WebKit').replace(marker,before+marker+String.raw`
+ return source.replace('import StoreKit','import StoreKit\nimport WebKit'+receiptProbe).replace(marker,before+marker+String.raw`
         #if DEBUG
         do {
             let reportURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json")
             try? FileManager.default.createDirectory(at: reportURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(#"{"controllerEntered":true,"pluginRegistered":true}"#.utf8).write(to: reportURL.appendingPathExtension("started"), options: .atomic)
             Task { @MainActor [weak self] in
+                let appReceiptRecovery = await tiqReceiptRecoveryProbe()
                 for _ in 0..<120 {
                     if let webView = self?.webView, webView.url != nil, !webView.isLoading, self?.viewIfLoaded?.window != nil,
                        let value = try? await webView.callAsyncJavaScript("""
@@ -84,8 +123,8 @@ export function instrumentPurchaseSmoke(source){
 
                            let deadlineStopped = false;
                            try { const value = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqReadDeadlineStoppedSmoke:true}); deadlineStopped = value.state === 'cancelled'; } catch {}
-                           return JSON.stringify({ready: rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved});
-                           """, arguments: [:], in: nil, contentWorld: .page),
+                           return JSON.stringify({ready: appReceiptRecovery && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeAppReceiptRecoveryVerified:appReceiptRecovery});
+                           """, arguments: ["appReceiptRecovery": appReceiptRecovery], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
                        let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -107,8 +146,8 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
  assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
- for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
- return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true}
+ for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeAppReceiptRecoveryVerified'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
+ return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeAppReceiptRecoveryVerified:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)
