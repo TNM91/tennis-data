@@ -7,7 +7,15 @@ import {openCompetitions} from '../../mobile/src/competitions-view'
 import {labActionsHtml} from '../../mobile/src/lab-home'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from './competitions-data'
 const mode=new URLSearchParams(location.search).get('view')||'team'
-const state={calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
+const state={finderChanged:false,calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
+function detailForFinder(){
+ const d=competitionDetail();if(!mode.includes('finder'))return d
+ d.fixtures.push({...d.fixtures[0],id:'fixture-other',date:'2026-11-08',a:'Spin Masters',b:'Court Kings',status:'proposed'})
+ d.results.push({...d.results[0],id:'event-later',date:'2026-10-24',a:'Spin Masters',b:'Court Kings',winner:'Court Kings',courts:[{label:'Line 1 · Singles',a:'Morgan',b:'Taylor',winner:'Side B',score:'7-5, 6-4'}]},{...d.results[0],id:'event-unrecorded',date:'2026-10-25',winner:'',courts:[]})
+ if(mode.includes('long')){d.fixtures[0].a='Baseline '+('Championship'.repeat(18));d.results[0].courts[0].a='Alex '+('Server'.repeat(35))}
+ if(state.finderChanged){d.fixtures[0].date='2026-11-09';d.results[0].date='2026-10-26'}
+ return d
+}
 const client={auth:{getSession:async()=>({data:{session:{user:{id:state.owner},access_token:'fixture-only'}}})}} as unknown as SupabaseClient
 const send:ScenarioSend=async options=>{
  state.calls++
@@ -18,7 +26,7 @@ const send:ScenarioSend=async options=>{
   if(state.delay)await new Promise<void>(resolve=>{state.release=resolve});return {status:state.offline?503:200,data:{ok:true,...review},headers:{},url:options.url}
  }
  if(new URL(options.url).pathname.endsWith('/league-office')){
-  const league={...competitionDetail().league,name:'Northside 4.0'},detail={...competitionDetail(),league,participants:[{name:'Alex Server',status:state.decisionSaved?'active':'pending'}],moreParticipants:false};return {status:200,data:{ok:true,owner,checkedAt:'2026-10-30T05:40:00Z',leagues:[league],moreLeagues:false,detail:new URL(options.url).searchParams.get('league')?detail:null},headers:{},url:options.url}
+  const league={...competitionDetail().league,name:'Northside 4.0'},detail={...detailForFinder(),league,participants:[{name:'Alex Server',status:state.decisionSaved?'active':'pending'}],moreParticipants:false};return {status:200,data:{ok:true,owner,checkedAt:'2026-10-30T05:40:00Z',leagues:[league],moreLeagues:false,detail:new URL(options.url).searchParams.get('league')?detail:null},headers:{},url:options.url}
  }
  if(new URL(options.url).pathname.endsWith('/entry')){
   const review=entryReviewFixture();review.owner=owner;if(mode==='entry-information')state.entryInformation=true;review.open=!state.entryClosed;review.allowed=state.entryAllowed;if(state.entryChanged){review.review='b'.repeat(64);review.requirement.ageDivision='55 & Over'}
@@ -35,7 +43,8 @@ const send:ScenarioSend=async options=>{
  snapshot.scope=p.get('scope')==='mine'?'mine':'discover';snapshot.query=p.get('q')||''
  if(snapshot.scope==='discover')snapshot.connections=[]
  if(snapshot.query==='nothing')snapshot.leagues=[]
- if(p.get('league'))snapshot.detail=competitionDetail()
+ if(mode.includes('finder'))snapshot.leagues.push({...snapshot.leagues[0],id:'league-two',name:'Second season'})
+ if(p.get('league')){snapshot.detail=detailForFinder();if(p.get('league')==='league-two')snapshot.detail.league={...snapshot.leagues[1]}}
  if(mode==='long'){snapshot.leagues[0].name='Northside'+('Championship'.repeat(15));if(snapshot.detail)snapshot.detail.league.name=snapshot.leagues[0].name}
  if(mode==='incomplete'&&snapshot.detail){snapshot.detail.moreResults=true;snapshot.detail.standingsAvailable=false;snapshot.detail.standings=[]}
  if(mode==='individual'){snapshot.leagues[0].format='individual';if(snapshot.detail){snapshot.detail.league.format='individual';snapshot.detail.standingsAvailable=false;snapshot.detail.standings=[]}}

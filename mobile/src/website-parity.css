@@ -978,3 +978,25 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .account-settings-dialog [data-account-logout]{font-size:14px;border-color:#64b9ed;background:#123754;color:#eff8ff}
 .account-settings-dialog [data-account-logout-error]:empty{display:none}
 .account-settings-dialog [data-account-logout-error]{overflow-wrap:anywhere}
+
+/* League search and court evidence stay readable within compact phone sheets. */
+.league-match-finder{display:grid;gap:12px;margin-block:20px;min-inline-size:0;padding:16px;border:1px solid #28557a;border-radius:20px;background:linear-gradient(140deg,#103451,#0a213a)}
+.league-match-finder label{display:grid;gap:8px;min-inline-size:0;font-size:.9rem;font-weight:700;overflow-wrap:anywhere}
+.league-match-finder input,.league-match-finder select{box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;min-block-size:48px;margin:0!important;padding:12px!important;font:inherit!important;color:inherit;background:#061b35;border:1px solid #426382;border-radius:14px}
+.league-match-finder select{appearance:none;-webkit-appearance:none;padding-inline-end:2.3rem!important;background-image:linear-gradient(45deg,transparent 50%,#abc8df 50%),linear-gradient(135deg,#abc8df 50%,transparent 50%);background-position:calc(100% - 1.15rem) 50%,calc(100% - .85rem) 50%;background-size:.3rem .3rem;background-repeat:no-repeat}
+.league-finder-selects{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px;min-inline-size:0}
+.league-finder-actions{display:flex;flex-wrap:wrap;gap:10px;min-inline-size:0}
+.league-finder-actions button{flex:1 1 130px;min-inline-size:0;max-inline-size:100%;min-block-size:48px;margin:0!important;padding:12px!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.league-finder-context,.league-finder-summary{font-size:.85rem!important;line-height:1.6!important;color:#b9d1e6;overflow-wrap:anywhere}
+.league-finder-summary{color:#8cd3ff;font-weight:700}
+.league-result-card{border:1px solid #2e5778;border-radius:20px;padding:18px;margin-block:16px;background:#0d2944;overflow-wrap:anywhere;min-inline-size:0}
+.league-result-card h4{font-size:1.15rem!important;line-height:1.5!important;margin-block:12px!important;color:#f3f9ff}
+.league-result-card p{font-size:.9rem;line-height:1.6;color:#b9d1e6;margin-block:10px}
+.league-result-card h4 span,.league-court-result p span{font-size:.85em;color:#9fbcd2}
+.league-result-card details{margin-block-start:16px;border-block-start:1px solid #2e5778}
+.league-result-card summary{min-block-size:44px;padding-block:14px;font-size:.9rem;font-weight:700;color:#8cd3ff;cursor:pointer}
+.league-court-result{border:1px solid #28557a;border-radius:14px;padding:14px;margin-block:10px;background:#071b35}
+.league-court-result strong{font-size:.85rem;color:#d6edff}
+.league-court-match{border-color:#72c6ff;box-shadow:inset 3px 0 #72c6ff}
+.league-result-card .league-result-score{color:#f3f9ff;font-size:1.1rem;font-weight:750;font-variant-numeric:tabular-nums}
+.league-office-dialog .competition-fixture{overflow-wrap:anywhere}
