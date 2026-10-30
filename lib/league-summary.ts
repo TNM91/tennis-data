@@ -288,6 +288,10 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
         .abortSignal(controller.signal)
 
       if (error) {
+        if (error.code === '57014' || controller.signal.aborted) {
+          notice = `Loaded the most recent ${totalMatches.toLocaleString()} parent matches before the server summary timeout. Older season rows may still exist outside this summary window.`
+          break
+        }
         throw new Error(error.message)
       }
 
@@ -397,7 +401,7 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
         notice = `Showing the most recent ${totalMatches.toLocaleString()} parent matches for a fast public directory. Older team context remains available in the team directory.`
       }
     } catch (error) {
-      if ((error as Error).name === 'AbortError') {
+      if (controller.signal.aborted || (error as Error).name === 'AbortError') {
         notice = `Loaded the most recent ${totalMatches.toLocaleString()} parent matches before the server summary timeout. Older season rows may still exist outside this summary window.`
         break
       }
