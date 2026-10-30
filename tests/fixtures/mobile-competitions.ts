@@ -5,12 +5,12 @@ import {openCompetitions} from '../../mobile/src/competitions-view'
 import {labActionsHtml} from '../../mobile/src/lab-home'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from './competitions-data'
 const mode=new URLSearchParams(location.search).get('view')||'team'
-const state={calls:0,offline:false,delay:false,active:true,owner,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,release:null as null|(()=>void)}
+const state={calls:0,offline:false,delay:false,active:true,owner,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
 const client={auth:{getSession:async()=>({data:{session:{user:{id:state.owner},access_token:'fixture-only'}}})}} as unknown as SupabaseClient
 const send:ScenarioSend=async options=>{
  state.calls++
  if(new URL(options.url).pathname.endsWith('/entry')){
-  const review=entryReviewFixture();review.owner=owner;review.open=!state.entryClosed;review.allowed=state.entryAllowed
+  const review=entryReviewFixture();review.owner=owner;review.open=!state.entryClosed;review.allowed=state.entryAllowed;if(state.entryChanged){review.review='b'.repeat(64);review.requirement.ageDivision='55 & Over'}
   if(mode==='entry-team'){review.format='team';review.player={...review.player,id:'',name:'',rating:null};review.blockedReason='Team entry requires active League access.'}
   if(mode==='entry-long'){review.leagueName='Northside '+('Championship '.repeat(14));review.player.name='Alex '+('Server '.repeat(20))}
   if(options.method==='POST'){state.entryPosts++;state.entrySaved=true;if(state.entryLostReply)throw Error('Lost reply')}
