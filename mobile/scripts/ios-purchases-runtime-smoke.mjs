@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {readFile,writeFile} from 'node:fs/promises'
 import {fileURLToPath} from 'node:url'
 import {resolve} from 'node:path'
+import {instrumentAppLockSmoke,verifyAppLockSmoke} from './ios-app-lock-runtime-smoke.mjs'
 
 const channelProbe=String.raw`
 #if DEBUG
@@ -58,6 +59,7 @@ const restoreProbe=String.raw`
 
 // Instrument only the generated unsigned Debug project, never the shipped source.
 export function instrumentPurchaseSmoke(source){
+ source=instrumentAppLockSmoke(source)
  const marker='bridge?.registerPluginInstance(TenAceIQPurchases())'
  assert.equal(source.split(marker).length,2,'Expected one local purchase registration')
  assert.ok(!source.includes('tiq-storekit-smoke.json'),'Refuse duplicate smoke instrumentation')
@@ -125,6 +127,7 @@ export function instrumentPurchaseSmoke(source){
                 let purchaseChannel: Bool
                 if #available(iOS 16.0, *) { purchaseChannel = tiqPurchaseChannelProbe() } else { purchaseChannel = false }
                 let restorePolicy = await tiqRestoreReadProbe()
+                let appLockPolicy = await tiqAppLockProbe()
                 for _ in 0..<120 {
                     if let webView = self?.webView, webView.url != nil, !webView.isLoading, self?.viewIfLoaded?.window != nil,
                        let value = try? await webView.callAsyncJavaScript("""
@@ -167,13 +170,21 @@ export function instrumentPurchaseSmoke(source){
                            let deadlineStopped = false;
                            try { const value = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqReadDeadlineStoppedSmoke:true}); deadlineStopped = value.state === 'cancelled'; } catch {}
                            let notificationsCleared = false;
+                           let appLockBridge = false;
+                           try {
+                               const state = await cap.Plugins.TiqAppLock.status();
+                               let invalidRejected = false;
+                               try { await cap.Plugins.TiqAppLock.setEnabled({}); } catch (error) { invalidRejected = error.code === 'invalid_setting'; }
+                               const unchanged = await cap.Plugins.TiqAppLock.setEnabled({enabled:false});
+                               appLockBridge = invalidRejected && unchanged.enabled === false && state.enabled === false && typeof state.available === 'boolean' && ['faceID','touchID','passcode'].includes(state.biometry);
+                           } catch {}
                            try {
                                await cap.Plugins.TiqNotifications.clearDelivered();
                                await cap.Plugins.TiqNotifications.clearDelivered();
                                notificationsCleared = true;
                            } catch {}
-                           return JSON.stringify({ready: notificationsCleared && restorePolicy && restoreTimeout && restoreRetry && restoreTagged && restoreCancelled && purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeColdStartNotificationsCleared:notificationsCleared,nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel,nativeRestorePolicyVerified:restorePolicy,nativeRestoreReadRecovery:restoreTimeout && restoreRetry,nativeRestoreFailureTagged:restoreTagged && restoreCancelled});
-                           """, arguments: ["purchaseChannel": purchaseChannel, "restorePolicy": restorePolicy], in: nil, contentWorld: .page),
+                           return JSON.stringify({ready: appLockPolicy && appLockBridge && notificationsCleared && restorePolicy && restoreTimeout && restoreRetry && restoreTagged && restoreCancelled && purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeAppLockLifecycleVerified:appLockPolicy,nativeAppLockBridgeVerified:appLockBridge, nativeColdStartNotificationsCleared:notificationsCleared,nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel,nativeRestorePolicyVerified:restorePolicy,nativeRestoreReadRecovery:restoreTimeout && restoreRetry,nativeRestoreFailureTagged:restoreTagged && restoreCancelled});
+                           """, arguments: ["purchaseChannel": purchaseChannel, "restorePolicy": restorePolicy, "appLockPolicy": appLockPolicy], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
                        let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -190,6 +201,7 @@ export function instrumentPurchaseSmoke(source){
         #endif`)
 }
 export function verifyPurchaseSmoke(report){
+ verifyAppLockSmoke(report)
  assert.equal(report.ready,true,'The launched app did not report a ready bridge')
  assert.equal(report.platform,'ios','The check must run inside the iOS app')
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
@@ -197,7 +209,7 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
  assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
  for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified','nativeRestorePolicyVerified','nativeRestoreReadRecovery','nativeRestoreFailureTagged'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
- return {ready:true,platform:'ios',available:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
+ return {ready:true,platform:'ios',available:true,nativeAppLockLifecycleVerified:true,nativeAppLockBridgeVerified:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)
