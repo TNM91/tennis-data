@@ -932,3 +932,10 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .league-entry-dialog textarea{box-sizing:border-box;width:100%;min-width:0;max-width:100%;resize:vertical;color:inherit;background:var(--navy,#061b35);border:1px solid #426382;border-radius:14px;padding:.85rem;font:inherit}
 .league-entry-dialog .decision-list li{display:grid;grid-template-columns:minmax(0,1fr);gap:.5rem}
 .league-entry-dialog .decision-list button{white-space:normal;overflow-wrap:anywhere;max-width:100%}
+
+.tournament-standings{list-style:none;padding:0;display:grid;gap:12px;counter-reset:tournament-rank}
+.tournament-standings li{counter-increment:tournament-rank;border:1px solid #28557a;border-radius:18px;background:#0d2944;padding:16px;overflow-wrap:anywhere}
+.tournament-standings li>div{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+.tournament-standings strong{color:#f3f8ff}.tournament-standings span{color:#8cd3ff;font-size:.8rem}
+.tournament-standings p{font-size:.85rem!important;line-height:1.6!important;margin-block:12px 0!important;color:#b9d1e6}
+.tournaments-dialog [data-tournament-content]{overflow-wrap:anywhere}
