@@ -10,6 +10,9 @@ export function tournamentViewMatches(matches:TournamentMatch[],view:TournamentM
  const rows=matches.filter(m=>view==='results'?!!m.winner:view==='schedule'?!!(m.date||m.time||m.court):true)
  return view==='schedule'?rows.sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)||a.court.localeCompare(b.court)):rows
 }
+export function tournamentEntrantMatches(matches:TournamentMatch[],name:string){
+ return name?matches.filter(m=>m.a===name||m.b===name):[]
+}
 export function filterTournamentMatches(matches:TournamentMatch[],view:TournamentMatchView,filters:TournamentMatchFilters){
  const query=normalized(filters.query)
  return tournamentViewMatches(matches,view).filter(m=>(!query||normalized(m.a).includes(query)||normalized(m.b).includes(query))&&(view!=='schedule'||(!filters.day||m.date===filters.day)&&(!filters.court||m.court===filters.court)))

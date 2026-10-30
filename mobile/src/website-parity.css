@@ -953,3 +953,21 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 
 .tournament-match-filters select{appearance:none;-webkit-appearance:none;padding-inline-end:2.3rem!important;background-image:linear-gradient(45deg,transparent 50%,#abc8df 50%),linear-gradient(135deg,#abc8df 50%,transparent 50%);background-position:calc(100% - 1.15rem) 50%,calc(100% - .85rem) 50%;background-size:.3rem .3rem;background-repeat:no-repeat}
 .tournaments-dialog .tournament-filter-summary{font-size:.85rem!important;line-height:1.5!important;color:var(--muted);overflow-wrap:anywhere}
+
+/* Standings open an exact entrant's published division matches without another request. */
+.tournaments-dialog .tournament-entrant-open{display:flex;align-items:center;justify-content:space-between;gap:12px;inline-size:100%;min-block-size:48px;max-inline-size:100%;padding:12px 14px!important;margin:14px 0 0!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.tournament-entrant-heading{border:1px solid #28557a;border-radius:22px;padding:18px;background:linear-gradient(140deg,#103c60,#071b35 76%);margin-block:18px;overflow-wrap:anywhere}
+.tournament-entrant-heading small{color:#8cd3ff;font-weight:700;font-size:.85rem}
+.tournament-entrant-heading h3{color:#f3f8ff;font-size:1.6rem!important;line-height:1.3!important;margin-block:12px!important}
+.tournament-entrant-heading .competition-metrics{margin-block:18px}
+.tournaments-dialog .tournament-entrant-heading p{font-size:.85rem!important;color:#b9d1e6;line-height:1.6}
+.tournament-entrant-section{margin-block:24px}
+.tournament-entrant-section>h4{font-size:1.05rem!important;color:#d4edff;line-height:1.5}
+.tournaments-dialog .tournament-entrant-context{color:#8cd3ff;font-size:.9rem!important;line-height:1.5;margin-block:8px 16px;overflow-wrap:anywhere}
+.tournament-entrant-heading .competition-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tournament-entrant-heading .competition-metrics>div:first-child{grid-column:1/-1}
+.tournament-entrant-heading .competition-metrics strong{font-size:1.5rem;overflow-wrap:anywhere}
+.tournament-entrant-heading .competition-metrics>div:first-child strong{font-size:1.8rem}
+
+.tournaments-dialog .tournament-entrant-section{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.tournaments-dialog .tournament-entrant-timezone{font-size:.85rem!important;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
