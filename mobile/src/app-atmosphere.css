@@ -202,7 +202,7 @@ body[data-screen="lab"] section.lab-scoreboard{margin-top:4px;padding:18px 0 6px
 .rating-court-scene{position:absolute;z-index:-1;top:0;right:0;width:100%;height:auto;object-fit:contain;pointer-events:none}
 .lab-scoreboard .lab-rating-chart{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0;min-width:0}
 .lab-scoreboard .lab-rating-chart>div{min-width:0;margin:0;border:0;box-shadow:none}
-.lab-scoreboard .lab-rating-chart>div:first-child{grid-column:1/-1;min-height:clamp(190px,52vw,255px);padding:18px 20px 12px;background:transparent;border-radius:0}
+.lab-scoreboard .lab-rating-chart>div:first-child{grid-column:1/-1;width:100%;min-height:190px;aspect-ratio:1727/911;padding:18px 20px 12px;background:transparent;border-radius:0}
 .lab-scoreboard .lab-rating-chart dt{margin:0;color:#9dcee9;font-size:11px;line-height:1.5;letter-spacing:.1em}
 .lab-scoreboard .lab-rating-chart>div:first-child>dt{margin:0}
 .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale){font-size:clamp(84px,25vw,116px);line-height:1;font-weight:800;letter-spacing:-.07em;color:#f4faff;font-variant-numeric:tabular-nums;margin:7px 0 4px}

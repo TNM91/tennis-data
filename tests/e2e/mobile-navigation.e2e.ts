@@ -37,3 +37,11 @@ for(const width of [320,390])test('all destinations, direct competitions, focus 
  await page.goto(origin+'/?large=1');await expect(page.locator('.lab-scoreboard')).toContainText('4.42');await bounded(page);await page.getByRole('button',{name:'Compete',exact:true}).click();await bounded(page);await page.getByRole('button',{name:'More',exact:true}).click();await bounded(page);await page.screenshot({path:info.outputPath('more-large-text.png')})
  await page.locator('[data-app-destination="tournaments"]').click();await expect(event).toContainText('Northside Open');await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click());await expect(event).toHaveCount(0);await expect(page.locator('.lab-scoreboard')).toContainText('4.42');expect(errors).toEqual([])
 })
+
+test('the complete approved court fits its stage at wider phone/tablet sizes',async({page})=>{
+ for(const width of [600,844]){
+  await page.setViewportSize({width,height:844});await page.goto(origin);await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
+  expect(await page.locator('.rating-court-scene').evaluate(el=>{const scene=el.getBoundingClientRect(),row=el.parentElement!.querySelector('.lab-rating-chart>div')!.getBoundingClientRect();return scene.top>=row.top-1&&scene.bottom<=row.bottom+1&&scene.width<=row.width+1})).toBe(true)
+  await bounded(page)
+ }
+})
