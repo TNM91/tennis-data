@@ -18,7 +18,7 @@ describe('focused auth and admin shell', () => {
   it('keeps login and registration direct', () => {
     expect(login).toContain('Sign in to TenAceIQ.')
     expect(login).toContain('Explore without signing in')
-    expect(login).not.toContain('More Tennis. Less Chaos.</div>')
+    expect(login).not.toContain('More Tennis. One App.</div>')
     expect(joinPage).toContain('Create your free account.')
     expect(joinPage).not.toContain('<TiqFeatureIcon name="accountSecurity"')
   })

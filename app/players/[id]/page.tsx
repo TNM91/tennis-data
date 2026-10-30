@@ -2752,7 +2752,7 @@ function PlayerProfileContent() {
                     <div style={trophyCopyStyle}>
                       <strong>{award.badgeLabel}</strong>
                       <span>{award.title} - {award.sourceName}</span>
-                      <small>{award.subtitle || 'More Tennis. Less Chaos.'}</small>
+                      <small>{award.subtitle || 'More Tennis. One App.'}</small>
                     </div>
                     <div style={trophyActionRowStyle}>
                       <MiniLink href={`/awards/${encodeURIComponent(award.id)}`}>Certificate</MiniLink>

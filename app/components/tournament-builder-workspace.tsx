@@ -2922,7 +2922,7 @@ export default function TournamentBuilderWorkspace() {
                       <div style={sectionEyebrowStyle}>{award.badgeLabel}</div>
                       <h3 style={recordTitleStyle}>{award.recipientName}</h3>
                       <p style={recordTextStyle}>{award.sourceName}</p>
-                      <p style={recordTextStyle}>{award.subtitle || 'More Tennis. Less Chaos.'}</p>
+                      <p style={recordTextStyle}>{award.subtitle || 'More Tennis. One App.'}</p>
                       <div style={awardMetaRowStyle}>
                         <span>{formatAwardIssuedAt(award.issuedAt)}</span>
                         <span>{awardPlayerId ? 'Trophy case linked' : 'Profile needed'}</span>
@@ -3447,7 +3447,7 @@ function buildAwardPrintHtml(award: TiqAwardRecord) {
     recipientName: escapeHtml(award.recipientName),
     title: escapeHtml(award.title),
     sourceName: escapeHtml(award.sourceName),
-    subtitle: escapeHtml(award.subtitle || 'More Tennis. Less Chaos.'),
+    subtitle: escapeHtml(award.subtitle || 'More Tennis. One App.'),
     notes: escapeHtml(award.notes),
   }
   return `<!doctype html>
@@ -3477,7 +3477,7 @@ function buildAwardPrintHtml(award: TiqAwardRecord) {
     <p class="copy">${escaped.badgeLabel} in ${escaped.sourceName}. ${escaped.subtitle}</p>
     ${escaped.notes ? `<p class="copy">${escaped.notes}</p>` : ''}
     <div class="badge">${escaped.badgeCode}</div>
-    <div class="motto">More Tennis. Less Chaos.</div>
+    <div class="motto">More Tennis. One App.</div>
   </main>
 </body>
 </html>`

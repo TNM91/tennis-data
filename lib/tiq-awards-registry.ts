@@ -452,7 +452,7 @@ export function buildTiqAwardCertificateText(record: TiqAwardRecord) {
     `${record.title} in ${record.sourceName}`,
     record.subtitle || `Recognized for a ${sourceLabel} finish.`,
     record.notes,
-    'More Tennis. Less Chaos.',
+    'More Tennis. One App.',
   ].filter(Boolean).join('\n')
 }
 

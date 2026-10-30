@@ -47,7 +47,7 @@ describe('structured data', () => {
       '@type': 'Organization',
       name: 'TenAceIQ',
       url: 'https://www.tenaceiq.com',
-      slogan: 'More Tennis. Less Chaos.',
+      slogan: 'More Tennis. One App.',
     })
 
     expect(buildWebSiteJsonLd()).toMatchObject({

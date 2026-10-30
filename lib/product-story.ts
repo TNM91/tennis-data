@@ -3,7 +3,7 @@ import { COACH_TACTICS_BOARD_HREF } from './tactics-hrefs'
 export const PRODUCT_NORTH_STAR =
   'TenAceIQ helps players, captains, coaches, clubs, leagues, and tournament organizers spend less time searching, guessing, and coordinating, and more time playing, improving, coaching, captaining, and enjoying tennis.'
 
-export const PRODUCT_MOTTO = 'More Tennis. Less Chaos.'
+export const PRODUCT_MOTTO = 'More Tennis. One App.'
 
 export const PLATFORM_POSITIONING =
   'The tennis platform that gives players, captains, coaches, clubs, leagues, and tournaments the context and tools to play, improve, and run tennis with less friction.'

@@ -19,7 +19,7 @@ describe('award certificate page', () => {
     expect(source).toContain('size: letter landscape')
     expect(source).toContain('tiq-award-certificate')
     expect(source).toContain('print-color-adjust: exact')
-    expect(source).toContain('More Tennis. Less Chaos.')
+    expect(source).toContain('More Tennis. One App.')
   })
 
   it('has award-specific metadata and share art', () => {
@@ -34,6 +34,6 @@ describe('award certificate page', () => {
     expect(routeMetadata).toContain('`${path}/opengraph-image`')
     expect(ogImage).toContain('TenAceIQ Award')
     expect(ogImage).toContain('preview.badgeCode')
-    expect(ogImage).toContain('More Tennis. Less Chaos.')
+    expect(ogImage).toContain('More Tennis. One App.')
   })
 })

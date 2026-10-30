@@ -93,7 +93,7 @@ function AwardCertificateInner() {
       <section className="tiq-award-screen-only" style={heroStyle}>
         <div>
           <div style={eyebrowStyle}>TenAceIQ Award</div>
-          <h1 style={titleStyle}>More Tennis. Less Chaos.</h1>
+          <h1 style={titleStyle}>More Tennis. One App.</h1>
         </div>
         <div style={actionRowStyle}>
           <button type="button" onClick={() => window.print()} style={buttonStyle}>
@@ -133,8 +133,8 @@ function AwardCertificateInner() {
             <h2 style={recipientStyle}>{award.recipientName}</h2>
             <p style={awardTitleStyle}>{award.title}</p>
             <p style={sourceStyle}>{award.sourceName}</p>
-            <p style={subtitleStyle}>{award.subtitle || 'More Tennis. Less Chaos.'}</p>
-            <div style={mottoStyle}>More Tennis. Less Chaos.</div>
+            <p style={subtitleStyle}>{award.subtitle || 'More Tennis. One App.'}</p>
+            <div style={mottoStyle}>More Tennis. One App.</div>
           </section>
 
           <section className="tiq-award-screen-only" style={panelStyle}>
@@ -230,7 +230,7 @@ function buildAwardEmailHref(award: TiqAwardRecord) {
   const subject = `TenAceIQ ${award.badgeLabel}: ${award.recipientName}`
   const body = [
     `${award.recipientName} earned ${award.title} in ${award.sourceName}.`,
-    award.subtitle || 'More Tennis. Less Chaos.',
+    award.subtitle || 'More Tennis. One App.',
     '',
     `Certificate: ${href}`,
   ].join('\n')

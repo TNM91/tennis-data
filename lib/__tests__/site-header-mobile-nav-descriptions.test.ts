@@ -15,7 +15,7 @@ describe('site header mobile navigation descriptions', () => {
     expect(headerSource).toContain('const mobileItemDescriptionStyle')
   })
 
-  it('keeps every primary mobile nav item tied to More Tennis. Less Chaos. jobs', () => {
+  it('keeps every primary mobile nav item tied to More Tennis. One App. jobs', () => {
     expect(PRIMARY_NAV_ITEMS).toHaveLength(7)
     expect(PRIMARY_NAV_ITEMS.map((item) => item.label)).toEqual([
       'Explore',

@@ -46,7 +46,7 @@ describe('Captain live scorecard', () => {
     expect(sheet).toContain("context.fillText('MATCH DETAILS'")
     expect(sheet).toContain("input.confirmed ? 'FINAL • CONFIRMED'")
     expect(sheet).toContain("input.confirmed ? 'CONFIRMED PAIR'")
-    expect(sheet).toContain("context.fillText('MORE TENNIS. LESS CHAOS.'")
+    expect(sheet).toContain("context.fillText('MORE TENNIS. ONE APP.'")
     expect(sheet).toContain("const lineupLabel = confirmedLineup ? 'Confirmed lineup' : 'Projected lineup'")
     expect(sheet).toContain('Open ${lineupLabel.toLowerCase()}: ${lineupShareUrl}')
   })

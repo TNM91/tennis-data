@@ -256,8 +256,8 @@ export async function getAwardMetadataById(id: string): Promise<Metadata> {
     ? `${preview.recipientName} ${preview.title}`
     : 'TenAceIQ Award Certificate'
   const description = preview.recipientName
-    ? `${preview.recipientName} earned ${preview.title} at ${preview.sourceName}. More Tennis. Less Chaos.`
-    : 'Open a TenAceIQ award certificate. More Tennis. Less Chaos.'
+    ? `${preview.recipientName} earned ${preview.title} at ${preview.sourceName}. More Tennis. One App.`
+    : 'Open a TenAceIQ award certificate. More Tennis. One App.'
   const path = `/awards/${encodeURIComponent(id)}`
 
   return {
@@ -357,6 +357,6 @@ export async function getAwardSharePreview(id: string) {
     title: row?.title?.trim() || 'Award Certificate',
     badgeLabel: row?.badge_label?.trim() || 'Award',
     badgeCode: row?.badge_code?.trim() || 'TIQ',
-    subtitle: row?.subtitle?.trim() || 'More Tennis. Less Chaos.',
+    subtitle: row?.subtitle?.trim() || 'More Tennis. One App.',
   }
 }

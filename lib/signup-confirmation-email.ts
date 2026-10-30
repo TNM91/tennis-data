@@ -179,7 +179,7 @@ export function buildSignupConfirmationEmail({ intent, firstName, confirmationUr
             <p style="margin:0;color:#66758C;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;text-align:center;">${escapeHtml(story.note)}</p>
           </td></tr>
           <tr><td style="padding:20px 34px;background:#F7F9FC;border-top:1px solid #E1E7F0;">
-            <p style="margin:0;color:#66758C;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;text-align:center;">More Tennis. Less Chaos.<br />Questions or feedback? <a href="mailto:Nathan@TenAceiQ.com" style="color:#315C05;text-decoration:underline;">Nathan@TenAceiQ.com</a></p>
+            <p style="margin:0;color:#66758C;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;text-align:center;">More Tennis. One App.<br />Questions or feedback? <a href="mailto:Nathan@TenAceiQ.com" style="color:#315C05;text-decoration:underline;">Nathan@TenAceiQ.com</a></p>
           </td></tr>
         </table>
       </td></tr>

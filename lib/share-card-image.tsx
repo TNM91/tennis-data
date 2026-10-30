@@ -22,7 +22,7 @@ export function renderTiqShareCard(input: {
           <div style={{ display: 'flex', fontSize: input.title.length > 34 ? 58 : 72, lineHeight: .98, fontWeight: 950 }}>{input.title}</div>
           {input.subtitle ? <div style={{ display: 'flex', marginTop: 16, color: '#d9e6f2', fontSize: 34, fontWeight: 800 }}>{input.subtitle}</div> : null}
         </div>
-        <div style={{ display: 'flex', color: '#b9cadb', fontSize: 25, fontWeight: 700 }}>{input.detail || 'More Tennis. Less Chaos.'}</div>
+        <div style={{ display: 'flex', color: '#b9cadb', fontSize: 25, fontWeight: 700 }}>{input.detail || 'More Tennis. One App.'}</div>
       </div>
       <div style={{ width: '34%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <EntityIllustration kind={input.kind} />
