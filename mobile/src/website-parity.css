@@ -971,3 +971,10 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 
 .tournaments-dialog .tournament-entrant-section{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
 .tournaments-dialog .tournament-entrant-timezone{font-size:.85rem!important;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+
+/* Keep account switching discoverable even when account details cannot load. */
+.account-settings-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-block-end:16px;min-inline-size:0}
+.account-settings-dialog .account-settings-toolbar button{inline-size:auto;max-inline-size:100%;min-inline-size:0;min-block-size:44px;margin:0!important;padding:10px 12px!important;white-space:normal;overflow-wrap:anywhere}
+.account-settings-dialog [data-account-logout]{font-size:14px;border-color:#64b9ed;background:#123754;color:#eff8ff}
+.account-settings-dialog [data-account-logout-error]:empty{display:none}
+.account-settings-dialog [data-account-logout-error]{overflow-wrap:anywhere}

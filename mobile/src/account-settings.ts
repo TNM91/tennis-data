@@ -6,16 +6,18 @@ import {html} from './match-details'
 import {accountLinksHtml,bindAccountLinks,showPasswordRecovery} from './account-actions'
 import {showEmailAuth} from './email-auth'
 import {loadBillingPortal,readAccountSettings,type AccountSettings} from './account-settings-data'
-export function openAccountSettings(client:SupabaseClient,owner:string,current:()=>boolean){
+export function openAccountSettings(client:SupabaseClient,owner:string,current:()=>boolean,logOut:()=>Promise<void>){
  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,dialog=document.createElement('dialog'),host=document.createElement('div'),close=document.createElement('button')
- dialog.className='account-settings-dialog';dialog.setAttribute('aria-label','Account settings');close.type='button';close.className='secondary account-dialog-close';close.textContent='Close account settings';dialog.append(close,host)
- let disposed=false,request=0,pane='settings',data:AccountSettings|null=null,child:ReturnType<typeof showEmailAuth>|ReturnType<typeof showPasswordRecovery>|null=null
+ dialog.className='account-settings-dialog';dialog.setAttribute('aria-label','Account settings');close.type='button';close.className='secondary account-dialog-close';close.textContent='Close account settings';const toolbar=document.createElement('div'),logout=document.createElement('button'),logoutError=document.createElement('p');toolbar.className='account-settings-toolbar';logout.type='button';logout.className='secondary';logout.textContent='Log out';logout.dataset.accountLogout='';logoutError.setAttribute('role','alert');logoutError.dataset.accountLogoutError='';toolbar.append(close,logout);dialog.append(toolbar,logoutError,host)
+ let disposed=false,signingOut=false,request=0,pane='settings',data:AccountSettings|null=null,child:ReturnType<typeof showEmailAuth>|ReturnType<typeof showPasswordRecovery>|null=null
  let accessPanel:ReturnType<typeof mountAccountAccess>|null=null
  let applePanel:ReturnType<typeof mountAppleMemberships>|null=null
  const valid=()=>!disposed&&current()&&dialog.isConnected
+ const signOut=async()=>{if(!valid()||signingOut)return;signingOut=true;logout.disabled=true;logout.textContent='Logging out…';logoutError.textContent='';host.inert=true;host.setAttribute('aria-busy','true');try{await logOut();dispose()}catch{if(valid()){logoutError.textContent='Couldn’t log out. Check your connection and try again.';logoutError.focus({preventScroll:true})}}finally{if(valid()){signingOut=false;logout.disabled=false;logout.textContent='Log out';host.inert=false;host.removeAttribute('aria-busy')}}}
+ logoutError.tabIndex=-1;logout.onclick=()=>{void signOut()}
  const clearChild=()=>{child?.dispose();child=null;accessPanel?.dispose();accessPanel=null;applePanel?.dispose();applePanel=null}
  const dispose=()=>{if(disposed)return;disposed=true;request++;clearChild();dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
- const back=()=>{if(disposed)return false;if(pane!=='settings'){void load();return true}dispose();return true}
+ const back=()=>{if(disposed)return false;if(signingOut){dispose();return true}if(pane!=='settings'){void load();return true}dispose();return true}
  close.onclick=dispose;dialog.oncancel=e=>{e.preventDefault();back()};document.body.append(dialog);dialog.showModal()
  function render(){
   if(!valid()||!data)return;clearChild();request++;pane='settings'
@@ -28,7 +30,7 @@ export function openAccountSettings(client:SupabaseClient,owner:string,current:(
   host.querySelector<HTMLButtonElement>('[data-billing]')!.onclick=async()=>{const b=host.querySelector<HTMLButtonElement>('[data-billing]')!,error=host.querySelector<HTMLElement>('[data-account-error]')!;if(b.disabled||!valid())return;const visit=++request;b.disabled=true;error.textContent='';try{const url=await loadBillingPortal(client,owner,()=>valid()&&visit===request);if(valid()&&visit===request)await Browser.open({url})}catch(e){if(valid()&&visit===request)error.textContent=e instanceof Error&&e.message==='billing_not_found'?'No existing web billing account was found.':'Couldn’t open billing. Check your connection and try again.'}finally{if(valid()&&visit===request&&b.isConnected)b.disabled=false}}
  }
  function requestHtml(item:NonNullable<AccountSettings['request']>){const date=(v:string)=>new Date(v).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});return `<section class="account-request-status"><h2>Permanent deletion requested</h2><p>${item.status==='requested'?'Your account is queued for automatic deletion.':item.status==='reviewing'?'Your account is being deleted automatically.':item.status==='erased'?'Erasure has been verified. Your completion email is pending.':'Your request is complete.'}</p><p>Requested ${html(date(item.requestedAt))}. Completion due ${html(date(item.dueAt))}.</p><p>You will be signed out as deletion begins. We will email you when removal is complete.</p><small>Reference ${html(item.id)}</small><button type="button" class="secondary" data-erasure-signout>Finish and sign out</button></section>`}
- function bindReceipt(){const button=host.querySelector<HTMLButtonElement>('[data-erasure-signout]');if(button)button.onclick=async()=>{if(!valid()||button.disabled)return;button.disabled=true;try{await client.auth.signOut({scope:'local'});if(valid())dispose()}catch{if(valid()){button.disabled=false;button.textContent='Try signing out again'}}}}
+ function bindReceipt(){const button=host.querySelector<HTMLButtonElement>('[data-erasure-signout]');if(button)button.onclick=()=>{void signOut()}}
  function deletion(){
   if(!valid()||!data)return;clearChild();request++;pane='delete'
   if(data.request){host.innerHTML=`<h1 tabindex="-1">Deletion request</h1>${requestHtml(data.request)}<button type="button" class="secondary" data-return>Back to account</button><button type="button" class="secondary" data-status-refresh>Refresh request status</button>`;host.querySelector<HTMLButtonElement>('[data-return]')!.onclick=()=>render();host.querySelector<HTMLButtonElement>('[data-status-refresh]')!.onclick=()=>{void load(true)};host.querySelector<HTMLElement>('h1')!.focus();bindReceipt();return}

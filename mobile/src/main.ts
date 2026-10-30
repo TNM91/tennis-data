@@ -2,6 +2,7 @@ import {openCompetitions} from './competitions-view'
 import {applePurchases} from './apple-purchases'
 import {showEmailAuth} from './email-auth'
 import {openAccountSettings} from './account-settings'
+import {createNativeSignOut} from './native-sign-out'
 import {showGuestExplore} from './guest-explore'
 import {PRODUCT_MOTTO,MEMBERSHIP_TIERS} from '../../lib/product-story'
 import type {TeamChatDestination} from './team-room-data'
@@ -53,7 +54,7 @@ app.after(navigation)
 const accountEntry=document.createElement('button')
 accountEntry.type='button';accountEntry.className='secondary native-account-entry';accountEntry.hidden=true;accountEntry.textContent='Account';accountEntry.setAttribute('aria-label','Account settings')
 document.querySelector('.app-header')!.append(accountEntry)
-accountEntry.onclick=()=>{if(!session||accountSettings?.isOpen()||competitions?.isOpen()||connection?.isSaving())return;const owner=session.user.id,visit=revision;accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id)}
+accountEntry.onclick=()=>{if(!session||accountSettings?.isOpen()||competitions?.isOpen()||connection?.isSaving())return;const owner=session.user.id,visit=revision;accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner))}
 let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof openDataImports>|null=null
 let competitions:ReturnType<typeof openCompetitions>|null=null
@@ -243,6 +244,7 @@ function openTeamRoom(initialScope?:TeamChatDestination){
 navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()=>openTeamRoom()
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
 const nativePurchases=applePurchases(client)
+const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
 function setNativeSession(next:typeof session){nativePush.setSession(next);nativePurchases.setOwner(next?.user.id||null)}
 
 async function lab() {
@@ -275,7 +277,7 @@ async function lab() {
   app.dataset.state = error ? 'unavailable' : 'ready'
   app.innerHTML = `${error
     ? '<h1 tabindex="-1">My Lab</h1><section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
-    : `${data?.linked_player_id&&data.linked_player_name?'<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">My Lab</small><h1 tabindex="-1">'+escape(data.linked_player_name)+'</h1><p>'+escape(data.linked_team_name||'Your tennis, in focus')+'</p></div><button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">'+nativeActionIcon('profile')+'</button></header>':''}<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
+    : `${data?.linked_player_id&&data.linked_player_name?'<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">My Lab</small><h1 tabindex="-1">'+escape(data.linked_player_name)+'</h1><p>'+escape(data.linked_team_name||'Your tennis, in focus')+'</p></div><button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">'+nativeActionIcon('profile')+'</button></header>':''}<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
 
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
@@ -326,15 +328,9 @@ async function lab() {
   }
   app.querySelector<HTMLButtonElement>('#refresh')!.onclick = () => { void lab() }
   app.querySelector<HTMLButtonElement>('#logout')!.onclick = async event => {
-    (event.currentTarget as HTMLButtonElement).disabled = true
-    try {
-      await nativePush.beforeSignOut()
-      const { error: logoutError } = await client.auth.signOut({scope: 'local'})
-      if (logoutError) throw logoutError
-    } catch {
-      app.querySelector('#notice')!.textContent = 'Could not sign out. Please try again.'
-      app.querySelector<HTMLButtonElement>('#logout')!.disabled = false
-    }
+    const button=event.currentTarget as HTMLButtonElement;button.disabled=true
+    try {await signOut(current.user.id)}
+    catch {if(version!==revision||!button.isConnected)return;app.querySelector('#notice')!.textContent='Couldn’t log out. Check your connection and try again.';button.disabled=false}
   }
   if (!error) {
     const playerId = typeof data?.linked_player_id === 'string' ? data.linked_player_id : ''
