@@ -121,7 +121,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
     }catch{notice='Can’t check team alerts. Try again when you’re connected.'}finally{busy=false;render()}
    })
   },
-  beforeSignOut(){return enqueue(async()=>{if(!supported || !current)return;const {data,error}=await client.auth.getSession();if(error || data.session?.user.id!==current.user.id)throw Error('Sign in again before changing alerts');const device=await load();if(device.owner===current.user.id)await disable(data.session);else{await plugin.unregister();await plugin.removeAllDeliveredNotifications()}})},
+  beforeSignOut(expectedOwner=current?.user.id){return enqueue(async()=>{if(!supported)return;if(!current){if(expectedOwner)throw Error('Account changed');return}if(current.user.id!==expectedOwner)throw Error('Account changed');const {data,error}=await client.auth.getSession();if(error||current?.user.id!==expectedOwner||data.session?.user.id!==expectedOwner)throw Error('Sign in again before changing alerts');const device=await load();if(current?.user.id!==expectedOwner)throw Error('Account changed');if(device.owner===expectedOwner)await disable(data.session);else{await plugin.unregister();await plugin.removeAllDeliveredNotifications()}})},
   dispose(){disposed=true;version++;current=null;void actionHandle?.remove();void resumeHandle?.remove()},
  }
 }

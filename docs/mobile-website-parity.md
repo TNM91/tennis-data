@@ -1049,3 +1049,53 @@ All reads and updates use the caller JWT/RLS client and existing tables/policies
 Approved entries use the existing active-entry participation/schedule access rules; approval creates no matches and does not assert a team captain relationship. Existing database/schema defines no new native capacity limit; scheduling and season setup remain separate. Successful coordinator updates and player replies attempt the existing in-app notifications through caller permissions. Notification delivery failure does not turn a confirmed decision into an unsaved result. A lost mutation reply locks further actions until a fresh status check. Closing/backgrounding/account changes reject late responses.
 
 Verification includes caller authorization and actual PostgreSQL entry constraints/RLS, player question/reply, conditional approval, stale retry rejection and the existing approved-entrant access function. Phone fixtures cover 320/390 widths, enlarged text, long names, explicit eligibility confirmation, questions, replies, stale reviews, closed seasons, verified mismatches and lost replies. QA uses isolated fixture data; no production member decisions or notifications are sent. Existing account-erasure/entry-retention disclosure review remains a public-launch prerequisite.
+
+
+### League schedule and court-result finder
+
+- Competitions and League Office share a local finder for loaded league records. Schedule accepts a literal team/player-name substring, exact saved calendar day and recorded status; Results accepts team or recorded court-player names and exact calendar day. Unicode width, case and repeated spaces normalize for name searches. Scores, venues and winner labels are not name-search fields.
+- Schedule is chronological; Results is newest first, with stable ID ordering for equal dates. Filtering does not join fixtures to result events by name/date or recompute standings. Team outcomes remain separate from individual court scores. Searching a recorded court player opens court evidence and identifies the saved winning side by its player names.
+- Both routes keep independent Schedule and Results filters across tab changes and manual refresh, clearing them on a newly selected season. Removed dates remain selected as “no longer loaded” and show zero results until changed or cleared. Refresh clears stale records before loading; the existing account, visibility and late-response guards remain in force.
+- Counts describe loaded dates or result events, never player wins. Existing 100-fixture/result and 500-court sample limits remain visible, and incomplete samples continue to withhold standings. No added requests, polling, mutations, permissions, ratings or database migrations.
+- Phone coverage uses synthetic data in Chromium and WebKit at 320/390 pixels, including enlarged text, long valid names, local-only filtering, removed-date refresh, season changes, and organizer navigation. Physical iPhone acceptance follows a future beta release.
+
+
+### Team season evidence from league standings and approved entries
+
+- Team standings and approved team entries in Competitions and League Office open a shared team-season sheet. Its record, court W–L and points come directly from one complete saved standings row. The view does not infer personal wins or recalculate totals from a sample of match events/courts.
+- Schedule and result evidence match the full, case-sensitive team name on the event sides, matching the league's existing name-keyed standings semantics. Similar prefixes and names appearing only among court players are excluded. These names filter already-authorized league records; they do not grant access or establish account ownership.
+- Opening, closing and returning require no requests and preserve the underlying finder filters, team action focus and list scroll position. Only explicit Refresh team reloads the same league through its existing authenticated Competitions/League Office loader. It checks account/current-view state before and after the request, clears stale child content during refresh, and invalidates closed/late responses.
+- An entry removed from the selected source becomes unavailable on refresh; no remembered row index is reused. Duplicate exact names do not offer a drilldown. A roster team can inspect partial schedule/result evidence with limitations shown, while incomplete standings metrics remain withheld. Proposed/cancelled dates retain their status; result cards preserve individual court details.
+- Individual leagues, pending/rejected/removed organizer entries, database permissions, registration mutations and scoring rules remain outside this view. Physical iPhone acceptance follows a future internal beta.
+
+
+### Individual league entry match evidence
+
+- Approved individual-league entries in Competitions and League Office now open a player-season sheet. It shows exact-entry scheduled dates and saved player result cards, with loaded-record counts rather than invented rankings, win rates, ratings or season totals. Existing standings rules remain unchanged.
+- Full case-sensitive event-side names filter the already-authorized league snapshot. Prefixes, court-player names and pieces of a paired entry label are not joined into personal match history or used for account ownership/access. Duplicate active entry names offer no drilldown; pending/rejected/removed entries remain separate.
+- The shared team/player modal lifecycle clears old content while refreshing, verifies the same league ID and format, rejects late responses after close/account change, and supports parent disposal/device Back. Opening/back/closing add no requests; explicit refresh uses the existing authenticated loader. Filters, focus and scroll in the parent list persist.
+- Calendar dates, time zones, proposed/cancelled statuses, missing winners and source scores keep their recorded meanings. Partial schedule/result samples are labeled. Native signup, tournament registration, production schema, billing and permissions are unchanged; physical iPhone acceptance awaits a future beta.
+
+### Long season-history navigation
+
+- Team and player season sheets have compact Schedule/Results jumps showing loaded matching record counts. Each section returns to the summary, so long schedules do not bury results or the route back. Keyboard focus follows the chosen heading, with no extra request or background refresh.
+- Returning to a league preserves the previous scroll position when the exact source action is still visible. If a refresh moved it elsewhere in a long list, the sheet scrolls just enough to reveal that same team/player action. Removed entries return to the current league heading. Competitions and League Office share this behavior.
+- Refresh returns to the top, clears outdated jump controls while loading or after failure, and withholds navigation when the selected entry is unavailable. Source access rules, filters, saved statistics, scoring and sample limits remain unchanged. Narrow phones and enlarged text are covered with synthetic long histories; physical iPhone acceptance follows beta release.
+
+### League entry and standings finder
+
+- Competitions and League Office can find loaded approved teams/players and team standings by a literal normalized name substring. League Office additionally filters participant records by approved, pending, rejected or removed status. Public entries remain approved-only. Searches do not establish ownership, join names or change eligibility for match-history actions.
+- Standings and participant filters are separate from each other and from Schedule/Results filters. They persist across tabs, child history and manual refresh of the same season, reset for a newly selected season, and clear locally without requests. A removed matching entry leaves an empty filtered list rather than silently resetting search.
+- Counts describe the loaded sample, with entry limits visible. Filtered standings retain their saved order, list positions and source metrics; no re-ranking or scoring calculation is introduced. Incomplete standings remain withheld. Parent refresh/account/late-response guards and exact-name source revalidation are unchanged.
+
+### Tournament standings finder
+
+- Published division standings support literal normalized entrant-name search and exact published-group selection. Group-less records remain distinct from All groups. A removed selected group stays visible as no longer published with zero matches until changed or cleared. Filters search standings entry names, not scores or group labels.
+- Filtered rows retain source order, list positions, complete entrant names, group keys and saved metrics. No new ranking or win calculation is introduced; unplayed entries show a dash for win rate. History still matches the full name inside the selected division, with saved group metrics kept separate from later-round match evidence.
+- Standings filters stay independent of match filters, survive tabs/history/same-division refresh and reset on event/division changes. Search/clear/history/back add no requests. Back keeps the exact source action visible after refreshed lists reorder, using the existing sheet focus/scroll helper. Withdrawn/unavailable entries return to the current standings heading.
+- Unpublished/withheld draws have no stale standings or finder controls. Existing authenticated loading, account/selection guards, data limits, permissions and error recovery are preserved. Uses established controls and approved styling without artwork changes; physical iPhone acceptance follows a future beta.
+
+### Tournament registration integration
+
+- The combined candidate includes player singles/doubles requests, private saved receipts and organizer approval through the existing tournament desk. Production migration/catalog permissions and caller-role checks passed separately; release of the API and native client still requires normal gates.
+- Registration opens within the selected division and returns to its explicit opener, retaining independent match and standings filters. Parent disposal/account changes invalidate private replies. Fees remain arranged with the organizer; this flow collects no payment and changes no Apple membership behavior.

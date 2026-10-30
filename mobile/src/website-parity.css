@@ -939,3 +939,95 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .tournament-standings strong{color:#f3f8ff}.tournament-standings span{color:#8cd3ff;font-size:.8rem}
 .tournament-standings p{font-size:.85rem!important;line-height:1.6!important;margin-block:12px 0!important;color:#b9d1e6}
 .tournaments-dialog [data-tournament-content]{overflow-wrap:anywhere}
+
+/* Match discovery uses local published data and keeps form controls inside phone sheets. */
+.tournament-match-filters{display:grid;gap:.65rem;min-inline-size:0;margin-block:1rem}
+.tournament-match-filters>label,.tournament-schedule-filters label{font-size:.9rem;font-weight:700;min-inline-size:0;overflow-wrap:anywhere}
+.tournament-match-filters input,.tournament-match-filters select{box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;min-block-size:48px;margin:0!important;padding:.85rem!important;font:inherit!important;color:inherit;background:var(--navy,#061b35);border:1px solid #426382;border-radius:14px}
+.tournament-schedule-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.tournament-schedule-filters select{display:block;margin-block-start:.5rem!important}
+.tournament-filter-actions{display:flex;flex-wrap:wrap;gap:.65rem}
+.tournament-filter-actions button{flex:1 1 130px;min-inline-size:0;max-inline-size:100%;margin:0!important;padding:.85rem!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.tournaments-dialog .tournament-filter-status{font-size:.85rem!important;color:var(--muted);overflow-wrap:anywhere}
+@media(max-width:360px){.tournament-schedule-filters{grid-template-columns:minmax(0,1fr)}}
+
+.tournament-match-filters select{appearance:none;-webkit-appearance:none;padding-inline-end:2.3rem!important;background-image:linear-gradient(45deg,transparent 50%,#abc8df 50%),linear-gradient(135deg,#abc8df 50%,transparent 50%);background-position:calc(100% - 1.15rem) 50%,calc(100% - .85rem) 50%;background-size:.3rem .3rem;background-repeat:no-repeat}
+.tournaments-dialog .tournament-filter-summary{font-size:.85rem!important;line-height:1.5!important;color:var(--muted);overflow-wrap:anywhere}
+
+/* Standings open an exact entrant's published division matches without another request. */
+.tournaments-dialog .tournament-entrant-open{display:flex;align-items:center;justify-content:space-between;gap:12px;inline-size:100%;min-block-size:48px;max-inline-size:100%;padding:12px 14px!important;margin:14px 0 0!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.tournament-entrant-heading{border:1px solid #28557a;border-radius:22px;padding:18px;background:linear-gradient(140deg,#103c60,#071b35 76%);margin-block:18px;overflow-wrap:anywhere}
+.tournament-entrant-heading small{color:#8cd3ff;font-weight:700;font-size:.85rem}
+.tournament-entrant-heading h3{color:#f3f8ff;font-size:1.6rem!important;line-height:1.3!important;margin-block:12px!important}
+.tournament-entrant-heading .competition-metrics{margin-block:18px}
+.tournaments-dialog .tournament-entrant-heading p{font-size:.85rem!important;color:#b9d1e6;line-height:1.6}
+.tournament-entrant-section{margin-block:24px}
+.tournament-entrant-section>h4{font-size:1.05rem!important;color:#d4edff;line-height:1.5}
+.tournaments-dialog .tournament-entrant-context{color:#8cd3ff;font-size:.9rem!important;line-height:1.5;margin-block:8px 16px;overflow-wrap:anywhere}
+.tournament-entrant-heading .competition-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tournament-entrant-heading .competition-metrics>div:first-child{grid-column:1/-1}
+.tournament-entrant-heading .competition-metrics strong{font-size:1.5rem;overflow-wrap:anywhere}
+.tournament-entrant-heading .competition-metrics>div:first-child strong{font-size:1.8rem}
+
+.tournaments-dialog .tournament-entrant-section{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.tournaments-dialog .tournament-entrant-timezone{font-size:.85rem!important;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+
+/* Keep account switching discoverable even when account details cannot load. */
+.account-settings-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-block-end:16px;min-inline-size:0}
+.account-settings-dialog .account-settings-toolbar button{inline-size:auto;max-inline-size:100%;min-inline-size:0;min-block-size:44px;margin:0!important;padding:10px 12px!important;white-space:normal;overflow-wrap:anywhere}
+.account-settings-dialog [data-account-logout]{font-size:14px;border-color:#64b9ed;background:#123754;color:#eff8ff}
+.account-settings-dialog [data-account-logout-error]:empty{display:none}
+.account-settings-dialog [data-account-logout-error]{overflow-wrap:anywhere}
+
+/* League search and court evidence stay readable within compact phone sheets. */
+.league-match-finder{display:grid;gap:12px;margin-block:20px;min-inline-size:0;padding:16px;border:1px solid #28557a;border-radius:20px;background:linear-gradient(140deg,#103451,#0a213a)}
+.league-match-finder label{display:grid;gap:8px;min-inline-size:0;font-size:.9rem;font-weight:700;overflow-wrap:anywhere}
+.league-match-finder input,.league-match-finder select{box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;min-block-size:48px;margin:0!important;padding:12px!important;font:inherit!important;color:inherit;background:#061b35;border:1px solid #426382;border-radius:14px}
+.league-match-finder select{appearance:none;-webkit-appearance:none;padding-inline-end:2.3rem!important;background-image:linear-gradient(45deg,transparent 50%,#abc8df 50%),linear-gradient(135deg,#abc8df 50%,transparent 50%);background-position:calc(100% - 1.15rem) 50%,calc(100% - .85rem) 50%;background-size:.3rem .3rem;background-repeat:no-repeat}
+.league-finder-selects{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px;min-inline-size:0}
+.league-finder-actions{display:flex;flex-wrap:wrap;gap:10px;min-inline-size:0}
+.league-finder-actions button{flex:1 1 130px;min-inline-size:0;max-inline-size:100%;min-block-size:48px;margin:0!important;padding:12px!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.league-finder-context,.league-finder-summary{font-size:.85rem!important;line-height:1.6!important;color:#b9d1e6;overflow-wrap:anywhere}
+.league-finder-summary{color:#8cd3ff;font-weight:700}
+.league-result-card{border:1px solid #2e5778;border-radius:20px;padding:18px;margin-block:16px;background:#0d2944;overflow-wrap:anywhere;min-inline-size:0}
+.league-result-card h4{font-size:1.15rem!important;line-height:1.5!important;margin-block:12px!important;color:#f3f9ff}
+.league-result-card p{font-size:.9rem;line-height:1.6;color:#b9d1e6;margin-block:10px}
+.league-result-card h4 span,.league-court-result p span{font-size:.85em;color:#9fbcd2}
+.league-result-card details{margin-block-start:16px;border-block-start:1px solid #2e5778}
+.league-result-card summary{min-block-size:44px;padding-block:14px;font-size:.9rem;font-weight:700;color:#8cd3ff;cursor:pointer}
+.league-court-result{border:1px solid #28557a;border-radius:14px;padding:14px;margin-block:10px;background:#071b35}
+.league-court-result strong{font-size:.85rem;color:#d6edff}
+.league-court-match{border-color:#72c6ff;box-shadow:inset 3px 0 #72c6ff}
+.league-result-card .league-result-score{color:#f3f9ff;font-size:1.1rem;font-weight:750;font-variant-numeric:tabular-nums}
+.league-office-dialog .competition-fixture{overflow-wrap:anywhere}
+
+/* Exact team match evidence opens from standings and approved league entries. */
+.league-team-open{display:flex;align-items:center;justify-content:space-between;gap:12px;inline-size:100%;max-inline-size:100%;min-inline-size:0;min-block-size:48px;margin:14px 0 0!important;padding:12px 14px!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.competition-participants li:has(.league-team-open),.team-members li:has(.league-team-open){display:block;min-inline-size:0;overflow-wrap:anywhere}
+.team-members li:has(.league-team-open)>span{display:block;margin-block-start:8px}
+.league-team-heading{padding:18px;border:1px solid #28557a;border-radius:22px;background:linear-gradient(140deg,#103c60,#071b35 76%);overflow-wrap:anywhere}
+.league-team-heading>small{color:#8cd3ff;font-size:.85rem;font-weight:700}
+.league-team-heading h3{font-size:1.6rem!important;line-height:1.3!important;margin-block:12px!important;color:#f3f8ff}
+.league-team-heading .competition-metrics{grid-template-columns:repeat(2,minmax(0,1fr));margin-block:18px}
+.league-team-heading .competition-metrics>div:first-child{grid-column:1/-1}
+.league-team-heading .competition-metrics strong{font-size:1.6rem;overflow-wrap:anywhere}
+.league-team-heading p,.league-team-context{font-size:.85rem!important;line-height:1.6!important;color:#b9d1e6;overflow-wrap:anywhere}
+.league-team-dialog .league-team-section{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;margin-block:24px}
+.league-team-section>h4{font-size:1.05rem!important;line-height:1.5!important;color:#d4edff}
+.league-team-section .competition-fixture{overflow-wrap:anywhere}
+
+.league-team-dialog .competition-header button{flex:1 1 100px;min-inline-size:0;padding:10px 12px!important;font-size:.9rem!important}
+
+.league-team-heading .league-player-metrics>div:first-child{grid-column:auto}
+
+.league-evidence-jumps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-block:20px;min-inline-size:0}
+.league-team-dialog .league-evidence-jumps button{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;min-inline-size:0;max-inline-size:100%;min-block-size:48px;padding:12px 8px!important;margin:0!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.league-evidence-jumps button span{color:#91d6ff;font-variant-numeric:tabular-nums}
+.league-team-dialog .league-evidence-summary{inline-size:100%;min-inline-size:0;min-block-size:48px;padding:12px!important;font-size:.9rem!important;white-space:normal;overflow-wrap:anywhere;margin-block-start:16px!important}
+
+/* Account-linked tournament entry uses the same compact phone form as league entry. */
+.tournament-entry-dialog select{box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;display:block;margin-block-start:.5rem;padding:.9rem;font:inherit;color:#e4f1ff;background:#061b35;border:1px solid #426382;border-radius:14px}
+.tournament-entry-dialog .entry-receipts{min-inline-size:0}
+.tournament-entry-dialog .decision-list{padding:0;list-style:none}
+.tournament-entry-dialog .decision-list button{display:grid;gap:.5rem;text-align:start;inline-size:100%}
+.tournament-entry-dialog .decision-list button span{font-size:.85rem;color:#abd5f6}

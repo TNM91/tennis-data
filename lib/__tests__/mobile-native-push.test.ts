@@ -12,7 +12,7 @@ function fixture(permission='granted'){
  const storage={getItem:vi.fn(async()=>saved),setItem:vi.fn(async(_key:string,value:string)=>{saved=value}),removeItem:vi.fn()}
  const client={auth:{getSession:vi.fn(async()=>({data:{session:session()},error:null}))}} as unknown as SupabaseClient
  const onOpen=vi.fn(),controller=createNativePush(client,onOpen,{platform:'ios',plugin:plugin as unknown as PushNotificationsPlugin,storage,request})
- return {plugin,request,storage,handlers,removes,onOpen,controller,saved:()=>JSON.parse(saved)}
+ return {client,plugin,request,storage,handlers,removes,onOpen,controller,saved:()=>JSON.parse(saved)}
 }
 describe('native team alert lifecycle',()=>{
  it('only opens an owned, fixed-origin team destination',()=>{
@@ -68,6 +68,7 @@ describe('native team alert lifecycle',()=>{
   f.handlers.pushNotificationActionPerformed({notification:{data:{recipient:'owner',href:'/team-room?team=T&league=L'}}} as never)
   expect(f.onOpen).not.toHaveBeenCalled();f.controller.dispose()
  })
+ it('rejects queued logout cleanup after the expected owner changes',async()=>{const f=fixture();vi.mocked(f.client.auth.getSession).mockResolvedValue({data:{session:session('second-owner')},error:null});f.controller.setSession(session());const task=f.controller.beforeSignOut('owner');f.controller.setSession(session('second-owner'));await expect(task).rejects.toThrow('Account changed');expect(f.client.auth.getSession).not.toHaveBeenCalled();f.controller.dispose()})
  it('does not register on Android or web',async()=>{
   const f=fixture();const controller=createNativePush({} as SupabaseClient,vi.fn(),{platform:'android',plugin:f.plugin as unknown as PushNotificationsPlugin,storage:f.storage,request:f.request})
   controller.setSession(session());await controller.beforeSignOut();expect(f.plugin.register).not.toHaveBeenCalled();controller.dispose();f.controller.dispose()
