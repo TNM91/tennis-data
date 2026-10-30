@@ -34,13 +34,17 @@ jobs:
             package-lock.json
             mobile/package-lock.json
       - name: Check Xcode
-        run: xcodebuild -version
+        run: |
+          xcodebuild -version
+          xcodebuild -help > "$RUNNER_TEMP/tiq-xcode-help.txt" 2>&1
+          python3 -c 'import pathlib,sys; assert "testFlightInternalTestingOnly" in pathlib.Path(sys.argv[1]).read_text(), "Xcode internal-only export option unavailable"' "$RUNNER_TEMP/tiq-xcode-help.txt"
       - name: Install locked dependencies
         run: |
           npm ci
           npm ci --prefix mobile
       - name: Check bundled client
         run: |
+          python3 mobile/scripts/test-ios-export-options.py
           npx vitest run lib/__tests__/mobile-account-links.test.ts lib/__tests__/mobile-match-details.test.ts lib/__tests__/mobile-recent-results.test.ts lib/__tests__/mobile-recent-form.test.ts lib/__tests__/mobile-player-connection.test.ts lib/__tests__/native-auth-storage.test.ts
           node --test mobile/scripts/ios-purchases.test.mjs mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-icon.test.mjs
       - name: Bundle and generate iOS project
@@ -50,6 +54,15 @@ jobs:
           npm run check:ios --prefix mobile
       - name: Add unsigned Debug runtime probe
         run: node mobile/scripts/ios-purchases-runtime-smoke.mjs --prepare mobile/ios/App/App/TenAceIQPurchases.swift
+      - name: Boot iPhone simulator before compiling
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/tiq-simulators.json"
+          DEVICE=$(python3 -c 'import json,sys; devices=json.load(open(sys.argv[1]))["devices"]; phones=[d for runtime in sorted(devices, reverse=True) for d in devices[runtime] if d["name"].startswith("iPhone")]; assert phones, "No iPhone simulator available"; latest=[d for d in devices[next(r for r in sorted(devices,reverse=True) if any(p["name"].startswith("iPhone") for p in devices[r]))] if d["name"].startswith("iPhone")]; print(next((d["udid"] for d in latest if d["name"]=="iPhone 16e"), latest[0]["udid"]))' "$RUNNER_TEMP/tiq-simulators.json")
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
       - name: Compile simulator app without signing
         run: |
           xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App \
@@ -61,10 +74,8 @@ jobs:
         timeout-minutes: 6
         run: |
           set -euo pipefail
-          xcrun simctl list devices available --json > "$RUNNER_TEMP/tiq-simulators.json"
-          DEVICE=$(python3 -c 'import json,sys; devices=json.load(open(sys.argv[1]))["devices"]; phones=[d for runtime in sorted(devices, reverse=True) for d in devices[runtime] if d["name"].startswith("iPhone")]; assert phones, "No iPhone simulator available"; print(phones[0]["udid"])' "$RUNNER_TEMP/tiq-simulators.json")
-          xcrun simctl boot "$DEVICE"
-          xcrun simctl bootstatus "$DEVICE" -b
+          DEVICE="$TIQ_SIMULATOR_UDID"
+          test -n "$DEVICE"
           xcrun simctl install "$DEVICE" mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
           xcrun simctl launch --terminate-running-process "$DEVICE" com.tenaceiq.prototype --tiq-storekit-smoke
           CONTAINER=$(xcrun simctl get_app_container "$DEVICE" com.tenaceiq.prototype data)
@@ -80,6 +91,7 @@ jobs:
           cp "$CONTAINER/Documents/tiq-storekit-smoke.json" mobile/ios-storekit-smoke.json
           xcrun simctl shutdown "$DEVICE"
       - name: Capture simulator diagnostics
+        timeout-minutes: 2
         if: always()
         run: |
           mkdir -p mobile/ios-smoke-diagnostics

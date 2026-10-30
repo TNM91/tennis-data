@@ -45,6 +45,7 @@ jobs:
           npm ci --prefix mobile
           node --test mobile/scripts/ios-purchases.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs mobile/scripts/ios-push.test.mjs
           python3 mobile/scripts/test-altool-upload.py
+          python3 mobile/scripts/test-ios-export-options.py
           npm run build:bundled --prefix mobile
           npm run prepare:ios --prefix mobile
           npm run check:ios --prefix mobile
@@ -79,6 +80,8 @@ jobs:
       - name: Archive and export signed IPA
         run: |
           set -euo pipefail
+          xcodebuild -help > "$RUNNER_TEMP/tiq-xcode-help.txt" 2>&1
+          python3 -c 'import pathlib,sys; assert "testFlightInternalTestingOnly" in pathlib.Path(sys.argv[1]).read_text(), "Xcode internal-only export option unavailable"' "$RUNNER_TEMP/tiq-xcode-help.txt"
           TEAM=$(cat "$RUNNER_TEMP/tiq-signing/team")
           UUID=$(cat "$RUNNER_TEMP/tiq-signing/uuid")
           echo "::add-mask::$TEAM"
@@ -89,6 +92,7 @@ jobs:
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/tiq-app.xcarchive" \
             -exportPath "$RUNNER_TEMP/tiq-export" -exportOptionsPlist "$RUNNER_TEMP/tiq-signing/export.plist"
           python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist"
+          python3 mobile/scripts/validate-ios-beta-channel.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist" "$RUNNER_TEMP/tiq-signing/export.plist"
           codesign --verify --deep --strict "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app"
           test -f "$RUNNER_TEMP/tiq-export/App.ipa"
       - name: Upload to App Store Connect

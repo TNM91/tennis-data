@@ -3,38 +3,22 @@ import {readFile,writeFile} from 'node:fs/promises'
 import {fileURLToPath} from 'node:url'
 import {resolve} from 'node:path'
 
-const receiptProbe=String.raw`
+const channelProbe=String.raw`
 #if DEBUG
-@MainActor private func tiqReceiptRecoveryProbe() async -> Bool {
-    var reads = 0, refreshes = 0, events: [String] = []
-    do {
-        let recovered: String? = try await TiqAppReceipt.verified(read: {
-            reads += 1; events.append("read")
-            throw NSError(domain: "StoreKit.StoreKitError", code: 2)
-        }, refresh: { refreshes += 1; events.append("refresh"); return "verified" }, willRefresh: { events.append("prompt") })
-        guard recovered == "verified", reads == 1, refreshes == 1, events == ["read", "prompt", "refresh"] else { return false }
-        let cached: String? = try await TiqAppReceipt.verified(read: { "cached" }, refresh: { refreshes += 1; return "unexpected" }, willRefresh: { events.append("unexpected") })
-        guard cached == "cached", refreshes == 1, events.count == 3 else { return false }
-        let unverified: String? = try await TiqAppReceipt.verified(read: { nil }, refresh: { refreshes += 1; return nil }, willRefresh: {})
-        guard unverified == nil, refreshes == 2 else { return false }
-        let refreshed: String? = try await TiqAppReceipt.verified(read: { nil }, refresh: { refreshes += 1; return "verified" }, willRefresh: {})
-        guard refreshed == "verified", refreshes == 3 else { return false }
-        do {
-            let _: String? = try await TiqAppReceipt.verified(read: { nil }, refresh: { refreshes += 1; throw URLError(.notConnectedToInternet) }, willRefresh: {})
-            return false
-        } catch { guard (error as NSError).domain == NSURLErrorDomain, refreshes == 4 else { return false } }
-        for error in [StoreKitError.userCancelled as Error, CancellationError() as Error] {
-            do {
-                let _: String? = try await TiqAppReceipt.verified(read: { throw error }, refresh: { refreshes += 1; return "unexpected" }, willRefresh: { events.append("unexpected") })
-                return false
-            } catch { guard TiqAppReceipt.cancelled(error), refreshes == 4, events.count == 3 else { return false } }
-        }
-        do {
-            let _: String? = try await TiqAppReceipt.verified(read: { nil }, refresh: { refreshes += 1; return "unexpected" }, willRefresh: { throw CancellationError() })
-            return false
-        } catch { guard error is CancellationError, refreshes == 4 else { return false } }
-        return true
-    } catch { return false }
+@available(iOS 16.0, *) @MainActor private func tiqPurchaseChannelProbe() -> Bool {
+    guard TiqPurchaseChannel.matches(bundleID: "com.tenaceiq.app", channel: "TestFlightInternalSandbox", expected: "Sandbox") else { return false }
+    for expected in [nil, "Production", "Xcode", "", "sandbox"] as [String?] {
+        guard !TiqPurchaseChannel.matches(bundleID: "com.tenaceiq.app", channel: "TestFlightInternalSandbox", expected: expected) else { return false }
+    }
+    for channel in [nil, "Production", "Sandbox", ""] as [String?] {
+        guard !TiqPurchaseChannel.matches(bundleID: "com.tenaceiq.app", channel: channel, expected: "Sandbox") else { return false }
+    }
+    for bundle in [nil, "com.tenaceiq.prototype", "other.app"] as [String?] {
+        guard !TiqPurchaseChannel.matches(bundleID: bundle, channel: "TestFlightInternalSandbox", expected: "Sandbox") else { return false }
+    }
+    return TiqPurchaseChannel.accepts(.sandbox) && !TiqPurchaseChannel.accepts(.production) && !TiqPurchaseChannel.accepts(.xcode)
+        && TiqPurchaseChannel.cancelled(StoreKitError.userCancelled) && TiqPurchaseChannel.cancelled(CancellationError())
+        && !TiqPurchaseChannel.cancelled(URLError(.notConnectedToInternet))
 }
 #endif
 `
@@ -65,7 +49,7 @@ export function instrumentPurchaseSmoke(source){
                     return
                 }
                 #endif`)
- const environmentMarker='let environmentMatches = try await self.matchesEnvironment(call, willRefresh: {'
+ const environmentMarker='let environmentMatches = self.matchesEnvironment(call)'
  assert.equal(source.split(environmentMarker).length,2,'Expected explicit-action receipt recovery')
  source=source.replace(environmentMarker,String.raw`#if DEBUG
                     if let probe = call.getString("tiqPurchaseFailureSmoke") {
@@ -74,7 +58,7 @@ export function instrumentPurchaseSmoke(source){
                         throw NSError(domain: NSURLErrorDomain, code: -1009, userInfo: [NSLocalizedDescriptionKey: "private smoke details"])
                     }
                     #endif
-                    let environmentMatches = try await self.matchesEnvironment(call, willRefresh: {`)
+                    let environmentMatches = self.matchesEnvironment(call)`)
 
  const before=String.raw`
         #if DEBUG
@@ -83,14 +67,15 @@ export function instrumentPurchaseSmoke(source){
         try? Data(#"{"controllerEntered":true}"#.utf8).write(to: startedURL, options: .atomic)
         #endif
         `
- return source.replace('import StoreKit','import StoreKit\nimport WebKit'+receiptProbe).replace(marker,before+marker+String.raw`
+ return source.replace('import StoreKit','import StoreKit\nimport WebKit'+channelProbe).replace(marker,before+marker+String.raw`
         #if DEBUG
         do {
             let reportURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json")
             try? FileManager.default.createDirectory(at: reportURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(#"{"controllerEntered":true,"pluginRegistered":true}"#.utf8).write(to: reportURL.appendingPathExtension("started"), options: .atomic)
             Task { @MainActor [weak self] in
-                let appReceiptRecovery = await tiqReceiptRecoveryProbe()
+                let purchaseChannel: Bool
+                if #available(iOS 16.0, *) { purchaseChannel = tiqPurchaseChannelProbe() } else { purchaseChannel = false }
                 for _ in 0..<120 {
                     if let webView = self?.webView, webView.url != nil, !webView.isLoading, self?.viewIfLoaded?.window != nil,
                        let value = try? await webView.callAsyncJavaScript("""
@@ -116,15 +101,15 @@ export function instrumentPurchaseSmoke(source){
                                try { await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqPurchaseFailureSmoke:kind}); return false; }
                                catch (error) { return error.code === code && error.data?.supportCode === support && !JSON.stringify(error).includes('private smoke details'); }
                            };
-                           const prepareTagged = await diagnostic('prepare','purchase_preparation_failed','app_receipt/NSURLErrorDomain:-1009');
+                           const prepareTagged = await diagnostic('prepare','purchase_preparation_failed','environment/NSURLErrorDomain:-1009');
                            const confirmTagged = await diagnostic('confirmation','store_unavailable','confirmation/SKErrorDomain:0');
                            let cancelResolved = false;
                            try { const result = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqPurchaseFailureSmoke:'cancel'}); cancelResolved = result.state === 'cancelled'; } catch {}
 
                            let deadlineStopped = false;
                            try { const value = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqReadDeadlineStoppedSmoke:true}); deadlineStopped = value.state === 'cancelled'; } catch {}
-                           return JSON.stringify({ready: appReceiptRecovery && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeAppReceiptRecoveryVerified:appReceiptRecovery});
-                           """, arguments: ["appReceiptRecovery": appReceiptRecovery], in: nil, contentWorld: .page),
+                           return JSON.stringify({ready: purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel});
+                           """, arguments: ["purchaseChannel": purchaseChannel], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
                        let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -146,8 +131,8 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
  assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
- for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeAppReceiptRecoveryVerified'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
- return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeAppReceiptRecoveryVerified:true}
+ for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
+ return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)

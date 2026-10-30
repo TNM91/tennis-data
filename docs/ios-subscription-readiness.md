@@ -72,10 +72,22 @@ Earlier-purchase reads have a 15-second deadline and native purchase preparation
 
 Progress and support codes distinguish earlier-purchase checks, preparation, confirmation, verification and finishing. Known pre-confirmation failures let the user explicitly retry; uncertain purchase results require Sync/Restore. Slow confirmation leaves the parent Close action available. These client/native changes require compilation and a launched JavaScript-to-native deadline probe on a Mac simulator, browser checks and a protected signed beta before another physical-device test. Test-only forced delays are injected exclusively into the generated unsigned Debug source and must be absent from the signed release.
 
-## App transaction recovery before purchase
+## Build-169 app transaction recovery (superseded)
 
 The physical build-168 report localizes the failure to `AppTransaction.shared`, before `Product.purchase`: `app_receipt/StoreKit.StoreKitError:2`. This numeric code alone does not establish a specific StoreKit error case or a completed purchase. The owner reports Paid Apps, bank and tax setup are now Active; this is user-reported, not a new financial-dashboard audit.
 
 Purchase and explicit Restore now use Apple's documented `AppTransaction.refresh()` recovery once when the cached app transaction throws or is unverified. Refresh can ask for App Store authentication. Canceling stops the attempt, and a verified app transaction with the correct bundle and expected Sandbox/Production environment remains required. Price discovery and ordinary pending-transaction reads never prompt for authentication. Read deadlines pause before the interactive Apple sign-in and resume for remaining purchase preparation; the operation lock stays held until the attempt completes. No payment confirmation is timed out or retried automatically. The server still verifies the signed purchase, account token and current subscription status before durable acknowledgment and transaction finishing.
 
 The unsigned simulator probe exercises recovery, one-refresh limits, unverified results, cancellation and refresh errors without signing into Apple or making a purchase. It does not replace a physical sandbox purchase, sync and restore. Retest those on the next released beta. See [Apple's app transaction refresh documentation](https://developer.apple.com/documentation/storekit/apptransaction/refresh%28%29).
+
+## Internal sandbox transaction verification
+
+The physical build-169 report shows that the explicit app-transaction refresh also failed: `app_authentication/StoreKit.StoreKitError:2`. This is still before the subscription purchase call. Requiring the free app's download transaction is blocking the purchase flow. The beta now verifies actual subscription transactions independently of app-download verification. No `AppTransaction.shared` or `AppTransaction.refresh()` is called.
+
+A signed `TiqApplePurchaseChannel=TestFlightInternalSandbox` value binds the native bridge to Sandbox. Missing or altered identity/channel values, Production requests and Xcode environments are rejected. Xcode exports this pipeline as TestFlight Internal Only; upload validation checks the channel and internal-only export setting, and release verification must confirm Apple's `buildAudienceType=INTERNAL_ONLY`. A future public launch requires a separately reviewed production purchase channel and App Store eligible artifact. Do not submit this internal beta publicly.
+
+Native transaction delivery, capture and finishing require a StoreKit-verified transaction for com.tenaceiq.app in Sandbox, an allowed monthly product and the account token. The server independently verifies Apple's signed transaction, bundle, environment, subscription group, U.S. storefront, ownership token and current subscription status before durable acknowledgment; those checks remain unchanged. No access is granted from the build flag. No production sales are enabled. Physical sandbox purchase, sync and restore are still pending an iPhone retest.
+
+The native runtime probe checks that production, Xcode, missing-channel and wrong-bundle inputs are rejected. The simulator boots before compilation, so its existing runtime deadline does not include cold boot; diagnostics have their own bounded deadline.
+
+Sources: [AppTransaction describes purchase of the app](https://developer.apple.com/documentation/StoreKit/AppTransaction), [Transaction environment](https://developer.apple.com/documentation/storekit/transaction/environment), [TestFlight Internal Only distribution](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases), [Apple build audience types](https://developer.apple.com/documentation/appstoreconnectapi/buildaudiencetype).

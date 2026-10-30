@@ -34,6 +34,13 @@ test('the simulator launches and exercises StoreKit before saving its artifact',
  const steps=workflow.jobs.simulator.steps
  const prepare=steps.findIndex(s=>s.name==='Add unsigned Debug runtime probe'),compile=steps.findIndex(s=>s.name==='Compile simulator app without signing'),runtime=steps.findIndex(s=>s.name==='Verify the launched StoreKit bridge'),pack=steps.findIndex(s=>s.name==='Package simulator app')
  assert.ok(prepare>=0&&prepare<compile&&compile<runtime&&runtime<pack)
+ const boot=steps.findIndex(s=>s.name==='Boot iPhone simulator before compiling')
+ assert.ok(boot>prepare&&boot<compile)
+ assert.ok(steps[boot]['timeout-minutes']<=4)
+ assert.match(steps[boot].run,/TIQ_SIMULATOR_UDID/)
+ assert.match(steps[runtime].run,/DEVICE="\$TIQ_SIMULATOR_UDID"/)
+ assert.doesNotMatch(steps[runtime].run,/simctl bootstatus/)
+ assert.ok(steps.find(s=>s.name==='Capture simulator diagnostics')['timeout-minutes']<=2)
  assert.match(steps[runtime].run,/simctl launch .*com\.tenaceiq\.prototype --tiq-storekit-smoke/)
  assert.match(steps[runtime].run,/ios-purchases-runtime-smoke\.mjs --verify/)
  assert.ok(steps[runtime]['timeout-minutes']<=6)
