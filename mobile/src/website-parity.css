@@ -1019,3 +1019,8 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .league-team-dialog .competition-header button{flex:1 1 100px;min-inline-size:0;padding:10px 12px!important;font-size:.9rem!important}
 
 .league-team-heading .league-player-metrics>div:first-child{grid-column:auto}
+
+.league-evidence-jumps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-block:20px;min-inline-size:0}
+.league-team-dialog .league-evidence-jumps button{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;min-inline-size:0;max-inline-size:100%;min-block-size:48px;padding:12px 8px!important;margin:0!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.league-evidence-jumps button span{color:#91d6ff;font-variant-numeric:tabular-nums}
+.league-team-dialog .league-evidence-summary{inline-size:100%;min-inline-size:0;min-block-size:48px;padding:12px!important;font-size:.9rem!important;white-space:normal;overflow-wrap:anywhere;margin-block-start:16px!important}
