@@ -36,6 +36,8 @@ console.log(privacy.stdout.trim())
 
 assert.match(await read('ios/App/App/Base.lproj/Main.storyboard'),/customClass="TenAceIQBridgeViewController"/)
 assert.deepEqual(await readFile(new URL('ios/App/App/TenAceIQPurchases.swift',root)),await readFile(new URL('native/TenAceIQPurchases.swift',root)))
+assert.deepEqual(await readFile(new URL('ios/App/App/PrivacyInfo.xcprivacy',root)),await readFile(new URL('native/PrivacyInfo.xcprivacy',root)))
+assert.match(await read('ios/App/App.xcodeproj/project.pbxproj'),/PrivacyInfo.xcprivacy in Resources/)
 assert.match(await read('ios/App/App.xcodeproj/project.pbxproj'),/TenAceIQPurchases.swift in Sources/)
 const sceneDelegate=await read('ios/App/App/SceneDelegate.swift')
 assert.equal((sceneDelegate.match(/window\?\.rootViewController = TenAceIQBridgeViewController\(\)/g)||[]).length,1,'The launched scene must use the StoreKit bridge controller')
