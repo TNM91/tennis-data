@@ -23,6 +23,6 @@ out.joinpath('uuid').write_text(uuid)
 options = {'method': 'app-store-connect', 'destination': 'export', 'signingStyle': 'manual',
            'teamID': team, 'signingCertificate': 'Apple Distribution',
            'provisioningProfiles': {'com.tenaceiq.app': uuid}, 'manageAppVersionAndBuildNumber': False,
-           'uploadSymbols': True}
+           'uploadSymbols': True, 'testFlightInternalTestingOnly': True}
 out.joinpath('export.plist').write_bytes(plistlib.dumps(options))
 print('Validated distribution profile and generated manual export settings.')

@@ -18,7 +18,7 @@ assert.equal((project.match(/CODE_SIGN_STYLE = Automatic;/g) || []).length, 2, '
 assert.equal((project.match(/PRODUCT_BUNDLE_IDENTIFIER = com\.tenaceiq\.prototype;/g) || []).length, 2)
 const infoPath = new URL('ios/App/App/Info.plist', root)
 const info = await readFile(infoPath, 'utf8')
-assert.doesNotMatch(info, /ITSAppUsesNonExemptEncryption|ITSEncryptionExportComplianceCode/, 'Review an existing encryption declaration instead of overwriting it')
+assert.doesNotMatch(info, /ITSAppUsesNonExemptEncryption|ITSEncryptionExportComplianceCode|TiqApplePurchaseChannel/, 'Review an existing encryption declaration instead of overwriting it')
 assert.match(info, /<key>CFBundleDisplayName<\/key>\s*<string>TenAceIQ Prototype<\/string>/)
 await writeFile(projectPath, project.replaceAll('PRODUCT_BUNDLE_IDENTIFIER = com.tenaceiq.prototype;', 'PRODUCT_BUNDLE_IDENTIFIER = com.tenaceiq.app;')
   .replaceAll('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;\n\t\t\t\tDEVELOPMENT_TEAM = "$(TIQ_APP_TEAM)";\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "$(TIQ_APP_PROFILE)";\n\t\t\t\tCODE_SIGN_IDENTITY = "Apple Distribution";')
@@ -26,7 +26,7 @@ await writeFile(projectPath, project.replaceAll('PRODUCT_BUNDLE_IDENTIFIER = com
   .replace(/MARKETING_VERSION = [^;]+;/g, 'MARKETING_VERSION = 1.0;'))
 // Standing beta declaration: current native dependencies use only exempt OS HTTPS/Keychain encryption.
 // https://developer.apple.com/documentation/bundleresources/information-property-list/itsappusesnonexemptencryption
-await writeFile(infoPath, info.replace('<key>CFBundleDisplayName</key>', '<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n\t<key>CFBundleDisplayName</key>').replace(/(<key>CFBundleDisplayName<\/key>\s*)<string>TenAceIQ Prototype<\/string>/, '$1<string>TenAceIQ</string>'))
+await writeFile(infoPath, info.replace('<key>CFBundleDisplayName</key>', '<key>TiqApplePurchaseChannel</key>\n\t<string>TestFlightInternalSandbox</string>\n\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n\t<key>CFBundleDisplayName</key>').replace(/(<key>CFBundleDisplayName<\/key>\s*)<string>TenAceIQ Prototype<\/string>/, '$1<string>TenAceIQ</string>'))
 await writeFile(configPath, JSON.stringify({...config, appId: 'com.tenaceiq.app', appName: 'TenAceIQ'}, null, 2) + '\n')
 console.log('Prepared generated iOS project for TenAceIQ 1.0. Signing and device verification are still required.')
 
