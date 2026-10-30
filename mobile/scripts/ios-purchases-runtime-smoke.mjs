@@ -166,7 +166,13 @@ export function instrumentPurchaseSmoke(source){
                            const restoreCancelled = await restoreFailure('cancel','restore_cancelled');
                            let deadlineStopped = false;
                            try { const value = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqReadDeadlineStoppedSmoke:true}); deadlineStopped = value.state === 'cancelled'; } catch {}
-                           return JSON.stringify({ready: restorePolicy && restoreTimeout && restoreRetry && restoreTagged && restoreCancelled && purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel,nativeRestorePolicyVerified:restorePolicy,nativeRestoreReadRecovery:restoreTimeout && restoreRetry,nativeRestoreFailureTagged:restoreTagged && restoreCancelled});
+                           let notificationsCleared = false;
+                           try {
+                               await cap.Plugins.TiqNotifications.clearDelivered();
+                               await cap.Plugins.TiqNotifications.clearDelivered();
+                               notificationsCleared = true;
+                           } catch {}
+                           return JSON.stringify({ready: notificationsCleared && restorePolicy && restoreTimeout && restoreRetry && restoreTagged && restoreCancelled && purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeColdStartNotificationsCleared:notificationsCleared,nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel,nativeRestorePolicyVerified:restorePolicy,nativeRestoreReadRecovery:restoreTimeout && restoreRetry,nativeRestoreFailureTagged:restoreTagged && restoreCancelled});
                            """, arguments: ["purchaseChannel": purchaseChannel, "restorePolicy": restorePolicy], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
@@ -187,10 +193,11 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.ready,true,'The launched app did not report a ready bridge')
  assert.equal(report.platform,'ios','The check must run inside the iOS app')
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
+ assert.equal(report.nativeColdStartNotificationsCleared,true,'Cold-start notification cleanup did not respond through the native bridge')
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
  assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
  for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified','nativeRestorePolicyVerified','nativeRestoreReadRecovery','nativeRestoreFailureTagged'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
- return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
+ return {ready:true,platform:'ios',available:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)

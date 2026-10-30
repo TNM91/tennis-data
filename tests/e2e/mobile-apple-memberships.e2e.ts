@@ -17,7 +17,8 @@ test.beforeEach(async({page})=>{
    if(route.request().method()==='OPTIONS')return route.fulfill({status:204,headers,body:''})
    if(route.request().method()!=='GET')return route.abort()
    if(url.pathname==='/api/mobile/account')return route.fulfill({status:page.url().includes('account-load-error')?503:200,headers,contentType:'application/json',body:JSON.stringify({ok:true,email:'paid-test@example.test',reviewDays:7,fulfillment:'automated',verificationRequired:false,request:null})})
-   return route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify({ok:true,access:{role:'member',entitlements:{playerPlusSubscriptionActive:true,coachSubscriptionActive:false,captainSubscriptionActive:false,tiqTeamLeagueEntryEnabled:false,tiqIndividualLeagueCreatorEnabled:false,playerPlusSubscriptionStatus:'active',coachSubscriptionStatus:'inactive',captainSubscriptionStatus:'inactive',playerPlusAccessExpiresAt:null,coachAccessExpiresAt:null,captainAccessExpiresAt:null,leagueAccessExpiresAt:null}}})})
+   const captain=page.url().includes('account-captain')
+   return route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify({ok:true,access:{role:'member',entitlements:{playerPlusSubscriptionActive:true,coachSubscriptionActive:false,captainSubscriptionActive:captain,tiqTeamLeagueEntryEnabled:false,tiqIndividualLeagueCreatorEnabled:false,playerPlusSubscriptionStatus:'active',coachSubscriptionStatus:'inactive',captainSubscriptionStatus:captain?'active':'inactive',playerPlusAccessExpiresAt:null,coachAccessExpiresAt:null,captainAccessExpiresAt:null,leagueAccessExpiresAt:null}}})})
   }
   if(url.pathname.endsWith('account.js')&&url.origin===origin)return route.fulfill({contentType:'text/javascript',body:accountJavascript})
   if(url.origin!==origin||!url.pathname.startsWith(prefix))return route.abort()
@@ -92,6 +93,17 @@ async function openAccount(page:import('@playwright/test').Page,mode='account-re
 }
 for(const width of [320,390])test('Account logout stays visible and returns to login at '+width+'px',async({page},info)=>{
  await page.setViewportSize({width,height:568});const d=await openAccount(page),logout=d.getByRole('button',{name:'Log out',exact:true});await expect(d).toContainText('paid-test@example.test');await expect(d.locator('.account-access-badge')).toHaveText('Available');const box=await logout.boundingBox();expect(box!.y+box!.height).toBeLessThan(568);await page.addStyleTag({content:':root{font-size:22px!important}'});expect(await d.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);await page.screenshot({path:info.outputPath('apple-membership-account-logout.png')});await logout.click();await expect(page.getByRole('heading',{name:'Log in',exact:true})).toBeVisible();await expect(d).toHaveCount(0);expect(await page.evaluate(()=>(window as unknown as {accountLogoutFixture:{state:{events:string[];scopes:string[]}}}).accountLogoutFixture.state)).toMatchObject({events:['cleanup','logout'],scopes:['local']})
+})
+for(const width of [320,390])test('Captain account shows one access tier with included Player tools at '+width+'px',async({page},info)=>{
+ await page.setViewportSize({width,height:568});const d=await openAccount(page,'account-captain')
+ await expect(d.locator('.account-tool-access li')).toHaveCount(1)
+ await expect(d.locator('.account-tool-access li strong')).toHaveText('Captain')
+ await expect(d).toContainText('Player tools are included with Captain.')
+ await page.addStyleTag({content:':root{font-size:22px!important}'})
+ expect(await d.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)
+ await page.screenshot({path:info.outputPath('account-captain-included-player.png')})
+ await d.getByRole('button',{name:'Log out',exact:true}).click()
+ await expect(page.getByRole('heading',{name:'Log in',exact:true})).toBeVisible()
 })
 for(const mode of ['account-cleanup-error','account-auth-error'])test('Account logout safely retries '+mode,async({page})=>{
  const d=await openAccount(page,mode);await d.getByRole('button',{name:'Log out',exact:true}).click();await expect(d.locator('[data-account-logout-error]')).toHaveText('Couldn’t log out. Check your connection and try again.');await expect(d.locator('[data-account-logout-error]')).toBeFocused();await expect(d.getByRole('button',{name:'Delete account',exact:true})).toBeEnabled();await expect(d).not.toContainText('Private');expect(await page.evaluate(()=>(window as unknown as {accountLogoutFixture:{state:{owner:string}}}).accountLogoutFixture.state.owner)).toBeTruthy();await d.getByRole('button',{name:'Log out',exact:true}).click();await expect(page.getByRole('heading',{name:'Log in',exact:true})).toBeVisible()

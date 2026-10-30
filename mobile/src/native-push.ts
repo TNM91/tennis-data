@@ -6,6 +6,7 @@ import type {Session,SupabaseClient} from '@supabase/supabase-js'
 import type {SupportedStorage} from '@supabase/auth-js'
 import {getNativeAuthStorage} from '../../lib/native-auth-storage'
 import {teamChatMessageId} from '../../lib/team-chat-cursor'
+import {nativeNotificationCleanup} from './native-notification-cleanup'
 import type {TeamChatDestination} from './team-room-data'
 const storageKey='native-push-installation-v1'
 type Installation={id:string;secret:string;owner:string}
@@ -27,9 +28,10 @@ export async function nativePushRequest(session:Session,data?:unknown,transport=
  if(response.status!==200 || response.data?.ok!==true)throw Error('Team alert settings could not be saved.')
  return response.data
 }
-export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;request?:(session:Session,data?:unknown)=>Promise<PushReply>}={}) {
+export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;clearDelivered?:()=>Promise<void>;request?:(session:Session,data?:unknown)=>Promise<PushReply>}={}) {
  const supported=(deps.platform || Capacitor.getPlatform())==='ios'
  const plugin=deps.plugin || PushNotifications,storage=deps.storage || (supported?getNativeAuthStorage():undefined),request=deps.request || nativePushRequest
+ const clearDelivered=deps.clearDelivered || (()=>nativeNotificationCleanup.clearDelivered())
  let disposed=false,resumeHandle:PluginListenerHandle|null=null,initialized=false,current:Session|null=null,version=0,host:HTMLElement|null=null,installation:Installation|null=null,available=false,busy=false,notice='Checking team alerts…',actionHandle:PluginListenerHandle|null=null
  let pendingAction:unknown=null
  let chain:Promise<unknown>=Promise.resolve()
@@ -58,7 +60,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   const device=await load()
   await request(session,{installationId:device.id,secret:device.secret,enabled:false})
   await plugin.unregister()
-  await plugin.removeAllDeliveredNotifications()
+  await clearDelivered()
   device.owner='';await save();notice='Team alerts are off.'
  }
  const getToken=async()=>{
@@ -112,16 +114,16 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
    void enqueue(async()=>{
     try{
      const device=await load()
-     if(previous && previous.user.id!==session?.user.id && device.owner===previous.user.id){try{await disable(previous)}catch{await plugin.unregister();await plugin.removeAllDeliveredNotifications()}}
-     if(!session){await plugin.unregister();await plugin.removeAllDeliveredNotifications();return}
+     if(previous && previous.user.id!==session?.user.id && device.owner===previous.user.id){try{await disable(previous)}catch{await plugin.unregister();await clearDelivered()}}
+     if(!session){await plugin.unregister();await clearDelivered();return}
      if(!valid(session.user.id,epoch))return
      busy=true;render()
      if(device.owner===session.user.id)await enable(false)
-     else{await plugin.unregister();await plugin.removeAllDeliveredNotifications();const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable team alerts when you’re ready.':'Team alerts are being prepared. Check again soon.'}}
+     else{await plugin.unregister();await clearDelivered();const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable team alerts when you’re ready.':'Team alerts are being prepared. Check again soon.'}}
     }catch{notice='Can’t check team alerts. Try again when you’re connected.'}finally{busy=false;render()}
    })
   },
-  beforeSignOut(expectedOwner=current?.user.id){return enqueue(async()=>{if(!supported)return;if(!current){if(expectedOwner)throw Error('Account changed');return}if(current.user.id!==expectedOwner)throw Error('Account changed');const {data,error}=await client.auth.getSession();if(error||current?.user.id!==expectedOwner||data.session?.user.id!==expectedOwner)throw Error('Sign in again before changing alerts');const device=await load();if(current?.user.id!==expectedOwner)throw Error('Account changed');if(device.owner===expectedOwner)await disable(data.session);else{await plugin.unregister();await plugin.removeAllDeliveredNotifications()}})},
+  beforeSignOut(expectedOwner=current?.user.id){return enqueue(async()=>{if(!supported)return;if(!current){if(expectedOwner)throw Error('Account changed');return}if(current.user.id!==expectedOwner)throw Error('Account changed');const {data,error}=await client.auth.getSession();if(error||current?.user.id!==expectedOwner||data.session?.user.id!==expectedOwner)throw Error('Sign in again before changing alerts');const device=await load();if(current?.user.id!==expectedOwner)throw Error('Account changed');if(device.owner===expectedOwner)await disable(data.session);else{await plugin.unregister();await clearDelivered()}})},
   dispose(){disposed=true;version++;current=null;void actionHandle?.remove();void resumeHandle?.remove()},
  }
 }

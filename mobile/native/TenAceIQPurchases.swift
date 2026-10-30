@@ -2,10 +2,31 @@ import Foundation
 import UIKit
 import Capacitor
 import StoreKit
+import UserNotifications
 
 final class TenAceIQBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(TenAceIQPurchases())
+        bridge?.registerPluginInstance(TenAceIQNotifications())
+    }
+}
+
+// Clearing this app's displayed alerts does not require an APNs registration
+// callback in this process. Capacitor's push plugin requires one for its helper.
+@objc(TenAceIQNotifications)
+public final class TenAceIQNotifications: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "TenAceIQNotifications"
+    public let jsName = "TiqNotifications"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "clearDelivered", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func clearDelivered(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+            UIApplication.shared.applicationIconBadgeNumber = 0
+            call.resolve()
+        }
     }
 }
 
