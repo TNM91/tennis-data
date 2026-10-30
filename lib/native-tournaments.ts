@@ -34,6 +34,7 @@ function draw(r:Row):Pick<TournamentDetail,'entrants'|'drawNotice'|'matches'|'st
   let added=0;const matches=buildTournamentPreview({format,entrants,results,schedule})
   for(const m of matches){const v=raw[m.id] as Row|undefined;if(results[m.id]||!v||typeof v!=='object'||!entrants.includes(m.sideA)||!entrants.includes(m.sideB))continue
    const winner=text(v.winner),score=text(v.score)
+   if(format==='group_playoffs'&&(v.sideA!==m.sideA||v.sideB!==m.sideB))continue
    if(![m.sideA,m.sideB].includes(winner)||score.length>500||(v.sideA!==undefined||v.sideB!==undefined)&&(v.sideA!==m.sideA||v.sideB!==m.sideB))continue
    results[m.id]={winner,score,updatedAt:'',sideA:m.sideA,sideB:m.sideB};added++
   }
