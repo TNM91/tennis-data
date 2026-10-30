@@ -1,0 +1,40 @@
+import type {SupabaseClient} from '@supabase/supabase-js'
+import type {ScenarioSend} from './captain-scenarios-data'
+import {entryAssessment,entryCanSubmit,type EntryReview,type EntryDraft,type EntryReceipt} from '../../lib/native-league-entry-contract'
+import {leagueEntryRequest} from './league-entry-data'
+import {html} from './match-details'
+export const entryStatusLabel=(status:EntryReceipt['status'])=>({pending:'Awaiting organizer approval',active:'Approved',rejected:'Not approved',removed:'Entry removed'})[status]
+export function entryReviewHtml(r:EntryReview,d:EntryDraft,busy=false){
+ const team=r.format==='team',q=r.requirement,assessment=entryAssessment(r,d),requirements=[q.ratingLevel===null?'':q.ratingLevel.toFixed(1)+' division',q.ageDivision||'',q.mixedPairRole==='unknown'?'':q.mixedPairRole==='man'?"Men’s division":"Women’s division"].filter(Boolean)
+ const hasPlayerReceipt=!team&&r.receipts.length>0
+ return '<p>'+html(r.leagueName)+'</p>'+(r.receipts.length?'<section class="entry-receipts" aria-label="Your saved entries">'+r.receipts.map(e=>'<article><strong>'+html(e.name)+'</strong><span>'+html(entryStatusLabel(e.status))+'</span></article>').join('')+'</section>':'')+
+  (!r.open?'<p class="entry-note">Registration is closed. Existing entry decisions appear above.</p>':!r.allowed?'<p class="entry-note">'+html(r.blockedReason)+'</p>':hasPlayerReceipt?'<p class="entry-note">Your saved decision stays in place. Contact the organizer to change or resubmit this entry.</p>':
+  '<form data-entry-form><p class="entry-note">Request a place'+(team?' for your team':'')+'. The organizer approves entries before they join the season.</p><label for="league-entry-name">'+(team?'Team name':'Player name')+'</label><input id="league-entry-name" name="name" maxlength="160" required value="'+html(d.name)+'" '+(!team&&r.player.id?'readonly':'')+' '+(busy?'disabled':'')+'>'+
+  (team?'':(r.player.id?'<p class="rating-context">Connected to your linked player'+(r.player.location?' · '+html(r.player.location):'')+'.</p>':'<p class="rating-context">No player is linked. This request uses the name and self-attestations you provide; it does not link a player profile.</p>')+
+  '<p class="entry-requirements">'+html(requirements.join(' · ')||'Open division — organizer review still applies')+'</p><label for="league-entry-rating">'+(r.player.rating===null?'Self-rating (optional)':'Profile rating')+'</label><input id="league-entry-rating" name="rating" type="number" inputmode="decimal" min="1" max="7" step="0.1" value="'+html(String(r.player.rating??d.rating??''))+'" '+(r.player.rating!==null?'readonly':'')+' '+(busy?'disabled':'')+'>'+
+  (q.ageDivision&&!r.player.hasAgeEvidence?'<label class="entry-check"><input name="ageAttested" type="checkbox" '+(d.ageAttested?'checked':'')+' '+(busy?'disabled':'')+'><span>I meet the '+html(q.ageDivision)+' requirement.</span></label>':'')+
+  (q.mixedPairRole!=='unknown'&&!r.player.hasDivisionEvidence?'<label class="entry-check"><input name="divisionAttested" type="checkbox" '+(d.divisionAttested?'checked':'')+' '+(busy?'disabled':'')+'><span>I meet this '+html(q.mixedPairRole==='man'?"men’s":"women’s")+' division requirement.</span></label>':'')+
+  '<p class="entry-note" data-entry-assessment>'+html(assessment.detail)+'</p>')+
+  '<button type="submit" data-entry-submit '+(busy||!d.name.trim()||!entryCanSubmit(r,d)?'disabled':'')+'>'+(busy?'Sending request…':'Request entry')+'</button></form>')
+}
+export function openLeagueEntry(client:SupabaseClient,owner:string,current:()=>boolean,leagueId:string,onClose:()=>void,send?:ScenarioSend){
+ const dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog competitions-dialog league-entry-dialog';dialog.setAttribute('aria-label','League entry')
+ let disposed=false,version=0,busy=false,uncertain=false,review:EntryReview|null=null,draft:EntryDraft={name:'',rating:null,ageAttested:false,divisionAttested:false},notice='',saved:EntryReceipt|null=null
+ const active=()=>!disposed&&current(),dispose=()=>{if(disposed)return;disposed=true;version++;review=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();onClose()},hidden=()=>{if(document.visibilityState==='hidden')dispose()}
+ const focus=()=>dialog.querySelector<HTMLElement>('[data-entry-notice]')?.focus({preventScroll:true})
+ const render=()=>{
+  if(!active())return
+  dialog.innerHTML='<header class="competition-header"><button type="button" class="secondary" data-entry-close>← League</button><button type="button" class="secondary" data-entry-check '+(busy?'disabled':'')+'>Check entry status</button></header><h2 tabindex="-1">'+(saved?'Your entry':'Join the season')+'</h2>'+(saved?'<section class="entry-receipts"><article><strong>'+html(saved.name)+'</strong><span>'+html(entryStatusLabel(saved.status))+'</span></article></section>':review?entryReviewHtml(review,draft,busy):'')+'<p role="'+(notice&&!busy?'alert':'status')+'" tabindex="-1" data-entry-notice>'+html(notice)+'</p>'+(uncertain?'<p class="entry-note">Check entry status before sending another request. A lost connection does not mean it was not saved.</p>':'')
+  if(uncertain)dialog.querySelector<HTMLButtonElement>('[data-entry-submit]')?.setAttribute('disabled','')
+  dialog.querySelector('[data-entry-close]')?.addEventListener('click',dispose)
+  dialog.querySelector('[data-entry-check]')?.addEventListener('click',()=>{void load()})
+  const form=dialog.querySelector<HTMLFormElement>('[data-entry-form]')
+  const read=()=>{if(!form||!review)return;const fd=new FormData(form),rating=String(fd.get('rating')||'');draft={name:review.player.id&&review.format==='individual'?review.player.name:String(fd.get('name')||''),rating:rating===''?null:Number(rating),ageAttested:fd.get('ageAttested')==='on',divisionAttested:fd.get('divisionAttested')==='on'}}
+  form?.addEventListener('input',()=>{read();if(!review)return;const b=form.querySelector<HTMLButtonElement>('[data-entry-submit]');if(b)b.disabled=busy||uncertain||!form.checkValidity()||!entryCanSubmit(review,draft);const a=form.querySelector('[data-entry-assessment]');if(a)a.textContent=entryAssessment(review,draft).detail})
+  form?.addEventListener('submit',e=>{e.preventDefault();if(!form.reportValidity())return;read();void submit()})
+ }
+ const load=async()=>{if(!active()||busy)return;const attempt=++version;busy=true;review=null;saved=null;notice='Checking your league and entry status…';render();try{const r=await leagueEntryRequest(client,owner,()=>active()&&attempt===version,leagueId,undefined,send);if(active()&&attempt===version&&r.kind==='review'){review=r.review;uncertain=false;if(!draft.name||review.player.id)draft={...draft,name:review.player.name||draft.name,rating:review.player.rating??draft.rating};notice=''}}catch(error){if(active()&&attempt===version)notice=error instanceof Error?error.message:'Entry status is unavailable.'}finally{if(active()&&attempt===version){busy=false;render();if(notice)focus();else dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}}}
+ const submit=async()=>{if(!active()||busy||uncertain||!review||!entryCanSubmit(review,draft))return;const attempt=++version,expected=review;busy=true;notice='Sending your request…';render();try{const r=await leagueEntryRequest(client,owner,()=>active()&&attempt===version,leagueId,{review:expected,draft},send);if(active()&&attempt===version&&r.kind==='receipt'){saved=r.receipt;notice=r.receipt.status==='pending'?'Request saved. The organizer will review your entry.':'Your saved entry status is shown above.'}}catch(error){if(active()&&attempt===version){uncertain=true;notice=error instanceof Error?error.message:'Your request could not be confirmed. Check entry status.'}}finally{if(active()&&attempt===version){busy=false;render();focus()}}}
+ dialog.oncancel=e=>{e.preventDefault();dispose()};document.addEventListener('visibilitychange',hidden);document.body.append(dialog);dialog.showModal();void load()
+ return {dispose,isOpen:()=>!disposed,back:()=>{dispose();return true}}
+}

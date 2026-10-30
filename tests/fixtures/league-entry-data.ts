@@ -1,0 +1,3 @@
+import type {EntryReview} from '../../lib/native-league-entry-contract'
+import {competitionOwner} from './competitions-data'
+export function entryReviewFixture():EntryReview{return {owner:competitionOwner,leagueId:'league-one',leagueName:'Northside 4.0 · 40 & Over',format:'individual',review:'a'.repeat(64),checkedAt:'2026-10-30T04:40:00Z',open:true,allowed:true,blockedReason:'',requirement:{ratingLevel:4,ageDivision:'40 & Over',mixedPairRole:'unknown'},player:{id:'player-one',name:'Alex Server',location:'Northside',rating:4,ratingSource:'verified',hasAgeEvidence:false,hasDivisionEvidence:false},receipts:[]}}

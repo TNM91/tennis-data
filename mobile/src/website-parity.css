@@ -910,3 +910,16 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .competition-header{flex-wrap:wrap}
 .competition-header button{max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}
 .competition-switch button,.competition-tabs button{flex-basis:auto;max-inline-size:100%;overflow-wrap:anywhere}
+
+/* League entry sheets share the phone-width competition shell. */
+.competition-entry-open{width:100%;margin-block:16px!important;font-size:1rem!important;white-space:normal}
+.league-entry-dialog form{display:grid;gap:12px;min-width:0;max-width:100%;margin-block:18px}
+.league-entry-dialog form>label{font-size:.9rem!important;color:#c7deee;margin:8px 0 0;line-height:1.5}
+.league-entry-dialog input:not([type=checkbox]){box-sizing:border-box;width:100%;max-width:100%;min-width:0;font-size:1rem!important;padding:14px!important;margin:0!important}
+.league-entry-dialog input[readonly]{color:#c9deee;background:#102b44}
+.league-entry-dialog .entry-check{display:flex;align-items:flex-start;gap:12px;min-width:0;white-space:normal}
+.league-entry-dialog .entry-check input{flex:0 0 22px;width:22px;height:22px;margin:2px 0!important}
+.league-entry-dialog .entry-check span{min-width:0;overflow-wrap:anywhere}
+.league-entry-dialog form>button{width:100%;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere;margin-block-start:14px}
+.entry-receipts{display:grid;gap:10px;margin-block:20px}.entry-receipts article{display:grid;gap:10px;border:1px solid #386686;border-radius:18px;padding:18px;background:#102c43;overflow-wrap:anywhere}.entry-receipts span{font-size:.9rem;color:#c3e780}
+.entry-note,.entry-requirements{font-size:.9rem!important;line-height:1.6;color:#bbd5e7;overflow-wrap:anywhere}.entry-requirements{color:#9bd8ff}
