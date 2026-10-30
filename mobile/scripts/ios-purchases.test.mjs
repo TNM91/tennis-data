@@ -49,7 +49,7 @@ test('scene registration refuses unknown or ambiguous startup paths',()=>{
 })
 
 test('runtime smoke requires a real iOS JavaScript-to-native response, not just a registered file',()=>{
- const ready={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true}
+ const ready={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeAppReceiptRecoveryVerified:true}
  assert.deepEqual(verifyPurchaseSmoke(ready),ready)
  for(const invalid of [{...ready,ready:false},{...ready,platform:'web'},{...ready,available:false},{...ready,nativeInvalidReceiptRejected:false},{...ready,nativeInvalidProductRequestRejected:false}])assert.throws(()=>verifyPurchaseSmoke(invalid))
  const swift=instrumentPurchaseSmoke(readFileSync(new URL('../native/TenAceIQPurchases.swift',import.meta.url),'utf8'))
@@ -70,6 +70,20 @@ test('preparation deadlines cannot cancel Apple confirmation or allow an expired
  assert.match(swift,/#available\(iOS 18\.2, \*\).*product\.purchase\(confirmIn: presenter/)
  assert.match(swift,/if self\.purchaseOperation == operation/)
  assert.doesNotMatch(swift,/tiqReadTimeoutSmoke|tiqReadDeadlineStoppedSmoke|tiq-storekit-smoke/)
- const report={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true}
- for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved'])assert.throws(()=>verifyPurchaseSmoke({...report,[key]:false}))
+ const report={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeAppReceiptRecoveryVerified:true}
+ for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeAppReceiptRecoveryVerified'])assert.throws(()=>verifyPurchaseSmoke({...report,[key]:false}))
+})
+
+test('receipt authentication is explicit, single-refresh and keeps verified identity/environment checks',()=>{
+ const swift=readFileSync(new URL('../native/TenAceIQPurchases.swift',import.meta.url),'utf8')
+ const products=swift.slice(swift.indexOf('@objc func products'),swift.indexOf('private func purchasePresenter'))
+ const pending=swift.slice(swift.indexOf('@objc func pending'),swift.indexOf('@objc func restore'))
+ for(const path of [products,pending])assert.doesNotMatch(path,/AppTransaction\.(shared|refresh)\(|matchesEnvironment\(/)
+ assert.match(swift,/guard let app, app\.bundleID == "com.tenaceiq.app"/)
+ assert.match(swift,/expected == "Sandbox" && app\.environment == \.sandbox/)
+ assert.match(swift,/expected == "Production" && app\.environment == \.production/)
+ assert.match(swift,/guard gate\.active else \{ throw CancellationError\(\) \}/)
+ assert.match(swift,/gate\.stopDeadline\(\)[\s\S]*stage = "app_authentication"/)
+ assert.equal(swift.split('AppTransaction.refresh()').length,2)
+ assert.doesNotMatch(swift,/tiqReceiptRecoveryProbe/)
 })

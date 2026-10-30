@@ -1,6 +1,6 @@
 export type ApplePurchasePhase='history'|'prepare'|'confirm'|'sync'|'finish'
-export const applePurchasePhaseText:Record<ApplePurchasePhase,string>={history:'Checking earlier Apple purchases…',prepare:'Preparing your membership…',confirm:'Opening Apple’s confirmation screen…',sync:'Verifying your Apple membership…',finish:'Finishing your Apple purchase…'}
-const stages=new Set(['app_receipt','storefront','products','entitlements','confirmation','restore'])
+export const applePurchasePhaseText:Record<ApplePurchasePhase,string>={history:'Checking earlier Apple purchases…',prepare:'Preparing your membership…',confirm:'Opening Apple. Sign in if asked…',sync:'Verifying your Apple membership…',finish:'Finishing your Apple purchase…'}
+const stages=new Set(['app_receipt','app_authentication','storefront','products','entitlements','confirmation','restore'])
 const domains=new Set(['NSURLErrorDomain','SKErrorDomain','ASDErrorDomain','AMSErrorDomain','SKServerErrorDomain','StoreKit.StoreKitError','StoreKit.Product.PurchaseError','StoreKit'])
 export class ApplePurchaseError extends Error{
  readonly supportCode:string

@@ -12,6 +12,7 @@ describe('private Apple purchase diagnostics',()=>{
  })
  it('treats only explicit preparation failures as safe before-confirmation failures',()=>{
   expect(appleNativePurchaseError({code:'purchase_preparation_failed',data:{supportCode:'app_receipt/NSURLErrorDomain:-1009'}})).toMatchObject({message:'purchase_preparation_failed',beforeConfirmation:true,supportCode:'app_receipt/NSURLErrorDomain:-1009'})
+  expect(appleNativePurchaseError({code:'purchase_preparation_failed',data:{supportCode:'app_authentication/StoreKit.StoreKitError:2'}})).toMatchObject({beforeConfirmation:true,supportCode:'app_authentication/StoreKit.StoreKitError:2'})
   for(const code of ['store_unavailable','purchase_product_unavailable','purchase_not_allowed','private_code'])expect(appleNativePurchaseError({code}).beforeConfirmation).toBe(false)
   expect(appleNativePurchaseError({code:'private_code',data:{supportCode:'user-email/private'}})).toMatchObject({message:'store_unavailable',supportCode:''})
  })

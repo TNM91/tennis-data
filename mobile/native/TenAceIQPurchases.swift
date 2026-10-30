@@ -9,17 +9,24 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
     }
 }
 
-// A deadline covers read-only preparation, never Apple's payment confirmation.
+// A deadline covers read-only preparation, never Apple's sign-in or payment confirmation.
 @MainActor private final class TiqStoreRead {
     private let call: CAPPluginCall
     private let code: String
     private let onTimeout: () -> Void
+    private let nanoseconds: UInt64
     private var timer: Task<Void, Never>?
     private var work: Task<Void, Never>?
     private(set) var active = true
     private var deadlineActive = true
     init(_ call: CAPPluginCall, nanoseconds: UInt64, code: String, onTimeout: @escaping () -> Void = {}) {
-        self.call = call; self.code = code; self.onTimeout = onTimeout
+        self.call = call; self.code = code; self.onTimeout = onTimeout; self.nanoseconds = nanoseconds
+        resumeDeadline()
+    }
+    func resumeDeadline() {
+        guard active else { return }
+        timer?.cancel(); deadlineActive = true
+        let nanoseconds = self.nanoseconds
         timer = Task { @MainActor [weak self] in
             do { try await Task.sleep(nanoseconds: nanoseconds) } catch { return }
             guard !Task.isCancelled, let self, self.active, self.deadlineActive else { return }
@@ -40,6 +47,31 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
     func reject(_ message: String, _ code: String, data: [String: Any]? = nil) {
         guard active else { return }
         active = false; stopDeadline(); work = nil; call.reject(message, code, nil, data)
+    }
+}
+
+// Recover app-download verification only after an explicit purchase or restore action.
+// An unverified result stays untrusted; refresh must produce a verified value.
+@MainActor private enum TiqAppReceipt {
+    static func cancelled(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let store = error as? StoreKitError, case .userCancelled = store { return true }
+        let failure = error as NSError
+        return failure.domain == SKErrorDomain && failure.code == SKError.Code.paymentCancelled.rawValue
+    }
+    static func verified<Value>(read: () async throws -> Value?, refresh: () async throws -> Value?, willRefresh: () throws -> Void) async throws -> Value? {
+        let existing: Value?
+        do { existing = try await read() }
+        catch {
+            if cancelled(error) { throw error }
+            existing = nil
+        }
+        try Task.checkCancellation()
+        if let existing { return existing }
+        try willRefresh()
+        let refreshed = try await refresh()
+        try Task.checkCancellation()
+        return refreshed
     }
 }
 
@@ -88,10 +120,20 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     @MainActor private func monthly(_ product: Product) -> Bool {
         product.type == .autoRenewable && product.subscription?.subscriptionPeriod.unit == .month && product.subscription?.subscriptionPeriod.value == 1
     }
-    @MainActor private func matchesEnvironment(_ call: CAPPluginCall) async throws -> Bool {
-        guard #available(iOS 16.0, *), let expected = call.getString("environment"), ["Sandbox", "Production"].contains(expected),
-              case .verified(let app) = try await AppTransaction.shared,
-              app.bundleID == "com.tenaceiq.app" else { return false }
+    @MainActor private func matchesEnvironment(_ call: CAPPluginCall, willRefresh: () throws -> Void) async throws -> Bool {
+        guard #available(iOS 16.0, *), Bundle.main.bundleIdentifier == "com.tenaceiq.app",
+              let expected = call.getString("environment"), ["Sandbox", "Production"].contains(expected) else { return false }
+        // shared can fail when the App Store account needs authentication. Apple's
+        // documented recovery is refresh(), which may present an Apple sign-in sheet.
+        // Neither method is used while loading prices or reading pending purchases.
+        let app: AppTransaction? = try await TiqAppReceipt.verified(read: {
+            if case .verified(let value) = try await AppTransaction.shared { return value }
+            return nil
+        }, refresh: {
+            if case .verified(let value) = try await AppTransaction.refresh() { return value }
+            return nil
+        }, willRefresh: willRefresh)
+        guard let app, app.bundleID == "com.tenaceiq.app" else { return false }
         return expected == "Sandbox" && app.environment == .sandbox || expected == "Production" && app.environment == .production
     }
     @objc func products(_ call: CAPPluginCall) {
@@ -100,7 +142,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                 guard let expected = call.getString("environment"), ["Sandbox", "Production"].contains(expected) else { call.reject("Open the correct app build.", "environment_mismatch"); return }
                 guard Bundle.main.bundleIdentifier == "com.tenaceiq.app" else { call.reject("Update the app before loading plans.", "app_identity_mismatch"); return }
                 // Price discovery does not need an app receipt or an existing purchase.
-                // Purchase and restore still verify the signed AppTransaction environment.
+                // Purchase and restore verify the signed AppTransaction environment, refreshing only on an explicit action.
                 let products = try await Product.products(for: Array(allowed))
                 guard let storefront = await Storefront.current else { call.reject("App Store region unavailable.", "storefront_unavailable"); return }
                 guard storefront.countryCode == "USA" else { call.reject("U.S. App Store required.", "unsupported_storefront"); return }
@@ -128,7 +170,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     // Only fixed stages and allowlisted error domains/codes cross the bridge.
     // Never forward localized descriptions, receipts, account details or arbitrary userInfo.
     @MainActor private func purchaseFailure(_ error: Error, stage: String) -> (String, [String: Any]) {
-        let stages: Set<String> = ["app_receipt", "storefront", "products", "entitlements", "confirmation", "restore"]
+        let stages: Set<String> = ["app_receipt", "app_authentication", "storefront", "products", "entitlements", "confirmation", "restore"]
         let safeStage = stages.contains(stage) ? stage : "confirmation"
         let domains: Set<String> = [NSURLErrorDomain, SKErrorDomain, "ASDErrorDomain", "AMSErrorDomain", "SKServerErrorDomain", "StoreKit.StoreKitError", "StoreKit.Product.PurchaseError"]
         var chain: [String] = [], failure = error as NSError
@@ -138,7 +180,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
             guard let underlying = failure.userInfo[NSUnderlyingErrorKey] as? NSError else { break }
             failure = underlying
         }
-        var code = ["app_receipt", "storefront", "products", "entitlements"].contains(safeStage) ? "purchase_preparation_failed" : "store_unavailable"
+        var code = ["app_receipt", "app_authentication", "storefront", "products", "entitlements"].contains(safeStage) ? "purchase_preparation_failed" : "store_unavailable"
         if let purchase = error as? Product.PurchaseError {
             switch purchase {
             case .productUnavailable: code = "purchase_product_unavailable"
@@ -150,11 +192,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
         let safeBuild = build.range(of: #"^\d{1,6}$"#, options: .regularExpression) != nil ? build : ""
         return (code, ["supportCode": safeStage + "/" + chain.joined(separator: "/"), "build": safeBuild])
     }
-    @MainActor private func purchaseCancelled(_ error: Error) -> Bool {
-        if let store = error as? StoreKitError, case .userCancelled = store { return true }
-        let failure = error as NSError
-        return failure.domain == SKErrorDomain && failure.code == SKError.Code.paymentCancelled.rawValue
-    }
+    @MainActor private func purchaseCancelled(_ error: Error) -> Bool { TiqAppReceipt.cancelled(error) }
     @objc func purchase(_ call: CAPPluginCall) {
         Task { @MainActor in
             guard !showingStoreSheet else { call.reject("Apple is already open.", "store_busy"); return }
@@ -170,8 +208,14 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                 defer { if self.purchaseOperation == operation { self.purchaseOperation = nil; self.showingStoreSheet = false } }
                 var stage = "app_receipt"
                 do {
-                    let environmentMatches = try await self.matchesEnvironment(call)
+                    let environmentMatches = try await self.matchesEnvironment(call, willRefresh: {
+                        guard gate.active else { throw CancellationError() }
+                        // Never expire Apple's interactive sign-in or let another buy overlap it.
+                        gate.stopDeadline()
+                        stage = "app_authentication"
+                    })
                     guard gate.active else { return }
+                    gate.resumeDeadline()
                     guard environmentMatches else { gate.reject("Apple environment does not match this account.", "environment_mismatch"); return }
                     stage = "storefront"
                     let storefront = await Storefront.current
@@ -236,7 +280,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
             showingStoreSheet = true
             defer { showingStoreSheet = false }
             do {
-                guard try await matchesEnvironment(call) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }
+                guard try await matchesEnvironment(call, willRefresh: {}) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }
                 // Authentication prompt is allowed only after the explicit Restore button.
                 try await AppStore.sync()
                 for await result in Transaction.unfinished { capture(result, announce: false) }
