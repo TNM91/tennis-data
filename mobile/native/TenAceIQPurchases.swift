@@ -276,7 +276,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
             gate.start { gate in
                 defer { if self.purchaseOperation == operation { self.purchaseOperation = nil; self.showingStoreSheet = false } }
                 do {
-                    let entitlements = try await TiqRestoreRead.transactions(read: {
+                    let entitlements: [VerificationResult<Transaction>] = try await TiqRestoreRead.transactions(read: {
                         var current: [VerificationResult<Transaction>] = []
                         for await result in Transaction.currentEntitlements {
                             guard gate.active else { return [] }

@@ -73,7 +73,7 @@ export function instrumentPurchaseSmoke(source){
  const restoreEnvironment='guard matchesEnvironment(call) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }'
  assert.equal(source.split(restoreEnvironment).length,2,'Expected one restore channel check')
  source=source.replace(restoreEnvironment,restoreEnvironment.replace('matchesEnvironment(call)','(matchesEnvironment(call) || call.getBool("tiqRestoreSmoke") == true)'))
- const restoreRead='let entitlements = try await TiqRestoreRead.transactions(read: {'
+ const restoreRead='let entitlements: [VerificationResult<Transaction>] = try await TiqRestoreRead.transactions(read: {'
  assert.equal(source.split(restoreRead).length,2,'Expected entitlement-first restore')
  source=source.replace(restoreRead,`#if DEBUG
                     if let probe = call.getString("tiqRestoreFailureSmoke") {
