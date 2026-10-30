@@ -5,11 +5,16 @@ import type {ScenarioSend} from '../../mobile/src/captain-scenarios-data'
 import {entryReviewFixture} from './league-entry-data'
 import {openCompetitions} from '../../mobile/src/competitions-view'
 import {labActionsHtml} from '../../mobile/src/lab-home'
-import {competitionOwner as owner,competitionSnapshot,competitionDetail} from './competitions-data'
+import {competitionOwner as owner,competitionSnapshot,competitionDetail,competitionPlayerDetail} from './competitions-data'
 const mode=new URLSearchParams(location.search).get('view')||'team'
-const state={teamWithdrawn:false,teamReordered:false,finderChanged:false,calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
+const state={playerWithdrawn:false,playerReordered:false,teamWithdrawn:false,teamReordered:false,finderChanged:false,calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
 function detailForFinder(){
- const d=competitionDetail();if(mode.includes('evidence')){
+ const d=mode.includes('player')?competitionPlayerDetail():competitionDetail();if(mode.includes('player')){
+  if(mode.includes('long')){const name='Alex '+('Championship'.repeat(18));d.participants[0].name=name;for(const row of [...d.fixtures,...d.results]){if(row.a==='Alex Server')row.a=name;if(row.b==='Alex Server')row.b=name;if('winner' in row&&row.winner==='Alex Server')row.winner=name}}
+  if(mode.includes('partial')){d.moreFixtures=true;d.moreResults=true}
+  if(state.playerReordered)d.participants.reverse()
+  if(state.playerWithdrawn)d.participants=d.participants.filter(p=>p.name!=='Alex Server')
+ }if(mode.includes('evidence')){
   d.fixtures.push({...d.fixtures[0],id:'similar-team',a:'Baseline Aces B',b:'Other team',date:'2026-11-08'});d.results.push({...d.results[0],id:'similar-result',a:'Baseline Aces B',b:'Other team',courts:[{...d.results[0].courts[0],a:'Baseline Aces'}]})
   if(mode.includes('long')){const name='Baseline '+('Championship'.repeat(18));for(const r of [...d.standings])if(r.teamName==='Baseline Aces')r.teamName=name;for(const r of d.participants)if(r.name==='Baseline Aces')r.name=name;for(const r of [...d.fixtures,...d.results]){if(r.a==='Baseline Aces')r.a=name;if('winner' in r&&r.winner==='Baseline Aces')r.winner=name}}
   if(state.teamReordered)d.standings.reverse()
@@ -32,7 +37,7 @@ const send:ScenarioSend=async options=>{
   if(state.delay)await new Promise<void>(resolve=>{state.release=resolve});return {status:state.offline?503:200,data:{ok:true,...review},headers:{},url:options.url}
  }
  if(new URL(options.url).pathname.endsWith('/league-office')){
-  const league={...competitionDetail().league,name:'Northside 4.0'},detail={...detailForFinder(),league,participants:mode.includes('evidence')?detailForFinder().participants:[{name:'Alex Server',status:state.decisionSaved?'active':'pending'}],moreParticipants:false};return {status:200,data:{ok:true,owner,checkedAt:'2026-10-30T05:40:00Z',leagues:[league],moreLeagues:false,detail:new URL(options.url).searchParams.get('league')?detail:null},headers:{},url:options.url}
+  const league={...detailForFinder().league,name:'Northside 4.0'},detail={...detailForFinder(),league,participants:mode.includes('evidence')||mode.includes('player')?detailForFinder().participants:[{name:'Alex Server',status:state.decisionSaved?'active':'pending'}],moreParticipants:false};return {status:200,data:{ok:true,owner,checkedAt:'2026-10-30T05:40:00Z',leagues:[league],moreLeagues:false,detail:new URL(options.url).searchParams.get('league')?detail:null},headers:{},url:options.url}
  }
  if(new URL(options.url).pathname.endsWith('/entry')){
   const review=entryReviewFixture();review.owner=owner;if(mode==='entry-information')state.entryInformation=true;review.open=!state.entryClosed;review.allowed=state.entryAllowed;if(state.entryChanged){review.review='b'.repeat(64);review.requirement.ageDivision='55 & Over'}
@@ -53,6 +58,7 @@ const send:ScenarioSend=async options=>{
  if(p.get('league')){snapshot.detail=detailForFinder();if(p.get('league')==='league-two')snapshot.detail.league={...snapshot.leagues[1]}}
  if(mode==='long'){snapshot.leagues[0].name='Northside'+('Championship'.repeat(15));if(snapshot.detail)snapshot.detail.league.name=snapshot.leagues[0].name}
  if(mode==='incomplete'&&snapshot.detail){snapshot.detail.moreResults=true;snapshot.detail.standingsAvailable=false;snapshot.detail.standings=[]}
+ if(mode.includes('player')){snapshot.leagues[0]={...snapshot.leagues[0],name:'Northside Singles Ladder',format:'individual'};snapshot.connections=snapshot.connections.map(c=>({...c,kind:'player' as const}))}
  if(mode==='individual'){snapshot.leagues[0].format='individual';if(snapshot.detail){snapshot.detail.league.format='individual';snapshot.detail.standingsAvailable=false;snapshot.detail.standings=[]}}
  const r={status:state.offline?503:200,data:state.offline?{ok:false}:{ok:true,...snapshot},headers:{},url:options.url}
  if(state.delay)await new Promise<void>(resolve=>{state.release=resolve})

@@ -1017,3 +1017,5 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .league-team-section .competition-fixture{overflow-wrap:anywhere}
 
 .league-team-dialog .competition-header button{flex:1 1 100px;min-inline-size:0;padding:10px 12px!important;font-size:.9rem!important}
+
+.league-team-heading .league-player-metrics>div:first-child{grid-column:auto}

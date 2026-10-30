@@ -1,6 +1,7 @@
 import type {OfficeDetail,OfficeFixture,OfficeResult} from '../../lib/native-league-office-contract'
 import {leagueFixtureHtml,leagueResultHtml} from './league-match-finder'
 import {html} from './match-details'
+import {openLeagueEvidenceDialog} from './league-evidence-dialog'
 
 export type LeagueTeamSelection={name:string;source:'standings'|'participants'}
 export function leagueTeamAvailable(d:OfficeDetail,team:LeagueTeamSelection){
@@ -30,11 +31,5 @@ export function restoreLeagueTeamFocus(host:HTMLElement,team:LeagueTeamSelection
  const target=button||host.querySelector<HTMLElement>('h3,h2');target?.focus({preventScroll:true});host.scrollTop=scroll
 }
 export function openLeagueTeamEvidence(initial:OfficeDetail,selection:LeagueTeamSelection,current:()=>boolean,refresh:(valid:()=>boolean)=>Promise<OfficeDetail>,onClose:()=>void,backLabel:string){
- const dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog competitions-dialog league-team-dialog';dialog.setAttribute('aria-label','Team season')
- const leagueId=initial.league.id,team={...selection};let detail:OfficeDetail|null=initial,disposed=false,busy=false,version=0,notice=''
- const active=()=>!disposed&&current(),dispose=()=>{if(disposed)return;disposed=true;version++;detail=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current())onClose()},hidden=()=>{if(document.visibilityState==='hidden')dispose()}
- const focus=()=>dialog.querySelector<HTMLElement>('[data-league-team-content] h3,[data-league-team-notice]')?.focus({preventScroll:true})
- const render=()=>{if(!active())return;dialog.innerHTML='<header class="competition-header"><button type="button" class="secondary" data-league-team-back>'+html(backLabel)+'</button><button type="button" class="secondary" data-league-team-refresh '+(busy?'disabled':'')+'>Refresh team</button></header>'+(detail?'<p class="league-team-context">'+html(detail.league.name)+'</p><div data-league-team-content>'+leagueTeamDetailHtml(detail,team)+'</div>':'')+'<p data-league-team-notice tabindex="-1" role="'+(notice&&!busy?'alert':'status')+'">'+html(notice)+'</p>';dialog.querySelector('[data-league-team-back]')?.addEventListener('click',dispose);dialog.querySelector('[data-league-team-refresh]')?.addEventListener('click',()=>{void load()})}
- const load=async()=>{if(!active()||busy)return;const attempt=++version,valid=()=>active()&&version===attempt;busy=true;detail=null;notice='Checking team records…';render();try{const result=await refresh(valid);if(valid()){if(result.league.id!==leagueId||result.league.format!=='team')throw Error('League changed');detail=result;notice=''}}catch{if(valid())notice='Couldn’t refresh this team. Try Refresh team again, or return to the league.'}finally{if(valid()){busy=false;render();focus()}}}
- dialog.oncancel=event=>{event.preventDefault();dispose()};document.addEventListener('visibilitychange',hidden);document.body.append(dialog);dialog.showModal();render();focus();return {dispose,isOpen:()=>!disposed,back:()=>{dispose();return true}}
+ const team={...selection};return openLeagueEvidenceDialog(initial,current,refresh,onClose,backLabel,{label:'Team season',noun:'team',format:'team',content:detail=>leagueTeamDetailHtml(detail,team)})
 }

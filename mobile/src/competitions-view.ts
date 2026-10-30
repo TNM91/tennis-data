@@ -8,6 +8,7 @@ import {openLeagueEntry} from './league-entry-view'
 import {officeSectionHtml} from './league-office-view'
 import {bindLeagueMatchFinder,emptyLeagueFinder,emptyLeagueMatchFilters,leagueFixtureHtml,leagueMatchViewHtml,type LeagueMatchFilters} from './league-match-finder'
 import {html} from './match-details'
+import {bindLeaguePlayerActions,leaguePlayerOpenHtml,openLeaguePlayerEvidence,restoreLeaguePlayerFocus} from './league-player-evidence'
 import {bindLeagueTeamActions,leagueTeamOpenHtml,openLeagueTeamEvidence,restoreLeagueTeamFocus} from './league-team-evidence'
 type View='home'|'fixtures'|'results'|'standings'|'participants'
 const stateLabel=(v:string)=>(({draft:'Draft',registration_open:'Registration open',active:'In season',completed:'Completed',archived:'Past season'} as Record<string,string>)[v]||v.replaceAll('_',' '))
@@ -25,7 +26,7 @@ export function competitionSeasonHtml(d:OfficeDetail,view:View,today?:string,fil
   return '<div class="competition-metrics" aria-label="Loaded season records">'+[[d.participants.length+(d.moreParticipants?'+':''),d.league.format==='team'?'Teams':'Players'],[d.fixtures.length+(d.moreFixtures?'+':''),'Dates'],[d.results.length+(d.moreResults?'+':''),'Results']].map(([v,label])=>'<div><strong>'+v+'</strong><span>'+label+'</span></div>').join('')+'</div><h3 tabindex="-1">Coming up</h3>'+(upcoming.length?upcoming.map(leagueFixtureHtml).join(''):'<p>No upcoming dates in the loaded schedule.</p>')+(d.moreFixtures?'<p class="rating-context">This is a limited schedule sample. Open Schedule to review the loaded dates.</p>':'')+'<p class="rating-context">Times use '+html(d.league.timeZone)+'. Proposals and cancellations keep their recorded status.</p>'
  }
  if(view==='fixtures'||view==='results')return leagueMatchViewHtml(d,view,filters)
- if(view==='participants')return '<h3 tabindex="-1">'+(d.league.format==='team'?'Teams':'Players')+'</h3><p>Approved entries'+(d.moreParticipants?' · showing the first 100':'')+'. Pending and declined entries are not listed.</p>'+(d.participants.length?'<ul class="competition-participants">'+d.participants.map(p=>'<li>'+html(p.name)+leagueTeamOpenHtml(d,p.name,'participants')+'</li>').join('')+'</ul>':'<p>No approved entries are listed yet.</p>')
+ if(view==='participants')return '<h3 tabindex="-1">'+(d.league.format==='team'?'Teams':'Players')+'</h3><p>Approved entries'+(d.moreParticipants?' · showing the first 100':'')+'. Pending and declined entries are not listed.</p>'+(d.participants.length?'<ul class="competition-participants">'+d.participants.map(p=>'<li>'+html(p.name)+(d.league.format==='team'?leagueTeamOpenHtml(d,p.name,'participants'):leaguePlayerOpenHtml(d,p.name))+'</li>').join('')+'</ul>':'<p>No approved entries are listed yet.</p>')
  return officeSectionHtml(d,view).replace('Recorded court results use this league’s website scoring and standings rules. Unplayed events do not count as wins, losses or ties.','Match records and court wins follow this league’s scoring rules. Unplayed matches do not count.')
 }
 export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement){
@@ -62,6 +63,10 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   if(d)bindLeagueTeamActions(dialog,d,()=>active()&&!busy,team=>{
    if(teamEvidence?.isOpen())return;const scroll=dialog.scrollTop,id=d.league.id,chosenScope=scope,chosenQuery=query
    teamEvidence=openLeagueTeamEvidence(d,team,active,async valid=>{try{const result=await loadCompetitions(client,owner,()=>active()&&valid(),chosenScope,chosenQuery,id,send);if(!valid()||!result.detail)throw Error('League changed');snapshot=result;notice='';return result.detail}catch(error){if(valid()){snapshot=null;notice='Couldn’t refresh this league. Refresh to try again.'}throw error}},()=>{teamEvidence=null;if(active()){render();restoreLeagueTeamFocus(dialog,team,scroll)}},team.source==='standings'?'← Standings':'← Teams')
+  })
+  if(d)bindLeaguePlayerActions(dialog,d,()=>active()&&!busy,name=>{
+   if(teamEvidence?.isOpen())return;const scroll=dialog.scrollTop,id=d.league.id,chosenScope=scope,chosenQuery=query
+   teamEvidence=openLeaguePlayerEvidence(d,name,active,async valid=>{try{const result=await loadCompetitions(client,owner,()=>active()&&valid(),chosenScope,chosenQuery,id,send);if(!valid()||!result.detail)throw Error('League changed');snapshot=result;notice='';return result.detail}catch(error){if(valid()){snapshot=null;notice='Couldn’t refresh this league. Refresh to try again.'}throw error}},()=>{teamEvidence=null;if(active()){render();restoreLeaguePlayerFocus(dialog,name,scroll)}},'← Players')
   })
   bindLeagueMatchFinder(dialog,()=>active()&&!busy,next=>{if(view!=='fixtures'&&view!=='results')return;filters[view]=next;render();dialog.querySelector<HTMLElement>('[data-league-filter-summary]')?.focus()})
   dialog.querySelector('[data-competition-chats]')?.addEventListener('click',()=>{dispose();onChats?.()})
