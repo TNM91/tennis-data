@@ -1,7 +1,7 @@
 import {it,expect,vi,beforeEach} from 'vitest'
-const {auth,load,submit}=vi.hoisted(()=>({auth:vi.fn(),load:vi.fn(),submit:vi.fn()}))
+const {auth,load,submit,answer}=vi.hoisted(()=>({auth:vi.fn(),load:vi.fn(),submit:vi.fn(),answer:vi.fn()}))
 vi.mock('../player-api-auth',()=>({getSignedInPlayerApiAuth:auth}))
-vi.mock('../native-league-entry',()=>({loadNativeLeagueEntry:load,submitNativeLeagueEntry:submit}))
+vi.mock('../native-league-entry',()=>({loadNativeLeagueEntry:load,submitNativeLeagueEntry:submit,answerNativeLeagueInformation:answer}))
 import {GET,POST} from '../../app/api/mobile/competitions/entry/route'
 const url='https://example.invalid/api/mobile/competitions/entry'
 beforeEach(()=>{vi.clearAllMocks();auth.mockResolvedValue({ok:true,supabase:{caller:'rls'},userId:'owner'});load.mockResolvedValue({owner:'owner'});submit.mockResolvedValue({ok:true,status:200,owner:'owner'})})
@@ -10,3 +10,5 @@ it('passes the verified caller to review and create-only handlers',async()=>{exp
 it.each(['','?league=../bad','?league=one&league=two','?league=one&owner=foreign'])('rejects invalid review query %s',async suffix=>{expect((await GET(new Request(url+suffix))).status).toBe(400);expect(load).not.toHaveBeenCalled()})
 it('bounds actual request bytes and rejects malformed body, content type and query parameters',async()=>{for(const [suffix,body,type,status] of [['','x'.repeat(4097),'application/json',413],['','[]','application/json',400],['','{','application/json',400],['','{}','text/plain',400],['?owner=foreign','{}','application/json',400]] as const){const r=await POST(new Request(url+suffix,{method:'POST',headers:{'Content-Type':type},body}));expect(r.status).toBe(status)}expect(submit).not.toHaveBeenCalled()})
 it('preserves actionable status without leaking database exceptions',async()=>{submit.mockResolvedValue({ok:false,status:409,message:'Review again.'});expect((await POST(new Request(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}))).status).toBe(409);load.mockRejectedValue(Error('private key'));submit.mockRejectedValue(Error('private key'));for(const [method,request] of [[GET,new Request(url+'?league=one')],[POST,new Request(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})]] as const){const r=await method(request);expect(r.status).toBe(503);expect(await r.text()).not.toContain('private key')}})
+
+it('routes an eligibility reply through the caller-owned information handler',async()=>{answer.mockResolvedValue({ok:true,status:200});const body={information:true,leagueId:'one'};expect((await POST(new Request(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}))).status).toBe(200);expect(answer).toHaveBeenCalledWith({caller:'rls'},'owner',body);expect(submit).not.toHaveBeenCalled()})

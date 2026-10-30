@@ -923,3 +923,12 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .league-entry-dialog form>button{width:100%;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere;margin-block-start:14px}
 .entry-receipts{display:grid;gap:10px;margin-block:20px}.entry-receipts article{display:grid;gap:10px;border:1px solid #386686;border-radius:18px;padding:18px;background:#102c43;overflow-wrap:anywhere}.entry-receipts span{font-size:.9rem;color:#c3e780}
 .entry-note,.entry-requirements{font-size:.9rem!important;line-height:1.6;color:#bbd5e7;overflow-wrap:anywhere}.entry-requirements{color:#9bd8ff}
+
+/* Coordinator entry reviews keep evidence and actions within the phone sheet. */
+.league-entry-dialog .decision-evidence{display:grid;grid-template-columns:minmax(0,1fr);gap:.3rem;margin:1rem 0}
+.league-entry-dialog .decision-evidence dt{font-size:.85rem;color:var(--muted)}
+.league-entry-dialog .decision-evidence dd{margin:0 0 .65rem;overflow-wrap:anywhere}
+.league-entry-dialog .decision-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:.65rem;margin:1rem 0}
+.league-entry-dialog textarea{box-sizing:border-box;width:100%;min-width:0;max-width:100%;resize:vertical;color:inherit;background:var(--navy,#061b35);border:1px solid #426382;border-radius:14px;padding:.85rem;font:inherit}
+.league-entry-dialog .decision-list li{display:grid;grid-template-columns:minmax(0,1fr);gap:.5rem}
+.league-entry-dialog .decision-list button{white-space:normal;overflow-wrap:anywhere;max-width:100%}

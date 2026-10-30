@@ -1,3 +1,5 @@
+import {openLeagueOffice} from '../../mobile/src/league-office-view'
+import {decisionReviewFixture} from './league-decisions-data'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {ScenarioSend} from '../../mobile/src/captain-scenarios-data'
 import {entryReviewFixture} from './league-entry-data'
@@ -5,15 +7,25 @@ import {openCompetitions} from '../../mobile/src/competitions-view'
 import {labActionsHtml} from '../../mobile/src/lab-home'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from './competitions-data'
 const mode=new URLSearchParams(location.search).get('view')||'team'
-const state={calls:0,offline:false,delay:false,active:true,owner,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
+const state={calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
 const client={auth:{getSession:async()=>({data:{session:{user:{id:state.owner},access_token:'fixture-only'}}})}} as unknown as SupabaseClient
 const send:ScenarioSend=async options=>{
  state.calls++
+ if(new URL(options.url).pathname.endsWith('/league-office/entries')){
+  const review=decisionReviewFixture();if(mode==='office-team'){review.format='team';review.entries[0].name='North Aces'}if(mode==='office-long'){review.leagueName='Northside '+('Championship '.repeat(14));review.entries[0].name='Alex '+('Server '.repeat(20))}if(mode==='office-ineligible')review.entries[0].eligibility='ineligible';if(mode==='office-closed')review.open=false
+  if(options.method==='POST'){state.decisionPosts++;if(state.decisionConflict)return {status:409,data:{message:'This entry changed. Refresh requests before deciding.'},headers:{},url:options.url};const data=options.data as {decision:string;note:string};state.decisionSaved=true;state.decisionInformation=data.decision==='information';const receipt={...review.entries[0],status:data.decision==='information'?'pending':data.decision,actionRequired:state.decisionInformation,requestNote:state.decisionInformation?data.note:''};if(state.decisionLostReply)throw Error('Lost reply');if(state.delay)await new Promise<void>(resolve=>{state.release=resolve});return {status:200,data:{ok:true,owner,leagueId:'league-one',receipt,notified:true},headers:{},url:options.url}}
+  if(state.decisionSaved){if(state.decisionInformation){review.entries[0].actionRequired=true;review.entries[0].requestNote='Please confirm your age division.'}else review.entries=[]}
+  if(state.delay)await new Promise<void>(resolve=>{state.release=resolve});return {status:state.offline?503:200,data:{ok:true,...review},headers:{},url:options.url}
+ }
+ if(new URL(options.url).pathname.endsWith('/league-office')){
+  const league={...competitionDetail().league,name:'Northside 4.0'},detail={...competitionDetail(),league,participants:[{name:'Alex Server',status:state.decisionSaved?'active':'pending'}],moreParticipants:false};return {status:200,data:{ok:true,owner,checkedAt:'2026-10-30T05:40:00Z',leagues:[league],moreLeagues:false,detail:new URL(options.url).searchParams.get('league')?detail:null},headers:{},url:options.url}
+ }
  if(new URL(options.url).pathname.endsWith('/entry')){
-  const review=entryReviewFixture();review.owner=owner;review.open=!state.entryClosed;review.allowed=state.entryAllowed;if(state.entryChanged){review.review='b'.repeat(64);review.requirement.ageDivision='55 & Over'}
+  const review=entryReviewFixture();review.owner=owner;if(mode==='entry-information')state.entryInformation=true;review.open=!state.entryClosed;review.allowed=state.entryAllowed;if(state.entryChanged){review.review='b'.repeat(64);review.requirement.ageDivision='55 & Over'}
   if(mode==='entry-team'){review.format='team';review.player={...review.player,id:'',name:'',rating:null};review.blockedReason='Team entry requires active League access.'}
   if(mode==='entry-long'){review.leagueName='Northside '+('Championship '.repeat(14));review.player.name='Alex '+('Server '.repeat(20))}
   if(options.method==='POST'){state.entryPosts++;state.entrySaved=true;if(state.entryLostReply)throw Error('Lost reply')}
+  if(state.entryInformation)review.receipts=[{id:'11111111-1111-4111-8111-111111111111',name:review.player.name,status:'pending',information:{updatedAt:state.entryQuestionChanged?'2026-10-30T05:41:00Z':'2026-10-30T05:40:00Z',note:state.entryQuestionChanged?'Please reconfirm your rating and age division.':'Please confirm your age division.'}}]
   if(state.entrySaved)review.receipts=[{id:'saved-entry',name:review.player.name||'North Aces',status:'pending'}]
   const r={status:state.offline?503:200,data:options.method==='POST'?{ok:true,owner,leagueId:'league-one',receipt:review.receipts[0],alreadySubmitted:false}:{ok:true,...review},headers:{},url:options.url}
   if(state.delay)await new Promise<void>(resolve=>{state.release=resolve})
@@ -35,3 +47,5 @@ document.querySelector('#app')!.innerHTML='<h1>My Lab</h1>'+labActionsHtml()
 let view:ReturnType<typeof openCompetitions>|null=null
 document.querySelector<HTMLButtonElement>('[data-lab-screen="competitions"]')!.onclick=()=>{state.active=true;view=openCompetitions(client,owner,()=>state.active,'mine',undefined,send,document.querySelector<HTMLElement>('[data-lab-screen="competitions"]')!)}
 Object.assign(window,{competitionFixture:{state,dispose:()=>view?.dispose()}})
+
+if(mode.startsWith('office')){document.querySelector('#app')!.innerHTML='<h1>My Lab</h1><button type="button" data-office-open>Open League Office</button>';document.querySelector<HTMLButtonElement>('[data-office-open]')!.onclick=()=>{state.active=true;const office=openLeagueOffice(client,owner,()=>state.active,send);Object.assign(window,{officeFixture:{dispose:()=>office.dispose()}})}}
