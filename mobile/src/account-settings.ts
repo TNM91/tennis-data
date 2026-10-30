@@ -1,4 +1,5 @@
 import {mountAppleMemberships} from './apple-memberships'
+import {mountAppLock} from './app-lock'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {Browser} from './native-browser'
 import {mountAccountAccess} from './account-access'
@@ -12,10 +13,11 @@ export function openAccountSettings(client:SupabaseClient,owner:string,current:(
  let disposed=false,signingOut=false,request=0,pane='settings',data:AccountSettings|null=null,child:ReturnType<typeof showEmailAuth>|ReturnType<typeof showPasswordRecovery>|null=null
  let accessPanel:ReturnType<typeof mountAccountAccess>|null=null
  let applePanel:ReturnType<typeof mountAppleMemberships>|null=null
+ let lockPanel:ReturnType<typeof mountAppLock>|null=null
  const valid=()=>!disposed&&current()&&dialog.isConnected
  const signOut=async()=>{if(!valid()||signingOut)return;signingOut=true;logout.disabled=true;logout.textContent='Logging out…';logoutError.textContent='';host.inert=true;host.setAttribute('aria-busy','true');try{await logOut();dispose()}catch{if(valid()){logoutError.textContent='Couldn’t log out. Check your connection and try again.';logoutError.focus({preventScroll:true})}}finally{if(valid()){signingOut=false;logout.disabled=false;logout.textContent='Log out';host.inert=false;host.removeAttribute('aria-busy')}}}
  logoutError.tabIndex=-1;logout.onclick=()=>{void signOut()}
- const clearChild=()=>{child?.dispose();child=null;accessPanel?.dispose();accessPanel=null;applePanel?.dispose();applePanel=null}
+ const clearChild=()=>{child?.dispose();child=null;accessPanel?.dispose();accessPanel=null;applePanel?.dispose();applePanel=null;lockPanel?.dispose();lockPanel=null}
  const dispose=()=>{if(disposed)return;disposed=true;request++;clearChild();dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const back=()=>{if(disposed)return false;if(signingOut){dispose();return true}if(pane!=='settings'){void load();return true}dispose();return true}
  close.onclick=dispose;dialog.oncancel=e=>{e.preventDefault();back()};document.body.append(dialog);dialog.showModal()
@@ -25,6 +27,8 @@ export function openAccountSettings(client:SupabaseClient,owner:string,current:(
   host.innerHTML=`<h1 tabindex="-1">Your account</h1><p class="account-email">${html(data.email)}</p><section class="account-access-panel" data-account-access aria-label="Your tennis tools"></section><section class="apple-membership-panel" data-apple-membership aria-label="Apple membership"></section><div class="account-action-list"><button type="button" class="secondary" data-password>Reset password</button><button type="button" class="secondary" data-billing>Manage existing web billing</button><button type="button" class="secondary" data-delete>${pending?'Deletion request status':'Delete account'}</button></div><p role="alert" data-account-error></p>${pending?requestHtml(pending):''}${accountLinksHtml}`
   accessPanel=mountAccountAccess(host.querySelector<HTMLElement>('[data-account-access]')!,client,owner,()=>valid()&&pane==='settings')
   applePanel=mountAppleMemberships(host.querySelector<HTMLElement>('[data-apple-membership]')!,client,owner,()=>valid()&&pane==='settings',()=>accessPanel?.refresh())
+  const lockHost=document.createElement('section');lockHost.className='account-access-panel';lockHost.setAttribute('aria-label','App lock');host.querySelector('[data-account-access]')!.before(lockHost)
+  lockPanel=mountAppLock(lockHost,()=>valid()&&pane==='settings')
   bindReceipt();bindAccountLinks(host);host.querySelector<HTMLElement>('h1')!.focus();host.querySelector<HTMLButtonElement>('[data-password]')!.onclick=()=>{clearChild();request++;pane='recovery';child=showPasswordRecovery(host,client,()=>{void load()});host.querySelector<HTMLButtonElement>('#back-login')!.textContent='Back to account'}
   host.querySelector<HTMLButtonElement>('[data-delete]')!.onclick=()=>deletion()
   host.querySelector<HTMLButtonElement>('[data-billing]')!.onclick=async()=>{const b=host.querySelector<HTMLButtonElement>('[data-billing]')!,error=host.querySelector<HTMLElement>('[data-account-error]')!;if(b.disabled||!valid())return;const visit=++request;b.disabled=true;error.textContent='';try{const url=await loadBillingPortal(client,owner,()=>valid()&&visit===request);if(valid()&&visit===request)await Browser.open({url})}catch(e){if(valid()&&visit===request)error.textContent=e instanceof Error&&e.message==='billing_not_found'?'No existing web billing account was found.':'Couldn’t open billing. Check your connection and try again.'}finally{if(valid()&&visit===request&&b.isConnected)b.disabled=false}}
