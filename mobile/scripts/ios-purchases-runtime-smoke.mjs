@@ -23,6 +23,39 @@ const channelProbe=String.raw`
 #endif
 `
 
+
+const restoreProbe=String.raw`
+#if DEBUG
+@MainActor private func tiqRestoreReadProbe() async -> Bool {
+    var reads = 0, refreshes = 0
+    do {
+        let existing = try await TiqRestoreRead.transactions(read: { reads += 1; return ["verified"] }, synchronize: { refreshes += 1 })
+        guard existing == ["verified"], reads == 1, refreshes == 0 else { return false }
+        reads = 0; refreshes = 0
+        let refreshed = try await TiqRestoreRead.transactions(read: { reads += 1; return reads == 1 ? [] : ["fresh"] }, synchronize: { refreshes += 1 })
+        guard refreshed == ["fresh"], reads == 2, refreshes == 1 else { return false }
+        reads = 0; refreshes = 0
+        let empty: [String] = try await TiqRestoreRead.transactions(read: { reads += 1; return [] }, synchronize: { refreshes += 1 })
+        guard empty.isEmpty, reads == 2, refreshes == 1 else { return false }
+        for cancel in [false, true] {
+            reads = 0; refreshes = 0
+            do {
+                let _: [String] = try await TiqRestoreRead.transactions(read: { reads += 1; return [] }, synchronize: {
+                    refreshes += 1
+                    if cancel { throw StoreKitError.userCancelled }
+                    throw NSError(domain: "StoreKit.StoreKitError", code: 2)
+                })
+                return false
+            } catch {
+                guard reads == 1, refreshes == 1, TiqPurchaseChannel.cancelled(error) == cancel else { return false }
+            }
+        }
+        return true
+    } catch { return false }
+}
+#endif
+`
+
 // Instrument only the generated unsigned Debug project, never the shipped source.
 export function instrumentPurchaseSmoke(source){
  const marker='bridge?.registerPluginInstance(TenAceIQPurchases())'
@@ -34,7 +67,22 @@ export function instrumentPurchaseSmoke(source){
  assert.equal(source.split(historyMarker).length,2,'Expected one bounded history read')
  source=source.replace(purchaseMarker,purchaseMarker.replace('30_000_000_000','((call.getBool("tiqReadTimeoutSmoke") == true || call.getBool("tiqReadDeadlineStoppedSmoke") == true) ? 5_000_000 : 30_000_000_000)'))
  source=source.replace(historyMarker,historyMarker.replace('15_000_000_000','((call.getBool("tiqReadTimeoutSmoke") == true || call.getBool("tiqReadDeadlineStoppedSmoke") == true) ? 5_000_000 : 15_000_000_000)'))
- assert.equal(source.split('gate.start { gate in').length,3,'Expected purchase and history read tasks')
+ const restoreMarker='let gate = TiqStoreRead(call, nanoseconds: 15_000_000_000, code: "restore_history_timeout")'
+ assert.equal(source.split(restoreMarker).length,2,'Expected one bounded restore read')
+ source=source.replace(restoreMarker,restoreMarker.replace('15_000_000_000','(call.getBool("tiqReadTimeoutSmoke") == true ? 5_000_000 : 15_000_000_000)'))
+ const restoreEnvironment='guard matchesEnvironment(call) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }'
+ assert.equal(source.split(restoreEnvironment).length,2,'Expected one restore channel check')
+ source=source.replace(restoreEnvironment,restoreEnvironment.replace('matchesEnvironment(call)','(matchesEnvironment(call) || call.getBool("tiqRestoreSmoke") == true)'))
+ const restoreRead='let entitlements = try await TiqRestoreRead.transactions(read: {'
+ assert.equal(source.split(restoreRead).length,2,'Expected entitlement-first restore')
+ source=source.replace(restoreRead,`#if DEBUG
+                    if let probe = call.getString("tiqRestoreFailureSmoke") {
+                        if probe == "cancel" { throw StoreKitError.userCancelled }
+                        throw NSError(domain: "StoreKit.StoreKitError", code: 2, userInfo: [NSLocalizedDescriptionKey: "private restore smoke"])
+                    }
+                    #endif
+                    ${restoreRead}`)
+ assert.equal(source.split('gate.start { gate in').length,4,'Expected purchase, history and restore read tasks')
  source=source.replaceAll('gate.start { gate in',`gate.start { gate in
                 #if DEBUG
                 if call.getBool("tiqReadDeadlineStoppedSmoke") == true {
@@ -67,7 +115,7 @@ export function instrumentPurchaseSmoke(source){
         try? Data(#"{"controllerEntered":true}"#.utf8).write(to: startedURL, options: .atomic)
         #endif
         `
- return source.replace('import StoreKit','import StoreKit\nimport WebKit'+channelProbe).replace(marker,before+marker+String.raw`
+ return source.replace('import StoreKit','import StoreKit\nimport WebKit'+channelProbe+restoreProbe).replace(marker,before+marker+String.raw`
         #if DEBUG
         do {
             let reportURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json")
@@ -76,6 +124,7 @@ export function instrumentPurchaseSmoke(source){
             Task { @MainActor [weak self] in
                 let purchaseChannel: Bool
                 if #available(iOS 16.0, *) { purchaseChannel = tiqPurchaseChannelProbe() } else { purchaseChannel = false }
+                let restorePolicy = await tiqRestoreReadProbe()
                 for _ in 0..<120 {
                     if let webView = self?.webView, webView.url != nil, !webView.isLoading, self?.viewIfLoaded?.window != nil,
                        let value = try? await webView.callAsyncJavaScript("""
@@ -106,10 +155,19 @@ export function instrumentPurchaseSmoke(source){
                            let cancelResolved = false;
                            try { const result = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqPurchaseFailureSmoke:'cancel'}); cancelResolved = result.state === 'cancelled'; } catch {}
 
+                           const restoreArgs = {environment:'Sandbox', tiqRestoreSmoke:true, tiqReadTimeoutSmoke:true};
+                           const restoreTimeout = await expires('restore',restoreArgs,'restore_history_timeout');
+                           const restoreRetry = await expires('restore',restoreArgs,'restore_history_timeout');
+                           const restoreFailure = async (kind, code) => {
+                               try { await cap.Plugins.TiqPurchases.restore({...restoreArgs,tiqReadTimeoutSmoke:false,tiqRestoreFailureSmoke:kind}); return false; }
+                               catch (error) { return error.code === code && (kind === 'cancel' ? error.data?.supportCode?.startsWith('restore/') : error.data?.supportCode === 'restore/StoreKit.StoreKitError:2') && !JSON.stringify(error).includes('private restore smoke'); }
+                           };
+                           const restoreTagged = await restoreFailure('error','restore_unavailable');
+                           const restoreCancelled = await restoreFailure('cancel','restore_cancelled');
                            let deadlineStopped = false;
                            try { const value = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqReadDeadlineStoppedSmoke:true}); deadlineStopped = value.state === 'cancelled'; } catch {}
-                           return JSON.stringify({ready: purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel});
-                           """, arguments: ["purchaseChannel": purchaseChannel], in: nil, contentWorld: .page),
+                           return JSON.stringify({ready: restorePolicy && restoreTimeout && restoreRetry && restoreTagged && restoreCancelled && purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel,nativeRestorePolicyVerified:restorePolicy,nativeRestoreReadRecovery:restoreTimeout && restoreRetry,nativeRestoreFailureTagged:restoreTagged && restoreCancelled});
+                           """, arguments: ["purchaseChannel": purchaseChannel, "restorePolicy": restorePolicy], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
                        let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -131,8 +189,8 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
  assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
- for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
- return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true}
+ for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified','nativeRestorePolicyVerified','nativeRestoreReadRecovery','nativeRestoreFailureTagged'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
+ return {ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)

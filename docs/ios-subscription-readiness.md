@@ -91,3 +91,13 @@ Native transaction delivery, capture and finishing require a StoreKit-verified t
 The native runtime probe checks that production, Xcode, missing-channel and wrong-bundle inputs are rejected. The simulator boots before compilation, so its existing runtime deadline does not include cold boot; diagnostics have their own bounded deadline.
 
 Sources: [AppTransaction describes purchase of the app](https://developer.apple.com/documentation/StoreKit/AppTransaction), [Transaction environment](https://developer.apple.com/documentation/storekit/transaction/environment), [TestFlight Internal Only distribution](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases), [Apple build audience types](https://developer.apple.com/documentation/appstoreconnectapi/buildaudiencetype).
+
+## Restore current verified memberships before optional account sync
+
+The owner confirmed a successful build-170 Player sandbox purchase and sync on an iPhone. A matching read-only server check confirmed active Player access. The subsequent Restore test failed at AppStore.sync() with restore/StoreKit.StoreKitError:2 while the UI still showed active access. Purchase/sync is confirmed; successful physical restore remains unverified.
+
+Restore now reads StoreKit's current entitlements first and sends verified, allowed, account-token-bearing subscription transactions through the same server verification and durable-acknowledgment path. It requests interactive App Store sync only when no such entitlement is available, then reads entitlements again. Read-only steps have a 15-second deadline; the optional Apple authentication prompt is not timed out. Native and client operation locks prevent another purchase, restore or management sheet while restore is unresolved. Unknown refresh failures and cancellation get restore-specific messages and do not revoke existing access or start another purchase.
+
+Native probes cover existing-entitlement restoration without sync, empty-history refresh, refresh failure/cancellation and bounded-read lock recovery. Browser fixtures cover retry, unchanged active-membership messaging, sanitized diagnostics and transaction delivery at 320/390px. Synthetic/native probes do not establish successful physical restore; the next signed beta still needs that iPhone check. Server signature, current-status, ownership, environment and acknowledgment rules are unchanged.
+
+Sources: [AppStore.sync is unnecessary for regular entitlement reads](https://developer.apple.com/documentation/storekit/appstore/sync%28%29?changes=_4), [currentEntitlements](https://developer.apple.com/documentation/storekit/transaction/currententitlements).

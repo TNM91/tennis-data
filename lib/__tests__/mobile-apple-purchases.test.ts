@@ -84,6 +84,24 @@ it('keeps safe native failure details without acknowledging or retrying a failed
 })
 it('normalizes restore failures and rejects them after an account switch',async()=>{
  const f=fixture();f.store.restore.mockRejectedValueOnce({code:'store_unavailable',data:{supportCode:'restore/StoreKit.StoreKitError:0'},message:'private Apple account'})
- await expect(f.service.restore(owner,'Sandbox')).rejects.toMatchObject({message:'store_unavailable',supportCode:'restore/StoreKit.StoreKitError:0'});expect(f.store.finish).not.toHaveBeenCalled();expect(f.post).not.toHaveBeenCalled()
+ await expect(f.service.restore(owner,'Sandbox')).rejects.toMatchObject({message:'restore_unavailable',supportCode:'restore/StoreKit.StoreKitError:0'});expect(f.store.finish).not.toHaveBeenCalled();expect(f.post).not.toHaveBeenCalled()
  const changed=fixture();changed.store.restore.mockImplementationOnce(async()=>{changed.switchOwner();throw {code:'store_unavailable'}});await expect(changed.service.restore(owner,'Sandbox')).rejects.toThrow('owner_changed')
+})
+
+it('restores verified history through the server before finishing and blocks other operations until complete',async()=>{
+ const f=fixture();let release!:(v:{transactions:typeof tx[]})=>void;f.store.restore.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve}))
+ const first=f.service.restore(owner,'Sandbox');await vi.waitFor(()=>expect(f.store.restore).toHaveBeenCalledOnce())
+ await expect(f.service.purchase(owner,sku)).rejects.toThrow('purchase_in_progress');await expect(f.service.restore(owner,'Sandbox')).rejects.toThrow('purchase_in_progress');await expect(f.service.manage(owner)).rejects.toThrow('purchase_in_progress');expect(f.post).not.toHaveBeenCalled()
+ release({transactions:[tx]});expect(await first).toBe(1);expect(f.post).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({data:expect.objectContaining({action:'reconcile',signedTransaction:tx.signedTransaction})}));expect(f.store.finish.mock.invocationCallOrder[0]).toBeGreaterThan(f.post.mock.invocationCallOrder[0]);expect(f.store.purchase).not.toHaveBeenCalled();await f.service.manage(owner);expect(f.store.manage).toHaveBeenCalledOnce()
+})
+it('never finishes restored transactions when server delivery, acknowledgment or owner verification fails',async()=>{
+ for(const breakIt of [(f:ReturnType<typeof fixture>)=>f.fail(),(f:ReturnType<typeof fixture>)=>f.wrongReceipt(),(f:ReturnType<typeof fixture>)=>f.switchOwner()]){
+  const f=fixture();f.store.restore.mockImplementationOnce(async()=>{breakIt(f);return {transactions:[tx]}});await expect(f.service.restore(owner,'Sandbox')).rejects.toThrow();expect(f.store.finish).not.toHaveBeenCalled();expect(f.store.purchase).not.toHaveBeenCalled()
+ }
+})
+it('keeps restore failure messages separate from purchases, makes no acknowledgment, and allows an explicit retry',async()=>{
+ for(const code of ['store_unavailable','restore_unavailable','restore_history_timeout','restore_cancelled','private_code']){
+  const f=fixture();f.store.restore.mockRejectedValueOnce({code,data:{supportCode:'restore/StoreKit.StoreKitError:2',build:'171'},message:'Private Apple account text'})
+  await expect(f.service.restore(owner,'Sandbox')).rejects.toMatchObject({message:code.startsWith('restore_')?code:'restore_unavailable',supportCode:'restore/StoreKit.StoreKitError:2',build:'171',beforeConfirmation:false});expect(f.post).not.toHaveBeenCalled();expect(f.store.finish).not.toHaveBeenCalled();expect(f.store.purchase).not.toHaveBeenCalled();expect(await f.service.restore(owner,'Sandbox')).toBe(1)
+ }
 })
