@@ -1000,3 +1000,20 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .league-court-match{border-color:#72c6ff;box-shadow:inset 3px 0 #72c6ff}
 .league-result-card .league-result-score{color:#f3f9ff;font-size:1.1rem;font-weight:750;font-variant-numeric:tabular-nums}
 .league-office-dialog .competition-fixture{overflow-wrap:anywhere}
+
+/* Exact team match evidence opens from standings and approved league entries. */
+.league-team-open{display:flex;align-items:center;justify-content:space-between;gap:12px;inline-size:100%;max-inline-size:100%;min-inline-size:0;min-block-size:48px;margin:14px 0 0!important;padding:12px 14px!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.competition-participants li:has(.league-team-open),.team-members li:has(.league-team-open){display:block;min-inline-size:0;overflow-wrap:anywhere}
+.team-members li:has(.league-team-open)>span{display:block;margin-block-start:8px}
+.league-team-heading{padding:18px;border:1px solid #28557a;border-radius:22px;background:linear-gradient(140deg,#103c60,#071b35 76%);overflow-wrap:anywhere}
+.league-team-heading>small{color:#8cd3ff;font-size:.85rem;font-weight:700}
+.league-team-heading h3{font-size:1.6rem!important;line-height:1.3!important;margin-block:12px!important;color:#f3f8ff}
+.league-team-heading .competition-metrics{grid-template-columns:repeat(2,minmax(0,1fr));margin-block:18px}
+.league-team-heading .competition-metrics>div:first-child{grid-column:1/-1}
+.league-team-heading .competition-metrics strong{font-size:1.6rem;overflow-wrap:anywhere}
+.league-team-heading p,.league-team-context{font-size:.85rem!important;line-height:1.6!important;color:#b9d1e6;overflow-wrap:anywhere}
+.league-team-dialog .league-team-section{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;margin-block:24px}
+.league-team-section>h4{font-size:1.05rem!important;line-height:1.5!important;color:#d4edff}
+.league-team-section .competition-fixture{overflow-wrap:anywhere}
+
+.league-team-dialog .competition-header button{flex:1 1 100px;min-inline-size:0;padding:10px 12px!important;font-size:.9rem!important}

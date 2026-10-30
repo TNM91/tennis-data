@@ -8,6 +8,7 @@ import {openLeagueEntry} from './league-entry-view'
 import {officeSectionHtml} from './league-office-view'
 import {bindLeagueMatchFinder,emptyLeagueFinder,emptyLeagueMatchFilters,leagueFixtureHtml,leagueMatchViewHtml,type LeagueMatchFilters} from './league-match-finder'
 import {html} from './match-details'
+import {bindLeagueTeamActions,leagueTeamOpenHtml,openLeagueTeamEvidence,restoreLeagueTeamFocus} from './league-team-evidence'
 type View='home'|'fixtures'|'results'|'standings'|'participants'
 const stateLabel=(v:string)=>(({draft:'Draft',registration_open:'Registration open',active:'In season',completed:'Completed',archived:'Past season'} as Record<string,string>)[v]||v.replaceAll('_',' '))
 export function competitionCardsHtml(snapshot:CompetitionSnapshot){
@@ -24,7 +25,7 @@ export function competitionSeasonHtml(d:OfficeDetail,view:View,today?:string,fil
   return '<div class="competition-metrics" aria-label="Loaded season records">'+[[d.participants.length+(d.moreParticipants?'+':''),d.league.format==='team'?'Teams':'Players'],[d.fixtures.length+(d.moreFixtures?'+':''),'Dates'],[d.results.length+(d.moreResults?'+':''),'Results']].map(([v,label])=>'<div><strong>'+v+'</strong><span>'+label+'</span></div>').join('')+'</div><h3 tabindex="-1">Coming up</h3>'+(upcoming.length?upcoming.map(leagueFixtureHtml).join(''):'<p>No upcoming dates in the loaded schedule.</p>')+(d.moreFixtures?'<p class="rating-context">This is a limited schedule sample. Open Schedule to review the loaded dates.</p>':'')+'<p class="rating-context">Times use '+html(d.league.timeZone)+'. Proposals and cancellations keep their recorded status.</p>'
  }
  if(view==='fixtures'||view==='results')return leagueMatchViewHtml(d,view,filters)
- if(view==='participants')return '<h3 tabindex="-1">'+(d.league.format==='team'?'Teams':'Players')+'</h3><p>Approved entries'+(d.moreParticipants?' · showing the first 100':'')+'. Pending and declined entries are not listed.</p>'+(d.participants.length?'<ul class="competition-participants">'+d.participants.map(p=>'<li>'+html(p.name)+'</li>').join('')+'</ul>':'<p>No approved entries are listed yet.</p>')
+ if(view==='participants')return '<h3 tabindex="-1">'+(d.league.format==='team'?'Teams':'Players')+'</h3><p>Approved entries'+(d.moreParticipants?' · showing the first 100':'')+'. Pending and declined entries are not listed.</p>'+(d.participants.length?'<ul class="competition-participants">'+d.participants.map(p=>'<li>'+html(p.name)+leagueTeamOpenHtml(d,p.name,'participants')+'</li>').join('')+'</ul>':'<p>No approved entries are listed yet.</p>')
  return officeSectionHtml(d,view).replace('Recorded court results use this league’s website scoring and standings rules. Unplayed events do not count as wins, losses or ties.','Match records and court wins follow this league’s scoring rules. Unplayed matches do not count.')
 }
 export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement){
@@ -32,13 +33,14 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
  dialog.className='captain-lineup-dialog competitions-dialog';dialog.setAttribute('aria-label','Competitions')
  let disposed=false,version=0,busy=false,scope=initial,query='',selected='',view:View='home',snapshot:CompetitionSnapshot|null=null,notice=''
  let filters=emptyLeagueFinder()
+ let teamEvidence:ReturnType<typeof openLeagueTeamEvidence>|null=null
  let entry:ReturnType<typeof openLeagueEntry>|null=null
  let tournaments:ReturnType<typeof openTournaments>|null=null
  const active=()=>!disposed&&current()
- const dispose=()=>{if(disposed)return;disposed=true;version++;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
+ const dispose=()=>{if(disposed)return;disposed=true;version++;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const hidden=()=>{if(document.visibilityState==='hidden')dispose()}
  const focus=()=>dialog.querySelector<HTMLElement>(selected?'[data-competition-content] h3':'h2')?.focus({preventScroll:true})
- const back=()=>{if(tournaments?.isOpen())return tournaments.back();if(entry?.isOpen())return entry.back();if(selected){selected='';view='home';void load()}else dispose();return true}
+ const back=()=>{if(!active()){dispose();return true}if(teamEvidence?.isOpen())return teamEvidence.back();if(tournaments?.isOpen())return tournaments.back();if(entry?.isOpen())return entry.back();if(selected){selected='';view='home';void load()}else dispose();return true}
  const render=()=>{
   if(!active())return
   const d=snapshot?.detail
@@ -57,6 +59,10 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   dialog.querySelectorAll<HTMLButtonElement>('[data-competition-league]').forEach(b=>{b.onclick=()=>{const l=snapshot?.leagues[Number(b.dataset.competitionLeague)];if(l){selected=l.id;view='home';filters=emptyLeagueFinder();void load()}}})
   dialog.querySelectorAll<HTMLButtonElement>('[data-competition-view]').forEach(b=>{b.onclick=()=>{view=b.dataset.competitionView as View;render();focus()}})
   dialog.querySelector('[data-competition-entry]')?.addEventListener('click',()=>{if(!selected||entry?.isOpen())return;entry=openLeagueEntry(client,owner,active,selected,()=>{entry=null;if(active())void load()},send)})
+  if(d)bindLeagueTeamActions(dialog,d,()=>active()&&!busy,team=>{
+   if(teamEvidence?.isOpen())return;const scroll=dialog.scrollTop,id=d.league.id,chosenScope=scope,chosenQuery=query
+   teamEvidence=openLeagueTeamEvidence(d,team,active,async valid=>{try{const result=await loadCompetitions(client,owner,()=>active()&&valid(),chosenScope,chosenQuery,id,send);if(!valid()||!result.detail)throw Error('League changed');snapshot=result;notice='';return result.detail}catch(error){if(valid()){snapshot=null;notice='Couldn’t refresh this league. Refresh to try again.'}throw error}},()=>{teamEvidence=null;if(active()){render();restoreLeagueTeamFocus(dialog,team,scroll)}},team.source==='standings'?'← Standings':'← Teams')
+  })
   bindLeagueMatchFinder(dialog,()=>active()&&!busy,next=>{if(view!=='fixtures'&&view!=='results')return;filters[view]=next;render();dialog.querySelector<HTMLElement>('[data-league-filter-summary]')?.focus()})
   dialog.querySelector('[data-competition-chats]')?.addEventListener('click',()=>{dispose();onChats?.()})
  }

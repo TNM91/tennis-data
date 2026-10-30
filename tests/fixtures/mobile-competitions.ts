@@ -7,9 +7,15 @@ import {openCompetitions} from '../../mobile/src/competitions-view'
 import {labActionsHtml} from '../../mobile/src/lab-home'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from './competitions-data'
 const mode=new URLSearchParams(location.search).get('view')||'team'
-const state={finderChanged:false,calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
+const state={teamWithdrawn:false,teamReordered:false,finderChanged:false,calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
 function detailForFinder(){
- const d=competitionDetail();if(!mode.includes('finder'))return d
+ const d=competitionDetail();if(mode.includes('evidence')){
+  d.fixtures.push({...d.fixtures[0],id:'similar-team',a:'Baseline Aces B',b:'Other team',date:'2026-11-08'});d.results.push({...d.results[0],id:'similar-result',a:'Baseline Aces B',b:'Other team',courts:[{...d.results[0].courts[0],a:'Baseline Aces'}]})
+  if(mode.includes('long')){const name='Baseline '+('Championship'.repeat(18));for(const r of [...d.standings])if(r.teamName==='Baseline Aces')r.teamName=name;for(const r of d.participants)if(r.name==='Baseline Aces')r.name=name;for(const r of [...d.fixtures,...d.results]){if(r.a==='Baseline Aces')r.a=name;if('winner' in r&&r.winner==='Baseline Aces')r.winner=name}}
+  if(state.teamReordered)d.standings.reverse()
+  if(state.teamWithdrawn){d.standings=d.standings.filter(s=>s.teamName!=='Baseline Aces');d.participants=d.participants.filter(p=>p.name!=='Baseline Aces')}
+  if(mode.includes('partial')){d.moreFixtures=true;d.moreResults=true;d.standingsAvailable=false;d.standings=[]}
+ }if(!mode.includes('finder'))return d
  d.fixtures.push({...d.fixtures[0],id:'fixture-other',date:'2026-11-08',a:'Spin Masters',b:'Court Kings',status:'proposed'})
  d.results.push({...d.results[0],id:'event-later',date:'2026-10-24',a:'Spin Masters',b:'Court Kings',winner:'Court Kings',courts:[{label:'Line 1 · Singles',a:'Morgan',b:'Taylor',winner:'Side B',score:'7-5, 6-4'}]},{...d.results[0],id:'event-unrecorded',date:'2026-10-25',winner:'',courts:[]})
  if(mode.includes('long')){d.fixtures[0].a='Baseline '+('Championship'.repeat(18));d.results[0].courts[0].a='Alex '+('Server'.repeat(35))}
@@ -26,7 +32,7 @@ const send:ScenarioSend=async options=>{
   if(state.delay)await new Promise<void>(resolve=>{state.release=resolve});return {status:state.offline?503:200,data:{ok:true,...review},headers:{},url:options.url}
  }
  if(new URL(options.url).pathname.endsWith('/league-office')){
-  const league={...competitionDetail().league,name:'Northside 4.0'},detail={...detailForFinder(),league,participants:[{name:'Alex Server',status:state.decisionSaved?'active':'pending'}],moreParticipants:false};return {status:200,data:{ok:true,owner,checkedAt:'2026-10-30T05:40:00Z',leagues:[league],moreLeagues:false,detail:new URL(options.url).searchParams.get('league')?detail:null},headers:{},url:options.url}
+  const league={...competitionDetail().league,name:'Northside 4.0'},detail={...detailForFinder(),league,participants:mode.includes('evidence')?detailForFinder().participants:[{name:'Alex Server',status:state.decisionSaved?'active':'pending'}],moreParticipants:false};return {status:200,data:{ok:true,owner,checkedAt:'2026-10-30T05:40:00Z',leagues:[league],moreLeagues:false,detail:new URL(options.url).searchParams.get('league')?detail:null},headers:{},url:options.url}
  }
  if(new URL(options.url).pathname.endsWith('/entry')){
   const review=entryReviewFixture();review.owner=owner;if(mode==='entry-information')state.entryInformation=true;review.open=!state.entryClosed;review.allowed=state.entryAllowed;if(state.entryChanged){review.review='b'.repeat(64);review.requirement.ageDivision='55 & Over'}
@@ -55,6 +61,6 @@ const send:ScenarioSend=async options=>{
 document.querySelector('#app')!.innerHTML='<h1>My Lab</h1>'+labActionsHtml()
 let view:ReturnType<typeof openCompetitions>|null=null
 document.querySelector<HTMLButtonElement>('[data-lab-screen="competitions"]')!.onclick=()=>{state.active=true;view=openCompetitions(client,owner,()=>state.active,'mine',undefined,send,document.querySelector<HTMLElement>('[data-lab-screen="competitions"]')!)}
-Object.assign(window,{competitionFixture:{state,dispose:()=>view?.dispose()}})
+Object.assign(window,{competitionFixture:{state,dispose:()=>view?.dispose(),back:()=>view?.back()}})
 
-if(mode.startsWith('office')){document.querySelector('#app')!.innerHTML='<h1>My Lab</h1><button type="button" data-office-open>Open League Office</button>';document.querySelector<HTMLButtonElement>('[data-office-open]')!.onclick=()=>{state.active=true;const office=openLeagueOffice(client,owner,()=>state.active,send);Object.assign(window,{officeFixture:{dispose:()=>office.dispose()}})}}
+if(mode.startsWith('office')){document.querySelector('#app')!.innerHTML='<h1>My Lab</h1><button type="button" data-office-open>Open League Office</button>';document.querySelector<HTMLButtonElement>('[data-office-open]')!.onclick=()=>{state.active=true;const office=openLeagueOffice(client,owner,()=>state.active,send);Object.assign(window,{officeFixture:{dispose:()=>office.dispose(),back:()=>office.back()}})}}
