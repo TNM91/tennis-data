@@ -13,6 +13,8 @@ const base={senderUserId:other,senderName:'Alex Rivera',kind:'message',deletedAt
 test.beforeAll(async()=>{
  const bundled=await build({stdin:{resolveDir:process.cwd(),sourcefile:'chat-experience-fixture.ts',loader:'ts',contents:`
  import {showTeamRoom} from './mobile/src/team-room-view';
+ import {navigationHtml} from './mobile/src/app-navigation';
+ document.querySelector('.app-navigation')!.innerHTML=navigationHtml();
  const owner=${JSON.stringify(owner)},scope=${JSON.stringify(scope)};
  let active=true;(window as any).fixture={};
  const client={auth:{getSession:async()=>({error:null,data:{session:{user:{id:owner},access_token:'synthetic-fixture-token'}}})}};
@@ -59,7 +61,7 @@ test.beforeEach(async({page})=>{
   if(url.origin!==origin||!url.pathname.startsWith(prefix))return route.abort()
   if(url.pathname.endsWith('app.js'))return route.fulfill({contentType:'text/javascript',body:javascript})
   if(url.pathname.endsWith('style.css'))return route.fulfill({contentType:'text/css',body:stylesheet})
-  return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="./style.css"></head><body><main id="app"></main><script type="module" src="./app.js"></script></body></html>'})
+  return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="./style.css"></head><body data-screen="teams"><header class="app-header">TenAceIQ</header><main id="app"></main><nav class="app-navigation" aria-label="Main navigation"></nav><script type="module" src="./app.js"></script></body></html>'})
  })
 })
 const post=(page:Page,id=messageId)=>page.locator(`[data-chat-message="${id}"]`)
@@ -79,7 +81,7 @@ async function bounded(page:Page){
 }
 for(const width of [320,390])test(`hold, react and reply through the real conversation at ${width}px`,async({page},info)=>{
  await page.setViewportSize({width,height:width===320?568:844});await page.goto(origin+prefix)
- await expect(post(page).locator('.chat-message-text')).toBeVisible()
+ await expect(post(page).locator('.chat-message-text')).toBeVisible();await expect(page.locator('.app-navigation')).toHaveCount(1);await expect(page.locator('.app-navigation')).toBeHidden()
  await hold(post(page).locator('.chat-message-text'))
  const sheet=page.getByRole('dialog',{name:'Alex Rivera',exact:true})
  await expect(sheet).toBeVisible();await expect(sheet.locator('.chat-press-reactions button')).toHaveCount(6)

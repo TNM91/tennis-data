@@ -1,4 +1,7 @@
 import {openCompetitions} from './competitions-view'
+import {openTournaments} from './tournaments-view'
+import {Browser} from './native-browser'
+import {navigationHtml,currentTab,appHubHtml,homeShortcutsHtml,bindAppDestinations,type AppScreen,type AppHub,type AppDestination} from './app-navigation'
 import {applePurchases} from './apple-purchases'
 import {showEmailAuth} from './email-auth'
 import {openAccountSettings} from './account-settings'
@@ -18,7 +21,6 @@ import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
 import {loadTrainingHistory} from './level-up-data'
 import {labTrainingOverview} from './lab-training-overview'
-import websiteUi from '../generated/website-ui.json'
 import {showExplore as showPlayerDetail} from './explore'
 import {openLevelUp} from './level-up-view'
 import {createTeamNavigationGuard} from './navigation-warning'
@@ -49,15 +51,17 @@ const navigation = document.createElement('nav')
 navigation.className = 'app-navigation'
 navigation.setAttribute('aria-label','Main navigation')
 navigation.hidden = true
-navigation.innerHTML = (['lab','explore','following','matchup','teams'] as const).map(key=>`<button type="button" data-screen="${key}"><span aria-hidden="true">${websiteUi.icons[key]}</span><span>${({lab:'My Lab',explore:'Explore',following:'Following',matchup:'Matchup',teams:'Chats'})[key]}</span></button>`).join('')
+navigation.innerHTML = navigationHtml()
 app.after(navigation)
 const accountEntry=document.createElement('button')
 accountEntry.type='button';accountEntry.className='secondary native-account-entry';accountEntry.hidden=true;accountEntry.textContent='Account';accountEntry.setAttribute('aria-label','Account settings')
 document.querySelector('.app-header')!.append(accountEntry)
-accountEntry.onclick=()=>{if(!session||accountSettings?.isOpen()||competitions?.isOpen()||connection?.isSaving())return;const owner=session.user.id,visit=revision;accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner))}
+accountEntry.onclick=()=>{if(!session||accountSettings?.isOpen()||competitions?.isOpen()||tournaments?.isOpen()||connection?.isSaving())return;const owner=session.user.id,visit=revision;accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner))}
 let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof openDataImports>|null=null
 let competitions:ReturnType<typeof openCompetitions>|null=null
+let tournaments:ReturnType<typeof openTournaments>|null=null
+let hub:AppHub|null=null
 let leagueOffice:ReturnType<typeof openLeagueOffice>|null=null
 let goals:ReturnType<typeof openLabGoals>|null=null
 let training:ReturnType<typeof openLevelUp>|null=null
@@ -83,6 +87,7 @@ if (Capacitor.getPlatform() === 'android') {
     else if(guest){guest.back()}
     else if(dataImports?.isOpen()){dataImports.back()}
     else if(competitions?.isOpen()){competitions.back()}
+    else if(tournaments?.isOpen()){tournaments.back()}
     else if(leagueOffice?.isOpen()){leagueOffice.back()}
     else if(goals?.isOpen()){goals.back()}
     else if(training?.isOpen()){training.back()}
@@ -94,6 +99,7 @@ if (Capacitor.getPlatform() === 'android') {
     else if (connection) { if (!connection.isSaving()) void lab() }
     else if (recovery) login()
     else if (details?.isOpen()) history.back()
+    else if(hub){if(hub==='coach')showHub('more');else void lab()}
     else void App.minimizeApp()
   })
 }
@@ -107,6 +113,7 @@ function login(message = '') {
   labRatingTrends?.dispose();labRatingTrends=null
   dataImports?.dispose();dataImports=null
   competitions?.dispose();competitions=null
+  tournaments?.dispose();tournaments=null;hub=null
   leagueOffice?.dispose();leagueOffice=null
   goals?.dispose();goals=null
   training?.dispose();training=null
@@ -164,17 +171,19 @@ function openGuest() {
   guest=showGuestExplore(app,()=>!session&&visit===revision,()=>login())
 }
 
-function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup' | 'teams') {
+function selectNavigation(screen:AppScreen) {
   labRatingTrends?.dispose();labRatingTrends=null
   dataImports?.dispose();dataImports=null
   competitions?.dispose();competitions=null
+  tournaments?.dispose();tournaments=null
   leagueOffice?.dispose();leagueOffice=null
+  hub=screen==='compete'||screen==='more'||screen==='coach'?screen:null
   navigation.hidden = false
   accountEntry.hidden=false
   document.body.dataset.screen=screen
   window.scrollTo(0,0)
   navigation.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
-    if (button.dataset.screen === screen) button.setAttribute('aria-current','page')
+    if (button.dataset.screen === currentTab(screen)) button.setAttribute('aria-current','page')
     else button.removeAttribute('aria-current')
   })
 }
@@ -203,7 +212,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick 
   })
 }
 
-navigation.querySelector<HTMLButtonElement>('[data-screen="following"]')!.onclick=()=>{
+function openFollowing(){
   if(!session || connection?.isSaving() || following)return
   guardNavigation(()=>{
     if(!session)return
@@ -216,7 +225,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="following"]')!.onclic
   })
 }
 
-navigation.querySelector<HTMLButtonElement>('[data-screen="matchup"]')!.onclick=()=>{
+function openMatchup(){
   if(!session || connection?.isSaving() || comparison)return
   guardNavigation(()=>{
     if(!session)return
@@ -242,6 +251,42 @@ function openTeamRoom(initialScope?:TeamChatDestination){
 }
 
 navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()=>openTeamRoom()
+navigation.querySelector<HTMLButtonElement>('[data-screen="compete"]')!.onclick=()=>{if(!connection?.isSaving())guardNavigation(()=>showHub('compete'))}
+navigation.querySelector<HTMLButtonElement>('[data-screen="more"]')!.onclick=()=>{if(!connection?.isSaving())guardNavigation(()=>showHub('more'))}
+function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
+ if(!session||!trigger.isConnected||connection?.isSaving())return
+ if(destination==='leagues'){launchCompetitions('mine',trigger);return}
+ if(destination==='tournaments'){
+  if(tournaments?.isOpen()||competitions?.isOpen()||accountSettings?.isOpen())return
+  const owner=session.user.id,visit=revision
+  tournaments=openTournaments(client,owner,()=>visit===revision&&owner===session?.user.id,()=>{tournaments=null},undefined,trigger,'Close');return
+ }
+ if(destination==='following'){openFollowing();return}
+ if(destination==='matchup'){openMatchup();return}
+ if(destination==='coach'){guardNavigation(()=>showHub('coach'));return}
+ const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
+ if(destination==='league-office'){if(!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
+ if(destination==='imports'){if(!dataImports?.isOpen())dataImports=openDataImports(client,owner,current);return}
+ if(destination==='account'){accountEntry.click();return}
+ if(destination==='training'||destination==='training-inbox'||destination==='training-progress'){
+  if(!training?.isOpen())training=openLevelUp(client,owner,current,destination==='training-inbox'?'inbox':destination==='training-progress'?'progress':'catalog');return
+ }
+ if(destination==='coach-web'){
+  trigger.disabled=true
+  void Browser.open({url:'https://www.tenaceiq.com/coach'}).catch(()=>{if(current()){const notice=app.querySelector('.app-hub-notice');if(notice)notice.textContent='Couldn’t open the coach workspace. Check your connection and try again.'}}).finally(()=>{if(current()&&trigger.isConnected)trigger.disabled=false});return
+ }
+ navigation.querySelector<HTMLButtonElement>('[data-screen="'+destination+'"]')?.click()
+}
+function showHub(next:AppHub){
+ if(!session)return
+ accountSettings?.dispose();accountSettings=null
+ emailAuth?.dispose();emailAuth=null;goals?.dispose();goals=null;training?.dispose();training=null
+ teamRoom?.dispose();teamRoom=null;comparison?.dispose();comparison=null;following?.dispose();following=null
+ explore?.dispose();explore=null;profileOpen=false;connection?.dispose();connection=null
+ recovery?.dispose();recovery=null;details?.dispose();details=null
+ ++revision;selectNavigation(next);app.dataset.state='ready';app.innerHTML=appHubHtml(next)
+ bindAppDestinations(app,openDestination);app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
+}
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
 const nativePurchases=applePurchases(client)
 const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
@@ -282,6 +327,7 @@ async function lab() {
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
+  bindAppDestinations(app,openDestination)
   app.querySelectorAll<HTMLButtonElement>('[data-lab-goals]').forEach(button=>{button.onclick=()=>{
     if(goals?.isOpen()||training?.isOpen()||!data?.linked_player_id)return
     const active=()=>version===revision&&current.user.id===session?.user.id,heroTrigger=Boolean(button.closest('#lab-identity'))
@@ -290,7 +336,7 @@ async function lab() {
       host.innerHTML='<h3>'+escape(goal.goal)+'</h3><p>'+escape(goal.improveNext||goal.progressUpdate||'Review your notes before the next match or practice.')+'</p>'+goalReadinessHtml(goal)
     },()=>{if(!active()||!selectedLabGoal)return;const host=app.querySelector<HTMLElement>('#lab-identity');if(host){host.innerHTML=labIdentityHtml(data,undefined,selectedLabGoal);bindLabActions();if(heroTrigger)host.querySelector<HTMLElement>('[data-lab-goals]')?.focus({preventScroll:true})}})
   }})
-  app.querySelectorAll<HTMLButtonElement>('[data-lab-screen]').forEach(b=>{b.onclick=()=>{if(b.dataset.labScreen==='competitions'){launchCompetitions('mine',b);return}navigation.querySelector<HTMLButtonElement>(`[data-screen="${b.dataset.labScreen}"]`)?.click()}})
+  app.querySelectorAll<HTMLButtonElement>('[data-lab-screen]').forEach(b=>{b.onclick=()=>{if(b.dataset.labScreen==='competitions'){launchCompetitions('mine',b);return}if(b.dataset.labScreen==='following'){openFollowing();return}if(b.dataset.labScreen==='matchup'){openMatchup();return}navigation.querySelector<HTMLButtonElement>(`[data-screen="${b.dataset.labScreen}"]`)?.click()}})
   app.querySelectorAll<HTMLButtonElement>('[data-training]').forEach(b=>{b.onclick=()=>{if(training?.isOpen())return;training=openLevelUp(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,b.dataset.training==='inbox'?'inbox':b.dataset.training==='progress'?'progress':'catalog',b.dataset.training==='next'?{cardId:b.dataset.trainingCard||'',identitySlug:b.dataset.trainingDirection||''}:undefined)}})
   app.querySelectorAll<HTMLButtonElement>('[data-lab-profile]').forEach(button=>{button.onclick=()=>{if(!data?.linked_player_id||!data.linked_player_name)return;details?.dispose();details=null;const profileVersion=++revision;selectNavigation('explore');profileOpen=true;explore=showPlayerDetail(app,client,()=>profileVersion===revision&&current.user.id===session?.user.id,{player:{id:data.linked_player_id,name:data.linked_player_name,location:null,flight:null},back:()=>{void lab()},backLabel:'Back to My Lab'})}})
   app.querySelectorAll<HTMLButtonElement>('[data-connect-player],#connect-player').forEach(connectButton=>{connectButton.onclick = () => {
@@ -346,7 +392,8 @@ async function lab() {
       app.querySelector('#lab-identity')!.before(ratingsSection,app.querySelector('#recent-results')!)
       const trendSection=document.createElement('section')
       const formSection=document.createElement('div');formSection.className='lab-form-host'
-      ratingsSection.after(formSection,trendSection)
+      const shortcuts=document.createElement('div');shortcuts.innerHTML=homeShortcutsHtml()
+      ratingsSection.after(formSection,shortcuts,trendSection)
       labRatingTrends=mountLabRatingTrends(trendSection,client,playerId,()=>version===revision&&current.user.id===session?.user.id)
       bindLabActions()
       const pathSection=document.createElement('div');pathSection.className='lab-next-band';app.querySelector('#recent-results')!.after(pathSection)
@@ -377,7 +424,7 @@ client.auth.onAuthStateChange((_event, next) => {
   // A late signed-out event must not reset an active public visit.
   if(!next&&!session&&(guest||emailAuth)){setTimeout(()=>setNativeSession(null),0);return}
   if(next){guest?.dispose();guest=null}
-  if (next?.user.id === session?.user.id && (accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
+  if (next?.user.id === session?.user.id && (accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -391,7 +438,7 @@ client.auth.getSession().catch(() => {
   if(!session&&!guest)login()
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
   else {labRatingTrends?.dispose();labRatingTrends=null;client.auth.stopAutoRefresh()}
 })
-window.addEventListener('online', () => { if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })
+window.addEventListener('online', () => { if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })

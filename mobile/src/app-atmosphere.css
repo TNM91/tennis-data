@@ -22,27 +22,6 @@ body[data-screen="lab"]:not(.native-chat-conversation) main { padding-top:0; }
 .lab-scoreboard-intro h1 { font-size:32px; font-weight:800; letter-spacing:-.045em; line-height:1.12; margin:5px 0 3px; }
 .lab-scoreboard-intro p { font-size:12px; color:#a9c4d9; line-height:18px; margin:0; }
 .lab-scoreboard-intro .lab-profile-action { background:#0c2b43; border-color:#315774; color:#b4dfff; }
-body[data-screen="lab"] section.lab-scoreboard { position:relative; margin-top:0; padding:16px 18px 8px; background:#031326; border:1px solid #3e6d8c; border-radius:24px; box-shadow:0 20px 40px #0004; }
-.lab-scoreboard h2 { padding-right:76px; color:#b7d9ef; margin:0; font-size:15px; font-weight:650; letter-spacing:0; }
-.lab-scoreboard .lab-rating-chart { gap:0; margin:4px 0 0; }
-.lab-scoreboard .lab-rating-chart>div:first-child { position:relative; min-height:clamp(180px,48vw,254px); padding:12px 0 10px; background:transparent url('./brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png') no-repeat right center / min(100%,480px) auto; border:0; border-radius:0; overflow:visible; }
-.lab-scoreboard .lab-rating-chart>div:first-child>dt,.lab-scoreboard .lab-rating-chart>div:first-child>dd { margin-left:0; margin-right:0; }
-.lab-scoreboard .lab-rating-chart>div:first-child>dt { font-size:12px; letter-spacing:.16em; color:#add0eb; }
-.lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { margin:4px 0 0; font-size:82px; line-height:1; font-weight:800; letter-spacing:-.06em; color:#f5faff; }
-.lab-scoreboard .rating-brand-mark { position:absolute; right:0; top:-32px; width:64px; height:32px; object-fit:contain; opacity:.72; }
-.lab-scoreboard .lab-rating-chart>div:first-child .rating-note { max-width:58%; margin:5px 0 0; font-size:10px; color:#b4cee0; }
-.lab-scoreboard .lab-rating-chart>div:first-child .rating-scale { margin:13px 0 0; max-width:58%; }
-.lab-scoreboard .lab-rating-chart>div:not(:first-child) { padding:10px 14px; border:0; border-top:1px solid #335674; background:#0c2943cc; border-radius:0; }
-.lab-scoreboard .lab-rating-chart>div:nth-child(2) { border-right:1px solid #335674; border-radius:14px 0 0 14px; }
-.lab-scoreboard .lab-rating-chart>div:nth-child(3) { border-radius:0 14px 14px 0; }
-.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dt { font-size:12px; line-height:16px; font-weight:600; color:#bdd8ec; }
-.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale) { font-size:34px; line-height:1; margin:5px 0 0; color:#eef8ff; font-weight:750; }
-.lab-scoreboard .lab-rating-chart>div:not(:first-child) .rating-note { font-size:11px; line-height:15px; color:#a7c4da; margin-top:6px; }
-.lab-scoreboard .lab-rating-chart>div:not(:first-child) .rating-scale { margin:7px 0 0; }
-.lab-scoreboard .rating-scale-caption { display:inline-block; margin:10px 12px 0 0; color:#a6c5dc; font-size:10px; line-height:16px; }
-.lab-scoreboard>.rating-context,.lab-scoreboard>div>.rating-context { display:inline-block; font-size:11px; color:#bdd6e8; margin:10px 0 0; line-height:16px; }
-.lab-scoreboard .rating-context-info { border-color:#29475e; margin-top:6px; padding-top:2px; }
-.lab-scoreboard .rating-context-info summary { color:#b6d2e7; font-size:11px; min-height:44px; padding:10px 0; }
 .lab-form-host .lab-form-strip { padding:16px 2px; margin-top:8px; border:0; border-radius:0; background:transparent; box-shadow:none; }
 .lab-form-heading h2 { font-size:18px; letter-spacing:-.025em; }
 .lab-form-heading>span { color:#b7d5e9; font-weight:650; }
@@ -71,8 +50,6 @@ body[data-screen]:not(.native-chat-conversation) .tennis-tools { background:#091
 body[data-screen]:not(.native-chat-conversation) .tennis-tool-grid button.tennis-tool { border-color:#2a4961; background:#0a263d; }
 @media(max-width:360px) {
  .lab-scoreboard-intro h1 { font-size:29px; }
- body[data-screen="lab"] section.lab-scoreboard { padding:16px 14px 6px; }
- .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { font-size:76px; }
  .native-explore-hero h1 { font-size:32px; }
 }
 
@@ -95,16 +72,6 @@ body[data-screen]:not(.native-chat-conversation) .tennis-tool-grid button.tennis
 .lab-form-marks .lab-form-mark span { font-size:10px; line-height:14px; }
 
 /* A readable scoreboard, followed by evidence and a practical next step. */
-body[data-screen="lab"] section.lab-scoreboard{border-color:#3b6a8e;background:linear-gradient(155deg,#0b2941,#031326 56%);box-shadow:0 16px 40px #0005}
-.lab-scoreboard h2{font-size:14px;line-height:20px;color:#b7d9ef}
-.lab-scoreboard .lab-rating-chart>div:first-child{min-height:168px;margin:0;padding-top:10px;background-size:min(100%,480px) auto}
-.lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale){font-size:80px;letter-spacing:-.055em}
-.lab-scoreboard .lab-rating-chart>div:first-child>.rating-scale{margin-top:10px}
-.lab-scoreboard .lab-rating-chart>div:not(:first-child){padding:12px 14px;background:#10324c;border-top-color:#315b7a}
-.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dt{font-size:11px;color:#a9cee8}
-.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale){font-size:35px;letter-spacing:-.035em}
-.lab-scoreboard .rating-scale-caption{margin-top:8px}
-.lab-scoreboard .rating-context-info{margin-top:3px}
 .stat-donut{position:relative;display:grid;place-items:center;flex:0 0 auto;inline-size:108px;aspect-ratio:1;min-inline-size:0;color:#f1f8ff}
 .stat-donut svg{display:block;inline-size:100%;block-size:auto;overflow:visible}
 .stat-donut circle{fill:none;stroke-width:8}
@@ -156,8 +123,6 @@ body[data-screen="lab"] main>section.lab-rating-trends{margin-top:20px;padding:0
 .lab-level-path .lab-level-about{border-top:1px solid #31536b;margin-top:12px}
 .lab-level-about .lab-level-values dd{font-size:23px}
 @media(max-width:360px){
- .lab-scoreboard .lab-rating-chart>div:first-child{min-height:158px}
- .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale){font-size:72px}
  .lab-form-host .lab-form-strip{padding:16px 12px 8px}
  .lab-form-overview{grid-template-columns:90px minmax(0,1fr);gap:12px}
  .lab-form-overview .stat-donut{inline-size:90px}
@@ -227,3 +192,65 @@ body[data-screen="lab"] #recent-results .lab-recent-stats{padding:0;margin-top:1
 .native-profile-scoreboard [aria-label="Public player performance at a glance"]>div>small { font-size:10px; white-space:normal; }
 
 .lab-format-grid meter.sr-only { clip-path:inset(50%); padding:0; border:0; white-space:nowrap; }
+
+/* One court, one scoreboard. The supplied scene is always shown in full. */
+body[data-screen="lab"] section.lab-scoreboard{margin-top:4px;padding:18px 0 6px;border:1px solid #315575;border-radius:26px;background:#061a30;box-shadow:0 20px 45px #0004;overflow:hidden}
+.lab-scoreboard>small,.lab-scoreboard>h2{margin-left:20px;margin-right:20px}
+.lab-scoreboard>small{display:none}
+.lab-scoreboard>h2{font-size:13px;font-weight:650;letter-spacing:.02em;line-height:1.5;color:#b8d9ef;margin-top:0;margin-bottom:0}
+.lab-rating-stage{position:relative;isolation:isolate}
+.rating-court-scene{position:absolute;z-index:-1;top:0;right:0;width:100%;height:auto;object-fit:contain;pointer-events:none}
+.lab-scoreboard .lab-rating-chart{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0;min-width:0}
+.lab-scoreboard .lab-rating-chart>div{min-width:0;margin:0;border:0;box-shadow:none}
+.lab-scoreboard .lab-rating-chart>div:first-child{grid-column:1/-1;width:100%;min-height:190px;aspect-ratio:1727/911;padding:18px 20px 12px;background:transparent;border-radius:0}
+.lab-scoreboard .lab-rating-chart dt{margin:0;color:#9dcee9;font-size:11px;line-height:1.5;letter-spacing:.1em}
+.lab-scoreboard .lab-rating-chart>div:first-child>dt{margin:0}
+.lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale){font-size:clamp(84px,25vw,116px);line-height:1;font-weight:800;letter-spacing:-.07em;color:#f4faff;font-variant-numeric:tabular-nums;margin:7px 0 4px}
+.lab-scoreboard .lab-rating-chart>div:first-child .rating-note{max-width:46%;font-size:10px;line-height:1.5;margin:5px 0 0;color:#b2d2e9}
+.lab-scoreboard .lab-rating-chart>div:first-child .rating-scale{max-width:43%;margin:12px 0 0}
+.lab-scoreboard .lab-rating-chart>div:not(:first-child){padding:12px 20px;background:#0c2840;border-top:1px solid #2b4d6a;border-radius:0}
+.lab-scoreboard .lab-rating-chart>div:nth-child(2){border-right:1px solid #2b4d6a}
+.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale){font-size:38px;font-weight:750;line-height:1.1;letter-spacing:-.04em;color:#f4faff;margin:4px 0 0;font-variant-numeric:tabular-nums}
+.lab-scoreboard .lab-rating-chart>div:not(:first-child) .rating-note{font-size:10px;line-height:1.5;margin:6px 0 0;color:#afcde1}
+.lab-scoreboard .lab-rating-chart .rating-scale{margin:0}
+.lab-scoreboard .rating-scale meter{height:4px;accent-color:#63c6ff}
+.lab-scoreboard .rating-scale-caption,.lab-scoreboard>div>.rating-context{display:inline-block;font-size:10px;color:#abcbe1;margin:10px 0 0 20px;line-height:1.5}
+.lab-scoreboard .rating-context-info{margin:6px 20px 0;border-top:1px solid #29465f}
+.lab-scoreboard .rating-context-info summary{font-size:11px;color:#b6d5ea;min-height:44px;padding:12px 0;cursor:pointer}
+.lab-scoreboard .rating-context-info p{font-size:12px;line-height:1.6}
+.lab-form-host .lab-form-strip{border:0;border-radius:22px;background:linear-gradient(135deg,#12334e,#0a2036);padding:18px;margin-top:18px;box-shadow:inset 0 1px 0 #77b7df30}
+.lab-form-overview .stat-donut-fill{stroke:#a8e83b;stroke-width:7}
+.lab-form-overview .stat-donut-track{stroke:#28516d;stroke-width:7}
+.lab-form-heading>span{background:#12334e;border:0;color:#a7d1eb}
+.lab-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:18px 0 24px;min-width:0}
+button.app-tool.secondary{display:flex;align-items:center;gap:14px;width:100%;min-width:0;min-height:82px;margin:0;padding:16px;border:1px solid #294b68;border-radius:18px;background:#0b253d;text-align:left;color:#edf7ff}
+.app-tool-icon{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border-radius:14px;background:#133c5d;color:#9edcff}
+.app-tool-icon .tiq-feature-icon{width:32px;height:32px}
+.app-tool-copy{display:grid;gap:5px;min-width:0;flex:1}
+.app-tool-copy strong{font-size:.9375rem;line-height:1.35;letter-spacing:-.015em;overflow-wrap:anywhere}
+.app-tool-copy>span{color:#adcadf;font-size:.75rem;line-height:1.6;font-weight:400;overflow-wrap:anywhere}
+.app-tool-copy>small{font-size:10px;color:#8acfff;line-height:1.5}
+.app-tool-arrow{flex:0 0 auto;font-size:24px;line-height:1;color:#9ad6ff}
+.lab-shortcuts button.app-tool{flex-direction:column;justify-content:flex-start;gap:9px;min-height:108px;padding:14px 4px 12px;text-align:center;border-color:#2b4c67;background:#0a2138}
+.lab-shortcuts .app-tool-icon{width:38px;height:38px;flex-basis:38px;border-radius:12px;background:#133653}
+.lab-shortcuts .app-tool-copy{flex:0}
+.lab-shortcuts .app-tool-copy strong{font-size:.75rem;line-height:1.5;overflow-wrap:normal;word-break:normal}
+.app-hub-heading{padding:18px 4px 12px;margin:0}
+.app-hub-heading h1{font-size:2.375rem;font-weight:800;line-height:1.1;letter-spacing:-.045em;margin:8px 0 12px;overflow-wrap:anywhere}
+.app-hub-heading>p{font-size:14px;color:#b0d0e5;line-height:1.6;margin:0}
+.app-hub-group{margin:22px 0 0;padding:0;border:0;background:transparent;box-shadow:none}
+.app-hub-group h2{margin:0 4px 12px;font-size:12px;font-weight:650;letter-spacing:.04em;color:#a2c9e3}
+.app-hub-tools{display:grid;gap:10px;min-width:0}
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool{min-height:120px;background:linear-gradient(120deg,#103654,#091e34);border-color:#3c6c90}
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-icon{width:52px;height:52px;flex-basis:52px;background:#164361}
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool strong{font-size:1.375rem}
+body[data-screen]:not(.native-chat-conversation) .app-navigation{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;overflow:visible;padding-left:max(6px,env(safe-area-inset-left));padding-right:max(6px,env(safe-area-inset-right))}
+body[data-screen] .app-navigation[hidden]{display:none}
+body[data-screen] .app-navigation button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;max-width:none;min-width:0;min-height:60px;padding:8px 2px;border:0;font-size:.6875rem;line-height:1.4;white-space:normal;word-break:normal;overflow-wrap:normal}
+.app-navigation button>span:first-child{display:grid;place-items:center;width:32px;height:30px}
+.app-navigation button>span:first-child>svg{width:26px;height:26px}
+body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"]{background:#123c5b;color:#eff9ff;box-shadow:inset 0 2px 0 #6bcfff}
+@media(min-width:650px){.lab-scoreboard,.lab-form-host,.lab-shortcuts,.app-tools-hub{max-width:600px;margin-left:auto;margin-right:auto}.lab-shortcuts{margin-top:18px}.app-hub-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:360px){.lab-scoreboard .lab-rating-chart>div:first-child{padding-left:16px;min-height:185px}.lab-scoreboard .lab-rating-chart>div:not(:first-child){padding:12px 16px}.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale){font-size:34px}.lab-shortcuts{gap:6px}.lab-shortcuts .app-tool-copy strong{font-size:11px}.app-tool-copy strong{font-size:14px}.app-hub-heading h1{font-size:34px}}
+
+.lab-scoreboard .lab-rating-chart>div:not(:first-child) .rating-note.sr-only{margin:-1px!important}
