@@ -905,3 +905,8 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .competition-header button,.competition-switch button,.competition-tabs button{margin:0!important}
 .competition-switch,.competition-tabs{row-gap:8px!important}
 .competition-list-help{font-size:.8rem;color:#abc8df;line-height:1.5;margin:14px 0}.competition-list-help summary{cursor:pointer;padding:8px 0}.competition-list-help p{line-height:1.6}
+
+/* Keep enlarged text inside the sheet on iOS and Linux WebKit font metrics. */
+.competition-header{flex-wrap:wrap}
+.competition-header button{max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}
+.competition-switch button,.competition-tabs button{flex-basis:auto;max-inline-size:100%;overflow-wrap:anywhere}
