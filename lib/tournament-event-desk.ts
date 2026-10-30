@@ -1,4 +1,5 @@
-import { buildTournamentPreview, type TiqTournamentRecord } from './tiq-tournament-registry'
+import {buildTournamentPreview} from './tournament-draw'
+import type {TiqTournamentRecord} from './tiq-tournament-registry'
 
 export type EventDeskMatch = {
   key: string

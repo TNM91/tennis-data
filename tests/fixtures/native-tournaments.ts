@@ -1,0 +1,7 @@
+import type {TournamentSnapshot,TournamentSummary} from '../../lib/native-tournaments-contract'
+export const tournamentOwner='10000000-0000-4000-8000-000000000001'
+export function tournamentSummary(id='event-one',parentId=''):TournamentSummary{return {id,parentId,isEvent:id==='event-one',name:id==='event-one'?'Northside Open':'4.0 Doubles',format:'round_robin',formatLabel:'Round robin',entrantType:'players',status:'scheduled',date:'2026-11-14',location:'Northside Tennis',updatedAt:'2026-10-30T18:00:00Z',details:{timeZone:'America/Chicago',directorName:'Taylor Ace'},registrationClosed:false}}
+export function tournamentSnapshot(selected='',division=''):TournamentSnapshot{
+ const root=tournamentSummary(),active=division?tournamentSummary(division,selected):null
+ return {owner:tournamentOwner,checkedAt:'2026-10-30T18:00:00Z',query:'',selected,division,tournaments:[root],more:false,detail:selected?{root,divisions:[tournamentSummary('division-one','event-one')],moreDivisions:false,active,entrants:active?3:0,drawNotice:'',matches:active?[{id:'r1-m2',label:'Round 1',round:1,a:'Alex Ace',b:'Casey Court',winner:'Alex Ace',score:'6-4 6-3',date:'2026-11-14',time:'18:00',court:'2'},{id:'r2-m1',label:'Round 2',round:2,a:'Alex Ace',b:'Jordan Serve',winner:'',score:'',date:'2026-11-15',time:'10:00',court:'1'}]:[],standings:active?[{name:'Alex Ace',group:'',played:1,wins:1,losses:0,gamesWon:12,gamesLost:7,gameDiff:5,winPct:100}]:[]}:null}
+}
