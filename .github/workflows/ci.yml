@@ -39,6 +39,12 @@ jobs:
       - name: Check named lineup ownership in isolated PostgreSQL
         run: node scripts/verify-named-lineup-ownership.mjs
 
+      - name: Check read-model permissions in isolated PostgreSQL
+        run: node scripts/verify-read-model-view-grants.mjs
+
+      - name: Check conservative native-only website build exclusion
+        run: node --test scripts/vercel-ignore-native-only.test.mjs
+
       - name: Check native packaging guards
         run: |
           node --test mobile/scripts/ios-purchases.test.mjs mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs mobile/scripts/ios-push.test.mjs
