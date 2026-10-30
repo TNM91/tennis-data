@@ -2,7 +2,7 @@ import {Capacitor,CapacitorHttp,registerPlugin,type HttpOptions,type HttpRespons
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {appleMembershipProduct} from '../../lib/apple-membership-products'
 import {appleUuid,appleTransactionId,type AppleEnvironment} from '../../lib/apple-purchase-contract'
-import {ApplePurchaseError,appleNativePurchaseError,type ApplePurchasePhase} from './apple-purchase-progress'
+import {ApplePurchaseError,appleNativePurchaseError,appleNativeRestoreError,type ApplePurchasePhase} from './apple-purchase-progress'
 import {appleProductError,parseAppleProducts} from './apple-product-catalog'
 export type AppleTransaction={transactionId:string;accountToken:string;signedTransaction:string}
 export type AppleStore={products:(options:{environment:AppleEnvironment})=>Promise<{available:boolean;products:{id:string;price:string}[]}>;purchase:(options:{productId:string;accountToken:string;environment:AppleEnvironment})=>Promise<{state:'purchased'|'cancelled'|'pending'}&Partial<AppleTransaction>>;pending:()=>Promise<{transactions:AppleTransaction[]}>;restore:(options:{environment:AppleEnvironment})=>Promise<{transactions:AppleTransaction[]}>;finish:(options:AppleTransaction)=>Promise<{finished:boolean}>;manage:()=>Promise<void>;addListener:(event:'transactionsChanged',listener:()=>void)=>Promise<PluginListenerHandle>}
@@ -87,7 +87,11 @@ export function createApplePurchases(client:SupabaseClient,options:{store?:Apple
     progress('sync');await reconcile(expected,r,progress);return 'purchased' as const
    }finally{purchaseRunning=false}
   },
-  async restore(expected:string,environment:AppleEnvironment){if(purchaseRunning)throw new ApplePurchaseError('purchase_in_progress');await session(expected);let result:Awaited<ReturnType<AppleStore['restore']>>;try{result=await store.restore({environment})}catch(error){await session(expected);throw appleNativePurchaseError(error)}const rows=transactions(result);await session(expected);for(const tx of rows)await reconcile(expected,tx);return rows.length},
+  async restore(expected:string,environment:AppleEnvironment){
+   if(purchaseRunning)throw new ApplePurchaseError('purchase_in_progress')
+   purchaseRunning=true
+   try{await session(expected);let result:Awaited<ReturnType<AppleStore['restore']>>;try{result=await store.restore({environment})}catch(error){await session(expected);throw appleNativeRestoreError(error)}const rows=transactions(result);await session(expected);for(const tx of rows)await reconcile(expected,tx);return rows.length}finally{purchaseRunning=false}
+  },
   async manage(expected:string){if(purchaseRunning)throw new ApplePurchaseError('purchase_in_progress');await session(expected);await store.manage()},
   subscribe(fn:()=>void){listeners.add(fn);return()=>listeners.delete(fn)}
  }

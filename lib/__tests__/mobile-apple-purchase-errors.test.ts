@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {ApplePurchaseError,appleNativePurchaseError} from '../../mobile/src/apple-purchase-progress'
+import {ApplePurchaseError,appleNativePurchaseError,appleNativeRestoreError,applePurchaseFailureText} from '../../mobile/src/apple-purchase-progress'
 describe('private Apple purchase diagnostics',()=>{
  it('keeps only known stages, numeric error codes and public build numbers',()=>{
   const failure=appleNativePurchaseError({code:'store_unavailable',message:'private receipt',data:{supportCode:'confirmation/StoreKit.StoreKitError:0/ASDErrorDomain:500',build:'168',receipt:'private'}})
@@ -16,4 +16,12 @@ describe('private Apple purchase diagnostics',()=>{
   for(const code of ['store_unavailable','purchase_product_unavailable','purchase_not_allowed','private_code'])expect(appleNativePurchaseError({code}).beforeConfirmation).toBe(false)
   expect(appleNativePurchaseError({code:'private_code',data:{supportCode:'user-email/private'}})).toMatchObject({message:'store_unavailable',supportCode:''})
  })
+})
+
+it('uses restore-specific copy and sanitized diagnostics even for legacy or unknown native errors',()=>{
+ for(const code of ['store_unavailable','private_code','restore_unavailable','restore_cancelled','restore_history_timeout','environment_mismatch','store_busy']){
+  const error=appleNativeRestoreError({code,message:'private account',data:{supportCode:'restore/StoreKit.StoreKitError:2',build:'171',receipt:'private'}})
+  expect(error.message).toBe(['store_unavailable','private_code'].includes(code)?'restore_unavailable':code);expect(error.supportCode).toBe('restore/StoreKit.StoreKitError:2');expect(error.beforeConfirmation).toBe(false);expect(JSON.stringify(error)).not.toContain('private')
+ }
+ expect(applePurchaseFailureText.restore_unavailable).not.toContain('confirm the purchase');expect(appleNativeRestoreError({data:{supportCode:'restore/email:1',build:'secret'}})).toMatchObject({message:'restore_unavailable',supportCode:'',build:''})
 })

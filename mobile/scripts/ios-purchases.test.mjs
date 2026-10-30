@@ -49,7 +49,7 @@ test('scene registration refuses unknown or ambiguous startup paths',()=>{
 })
 
 test('runtime smoke requires a real iOS JavaScript-to-native response, not just a registered file',()=>{
- const ready={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true}
+ const ready={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
  assert.deepEqual(verifyPurchaseSmoke(ready),ready)
  for(const invalid of [{...ready,ready:false},{...ready,platform:'web'},{...ready,available:false},{...ready,nativeInvalidReceiptRejected:false},{...ready,nativeInvalidProductRequestRejected:false}])assert.throws(()=>verifyPurchaseSmoke(invalid))
  const swift=instrumentPurchaseSmoke(readFileSync(new URL('../native/TenAceIQPurchases.swift',import.meta.url),'utf8'))
@@ -70,8 +70,8 @@ test('preparation deadlines cannot cancel Apple confirmation or allow an expired
  assert.match(swift,/#available\(iOS 18\.2, \*\).*product\.purchase\(confirmIn: presenter/)
  assert.match(swift,/if self\.purchaseOperation == operation/)
  assert.doesNotMatch(swift,/tiqReadTimeoutSmoke|tiqReadDeadlineStoppedSmoke|tiq-storekit-smoke/)
- const report={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true}
- for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified'])assert.throws(()=>verifyPurchaseSmoke({...report,[key]:false}))
+ const report={ready:true,platform:'ios',available:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
+ for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified','nativeRestorePolicyVerified','nativeRestoreReadRecovery','nativeRestoreFailureTagged'])assert.throws(()=>verifyPurchaseSmoke({...report,[key]:false}))
 })
 
 test('internal betas reject production and never require app-download verification',()=>{

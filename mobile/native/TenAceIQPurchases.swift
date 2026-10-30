@@ -65,6 +65,17 @@ private enum TiqPurchaseChannel {
     }
 }
 
+// StoreKit keeps current entitlements available without an account-authentication refresh.
+// Only ask Apple to synchronize when no verified membership is already available.
+@MainActor private enum TiqRestoreRead {
+    static func transactions<T>(read: () async -> [T], synchronize: () async throws -> Void) async throws -> [T] {
+        let current = await read()
+        if !current.isEmpty { return current }
+        try await synchronize()
+        return await read()
+    }
+}
+
 @objc(TenAceIQPurchases)
 public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "TenAceIQPurchases"
@@ -256,18 +267,45 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     @objc func restore(_ call: CAPPluginCall) {
         Task { @MainActor in
             guard !showingStoreSheet else { call.reject("Apple is already open.", "store_busy"); return }
-            showingStoreSheet = true
-            defer { showingStoreSheet = false }
-            do {
-                guard matchesEnvironment(call) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }
-                // Authentication prompt is allowed only after the explicit Restore button.
-                try await AppStore.sync()
-                for await result in Transaction.unfinished { capture(result, announce: false) }
-                for await result in Transaction.currentEntitlements { capture(result, announce: false) }
-                call.resolve(["transactions": entries()])
-            } catch {
-                let (code, details) = self.purchaseFailure(error, stage: "restore")
-                call.reject("Restore did not complete.", code, nil, details)
+            guard matchesEnvironment(call) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }
+            let operation = UUID()
+            showingStoreSheet = true; purchaseOperation = operation
+            let gate = TiqStoreRead(call, nanoseconds: 15_000_000_000, code: "restore_history_timeout") { [weak self] in
+                if self?.purchaseOperation == operation { self?.purchaseOperation = nil; self?.showingStoreSheet = false }
+            }
+            gate.start { gate in
+                defer { if self.purchaseOperation == operation { self.purchaseOperation = nil; self.showingStoreSheet = false } }
+                do {
+                    let entitlements: [VerificationResult<Transaction>] = try await TiqRestoreRead.transactions(read: {
+                        var current: [VerificationResult<Transaction>] = []
+                        for await result in Transaction.currentEntitlements {
+                            guard gate.active else { return [] }
+                            if case .verified(let transaction) = result, self.verifiedForBuild(transaction),
+                               self.allowed.contains(transaction.productID), transaction.productType == .autoRenewable,
+                               transaction.appAccountToken != nil { current.append(result) }
+                            if current.count >= 50 { break }
+                        }
+                        return current
+                    }, synchronize: {
+                        guard gate.active else { throw CancellationError() }
+                        // This optional authentication prompt is never subject to a read deadline.
+                        gate.stopDeadline()
+                        try await AppStore.sync()
+                        guard gate.active else { throw CancellationError() }
+                        gate.resumeDeadline()
+                    })
+                    guard gate.active else { return }
+                    for result in entitlements { self.capture(result, announce: false) }
+                    for await result in Transaction.unfinished {
+                        guard gate.active else { return }
+                        self.capture(result, announce: false)
+                    }
+                    gate.resolve(["transactions": self.entries()])
+                } catch {
+                    guard gate.active else { return }
+                    let (_, details) = self.purchaseFailure(error, stage: "restore")
+                    gate.reject("Restore did not complete.", self.purchaseCancelled(error) ? "restore_cancelled" : "restore_unavailable", data: details)
+                }
             }
         }
     }
