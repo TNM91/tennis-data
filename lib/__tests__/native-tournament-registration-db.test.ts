@@ -129,3 +129,15 @@ it('withholds stale manager decisions, preserves pending state on fee errors and
   expect(await call(other,'review')).toMatchObject({receipt:null,queue:[],more:false})
  }finally{await db.close()}
 },30000)
+it('rejects unauthorized decisions and private selections before taking tournament row locks',async()=>{
+ const {db,call}=await setup();try{
+  for(const [who,action,privateEvent] of [[other,'decide',false],[member,'submit',true]] as const){
+   if(privateEvent)await db.exec("update tiq_tournaments set is_public=false where id='event'")
+   await db.exec('begin')
+   expect(await call(who,action)).toMatchObject({ok:false,status:privateEvent?404:403})
+   const locks=(await db.query<{locked:boolean}>("select xmax::text=pg_current_xact_id()::text locked from public.tiq_tournaments where id in ('event','division')")).rows
+   expect(locks).toEqual([{locked:false},{locked:false}])
+   await db.exec('rollback')
+  }
+ }finally{await db.close()}
+},30000)

@@ -73,13 +73,18 @@ declare actor uuid:=auth.uid(); ctx jsonb; latest jsonb; t public.tiq_tournament
 begin
  if actor is null or not exists(select 1 from public.profiles where id=actor) or exists(select 1 from public.account_deletion_requests where account_id=actor and status<>'completed') then return jsonb_build_object('ok',false,'status',401,'message','Sign in with an active account.'); end if;
  if p_action is null or p_action not in ('review','queue','submit','decide') or p_parent is null or p_division is null or p_parent<>'' and p_parent!~'^[a-zA-Z0-9_-]{1,80}$' or p_division!~'^[a-zA-Z0-9_-]{1,80}$' or jsonb_typeof(p_data)<>'object' or p_data is null or octet_length(p_data::text)>12000 then return jsonb_build_object('ok',false,'status',400,'message','Check the registration details.'); end if;
+ -- Reject inaccessible selections before taking any tournament lock.
+ -- Recheck the same access after locks in case visibility or organizer rights changed.
+ ctx:=public.native_tournament_entry_context(p_parent,p_division);
+ if ctx is null then return jsonb_build_object('ok',false,'status',404,'message','This public division is unavailable.'); end if;
+ if p_action in ('queue','decide') and ctx->'canManage' is distinct from 'true'::jsonb then return jsonb_build_object('ok',false,'status',403,'message','Tournament organizer access required.'); end if;
  if p_action in ('submit','decide') then
   perform 1 from public.profiles where id=actor for share;
   if p_parent<>'' then perform 1 from public.tiq_tournaments where id=p_parent for update; end if;
   perform 1 from public.tiq_tournaments where id=p_division for update;
+  ctx:=public.native_tournament_entry_context(p_parent,p_division);
+  if ctx is null then return jsonb_build_object('ok',false,'status',404,'message','This public division is unavailable.'); end if;
  end if;
- ctx:=public.native_tournament_entry_context(p_parent,p_division);
- if ctx is null then return jsonb_build_object('ok',false,'status',404,'message','This public division is unavailable.'); end if;
  select * into t from public.tiq_tournaments where id=p_division;
  if p_parent<>'' then select * into root from public.tiq_tournaments where id=p_parent; else root:=t; end if;
  if p_action in ('queue','decide') and ctx->'canManage' is distinct from 'true'::jsonb then return jsonb_build_object('ok',false,'status',403,'message','Tournament organizer access required.'); end if;
