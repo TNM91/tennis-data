@@ -46,7 +46,9 @@ export function mountAccountAccess(host:HTMLElement,client:SupabaseClient,owner:
    const access=await read(client,owner,()=>current() && visit===request)
    if(!current() || visit!==request)return
    const ids=accountToolIds(access)
-   tools.innerHTML=ids.length?`<ul class="account-tool-access">${ids.map(id=>{const tier=getMembershipTier(id);return `<li><span><strong>${html(tier.name)}</strong><small>${html(tier.shortPromise)}</small></span><span class="account-access-badge">Available</span></li>`}).join('')}</ul>`:''
+   const bundles=ids.filter(id=>id==='captain'||id==='coach'),visible=bundles.length?ids.filter(id=>id!=='player_plus'):ids
+   const included=bundles.length?`<p>${html(getMembershipTier('player_plus').name)} tools are included with ${html(bundles.map(id=>getMembershipTier(id).name).join(' and '))}.</p>`:''
+   tools.innerHTML=visible.length?`<ul class="account-tool-access">${visible.map(id=>{const tier=getMembershipTier(id);return `<li><span><strong>${html(tier.name)}</strong><small>${html(tier.shortPromise)}</small></span><span class="account-access-badge">Available</span></li>`}).join('')}</ul>${included}`:''
    status.textContent='Explore players, teams, leagues and rankings with your account.'
    button.textContent='Refresh access'
   } catch(error) {
