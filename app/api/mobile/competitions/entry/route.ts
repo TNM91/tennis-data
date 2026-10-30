@@ -1,5 +1,5 @@
 import {getSignedInPlayerApiAuth} from '@/lib/player-api-auth'
-import {loadNativeLeagueEntry,submitNativeLeagueEntry} from '@/lib/native-league-entry'
+import {loadNativeLeagueEntry,submitNativeLeagueEntry,answerNativeLeagueInformation} from '@/lib/native-league-entry'
 import {entryLeague} from '@/lib/native-league-entry-contract'
 import {lineupRecord} from '@/lib/native-captain-lineup-contract'
 export const runtime='nodejs'
@@ -17,5 +17,5 @@ export async function POST(request:Request){
   const reader=request.body?.getReader();if(!reader)throw Error();let raw='',size=0;const decoder=new TextDecoder();try{while(true){const r=await reader.read();if(r.done)break;size+=r.value.byteLength;if(size>4096){await reader.cancel();return json({ok:false,message:'Entry details are too large.'},413)}raw+=decoder.decode(r.value,{stream:true})}raw+=decoder.decode()}finally{reader.releaseLock()}
   const parsed=JSON.parse(raw);if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error();body=lineupRecord(parsed)
  }catch{return json({ok:false,message:'Check the entry details.'},400)}
- try{const r=await submitNativeLeagueEntry(auth.supabase,auth.userId,body);return json(r,r.status)}catch{return json({ok:false,message:'Your request could not be confirmed. Check entry status before trying again.'},503)}
+ try{const r=await (body.information===true?answerNativeLeagueInformation:submitNativeLeagueEntry)(auth.supabase,auth.userId,body);return json(r,r.status)}catch{return json({ok:false,message:'Your request could not be confirmed. Check entry status before trying again.'},503)}
 }

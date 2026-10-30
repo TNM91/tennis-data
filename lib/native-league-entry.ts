@@ -9,7 +9,7 @@ const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const digest=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex')
 const timeout=()=>AbortSignal.timeout(12000)
 const rows=(r:{data:unknown;error:unknown},max:number):Row[]=>{if(r.error||!Array.isArray(r.data)||r.data.length>max)throw Error('Entry records unavailable');return r.data as Row[]}
-const receipt=(r:Row,team:boolean):EntryReceipt=>{if(!text(r.id)||!text(r[team?'team_name':'player_name'])||!['pending','active','rejected','removed'].includes(text(r.entry_status)))throw Error('Entry changed');return {id:text(r.id),name:text(r[team?'team_name':'player_name']),status:r.entry_status as EntryReceipt['status']}}
+const receipt=(r:Row,team:boolean):EntryReceipt=>{if(!text(r.id)||!text(r[team?'team_name':'player_name'])||!['pending','active','rejected','removed'].includes(text(r.entry_status)))throw Error('Entry changed');return {id:text(r.id),name:text(r[team?'team_name':'player_name']),status:r.entry_status as EntryReceipt['status'],...(!team&&r.entry_status==='pending'&&r.player_action_required===true?{information:{updatedAt:text(r.updated_at),note:text(r.player_request_note)}}:{})}}
 /** Caller JWT/RLS only. No service role, upsert, status update, or fallback storage. */
 export async function loadNativeLeagueEntry(db:SupabaseClient,owner:string,leagueId:string):Promise<EntryReview>{
  entryLeague(leagueId);if(!owner)throw Error('Sign in required')
@@ -28,7 +28,7 @@ export async function loadNativeLeagueEntry(db:SupabaseClient,owner:string,leagu
   if(rating!==null&&(typeof rating!=='number'||!Number.isFinite(rating)||rating<1||rating>7))throw Error('Player rating unavailable')
   player={id:playerId,name:text(p.data.name),location:text(p.data.location),rating,ratingSource:p.data.rating_source==='verified'?'verified':rating!==null?'self':'unknown',hasAgeEvidence:!!requirement.ageDivision&&verified.some(r=>r.age_division===requirement.ageDivision),hasDivisionEvidence:requirement.mixedPairRole!=='unknown'&&verified.some(r=>r.mixed_pair_role===requirement.mixedPairRole)}
  }
- const table=team?'tiq_team_league_entries':'tiq_player_league_entries',fields='id,league_id,created_by_user_id,entry_status,'+(team?'team_name':'player_name,player_id')
+ const table=team?'tiq_team_league_entries':'tiq_player_league_entries',fields='id,league_id,created_by_user_id,entry_status,'+(team?'team_name':'player_name,player_id,player_action_required,player_request_note,updated_at')
  const owned=rows(await db.from(table).select(fields).eq('league_id',leagueId).eq('created_by_user_id',owner).order('id').limit(51).abortSignal(timeout()),51)
  if(owned.length>50||owned.some(r=>r.league_id!==leagueId||r.created_by_user_id!==owner))throw Error('Entry ownership changed')
  const linked=!team&&player.id?rows(await db.from(table).select(fields).eq('league_id',leagueId).eq('player_id',player.id).order('id').limit(3).abortSignal(timeout()),3):[]
@@ -62,4 +62,21 @@ export async function submitNativeLeagueEntry(db:SupabaseClient,owner:string,bod
  const savedRow=saved.data as unknown as Row|null
  if(!savedRow||savedRow.id!==id||savedRow.league_id!==leagueId||savedRow.created_by_user_id!==owner)return fail(409,'An entry may already exist. Ask the organizer to check it before trying again.')
  return {ok:true as const,status:200,owner,leagueId,receipt:receipt(savedRow,team),alreadySubmitted:!!result.error}
+}
+
+/** Replies are self-attestations only, conditional on the exact outstanding question and caller-owned entry. */
+export async function answerNativeLeagueInformation(db:SupabaseClient,owner:string,body:Record<string,unknown>){
+ let leagueId:string,draft:ReturnType<typeof entryDraft>,id:string,updatedAt:string
+ try{if(Object.keys(body).some(k=>!['leagueId','entryId','updatedAt','draft','information'].includes(k))||body.information!==true)throw Error();leagueId=entryLeague(body.leagueId);id=text(body.entryId);updatedAt=text(body.updatedAt);draft=entryDraft(body.draft);if(!/^[a-f0-9-]{36}$/i.test(id)||!Number.isFinite(Date.parse(updatedAt)))throw Error()}catch{return fail(400,'Check your eligibility reply.')}
+ const review=await loadNativeLeagueEntry(db,owner,leagueId),entry=review.receipts.find(e=>e.id===id)
+ if(review.format!=='individual'||!entry?.information||entry.information.updatedAt!==updatedAt)return fail(409,'This information request changed. Check entry status before replying.')
+ const requirement=review.requirement
+ if(requirement.ageDivision&&!draft.ageAttested||requirement.mixedPairRole!=='unknown'&&!draft.divisionAttested)return fail(400,'Confirm the division requirements before replying.')
+ const now=new Date().toISOString(),payload:Row={player_action_required:false,player_request_note:'',player_responded_at:now,eligibility_status:'needs_confirmation',eligibility_review_note:'Player supplied updated eligibility information.',eligibility_submitted_at:now,updated_by_user_id:owner}
+ if(draft.rating!==null){payload.eligibility_rating=draft.rating;payload.eligibility_rating_source='self'}
+ if(requirement.ageDivision&&draft.ageAttested){payload.eligibility_age_division=requirement.ageDivision;payload.eligibility_age_division_source='self'}
+ if(requirement.mixedPairRole!=='unknown'&&draft.divisionAttested){payload.eligibility_mixed_pair_role=requirement.mixedPairRole;payload.eligibility_mixed_pair_role_source='self'}
+ const saved=await db.from('tiq_player_league_entries').update(payload).eq('id',id).eq('league_id',leagueId).eq('created_by_user_id',owner).eq('entry_status','pending').eq('player_action_required',true).eq('updated_at',updatedAt).select('id,league_id,created_by_user_id,entry_status,player_name').abortSignal(timeout()).maybeSingle()
+ if(saved.error)throw Error('Reply outcome unavailable');if(!saved.data||saved.data.id!==id||saved.data.created_by_user_id!==owner||saved.data.league_id!==leagueId)return fail(409,'This entry changed. Check entry status before replying.')
+ return {ok:true as const,status:200,owner,leagueId,receipt:receipt(saved.data,false),alreadySubmitted:false}
 }

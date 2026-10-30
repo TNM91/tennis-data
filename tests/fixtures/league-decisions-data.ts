@@ -1,0 +1,3 @@
+import type {DecisionReview} from '../../lib/native-league-decisions-contract'
+import {competitionOwner as owner} from './competitions-data'
+export function decisionReviewFixture():DecisionReview{return {owner,leagueId:'league-one',leagueName:'Northside 4.0 · 40 & Over',format:'individual',checkedAt:'2026-10-30T05:40:00Z',open:true,more:false,entries:[{id:'11111111-1111-4111-8111-111111111111',name:'Alex Server',status:'pending',review:'a'.repeat(64),updatedAt:'2026-10-30T05:40:00Z',eligibility:'needs_confirmation',detail:'Director confirms the 40 & Over self-attestation.',rating:4,ratingSource:'verified',age:'40 & Over',ageSource:'self',division:'unknown',divisionSource:'unknown',actionRequired:false,requestNote:''}]}}
