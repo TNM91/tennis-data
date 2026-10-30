@@ -10,6 +10,10 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
         super.viewDidLoad()
         TiqAppLockController.shared.attach(to: self)
     }
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        TiqAppLockController.shared.connectWindow()
+    }
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(TenAceIQPurchases())
         bridge?.registerPluginInstance(TenAceIQNotifications())
@@ -29,6 +33,8 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
     private var context: LAContext?
     private var completion: ((Bool, String) -> Void)?
     private weak var host: UIViewController?
+    private weak var appWindow: UIWindow?
+    private var privacyWindow: UIWindow?
     private let shield = UIView()
     private let message = UILabel()
     private let unlock = UIButton(type: .system)
@@ -87,6 +93,21 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
             stack.bottomAnchor.constraint(lessThanOrEqualTo: shield.safeAreaLayoutGuide.bottomAnchor, constant: -20)
         ])
         updateCover()
+    }
+
+    func connectWindow() {
+        guard privacyWindow == nil, let window = host?.view.window, let scene = window.windowScene else { return }
+        appWindow = window
+        let cover = UIWindow(windowScene: scene)
+        cover.frame = scene.coordinateSpace.bounds
+        cover.windowLevel = UIWindow.Level(rawValue: UIWindow.Level.alert.rawValue + 1)
+        let controller = UIViewController()
+        shield.removeFromSuperview()
+        controller.view = shield
+        cover.rootViewController = controller
+        privacyWindow = cover
+        updateCover()
+        // Keep the app's key window: Apple authentication and StoreKit own their UI.
     }
 
     func status() -> [String: Any] {
@@ -164,12 +185,15 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
     private func updateCover() {
         let covered = enabled && (locked || inactive)
         shield.isHidden = !covered
+        privacyWindow?.isHidden = !covered
+        appWindow?.accessibilityElementsHidden = covered
+        appWindow?.isUserInteractionEnabled = !covered
         unlock.isEnabled = context == nil && !inactive
         if covered {
             host?.view.endEditing(true)
-            host?.view.bringSubviewToFront(shield)
+            if privacyWindow == nil { host?.view.bringSubviewToFront(shield) }
         }
-        // Native shield sits above the entire WebView, including HTML dialogs.
+        // The separate native window also covers Safari, camera and UIKit sheets.
         for child in host?.view.subviews ?? [] where child !== shield {
             child.accessibilityElementsHidden = covered
             child.isUserInteractionEnabled = !covered

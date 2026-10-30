@@ -23,11 +23,20 @@ private final class TiqSmokeLAContext: LAContext {
     defer { defaults.removePersistentDomain(forName: name) }
     let lock = TiqAppLockController(defaults: defaults)
     let host = UIViewController()
+    guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return false }
+    let testWindow = UIWindow(windowScene: scene)
+    testWindow.frame = scene.coordinateSpace.bounds
+    testWindow.rootViewController = host
+    testWindow.isHidden = false
+    defer { testWindow.isHidden = true; lock.tiqSmokeWindow?.isHidden = true }
     let privateView = UIView()
     host.view.addSubview(privateView)
     lock.attach(to: host)
+    lock.connectWindow()
     lock.becomeActive()
-    guard let cover = host.view.subviews.last, cover.accessibilityIdentifier == "tenaceiq-app-lock", cover.isHidden, !lock.enabled else { return false }
+    let cover = lock.tiqSmokeShield
+    guard cover.accessibilityIdentifier == "tenaceiq-app-lock", cover.isHidden, !lock.enabled,
+          let coverWindow = lock.tiqSmokeWindow, coverWindow.windowLevel > testWindow.windowLevel, !coverWindow.isKeyWindow else { return false }
     func change(_ value: Bool, _ success: Bool, background: Bool = false) async -> Bool {
         let task = Task { @MainActor in
             await withCheckedContinuation { continuation in
@@ -44,9 +53,10 @@ private final class TiqSmokeLAContext: LAContext {
     guard !(await change(true, false)), !lock.enabled, !defaults.bool(forKey: "tenaceiq.requireDeviceUnlock") else { return false }
     guard await change(true, true), lock.enabled, !lock.locked, cover.isHidden else { return false }
     lock.resignActive()
-    guard !cover.isHidden, privateView.accessibilityElementsHidden, !privateView.isUserInteractionEnabled else { return false }
+    guard !cover.isHidden, !coverWindow.isHidden, testWindow.accessibilityElementsHidden, !testWindow.isUserInteractionEnabled,
+          privateView.accessibilityElementsHidden, !privateView.isUserInteractionEnabled else { return false }
     lock.becomeActive()
-    guard !lock.locked, cover.isHidden, privateView.isUserInteractionEnabled else { return false }
+    guard !lock.locked, cover.isHidden, coverWindow.isHidden, testWindow.isUserInteractionEnabled, !testWindow.accessibilityElementsHidden, privateView.isUserInteractionEnabled else { return false }
     guard !(await change(false, true, background: true)), lock.enabled, lock.locked, !cover.isHidden else { return false }
     let cold = TiqAppLockController(defaults: defaults)
     guard cold.enabled, cold.locked else { return false }
@@ -72,7 +82,12 @@ export function instrumentAppLockSmoke(source){
  assert.equal(source.split(marker).length,2,'Expected one native lock authentication entry')
  const start=source.indexOf(marker),prefix=source.slice(0,start),tail=source.slice(start)
  assert.ok(tail.includes('let candidate = LAContext()'))
- return prefix+tail.replace('let candidate = LAContext()','let candidate = TiqSmokeLAContext()')+probe
+ const instrumented=prefix+tail.replace('let candidate = LAContext()','let candidate = TiqSmokeLAContext()')+probe
+ return instrumented.replace('private let shield = UIView()',`private let shield = UIView()
+    #if DEBUG
+    var tiqSmokeShield: UIView { shield }
+    var tiqSmokeWindow: UIWindow? { privacyWindow }
+    #endif`)
 }
 export function verifyAppLockSmoke(report){
  assert.equal(report.nativeAppLockLifecycleVerified,true,'Native lock lifecycle, persistence or late-reply guard failed')
