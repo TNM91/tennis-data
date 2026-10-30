@@ -1024,3 +1024,10 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .league-team-dialog .league-evidence-jumps button{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;min-inline-size:0;max-inline-size:100%;min-block-size:48px;padding:12px 8px!important;margin:0!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
 .league-evidence-jumps button span{color:#91d6ff;font-variant-numeric:tabular-nums}
 .league-team-dialog .league-evidence-summary{inline-size:100%;min-inline-size:0;min-block-size:48px;padding:12px!important;font-size:.9rem!important;white-space:normal;overflow-wrap:anywhere;margin-block-start:16px!important}
+
+/* Account-linked tournament entry uses the same compact phone form as league entry. */
+.tournament-entry-dialog select{box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;display:block;margin-block-start:.5rem;padding:.9rem;font:inherit;color:#e4f1ff;background:#061b35;border:1px solid #426382;border-radius:14px}
+.tournament-entry-dialog .entry-receipts{min-inline-size:0}
+.tournament-entry-dialog .decision-list{padding:0;list-style:none}
+.tournament-entry-dialog .decision-list button{display:grid;gap:.5rem;text-align:start;inline-size:100%}
+.tournament-entry-dialog .decision-list button span{font-size:.85rem;color:#abd5f6}

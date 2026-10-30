@@ -1094,3 +1094,8 @@ Verification includes caller authorization and actual PostgreSQL entry constrain
 - Filtered rows retain source order, list positions, complete entrant names, group keys and saved metrics. No new ranking or win calculation is introduced; unplayed entries show a dash for win rate. History still matches the full name inside the selected division, with saved group metrics kept separate from later-round match evidence.
 - Standings filters stay independent of match filters, survive tabs/history/same-division refresh and reset on event/division changes. Search/clear/history/back add no requests. Back keeps the exact source action visible after refreshed lists reorder, using the existing sheet focus/scroll helper. Withdrawn/unavailable entries return to the current standings heading.
 - Unpublished/withheld draws have no stale standings or finder controls. Existing authenticated loading, account/selection guards, data limits, permissions and error recovery are preserved. Uses established controls and approved styling without artwork changes; physical iPhone acceptance follows a future beta.
+
+### Tournament registration integration
+
+- The combined candidate includes player singles/doubles requests, private saved receipts and organizer approval through the existing tournament desk. Production migration/catalog permissions and caller-role checks passed separately; release of the API and native client still requires normal gates.
+- Registration opens within the selected division and returns to its explicit opener, retaining independent match and standings filters. Parent disposal/account changes invalidate private replies. Fees remain arranged with the organizer; this flow collects no payment and changes no Apple membership behavior.
