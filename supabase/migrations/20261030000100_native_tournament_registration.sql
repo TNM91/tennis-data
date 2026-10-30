@@ -17,8 +17,8 @@ begin
  if (length(source)-length(replace(source,cleanup,'')))/length(cleanup)<>1 then raise exception 'Erasure cleanup marker changed'; end if;
  execute replace(source,cleanup,$insert$
   delete from public.api_rate_limits where scope='native-tournament-entry' and key_hash=encode(sha256(convert_to(j.account_id::text||':native-tournament-entry','UTF8')),'hex');
-  delete from public.tiq_tournament_entries where submitted_by_user_id=j.account_id and native_registration->>'version'='1' and status<>'approved';
-  update public.tiq_tournament_entries set native_registration='{}'::jsonb,self_rating=0,eligibility_rating=null,eligibility_rating_source='unknown',eligibility_review_note='',eligibility_reviewed_by=null,eligibility_reviewed_at=null where submitted_by_user_id=j.account_id and native_registration->>'version'='1';
+  -- The request is private; confirmed field/desk/history are separate shared records.
+  delete from public.tiq_tournament_entries where submitted_by_user_id=j.account_id and native_registration->>'version'='1';
   $insert$||cleanup);
  if not public.account_erasure_catalog_ready() then raise exception 'Updated erasure catalog did not validate'; end if;
 end $patch$;

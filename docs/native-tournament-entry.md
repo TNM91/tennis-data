@@ -26,7 +26,7 @@ The phone rechecks the session before and after transport, binds responses to ac
 
 The same transaction pins the existing account-erasure functions by normalized source fingerprints, updates the exact public-column catalog hash, and inserts reviewed cleanup at an exact marker. Unknown catalog/function changes abort the transaction. FK, trigger and private Apple-purchase guards remain in force. Requests from accounts awaiting deletion are blocked.
 
-Deletion removes the account's pending/declined app entries and entry-rate-limit records. For an approved shared competition entry it clears native metadata, self-rating, eligibility rating/evidence source, private note and reviewer association; existing auth deletion detaches its account owner. The approved field/registration names, approval status, match results and shared competition history remain. Other accounts' requests are untouched. Existing shared-record retention remains part of the separate public-launch disclosure review.
+Deletion removes all of the account's native entry requests, including approved requests and their private eligibility details, plus entry-rate-limit records. The confirmed draw field, separate registration-desk names/status/fee records, match results and shared competition history remain. This avoids leaving a blank self-rating that the website would normalize into a false level. Other accounts' requests are untouched. Existing shared-record retention remains part of the separate public-launch disclosure review.
 
 ## Verification
 
