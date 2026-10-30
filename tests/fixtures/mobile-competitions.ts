@@ -22,7 +22,7 @@ function detailForFinder(){
   if(state.teamReordered){d.standings.reverse();d.participants.reverse()}
   if(state.teamWithdrawn){d.standings=d.standings.filter(s=>s.teamName!=='Baseline Aces');d.participants=d.participants.filter(p=>p.name!=='Baseline Aces')}
   if(mode.includes('partial')){d.moreFixtures=true;d.moreResults=true;d.standingsAvailable=false;d.standings=[]}
- }if(mode.includes('empty')){d.fixtures=[];d.results=[]}if(!mode.includes('finder'))return d
+ }if(mode.includes('list')){d.participants.push({name:mode.includes('player')?'Alex Alternate':'Valley Aces',status:'active'},{name:'Net Runners',status:'active'});if(mode.startsWith('office'))d.participants.push({name:'Waiting Aces',status:'pending'},{name:'Retired Aces',status:'removed'},{name:'Declined Aces',status:'rejected'})}if(mode.includes('empty')){d.fixtures=[];d.results=[]}if(!mode.includes('finder'))return d
  d.fixtures.push({...d.fixtures[0],id:'fixture-other',date:'2026-11-08',a:'Spin Masters',b:'Court Kings',status:'proposed'})
  d.results.push({...d.results[0],id:'event-later',date:'2026-10-24',a:'Spin Masters',b:'Court Kings',winner:'Court Kings',courts:[{label:'Line 1 · Singles',a:'Morgan',b:'Taylor',winner:'Side B',score:'7-5, 6-4'}]},{...d.results[0],id:'event-unrecorded',date:'2026-10-25',winner:'',courts:[]})
  if(mode.includes('long')){d.fixtures[0].a='Baseline '+('Championship'.repeat(18));d.results[0].courts[0].a='Alex '+('Server'.repeat(35))}
