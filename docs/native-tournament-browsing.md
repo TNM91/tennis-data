@@ -17,3 +17,14 @@ The native response is bound to account, search, event, and division. The phone 
 Focused tests cover public/draft/private boundaries, division ownership, visibility changes, unsupported/oversized draws, stale winners, group qualification, match/game totals, request validation, transport/account binding, escaping, and privacy projections. The phone fixture exercises discovery through standings, offline recovery, larger text, device back, parent disposal, and account changes on Chromium and WebKit at 320/390 px. Production API checks use a dedicated test login and read existing public events without modifying member data.
 
 The existing browser CI job reached 9m31s against a 10-minute timeout in the previous release. The tournament scenarios add about 32 seconds locally across both engines. Its timeout increases to 12 minutes to retain headroom without adding a separate dependency/browser installation or changing routine execution. Full verification and required CI still gate any internal beta release. Public App Store submission remains separate.
+
+
+## Published match finder
+
+Draw, Schedule and Results can filter the selected public division by player or team name, including either partner in a doubles name. Schedule also supports the published day and court. Apply filters and Clear filters work entirely on the bounded draw already loaded; no request, polling, registration, notification or result write is added. Counts describe the current view in the selected division, not the whole event or personal statistics.
+
+Applied names carry between match views. Day/court choices apply only to Schedule and survive an explicit refresh. A removed schedule choice stays visible as no longer scheduled and yields no matches until changed or cleared; refresh never silently broadens that filter. Opening a different division clears all filters. Withheld or unsupported draws still show their existing notice without partial counts or filter controls. Forms wrap at narrow widths and larger text, and an applied result count receives focus.
+
+This independent candidate uses the existing published tournament service and contains no migration or account-linked entry integration. The separate build177 entry migration remains pending explicit production approval. TestFlight availability requires the normal release gates. Focused unit and synthetic Chromium/WebKit tests cover combined filters, doubles, empty states, escaping, no extra network reads, refresh/tab scope and phone overflow. Release verification is recorded separately.
+
+The browser CI job allows 15 minutes for the expanded existing phone matrix; an earlier 12-minute run reached its cap during tournament checks. Coverage and retries are unchanged; no additional browser install or deployment is added.

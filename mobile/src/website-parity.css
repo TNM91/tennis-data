@@ -939,3 +939,17 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .tournament-standings strong{color:#f3f8ff}.tournament-standings span{color:#8cd3ff;font-size:.8rem}
 .tournament-standings p{font-size:.85rem!important;line-height:1.6!important;margin-block:12px 0!important;color:#b9d1e6}
 .tournaments-dialog [data-tournament-content]{overflow-wrap:anywhere}
+
+/* Match discovery uses local published data and keeps form controls inside phone sheets. */
+.tournament-match-filters{display:grid;gap:.65rem;min-inline-size:0;margin-block:1rem}
+.tournament-match-filters>label,.tournament-schedule-filters label{font-size:.9rem;font-weight:700;min-inline-size:0;overflow-wrap:anywhere}
+.tournament-match-filters input,.tournament-match-filters select{box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;min-block-size:48px;margin:0!important;padding:.85rem!important;font:inherit!important;color:inherit;background:var(--navy,#061b35);border:1px solid #426382;border-radius:14px}
+.tournament-schedule-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.tournament-schedule-filters select{display:block;margin-block-start:.5rem!important}
+.tournament-filter-actions{display:flex;flex-wrap:wrap;gap:.65rem}
+.tournament-filter-actions button{flex:1 1 130px;min-inline-size:0;max-inline-size:100%;margin:0!important;padding:.85rem!important;font-size:1rem!important;white-space:normal;overflow-wrap:anywhere}
+.tournaments-dialog .tournament-filter-status{font-size:.85rem!important;color:var(--muted);overflow-wrap:anywhere}
+@media(max-width:360px){.tournament-schedule-filters{grid-template-columns:minmax(0,1fr)}}
+
+.tournament-match-filters select{appearance:none;-webkit-appearance:none;padding-inline-end:2.3rem!important;background-image:linear-gradient(45deg,transparent 50%,#abc8df 50%),linear-gradient(135deg,#abc8df 50%,transparent 50%);background-position:calc(100% - 1.15rem) 50%,calc(100% - .85rem) 50%;background-size:.3rem .3rem;background-repeat:no-repeat}
+.tournaments-dialog .tournament-filter-summary{font-size:.85rem!important;line-height:1.5!important;color:var(--muted);overflow-wrap:anywhere}
