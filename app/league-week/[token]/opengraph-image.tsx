@@ -60,7 +60,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
           <div style={{ display: 'flex', width: 230, height: 70, alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(255,255,255,0.5)', borderRadius: 22, color: '#fff', fontSize: 25, fontWeight: 900 }}>I&apos;M OUT</div>
         </div>
       </div>
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', color: '#a9c8e8', fontSize: 21, fontWeight: 800 }}><span>Reply once. Your court follows.</span><span style={{ color: '#C8F56B' }}>More Tennis. Less Chaos.</span></div>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', color: '#a9c8e8', fontSize: 21, fontWeight: 800 }}><span>Reply once. Your court follows.</span><span style={{ color: '#C8F56B' }}>More Tennis. One App.</span></div>
     </div>,
     size,
   )

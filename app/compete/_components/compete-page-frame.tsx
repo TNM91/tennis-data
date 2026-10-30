@@ -171,7 +171,7 @@ export default function CompetePageFrame({
                     >
                       {description}
                     </p>
-                    <div style={mottoStyle}>More Tennis. Less Chaos.</div>
+                    <div style={mottoStyle}>More Tennis. One App.</div>
                   </div>
 
                   {showHeroSignals ? <details className="competeDetailsSection" style={heroSignalsDisclosureStyle}>

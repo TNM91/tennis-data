@@ -760,7 +760,7 @@ function TournamentPublicInner() {
                     />
                   </strong>
                   <span>{award.title}</span>
-                  <small>{award.subtitle || 'More Tennis. Less Chaos.'}</small>
+                  <small>{award.subtitle || 'More Tennis. One App.'}</small>
                 </div>
                 <div style={podiumActionRowStyle}>
                   <Link href={`/awards/${encodeURIComponent(award.id)}`} style={podiumLinkStyle}>

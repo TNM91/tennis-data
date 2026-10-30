@@ -79,7 +79,7 @@ export default async function Image({ params }: { params: Promise<{ kind: string
         <PreviewGraphic kind={kind} accent={config.accent} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a9bdd3', fontSize: 23, fontWeight: 800 }}>
-        <span>CAPTAIN · TEAM HUB</span><span style={{ color: '#C8F56B' }}>More Tennis. Less Chaos.</span>
+        <span>CAPTAIN · TEAM HUB</span><span style={{ color: '#C8F56B' }}>More Tennis. One App.</span>
       </div>
     </div>,
     size,

@@ -118,7 +118,7 @@ function ForgotPasswordContent() {
         <div style={formPanelGlow} />
         <div style={formPanelInnerResponsive}>
           <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
-            <div style={formLabel}>More Tennis. Less Chaos.</div>
+            <div style={formLabel}>More Tennis. One App.</div>
             <h2 style={isMobile ? formTitleMobile : formTitle}>Send secure link</h2>
 
             <label htmlFor="email" style={inputLabel}>

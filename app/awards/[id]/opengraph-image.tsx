@@ -105,7 +105,7 @@ export default async function Image({
             {preview.subtitle}
           </div>
           <div style={{ display: 'flex', fontSize: 26, color: '#d9f84a', fontWeight: 900 }}>
-            More Tennis. Less Chaos.
+            More Tennis. One App.
           </div>
         </div>
       </div>

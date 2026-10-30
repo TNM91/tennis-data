@@ -46,7 +46,7 @@ async function expectPrimaryNavigation(page: Page) {
   }
 
   if (viewportWidth >= 820) {
-    await expect(page.locator('body')).toContainText(/More Tennis\. Less Chaos\.|Find what matters\./)
+    await expect(page.locator('body')).toContainText(/More Tennis\. One App\.|Find what matters\./)
   }
 }
 

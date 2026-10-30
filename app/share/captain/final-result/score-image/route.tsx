@@ -20,7 +20,7 @@ export async function GET(request: Request) {
         </div>
         <div style={{ display: 'flex', padding: 28, borderRadius: 28, border: '2px solid #60A5FA', fontSize: score ? 90 : 44, fontWeight: 900 }}>{score || 'FINAL'}</div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a9bdd3', fontSize: 23, fontWeight: 800 }}><span>Tap to open the final scorecard</span><span style={{ color: '#C8F56B' }}>More Tennis. Less Chaos.</span></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a9bdd3', fontSize: 23, fontWeight: 800 }}><span>Tap to open the final scorecard</span><span style={{ color: '#C8F56B' }}>More Tennis. One App.</span></div>
     </div>,
     { width: 1200, height: 630 },
   )

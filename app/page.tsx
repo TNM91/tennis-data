@@ -30,7 +30,7 @@ export const metadata: Metadata = {
         url: socialBrandImage,
         width: 1200,
         height: 630,
-        alt: 'TenAceIQ: More Tennis. Less Chaos.',
+        alt: 'TenAceIQ: More Tennis. One App.',
       },
     ],
   },

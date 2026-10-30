@@ -124,7 +124,7 @@ describe('TIQ awards registry helpers', () => {
       updatedAt: 'now',
     }
 
-    expect(buildTiqAwardCertificateText(award)).toContain('More Tennis. Less Chaos.')
+    expect(buildTiqAwardCertificateText(award)).toContain('More Tennis. One App.')
     expect(buildTiqAwardCertificateText(award)).toContain('Avery Stone')
   })
 

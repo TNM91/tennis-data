@@ -145,7 +145,7 @@ export default function ResetPasswordPage() {
           <div style={formPanelGlow} />
           <div style={formPanelInnerResponsive}>
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
-              <div style={formLabel}>More Tennis. Less Chaos.</div>
+              <div style={formLabel}>More Tennis. One App.</div>
               <h2 style={isMobile ? formTitleMobile : formTitle}>Choose new password</h2>
 
               {!sessionReady ? (
