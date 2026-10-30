@@ -939,3 +939,10 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .tournament-standings strong{color:#f3f8ff}.tournament-standings span{color:#8cd3ff;font-size:.8rem}
 .tournament-standings p{font-size:.85rem!important;line-height:1.6!important;margin-block:12px 0!important;color:#b9d1e6}
 .tournaments-dialog [data-tournament-content]{overflow-wrap:anywhere}
+
+/* Account-linked tournament entry uses the same compact phone form as league entry. */
+.tournament-entry-dialog select{box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;display:block;margin-block-start:.5rem;padding:.9rem;font:inherit;color:#e4f1ff;background:#061b35;border:1px solid #426382;border-radius:14px}
+.tournament-entry-dialog .entry-receipts{min-inline-size:0}
+.tournament-entry-dialog .decision-list{padding:0;list-style:none}
+.tournament-entry-dialog .decision-list button{display:grid;gap:.5rem;text-align:start;inline-size:100%}
+.tournament-entry-dialog .decision-list button span{font-size:.85rem;color:#abd5f6}
