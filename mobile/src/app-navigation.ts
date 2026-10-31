@@ -4,7 +4,7 @@ import {nativeActionIcon} from './native-action-icons'
 import {html} from './match-details'
 
 export type AppScreen='lab'|'explore'|'following'|'matchup'|'teams'|'compete'|'more'|'coach'
-export type AppDestination=AppScreen|'leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-web'
+export type AppDestination=AppScreen|'leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'
 export type AppHub='compete'|'more'|'coach'
 export const mainTabs=[{screen:'lab',label:'My Lab',icon:'lab'},{screen:'explore',label:'Explore',icon:'explore'},{screen:'teams',label:'Chats',icon:'teams'},{screen:'compete',label:'Compete',icon:'compete'},{screen:'more',label:'More',icon:'more'}] as const
 export function currentTab(screen:AppScreen){return screen==='following'||screen==='matchup'||screen==='coach'?'more':screen}
@@ -25,12 +25,18 @@ const tools:Record<string,Tool>={
  connection:{destination:'coach-connection',title:'Accept coach invitation',detail:'Connect your account using the link your coach shared.',icon:'inbox'},
  progress:{destination:'training-progress',title:'Training progress',detail:'Review the sessions and proof you have saved.',icon:'progress'},
  coachDesk:{destination:'coach-workspace',title:'Students & assignments',detail:'Plan practice and review your players’ check-ins.',icon:'coach'},
- coachWeb:{destination:'coach-web',title:'Advanced Coach tools',detail:'Calendars, session planning and practice packs.',icon:'coach',web:true},
+ tactics:{destination:'coach-tactics',title:'Tactics',detail:'A full-screen court for patterns, movement and match plans.',icon:'tactics'},
+ lessons:{destination:'coach-lessons',title:'Lesson planner',detail:'Session plans, development lessons and practice packs.',icon:'coach'},
+ calendar:{destination:'coach-calendar',title:'Coach calendar',detail:'Lessons, follow-up dates and calendar subscriptions.',icon:'leagues'},
+ weeks:{destination:'coach-weeks',title:'Shared weeks',detail:'Guide the next rep, answer questions and adjust practice.',icon:'catalog'},
+ proof:{destination:'coach-proof',title:'Player proof',detail:'Shared sessions, player reflections and progress.',icon:'progress'},
+ video:{destination:'coach-video',title:'Video review',detail:'Record, slow down and mark up a player’s clip.',icon:'coach'},
+ coachMessages:{destination:'coach-messages',title:'Coach messages',detail:'A private conversation with your connected coach or player.',icon:'teams'},
 }
 function toolHtml(t:Tool,compact=false){return '<button type="button" class="secondary app-tool'+(compact?' is-shortcut':'')+'" data-app-destination="'+t.destination+'" data-tool-search="'+html([t.title,t.detail,t.keywords||''].join(' '))+'"><span class="app-tool-icon" aria-hidden="true">'+websiteUi.icons[t.icon]+'</span><span class="app-tool-copy"><strong>'+t.title+'</strong>'+(!compact?'<span>'+t.detail+'</span>':'')+(t.web?'<small>Opens website</small>':'')+'</span>'+(!compact?'<span class="app-tool-arrow" aria-hidden="true">'+(t.web?'↗':'›')+'</span>':'')+'</button>'}
 export function homeShortcutsHtml(){return '<nav class="lab-shortcuts" aria-label="Play and improve">'+['leagues','tournaments','coach'].map(key=>toolHtml(tools[key],true)).join('')+'</nav>'}
 export function appHubHtml(hub:AppHub){
- const groups=hub==='compete'?[{title:'Find your next match',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]:hub==='coach'?[{title:'For coaches',keys:['coachDesk','coachWeb']},{title:'Your game plan',keys:['inbox','connection','training','progress']}]:[{title:'Your game',keys:['following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['imports','account']}]
+ const groups=hub==='compete'?[{title:'Find your next match',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]:hub==='coach'?[{title:'For coaches',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video']},{title:'Your game plan',keys:['coachMessages','inbox','connection','training','progress']}]:[{title:'Your game',keys:['following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['imports','account']}]
  const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'All your tennis'
  const note=hub==='compete'?'A season to chase. A draw to climb.':hub==='coach'?'Put a plan behind your next step.':PRODUCT_MOTTO
  const total=groups.reduce((count,group)=>count+group.keys.length,0)

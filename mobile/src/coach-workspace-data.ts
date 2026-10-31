@@ -1,3 +1,4 @@
+import {buildCoachLessonRecipe} from '../../lib/coach-lesson-recipe'
 import {CapacitorHttp, type HttpOptions, type HttpResponse} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {scenarioOwner} from './captain-scenarios-data'
@@ -20,9 +21,10 @@ export function loadCoachWorkspace(client: SupabaseClient, owner: string, curren
 export function coachWriteMatches(snapshot: NativeCoachSnapshot, draft: CoachWrite): boolean {
   const detail = snapshot.detail
   if (!detail) return false
-  if ('kind' in draft && (draft.kind === 'student'||draft.kind==='edit-student')) return detail.student.id === draft.id && detail.student.name === draft.name && detail.student.level === draft.level && detail.student.notes === draft.notes&&(draft.kind==='student'||detail.student.status===draft.status&&detail.student.updatedAt!==draft.expectedUpdatedAt)
+  if ('kind' in draft && (draft.kind === 'student'||draft.kind==='edit-student')) return detail.student.id === draft.id && detail.student.name === draft.name && detail.student.level === draft.level && detail.student.notes === draft.notes&&(draft.kind==='student'||detail.student.status===draft.status&&detail.student.updatedAt!==draft.expectedUpdatedAt&&(draft.identity===undefined||detail.student.identity===draft.identity)&&(draft.email===undefined||detail.student.email===draft.email)&&(draft.phone===undefined||detail.student.phone===draft.phone)&&(draft.contactPreference===undefined||detail.student.contactPreference===draft.contactPreference))
   const assignment = detail.assignments.find(a => a.id === draft.id)
   if (!assignment || detail.student.id !== draft.student || assignment.studentLinkId !== draft.student) return false
+  if('kind' in draft&&draft.kind==='assignment'&&draft.recipe){const expected=buildCoachLessonRecipe(draft.recipe).assignment;for(const [key,value] of Object.entries(expected)){const actual=assignment.assignment[key];if(key==='levelUpPack'){const intended=value as {id:string;items:{cardId:string}[]};const found=actual as typeof intended|undefined;if(found?.id!==intended.id||JSON.stringify(found.items.map(i=>i.cardId))!==JSON.stringify(intended.items.map(i=>i.cardId)))return false}else if(JSON.stringify(actual)!==JSON.stringify(value))return false}}
   if ('kind' in draft) return assignment.title === draft.title && assignment.focus === draft.focus && assignment.dueDate === draft.dueDate && (assignment.status === draft.status || draft.status === 'assigned' && assignment.status === 'completed') && assignment.assignment.detail === draft.instructions && assignment.assignment.expectedEvidence === draft.evidence&&(draft.kind==='assignment'||assignment.updatedAt!==draft.expectedUpdatedAt)
   const review = getCoachAssignmentReview(assignment.assignment)
   return assignment.updatedAt !== draft.expectedUpdatedAt && review?.note === draft.note && review.nextFocus === draft.nextFocus

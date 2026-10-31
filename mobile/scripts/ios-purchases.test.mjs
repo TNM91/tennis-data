@@ -62,7 +62,7 @@ test('scene registration refuses unknown or ambiguous startup paths',()=>{
 })
 
 test('runtime smoke requires a real iOS JavaScript-to-native response, not just a registered file',()=>{
- const ready={ready:true,platform:'ios',available:true,nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
+ const ready={ready:true,platform:'ios',available:true,nativeCoachFileExportBridgeVerified:true,nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
  assert.deepEqual(verifyPurchaseSmoke(ready),ready)
  for(const invalid of [{...ready,ready:false},{...ready,platform:'web'},{...ready,available:false},{...ready,nativeInvalidReceiptRejected:false},{...ready,nativeInvalidProductRequestRejected:false}])assert.throws(()=>verifyPurchaseSmoke(invalid))
  const swift=instrumentPurchaseSmoke(readFileSync(new URL('../native/TenAceIQPurchases.swift',import.meta.url),'utf8'))
@@ -83,7 +83,7 @@ test('preparation deadlines cannot cancel Apple confirmation or allow an expired
  assert.match(swift,/#available\(iOS 18\.2, \*\).*product\.purchase\(confirmIn: presenter/)
  assert.match(swift,/if self\.purchaseOperation == operation/)
  assert.doesNotMatch(swift,/tiqReadTimeoutSmoke|tiqReadDeadlineStoppedSmoke|tiq-storekit-smoke/)
- const report={ready:true,platform:'ios',available:true,nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
+ const report={ready:true,platform:'ios',available:true,nativeCoachFileExportBridgeVerified:true,nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
  for(const key of ['nativeColdStartNotificationsCleared','nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified','nativeRestorePolicyVerified','nativeRestoreReadRecovery','nativeRestoreFailureTagged'])assert.throws(()=>verifyPurchaseSmoke({...report,[key]:false}))
 })
 
@@ -97,4 +97,51 @@ test('internal betas reject production and never require app-download verificati
  assert.match(swift,/transaction\.appAccountToken == token, verifiedForBuild\(transaction\)/)
  assert.match(swift,/transaction\.appAccountToken != nil, verifiedForBuild\(transaction\)/)
  assert.match(swift,/guard matchesEnvironment\(call\) else/)
+})
+
+function runtimeProbe(invalidExportCode='invalid_export'){
+ const source=instrumentPurchaseSmoke(readFileSync(new URL('../native/TenAceIQPurchases.swift',import.meta.url),'utf8'))
+ const body=source.split('callAsyncJavaScript("""')[1].split('""", arguments:')[0]
+ const evaluate=new (Object.getPrototypeOf(async function(){}).constructor)('window','purchaseChannel','restorePolicy','appLockPolicy',body)
+ const fault=(code,supportCode)=>Object.assign(Error(code),{code,...(supportCode?{data:{supportCode}}:{})})
+ let staged=null,shareResolve=null,finishCalls=0,shareCalls=0
+ const cap={getPlatform:()=> 'ios',isPluginAvailable:()=>true,Plugins:{
+  TiqPurchases:{
+   finish:async()=>{finishCalls++;throw fault('receipt_mismatch')},products:async()=>{throw fault('environment_mismatch')},pending:async()=>{throw fault('purchase_history_timeout')},
+   purchase:async args=>{if(args.tiqReadTimeoutSmoke)throw fault('purchase_preparation_timeout');if(args.tiqReadDeadlineStoppedSmoke||args.tiqPurchaseFailureSmoke==='cancel')return {state:'cancelled'};if(args.tiqPurchaseFailureSmoke==='confirmation')throw fault('store_unavailable','confirmation/SKErrorDomain:0');throw fault('purchase_preparation_failed','environment/NSURLErrorDomain:-1009')},
+   restore:async args=>{if(args.tiqReadTimeoutSmoke)throw fault('restore_history_timeout');throw fault(args.tiqRestoreFailureSmoke==='cancel'?'restore_cancelled':'restore_unavailable','restore/StoreKit.StoreKitError:2')},
+  },
+  TiqFiles:{
+   begin:async args=>{if(args.name.includes('..'))throw fault(invalidExportCode);if(staged)throw fault('export_busy');staged={...args,received:0}},
+   append:async args=>{if(!staged||args.owner!==staged.owner||args.requestId!==staged.requestId||args.offset!==staged.received)throw fault('export_mismatch');staged.received+=Buffer.from(args.base64,'base64').length},
+   share:async()=>{shareCalls++;return new Promise(resolve=>{shareResolve=resolve})},
+   cancel:async()=>{staged=null;shareResolve?.({completed:false});shareResolve=null},
+  },
+  TiqBiometricSignIn:{status:async()=>({saved:false,available:true,biometry:'faceID'}),remember:async()=>{throw fault('invalid_credential')},signIn:async()=>{throw fault('invalid_request')},cancel:async()=>{}},
+  TiqNotifications:{clearDelivered:async()=>{}},
+ }}
+ const page={Capacitor:cap}
+ return {page,evaluate:()=>evaluate(page,true,true,true),counts:()=>({finishCalls,shareCalls})}
+}
+
+test('the native runtime probe retains one asynchronous job while a share promise is pending',async()=>{
+ const probe=runtimeProbe()
+ const pending=JSON.parse(await probe.evaluate());assert.equal(pending.complete,false)
+ for(let i=0;i<3;i++)assert.equal(JSON.parse(await probe.evaluate()).complete,false)
+ assert.ok(probe.page.__tiqNativeRuntimeSmoke.promise instanceof Promise)
+ await probe.page.__tiqNativeRuntimeSmoke.promise
+ await Promise.resolve()
+ const report=JSON.parse(await probe.evaluate());assert.equal(report.complete,true);verifyPurchaseSmoke(report)
+ assert.deepEqual(probe.counts(),{finishCalls:1,shareCalls:1})
+ await probe.evaluate();assert.deepEqual(probe.counts(),{finishCalls:1,shareCalls:1})
+})
+
+test('the runtime report fails closed when file-owner validation does not reject correctly',async()=>{
+ const probe=runtimeProbe('incorrect_rejection');await probe.evaluate();await probe.page.__tiqNativeRuntimeSmoke.promise;await Promise.resolve()
+ const report=JSON.parse(await probe.evaluate());assert.equal(report.complete,true);assert.equal(report.nativeCoachFileExportBridgeVerified,false);assert.equal(report.ready,false);assert.throws(()=>verifyPurchaseSmoke(report))
+})
+
+test('the runtime probe waits for every required plugin before starting native actions',async()=>{
+ const probe=runtimeProbe();probe.page.Capacitor.isPluginAvailable=name=>name!=='TiqFiles'
+ const report=JSON.parse(await probe.evaluate());assert.equal(report.complete,false);assert.equal(report.stage,'waiting_for_plugins');assert.equal(probe.page.__tiqNativeRuntimeSmoke,undefined);assert.deepEqual(probe.counts(),{finishCalls:0,shareCalls:0})
 })

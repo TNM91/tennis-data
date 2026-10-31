@@ -39,7 +39,7 @@ export default function TiqInspector({
   const zone = selected.type === 'zone' ? scenario.zones.find((item) => item.id === selected.id) : undefined
 
   return (
-    <aside className={styles.panel}>
+    <aside className={styles.panel} data-tiq-inspector>
       <div className={styles.panelTitle}>Inspector</div>
       {token ? <TokenEditor token={token} onChange={(patch) => onTokenChange(token.id, patch)} /> : null}
       {path ? <PathEditor path={path} onChange={(patch) => onPathChange(path.id, patch)} /> : null}

@@ -1,6 +1,6 @@
 'use client'
 
-import Image from 'next/image'
+import {StudioImage as Image} from './TiqStudioPlatform'
 import { useRef, useState } from 'react'
 import type { TacticalPath, TacticalPathKind, TacticalPoint, TacticalRole, TacticalScenario, TacticalSelection, TacticalToken, TacticalTokenScale, TacticalTokenType, TacticalZone } from '@/lib/tactical/types'
 import { pointFromPointer } from '@/lib/tactical/utils'
@@ -18,6 +18,7 @@ type TiqCourtBoardProps = {
   roleView: TacticalRole
   drawingKind: TacticalPathKind | null
   placementTokenType: TacticalTokenType | null
+  dragDraw?:boolean
   readOnly?: boolean
   onMoveToken: (id: string, x: number, y: number) => void
   onDeleteToken: (id: string) => void
@@ -62,6 +63,7 @@ export default function TiqCourtBoard({
   drawingKind,
   placementTokenType,
   readOnly = false,
+  dragDraw=false,
   onMoveToken,
   onDeleteToken,
   onMovePathPoint,
@@ -78,6 +80,8 @@ export default function TiqCourtBoard({
   const surfaceRef = useRef<HTMLDivElement>(null)
   const tokenDragRef = useRef<{ id: string; moved: boolean } | null>(null)
   const [draftStart, setDraftStart] = useState<TacticalPoint | null>(null)
+  const drawingRef=useRef<{from:TacticalPoint;end:TacticalPoint;moved:boolean;pointer:number}|null>(null)
+  const [draftEnd,setDraftEnd]=useState<TacticalPoint|null>(null)
   const modeHint = getModeHint(placementTokenType, drawingKind, draftStart)
   const selectedAnchor = !readOnly && selected.type !== 'token' ? getSelectedAnchor(scenario, selected) : null
   const quickMenuBelow = selectedAnchor ? selectedAnchor.y < 24 : false
@@ -156,6 +160,7 @@ export default function TiqCourtBoard({
 
     const point = pointFromPointer(event.clientX, event.clientY, surfaceRef.current, snapToGrid)
     if (!draftStart) {
+      if(dragDraw){event.currentTarget.setPointerCapture(event.pointerId);drawingRef.current={from:point,end:point,moved:false,pointer:event.pointerId}}
       setDraftStart(point)
       return
     }
@@ -171,6 +176,9 @@ export default function TiqCourtBoard({
         data-testid="tiq-court-board"
         ref={boardRef}
         onPointerDown={handleBoardPointerDown}
+        onPointerMove={event=>{const draft=drawingRef.current;if(!draft||!surfaceRef.current||event.pointerId!==draft.pointer)return;draft.end=pointFromPointer(event.clientX,event.clientY,surfaceRef.current,snapToGrid);draft.moved=draft.moved||Math.hypot(draft.end.x-draft.from.x,draft.end.y-draft.from.y)>2;if(draft.moved)setDraftEnd(draft.end)}}
+        onPointerUp={event=>{const draft=drawingRef.current;if(!draft||draft.pointer!==event.pointerId)return;drawingRef.current=null;if(draft.moved&&drawingKind){onCreatePath(drawingKind,draft.from,draft.end);setDraftStart(null)}setDraftEnd(null)}}
+        onPointerCancel={()=>{drawingRef.current=null;setDraftStart(null);setDraftEnd(null)}}
       >
         <div className={styles.courtSurface} data-testid="tiq-court-surface" ref={surfaceRef}>
           <Image alt="TenAceIQ master tactical court" className={styles.courtImage} draggable={false} fill priority sizes="(max-width: 900px) 100vw, 1080px" src="/brand/courts/tiq-court-approved-20261024-v2.png" />
@@ -196,6 +204,7 @@ export default function TiqCourtBoard({
                 onStartPointDrag={startPathPointDrag}
               />
             ))}
+            {drawingKind&&draftStart&&draftEnd?<line x1={draftStart.x} y1={draftStart.y} x2={draftEnd.x} y2={draftEnd.y} stroke={pathColor[drawingKind]} strokeWidth="1" strokeDasharray="3 2"/>:null}
             {drawingKind && draftStart ? (
               <circle cx={draftStart.x} cy={draftStart.y} fill="#020814" r="2.25" stroke={pathColor[drawingKind]} strokeWidth="0.75" />
             ) : null}
@@ -347,7 +356,7 @@ function BoardPath({
   const d = `M ${path.from.x} ${path.from.y} Q ${midX} ${midY + curveY} ${path.to.x} ${path.to.y}`
 
   return (
-    <g onClick={(event) => {
+    <g data-tactical-path={path.id} onClick={(event) => {
       event.stopPropagation()
       onSelect({ type: 'path', id: path.id })
     }}>

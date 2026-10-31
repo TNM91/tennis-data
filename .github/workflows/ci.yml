@@ -152,11 +152,6 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4266
         run: npx playwright test tests/e2e/mobile-tournaments.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/tournaments-results
 
-      - name: Verify native Coach roster, assignments and check-in review
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4285
-        run: npx playwright test tests/e2e/mobile-coach-workspace.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/coach-workspace-results
-
       - name: Verify native destinations and local tool search
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4283
@@ -231,5 +226,34 @@ jobs:
         with:
           name: apple-membership-ui-fixtures-${{ github.sha }}
           path: .next/playwright-results/**/apple-membership-*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
+  native-coach-experience:
+    name: Native Coach experience
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies and browser engines
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium webkit
+      - name: Bundle the installed app
+        run: npm run build:bundled --prefix mobile
+      - name: Verify complete Coach workflows on phone browser engines
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4287
+        run: npx playwright test tests/e2e/mobile-coach-workspace.e2e.ts tests/e2e/mobile-coach-tactics.e2e.ts tests/e2e/mobile-coach-complete.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/coach-experience-results
+      - name: Save synthetic Coach UI fixtures
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coach-experience-ui-fixtures-${{ github.sha }}
+          path: .next/coach-experience-results/**/*.png
           if-no-files-found: ignore
           retention-days: 3

@@ -6,7 +6,7 @@ import styles from './TiqTacticalStudio.module.css'
 
 export default function TiqBriefingPanel({ briefingRole, scenario, onBriefingRoleChange }: { briefingRole: TacticalRole; scenario: TacticalScenario; onBriefingRoleChange: (role: TacticalRole) => void }) {
   return (
-    <section className={styles.panel}>
+    <section className={styles.panel} data-tiq-brief>
       <div className={styles.panelTitle}>Briefing output</div>
       <div className={styles.briefTypes}>
         {(['captain', 'coach', 'player'] as const).map((role) => (

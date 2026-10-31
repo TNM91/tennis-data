@@ -1,0 +1,41 @@
+import {createHash} from 'node:crypto'
+import {verifiedAccount,accountClient,readAccountJson} from '@/lib/mobile-account-auth'
+import {supabaseKey} from '@/lib/supabase-public-config'
+import {coachId,coachRecord} from '@/lib/native-coach-contract'
+export const runtime='nodejs'
+export const maxDuration=30
+const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer'}})
+const conversationId=(link:string)=>{const h=createHash('sha256').update('tenaceiq:coach-direct:v1:'+link).digest('hex');return h.slice(0,8)+'-'+h.slice(8,12)+'-5'+h.slice(13,16)+'-a'+h.slice(17,20)+'-'+h.slice(20,32)}
+async function handle(request:Request,write:boolean){
+ const account=await verifiedAccount(request);if(!account)return json({ok:false},401)
+ const owner=account.user.id,client=accountClient(supabaseKey,account.token)
+ try{
+  const params=new URL(request.url).searchParams
+  if([...params.keys()].some(k=>!['student','message'].includes(k)||params.getAll(k).length!==1))return json({ok:false},400)
+  if(!params.has('student')&&!write){const links=await client.from('coach_player_links').select('id,coach_user_id,player_user_id,player_name,status').or('coach_user_id.eq.'+owner+',player_user_id.eq.'+owner).neq('status','paused').order('updated_at',{ascending:false}).limit(101);if(links.error)throw Error();return json({ok:true,owner,connections:(links.data??[]).slice(0,100).filter(r=>r.player_user_id&&(r.coach_user_id===owner||r.player_user_id===owner)).map(r=>({id:r.id,name:r.coach_user_id===owner?r.player_name:'Your coach',role:r.coach_user_id===owner?'coach':'player'})),more:(links.data?.length??0)>100})}
+  const selected=coachId(params.get('student')),result=await client.from('coach_player_links').select('id,coach_user_id,player_user_id,player_name,status').eq('id',selected).maybeSingle(),link=result.data
+  if(result.error)throw Error()
+  if(!link||!link.player_user_id||link.status==='paused'||![link.coach_user_id,link.player_user_id].includes(owner))return json({ok:false},404)
+  const id=conversationId(selected)
+  if(write){
+   const body=coachRecord(await readAccountJson(request,12000));if(Object.keys(body).some(k=>!['id','body'].includes(k))||typeof body.body!=='string'||!body.body.trim()||body.body.length>4000)return json({ok:false},400)
+   const messageId=coachId(body.id);if(!/^[0-9a-f-]{36}$/i.test(messageId))return json({ok:false},400)
+   const existing=await client.from('internal_conversations').select('id,created_by_user_id,conversation_type,related_entity_type,related_entity_id').eq('id',id).maybeSingle();if(existing.error)throw Error()
+   if(!existing.data){const created=await client.from('internal_conversations').insert({id,conversation_type:'direct',subject:'Coach & player',status:'open',created_by_user_id:owner,related_entity_type:'coach_student',related_entity_id:selected,metadata:{source:'native-coach'}});if(created.error)throw Error()}
+   else if(existing.data.conversation_type!=='direct'||existing.data.related_entity_type!=='coach_student'||existing.data.related_entity_id!==selected)throw Error()
+   // The creator can safely finish an interrupted initial participant insert.
+   if(!existing.data||existing.data.created_by_user_id===owner){const members=await client.from('internal_conversation_participants').upsert([{conversation_id:id,profile_id:link.coach_user_id,participant_role:'member'},{conversation_id:id,profile_id:link.player_user_id,participant_role:'member'}],{onConflict:'conversation_id,profile_id',ignoreDuplicates:true});if(members.error)throw Error()}
+   const saved=await client.from('internal_messages').insert({id:messageId,conversation_id:id,sender_user_id:owner,body:body.body.trim(),message_kind:'message'})
+   if(saved.error&&saved.error.code!=='23505')throw Error()
+   const checked=await client.from('internal_messages').select('id,body,sender_user_id,conversation_id').eq('id',messageId).eq('conversation_id',id).eq('sender_user_id',owner).maybeSingle()
+   if(checked.error||checked.data?.body!==body.body.trim())return json({ok:false},409)
+  }
+  const found=await client.from('internal_messages').select('id,sender_user_id,body,created_at').eq('conversation_id',id).is('deleted_at',null).order('created_at',{ascending:false}).limit(101);if(found.error)throw Error()
+  let checked=null
+  if(params.has('message')){const lookup=await client.from('internal_messages').select('id,sender_user_id,body,created_at').eq('conversation_id',id).eq('id',coachId(params.get('message'))).eq('sender_user_id',owner).maybeSingle();if(lookup.error)throw Error();checked=lookup.data}
+  const map=(r:{id:string;sender_user_id:string;body:string;created_at:string})=>({id:r.id,mine:r.sender_user_id===owner,body:r.body,createdAt:r.created_at})
+  return json({ok:true,owner,student:selected,messages:(found.data??[]).slice(0,100).reverse().map(map),more:(found.data?.length??0)>100,checked:checked?map(checked):null})
+ }catch{return json({ok:false,message:'Messages could not be confirmed. Refresh before sending again.'},503)}
+}
+export const GET=(request:Request)=>handle(request,false)
+export const POST=(request:Request)=>handle(request,true)

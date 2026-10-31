@@ -37,6 +37,7 @@ export type VideoReviewClip = {
   id: string
   title: string
   playerName: string
+  studentLinkId?:string|null
   coachName: string
   stroke: VideoStrokeTag
   status: VideoReviewStatus
@@ -140,7 +141,7 @@ export type VideoReviewPracticeRecord = {
 
 export type VideoReviewClipMetadataPatch = Partial<Pick<
   VideoReviewClip,
-  'title' | 'playerName' | 'coachName' | 'stroke' | 'captureIntent' | 'playerNote' | 'playerLinkTarget' | 'guestContact' | 'guestInviteRequired'
+  'title' | 'playerName' | 'studentLinkId' | 'coachName' | 'stroke' | 'captureIntent' | 'playerNote' | 'playerLinkTarget' | 'guestContact' | 'guestInviteRequired'
 >>
 
 export const VIDEO_REVIEW_ROUTE = '/video-review'
@@ -900,6 +901,7 @@ function isVideoReviewClip(value: unknown): value is VideoReviewClip {
     typeof value.id === 'string'
     && typeof value.title === 'string'
     && typeof value.playerName === 'string'
+    && (value.studentLinkId===undefined||value.studentLinkId===null||typeof value.studentLinkId==='string')
     && typeof value.coachName === 'string'
     && isVideoStrokeTag(value.stroke)
     && isVideoReviewStatus(value.status)

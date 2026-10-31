@@ -109,7 +109,8 @@ export async function GET(
     if (assignmentError) throw assignmentError
 
     const assignments = ((assignmentData ?? []) as CoachAssignmentRow[]).map(mapCoachAssignmentRow)
-    const events = absolutizeEventUrls(buildCoachStudentCalendarEvents(assignments, student), request)
+    const sourceEvents=buildCoachStudentCalendarEvents(assignments,student)
+    const events=new URL(request.url).searchParams.get('native')==='1'?sourceEvents.map(event=>({...event,url:''})):absolutizeEventUrls(sourceEvents,request)
     const feed = buildTennisCalendarFeed(events, {
       calendarName: `${student.playerName || 'Student'} coach lessons`,
       productUrl: new URL('/mylab#coach-assignments', request.url).toString(),

@@ -26,9 +26,9 @@ beforeEach(() => {
  state.client = client()
 })
 it.each([401, 403])('checks existing Coach access before data reads (%s)', async status => {state.allowed = status; for (const method of [GET, POST, PATCH]) {const r = await method(new Request(url)); expect(r.status).toBe(status); expect(r.headers.get('Cache-Control')).toContain('no-store')} expect(calls).toEqual([])})
-it('scopes every read to the caller and strips linked account IDs and contact details', async () => {
+it('scopes every read to the caller and strips linked account IDs and returns contact details only for the selected owned student', async () => {
  const r = await GET(new Request(url + '?student=student-one')); expect(r.status).toBe(200); const body = await r.text()
- expect(body).toContain('Alex Rivera'); expect(body).not.toContain('private@example'); expect(body).not.toContain('linked-player'); expect(body).not.toContain('Foreign player'); expect(body).not.toContain('coach_user_id')
+ expect(body).toContain('Alex Rivera'); expect(JSON.parse(body).detail.student.email).toBe('private@example.test');expect(JSON.stringify(JSON.parse(body).students)).not.toContain('private@example'); expect(body).not.toContain('linked-player'); expect(body).not.toContain('Foreign player'); expect(body).not.toContain('coach_user_id')
  expect(calls.every(c => c.filters.some(([k, v]) => k === 'coach_user_id' && v === coachOwner))).toBe(true)
  expect((await GET(new Request(url + '?student=foreign'))).status).toBe(404)
 })

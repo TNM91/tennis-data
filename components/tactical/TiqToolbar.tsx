@@ -1,6 +1,6 @@
 'use client'
 
-import Image from 'next/image'
+import {PlayerGlyph} from './TiqTokens'
 import type { TacticalFormationMode, TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
 import { tacticalFormationPresets, tacticalPathPresets, tacticalSnapPresets, tacticalTemplateMeta } from '@/lib/tactical/templates'
 import { MarkerIcon } from './icons/TiqIcons'
@@ -72,7 +72,7 @@ export default function TiqToolbar({
   onReset,
 }: TiqToolbarProps) {
   return (
-    <aside className={styles.panel}>
+    <aside className={styles.panel} data-tiq-toolbar>
       <div className={styles.panelTitle}>Board view</div>
       <div className={styles.segment}>
         {(['captain', 'coach', 'player'] as const).map((roleId) => (
@@ -213,7 +213,7 @@ function TokenTool({
       type="button"
     >
       {type === 'player' ? (
-        <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/brand/icons/app-icon-1024.png?v=20261024-approved-v1" width={34} />
+        <PlayerGlyph/>
       ) : (
         <MarkerIcon type={type} />
       )}

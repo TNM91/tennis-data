@@ -1,3 +1,4 @@
+import {COACH_LEVEL_UP_HANDOFF_PACKS} from '../coach-practice-packs'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -35,11 +36,11 @@ describe('Level Up handoff surfaces', () => {
     expect(coachSource).toContain("updateAssignmentStatus(assignment, 'assigned')")
     expect(coachSource).toContain("updateAssignmentStatus(assignment, 'archived')")
     expect(coachSource).toContain('Pack progress')
-    expect(coachSource).toContain('rhythm-builder')
-    expect(coachSource).toContain('consistency-builder')
-    expect(coachSource).toContain('point-start-routine')
-    expect(coachSource).toContain('doubles-readiness')
-    expect(coachSource).toContain('match-day-routine')
+    expect(COACH_LEVEL_UP_HANDOFF_PACKS.some(pack=>pack.id==='rhythm-builder')).toBe(true)
+    expect(COACH_LEVEL_UP_HANDOFF_PACKS.some(pack=>pack.id==='consistency-builder')).toBe(true)
+    expect(COACH_LEVEL_UP_HANDOFF_PACKS.some(pack=>pack.id==='point-start-routine')).toBe(true)
+    expect(COACH_LEVEL_UP_HANDOFF_PACKS.some(pack=>pack.id==='doubles-readiness')).toBe(true)
+    expect(COACH_LEVEL_UP_HANDOFF_PACKS.some(pack=>pack.id==='match-day-routine')).toBe(true)
   })
 
   it('updates assigned Level Up packs card-by-card before closing the assignment', () => {
