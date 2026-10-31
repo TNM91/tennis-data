@@ -12,6 +12,7 @@ import {nativeActionIcon as actionIcon} from './native-action-icons'
 import {openChatRooms} from './named-chat-rooms'
 import {isTeamChatReaction} from '../../lib/team-chat-reaction-kinds'
 import {chatsInboxHtml} from './chats-inbox'
+import {paintTeamUnread,type ChatUnread} from './chat-unread'
 import {chatEmojiPickerHtml,insertChatEmoji} from './chat-emoji'
 import {openPlayerPractices} from './player-practices-view'
 import {openTeamFixtures} from './team-fixtures-view'
@@ -59,7 +60,7 @@ export function teamMatchDayHtml(room:NativeTeamRoom) {
  const next=teamMatchOverview(room),card=currentTeamPlan(room)?.card
  return `<section><h2>Next team match</h2>${next?`<dl><dt>Date</dt><dd>${html(matchDate(next.matchDate))}</dd><dt>Opponent</dt><dd>${html(next.opponent || 'Not recorded')}</dd><dt>Time</dt><dd>${html(next.matchTime || 'Not recorded')}</dd><dt>Facility</dt><dd>${html(next.facility || 'Not recorded')}</dd></dl>`:'<p>No upcoming match is recorded for this team.</p>'}</section><section><h2>Shared court plan</h2>${card?`<p>${html(matchDate(card.matchDate))} · ${html(card.opponent || 'Opponent unavailable')}</p><p class="rating-context">${html(card.state==='archived'?'Archived match card':card.state==='active'?'Active match card':'Upcoming match card')}. This is the plan shared in Team Room; check captain announcements for final changes.</p>${card.lineup.length?`<ul class="team-courts">${card.lineup.map(court=>`<li><h3>${html(court.label || 'Court')}</h3><p>${court.defaulted?'Defaulted court':court.players.length?court.players.map(html).join(' &amp; '):'Players not assigned'}</p></li>`).join('')}</ul>`:'<p>No court assignments are recorded on this card.</p>'}`:'<p>Your captain has not shared a current court plan.</p>'}</section>`
 }
-export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string,isCurrent:()=>boolean,initialScope?:TeamChatDestination) {
+export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string,isCurrent:()=>boolean,initialScope?:TeamChatDestination,alerts?:{unread:()=>ChatUnread|null;refresh:()=>void;mountNotifications:(host:HTMLElement)=>void}) {
  let initialMessageId=initialScope?.messageId||'',historyFocusId='',alertFocusId=''
  let inbox=!initialScope
  let disposed=false,revision=0,selected:TeamScope|undefined=initialScope?{teamName:initialScope.teamName,leagueName:initialScope.leagueName,flight:initialScope.flight,...(initialScope.chatRoomId?{chatRoomId:initialScope.chatRoomId}:{})}:undefined,tab:'Match day'|'Conversation'|'Members'|'Captain'='Conversation',snapshot:NativeTeamData|null=null
@@ -132,7 +133,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   lastAckAttempt=latest.id
   const roomId=room.id
   const checkpoint=latest.createdAt,epoch=reactionEpoch
-  void postTeamChat(client,userId,valid,{...selected},{action:'mark_chat_read',messageId:latest.id}).then(()=>{if(valid()&&epoch===reactionEpoch&&snapshot?.room?.id===roomId){if(newerChatTime(checkpoint,savedReadThrough))savedReadThrough=checkpoint;readNotice='';updateLabels()}}).catch(()=>{if(valid()&&epoch===reactionEpoch&&snapshot?.room?.id===roomId&&lastAckAttempt===latest.id){readThrough=savedReadThrough;updateUnread(snapshot.room);catchingUp=unread.size>0;catchupStart=firstUnreadChat(snapshot.room.messages,unread);readNotice='Couldn’t save your read position. Tap Mark caught up to retry.';updateLabels()}})
+  void postTeamChat(client,userId,valid,{...selected},{action:'mark_chat_read',messageId:latest.id}).then(()=>{if(valid()&&epoch===reactionEpoch&&snapshot?.room?.id===roomId){if(newerChatTime(checkpoint,savedReadThrough))savedReadThrough=checkpoint;readNotice='';updateLabels();alerts?.refresh()}}).catch(()=>{if(valid()&&epoch===reactionEpoch&&snapshot?.room?.id===roomId&&lastAckAttempt===latest.id){readThrough=savedReadThrough;updateUnread(snapshot.room);catchingUp=unread.size>0;catchupStart=firstUnreadChat(snapshot.room.messages,unread);readNotice='Couldn’t save your read position. Tap Mark caught up to retry.';updateLabels()}})
  }
  const reconcileReactions=(room:NativeTeamRoom)=>{
   for(const [key,action] of pendingReactions){const message=room.messages.find(message=>message.id===action.messageId);if(!message || message.deletedAt || (message.reactions?.find(item=>item.reaction===action.reaction)?.reacted===true)===action.active)pendingReactions.delete(key)}
@@ -312,6 +313,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    if(!valid() || version!==revision)return
    historyFocusId='';historyBefore='';historyNotice='';historyLoading=false;const first=result.room?.messages[0];historyNext=result.room?.messages.length===75 && first?teamChatCursor(first.createdAt,first.id):''
    snapshot=result;matchDetailsDirty=false;selected=result.room?{teamName:result.room.teamName,leagueName:result.room.leagueName,flight:result.room.flight,...(result.room.chatRoom?{chatRoomId:result.room.chatRoom.id}:{})}:undefined
+   alerts?.refresh()
    if(result.room)updateUnread(result.room)
    if(initialMessageId)initialCatchup=false
    if(result.room&&!inbox)ensureLive(result.room)
@@ -355,8 +357,10 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const anchor=oldFirst?{id:oldFirst.dataset.chatMessage,delta:oldFirst.getBoundingClientRect().top-oldTop}:null
   if(inbox){
    app.innerHTML=chatsInboxHtml(snapshot)
+   paintTeamUnread(app,alerts?.unread()??null,snapshot.teams)
+   const notifications=app.querySelector<HTMLElement>('[data-chat-notifications]');if(notifications&&alerts)alerts.mountNotifications(notifications)
    app.querySelector<HTMLButtonElement>('#join-team')!.onclick=openInvite
-   app.querySelector<HTMLButtonElement>('#refresh-team')!.onclick=()=>{void load()}
+   app.querySelector<HTMLButtonElement>('#refresh-team')!.onclick=()=>{alerts?.refresh();void load()}
    app.querySelectorAll<HTMLButtonElement>('[data-open-team-chat]').forEach(button=>{button.onclick=()=>{
     const choice=snapshot?.teams[Number(button.dataset.openTeamChat)];if(!valid()||!choice)return
     freshDraft();inbox=false;selected={...choice};tab='Conversation';void load()
@@ -509,5 +513,5 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   if(needsLiveRefresh&&!busy&&!draft.sending&&fullLoads===0&&!app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]')){needsLiveRefresh=false;void refreshLive().catch(()=>{})}
  }
  void load()
- return {openInbox,hasDraft:()=>Boolean(roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || inviteView?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;inviteView?.dispose();inviteView=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
+ return {openInbox,refreshUnread:()=>{if(valid()&&snapshot&&inbox)paintTeamUnread(app,alerts?.unread()??null,snapshot.teams)},hasDraft:()=>Boolean(roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || inviteView?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;inviteView?.dispose();inviteView=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
 }

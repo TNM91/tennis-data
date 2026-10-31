@@ -3,7 +3,7 @@ import {openSyntheticLink} from './mobile-navigation-app'
 import {updatesFixture,updateCoachStudent} from './mobile-updates-client'
 import {clearCoachDeviceData} from '../../mobile/src/coach-device-cleanup'
 import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complete-browser'
-import {navigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer} from './mobile-navigation-client'
+import {navigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal} from './mobile-navigation-client'
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {tournamentSnapshot} from './native-tournaments'
 import {DEFAULT_ENTITLEMENTS} from '../../lib/access-model-core'
@@ -11,11 +11,16 @@ import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coac
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
 const originalFetch=window.fetch.bind(window)
 const fixtureState={requests:0}
+const chatUnreadFixture={total:7,fail:false,emit:emitChatSignal}
+Object.assign(window,{chatUnreadFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
+ // Track tool-driven traffic separately from the independent live unread counter.
+ if(url.pathname==='/api/mobile/chats/unread')return Response.json(chatUnreadFixture.fail?{ok:false}:{ok:true,owner:navigationOwner,total:chatUnreadFixture.total,teams:[{teamName:'Baseline Aces',leagueName:'City League',flight:'4.0',unread:chatUnreadFixture.total}]},{status:chatUnreadFixture.fail?503:200})
  fixtureState.requests++
+ if(url.pathname==='/api/team-rooms')return Response.json({ok:true,teams:[{teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'}],room:null})
  if(url.pathname==='/api/mobile/calendar')return calendarPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/messages'){

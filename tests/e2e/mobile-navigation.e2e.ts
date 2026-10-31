@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test'
 import '../fixtures/mobile-calendar-cases'
+import '../fixtures/mobile-chat-alert-cases'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
 import path from 'node:path'
@@ -131,11 +132,11 @@ for(const width of [320,390])test('tool search stays local, accessible and prese
 })
 for(const width of [320,390])test('all destinations, direct competitions, focus return and reconnect at '+width+'px',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));await page.setViewportSize({width,height:844});await page.goto(origin)
- await expect(page.locator('.lab-scoreboard')).toContainText('4.42');await expect(page.locator('.app-navigation button')).toHaveText(['My Lab','Explore','Chats','Compete','More']);await bounded(page)
+ await expect(page.locator('.lab-scoreboard')).toContainText('4.42');await expect(page.locator('.app-navigation button>span:last-child')).toHaveText(['My Lab','Explore','Chats','Compete','More']);await bounded(page)
  const scene=page.locator('.rating-court-scene');await expect(scene).toHaveAttribute('width','1727');expect(await scene.evaluate(el=>getComputedStyle(el).objectFit)).toBe('contain')
  expect(await page.evaluate(()=>{const score=document.querySelector('.lab-scoreboard')!,form=document.querySelector('.lab-form-host')!,focus=document.querySelector('#lab-identity')!;return Boolean(score.compareDocumentPosition(form)&Node.DOCUMENT_POSITION_FOLLOWING)&&Boolean(form.compareDocumentPosition(focus)&Node.DOCUMENT_POSITION_FOLLOWING)})).toBe(true)
  await page.screenshot({path:info.outputPath('home.png')})
- await page.getByRole('button',{name:'Chats',exact:true}).click();await expect(page.getByRole('heading',{name:'Chats',exact:true})).toBeVisible();await page.getByRole('button',{name:'Compete',exact:true}).click();await expect(page.getByRole('heading',{name:'Compete',exact:true})).toBeFocused()
+ await page.locator('.app-navigation [data-screen="teams"]').click();await expect(page.getByRole('heading',{name:'Chats',exact:true})).toBeVisible();await page.getByRole('button',{name:'Compete',exact:true}).click();await expect(page.getByRole('heading',{name:'Compete',exact:true})).toBeFocused()
  const leagues=page.locator('[data-app-destination="leagues"]');await leagues.click();const league=page.getByRole('dialog',{name:'Competitions',exact:true});await expect(league).toContainText('Northside Night League');await league.getByRole('button',{name:/^Open league/}).click();await expect(league).toContainText('Coming up');await league.getByRole('button',{name:'← Competitions',exact:true}).click();await league.getByRole('button',{name:'Close',exact:true}).click();await expect(leagues).toBeFocused()
  const tournaments=page.locator('[data-app-destination="tournaments"]');await tournaments.click();const event=page.getByRole('dialog',{name:'Tournaments',exact:true});await expect(event).toContainText('Northside Open');await event.getByRole('button',{name:'Close',exact:true}).click();await expect(tournaments).toBeFocused()
  await page.getByRole('button',{name:'Simulate token refresh',exact:true}).click();await expect(page.getByRole('heading',{name:'Compete',exact:true})).toBeVisible();await page.getByRole('button',{name:'Simulate reconnect',exact:true}).click();await expect(page.getByRole('heading',{name:'Compete',exact:true})).toBeVisible()

@@ -546,3 +546,9 @@ dialog.native-calendar-screen[open]{display:flex;flex-direction:column;gap:12px}
 .updates-review li { margin-block:6px; font-size:.86rem; }
 .updates-review button { margin:6px 6px 0 0; }
 .updates-older { margin-block-start:18px!important; }
+.app-navigation .nav-tab-icon { position:relative; overflow:visible; }
+.chat-unread-badge { display:inline-flex; align-items:center; justify-content:center; min-inline-size:20px; block-size:20px; padding-inline:4px; border:2px solid #061a2c; border-radius:20px; background:#a8e51c; color:#082132; font-size:11px; font-weight:800; line-height:16px; white-space:nowrap; }
+.app-navigation .chat-unread-badge { position:absolute; inset-block-start:-5px; inset-inline-end:-10px; }
+.chat-unread-badge[hidden] { display:none!important; }
+.chats-team-card .chat-team-unread { position:static; flex:0 0 auto; }
+.chat-notification-settings { margin-block:20px; }

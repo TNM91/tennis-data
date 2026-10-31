@@ -23,13 +23,13 @@ describe('conversation-first chrome and recorded home scoreboard',()=>{
  it('shows the same recorded numbers and fallbacks while preserving source context and approved art',()=>{
   const player={overall_dynamic_rating:4.249,singles_dynamic_rating:null,doubles_dynamic_rating:4.4,rating_source:'self'}
   const markup=ratingsHtml(player,true,true)
-  expect(markup).toContain('4.25');expect(markup).toContain('4.40');expect(markup).toContain('Overall used');expect(markup).toContain('Self-rated TIQ');expect(markup).toContain('About these ratings');expect(markup).toContain('not official USTA ratings');expect(markup).toContain('./brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png');expect(markup).toContain('alt="" width="1727" height="911"');expect(markup).not.toContain('rating-brand-mark');expect(markup).not.toContain('lab-level-path')
+  expect(markup).toContain('4.25');expect(markup).toContain('4.40');expect(markup).toContain('Overall used');expect(markup).toContain('Self-rated TIQ');expect(markup).toContain('About these ratings');expect(markup).toContain('not official USTA ratings');expect(markup).toContain('./brand/courts/tiq-native-ace-deuce-refined-20261031-v3.png');expect(markup).toContain('alt="" width="1727" height="911"');expect(markup).not.toContain('rating-brand-mark');expect(markup).not.toContain('lab-level-path')
   expect(ratingsHtml(player,true)).toContain('lab-level-path');expect(ratingsHtml(player)).not.toContain('rating-brand-mark')
   expect(ratingsHtml({...player,rating_source:null},true,true)).toContain('Source unavailable')
   expect(ratingsHtml(null,true,true)).not.toContain('<meter')
  })
  it('uses real library icon markup with hidden decorative semantics and no runtime handlers',()=>{
-  for(const name of ['back','send','plus','emoji','react','more','search','camera','photo'] as const){const markup=nativeActionIcon(name);expect(markup).toContain('<svg');expect(markup).toContain('aria-hidden="true"');expect(markup).not.toMatch(/style=|onClick|<script/)}
+  for(const name of ['back','send','plus','emoji','react','more','search','camera','photo','settings'] as const){const markup=nativeActionIcon(name);expect(markup).toContain('<svg');expect(markup).toContain('aria-hidden="true"');expect(markup).not.toMatch(/style=|onClick|<script/)}
  })
 })
 
