@@ -1,4 +1,20 @@
 /* Native court atmosphere. Artwork is bundled from public/brand without modification. */
+/* The opening stadium already supplies the court scene. Training uses a quiet action card. */
+#lab-identity { margin-top:20px; }
+.website-lab [data-native-part="repCard"] { border-radius:18px; background:#0b2439; border-color:#31516b; box-shadow:none; }
+.website-lab [data-native-part="repCard"]::after { content:none; }
+.website-lab [data-native-part="repContent"] { min-height:0; padding:22px; gap:0; }
+.website-lab [data-native-part="repContent"] h2 { margin:12px 0 10px; padding:0; max-width:none; font-size:26px; line-height:1.14; letter-spacing:-.035em; text-wrap:pretty; }
+.website-lab [data-native-part="repNote"] { padding:0; margin:0 0 20px; font-size:14px; line-height:1.55; max-width:none; }
+.website-lab [data-native-part="repContent"] [data-native-part="cardEyebrow"] { color:#8ed2ff; }
+.website-lab [data-native-part="repContent"] [data-native-part="primaryAction"] { margin-top:0; min-height:48px; border-radius:12px; box-shadow:none; }
+body[data-screen="lab"] #recent-results { padding:22px 16px; }
+body[data-screen="lab"] #recent-results>.match-filters,body[data-screen="lab"] #recent-results #results-content>.match-filters { margin:0 0 12px; padding:3px; border:1px solid #2b4a64; border-radius:13px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; background:#06192b; }
+body[data-screen="lab"] #recent-results .match-filters button.secondary { margin:0; min-width:0; min-height:44px; padding:9px 4px; border:0; border-radius:10px; background:transparent; box-shadow:none; color:#a9c4d9; font-size:14px; line-height:1.25; }
+body[data-screen="lab"] #recent-results .match-filters button[aria-pressed="true"] { border:0; box-shadow:none; background:#214b6a; color:#f1f9ff; }
+body[data-screen="lab"] #recent-results #results-content>.result-view-controls { display:flex; flex-wrap:wrap; justify-content:space-between; gap:0 8px; border:0; border-bottom:1px solid #29465d; border-radius:0; background:none; padding:0; margin-bottom:16px; }
+body[data-screen="lab"] #recent-results .result-view-controls button.secondary { flex:1 1 48px; border-radius:0; padding:9px 2px; font-size:13px; }
+body[data-screen="lab"] #recent-results .result-view-controls button[aria-pressed="true"] { color:#94d6ff; background:none; box-shadow:inset 0 -2px #73c9ff; }
 body[data-screen]:not(.native-chat-conversation) { isolation:isolate; position:relative; background:#041426; }
 .app-atmosphere { display:none; position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
 body[data-screen]:not(.native-chat-conversation) .app-atmosphere { display:block; }
@@ -101,7 +117,8 @@ body[data-screen="lab"] main>section.lab-rating-trends{margin-top:20px;padding:0
 .lab-rating-trends>h2{font-size:18px;margin:0 0 12px;color:#edf7ff;letter-spacing:-.025em}
 .lab-rating-trends .lab-trend-entry.secondary{display:flex;align-items:center;gap:12px;inline-size:100%;min-inline-size:0;min-block-size:80px;margin:0;padding:14px;border:1px solid #315c7b;border-radius:18px;background:linear-gradient(120deg,#133a56,#0a253b);color:#ebf7ff;text-align:left}
 .lab-trend-entry-icon{display:grid;place-items:center;flex:0 0 42px;inline-size:42px;block-size:42px;border-radius:13px;background:#204c6a;color:#98d6ff}
-.lab-trend-entry-icon svg{inline-size:25px;block-size:25px}
+.lab-trend-entry-icon .tiq-feature-icon__glyph{inline-size:26px;block-size:26px}
+.lab-trend-entry-icon .tiq-feature-icon__badge{inline-size:9px;block-size:9px}
 .lab-trend-entry>span:nth-child(2){display:grid;gap:5px;min-inline-size:0;flex:1}
 .lab-trend-entry strong{font-size:14px;line-height:1.3;overflow-wrap:anywhere}
 .lab-trend-entry small{font-size:11px;line-height:1.4;color:#a9cde6;font-weight:400;overflow-wrap:anywhere}

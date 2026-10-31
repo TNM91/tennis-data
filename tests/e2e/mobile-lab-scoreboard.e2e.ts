@@ -22,6 +22,23 @@ test.beforeEach(async({page})=>{
   return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="./style.css"></head><body data-screen="lab"><header class="app-header"><img src="./logo.png" alt="TenAceIQ"></header><main id="app"></main><script type="module" src="./app.js"></script></body></html>'})
  })
 })
+for(const width of [320,390])test('training hierarchy and match controls stay clean at '+width+'px',async({page},info)=>{
+ await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
+ await expect(page.locator('#lab-identity')).not.toContainText('Ready, Jordan.')
+ await expect(page.locator('#lab-identity [data-native-part="intro"],#lab-identity img')).toHaveCount(0)
+ await expect(page.getByRole('heading',{name:'Choose one tennis focus',exact:true})).toBeVisible()
+ const dimensions=await page.locator('.lab-trend-entry-icon').evaluate(el=>{const glyph=el.querySelector('.tiq-feature-icon__glyph')!.getBoundingClientRect(),badge=el.querySelector('.tiq-feature-icon__badge')!.getBoundingClientRect();return {glyph:glyph.width,badge:badge.width}})
+ expect(dimensions.glyph).toBeGreaterThan(dimensions.badge*2)
+ const controls=page.locator('#results-content>.result-view-controls')
+ expect(await controls.evaluate(el=>getComputedStyle(el).display)).toBe('flex')
+ await page.locator('[data-result-view="formats"]').click();await expect(page.locator('.lab-format-grid')).toBeVisible();await bounded(page)
+ await page.locator('[data-result-view="form"]').click();await page.locator('[data-match-filter="All"]').focus()
+ await page.screenshot({path:info.outputPath('lab-scoreboard-clean-controls.png')})
+ await page.locator('[data-native-part="primaryAction"]').focus();await page.screenshot({path:info.outputPath('lab-scoreboard-training-card.png')})
+ await page.addStyleTag({content:':root{font-size:22px!important}'})
+ await bounded(page)
+ for(const selector of ['[data-result-view]','[data-match-filter]'])for(const control of await page.locator(selector).all())expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+})
 async function bounded(page:Page){
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
  for(const target of ['.lab-scoreboard','.lab-form-strip','.lab-level-path','.lab-trend-entry']){

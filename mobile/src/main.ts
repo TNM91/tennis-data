@@ -7,6 +7,7 @@ import {applePurchases} from './apple-purchases'
 import {showEmailAuth} from './email-auth'
 import {openAccountSettings} from './account-settings'
 import {createNativeSignOut} from './native-sign-out'
+import {mountBiometricSignIn} from './biometric-sign-in'
 import {showGuestExplore} from './guest-explore'
 import {PRODUCT_MOTTO,MEMBERSHIP_TIERS} from '../../lib/product-story'
 import type {TeamChatDestination} from './team-room-data'
@@ -81,6 +82,7 @@ let profileOpen=false
 let connection: ReturnType<typeof showPlayerConnection> | null = null
 let details: ReturnType<typeof createMatchDetails> | null = null
 let recovery: ReturnType<typeof showPasswordRecovery> | null = null
+let biometricLogin:ReturnType<typeof mountBiometricSignIn>|null=null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
@@ -108,6 +110,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  biometricLogin?.dispose();biometricLogin=null
   const visit=++revision
   emailAuth?.dispose();emailAuth=null
   accountSettings?.dispose();accountSettings=null
@@ -136,13 +139,16 @@ function login(message = '') {
   details = null
   app.dataset.state = 'signed-out'
   app.innerHTML = `<div class="native-welcome"><small>Tennis intelligence</small><h1 tabindex="-1">${escape(PRODUCT_MOTTO)}</h1><p>Your game. Your team. Your next ace.</p><button type="button" id="browse-public">Explore without signing in <span aria-hidden="true">↗</span></button><p class="welcome-browse-note">Players, teams, leagues and TIQ rankings.</p><div class="welcome-account"><h2>Your tennis, connected.</h2>${storageUnavailable?'<p role="alert">Secure sign-in storage is unavailable. Close the app and try again to sign in. You can still explore public tennis.</p>':`<p>Sign in for My Lab and your team chats.</p><button type="button" class="secondary" id="email-sign-in">Create account or use an email code</button><p class="welcome-email-note">New accounts start ${escape(MEMBERSHIP_TIERS.free.name)}. Existing access stays the same.</p><form><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><p role="alert">${escape(message)}</p><button>Sign in</button></form><button type="button" class="secondary" id="forgot-password">Forgot password?</button>`}</div>${accountLinksHtml}</div>`
+  const biometricHost=document.createElement('div');biometricHost.className='biometric-login';app.querySelector('.welcome-account')!.querySelector('form')?.before(biometricHost)
+  if(!storageUnavailable)biometricLogin=mountBiometricSignIn(biometricHost,client,()=>visit===revision&&!session)
   app.querySelector<HTMLButtonElement>('#browse-public')!.onclick=openGuest
   bindAccountLinks(app)
   app.querySelector<HTMLElement>('h1')!.focus({preventScroll:true})
   const emailEntry=app.querySelector<HTMLButtonElement>('#email-sign-in')
-  if(emailEntry)emailEntry.onclick=()=>{if(session)return;const visit=++revision;emailAuth?.dispose();emailAuth=showEmailAuth(app,client,()=>visit===revision&&!session,()=>login())}
+  if(emailEntry)emailEntry.onclick=()=>{if(session)return;biometricLogin?.dispose();const visit=++revision;emailAuth?.dispose();emailAuth=showEmailAuth(app,client,()=>visit===revision&&!session,()=>login())}
   const forgot=app.querySelector<HTMLButtonElement>('#forgot-password')
   if(forgot)forgot.onclick = () => {
+    biometricLogin?.dispose()
     recovery = showPasswordRecovery(app, client, () => login())
   }
   const signInForm=app.querySelector<HTMLFormElement>('form')
@@ -150,6 +156,7 @@ function login(message = '') {
     event.preventDefault()
     const form = event.currentTarget as HTMLFormElement
     if(visit!==revision||session||!form.isConnected)return
+    biometricLogin?.dispose()
     const fields = new FormData(form)
     const button = form.querySelector('button')!
     button.disabled = true
@@ -162,6 +169,7 @@ function login(message = '') {
 }
 
 function openGuest() {
+  biometricLogin?.dispose();biometricLogin=null
   if(session)return
   recovery?.dispose();recovery=null
   emailAuth?.dispose();emailAuth=null
@@ -295,7 +303,7 @@ function showHub(next:AppHub){
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
 const nativePurchases=applePurchases(client)
 const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
-function setNativeSession(next:typeof session){nativePush.setSession(next);nativePurchases.setOwner(next?.user.id||null)}
+function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}nativePush.setSession(next);nativePurchases.setOwner(next?.user.id||null)}
 
 async function lab() {
   emailAuth?.dispose();emailAuth=null

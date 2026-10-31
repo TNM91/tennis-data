@@ -1,4 +1,5 @@
 import {navigationHtml,homeShortcutsHtml} from '../../mobile/src/app-navigation'
+import {labIdentityHtml} from '../../mobile/src/lab-home'
 import {ratingsHtml} from '../../mobile/src/player-ratings-view'
 import {labRecentFormHtml,bindLabFormScorecards} from '../../mobile/src/lab-recent-form'
 import {labLevelPathHtml} from '../../mobile/src/lab-level-path'
@@ -25,7 +26,7 @@ state.render=(scenario='default')=>{
  if(scenario==='all-losses')rows=rows.map(row=>({...row,winner_side:'A'}))
  if(scenario==='all-wins')rows=rows.map(row=>({...row,winner_side:'B'}))
  const name=scenario==='long'?'Alexandria-Marguerite Montgomery':'Jordan Lee'
- app.innerHTML='<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">My Lab</small><h1>'+name+'</h1><p>Review Aces</p></div></header><section class="lab-stat-panel lab-scoreboard" aria-labelledby="lab-ratings-title"><small class="stat-eyebrow">Your game, in numbers</small><h2 id="lab-ratings-title">Your scoreboard</h2><div>'+ratingsHtml(player,true,true)+'</div></section><div class="lab-form-host">'+labRecentFormHtml(rows,owner)+'</div>'+homeShortcutsHtml()+'<section id="rating-trends"></section><section id="recent-results"><h2>Recent matches</h2><div id="results-content"></div></section><div class="lab-next-band">'+labLevelPathHtml(player)+'</div><section id="lab-identity"><h2>Move your game forward</h2><p>Choose your next practice from your training tools.</p></section>'
+ app.innerHTML='<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">My Lab</small><h1>'+name+'</h1><p>Review Aces</p></div></header><section class="lab-stat-panel lab-scoreboard" aria-labelledby="lab-ratings-title"><small class="stat-eyebrow">Your game, in numbers</small><h2 id="lab-ratings-title">Your scoreboard</h2><div>'+ratingsHtml(player,true,true)+'</div></section><div class="lab-form-host">'+labRecentFormHtml(rows,owner)+'</div>'+homeShortcutsHtml()+'<section id="rating-trends"></section><section id="recent-results"><h2>Recent matches</h2><div id="results-content"></div></section><div class="lab-next-band">'+labLevelPathHtml(player)+'</div><div id="lab-identity">'+labIdentityHtml({linked_player_id:owner,linked_player_name:name})+'</div>'
  const current=()=>state.active&&revision===version
  bindLabFormScorecards(app.querySelector<HTMLElement>('.lab-form-host')!,rows,current,row=>{state.opened=row.id})
  showRecentResults(app.querySelector<HTMLElement>('#results-content')!,rows,owner,row=>{state.opened=row.id},'your',true)

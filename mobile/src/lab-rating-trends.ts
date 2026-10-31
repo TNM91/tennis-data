@@ -7,7 +7,7 @@ export function mountLabRatingTrends(host:HTMLElement,client:SupabaseClient,play
   let disposed=false,journey:ReturnType<typeof showPlayerJourney>|null=null
   const valid=()=>!disposed&&host.isConnected&&current()
   host.classList.add('lab-rating-trends')
-  host.innerHTML='<h2>Understand your game</h2><button type="button" class="secondary lab-trend-entry" aria-label="Open rating trends"><span class="lab-trend-entry-icon" aria-hidden="true">'+websiteUi.icons.progress+'</span><span><strong>Your TIQ over time</strong><small>Overall, singles &amp; doubles history</small></span><span class="lab-trend-arrow" aria-hidden="true">→</span></button><p>Open saved ratings and the scorecards behind them.</p>'
+  host.innerHTML='<h2>Understand your game</h2><button type="button" class="secondary lab-trend-entry" aria-label="Open rating trends"><span class="lab-trend-entry-icon" aria-hidden="true">'+websiteUi.icons.following+'</span><span><strong>Your TIQ over time</strong><small>Overall, singles &amp; doubles history</small></span><span class="lab-trend-arrow" aria-hidden="true">→</span></button><p>Open saved ratings and the scorecards behind them.</p>'
   const button=host.querySelector<HTMLButtonElement>('button')!
   button.onclick=()=>{
     if(journey||!valid())return

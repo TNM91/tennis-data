@@ -4,222 +4,185 @@ import Capacitor
 import StoreKit
 import UserNotifications
 import LocalAuthentication
+import Security
 
 final class TenAceIQBridgeViewController: CAPBridgeViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
-        TiqAppLockController.shared.attach(to: self)
-    }
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        TiqAppLockController.shared.connectWindow()
+        _ = TiqBiometricSignInController.shared // Retire the old app-lock preference.
     }
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(TenAceIQPurchases())
         bridge?.registerPluginInstance(TenAceIQNotifications())
-        bridge?.registerPluginInstance(TenAceIQAppLock())
+        bridge?.registerPluginInstance(TenAceIQBiometricSignIn())
     }
 }
 
-/// Device-local privacy lock. It never creates or replaces an account session.
-@MainActor final class TiqAppLockController: NSObject {
-    static let shared = TiqAppLockController()
+/// Explicit sign-in only. Foregrounding never authenticates or covers the app.
+@MainActor final class TiqBiometricSignInController: NSObject {
+    static let shared = TiqBiometricSignInController()
     private let defaults: UserDefaults
-    private static let preference = "tenaceiq.requireDeviceUnlock"
-    private(set) var enabled: Bool
-    private(set) var locked: Bool
-    private var inactive = UIApplication.shared.applicationState != .active
+    private static let ownerKey = "tenaceiq.biometricSignInOwner"
+    nonisolated private static let service = "com.tenaceiq.app.biometric-sign-in"
+    nonisolated private static let account = "saved-account"
     private var generation = 0
     private var context: LAContext?
-    private var completion: ((Bool, String) -> Void)?
-    private weak var host: UIViewController?
-    private weak var appWindow: UIWindow?
-    private var privacyWindow: UIWindow?
-    private let shield = UIView()
-    private let message = UILabel()
-    private let unlock = UIButton(type: .system)
+    private var requestID: String?
+    private var completion: (([String: String]?, String) -> Void)?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        enabled = defaults.bool(forKey: Self.preference)
-        locked = enabled
         super.init()
-        let center = NotificationCenter.default
-        center.addObserver(self, selector: #selector(resignActive), name: UIApplication.willResignActiveNotification, object: nil)
-        center.addObserver(self, selector: #selector(enterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
-        center.addObserver(self, selector: #selector(becomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
+        defaults.removeObject(forKey: "tenaceiq.requireDeviceUnlock")
+        NotificationCenter.default.addObserver(self, selector: #selector(enterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
     }
     deinit { NotificationCenter.default.removeObserver(self) }
 
-    func attach(to controller: UIViewController) {
-        host = controller
-        shield.backgroundColor = UIColor(red: 0.02, green: 0.06, blue: 0.13, alpha: 1)
-        shield.accessibilityViewIsModal = true
-        shield.accessibilityIdentifier = "tenaceiq-app-lock"
-        shield.frame = controller.view.bounds
-        shield.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        let title = UILabel()
-        title.text = "TenAceIQ is locked"
-        title.font = .preferredFont(forTextStyle: .title1)
-        title.adjustsFontForContentSizeCategory = true
-        title.textColor = .white
-        title.numberOfLines = 0
-        title.textAlignment = .center
-        message.text = "Unlock with Face ID, Touch ID or your device passcode."
-        message.font = .preferredFont(forTextStyle: .body)
-        message.adjustsFontForContentSizeCategory = true
-        message.numberOfLines = 0
-        message.textAlignment = .center
-        message.textColor = UIColor(white: 0.85, alpha: 1)
-        unlock.setTitle("Unlock TenAceIQ", for: .normal)
-        unlock.titleLabel?.font = .preferredFont(forTextStyle: .headline)
-        unlock.titleLabel?.adjustsFontForContentSizeCategory = true
-        unlock.titleLabel?.numberOfLines = 0
-        unlock.titleLabel?.textAlignment = .center
-        unlock.setTitleColor(UIColor(red: 0.65, green: 0.9, blue: 0.05, alpha: 1), for: .normal)
-        unlock.heightAnchor.constraint(greaterThanOrEqualToConstant: 52).isActive = true
-        unlock.addTarget(self, action: #selector(unlockTapped), for: .touchUpInside)
-        let stack = UIStackView(arrangedSubviews: [title, message, unlock])
-        stack.axis = .vertical
-        stack.spacing = 24
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        shield.addSubview(stack)
-        controller.view.addSubview(shield)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: shield.safeAreaLayoutGuide.leadingAnchor, constant: 28),
-            stack.trailingAnchor.constraint(equalTo: shield.safeAreaLayoutGuide.trailingAnchor, constant: -28),
-            stack.centerYAnchor.constraint(equalTo: shield.safeAreaLayoutGuide.centerYAnchor),
-            stack.topAnchor.constraint(greaterThanOrEqualTo: shield.safeAreaLayoutGuide.topAnchor, constant: 20),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: shield.safeAreaLayoutGuide.bottomAnchor, constant: -20)
-        ])
-        updateCover()
-    }
-
-    func connectWindow() {
-        guard privacyWindow == nil, let window = host?.view.window, let scene = window.windowScene else { return }
-        appWindow = window
-        let cover = UIWindow(windowScene: scene)
-        cover.frame = scene.coordinateSpace.bounds
-        cover.windowLevel = UIWindow.Level(rawValue: UIWindow.Level.alert.rawValue + 1)
-        let controller = UIViewController()
-        shield.removeFromSuperview()
-        controller.view = shield
-        cover.rootViewController = controller
-        privacyWindow = cover
-        updateCover()
-        // Keep the app's key window: Apple authentication and StoreKit own their UI.
-    }
-
-    func status() -> [String: Any] {
-        let candidate = LAContext()
+    private func newContext() -> LAContext { LAContext() }
+    func status(owner: String?) -> [String: Any] {
+        let candidate = newContext()
         var error: NSError?
-        let available = candidate.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
-        let biometry = candidate.biometryType == .faceID ? "faceID" : candidate.biometryType == .touchID ? "touchID" : "passcode"
-        return ["enabled": enabled, "available": available, "biometry": biometry]
+        let available = candidate.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+        let saved = defaults.string(forKey: Self.ownerKey)
+        return ["available": available, "saved": saved != nil,
+                "forCurrentOwner": owner != nil && saved == owner,
+                "biometry": candidate.biometryType == .touchID ? "touchID" : "faceID"]
     }
-
-    func setEnabled(_ value: Bool, reply: @escaping (Bool, String) -> Void) {
-        guard !locked, !inactive else { reply(false, "app_locked"); return }
-        guard value != enabled else { reply(true, ""); return }
-        authenticate(reason: value ? "Turn on private access to TenAceIQ." : "Turn off TenAceIQ app lock.") { [weak self] success, code in
-            guard let self else { reply(false, "authentication_cancelled"); return }
-            if success {
-                self.defaults.set(value, forKey: Self.preference)
-                self.enabled = value
-                self.locked = false
-                self.updateCover()
-            }
-            reply(success, code)
-        }
+    nonisolated private var query: [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword,
+         kSecAttrService as String: Self.service, kSecAttrAccount as String: Self.account,
+         kSecAttrSynchronizable as String: false]
     }
-
-    @objc func resignActive() {
-        inactive = true
-        updateCover() // Cover before iOS takes its app-switcher snapshot.
+    private func store(_ credential: [String: String]) -> Bool {
+        var error: Unmanaged<CFError>?
+        guard let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .biometryCurrentSet, &error),
+              let data = try? JSONSerialization.data(withJSONObject: credential) else { return false }
+        // Replacing a saved account is explicit; no plaintext or iCloud fallback.
+        SecItemDelete(query as CFDictionary)
+        var item = query
+        item[kSecAttrAccessControl as String] = access
+        item[kSecValueData as String] = data
+        return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
     }
-    @objc func enterBackground() {
-        inactive = true
-        if enabled { locked = true }
+    nonisolated private func read(using candidate: LAContext) -> (OSStatus, [String: String]?) {
+        var item = query
+        item[kSecReturnData as String] = true
+        item[kSecMatchLimit as String] = kSecMatchLimitOne
+        item[kSecUseAuthenticationContext as String] = candidate
+        var value: CFTypeRef?
+        let code = SecItemCopyMatching(item as CFDictionary, &value)
+        let credential = (value as? Data).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: String] }
+        return (code, credential)
+    }
+    @discardableResult func forget(owner: String) -> Bool {
+        guard defaults.string(forKey: Self.ownerKey) == owner else { return true }
+        cancel()
+        let code = SecItemDelete(query as CFDictionary)
+        guard code == errSecSuccess || code == errSecItemNotFound else { return false }
+        defaults.removeObject(forKey: Self.ownerKey)
+        return true
+    }
+    func cancel(request: String? = nil) {
+        guard request == nil || request == requestID else { return }
         generation += 1
         let pending = completion
         completion = nil
+        requestID = nil
         context?.invalidate()
         context = nil
-        updateCover()
-        pending?(false, "authentication_cancelled")
+        pending?(nil, "authentication_cancelled")
     }
-    @objc func becomeActive() {
-        inactive = false
-        updateCover() // A system prompt alone must not relock a verified session.
+    @objc func enterBackground() { cancel() }
+    private func finish(_ value: [String: String]?, code: String, candidate: LAContext, visit: Int) {
+        guard context === candidate, generation == visit else { return }
+        let pending = completion
+        completion = nil
+        requestID = nil
+        context = nil
+        candidate.invalidate()
+        pending?(value, code)
     }
-    @objc private func unlockTapped() {
-        guard enabled, locked, !inactive else { return }
-        authenticate(reason: "Unlock your signed-in TenAceIQ app.") { [weak self] success, _ in
-            guard let self else { return }
-            if success { self.locked = false }
-            self.message.text = success ? "Unlock with Face ID, Touch ID or your device passcode." : "Still locked. Try again with Face ID or your device passcode. Check Face ID & Passcode in iPhone Settings if needed."
-            self.updateCover()
-        }
-    }
-    private func authenticate(reason: String, reply: @escaping (Bool, String) -> Void) {
-        guard context == nil else { reply(false, "authentication_busy"); return }
-        let candidate = LAContext()
+    func authenticate(request: String, credential: [String: String]? = nil, reply: @escaping ([String: String]?, String) -> Void) {
+        guard context == nil else { reply(nil, "authentication_busy"); return }
+        guard UIApplication.shared.applicationState != .background else { reply(nil, "authentication_cancelled"); return }
+        let candidate = newContext()
         var error: NSError?
-        guard candidate.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { reply(false, "authentication_unavailable"); return }
+        guard candidate.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else { reply(nil, "authentication_unavailable"); return }
+        if credential == nil && defaults.string(forKey: Self.ownerKey) == nil { reply(nil, "credential_missing"); return }
         let visit = generation
         context = candidate
+        requestID = request
         completion = reply
-        unlock.isEnabled = false
-        candidate.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { [weak self] success, _ in
+        candidate.localizedFallbackTitle = ""
+        candidate.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: credential == nil ? "Sign in to TenAceIQ with your saved account." : "Save this account for Face ID sign-in on this iPhone.") { [weak self] success, _ in
             DispatchQueue.main.async {
-                guard let self, self.context === candidate, visit == self.generation else { return }
-                let pending = self.completion
-                self.context = nil
-                self.completion = nil
-                // The Apple sheet may still be resigning active at successful completion.
-                pending?(success, success ? "" : "authentication_cancelled")
-                self.updateCover()
+                guard let self, self.context === candidate, self.generation == visit else { return }
+                guard success else { self.finish(nil, code: "authentication_cancelled", candidate: candidate, visit: visit); return }
+                if let credential {
+                    let saved = self.store(credential)
+                    if saved { self.defaults.set(credential["owner"], forKey: Self.ownerKey) }
+                    else { self.defaults.removeObject(forKey: Self.ownerKey) }
+                    self.finish(saved ? [:] : nil, code: saved ? "" : "credential_storage_failed", candidate: candidate, visit: visit)
+                } else {
+                    // Keychain access can block for system authentication; keep it off the UI thread.
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        let (code, saved) = self.read(using: candidate)
+                        DispatchQueue.main.async {
+                            guard self.context === candidate, self.generation == visit else { return }
+                            let valid = code == errSecSuccess && saved?["owner"] == self.defaults.string(forKey: Self.ownerKey) && !(saved?["password"] ?? "").isEmpty && !(saved?["email"] ?? "").isEmpty
+                            if code == errSecItemNotFound { self.defaults.removeObject(forKey: Self.ownerKey) }
+                            self.finish(valid ? saved : nil, code: valid ? "" : code == errSecItemNotFound ? "credential_missing" : "credential_unavailable", candidate: candidate, visit: visit)
+                        }
+                    }
+                }
             }
-        }
-    }
-    private func updateCover() {
-        let covered = enabled && (locked || inactive)
-        shield.isHidden = !covered
-        privacyWindow?.isHidden = !covered
-        appWindow?.accessibilityElementsHidden = covered
-        appWindow?.isUserInteractionEnabled = !covered
-        unlock.isEnabled = context == nil && !inactive
-        if covered {
-            host?.view.endEditing(true)
-            if privacyWindow == nil { host?.view.bringSubviewToFront(shield) }
-        }
-        // The separate native window also covers Safari, camera and UIKit sheets.
-        for child in host?.view.subviews ?? [] where child !== shield {
-            child.accessibilityElementsHidden = covered
-            child.isUserInteractionEnabled = !covered
         }
     }
 }
 
-@objc(TenAceIQAppLock)
-public final class TenAceIQAppLock: CAPPlugin, CAPBridgedPlugin {
-    public let identifier = "TenAceIQAppLock"
-    public let jsName = "TiqAppLock"
+@objc(TenAceIQBiometricSignIn)
+public final class TenAceIQBiometricSignIn: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "TenAceIQBiometricSignIn"
+    public let jsName = "TiqBiometricSignIn"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "setEnabled", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "remember", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "signIn", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "forget", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise)
     ]
     @objc func status(_ call: CAPPluginCall) {
-        DispatchQueue.main.async { call.resolve(TiqAppLockController.shared.status()) }
+        DispatchQueue.main.async { call.resolve(TiqBiometricSignInController.shared.status(owner: call.getString("owner"))) }
     }
-    @objc func setEnabled(_ call: CAPPluginCall) {
-        guard let value = call.getBool("enabled") else { call.reject("Choose an app lock setting.", "invalid_setting"); return }
+    @objc func remember(_ call: CAPPluginCall) {
+        guard let owner = call.getString("owner"), UUID(uuidString: owner) != nil,
+              let email = call.getString("email"), email.contains("@"), email.count <= 320,
+              let password = call.getString("password"), !password.isEmpty, password.count <= 4096,
+              let request = call.getString("request"), UUID(uuidString: request) != nil else { call.reject("Verify your account before saving sign-in.", "invalid_credential"); return }
         DispatchQueue.main.async {
-            TiqAppLockController.shared.setEnabled(value) { success, code in
-                if success { call.resolve(TiqAppLockController.shared.status()) }
-                else { call.reject("App lock was not changed.", code) }
+            TiqBiometricSignInController.shared.authenticate(request: request, credential: ["owner": owner, "email": email, "password": password]) { value, code in
+                if value != nil { call.resolve() } else { call.reject("Sign-in was not saved.", code) }
             }
         }
+    }
+    @objc func signIn(_ call: CAPPluginCall) {
+        guard let request = call.getString("request"), UUID(uuidString: request) != nil else { call.reject("Choose Face ID sign-in.", "invalid_request"); return }
+        DispatchQueue.main.async {
+            TiqBiometricSignInController.shared.authenticate(request: request) { value, code in
+                if let value { call.resolve(value) } else { call.reject("Use your password or email code to sign in.", code) }
+            }
+        }
+    }
+    @objc func forget(_ call: CAPPluginCall) {
+        guard let owner = call.getString("owner"), UUID(uuidString: owner) != nil else { call.reject("Choose your saved account.", "invalid_credential"); return }
+        DispatchQueue.main.async {
+            if TiqBiometricSignInController.shared.forget(owner: owner) { call.resolve() }
+            else { call.reject("Saved sign-in could not be removed.", "credential_storage_failed") }
+        }
+    }
+    @objc func cancel(_ call: CAPPluginCall) {
+        guard let request = call.getString("request") else { call.resolve(); return }
+        DispatchQueue.main.async { TiqBiometricSignInController.shared.cancel(request: request); call.resolve() }
     }
 }
 
