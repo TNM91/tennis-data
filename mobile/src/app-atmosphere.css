@@ -576,3 +576,6 @@ dialog.native-calendar-screen[open]{display:flex;flex-direction:column;gap:12px}
 .chats-coach-card .chats-team-avatar { background:#143c57; color:#92d7ff; }
 .chats-coach-card strong,.chats-coach-card .chats-team-copy>span { overflow-wrap:anywhere; }
 .chats-coach-inbox [data-coach-chat-status]:empty { display:none; }
+
+.chat-coach-unread { position:static; flex:0 0 auto; }
+.chats-coach-inbox [hidden] { display:none!important; }

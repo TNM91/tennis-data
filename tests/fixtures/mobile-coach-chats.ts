@@ -5,6 +5,7 @@ export function coachChatPreview(owner:string,method:string,url:URL,body:BodyIni
  if(coachChatFixture.fail)return Response.json({ok:false},{status:503})
  if(!student)return Response.json({ok:true,owner,connections:[...(!coachChatFixture.removed?[{id:'student-one',name:'Alex Rivera <img src=x>',role:'coach'}]:[]),{id:'student-two',name:'Jordan Lee',role:'player'}],more:false})
  if(coachChatFixture.removed&&student==='student-one')return Response.json({ok:false},{status:404})
+ if(method==='PATCH'){const value=JSON.parse(String(body));return Response.json({ok:true,owner,student,through:value.message})}
  if(method==='POST'){
   const value=JSON.parse(String(body)) as {id:string;body:string}
   if(!coachChatFixture.messages.some(message=>message.id===value.id))coachChatFixture.messages.push({...value,mine:true,createdAt:'2026-10-31T12:30:00Z'})

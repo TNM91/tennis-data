@@ -1,3 +1,4 @@
+import {coachUnreadFixture,coachUnreadCounts,coachUnreadMessages} from './mobile-coach-unread'
 import {coachChatFixture,coachChatPreview} from './mobile-coach-chats'
 import {calendarFixture,calendarPreview} from './mobile-calendar'
 import {openSyntheticLink} from './mobile-navigation-app'
@@ -16,13 +17,13 @@ const fixtureState={requests:0}
 const chatUnreadFixture={total:7,fail:false,detailed:false,secondTeam:false,denyRoom:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
 const chatTeams=()=>[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
-Object.assign(window,{chatUnreadFixture,calendarTeamFixture,coachChatFixture})
+Object.assign(window,{chatUnreadFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
  // Track tool-driven traffic separately from the independent live unread counter.
- if(url.pathname==='/api/mobile/chats/unread')return Response.json(chatUnreadFixture.fail?{ok:false}:{ok:true,owner:navigationOwner,total:chatUnreadFixture.total,teams:chatTeams().map((team,i)=>({...team,unread:i?0:chatUnreadFixture.total,...(chatUnreadFixture.detailed?{generalUnread:i?0:Math.min(2,chatUnreadFixture.total),rooms:i?[]:[{id:chatRoomId,name:chatUnreadFixture.roomName,unread:Math.max(0,chatUnreadFixture.total-2)}]}:{})}))},{status:chatUnreadFixture.fail?503:200})
+ if(url.pathname==='/api/mobile/chats/unread')return Response.json(chatUnreadFixture.fail?{ok:false}:{ok:true,owner:currentNavigationOwner(),total:chatUnreadFixture.total,...(coachUnreadFixture.enabled?{coach:coachUnreadCounts(currentNavigationOwner())}:{}),teams:chatTeams().map((team,i)=>({...team,unread:i?0:chatUnreadFixture.total,...(chatUnreadFixture.detailed?{generalUnread:i?0:Math.min(2,chatUnreadFixture.total),rooms:i?[]:[{id:chatRoomId,name:chatUnreadFixture.roomName,unread:Math.max(0,chatUnreadFixture.total-2)}]}:{})}))},{status:chatUnreadFixture.fail?503:200})
  fixtureState.requests++
  if(url.pathname==='/api/team-rooms'){
   if(coachChatFixture.teamFail)return Response.json({ok:false},{status:503})
@@ -36,6 +37,7 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/calendar')return calendarPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/messages'){
+  const unreadReply=await coachUnreadMessages(currentNavigationOwner(),init?.method||'GET',url,init?.body);if(unreadReply)return unreadReply
   const coachReply=coachChatPreview(currentNavigationOwner(),init?.method||'GET',url,init?.body);if(coachReply)return coachReply
   if(url.searchParams.get('student')===updateCoachStudent)return Response.json({ok:true,owner:navigationOwner,student:updateCoachStudent,messages:[{id:'preview-note',mine:false,body:'Bring your return notes to our next lesson.',createdAt:'2026-10-31T12:00:00Z'}],more:false,checked:null})
   const response=coachMessagesPreview(init?.method||'GET',url,init?.body)

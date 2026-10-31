@@ -1,10 +1,14 @@
+import {coachId} from '../../lib/native-coach-contract'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 import {watchTeamChat} from './team-chat-live'
 import {namedChatRoomId,namedChatRoomName} from '../../lib/named-team-chat-rooms'
 export type ChatUnreadTeam=TeamScope&{unread:number;generalUnread?:number;rooms?:{id:string;name:string;unread:number}[]}
-export type ChatUnread={owner:string;total:number;teams:ChatUnreadTeam[]}
+export type CoachChatUnread={available:boolean;total:number;connections:{id:string;unread:number}[]}
+/** total remains the legacy team total for installed builds. */
+export type ChatUnread={owner:string;total:number;teams:ChatUnreadTeam[];coach?:CoachChatUnread}
+export const combinedChatUnread=(value:ChatUnread|null)=>value?Math.min(100,value.total+(value.coach?.total||0)):null
 const count=(value:unknown):value is number=>Number.isInteger(value)&&Number(value)>=0&&Number(value)<=100
 const key=(scope:TeamScope)=>JSON.stringify([scope.teamName,scope.leagueName,scope.flight])
 export function parseChatUnread(value:unknown,owner:string):ChatUnread{
@@ -18,7 +22,15 @@ export function parseChatUnread(value:unknown,owner:string):ChatUnread{
   ids.add(key(team));return {teamName:team.teamName,leagueName:team.leagueName,flight:team.flight,unread:team.unread,...(hasRooms?{generalUnread:team.generalUnread,rooms:team.rooms!.map(({id,name,unread})=>({id,name,unread}))}:{})}
  })
  if(row.total!==Math.min(100,teams.reduce((sum,team)=>sum+team.unread,0)))throw Error('Chat counts unavailable')
- return {owner,total:row.total,teams}
+ let coach:CoachChatUnread|undefined
+ if(row.coach!==undefined){
+  const input=row.coach
+  if(!input||typeof input.available!=='boolean'||!count(input.total)||!Array.isArray(input.connections)||input.connections.length>100)throw Error('Coach counts unavailable')
+  const ids=new Set<string>(),connections=input.connections.map(c=>{const id=coachId(c?.id);if(ids.has(id)||!count(c.unread))throw Error('Coach counts unavailable');ids.add(id);return {id,unread:c.unread}})
+  if(input.total!==Math.min(100,connections.reduce((sum,c)=>sum+c.unread,0))||!input.available&&(input.total!==0||connections.length!==0))throw Error('Coach counts unavailable')
+  coach={available:input.available,total:input.total,connections}
+ }
+ return {owner,total:row.total,teams,...(coach?{coach}:{})}
 }
 export async function loadChatUnread(client:SupabaseClient,owner:string,current:()=>boolean,send=CapacitorHttp.get){
  const {data,error}=await client.auth.getSession(),session=data.session
@@ -28,8 +40,8 @@ export async function loadChatUnread(client:SupabaseClient,owner:string,current:
  if(latest.error||latest.data.session?.user.id!==owner||!current()||response.status!==200)throw Error('Chat counts unavailable')
  return parseChatUnread(response.data,owner)
 }
-export function paintChatsBadge(button:HTMLElement,count:number|null){
- button.setAttribute('aria-label',count===null?'Chats':count===100?'Chats, 99+ unread messages':'Chats, '+count+' unread messages')
+export function paintChatsBadge(button:HTMLElement,count:number|null,partial=false){
+ button.setAttribute('aria-label',partial?(count?'Chats, at least '+(count===100?'99+':count)+' unread messages. Some counts unavailable.':'Chats, unread counts unavailable.'):count===null?'Chats':count===100?'Chats, 99+ unread messages':'Chats, '+count+' unread messages')
  const badge=button.querySelector<HTMLElement>('[data-chat-badge]');if(!badge)return
  badge.hidden=count===null||count===0;badge.textContent=count===null?'':count===100?'99+':String(count)
 }

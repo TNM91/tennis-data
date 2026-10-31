@@ -1,4 +1,5 @@
 import {beforeEach,expect,it,vi} from 'vitest'
+vi.mock('server-only',()=>({}))
 const state=vi.hoisted(()=>({owner:'11111111-1111-4111-8111-111111111111',verified:true,client:{} as unknown}))
 vi.mock('../mobile-account-auth',()=>({verifiedAccount:async()=>state.verified?{user:{id:state.owner},token:'synthetic-token'}:null,accountClient:()=>state.client,readAccountJson:async(r:Request)=>r.json()}))
 vi.mock('../supabase-public-config',()=>({supabaseKey:'synthetic-key'}))

@@ -1,11 +1,12 @@
-import {createHash} from 'node:crypto'
+import {coachConversationId} from '@/lib/native-coach-chat-unread'
+import {markTeamChatRead} from '@/lib/team-chat-read'
 import {verifiedAccount,accountClient,readAccountJson} from '@/lib/mobile-account-auth'
 import {supabaseKey} from '@/lib/supabase-public-config'
 import {coachId,coachRecord} from '@/lib/native-coach-contract'
 export const runtime='nodejs'
 export const maxDuration=30
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer'}})
-const conversationId=(link:string)=>{const h=createHash('sha256').update('tenaceiq:coach-direct:v1:'+link).digest('hex');return h.slice(0,8)+'-'+h.slice(8,12)+'-5'+h.slice(13,16)+'-a'+h.slice(17,20)+'-'+h.slice(20,32)}
+
 async function handle(request:Request,write:boolean){
  const account=await verifiedAccount(request);if(!account)return json({ok:false},401)
  const owner=account.user.id,client=accountClient(supabaseKey,account.token)
@@ -16,7 +17,7 @@ async function handle(request:Request,write:boolean){
   const selected=coachId(params.get('student')),result=await client.from('coach_player_links').select('id,coach_user_id,player_user_id,player_name,status').eq('id',selected).maybeSingle(),link=result.data
   if(result.error)throw Error()
   if(!link||!link.player_user_id||link.status==='paused'||![link.coach_user_id,link.player_user_id].includes(owner))return json({ok:false},404)
-  const id=conversationId(selected)
+  const id=coachConversationId(selected)
   if(write){
    const body=coachRecord(await readAccountJson(request,12000));if(Object.keys(body).some(k=>!['id','body'].includes(k))||typeof body.body!=='string'||!body.body.trim()||body.body.length>4000)return json({ok:false},400)
    const messageId=coachId(body.id);if(!/^[0-9a-f-]{36}$/i.test(messageId))return json({ok:false},400)
@@ -39,3 +40,24 @@ async function handle(request:Request,write:boolean){
 }
 export const GET=(request:Request)=>handle(request,false)
 export const POST=(request:Request)=>handle(request,true)
+
+/** The client supplies only a rendered message ID; timestamps and the participant row come from the database. */
+export async function PATCH(request:Request){
+ const account=await verifiedAccount(request);if(!account)return json({ok:false},401)
+ try{
+  const params=new URL(request.url).searchParams
+  if([...params.keys()].some(k=>k!=='student'||params.getAll(k).length!==1)||!params.has('student'))return json({ok:false},400)
+  let student:string,body:Record<string,unknown>
+  try{student=coachId(params.get('student'));body=coachRecord(await readAccountJson(request,1200))}catch{return json({ok:false},400)}
+  if(Object.keys(body).length!==1||typeof body.message!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.message))return json({ok:false},400)
+  const owner=account.user.id,client=accountClient(supabaseKey,account.token),result=await client.from('coach_player_links').select('id,coach_user_id,player_user_id,status').eq('id',student).maybeSingle().retry(false),link=result.data
+  if(result.error)throw Error()
+  if(!link||!link.player_user_id||link.status==='paused'||![link.coach_user_id,link.player_user_id].includes(owner))return json({ok:false},404)
+  const id=coachConversationId(student),conversation=await client.from('internal_conversations').select('id,conversation_type,related_entity_type,related_entity_id,participants:internal_conversation_participants!inner(profile_id)').eq('id',id).eq('participants.profile_id',owner).maybeSingle().retry(false),row=conversation.data
+  if(conversation.error)throw Error()
+  if(!row||row.conversation_type!=='direct'||row.related_entity_type!=='coach_student'||row.related_entity_id!==student||!Array.isArray(row.participants)||row.participants.length!==1||row.participants[0].profile_id!==owner)return json({ok:false},404)
+  const saved=await markTeamChatRead(client,owner,id,body.message)
+  if(!saved.ok)return json({ok:false},saved.status)
+  return json({ok:true,owner,student,through:body.message})
+ }catch{console.warn('native_coach_read_checkpoint_unavailable');return json({ok:false},503)}
+}

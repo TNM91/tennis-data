@@ -2,7 +2,7 @@ import {openCalendar} from './calendar-view'
 import {openCoachLessons} from './coach-lesson-view'
 import {openUpdates} from './updates-view'
 import {createUpdatesCounter} from './updates-counter'
-import {createChatUnreadCounter,paintChatsBadge} from './chat-unread'
+import {createChatUnreadCounter,paintChatsBadge,combinedChatUnread} from './chat-unread'
 import {createAppLinkHandoff,appLinkTitle} from './app-links'
 import {openSharedMatch} from './shared-match-view'
 import {openTeamInvite} from './team-invite-view'
@@ -287,7 +287,7 @@ function launchUpdates(trigger:HTMLElement){
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  const leave=()=>{updates?.dispose();updates=null}
  updates=openUpdates(client,owner,current,()=>updatesCounter.refresh(),(action,button,active)=>{
-  if(action.kind==='coach-message')return openCoachMessages(client,owner,active,button,undefined,action.student)
+  if(action.kind==='coach-message')return openCoachMessages(client,owner,active,button,undefined,action.student,undefined,()=>{void chatUnread.refresh()})
   if(action.kind==='tool'){
    if(action.destination==='calendar')return openCalendar(client,owner,active,button)
    if(action.destination==='training-inbox')return openLevelUp(client,owner,active,'inbox')
@@ -384,7 +384,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='coach-lessons'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachLessons(client,owner,current,trigger);return}
  if(destination==='coach-calendar'||destination==='coach-weeks'||destination==='coach-proof'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachResources(client,owner,current,destination==='coach-calendar'?'calendar':destination==='coach-weeks'?'weeks':'proof',trigger);return}
  if(destination==='coach-video'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachVideo(client,owner,current,trigger);return}
- if(destination==='coach-messages'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachMessages(client,owner,current,trigger);return}
+ if(destination==='coach-messages'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachMessages(client,owner,current,trigger,undefined,undefined,undefined,()=>{void chatUnread.refresh()});return}
  if(destination==='coach-tactics'){if(!coachWorkspace?.isOpen())coachWorkspace=openNativeTactics(client,owner,current,trigger,undefined,openCoachHref);return}
  if(destination==='league-office'){if(!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
  if(destination==='imports'){if(!dataImports?.isOpen())dataImports=openDataImports(client,owner,current);return}
@@ -416,7 +416,7 @@ function showHub(next:AppHub){
  bindAppDestinations(app,openDestination);app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
 }
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
-const chatUnread=createChatUnreadCounter(client,value=>{paintChatsBadge(navigation.querySelector<HTMLElement>('[data-screen="teams"]')!,value?.total??null);teamRoom?.refreshUnread()})
+const chatUnread=createChatUnreadCounter(client,value=>{paintChatsBadge(navigation.querySelector<HTMLElement>('[data-screen="teams"]')!,combinedChatUnread(value),value?.coach?.available===false);teamRoom?.refreshUnread()})
 const updatesCounter=createUpdatesCounter(client,count=>{
  updatesEntry.setAttribute('aria-label',count===null?'Updates':'Updates, '+count+' unread')
  const badge=updatesEntry.querySelector<HTMLElement>('.updates-header-badge')!;badge.hidden=count===null||count===0;badge.textContent=count===null?'':count>99?'99+':String(count)

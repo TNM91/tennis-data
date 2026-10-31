@@ -18,6 +18,7 @@ export async function coachResourcesPreview(method:string,url:URL,body?:BodyInit
 }
 export function coachMessagesPreview(method:string,url:URL,body?:BodyInit|null){
  if(!url.searchParams.has('student'))return Response.json({ok:true,owner:coachOwner,connections:[{id:'student-one',name:'Alex Rivera',role:'coach'}],more:false})
- if(method!=='GET'){const intent=JSON.parse(String(body));if(!chat.some(m=>m.id===intent.id))chat.push({...intent,mine:true,createdAt:new Date().toISOString()})}
+ if(method==='PATCH'){const intent=JSON.parse(String(body));return Response.json({ok:true,owner:coachOwner,student:url.searchParams.get('student'),through:intent.message})}
+ if(method==='POST'){const intent=JSON.parse(String(body));if(!chat.some(m=>m.id===intent.id))chat.push({...intent,mine:true,createdAt:new Date().toISOString()})}
  return Response.json({ok:true,owner:coachOwner,student:'student-one',messages:chat,more:false,checked:chat.find(m=>m.id===url.searchParams.get('message'))||null})
 }
