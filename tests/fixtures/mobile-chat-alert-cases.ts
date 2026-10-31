@@ -7,7 +7,7 @@ for(const width of [320,390])test('Chats badges follow live unread counts and ke
  await expect(chats).toHaveAttribute('aria-label','Chats, 7 unread messages');await expect(badge).toHaveText('7')
  const account=page.locator('.native-account-entry');await expect(account).toHaveAttribute('aria-label','Account settings')
  expect(await account.locator('svg').innerHTML()).not.toBe(await page.locator('[data-lab-profile] svg').innerHTML())
- await chats.click();await expect(page.locator('.chats-team-card')).toHaveAttribute('aria-label','Baseline Aces · City League · 4.0, 7 unread messages');await expect(page.locator('[data-team-unread]')).toHaveText('7')
+ await chats.click();await expect(page.locator('[data-open-team-chat]')).toHaveAttribute('aria-label','Baseline Aces · City League · 4.0, 7 unread messages');await expect(page.locator('[data-team-unread]')).toHaveText('7')
  await page.evaluate(()=>{const f=(window as unknown as Preview).chatUnreadFixture;f.total=100;f.emit()})
  await expect(badge).toHaveText('99+');await expect(page.locator('[data-team-unread]')).toHaveText('99+')
  await expect(chats).toHaveAttribute('aria-label','Chats, 99+ unread messages')

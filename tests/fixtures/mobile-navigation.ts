@@ -1,10 +1,11 @@
+import {coachChatFixture,coachChatPreview} from './mobile-coach-chats'
 import {calendarFixture,calendarPreview} from './mobile-calendar'
 import {openSyntheticLink} from './mobile-navigation-app'
 import {calendarTeamFixture,calendarTeamPreview} from './mobile-calendar-practices'
 import {updatesFixture,updateCoachStudent} from './mobile-updates-client'
 import {clearCoachDeviceData} from '../../mobile/src/coach-device-cleanup'
 import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complete-browser'
-import {navigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal} from './mobile-navigation-client'
+import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal} from './mobile-navigation-client'
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {tournamentSnapshot} from './native-tournaments'
 import {DEFAULT_ENTITLEMENTS} from '../../lib/access-model-core'
@@ -15,7 +16,7 @@ const fixtureState={requests:0}
 const chatUnreadFixture={total:7,fail:false,detailed:false,secondTeam:false,denyRoom:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
 const chatTeams=()=>[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
-Object.assign(window,{chatUnreadFixture,calendarTeamFixture})
+Object.assign(window,{chatUnreadFixture,calendarTeamFixture,coachChatFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
@@ -24,6 +25,7 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/chats/unread')return Response.json(chatUnreadFixture.fail?{ok:false}:{ok:true,owner:navigationOwner,total:chatUnreadFixture.total,teams:chatTeams().map((team,i)=>({...team,unread:i?0:chatUnreadFixture.total,...(chatUnreadFixture.detailed?{generalUnread:i?0:Math.min(2,chatUnreadFixture.total),rooms:i?[]:[{id:chatRoomId,name:chatUnreadFixture.roomName,unread:Math.max(0,chatUnreadFixture.total-2)}]}:{})}))},{status:chatUnreadFixture.fail?503:200})
  fixtureState.requests++
  if(url.pathname==='/api/team-rooms'){
+  if(coachChatFixture.teamFail)return Response.json({ok:false},{status:503})
   const roomId=url.searchParams.get('chatRoom'),selected=url.searchParams.get('team')
   if(selected)chatUnreadFixture.opened.push(url.search)
   if(selected&&chatUnreadFixture.denyRoom)return Response.json({ok:false},{status:403})
@@ -34,6 +36,7 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/calendar')return calendarPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/messages'){
+  const coachReply=coachChatPreview(currentNavigationOwner(),init?.method||'GET',url,init?.body);if(coachReply)return coachReply
   if(url.searchParams.get('student')===updateCoachStudent)return Response.json({ok:true,owner:navigationOwner,student:updateCoachStudent,messages:[{id:'preview-note',mine:false,body:'Bring your return notes to our next lesson.',createdAt:'2026-10-31T12:00:00Z'}],more:false,checked:null})
   const response=coachMessagesPreview(init?.method||'GET',url,init?.body)
   if(!url.searchParams.has('student')){const value=await response.json();value.connections.push({id:updateCoachStudent,name:'Taylor Morgan',role:'coach'});return Response.json(value)}

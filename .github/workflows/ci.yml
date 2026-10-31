@@ -155,7 +155,8 @@ jobs:
       - name: Verify native destinations and local tool search
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4283
-        run: npx playwright test --config=tests/playwright.native-navigation.config.ts --output=.next/navigation-results
+        # These fixtures isolate every browser/account and block external services.
+        run: npx playwright test --config=tests/playwright.native-navigation.config.ts --output=.next/navigation-results --workers=2
 
       - name: Save tournament UI fixtures
         if: always()

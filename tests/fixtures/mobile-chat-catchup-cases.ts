@@ -5,7 +5,7 @@ async function inbox(page:Page,width:number){
  await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1')
  await page.evaluate(()=>{const f=(window as unknown as Preview).chatUnreadFixture;f.detailed=true;f.secondTeam=true;f.emit()})
  await page.locator('.app-navigation [data-screen="teams"]').click()
- await expect(page.locator('.chats-team-card')).toHaveCount(2);await expect(page.locator('[data-inbox-room]')).toHaveCount(2)
+ await expect(page.locator('[data-open-team-chat]')).toHaveCount(2);await expect(page.locator('[data-inbox-room]')).toHaveCount(2)
 }
 for(const width of [320,390]){
  test('Chats finds exact teams and opens unread rooms without losing inbox filters at '+width+'px',async({page},info)=>{
