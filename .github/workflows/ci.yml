@@ -78,7 +78,7 @@ jobs:
   captain-weekly-continuity:
     name: Captain weekly continuity
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
