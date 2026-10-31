@@ -6,7 +6,7 @@ const origin='http://127.0.0.1:4283'
 let javascript='',stylesheet='',documentHtml=''
 test.describe.configure({retries:0,timeout:25000})
 test.beforeAll(async()=>{
- const bundle=await build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
+ const bundle=await build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^@capacitor\/app$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-app.ts')}));b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
  javascript=bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css'].map(file=>file==='app.css'?Promise.resolve(bundle.outputFiles.find(file=>file.path.endsWith('.css'))!.text):readFile('mobile/bundled/'+file,'utf8')))).join('\n')+'\n.preview-controls{padding:24px 12px 120px}.preview-controls button{min-height:44px}'
  documentHtml=await readFile('mobile/bundled/index.html','utf8')
@@ -82,4 +82,48 @@ test('the complete approved court fits its stage at wider phone/tablet sizes',as
   await bounded(page)
   for(const destination of ['Compete','More']){await page.getByRole('button',{name:destination,exact:true}).click();await bounded(page)}
  }
+})
+
+
+const sharedLeague='https://www.tenaceiq.com/explore/leagues/tiq/league-one'
+async function incomingLink(page:Page,url:string){await page.evaluate(value=>(window as unknown as {openSyntheticLink:(value:string)=>void}).openSyntheticLink(value),url)}
+test('cold shared league continues through sign-in and opens the same season',async({page})=>{
+ await page.goto(origin+'/?signedOut=1&link='+encodeURIComponent(sharedLeague))
+ await expect(page.locator('.app-link-handoff')).toContainText('Sign in to continue')
+ await page.locator('.welcome-account form input[name=email]').fill('preview@example.test');await page.locator('.welcome-account form input[name=password]').fill('synthetic-password');await page.locator('.welcome-account form button').click()
+ const league=page.getByRole('dialog',{name:'Competitions',exact:true});await expect(league).toContainText('Northside Night League');await expect(league).toContainText('Coming up');await expect(page.locator('.app-link-handoff')).toBeHidden()
+ await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-refresh]')!.click());await expect(league).toContainText('Coming up');await bounded(page)
+})
+test('warm links wait for the current modal and clear on account switch',async({page})=>{
+ await page.goto(origin);await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
+ await page.getByRole('button',{name:'Compete',exact:true}).click();await page.locator('[data-app-destination=tournaments]').click()
+ await incomingLink(page,sharedLeague);await expect(page.getByRole('dialog',{name:'Tournaments',exact:true})).toBeVisible()
+ await page.getByRole('dialog',{name:'Tournaments',exact:true}).getByRole('button',{name:'Close',exact:true}).click();await page.locator('[data-link-open]').click()
+ await expect(page.getByRole('dialog',{name:'Competitions',exact:true})).toContainText('Coming up')
+ await incomingLink(page,'https://www.tenaceiq.com/coach/invite/secret-fixture-token');await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click())
+ await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('.app-link-handoff')).toBeHidden();await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
+ expect(await page.evaluate(()=>Object.keys(localStorage).some(key=>String(localStorage.getItem(key)).includes('secret-fixture-token')))).toBe(false)
+})
+for(const width of [320,390])test('first player setup stays usable at '+width+'px',async({page},info)=>{
+ await page.setViewportSize({width,height:844});await page.goto(origin+'/?unlinked=1&large=1')
+ await expect(page.getByRole('heading',{name:'Your tennis starts here.',exact:true})).toBeVisible();await expect(page.locator('.lab-scoreboard')).toHaveCount(0);await bounded(page);await page.screenshot({path:info.outputPath('player-setup.png')})
+ await page.getByRole('button',{name:'Use a team invite',exact:true}).click();await expect(page.getByRole('dialog',{name:'Join a team',exact:true})).toBeVisible();await page.getByRole('button',{name:'Close',exact:true}).click()
+ await page.getByRole('button',{name:'Find my player',exact:true}).click();await page.locator('#player-search input').fill('Jordan Lee');await page.getByRole('button',{name:'Search players',exact:true}).click();await page.getByRole('button',{name:/Review this record/}).click();await page.getByRole('button',{name:'Connect my player',exact:true}).click()
+ await expect(page.locator('.lab-scoreboard')).toContainText('4.42');await expect(page.getByRole('heading',{name:'Your tennis starts here.',exact:true})).toHaveCount(0);await bounded(page)
+})
+test('unsupported and sign-in callback URLs never become content navigation',async({page})=>{
+ await page.goto(origin);await expect(page.locator('.lab-scoreboard')).toContainText('4.42');await incomingLink(page,'https://evil.test/tournaments/a');await incomingLink(page,'https://www.tenaceiq.com/auth/callback?code=secret');await expect(page.locator('.app-link-handoff')).toBeHidden();await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
+})
+
+test('coach links preview the invitation and require a separate acceptance',async({page})=>{
+ await page.goto(origin+'/?link='+encodeURIComponent('https://www.tenaceiq.com/coach/invite/fixture-token'))
+ const invite=page.getByRole('dialog',{name:'Accept coach invitation',exact:true});await expect(invite.getByRole('heading',{name:'Review invitation',exact:true})).toBeVisible();await expect(invite).toContainText('Alex Rivera');await expect(invite.getByRole('button',{name:'Connect my account',exact:true})).toBeEnabled();await expect(page.locator('[data-coach-writes]')).toContainText('0');await bounded(page)
+})
+test('a rejected coach invitation offers no acceptance action',async({page})=>{
+ await page.goto(origin+'/?link='+encodeURIComponent('https://www.tenaceiq.com/coach/invite/wrong-email'))
+ const invite=page.getByRole('dialog',{name:'Accept coach invitation',exact:true});await expect(invite.locator('[role=status]')).not.toContainText('Loading invitation');await expect(invite.getByRole('button',{name:'Connect my account',exact:true})).toHaveCount(0);await expect(page.locator('[data-coach-writes]')).toContainText('0')
+})
+test('shared court links show a neutral result without inventing a personal win',async({page})=>{
+ await page.goto(origin+'/?link='+encodeURIComponent('https://www.tenaceiq.com/matches/court-0?via=scorecard-share'))
+ const score=page.getByRole('dialog',{name:'Shared match scorecard',exact:true});await expect(score).toContainText('Side B won');await expect(score).not.toContainText('Your side');await expect(score.getByRole('button',{name:'Review scorecard sharing'})).toHaveCount(0);await score.getByRole('button',{name:'Close scorecard',exact:true}).click();await expect(score).toHaveCount(0)
 })

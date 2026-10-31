@@ -8,6 +8,8 @@ test('APNs bridge and signing entitlements are idempotent and refuse unknown tem
  assert.match(first.delegate,/capacitorDidRegisterForRemoteNotifications/)
  assert.match(first.delegate,/capacitorDidFailToRegisterForRemoteNotifications/)
  assert.match(pushEntitlements('production'),/<string>production<\/string>/)
+ assert.match(pushEntitlements('production'),/<key>com.apple.developer.associated-domains<\/key><array><string>applinks:www.tenaceiq.com<\/string><\/array>/)
+ assert.doesNotMatch(pushEntitlements('development'),/associated-domains/)
  assert.throws(()=>iosPushSources('unknown',delegate))
  assert.throws(()=>iosPushSources(project,delegate.replace('class AppDelegate:', 'class Unknown:')))
 })

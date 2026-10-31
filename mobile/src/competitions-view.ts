@@ -30,10 +30,10 @@ export function competitionSeasonHtml(d:OfficeDetail,view:View,today?:string,fil
  if(view==='participants')return leagueParticipantsViewHtml(d,listFilters,false)
  return officeSectionHtml(d,view,undefined,listFilters).replace('Recorded court results use this league’s website scoring and standings rules. Unplayed events do not count as wins, losses or ties.','Match records and court wins follow this league’s scoring rules. Unplayed matches do not count.')
 }
-export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement){
+export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement,initialLeague=''){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog competitions-dialog';dialog.setAttribute('aria-label','Competitions')
- let disposed=false,version=0,busy=false,scope=initial,query='',selected='',view:View='home',snapshot:CompetitionSnapshot|null=null,notice=''
+ let disposed=false,version=0,busy=false,scope=initial,query='',selected=/^[a-zA-Z0-9_-]{1,80}$/.test(initialLeague)?initialLeague:'',view:View='home',snapshot:CompetitionSnapshot|null=null,notice=''
  let filters=emptyLeagueFinder(),lists=emptyLeagueListFinder()
  let teamEvidence:ReturnType<typeof openLeagueTeamEvidence>|null=null
  let entry:ReturnType<typeof openLeagueEntry>|null=null

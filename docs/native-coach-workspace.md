@@ -1,3 +1,5 @@
+> Current Coach coverage: [complete native integration](native-coach-complete-integration.md). Shared invitations and first-visit setup: [native links and onboarding](native-links-onboarding.md). Historical limitations below may predate these implementations.
+
 # Native Coach workspace
 
 Open **More → Coach & training → Students & assignments**. Coaches use the same saved roster, assignments and player check-ins as the website. The existing Coach access check and caller's Supabase JWT apply; this change creates no entitlement, credential or database permission.

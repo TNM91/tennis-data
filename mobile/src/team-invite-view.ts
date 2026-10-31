@@ -3,9 +3,9 @@ import {nativeInviteToken,type NativeInviteReview} from '../../lib/native-team-i
 import {inviteRequest,InviteError} from './team-invite-data'
 import {html} from './match-details'
 import type {TeamScope} from './team-room-data'
-export function openTeamInvite(client:SupabaseClient,owner:string,current:()=>boolean,joined:(scope:TeamScope)=>void,closed:()=>void){
+export function openTeamInvite(client:SupabaseClient,owner:string,current:()=>boolean,joined:(scope:TeamScope)=>void,closed:()=>void,initialLink=''){
  const dialog=document.createElement('dialog');dialog.className='team-invite-dialog';dialog.setAttribute('aria-label','Join a team');document.body.append(dialog)
- let disposed=false,busy=false,uncertain=false,token='',input='',notice='',review:NativeInviteReview|null=null
+ let disposed=false,busy=false,uncertain=false,token='',input=nativeInviteToken(initialLink)?initialLink:'',notice='',review:NativeInviteReview|null=null
  const valid=()=>!disposed && current()
  const dispose=()=>{disposed=true;dialog.remove()}
  const close=()=>{dispose();closed()}
@@ -26,6 +26,6 @@ export function openTeamInvite(client:SupabaseClient,owner:string,current:()=>bo
    try{const result=await inviteRequest(client,owner,valid,token,review);if(valid()){dispose();joined(result)}}catch(cause){if(valid()){uncertain=cause instanceof InviteError && cause.uncertain;notice=cause instanceof Error?cause.message:'Join unavailable.';if(!uncertain)review=null}}finally{if(valid()){busy=false;render()}}
   })()})
  }
- dialog.addEventListener('cancel',e=>{e.preventDefault();close()});render();dialog.showModal();dialog.querySelector<HTMLInputElement>('input')?.focus()
+ dialog.addEventListener('cancel',e=>{e.preventDefault();close()});render();dialog.showModal();dialog.querySelector<HTMLInputElement>('input')?.focus();if(input)dialog.querySelector<HTMLButtonElement>('#team-invite-review')?.click()
  return {dispose,isOpen:()=>!disposed}
 }

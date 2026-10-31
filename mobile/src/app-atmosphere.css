@@ -441,3 +441,20 @@ body.native-chat-conversation .chat-send-button { background:#75caff;color:#0621
  .app-tools-hub .app-hub-heading h1 { font-size:32px; }
 }
 @media(prefers-reduced-motion:reduce) { body[data-screen] :is(button,input,textarea,select) { transition:none; } }
+/* Shared-link continuation and first-visit setup use the same quiet navy system. */
+.app-link-handoff{display:flex;align-items:center;gap:.65rem;margin:.5rem 0 1rem;padding:1rem;border:1px solid #37617f;border-radius:1.2rem;background:#102d43;min-width:0}
+.app-link-handoff[hidden]{display:none}
+.app-link-handoff p{flex:1;min-width:0;margin:0;font-size:.875rem;line-height:1.4}
+.app-link-handoff strong,.app-link-handoff span{display:block;overflow-wrap:anywhere}
+.app-link-handoff span{color:#bad0e1;margin-top:.2rem}
+.app-link-handoff button{flex:none;width:auto;min-height:44px;padding:.6rem .8rem;font-size:.875rem;white-space:nowrap}
+.player-setup{padding:clamp(1rem,5vw,2rem);background:linear-gradient(135deg,#12354d,#091c30);border:1px solid #38617d;border-radius:1.5rem}
+.player-setup h1{font-size:clamp(1.8rem,7vw,2.5rem);line-height:1.1;letter-spacing:-.04em;margin:.7rem 0 1rem}
+.player-setup ol{list-style:none;padding:0;margin:1.5rem 0;display:grid;gap:1.5rem}
+.player-setup li{display:flex;gap:.8rem;align-items:flex-start;min-width:0}
+.player-setup li>span{color:#72c6ff;font-size:.8rem;font-weight:700;letter-spacing:.1em;padding-top:.3rem}
+.player-setup li>div{min-width:0;flex:1}
+.player-setup h2{font-size:1.15rem;margin:0 0 .5rem}
+.player-setup p{color:#bbcfdd;line-height:1.6;overflow-wrap:anywhere}
+.player-setup button{min-height:48px;width:100%;white-space:normal;overflow-wrap:normal;word-break:normal}
+@media(max-width:360px){.app-link-handoff{flex-wrap:wrap}.app-link-handoff p{flex-basis:100%}}

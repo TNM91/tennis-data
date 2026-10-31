@@ -1,4 +1,5 @@
 import {nativeActionIcon as icon} from './native-action-icons'
+import {readAppLink} from './app-links'
 import {pollFields} from '../../lib/team-poll-contract'
 import {chatPlanLink,type ChatPlan} from '../../lib/team-chat-plan-links'
 export {chatPlanLink} from '../../lib/team-chat-plan-links'
@@ -35,6 +36,7 @@ export function chatBodyHtml(body:string,plans=false){
 
 export function openChatLink(value:string,current:()=>boolean,open:typeof Browser.open=options=>Browser.open(options)){
  const url=chatWebLink(value);if(!url||!current())return {dispose:()=>{},isOpen:()=>false}
+ if(readAppLink(url)&&!document.dispatchEvent(new CustomEvent('tenaceiq:open-shared-link',{cancelable:true,detail:{href:url}})))return {dispose:()=>{},isOpen:()=>false}
  const dialog=document.createElement('dialog');dialog.className='chat-post-dialog';dialog.setAttribute('aria-label','Open shared link');let disposed=false,busy=false
  const close=()=>{disposed=true;dialog.remove()}
  dialog.innerHTML=`<h2>Open shared link</h2><p>You’re opening a website outside the conversation.</p><p><strong>${html(new URL(url).hostname)}</strong></p><p class="chat-link-destination">${html(url)}</p><p role="status"></p><button type="button" data-open>Open website</button><button type="button" class="secondary" data-close>Cancel</button>`

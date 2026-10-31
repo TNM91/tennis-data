@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 export const pushEntitlements = environment => `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>aps-environment</key><string>${environment}</string></dict></plist>
+<plist version="1.0"><dict><key>aps-environment</key><string>${environment}</string>${environment==='production'?'<key>com.apple.developer.associated-domains</key><array><string>applinks:www.tenaceiq.com</string></array>':''}</dict></plist>
 `
 export function iosPushSources(project,delegate){
  const marker='    // TenAceIQ APNs registration bridge'
