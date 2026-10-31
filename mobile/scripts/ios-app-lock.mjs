@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
-export const faceIDPurpose='Unlock TenAceIQ on this iPhone while keeping your signed-in account private.'
+export const faceIDPurpose='Use Face ID to sign in to TenAceIQ with the account you save on this iPhone.'
+const retiredPurpose='Unlock TenAceIQ on this iPhone while keeping your signed-in account private.'
 export function appLockPrivacyPlist(source){
  const key='<key>NSFaceIDUsageDescription</key>'
- let result=source.replace(/<key>NSFaceIDUsageDescription<\/key>\s*<string>([^<]*)<\/string>\s*/g,(_match,prior)=>{assert.equal(prior,faceIDPurpose,'Review custom Face ID purpose before replacing it');return ''})
+ let result=source.replace(/<key>NSFaceIDUsageDescription<\/key>\s*<string>([^<]*)<\/string>\s*/g,(_match,prior)=>{assert.ok([faceIDPurpose,retiredPurpose].includes(prior),'Review custom Face ID purpose before replacing it');return ''})
  assert.ok(!result.includes(key),'Unexpected Face ID purpose value')
  const end=result.lastIndexOf('</dict>')
  assert.ok(end>=0&&/^<\/dict>\s*<\/plist>\s*$/.test(result.slice(end)),'Expected a root plist dictionary')

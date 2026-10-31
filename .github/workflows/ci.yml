@@ -119,6 +119,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4260
         run: |
           npm run build:bundled --prefix mobile
+          node mobile/scripts/app-lock-ui-smoke.mjs
           npx playwright test tests/e2e/mobile-chat-poll-sheets.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/chat-poll-results
 
       - name: Verify chat gestures, replies, attachments and team cards
