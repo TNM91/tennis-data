@@ -1,3 +1,4 @@
+import '../fixtures/mobile-chat-catchup-cases'
 import {test,expect,type Page} from '@playwright/test'
 import '../fixtures/mobile-calendar-cases'
 import '../fixtures/mobile-chat-alert-cases'

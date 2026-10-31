@@ -11,8 +11,8 @@ import {chatRoomHeaderHtml,bindTeamToolsClose} from './chat-room-chrome'
 import {nativeActionIcon as actionIcon} from './native-action-icons'
 import {openChatRooms} from './named-chat-rooms'
 import {isTeamChatReaction} from '../../lib/team-chat-reaction-kinds'
-import {chatsInboxHtml} from './chats-inbox'
-import {paintTeamUnread,type ChatUnread} from './chat-unread'
+import {chatsInboxHtml,bindChatsInbox,type ChatsInboxFilter} from './chats-inbox'
+import type {ChatUnread} from './chat-unread'
 import {chatEmojiPickerHtml,insertChatEmoji} from './chat-emoji'
 import {openPlayerPractices} from './player-practices-view'
 import {openTeamFixtures} from './team-fixtures-view'
@@ -64,6 +64,8 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  let initialMessageId=initialScope?.messageId||'',historyFocusId='',alertFocusId=''
  let inbox=!initialScope
  let disposed=false,revision=0,selected:TeamScope|undefined=initialScope?{teamName:initialScope.teamName,leagueName:initialScope.leagueName,flight:initialScope.flight,...(initialScope.chatRoomId?{chatRoomId:initialScope.chatRoomId}:{})}:undefined,tab:'Match day'|'Conversation'|'Members'|'Captain'='Conversation',snapshot:NativeTeamData|null=null
+ const inboxFilter:ChatsInboxFilter={query:'',unreadOnly:false}
+ let inboxView:ReturnType<typeof bindChatsInbox>|null=null
  let roomPicker:ReturnType<typeof openChatRooms>|null=null
  let historySearch:ReturnType<typeof openChatHistory>|null=null
  let practicesView:ReturnType<typeof openPlayerPractices>|ReturnType<typeof openCaptainPractices>|null=null
@@ -346,6 +348,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   freshDraft();inbox=true;render()
  }
  const render=(latest=false)=>{
+  inboxView?.dispose();inboxView=null
   pressActions?.dispose();pressActions=null
   if(!snapshot || !valid())return
   document.body.classList.toggle('native-chat-conversation',!inbox&&Boolean(snapshot.room)&&tab==='Conversation')
@@ -357,14 +360,13 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const anchor=oldFirst?{id:oldFirst.dataset.chatMessage,delta:oldFirst.getBoundingClientRect().top-oldTop}:null
   if(inbox){
    app.innerHTML=chatsInboxHtml(snapshot)
-   paintTeamUnread(app,alerts?.unread()??null,snapshot.teams)
+   inboxView=bindChatsInbox(app,snapshot.teams,inboxFilter,alerts?.unread()??null,choice=>{
+    if(!valid()||!inbox)return
+    freshDraft();inbox=false;selected={...choice};tab='Conversation';void load()
+   },()=>valid()&&inbox)
    const notifications=app.querySelector<HTMLElement>('[data-chat-notifications]');if(notifications&&alerts)alerts.mountNotifications(notifications)
    app.querySelector<HTMLButtonElement>('#join-team')!.onclick=openInvite
    app.querySelector<HTMLButtonElement>('#refresh-team')!.onclick=()=>{alerts?.refresh();void load()}
-   app.querySelectorAll<HTMLButtonElement>('[data-open-team-chat]').forEach(button=>{button.onclick=()=>{
-    const choice=snapshot?.teams[Number(button.dataset.openTeamChat)];if(!valid()||!choice)return
-    freshDraft();inbox=false;selected={...choice};tab='Conversation';void load()
-   }})
    app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true});return
   }
   const previousScroll=historyScroll,oldInput=app.querySelector<HTMLTextAreaElement>('#chat-draft')
@@ -513,5 +515,5 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   if(needsLiveRefresh&&!busy&&!draft.sending&&fullLoads===0&&!app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]')){needsLiveRefresh=false;void refreshLive().catch(()=>{})}
  }
  void load()
- return {openInbox,refreshUnread:()=>{if(valid()&&snapshot&&inbox)paintTeamUnread(app,alerts?.unread()??null,snapshot.teams)},hasDraft:()=>Boolean(roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || inviteView?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;inviteView?.dispose();inviteView=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
+ return {openInbox,refreshUnread:()=>{if(valid()&&snapshot&&inbox)inboxView?.update(alerts?.unread()??null)},hasDraft:()=>Boolean(roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || inviteView?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{inboxView?.dispose();inboxView=null;pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;inviteView?.dispose();inviteView=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
 }
