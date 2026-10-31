@@ -16,7 +16,7 @@ test.beforeEach(async({page})=>{
  await page.route('**/*',async route=>{
   const url=new URL(route.request().url());if(url.origin!==origin)return route.abort()
   if(url.pathname==='/app.js')return route.fulfill({contentType:'text/javascript',body:javascript})
-  if(url.pathname.endsWith('.css'))return route.fulfill({contentType:'text/css',body:url.pathname==='/style.css'?stylesheet+(url.searchParams.has('large')?'\n:root{font-size:22px!important}':''):''})
+  if(url.pathname.endsWith('.css'))return route.fulfill({contentType:'text/css',body:url.pathname==='/style.css'?stylesheet+(url.searchParams.has('large')?'\n:root{font-size:22px!important}.native-calendar-screen .cal-body{inline-size:calc(100% - 18px)}':''):''})
   if(url.pathname.startsWith('/brand/')||url.pathname==='/logo.png')return route.fulfill({contentType:'image/png',body:await readFile('mobile/bundled'+url.pathname)})
   return route.fulfill({contentType:'text/html',body:url.searchParams.has('large')?documentHtml.replace('./style.css','./style.css?large=1'):documentHtml})
  })
