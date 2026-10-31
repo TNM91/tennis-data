@@ -62,6 +62,8 @@ import {
   type VideoStrokeTag,
 } from '@/lib/video-review'
 import styles from './video-review.module.css'
+import {videoReviewBlob} from '@/lib/video-review-bytes'
+import type {VideoReviewPlatform,VideoPlayerTarget} from '@/components/video/VideoReviewPlatform'
 
 const DB_NAME = 'tenaceiq-video-review-v1'
 const CLIP_STORE = 'clips'
@@ -111,7 +113,7 @@ type VideoReviewPracticeFilter = 'all' | 'needs-practice' | 'practiced'
 type VideoReviewCoachReviewFilter = 'all' | 'needs-mark' | 'ready-return'
 type VideoReviewStorageFilter = 'all' | 'space-savers'
 type VideoReviewStage = 'record' | 'review' | 'practice'
-type CoachPlayerTargetId = 'maya-chen' | 'jordan-ellis' | 'guest'
+type CoachPlayerTargetId = string
 
 const PLAYER_REVIEW_STAGES = [
   { id: 'record', label: 'Record', body: 'Capture one clean clip.' },
@@ -194,13 +196,14 @@ function cleanText(value: string, maxLength = 240) {
   return value.replace(/\s+/g, ' ').trim().slice(0, maxLength)
 }
 
-function getCoachPlayerTarget(targetId: CoachPlayerTargetId) {
-  return COACH_PLAYER_TARGETS.find((target) => target.id === targetId) ?? COACH_PLAYER_TARGETS[0]
+function getCoachPlayerTarget(targetId: CoachPlayerTargetId,targets:readonly VideoPlayerTarget[]=COACH_PLAYER_TARGETS) {
+  return targets.find((target) => target.id === targetId) ?? targets[0]
 }
 
-function getCoachPlayerTargetIdForClip(clip: VideoReviewClip): CoachPlayerTargetId {
+function getCoachPlayerTargetIdForClip(clip: VideoReviewClip,targets:readonly VideoPlayerTarget[]=COACH_PLAYER_TARGETS): CoachPlayerTargetId {
   if (clip.playerLinkTarget === 'guest') return 'guest'
-  return COACH_PLAYER_TARGETS.find((target) => target.name === clip.playerName)?.id ?? 'guest'
+  if(clip.studentLinkId)return targets.some(t=>t.id===clip.studentLinkId)?clip.studentLinkId:'guest'
+  return targets.find((target) => target.name === clip.playerName)?.id ?? 'guest'
 }
 
 function getVideoReviewOwnershipLabel(clip: VideoReviewClip, mode: VideoReviewRole) {
@@ -241,7 +244,7 @@ function openVideoReviewDb(): Promise<IDBDatabase> {
   })
 }
 
-async function readAllClips() {
+async function browserReadAllClips() {
   const db = await openVideoReviewDb()
   return new Promise<VideoReviewClip[]>((resolve, reject) => {
     const transaction = db.transaction(CLIP_STORE, 'readonly')
@@ -252,7 +255,7 @@ async function readAllClips() {
   })
 }
 
-async function readClipBlob(id: string) {
+async function browserReadClipBlob(id: string) {
   const db = await openVideoReviewDb()
   return new Promise<Blob | null>((resolve, reject) => {
     const transaction = db.transaction(BLOB_STORE, 'readonly')
@@ -263,7 +266,7 @@ async function readClipBlob(id: string) {
   })
 }
 
-async function saveClip(clip: VideoReviewClip, blob?: Blob) {
+async function browserSaveClip(clip: VideoReviewClip, blob?: Blob) {
   const db = await openVideoReviewDb()
   return new Promise<void>((resolve, reject) => {
     const transaction = db.transaction([CLIP_STORE, BLOB_STORE], 'readwrite')
@@ -282,7 +285,7 @@ async function saveClip(clip: VideoReviewClip, blob?: Blob) {
   })
 }
 
-async function removeClip(id: string) {
+async function browserRemoveClip(id: string) {
   const db = await openVideoReviewDb()
   return new Promise<void>((resolve, reject) => {
     const transaction = db.transaction([CLIP_STORE, BLOB_STORE], 'readwrite')
@@ -540,7 +543,7 @@ function getCanvasPoint(event: PointerEvent<HTMLCanvasElement>): VideoAnnotation
   })
 }
 
-function readLocalNotifications(): VideoReviewNotification[] {
+function browserReadLocalNotifications(): VideoReviewNotification[] {
   if (typeof window === 'undefined') return []
   try {
     const parsed = JSON.parse(window.localStorage.getItem(VIDEO_REVIEW_NOTIFICATION_STORAGE_KEY) || '[]')
@@ -561,12 +564,12 @@ function readLocalNotifications(): VideoReviewNotification[] {
   }
 }
 
-function writeLocalNotifications(notifications: VideoReviewNotification[]) {
+function browserWriteLocalNotifications(notifications: VideoReviewNotification[]) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(VIDEO_REVIEW_NOTIFICATION_STORAGE_KEY, JSON.stringify(notifications.slice(0, 40)))
 }
 
-function readLocalPracticeRecords(): Record<string, VideoReviewPracticeRecord> {
+function browserReadLocalPracticeRecords(): Record<string, VideoReviewPracticeRecord> {
   if (typeof window === 'undefined') return {}
   try {
     const parsed = JSON.parse(window.localStorage.getItem(VIDEO_REVIEW_PRACTICE_STORAGE_KEY) || '{}')
@@ -588,12 +591,12 @@ function readLocalPracticeRecords(): Record<string, VideoReviewPracticeRecord> {
   }
 }
 
-function writeLocalPracticeRecords(records: Record<string, VideoReviewPracticeRecord>) {
+function browserWriteLocalPracticeRecords(records: Record<string, VideoReviewPracticeRecord>) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(VIDEO_REVIEW_PRACTICE_STORAGE_KEY, JSON.stringify(records))
 }
 
-function readLocalWatchedCoachMarks(): Record<string, string[]> {
+function browserReadLocalWatchedCoachMarks(): Record<string, string[]> {
   if (typeof window === 'undefined') return {}
   try {
     const parsed = JSON.parse(window.localStorage.getItem(VIDEO_REVIEW_WATCHED_MARKS_STORAGE_KEY) || '{}')
@@ -610,7 +613,7 @@ function readLocalWatchedCoachMarks(): Record<string, string[]> {
   }
 }
 
-function writeLocalWatchedCoachMarks(records: Record<string, string[]>) {
+function browserWriteLocalWatchedCoachMarks(records: Record<string, string[]>) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(VIDEO_REVIEW_WATCHED_MARKS_STORAGE_KEY, JSON.stringify(records))
 }
@@ -624,13 +627,9 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   })
 }
 
-async function dataUrlToBlob(dataUrl: string, fallbackType: string) {
-  const response = await fetch(dataUrl)
-  const blob = await response.blob()
-  return blob.type ? blob : new Blob([blob], { type: fallbackType || 'video/webm' })
-}
+async function dataUrlToBlob(dataUrl:string,fallbackType:string){return videoReviewBlob(dataUrl,fallbackType)}
 
-function downloadBlob(blob: Blob, fileName: string) {
+function browserDownloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
@@ -769,13 +768,29 @@ function getVideoShapeCopy(shape: VideoReviewVideoShape | null) {
   return 'Keep the player, contact point, and recovery steps inside the frame before sending.'
 }
 
-export default function VideoReviewClient() {
-  const [mode, setMode] = useState<VideoReviewRole>('player')
-  const [activeStage, setActiveStage] = useState<VideoReviewStage>('record')
+export default function VideoReviewClient({platform}:{platform?:VideoReviewPlatform}={}) {
+  const targets=platform?.targets??COACH_PLAYER_TARGETS
+  const initialDraft={...INITIAL_DRAFT,playerTargetId:targets[0]?.id??'guest'}
+  const readAllClips=platform?.store.readAllClips??browserReadAllClips
+  const readClipBlob=platform?.store.readClipBlob??browserReadClipBlob
+  const saveClip=platform?.store.saveClip??browserSaveClip
+  const removeClip=platform?.store.removeClip??browserRemoveClip
+  const readLocalNotifications=platform?.store.readLocalNotifications??browserReadLocalNotifications
+  const writeLocalNotifications=platform?.store.writeLocalNotifications??browserWriteLocalNotifications
+  const readLocalPracticeRecords=platform?.store.readLocalPracticeRecords??browserReadLocalPracticeRecords
+  const writeLocalPracticeRecords=platform?.store.writeLocalPracticeRecords??browserWriteLocalPracticeRecords
+  const readLocalWatchedCoachMarks=platform?.store.readLocalWatchedCoachMarks??browserReadLocalWatchedCoachMarks
+  const writeLocalWatchedCoachMarks=platform?.store.writeLocalWatchedCoachMarks??browserWriteLocalWatchedCoachMarks
+  const downloadBlob=async(blob:Blob,name:string)=>{if(platform)await platform.exportFile(blob,name);else browserDownloadBlob(blob,name)}
+  const copyText=async(text:string)=>{if(platform)await platform.copy(text);else await navigator.clipboard.writeText(text)}
+  const confirmDelete=async(text:string)=>platform?platform.confirm(text):window.confirm(text)
+
+  const [mode, setMode] = useState<VideoReviewRole>(platform?'coach':'player')
+  const [activeStage, setActiveStage] = useState<VideoReviewStage>(platform?.initialStage??'record')
   const [clips, setClips] = useState<VideoReviewClip[]>([])
   const [activeClipId, setActiveClipId] = useState('')
   const [activeBlobUrl, setActiveBlobUrl] = useState('')
-  const [draft, setDraft] = useState<DraftState>(INITIAL_DRAFT)
+  const [draft, setDraft] = useState<DraftState>(initialDraft)
   const [selectedFile, setSelectedFile] = useState<File | Blob | null>(null)
   const [selectedFileName, setSelectedFileName] = useState('')
   const [draftPreviewUrl, setDraftPreviewUrl] = useState('')
@@ -812,8 +827,11 @@ export default function VideoReviewClient() {
   const previewVideoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const mountedRef=useRef(true)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  useEffect(()=>{mountedRef.current=true;return()=>{mountedRef.current=false;if(recorderRef.current){recorderRef.current.ondataavailable=null;recorderRef.current.onstop=null;if(recorderRef.current.state==='recording')recorderRef.current.stop()}streamRef.current?.getTracks().forEach(t=>t.stop());streamRef.current=null;chunksRef.current=[]}},[])
+
 
   const activeClip = useMemo(
     () => clips.find((clip) => clip.id === activeClipId) ?? clips[0] ?? null,
@@ -1137,7 +1155,7 @@ export default function VideoReviewClient() {
       setStorageFilter('all')
     }
     setActiveClipId(clipId)
-    window.history.replaceState(null, '', buildVideoReviewHandoffHref(clipId, nextMode))
+    if(!platform)window.history.replaceState(null, '', buildVideoReviewHandoffHref(clipId, nextMode))
     if (window.matchMedia('(max-width: 767px)').matches) {
       scrollToVideoReviewPanel('video-review-active', 'auto')
       window.requestAnimationFrame(() => scrollToVideoReviewPanel('video-review-active', 'auto'))
@@ -1153,7 +1171,7 @@ export default function VideoReviewClient() {
       setStorageFilter('all')
     }
     if (activeClip) {
-      window.history.replaceState(null, '', buildVideoReviewHandoffHref(activeClip.id, nextMode))
+      if(!platform)window.history.replaceState(null, '', buildVideoReviewHandoffHref(activeClip.id, nextMode))
     }
   }
 
@@ -1224,7 +1242,7 @@ export default function VideoReviewClient() {
     } catch {
       setStorageError('This device cannot save video clips right now.')
     }
-  }, [])
+  }, [readAllClips])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -1235,11 +1253,12 @@ export default function VideoReviewClient() {
     }, 0)
 
     return () => window.clearTimeout(timeout)
-  }, [loadClips])
+  }, [loadClips,readLocalNotifications,readLocalPracticeRecords,readLocalWatchedCoachMarks])
 
   useEffect(() => {
     if (!storageReady || !clips.length) return
     const timeout = window.setTimeout(() => {
+      if(platform)return
       const params = new URLSearchParams(window.location.search)
       const requestedMode = params.get('mode')
       const requestedClipId = params.get('clip')
@@ -1257,7 +1276,7 @@ export default function VideoReviewClient() {
     }, 0)
 
     return () => window.clearTimeout(timeout)
-  }, [clips, storageReady])
+  }, [clips, storageReady,platform])
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -1273,7 +1292,7 @@ export default function VideoReviewClient() {
     }
     window.addEventListener('storage', handleStorage)
     return () => window.removeEventListener('storage', handleStorage)
-  }, [])
+  }, [readLocalNotifications,readLocalPracticeRecords,readLocalWatchedCoachMarks])
 
   useEffect(() => {
     let revokedUrl = ''
@@ -1300,7 +1319,7 @@ export default function VideoReviewClient() {
     return () => {
       if (revokedUrl) URL.revokeObjectURL(revokedUrl)
     }
-  }, [activeClip])
+  }, [activeClip,readClipBlob])
 
   useEffect(() => {
     if (videoRef.current) {
@@ -1516,6 +1535,7 @@ export default function VideoReviewClient() {
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       })
+      if(!mountedRef.current||platform&&!platform.current()){stream.getTracks().forEach(t=>t.stop());return}
       streamRef.current = stream
       setCameraActive(true)
       setMessage('Starting camera preview.')
@@ -1597,7 +1617,7 @@ export default function VideoReviewClient() {
     const now = new Date().toISOString()
     const durationSeconds = await getDuration(selectedFile)
     const title = cleanText(draft.title) || `${getVideoReviewStrokeLabel(draft.stroke)} review`
-    const coachTarget = getCoachPlayerTarget(draft.playerTargetId)
+    const coachTarget = getCoachPlayerTarget(draft.playerTargetId,targets)
     const isCoachGuestClip = mode === 'coach' && coachTarget.id === 'guest'
     const playerName = mode === 'coach'
       ? isCoachGuestClip
@@ -1609,6 +1629,7 @@ export default function VideoReviewClient() {
       id: createId('clip'),
       title,
       playerName,
+      ...(platform?{studentLinkId:mode==='coach'&&coachTarget.id!=='guest'?coachTarget.id:null}:{}),
       coachName: cleanText(draft.coachName) || 'Coach',
       stroke: draft.stroke,
       status,
@@ -1634,7 +1655,7 @@ export default function VideoReviewClient() {
       setSelectedFileName('')
       setCaptureVideoShape(null)
       setDraftResetNotice('')
-      setDraft(INITIAL_DRAFT)
+      setDraft(initialDraft)
       openClip(clip.id, mode)
       setActiveStage('review')
       if (nextAction === 'markup') {
@@ -1648,7 +1669,7 @@ export default function VideoReviewClient() {
           ? 'Clip saved. Add marks now, then share it with the player when ready.'
           : 'Clip saved. Add your own marks now or keep reviewing later.')
       } else if (status === 'sent') {
-        setMessage('Shared with coach. Copy the coach review link if you want to text or email it.')
+        setMessage(platform?'Clip prepared. Use Share review file to send the video and notes.':'Shared with coach. Copy the coach review link if you want to text or email it.')
       } else {
         setMessage('Clip saved to your video inventory.')
       }
@@ -1691,13 +1712,13 @@ export default function VideoReviewClient() {
     if (activeClip?.id === clipId) {
       setActiveClipId('')
       setActiveBlobUrl('')
-      window.history.replaceState(null, '', window.location.pathname)
+      if(!platform)window.history.replaceState(null, '', window.location.pathname)
     }
   }
 
   async function deleteActiveClip() {
     if (!activeClip) return
-    const ok = window.confirm(buildVideoReviewDeletePrompt(activeClip))
+    const ok = await confirmDelete(buildVideoReviewDeletePrompt(activeClip))
     if (!ok) return
     const deletedClipId = activeClip.id
     await removeClip(activeClip.id)
@@ -1709,7 +1730,7 @@ export default function VideoReviewClient() {
 
   async function deleteSuggestedCleanupClip() {
     if (!cleanupCandidate) return
-    const ok = window.confirm(buildVideoReviewDeletePrompt(cleanupCandidate))
+    const ok = await confirmDelete(buildVideoReviewDeletePrompt(cleanupCandidate))
     if (!ok) return
     const deletedClipId = cleanupCandidate.id
     await removeClip(deletedClipId)
@@ -1724,7 +1745,7 @@ export default function VideoReviewClient() {
     await updateClip({ ...activeClip, status: 'sent' })
     pushLocalNotification(activeClip, 'clip_sent')
     setActiveStage('review')
-    setMessage('Shared with coach. Copy the coach review link if you want to text or email it.')
+    setMessage(platform?'Clip prepared. Use Share review file to send the video and notes.':'Shared with coach. Copy the coach review link if you want to text or email it.')
   }
 
   async function saveAnnotation(points: VideoAnnotationPoint[], annotationTool = tool, text = coachNote) {
@@ -1846,7 +1867,7 @@ export default function VideoReviewClient() {
     setCoachReviewFilter('all')
     setStorageFilter('all')
     setActiveStage('review')
-    setMessage('Player notified. Copy the return link if you want to text or email it.')
+    setMessage(platform?'Feedback saved on this device. Use Share review file to send the clip, marks and next focus.':'Player notified. Copy the return link if you want to text or email it.')
   }
 
   function pushLocalNotification(clip: VideoReviewClip, type: 'clip_sent' | 'review_returned') {
@@ -1877,11 +1898,12 @@ export default function VideoReviewClient() {
   }
 
   async function copyHandoffLink(role: VideoReviewRole) {
+    if(platform){setMessage('Use Share review file to send the clip and marks. A device link cannot open clips on someone else’s phone.');return}
     if (!activeClip) return
     const href = `${window.location.origin}${buildVideoReviewHandoffHref(activeClip.id, role)}`
     const handoffText = `${role === 'coach' ? 'Coach review' : 'Player feedback'}: ${activeClip.title || activeClip.fileName || 'TenAceIQ video'}\nOpen on this device: ${href}`
     try {
-      await navigator.clipboard.writeText(handoffText)
+      await copyText(handoffText)
       setMessage(role === 'coach' ? 'Coach review link copied for this device.' : 'Player return link copied for this device.')
     } catch {
       setMessage(handoffText)
@@ -1889,11 +1911,12 @@ export default function VideoReviewClient() {
   }
 
   async function copyGuestInvite() {
+    if(platform){setMessage('Create a student record and share a coach invitation from Students & assignments. Share this video as a review file.');return}
     if (!activeClip) return
     const href = `${window.location.origin}${buildVideoReviewHandoffHref(activeClip.id, 'player')}`
     const inviteText = buildGuestVideoReviewInvite(activeClip, href)
     try {
-      await navigator.clipboard.writeText(inviteText)
+      await copyText(inviteText)
       setMessage('Guest invite copied.')
     } catch {
       setMessage(`Guest invite: ${inviteText}`)
@@ -1939,7 +1962,7 @@ export default function VideoReviewClient() {
       setMessage('Preparing review file.')
       const reviewFile = await createActivePackageFile(blob)
       if (!reviewFile) return
-      downloadBlob(reviewFile.file, reviewFile.fileName)
+      await downloadBlob(reviewFile.file, reviewFile.fileName)
       setMessage(buildVideoReviewPackageExportMessage(reviewFile.recipientRole))
     } catch {
       setMessage('The review file could not be created.')
@@ -1969,9 +1992,9 @@ export default function VideoReviewClient() {
         return
       }
 
-      downloadBlob(reviewFile.file, reviewFile.fileName)
+      await downloadBlob(reviewFile.file, reviewFile.fileName)
       try {
-        await navigator.clipboard.writeText(reviewFile.shareText)
+        await copyText(reviewFile.shareText)
         setMessage('Review file downloaded and message copied.')
       } catch {
         setMessage('Review file downloaded.')
@@ -1983,6 +2006,7 @@ export default function VideoReviewClient() {
 
   async function importReviewPackage(file: File | null) {
     if (!file) return
+    if(file.size>700*1024*1024){setMessage('Choose a review file smaller than 700 MB.');return}
     try {
       const reviewPackage = parseVideoReviewPackageJson(await file.text())
       if (!reviewPackage) {
@@ -1990,6 +2014,7 @@ export default function VideoReviewClient() {
         return
       }
 
+      if(reviewPackage.clip.annotations.length>1000||reviewPackage.clip.annotations.reduce((n,a)=>n+a.points.length,0)>20000||JSON.stringify(reviewPackage.clip).length>500000)throw Error('Use fewer marks')
       const preflightQuota = getVideoReviewImportQuotaState(clips, {
         id: reviewPackage.clip.id,
         sizeBytes: estimateVideoReviewPackageBytes(reviewPackage),
@@ -2042,14 +2067,14 @@ export default function VideoReviewClient() {
       setMessage('The selected clip video is not available on this device.')
       return
     }
-    downloadBlob(blob, activeClip.fileName || `${activeClip.title}.webm`)
-    setMessage('Video file downloaded.')
+    await downloadBlob(blob, activeClip.fileName || `${activeClip.title}.webm`)
+    setMessage(platform?'Video export prepared.':'Video file downloaded.')
   }
 
   async function copyPracticePlan() {
     if (!practicePlan) return
     try {
-      await navigator.clipboard.writeText(practicePlan.copyText)
+      await copyText(practicePlan.copyText)
       setMessage('Practice plan copied.')
     } catch {
       setMessage(practicePlan.copyText)
@@ -2069,13 +2094,13 @@ export default function VideoReviewClient() {
     setMessage(`Practice marked done for ${activeClip.title}.`)
   }
 
-  function downloadReviewSummary() {
+  async function downloadReviewSummary() {
     if (!activeClip) return
-    downloadBlob(
+    await downloadBlob(
       new Blob([buildVideoReviewSummaryText(activeClip)], { type: 'text/plain;charset=utf-8' }),
       buildVideoReviewSummaryFileName(activeClip),
     )
-    setMessage('Review summary downloaded.')
+    setMessage(platform?'Review summary export prepared.':'Review summary downloaded.')
   }
 
   function markCoachMarkWatched(annotationId: string) {
@@ -2254,8 +2279,9 @@ export default function VideoReviewClient() {
   }
 
   return (
-    <main className={styles.shell}>
-      <section className={styles.toolTop} aria-label="Video Review">
+    <main className={styles.shell} data-tiq-video-review>
+      {platform?<p className={styles.message}>Clips and marks stay in your account on this device. Share a review file to send feedback; import a review file to receive it.</p>:null}
+      <section className={styles.toolTop} data-tiq-video-top aria-label="Video Review">
         <div className={styles.toolTitleBlock}>
           <span className={styles.kicker}>My Lab video</span>
           <h1 className={styles.title}>Video Review</h1>
@@ -2324,7 +2350,7 @@ export default function VideoReviewClient() {
 
       <section id="video-review-workspace" className={`${styles.workspace} ${showWorkspaceLibrary ? '' : styles.workspaceSolo}`}>
         {showWorkspaceLibrary ? (
-        <aside id="video-review-library" className={styles.panel}>
+        <aside id="video-review-library" className={styles.panel} data-video-panel>
           <div className={styles.panelHeader}>
             <div>
               <h2 className={styles.panelTitle}>{mode === 'coach' ? 'Review queue' : 'Video library'}</h2>
@@ -2765,9 +2791,11 @@ export default function VideoReviewClient() {
         </aside>
         ) : null}
 
-        <div className={styles.reviewPanel}>
+        <div className={styles.reviewPanel} data-video-review-panel>
           {showCaptureFlow ? (
             <PlayerCapture
+              targets={targets}
+              deviceOnly={!!platform}
               mode={mode}
               draft={draft}
               setDraft={setDraft}
@@ -2857,7 +2885,7 @@ export default function VideoReviewClient() {
                     <p>{activeNextStep.body}</p>
                   </div>
                   {activeNextStepHasActions ? (
-                    <div className={styles.actionRow}>
+                    <div className={styles.actionRow} data-video-actions>
                       {mode === 'player' && activeClip.status === 'sent' ? (
                         <>
                           <button type="button" className={styles.primaryButton} onClick={() => void copyHandoffLink('coach')}>
@@ -3055,7 +3083,7 @@ export default function VideoReviewClient() {
                           <em>{activeCoachAnnotations.length === 1 ? 'mark' : 'marks'}</em>
                         </span>
                       </div>
-                      <div className={styles.actionRow}>
+                      <div className={styles.actionRow} data-video-actions>
                         <button type="button" className={styles.ghostButton} onClick={() => void copyPracticePlan()}>
                           Copy plan
                         </button>
@@ -3071,7 +3099,7 @@ export default function VideoReviewClient() {
                       </div>
                     </div>
                   ) : null}
-                  <div className={styles.actionRow}>
+                  <div className={styles.actionRow} data-video-actions>
                     <button type="button" className={styles.primaryButton} onClick={openNextUnwatchedCoachMark}>
                       {nextCoachMarkActionLabel}
                     </button>
@@ -3112,7 +3140,7 @@ export default function VideoReviewClient() {
                       <span>stroke</span>
                     </span>
                   </div>
-                  <div className={styles.actionRow}>
+                  <div className={styles.actionRow} data-video-actions>
                     <button type="button" className={styles.primaryButton} onClick={() => void copyGuestInvite()}>
                       Copy guest invite
                     </button>
@@ -3211,7 +3239,7 @@ export default function VideoReviewClient() {
                       </span>
                     ))}
                   </div>
-                  <div className={styles.actionRow}>
+                  <div className={styles.actionRow} data-video-actions>
                     <button type="button" className={styles.primaryButton} onClick={() => seekTo(0)}>
                       Start review
                     </button>
@@ -3352,7 +3380,7 @@ export default function VideoReviewClient() {
 
             <aside className={styles.reviewSide}>
               {activeClip ? (
-                <div className={styles.panel} key={`${activeClip.id}-details`}>
+                <div className={styles.panel} data-video-panel key={`${activeClip.id}-details`}>
                   <h3 className={styles.clipTitle}>Clip details</h3>
                   <p className={styles.formHelp}>Fix the context saved with this clip before sharing or reviewing it.</p>
                   <div className={styles.filterGrid}>
@@ -3394,18 +3422,19 @@ export default function VideoReviewClient() {
                           <span className={styles.label}>Player for this video</span>
                           <select
                             className={styles.select}
-                            value={getCoachPlayerTargetIdForClip(activeClip)}
+                            value={getCoachPlayerTargetIdForClip(activeClip,targets)}
                             onChange={(event) => {
-                              const target = getCoachPlayerTarget(event.target.value as CoachPlayerTargetId)
+                              const target = getCoachPlayerTarget(event.target.value as CoachPlayerTargetId,targets)
                               void updateActiveClipDetails({
                                 playerName: target.name,
+                                ...(platform?{studentLinkId:target.id==='guest'?null:target.id}:{}),
                                 playerLinkTarget: target.id === 'guest' ? 'guest' : 'linked',
                                 guestInviteRequired: target.id === 'guest',
                                 guestContact: target.id === 'guest' ? activeClip.guestContact ?? '' : '',
                               })
                             }}
                           >
-                            {COACH_PLAYER_TARGETS.map((target) => (
+                            {targets.map((target) => (
                               <option key={target.id} value={target.id}>{target.label} - {target.detail}</option>
                             ))}
                           </select>
@@ -3463,7 +3492,7 @@ export default function VideoReviewClient() {
                 </div>
               ) : null}
 
-              <div className={styles.panel}>
+              <div className={styles.panel} data-video-panel>
                 <h3 className={styles.clipTitle}>Precision playback</h3>
                 <p className={styles.formHelp}>Slow the clip down, then step to the exact frame before adding a mark.</p>
                 <div className={styles.toolBar} aria-label="Playback speed">
@@ -3514,7 +3543,7 @@ export default function VideoReviewClient() {
 
               {canEditMarks ? (
                 <>
-                  <div id="video-review-coach-tools" className={styles.panel}>
+                  <div id="video-review-coach-tools" className={styles.panel} data-video-panel>
                     <h3 className={styles.clipTitle}>{mode === 'coach' ? 'Coach tools' : 'Mark up tools'}</h3>
                     <p className={styles.formHelp}>Pause the video, choose a tool, then draw on the frame.</p>
                     <div className={styles.nextActionStatus} aria-label="Markup next step">
@@ -3590,7 +3619,7 @@ export default function VideoReviewClient() {
                         disabled={!activeClip}
                       />
                     </label>
-                    <div className={styles.actionRow}>
+                    <div className={styles.actionRow} data-video-actions>
                       <button
                         type="button"
                         className={styles.primaryButton}
@@ -3611,7 +3640,7 @@ export default function VideoReviewClient() {
                   </div>
 
                   {mode === 'coach' ? (
-                  <div id="video-review-return-review" className={styles.panel}>
+                  <div id="video-review-return-review" className={styles.panel} data-video-panel>
                     <h3 className={styles.clipTitle}>Return review</h3>
                     <div className={styles.returnCuePanel} aria-label="Coach return focus cues">
                       <span className={styles.label}>Quick focus</span>
@@ -3689,13 +3718,13 @@ export default function VideoReviewClient() {
               ) : null}
 
               {activeClip?.status === 'reviewed' && practicePlan ? (
-                <div className={styles.panel}>
+                <div className={styles.panel} data-video-panel>
                   <div className={styles.panelHeader}>
                     <div>
                       <h3 className={styles.clipTitle}>{practicePlan.title}</h3>
                       <p className={styles.formHelp}>{practicePlan.focus}</p>
                     </div>
-                    <div className={styles.actionRow}>
+                    <div className={styles.actionRow} data-video-actions>
                       <button type="button" className={styles.ghostButton} onClick={() => void copyPracticePlan()}>
                         Copy plan
                       </button>
@@ -3721,7 +3750,7 @@ export default function VideoReviewClient() {
                 </div>
               ) : null}
 
-              <div className={styles.panel} aria-label="Timeline marks">
+              <div className={styles.panel} data-video-panel aria-label="Timeline marks">
                 <div className={styles.panelHeader}>
                   <div>
                     <h3 className={styles.clipTitle}>Timeline marks</h3>
@@ -3736,7 +3765,7 @@ export default function VideoReviewClient() {
                     </p>
                   </div>
                   {activeCoachAnnotations.length ? (
-                    <div className={styles.actionRow}>
+                    <div className={styles.actionRow} data-video-actions>
                       <button type="button" className={styles.ghostButton} disabled={!nextUnwatchedCoachMark} onClick={openNextUnwatchedCoachMark}>
                         {nextUnwatchedCoachMark && nextUnwatchedCoachMarkNumber ? `Watch Mark ${nextUnwatchedCoachMarkNumber}` : 'All watched'}
                       </button>
@@ -3895,7 +3924,7 @@ export default function VideoReviewClient() {
                     </span>
                   </div>
                 ) : null}
-                <div className={styles.actionRow}>
+                <div className={styles.actionRow} data-video-actions>
                   <button type="button" className={styles.ghostButton} onClick={() => openClip(cleanupCandidate.id)}>
                     Open clip
                   </button>
@@ -3958,7 +3987,7 @@ export default function VideoReviewClient() {
                     </span>
                   </div>
                 </div>
-                <div className={styles.actionRow}>
+                <div className={styles.actionRow} data-video-actions>
                   <button type="button" className={styles.primaryButton} disabled={!activeClip} onClick={() => void exportActivePackage()}>
                     Export review file
                   </button>
@@ -4046,6 +4075,8 @@ export default function VideoReviewClient() {
 }
 
 function PlayerCapture({
+  targets=COACH_PLAYER_TARGETS,
+  deviceOnly=false,
   mode,
   draft,
   setDraft,
@@ -4073,6 +4104,8 @@ function PlayerCapture({
   onSend,
   quotaFull,
 }: {
+  deviceOnly?:boolean
+  targets?:readonly VideoPlayerTarget[]
   mode: VideoReviewRole
   draft: DraftState
   setDraft: (draft: DraftState) => void
@@ -4103,7 +4136,7 @@ function PlayerCapture({
   const isCoachCapture = mode === 'coach'
   const captureStep = draftPreviewUrl ? 'check' : cameraActive ? 'record' : 'start'
   const playerNoteText = draft.playerNote.trim()
-  const coachTarget = getCoachPlayerTarget(draft.playerTargetId)
+  const coachTarget = getCoachPlayerTarget(draft.playerTargetId,targets)
   const isGuestTarget = isCoachCapture && coachTarget.id === 'guest'
   const orientationLabel = getVideoShapeLabel(videoShape)
   const orientationCopy = getVideoShapeCopy(videoShape)
@@ -4213,7 +4246,7 @@ function PlayerCapture({
                 value={draft.playerTargetId}
                 onChange={(event) => setDraft({ ...draft, playerTargetId: event.target.value as CoachPlayerTargetId })}
               >
-                {COACH_PLAYER_TARGETS.map((target) => (
+                {targets.map((target) => (
                   <option key={target.id} value={target.id}>{target.label} - {target.detail}</option>
                 ))}
               </select>
@@ -4280,9 +4313,9 @@ function PlayerCapture({
         </div>
       ) : (
         <div className={styles.nextActionStatus} aria-label="Coach player access">
-          <span>{isGuestTarget ? 'Guest needs your link' : `Linked to ${coachTarget.name}`}</span>
+          <span>{deviceOnly?(isGuestTarget?'Private guest clip':`For ${coachTarget.name}`):isGuestTarget?'Guest needs your link':`Linked to ${coachTarget.name}`}</span>
           <p>
-            {isGuestTarget
+            {deviceOnly?'Save and mark up the clip, then share the review file with your player.':isGuestTarget
               ? 'Save and mark up the clip here. The player can view it after linking with you.'
               : 'This recording is tied to the selected player and stays in your inventory until you share it.'}
           </p>
@@ -4313,7 +4346,7 @@ function PlayerCapture({
   )
 
   return (
-    <section id="video-review-capture" className={styles.panel}>
+    <section id="video-review-capture" className={styles.panel} data-video-panel>
       <div className={styles.panelHeader}>
         <div>
           <h2 className={styles.panelTitle}>Capture or upload</h2>
@@ -4325,7 +4358,7 @@ function PlayerCapture({
         </div>
       </div>
 
-      <div className={styles.formGrid}>
+      <div className={styles.formGrid} data-video-form-grid>
         <ol className={styles.captureSteps} aria-label="Capture steps">
           <li className={`${styles.captureStep} ${captureStep === 'start' ? styles.captureStepActive : styles.captureStepDone}`}>
             <span>1</span>
@@ -4341,7 +4374,7 @@ function PlayerCapture({
           </li>
         </ol>
 
-        <div className={styles.actionRow}>
+        <div className={styles.actionRow} data-video-actions>
           <label className={styles.ghostButton}>
             Upload video
             <input
@@ -4524,7 +4557,7 @@ function PlayerCapture({
                   ? 'Draft only. Save or discard before leaving this page.'
                   : 'Draft only. Save, share, or discard before leaving this page.'}
               </span>
-              <div className={styles.actionRow}>
+              <div className={styles.actionRow} data-video-actions>
                 <button type="button" className={styles.primaryButton} disabled={quotaFull} onClick={onSaveAndMarkup}>
                   {isCoachCapture ? 'Mark up now' : 'Mark up myself'}
                 </button>
@@ -4612,7 +4645,7 @@ function PlayerCapture({
         )}
 
         {!draftPreviewUrl && selectedFileName ? (
-          <div className={styles.actionRow}>
+          <div className={styles.actionRow} data-video-actions>
             <button type="button" className={styles.ghostButton} disabled={!selectedFileName || quotaFull} onClick={onSave}>
               Save to inventory
             </button>

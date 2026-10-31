@@ -1,10 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import {StudioImage as Image,StudioLink as Link,useTacticalStudioPlatform} from './TiqStudioPlatform'
 import TiqCourtBoard from './TiqCourtBoard'
+import {PlayerGlyph} from './TiqTokens'
 import TiqToolbar from './TiqToolbar'
 import TiqInspector from './TiqInspector'
 import TiqTimeline from './TiqTimeline'
@@ -41,8 +40,10 @@ type TacticalEntryIntent = {
 }
 
 export default function TiqTacticalStudio() {
+  const platform=useTacticalStudioPlatform()
+  const [nativePanel,setNativePanel]=useState('court')
   const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('basicDoubles')
-  const [scenario, setScenario] = useState<TacticalScenario>(() => createTacticalTemplate('basicDoubles'))
+  const [scenario, setScenario] = useState<TacticalScenario>(() => platform?.initialDraft??createTacticalTemplate('basicDoubles'))
   const scenarioRef = useRef(scenario)
   const [role, setRole] = useState<TacticalRole>('captain')
   const [briefingRole, setBriefingRole] = useState<TacticalRole>('captain')
@@ -84,11 +85,13 @@ export default function TiqTacticalStudio() {
     : 'Save the board, copy the brief, or send the proof back to My Lab.'
 
   const getAccessToken = useCallback(async () => {
+    const {supabase}=await import('@/lib/supabase')
     const { data } = await supabase.auth.getSession()
     return data.session?.access_token ?? ''
   }, [])
 
   const loadCloudLibrary = useCallback(async () => {
+    if(platform){try{const rows=await platform.loadCloud();if(platform.current()){setCloudLibrary(rows);setCloudStatus(rows.length?'Your saved boards':'No saved boards yet.')}}catch{if(platform.current())setCloudStatus('Your boards could not be loaded. Try again when connected.')}return}
     const token = await getAccessToken()
     if (!token) {
       setCloudStatus('Sign in to save scenarios across devices.')
@@ -109,9 +112,10 @@ export default function TiqTacticalStudio() {
 
     setCloudLibrary(body.scenarios ?? [])
     setCloudStatus(body.scenarios?.length ? 'Cloud scenarios' : 'No cloud scenarios saved yet.')
-  }, [getAccessToken])
+  }, [getAccessToken,platform])
 
   useEffect(() => {
+    if(platform){setRole('coach');setBriefingRole('coach');setBoardFocusMode(true);setLibrary(platform.initialLibrary);if(platform.initialDraft){scenarioRef.current=platform.initialDraft;setScenario(platform.initialDraft)}draftReady.current=true;void loadCloudLibrary();return}
     const nextEntryIntent = readTacticalEntryIntent()
     setEntryIntent(nextEntryIntent)
 
@@ -147,18 +151,19 @@ export default function TiqTacticalStudio() {
     }
     draftReady.current = true
     void loadCloudLibrary()
-  }, [loadCloudLibrary])
+  }, [loadCloudLibrary,platform])
 
   useEffect(() => {
     scenarioRef.current = scenario
+    platform?.change(scenario)
     if (!draftReady.current) return
 
     const timeout = window.setTimeout(() => {
-      window.localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify(scenario))
+      if(platform){void platform.saveDraft(scenario).catch(()=>{if(platform.current())notify('Draft could not be saved on this device')})}else window.localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify(scenario))
     }, 700)
 
     return () => window.clearTimeout(timeout)
-  }, [scenario])
+  }, [scenario,platform])
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return
@@ -197,13 +202,13 @@ export default function TiqTacticalStudio() {
   }
 
   async function copyText(text: string) {
-    await navigator.clipboard?.writeText(text)
-    notify('Copied')
+    try{if(platform)await platform.copy(text);else {if(!navigator.clipboard)throw Error('Clipboard unavailable');await navigator.clipboard.writeText(text)}if(!platform||platform.current())notify('Copied')}catch{if(!platform||platform.current())notify('Copy did not finish')}
   }
 
   async function shareScenario() {
     const text = scenarioBriefing(scenario, briefingRole)
     try {
+      if(platform){await platform.share(scenario.name,text);if(platform.current())notify('Share sheet closed');return}
       if (navigator.share) {
         await navigator.share({
           title: scenario.name,
@@ -219,19 +224,19 @@ export default function TiqTacticalStudio() {
     }
   }
 
-  function saveLibrary(nextLibrary: TacticalScenario[]) {
-    setLibrary(nextLibrary)
-    window.localStorage.setItem(LOCAL_LIBRARY_KEY, JSON.stringify(nextLibrary))
+  async function saveLibrary(nextLibrary: TacticalScenario[]) {
+    if(platform)await platform.saveLocal(nextLibrary);else window.localStorage.setItem(LOCAL_LIBRARY_KEY,JSON.stringify(nextLibrary))
+    if(!platform||platform.current())setLibrary(nextLibrary)
   }
 
-  function saveScenarioLocal() {
+  async function saveScenarioLocal() {
     const nextScenario = { ...scenario, id: scenario.id || makeTacticalId('scenario') }
     const nextLibrary = [nextScenario, ...library.filter((item) => item.id !== nextScenario.id)].slice(0, 16)
-    saveLibrary(nextLibrary)
-    notify('Scenario saved locally')
+    try{await saveLibrary(nextLibrary);if(!platform||platform.current())notify('Saved on this device')}catch{if(!platform||platform.current())notify('Device save not confirmed')}
   }
 
   async function saveScenarioCloud() {
+    if(platform){try{const rows=await platform.saveCloud(scenario);if(platform.current()){setCloudLibrary(rows);notify('Board saved to your account')}}catch(error){if(platform.current())notify(error instanceof Error?error.message:'Check your saved boards before retrying')}return}
     const token = await getAccessToken()
     if (!token) {
       setCloudStatus('Sign in to save scenarios across devices.')
@@ -262,6 +267,7 @@ export default function TiqTacticalStudio() {
   }
 
   async function deleteCloudScenario(id: string) {
+    if(platform){try{const rows=await platform.deleteCloud(id);if(platform.current()){setCloudLibrary(rows);notify('Board deleted')}}catch(error){if(platform.current())notify(error instanceof Error?error.message:'Delete not confirmed')}return}
     const token = await getAccessToken()
     if (!token) return
 
@@ -277,6 +283,7 @@ export default function TiqTacticalStudio() {
   }
 
   function loadScenario(nextScenario: TacticalScenario) {
+    platform?.loaded(nextScenario)
     recordUndoSnapshot()
     setScenario(nextScenario)
     setTemplateKey('basicDoubles')
@@ -290,17 +297,20 @@ export default function TiqTacticalStudio() {
 
   async function importScenario(file: File) {
     try {
+      if(file.size>180000)throw Error('Use a smaller board file')
       const text = await file.text()
       const parsed = JSON.parse(text) as unknown
       if (!isTacticalScenario(parsed)) throw new Error('Invalid tactical scenario')
-      loadScenario(parsed)
+      const validated=platform?(await import('@/lib/native-tactics-contract')).readTacticalBoard(parsed):parsed
+      loadScenario(validated)
     } catch {
       notify('Import failed')
     }
   }
 
-  function downloadScenario() {
+  async function downloadScenario() {
     const blob = new Blob([scenarioToJson(scenario)], { type: 'application/json' })
+    if(platform){try{await platform.exportFile(blob,`${slugify(scenario.name)}.json`);if(platform.current())notify('Share sheet closed')}catch{if(platform.current())notify('Export did not finish')}return}
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -314,7 +324,7 @@ export default function TiqTacticalStudio() {
 
   async function downloadBoardPng() {
     try {
-      await exportScenarioPng(scenario, tokenScale, showLabels, showPaths, showZones)
+      await exportScenarioPng(scenario, tokenScale, showLabels, showPaths, showZones,platform?.exportFile)
       notify('PNG exported')
     } catch {
       notify('PNG export failed')
@@ -630,6 +640,7 @@ export default function TiqTacticalStudio() {
             <div className={styles.presentationRole}>{role}</div>
           </div>
           <TiqCourtBoard
+            dragDraw={Boolean(platform)}
             scenario={visibleScenario}
             selected={{ type: 'scenario', id: 'scenario' }}
             showLabels={showLabels}
@@ -662,7 +673,8 @@ export default function TiqTacticalStudio() {
   }
 
   return (
-    <div className={`${styles.studio} ${boardFocusMode ? styles.boardFocusActive : ''}`}>
+    <div className={`${styles.studio} ${boardFocusMode ? styles.boardFocusActive : ''}`} data-tiq-studio data-native-panel={platform?nativePanel:undefined}>
+      {platform?<nav data-tiq-native-panels aria-label="Tactics workspace">{[['court','Court'],['tools','Tools'],['details','Details'],['saved','Saved'],['brief','Brief']].map(([id,label])=><button key={id} type="button" aria-current={nativePanel===id?'page':undefined} onClick={()=>setNativePanel(id)}>{label}</button>)}</nav>:null}
       <div className={styles.topbar}>
         <BrandLockup />
         <div className={styles.navPills}>
@@ -676,7 +688,7 @@ export default function TiqTacticalStudio() {
         <div>
           <div className={styles.eyebrow}>TIQ Tactical Studio</div>
           <h1>Build the point before you play it.</h1>
-          <p>Locked TenAceIQ court asset, reusable overlay data, and role-specific briefs for players, coaches, and captains.</p>
+          <p>Build a clear court plan with movement, targets, and cues for your next session.</p>
         </div>
         <div className={styles.heroStats}>
           <Stat label="Pattern" value={scenario.name} tone="green" />
@@ -686,7 +698,7 @@ export default function TiqTacticalStudio() {
         </div>
       </header>
 
-      <div className={styles.workspace}>
+      <div className={styles.workspace} data-tiq-workspace>
         <TiqToolbar
           activeTemplate={templateKey}
           activeDrawKind={drawingKind}
@@ -727,7 +739,7 @@ export default function TiqTacticalStudio() {
         />
 
         <section>
-          <div className={styles.scenarioBar}>
+          <div className={styles.scenarioBar} data-tiq-scenario>
             <div>
               <div className={styles.scenarioTitleLabel}>Scenario</div>
               <div className={styles.scenarioTitle}>{scenario.name}</div>
@@ -911,7 +923,7 @@ export default function TiqTacticalStudio() {
               <Meta label="Focus" value={scenario.focus} />
             </div>
           </div>
-          <div className={styles.mobileCourtActions} aria-label="Mobile court shortcuts">
+          <div className={styles.mobileCourtActions} data-tiq-court-actions aria-label="Mobile court shortcuts">
             <div className={styles.mobileCourtStatus} aria-live="polite">
               <span>Board status</span>
               <strong>{boardStatus}</strong>
@@ -932,7 +944,7 @@ export default function TiqTacticalStudio() {
               ) : null}
             </div>
           </div>
-          <BoardToolDock
+          {platform?<NativeCourtTools placement={placementType} drawing={drawingKind} canUndo={canUndoBoardAction} selected={selected.type!=='scenario'} onPlacement={type=>{setPlacementType(placementType===type?null:type);setDrawingKind(null)}} onDrawing={kind=>{setDrawingKind(drawingKind===kind?null:kind);setPlacementType(null)}} onZone={addZone} onUndo={undoLastPath} onDelete={deleteSelected} onDone={cancelActiveTool}/>:<BoardToolDock
             activeDrawKind={drawingKind}
             activePlacementType={placementType}
             boardFocusMode={boardFocusMode}
@@ -969,8 +981,9 @@ export default function TiqTacticalStudio() {
             onSnapPreset={applySnapPreset}
             onToggleBoardFocus={() => setBoardFocusMode((value) => !value)}
             onUndoPath={undoLastPath}
-          />
+          />}
           <TiqCourtBoard
+            dragDraw={Boolean(platform)}
             scenario={visibleScenario}
             selected={selected}
             showLabels={showLabels}
@@ -1034,7 +1047,7 @@ export default function TiqTacticalStudio() {
         />
       </div>
 
-      <section className={styles.panel}>
+      <section className={styles.panel} data-tiq-library>
         <div className={styles.actions}>
           <button className={styles.button} disabled={selected.type === 'scenario'} onClick={duplicateSelected} type="button">Duplicate selected</button>
           <button className={styles.button} disabled={selected.type === 'scenario'} onClick={deleteSelected} type="button">Delete selected</button>
@@ -1053,6 +1066,7 @@ export default function TiqTacticalStudio() {
           )) : <p className={styles.scenarioNote}>Saved scenarios stay in this browser. Use cloud save when signed in.</p>}
         </div>
         <div className={styles.panelTitle}>Cloud scenario library</div>
+        {platform?<button type="button" className={styles.button} onClick={()=>void loadCloudLibrary()}>Refresh saved boards</button>:null}
         <div className={styles.libraryList}>
           {cloudLibrary.length ? cloudLibrary.map((item) => (
             <div className={styles.libraryRow} key={item.id}>
@@ -1072,6 +1086,11 @@ export default function TiqTacticalStudio() {
       <TiqBriefingPanel briefingRole={briefingRole} scenario={scenario} onBriefingRoleChange={setBriefingRole} />
     </div>
   )
+}
+
+function NativeCourtTools({placement,drawing,canUndo,selected,onPlacement,onDrawing,onZone,onUndo,onDelete,onDone}:{placement:TacticalTokenType|null;drawing:TacticalPathKind|null;canUndo:boolean;selected:boolean;onPlacement:(type:TacticalTokenType)=>void;onDrawing:(kind:TacticalPathKind)=>void;onZone:()=>void;onUndo:()=>void;onDelete:()=>void;onDone:()=>void}){
+ const [group,setGroup]=useState('tokens')
+ return <div data-tiq-native-dock><div role="group" aria-label="Court tools">{['tokens','lines','edit'].map(id=><button key={id} type="button" aria-pressed={group===id} onClick={()=>setGroup(id)}>{id==='tokens'?'Add':id==='lines'?'Draw':'Edit'}</button>)}<button type="button" onClick={onUndo} disabled={!canUndo}>Undo</button></div><div role="group" aria-label={group==='tokens'?'Add to court':group==='lines'?'Draw a path':'Edit court'}>{group==='tokens'?<>{(['player','ball','cone','x','o'] as TacticalTokenType[]).map(type=><button type="button" key={type} aria-pressed={placement===type} onClick={()=>onPlacement(type)} aria-label={'Place '+type}><BoardToolIcon type={type}/></button>)}<button type="button" onClick={onZone}>Zone</button></>:group==='lines'?<>{(['move','ball','recover'] as TacticalPathKind[]).map(kind=><button key={kind} type="button" aria-pressed={drawing===kind} onClick={()=>onDrawing(kind)}>{kind==='ball'?'Shot':kind==='move'?'Move':'Recover'}</button>)}<button type="button" onClick={onDone}>Done</button></>:<><button type="button" disabled={!selected} onClick={onDelete}>Delete selected</button><button type="button" onClick={onDone}>Stop drawing</button></>}</div><p aria-live="polite">{placement?'Tap the court to place a '+placement+'.':drawing?'Drag across the court to draw.':'Drag players to position them. Tap a player or line for details.'}</p></div>
 }
 
 function BoardToolDock({
@@ -1334,7 +1353,7 @@ function BoardToolDock({
 
 function BoardToolIcon({ type }: { type: TacticalTokenType }) {
   if (type === 'player') {
-    return <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/brand/icons/app-icon-1024.png?v=20261024-approved-v1" width={34} />
+    return <PlayerGlyph/>
   }
 
   return <MarkerIcon type={type} />
@@ -1494,6 +1513,7 @@ async function exportScenarioPng(
   showLabels: boolean,
   showPaths: boolean,
   showZones: boolean,
+  exportFile?:(blob:Blob,name:string)=>Promise<void>,
 ) {
   const canvas = document.createElement('canvas')
   canvas.width = BOARD_EXPORT_WIDTH
@@ -1501,9 +1521,8 @@ async function exportScenarioPng(
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Canvas unavailable')
 
-  const [court, qIcon, ballIcon] = await Promise.all([
+  const [court, ballIcon] = await Promise.all([
     loadCanvasImage('/brand/courts/tiq-court-approved-20261024-v2.png'),
-    loadCanvasImage('/brand/icons/app-icon-1024.png'),
     loadCanvasImage('/tiq/tokens/tennis-ball-reference.png'),
   ])
 
@@ -1546,7 +1565,7 @@ async function exportScenarioPng(
       context.lineWidth = 4
       context.strokeStyle = '#9be11d'
       context.stroke()
-      context.drawImage(qIcon, x - size * 0.34, y - size * 0.34, size * 0.68, size * 0.68)
+      context.fillStyle='#edf7ff';context.beginPath();context.arc(x,y-size*.14,size*.12,0,Math.PI*2);context.fill();context.beginPath();context.arc(x,y+size*.2,size*.23,Math.PI,0);context.fill()
     } else {
       context.beginPath()
       context.arc(x, y, size * 0.36, 0, Math.PI * 2)
@@ -1565,6 +1584,7 @@ async function exportScenarioPng(
     }
   })
 
+  if(exportFile){const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(Error('PNG export failed')),'image/png'));await exportFile(blob,`${slugify(scenario.name)}-board.png`);return}
   const url = canvas.toDataURL('image/png')
   const link = document.createElement('a')
   link.href = url

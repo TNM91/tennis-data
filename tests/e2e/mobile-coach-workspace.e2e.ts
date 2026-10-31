@@ -6,9 +6,9 @@ const origin = 'http://127.0.0.1:4285'
 let javascript = '', stylesheet = '', shell = ''
 test.describe.configure({retries: 0, timeout: 30000})
 test.beforeAll(async () => {
- const bundle = await build({entryPoints: ['tests/fixtures/mobile-navigation.ts'], bundle: true, platform: 'browser', format: 'esm', outfile: 'fixture.js', write: false, jsx: 'automatic', loader: {'.module.css': 'local-css'}, plugins: [{name: 'synthetic-coach-account', setup(b) {b.onResolve({filter: /^@supabase\/supabase-js$/}, () => ({path: path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
+ const bundle = await build({entryPoints: ['tests/fixtures/mobile-navigation.ts'], bundle: true, platform: 'browser', format: 'esm', outfile: 'fixture.js', write: false, jsx: 'automatic', loader: {'.module.css': 'local-css'}, alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins: [{name: 'synthetic-coach-account', setup(b) {b.onResolve({filter: /^@supabase\/supabase-js$/}, () => ({path: path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
  javascript = bundle.outputFiles.find(f => f.path.endsWith('.js'))!.text
- stylesheet = (await Promise.all(['style.css', 'website-ui.css', 'app.css', 'website-parity.css', 'app-atmosphere.css'].map(f => readFile('mobile/bundled/' + f, 'utf8')))).join('\n')
+ stylesheet = (await Promise.all(['style.css', 'website-ui.css', 'app.css', 'website-parity.css', 'app-atmosphere.css'].map(f => f==='app.css'?Promise.resolve(bundle.outputFiles.find(file=>file.path.endsWith('.css'))!.text):readFile('mobile/bundled/' + f, 'utf8')))).join('\n')
  shell = await readFile('mobile/bundled/index.html', 'utf8')
 })
 test.beforeEach(async ({page}) => {
@@ -16,7 +16,7 @@ test.beforeEach(async ({page}) => {
   const url = new URL(route.request().url()); if (url.origin !== origin) return route.abort()
   if (url.pathname === '/app.js') return route.fulfill({contentType: 'text/javascript', body: javascript})
   if (url.pathname.endsWith('.css')) return route.fulfill({contentType: 'text/css', body: url.pathname === '/style.css' ? stylesheet + (url.searchParams.has('large') ? '\n:root{font-size:22px!important}' : '') : ''})
-  if (url.pathname.startsWith('/brand/') || url.pathname === '/logo.png') return route.fulfill({contentType: 'image/png', body: await readFile('mobile/bundled' + url.pathname)})
+  if (url.pathname.startsWith('/brand/') || url.pathname.startsWith('/tiq/tokens/') || url.pathname === '/logo.png') return route.fulfill({contentType: 'image/png', body: await readFile('mobile/bundled' + url.pathname)})
   return route.fulfill({contentType: 'text/html', body: url.searchParams.has('large') ? shell.replace('./style.css', './style.css?large=1') : shell})
  })
 })

@@ -1,8 +1,12 @@
+import {openCoachLessons} from './coach-lesson-view'
+import {openCoachResources} from './coach-resources-view'
+import {openCoachMessages} from './coach-messages-view'
+import {openCoachVideo} from './coach-video-view'
 import {openCompetitions} from './competitions-view'
 import {openTournaments} from './tournaments-view'
 import {openCoachWorkspace} from './coach-workspace-view'
 import {openCoachConnection} from './coach-connection-view'
-import {Browser} from './native-browser'
+import {openNativeTactics} from './coach-tactics-view'
 import {navigationHtml,currentTab,appHubHtml,homeShortcutsHtml,bindAppDestinations,type AppScreen,type AppHub,type AppDestination} from './app-navigation'
 import {applePurchases} from './apple-purchases'
 import {showEmailAuth} from './email-auth'
@@ -64,7 +68,7 @@ let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof openDataImports>|null=null
 let competitions:ReturnType<typeof openCompetitions>|null=null
 let tournaments:ReturnType<typeof openTournaments>|null=null
-let coachWorkspace:ReturnType<typeof openCoachWorkspace>|ReturnType<typeof openCoachConnection>|null=null
+let coachWorkspace:ReturnType<typeof openCoachWorkspace>|ReturnType<typeof openCoachConnection>|ReturnType<typeof openNativeTactics>|ReturnType<typeof openCoachLessons>|ReturnType<typeof openCoachResources>|ReturnType<typeof openCoachMessages>|ReturnType<typeof openCoachVideo>|null=null
 let hub:AppHub|null=null
 let leagueOffice:ReturnType<typeof openLeagueOffice>|null=null
 let goals:ReturnType<typeof openLabGoals>|null=null
@@ -280,18 +284,30 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  if(destination==='coach-workspace'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachWorkspace(client,owner,current,undefined,trigger);return}
  if(destination==='coach-connection'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachConnection(client,owner,current,trigger);return}
+ if(destination==='coach-lessons'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachLessons(client,owner,current,trigger);return}
+ if(destination==='coach-calendar'||destination==='coach-weeks'||destination==='coach-proof'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachResources(client,owner,current,destination==='coach-calendar'?'calendar':destination==='coach-weeks'?'weeks':'proof',trigger);return}
+ if(destination==='coach-video'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachVideo(client,owner,current,trigger);return}
+ if(destination==='coach-messages'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachMessages(client,owner,current,trigger);return}
+ if(destination==='coach-tactics'){if(!coachWorkspace?.isOpen())coachWorkspace=openNativeTactics(client,owner,current,trigger,undefined,openCoachHref);return}
  if(destination==='league-office'){if(!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
  if(destination==='imports'){if(!dataImports?.isOpen())dataImports=openDataImports(client,owner,current);return}
  if(destination==='account'){accountEntry.click();return}
  if(destination==='training'||destination==='training-inbox'||destination==='training-progress'){
   if(!training?.isOpen())training=openLevelUp(client,owner,current,destination==='training-inbox'?'inbox':destination==='training-progress'?'progress':'catalog');return
  }
- if(destination==='coach-web'){
-  trigger.disabled=true
-  void Browser.open({url:'https://www.tenaceiq.com/coach'}).catch(()=>{if(current()){const notice=app.querySelector('.app-hub-notice');if(notice)notice.textContent='Couldn’t open the coach workspace. Check your connection and try again.'}}).finally(()=>{if(current()&&trigger.isConnected)trigger.disabled=false});return
- }
+
  navigation.querySelector<HTMLButtonElement>('[data-screen="'+destination+'"]')?.click()
 }
+function openCoachHref(href:string){
+ let url:URL;try{url=new URL(href,'https://www.tenaceiq.com')}catch{return false}
+ if(url.origin!=='https://www.tenaceiq.com')return false
+ const destination:AppDestination|null=url.pathname==='/coach'?'coach':url.pathname==='/video-review'?'coach-video':url.pathname.startsWith('/tactics')?'coach-tactics':/^\/player-development\/[^/]+\/coach-planner$/.test(url.pathname)?'coach-lessons':url.pathname==='/messages'?'coach-messages':url.pathname.startsWith('/level-up/')?'training':null
+ if(!destination||!session)return false
+ const open=()=>{coachWorkspace?.dispose();coachWorkspace=null;showHub('coach');if(destination==='coach')return;const button=app.querySelector<HTMLButtonElement>('[data-app-destination="'+destination+'"]');if(button)openDestination(destination,button)}
+ if(coachWorkspace?.isOpen())coachWorkspace.requestLeave(open);else open()
+ return true
+}
+document.addEventListener('tenaceiq:navigate',event=>{const e=event as CustomEvent<{href?:unknown}>;if(typeof e.detail?.href==='string'&&openCoachHref(e.detail.href))event.preventDefault()})
 function showHub(next:AppHub){
  if(!session)return
  accountSettings?.dispose();accountSettings=null

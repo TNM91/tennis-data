@@ -174,6 +174,25 @@ export function instrumentPurchaseSmoke(source){
                            const restoreCancelled = await restoreFailure('cancel','restore_cancelled');
                            let deadlineStopped = false;
                            try { const value = await cap.Plugins.TiqPurchases.purchase({...purchaseArgs,tiqReadTimeoutSmoke:false,tiqReadDeadlineStoppedSmoke:true}); deadlineStopped = value.state === 'cancelled'; } catch {}
+                           let fileExportsVerified = false;
+                           try {
+                               const f = cap.Plugins.TiqFiles, owner='11111111-1111-4111-8111-111111111111', requestId='22222222-2222-4222-8222-222222222222';
+                               let invalid=false, foreign=false, offset=false, busy=false;
+                               try { await f.begin({owner,requestId,name:'../outside.txt',mime:'text/plain',size:10}); } catch(e) { invalid=e.code==='invalid_export'; }
+                               await f.begin({owner,requestId,name:'coach-test.txt',mime:'text/plain',size:10});
+                               try { await f.begin({owner,requestId,name:'duplicate.txt',mime:'text/plain',size:10}); } catch(e) { busy=e.code==='export_busy'; }
+                               try { await f.append({owner:'33333333-3333-4333-8333-333333333333',requestId,offset:0,base64:btoa('coach ')}); } catch(e) { foreign=e.code==='export_mismatch'; }
+                               try { await f.append({owner,requestId,offset:1,base64:btoa('coach ')}); } catch(e) { offset=e.code==='export_mismatch'; }
+                               await f.append({owner,requestId,offset:0,base64:btoa('coach ')});
+                               await f.append({owner,requestId,offset:6,base64:btoa('test')});
+                               const sharing=f.share({owner,requestId});
+                               await new Promise(r=>setTimeout(r,150));
+                               await f.cancel({owner});
+                               const result=await sharing;
+                               await f.begin({owner,requestId,name:'coach-test.txt',mime:'text/plain',size:10});
+                               await f.cancel({owner});
+                               fileExportsVerified=invalid&&foreign&&offset&&busy&&result.completed===false;
+                           } catch {}
                            let notificationsCleared = false;
                            let appLockBridge = false;
                            try {
@@ -190,7 +209,7 @@ export function instrumentPurchaseSmoke(source){
                                await cap.Plugins.TiqNotifications.clearDelivered();
                                notificationsCleared = true;
                            } catch {}
-                           return JSON.stringify({ready: appLockPolicy && appLockBridge && notificationsCleared && restorePolicy && restoreTimeout && restoreRetry && restoreTagged && restoreCancelled && purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeBiometricSignInLifecycleVerified:appLockPolicy,nativeBiometricSignInBridgeVerified:appLockBridge, nativeColdStartNotificationsCleared:notificationsCleared,nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel,nativeRestorePolicyVerified:restorePolicy,nativeRestoreReadRecovery:restoreTimeout && restoreRetry,nativeRestoreFailureTagged:restoreTagged && restoreCancelled});
+                           return JSON.stringify({ready: fileExportsVerified && appLockPolicy && appLockBridge && notificationsCleared && restorePolicy && restoreTimeout && restoreRetry && restoreTagged && restoreCancelled && purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeCoachFileExportBridgeVerified:fileExportsVerified,nativeBiometricSignInLifecycleVerified:appLockPolicy,nativeBiometricSignInBridgeVerified:appLockBridge, nativeColdStartNotificationsCleared:notificationsCleared,nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel,nativeRestorePolicyVerified:restorePolicy,nativeRestoreReadRecovery:restoreTimeout && restoreRetry,nativeRestoreFailureTagged:restoreTagged && restoreCancelled});
                            """, arguments: ["purchaseChannel": purchaseChannel, "restorePolicy": restorePolicy, "appLockPolicy": appLockPolicy], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
@@ -210,6 +229,7 @@ export function instrumentPurchaseSmoke(source){
 }
 export function verifyPurchaseSmoke(report){
  verifyAppLockSmoke(report)
+ assert.equal(report.nativeCoachFileExportBridgeVerified,true,'The native Coach file export did not pass its bridge, owner, chunk and cancellation checks')
  assert.equal(report.ready,true,'The launched app did not report a ready bridge')
  assert.equal(report.platform,'ios','The check must run inside the iOS app')
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
@@ -217,7 +237,7 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
  assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
  for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified','nativeRestorePolicyVerified','nativeRestoreReadRecovery','nativeRestoreFailureTagged'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
- return {ready:true,platform:'ios',available:true,nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
+ return {ready:true,platform:'ios',available:true,nativeCoachFileExportBridgeVerified:true,nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)

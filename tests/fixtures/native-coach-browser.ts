@@ -1,3 +1,4 @@
+import {buildCoachLessonRecipe} from '../../lib/coach-lesson-recipe'
 import {coachSnapshot} from './native-coach'
 import {buildCoachAssignmentReview, type CoachAssignment} from '../../lib/coach-storage'
 import {readCoachCreate, readCoachReview,readCoachEdit} from '../../lib/native-coach-contract'
@@ -56,7 +57,7 @@ export function coachPreviewRequest(method: string, url: URL, body?: BodyInit | 
    } else {
     selected = draft.student
     const rows = assignments.get(selected) || []
-    if (!rows.some(a => a.id === draft.id)) rows.unshift({id: draft.id, studentLinkId: selected, title: draft.title, focus: draft.focus, dueDate: draft.dueDate, status: draft.status, assignment: {detail: draft.instructions, expectedEvidence: draft.evidence}, updatedAt: new Date().toISOString()})
+    if (!rows.some(a => a.id === draft.id)) rows.unshift({id: draft.id, studentLinkId: selected, title: draft.title, focus: draft.focus, dueDate: draft.dueDate, status: draft.status, assignment: {...(draft.recipe?buildCoachLessonRecipe(draft.recipe).assignment:{}),detail: draft.instructions, expectedEvidence: draft.evidence}, updatedAt: new Date().toISOString()})
     assignments.set(selected, rows)
    }
   } else {
@@ -67,7 +68,7 @@ export function coachPreviewRequest(method: string, url: URL, body?: BodyInit | 
     if(!s)return Response.json({}, {status:404})
     if(race){s.updatedAt=new Date(Date.parse(s.updatedAt)+1).toISOString();race=false}
     if(s.updatedAt!==draft.expectedUpdatedAt)return Response.json({}, {status:409})
-    Object.assign(s,{name:draft.name,level:draft.level,notes:draft.notes,status:draft.status,updatedAt:new Date(Math.max(Date.now(),Date.parse(s.updatedAt)+1)).toISOString()})
+    Object.assign(s,{name:draft.name,level:draft.level,notes:draft.notes,status:draft.status,...(draft.identity===undefined?{}:{identity:draft.identity}),...(draft.email===undefined?{}:{email:draft.email}),...(draft.phone===undefined?{}:{phone:draft.phone}),...(draft.contactPreference===undefined?{}:{contactPreference:draft.contactPreference}),updatedAt:new Date(Math.max(Date.now(),Date.parse(s.updatedAt)+1)).toISOString()})
    }else{
    selected = draft.student
    const a = assignments.get(selected)?.find(a => a.id === draft.id)

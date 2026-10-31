@@ -15,6 +15,148 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(TenAceIQPurchases())
         bridge?.registerPluginInstance(TenAceIQNotifications())
         bridge?.registerPluginInstance(TenAceIQBiometricSignIn())
+        bridge?.registerPluginInstance(TenAceIQFiles())
+    }
+}
+
+enum TiqExportPayload {
+    static func decode(name: String, mime: String, base64: String) -> Data? {
+        let suffixes = ["image/png": ".png", "application/json": ".json", "text/calendar": ".ics", "text/plain": ".txt"]
+        guard let suffix = suffixes[mime], name.hasSuffix(suffix),
+              name.range(of: "^[A-Za-z0-9][A-Za-z0-9._-]{0,110}$", options: .regularExpression) != nil,
+              !name.contains(".."), base64.utf8.count <= 50_331_648,
+              let data = Data(base64Encoded: base64), data.count <= 37_748_736, !data.isEmpty else { return nil }
+        if mime == "image/png" { return data.starts(with: [137,80,78,71,13,10,26,10]) ? data : nil }
+        guard let text = String(data: data, encoding: .utf8) else { return nil }
+        if mime == "application/json", (try? JSONSerialization.jsonObject(with: data)) == nil { return nil }
+        if mime == "text/calendar", !text.hasPrefix("BEGIN:VCALENDAR") { return nil }
+        return data
+    }
+}
+
+/// Explicit user exports only. The app supplies bytes, never filesystem paths or remote URLs.
+@objc(TenAceIQFiles)
+public final class TenAceIQFiles: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "TenAceIQFiles"
+    public let jsName = "TiqFiles"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "exportFile", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "begin", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "append", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "share", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise)
+    ]
+    private var activity: UIActivityViewController?
+    private var activeOwner: String?
+    private var pending: CAPPluginCall?
+    private var folder: URL?
+    private var stagedOwner: String?
+    private var stagedID: String?
+    private var stagedURL: URL?
+    private var stagedFolder: URL?
+    private var stagedExpected = 0
+    private var stagedReceived = 0
+    private var stagedHandle: FileHandle?
+    private var stagedExpiry: DispatchWorkItem?
+    private func clearStage() {
+        stagedExpiry?.cancel(); stagedExpiry = nil
+        try? stagedHandle?.close(); stagedHandle = nil
+        if let dir = stagedFolder { try? FileManager.default.removeItem(at: dir) }
+        stagedOwner = nil; stagedID = nil; stagedURL = nil; stagedFolder = nil; stagedExpected = 0; stagedReceived = 0
+    }
+    @objc func begin(_ call: CAPPluginCall) {
+        guard let owner = call.getString("owner"), UUID(uuidString: owner) != nil,
+              let request = call.getString("requestId"), UUID(uuidString: request) != nil,
+              let name = call.getString("name"), name.range(of: "^[A-Za-z0-9][A-Za-z0-9._-]{0,110}$", options: .regularExpression) != nil, !name.contains(".."),
+              let mime = call.getString("mime"), let suffix = ["image/png":".png", "application/json":".json", "text/calendar":".ics", "text/plain":".txt", "video/mp4":".mp4", "video/quicktime":".mov", "video/webm":".webm"][mime], name.hasSuffix(suffix),
+              let size = call.getInt("size"), size > 0, size <= 734_003_200 else { call.reject("Choose a supported export.", "invalid_export"); return }
+        DispatchQueue.main.async {
+            guard self.pending == nil, self.stagedID == nil else { call.reject("Finish the current export.", "export_busy"); return }
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("tenaceiq-export-" + UUID().uuidString, isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
+                let url = directory.appendingPathComponent(name)
+                guard FileManager.default.createFile(atPath: url.path, contents: nil, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication]) else { throw CocoaError(.fileWriteUnknown) }
+                self.stagedHandle = try FileHandle(forWritingTo: url); self.stagedURL = url; self.stagedFolder = directory
+                self.stagedOwner = owner; self.stagedID = request; self.stagedExpected = size; self.stagedReceived = 0
+                let expiry = DispatchWorkItem { [weak self] in self?.clearStage() }; self.stagedExpiry = expiry
+                DispatchQueue.main.asyncAfter(deadline: .now() + 300, execute: expiry)
+                call.resolve()
+            } catch { try? FileManager.default.removeItem(at: directory); self.clearStage(); call.reject("Export could not start.", "export_failed") }
+        }
+    }
+    @objc func append(_ call: CAPPluginCall) {
+        guard let owner = call.getString("owner"), let request = call.getString("requestId"), let offset = call.getInt("offset"),
+              let raw = call.getString("base64"), raw.utf8.count <= 1_398_104,
+              let data = Data(base64Encoded: raw), data.count > 0, data.count <= 1_048_576 else { call.reject("Invalid export chunk.", "invalid_export"); return }
+        DispatchQueue.main.async {
+            guard owner == self.stagedOwner, request == self.stagedID, offset == self.stagedReceived,
+                  self.stagedReceived + data.count <= self.stagedExpected, let handle = self.stagedHandle else { call.reject("Export request changed.", "export_mismatch"); return }
+            do { try handle.write(contentsOf: data); self.stagedReceived += data.count; call.resolve() }
+            catch { self.clearStage(); call.reject("Export write failed.", "export_failed") }
+        }
+    }
+    @objc func share(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard call.getString("owner") == self.stagedOwner, call.getString("requestId") == self.stagedID,
+                  self.stagedReceived == self.stagedExpected, self.stagedExpected > 0,
+                  let url = self.stagedURL, let directory = self.stagedFolder,
+                  let host = self.bridge?.viewController, host.viewIfLoaded?.window != nil, host.presentedViewController == nil else { call.reject("Export is not ready.", "export_mismatch"); return }
+            do { try self.stagedHandle?.synchronize(); try self.stagedHandle?.close(); self.stagedHandle = nil }
+            catch { self.clearStage(); call.reject("Export write failed.", "export_failed"); return }
+            self.pending = call; self.activeOwner = self.stagedOwner; self.folder = directory
+            self.stagedExpiry?.cancel(); self.stagedExpiry = nil; self.stagedOwner = nil; self.stagedID = nil; self.stagedURL = nil; self.stagedFolder = nil; self.stagedExpected = 0; self.stagedReceived = 0
+            let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            if let popover = sheet.popoverPresentationController { popover.sourceView = host.view; popover.sourceRect = CGRect(x: host.view.bounds.midX, y: host.view.bounds.midY, width: 1, height: 1) }
+            self.activity = sheet; sheet.completionWithItemsHandler = { [weak self] _, completed, _, _ in DispatchQueue.main.async { self?.finish(completed: completed) } }
+            host.present(sheet, animated: true)
+        }
+    }
+
+    @objc func exportFile(_ call: CAPPluginCall) {
+        guard let owner = call.getString("owner"), UUID(uuidString: owner) != nil,
+              let requestID = call.getString("requestId"), UUID(uuidString: requestID) != nil,
+              let name = call.getString("name"), let mime = call.getString("mime"), let raw = call.getString("base64"),
+              let data = TiqExportPayload.decode(name: name, mime: mime, base64: raw) else {
+            call.reject("Choose a smaller supported export.", "invalid_export"); return
+        }
+        DispatchQueue.main.async {
+            guard self.pending == nil, self.stagedID == nil, let host = self.bridge?.viewController,
+                  host.viewIfLoaded?.window != nil, host.presentedViewController == nil else {
+                call.reject("Close the current sheet before exporting.", "export_busy"); return
+            }
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("tenaceiq-export-" + UUID().uuidString, isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+                let url = directory.appendingPathComponent(name, isDirectory: false)
+                try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+                if let popover = sheet.popoverPresentationController { popover.sourceView = host.view; popover.sourceRect = CGRect(x: host.view.bounds.midX, y: host.view.bounds.midY, width: 1, height: 1) }
+                self.pending = call; self.activeOwner = owner; self.activity = sheet; self.folder = directory
+                sheet.completionWithItemsHandler = { [weak self] _, completed, _, _ in
+                    DispatchQueue.main.async { self?.finish(completed: completed) }
+                }
+                host.present(sheet, animated: true)
+            } catch {
+                try? FileManager.default.removeItem(at: directory)
+                call.reject("The export could not be prepared.", "export_failed")
+            }
+        }
+    }
+    private func finish(completed: Bool) {
+        let call = pending, oldFolder = folder
+        pending = nil; activeOwner = nil; activity = nil; folder = nil
+        call?.resolve(["completed": completed])
+        if let oldFolder { try? FileManager.default.removeItem(at: oldFolder) }
+    }
+    @objc func cancel(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            if self.stagedOwner == call.getString("owner") { self.clearStage() }
+            if self.activeOwner == call.getString("owner") {
+                self.activity?.dismiss(animated: false); self.finish(completed: false)
+            }
+            call.resolve()
+        }
     }
 }
 
