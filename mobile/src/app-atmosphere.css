@@ -333,3 +333,111 @@ body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-cur
 .coach-invites-dialog h3,.coach-invites-dialog p{overflow-wrap:anywhere}
 .coach-invite-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
 .coach-invite-actions button{min-width:0;white-space:normal}
+
+/* Native visual system: ice blue information, lime actions, quiet navy surfaces. */
+body[data-screen] {
+ --tiq-ink:#f0f7fc;
+ --tiq-muted:#aac3d7;
+ --tiq-blue:#76caff;
+ --tiq-line:#29475e;
+ --tiq-surface:#0b2337;
+ color:var(--tiq-ink);
+ font-kerning:normal;
+}
+body[data-screen]:not(.native-chat-conversation) :is(.lab-scoreboard-intro h1,.app-hub-heading h1,.native-explore-hero h1,.chats-intro h1) { font-weight:700;letter-spacing:-.035em; }
+body[data-screen] :is(.lab-form-record>strong,.record-scoreboard-read>strong,.lab-band-target>strong,.stat-donut-value) { font-weight:700;letter-spacing:-.045em; }
+body[data-screen] .stat-donut-fill { stroke:#83d0ff; }
+body[data-screen]:not(.native-chat-conversation) main>section:not(.lab-scoreboard) { border-color:var(--tiq-line);box-shadow:none; }
+body[data-screen] :is(input,textarea,select) { caret-color:var(--tiq-blue); }
+body[data-screen] :is(button,input,textarea,select,summary):focus-visible { outline:2px solid #8ed6ff;outline-offset:3px; }
+body[data-screen]:not(.native-chat-conversation) .app-header { border-color:#29475e80; }
+body[data-screen]:not(.native-chat-conversation) .app-navigation { background:#071a2cf5;border-color:#34536d;box-shadow:0 -6px 24px #0002; }
+body[data-screen]:not(.native-chat-conversation) .app-navigation button { border-radius:15px;color:#a9c1d5;font-weight:600; }
+body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"] { background:#163c58;color:#e4f4ff;box-shadow:inset 0 1px #75ceff80; }
+body[data-screen]:not(.native-chat-conversation) .app-navigation button>span:first-child { height:30px; }
+
+/* One complete court image; numbers remain the focal point. */
+body[data-screen="lab"] section.lab-scoreboard { border-color:#3a6480;border-radius:24px;background:#081e31;box-shadow:0 12px 32px #0003; }
+.lab-scoreboard>h2 { padding-bottom:8px;color:#b8d8ec;font-weight:600; }
+.lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { font-size:clamp(80px,23vw,108px);font-weight:700;letter-spacing:-.065em; }
+.lab-scoreboard .lab-rating-chart>div:not(:first-child) { padding-block:15px;background:#102e45; }
+.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale) { font-size:36px;font-weight:650; }
+.lab-scoreboard .lab-rating-chart dt { color:#b3d6ec;font-weight:600;letter-spacing:.06em; }
+.lab-scoreboard .lab-rating-chart .rating-format-scale { max-width:none;margin:12px 0 0; }
+.lab-scoreboard .rating-scale meter { display:block;width:100%;height:5px;border:0;border-radius:9px;background:#29485f; }
+.lab-scoreboard .rating-scale meter::-webkit-meter-bar { height:5px;border:0;border-radius:9px;background:#29485f; }
+.lab-scoreboard .rating-scale meter::-webkit-meter-optimum-value { border-radius:9px;background:#76caff; }
+.lab-scoreboard .rating-scale meter::-moz-meter-bar { border-radius:9px;background:#76caff; }
+.lab-scoreboard .lab-rating-chart>div:nth-child(3) meter::-webkit-meter-optimum-value { background:#b1dfff; }
+.lab-scoreboard .lab-rating-chart>div:nth-child(3) meter::-moz-meter-bar { background:#b1dfff; }
+.lab-scoreboard .rating-context-info summary { color:#a3cbe5;font-size:12px; }
+.lab-form-host .lab-form-strip { padding:20px 18px 14px;background:#0c273d;border:1px solid #34546c;box-shadow:none; }
+.lab-form-heading h2 { font-weight:650;font-size:20px; }
+.lab-form-heading>span { background:#183a52;color:#c2daeb; }
+.lab-form-overview { gap:20px;margin-block:18px; }
+.lab-form-overview .stat-donut-fill { stroke:#83d0ff;stroke-width:8; }
+.lab-form-overview .stat-donut-track { stroke:#294b63;stroke-width:8; }
+.lab-form-record dl { gap:9px; }
+.lab-form-record dl>div { align-items:center; }
+.lab-form-record dd { display:grid;gap:5px;inline-size:64%;text-align:right; }
+.lab-form-record dd>span { font-size:12px; }
+.lab-format-meter { display:block;inline-size:100%;block-size:4px;border:0;border-radius:4px;background:#294b63; }
+.lab-format-meter::-webkit-meter-bar { block-size:4px;border:0;border-radius:4px;background:#294b63; }
+.lab-format-meter::-webkit-meter-optimum-value { background:#80cfff;border-radius:4px; }
+.lab-format-meter::-moz-meter-bar { background:#80cfff;border-radius:4px; }
+.lab-form-host .lab-form-marks { gap:7px; }
+.lab-form-host .lab-form-marks .lab-form-mark { border:0;border-radius:10px;background:#17394e;box-shadow:inset 0 2px #45637a; }
+.lab-form-host .lab-form-mark.is-win { background:#163b39;box-shadow:inset 0 2px #a6db67; }
+.lab-form-host .lab-form-mark.is-loss { background:#302d40;box-shadow:inset 0 2px #d29dac; }
+.lab-form-host .lab-form-mark strong { font-size:19px;font-weight:650; }
+.lab-form-host .lab-form-mark span { color:#c0d2df; }
+.lab-form-help { padding-top:5px; }
+.lab-shortcuts button.app-tool { border:0;background:#102b40;min-height:104px;box-shadow:inset 0 1px #365a74; }
+.lab-shortcuts .app-tool-icon { background:transparent;border-radius:0; }
+.lab-shortcuts .app-tool-copy strong { font-weight:600; }
+.lab-rating-trends .lab-trend-entry.secondary { border-color:#3b6683;background:#12344c;border-radius:18px; }
+.lab-trend-entry strong { font-weight:650; }
+.lab-next-band .lab-level-path { border-color:#355e78;background:#0c293e;box-shadow:none; }
+.lab-level-path>h3 { font-weight:650; }
+
+/* Hubs give primary tools room without repeating the stadium behind their copy. */
+body[data-screen]:is([data-screen="compete"],[data-screen="more"],[data-screen="coach"]) .app-court-backdrop { display:none; }
+.app-tools-hub .app-hub-heading { padding:8px 2px 20px;border-bottom:1px solid #29475e; }
+.app-tools-hub .app-hub-heading h1 { margin:10px 0 12px; }
+.app-tools-hub .app-hub-heading>p { max-width:26rem;color:#afcbdf; }
+.app-tools-hub .app-hub-group { margin-top:26px; }
+.app-tools-hub .app-hub-group h2 { color:#b6d0e3;font-size:12px;font-weight:600;letter-spacing:.02em; }
+.app-tools-hub .app-hub-tools { border-color:#2c4a61;background:#0c2438; }
+.app-tools-hub .app-hub-tools button.app-tool { padding:18px 14px; }
+.app-tools-hub .app-tool-icon { border-radius:12px;background:#163b55;color:#b3e2ff; }
+.app-tools-hub .app-tool-copy strong { font-weight:650;font-size:1rem; }
+.app-tools-hub .app-tool-copy>span { color:#acc8db; }
+.app-tools-hub .app-tool-arrow { font-size:26px;font-weight:400;color:#8acfff; }
+body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { background:#113149;border:1px solid #456b85;border-radius:20px;box-shadow:none; }
+body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool[data-app-destination="tournaments"] { background:#102b40;border-color:#3a5f78; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-icon { background:#1a4562;color:#b9e6ff; }
+body[data-screen="compete"] .app-hub-group:first-of-type [data-app-destination="tournaments"] .app-tool-icon { background:#1a4562;color:#b9e6ff; }
+body[data-screen="coach"] .app-hub-group:first-of-type [data-app-destination="coach-tactics"] { min-height:122px;padding:20px 14px;background:#143a54;border-bottom:1px solid #3b6681; }
+body[data-screen="coach"] [data-app-destination="coach-tactics"] .app-tool-icon { width:52px;height:52px;flex-basis:52px;background:#204c67; }
+body[data-screen="coach"] [data-app-destination="coach-tactics"] .app-tool-copy strong { font-size:1.4rem; }
+
+/* Sender initials keep group conversations easy to scan. No remote avatar requests. */
+.chat-sender-avatar { display:none; }
+body.native-chat-conversation main#app { background:#06182a; }
+body.native-chat-conversation .chat-room-header { border-color:#2c4b63;padding-block:12px; }
+body.native-chat-conversation .team-bubble:not(.team-bubble-mine):not(.team-bubble-match) { position:relative;margin-inline:38px 8px;background:#112c43;border-radius:17px 17px 17px 5px; }
+body.native-chat-conversation .chat-sender-avatar { position:absolute;inset-inline-start:-38px;inset-block-start:2px;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#1c435d;color:#cfebfb;font-size:11px;font-weight:650;line-height:1; }
+body.native-chat-conversation .team-bubble-mine { background:#164567;border-radius:17px 17px 5px 17px; }
+body.native-chat-conversation .team-message-meta strong { font-size:13px;font-weight:650;color:#d1ecff; }
+body.native-chat-conversation .team-message-meta>span { font-size:10px;color:#aac5d9; }
+body.native-chat-conversation .team-bubble p { font-size:16px;line-height:1.55;color:#edf6fc; }
+body.native-chat-conversation .chat-composer { background:#0f2c43;border-color:#3c6380;box-shadow:0 4px 20px #0003; }
+body.native-chat-conversation .chat-send-button { background:#75caff;color:#06213b; }
+@media(max-width:360px) {
+ .lab-form-overview { gap:12px; }
+ .lab-form-record>strong { font-size:26px; }
+ .lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale) { font-size:32px; }
+ .lab-scoreboard .lab-rating-chart .rating-format-scale { margin-top:10px; }
+ .app-tools-hub .app-hub-heading h1 { font-size:32px; }
+}
+@media(prefers-reduced-motion:reduce) { body[data-screen] :is(button,input,textarea,select) { transition:none; } }

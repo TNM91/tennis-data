@@ -82,6 +82,10 @@ async function bounded(page:Page){
 for(const width of [320,390])test(`hold, react and reply through the real conversation at ${width}px`,async({page},info)=>{
  await page.setViewportSize({width,height:width===320?568:844});await page.goto(origin+prefix)
  await expect(post(page).locator('.chat-message-text')).toBeVisible();await expect(page.locator('.app-navigation')).toHaveCount(1);await expect(page.locator('.app-navigation')).toBeHidden()
+ const avatar=post(page).locator('.chat-sender-avatar')
+ await expect(avatar).toBeVisible();await expect(avatar).toHaveText('AR');await expect(avatar).toHaveAttribute('aria-hidden','true')
+ const avatarBox=await avatar.boundingBox();expect(avatarBox!.x).toBeGreaterThanOrEqual(0)
+ await expect(post(page,ownId).locator('.chat-sender-avatar')).toHaveCount(0)
  await hold(post(page).locator('.chat-message-text'))
  const sheet=page.getByRole('dialog',{name:'Alex Rivera',exact:true})
  await expect(sheet).toBeVisible();await expect(sheet.locator('.chat-press-reactions button')).toHaveCount(6)
