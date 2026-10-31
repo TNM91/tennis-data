@@ -12,8 +12,8 @@ function fixture(permission='granted'){
  const request=vi.fn(async(_session:Session,data?:unknown)=>data?{ok:true}:{ok:true,available:true})
  const storage={getItem:vi.fn(async()=>saved),setItem:vi.fn(async(_key:string,value:string)=>{saved=value}),removeItem:vi.fn()}
  const client={auth:{getSession:vi.fn(async()=>({data:{session:session()},error:null})),signOut:vi.fn(async()=>({error:null}))}} as unknown as SupabaseClient
- const clearDelivered=vi.fn(async()=>{}),onOpen=vi.fn(),controller=createNativePush(client,onOpen,{platform:'ios',plugin:plugin as unknown as PushNotificationsPlugin,storage,request,clearDelivered})
- return {client,plugin,request,storage,handlers,removes,onOpen,clearDelivered,controller,saved:()=>JSON.parse(saved)}
+ const clearDelivered=vi.fn(async()=>{}),onOpen=vi.fn(),onCoachOpen=vi.fn(),controller=createNativePush(client,onOpen,{platform:'ios',plugin:plugin as unknown as PushNotificationsPlugin,storage,request,clearDelivered,onCoachOpen})
+ return {client,plugin,request,storage,handlers,removes,onOpen,onCoachOpen,clearDelivered,controller,saved:()=>JSON.parse(saved)}
 }
 describe('native team alert lifecycle',()=>{
  it('logs out a cold-start account without APNs opt-in despite the Capacitor cleanup registration guard',async()=>{
@@ -100,4 +100,6 @@ describe('native team alert lifecycle',()=>{
   const f=fixture();const controller=createNativePush({} as SupabaseClient,vi.fn(),{platform:'android',plugin:f.plugin as unknown as PushNotificationsPlugin,storage:f.storage,request:f.request})
   controller.setSession(session());await controller.beforeSignOut();expect(f.plugin.register).not.toHaveBeenCalled();controller.dispose();f.controller.dispose()
  })
+ it('holds a cold Coach alert until restoration and routes only its current-owner conversation',()=>{const f=fixture(),id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';f.handlers.pushNotificationActionPerformed({notification:{data:{recipient:'owner',href:'/messages?thread='+id}}} as never);expect(f.onCoachOpen).not.toHaveBeenCalled();f.controller.setSession(session());expect(f.onCoachOpen).toHaveBeenCalledExactlyOnceWith(id,'owner');expect(f.onOpen).not.toHaveBeenCalled();f.controller.dispose()})
+ it('rejects old-owner, injected and signed-out Coach alert taps',()=>{const f=fixture(),id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';f.controller.setSession(session());for(const data of [{recipient:'other',href:'/messages?thread='+id},{recipient:'owner',href:'/messages?thread='+id+'&owner=other'},{recipient:'owner',href:'https://evil.example/messages?thread='+id}])f.handlers.pushNotificationActionPerformed({notification:{data}} as never);expect(f.onCoachOpen).not.toHaveBeenCalled();f.controller.setSession(null);f.handlers.pushNotificationActionPerformed({notification:{data:{recipient:'owner',href:'/messages?thread='+id}}} as never);expect(f.onCoachOpen).not.toHaveBeenCalled();f.controller.dispose()})
 })

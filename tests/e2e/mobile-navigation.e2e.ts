@@ -1,4 +1,5 @@
 import '../fixtures/mobile-coach-unread-cases'
+import '../fixtures/mobile-coach-alerts-cases'
 import '../fixtures/mobile-coach-chats-cases'
 import '../fixtures/mobile-chat-catchup-cases'
 import '../fixtures/mobile-calendar-practices-cases'
@@ -12,7 +13,7 @@ const origin='http://127.0.0.1:4283'
 let javascript='',stylesheet='',documentHtml=''
 test.describe.configure({retries:0,timeout:25000})
 test.beforeAll(async()=>{
- const bundle=await build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^@capacitor\/app$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-app.ts')}));b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
+ const bundle=await build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^\.\/native-push$/},args=>args.importer.replace(/\\/g,"/").endsWith("/mobile/src/main.ts")?{path:path.resolve("tests/fixtures/mobile-native-coach-alerts.ts")}:undefined);b.onResolve({filter:/^@capacitor\/app$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-app.ts')}));b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
  javascript=bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css'].map(file=>file==='app.css'?Promise.resolve(bundle.outputFiles.find(file=>file.path.endsWith('.css'))!.text):readFile('mobile/bundled/'+file,'utf8')))).join('\n')+'\n.preview-controls{padding:24px 12px 120px}.preview-controls button{min-height:44px}'
  documentHtml=await readFile('mobile/bundled/index.html','utf8')
