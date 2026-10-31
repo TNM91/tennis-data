@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   const { data, error } = await auth.supabase
     .from('coach_student_invites')
     .select('id,student_link_id,invite_email,invite_token,status,message,expires_at,updated_at')
+    .eq('coach_user_id', auth.userId)
     .order('updated_at', { ascending: false })
     .limit(100)
 
@@ -76,7 +77,9 @@ export async function DELETE(request: Request) {
   const { error } = await auth.supabase
     .from('coach_student_invites')
     .update({ status: 'revoked', updated_at: new Date().toISOString() })
+    .eq('coach_user_id', auth.userId)
     .eq('id', id)
+    .eq('status', 'pending')
 
   if (error) {
     return apiServerError('Could not delete coach invite', error, 'The invite could not be deleted.')

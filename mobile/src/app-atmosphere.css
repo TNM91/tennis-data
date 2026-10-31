@@ -284,3 +284,7 @@ body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-cur
 .coach-workspace-dialog [role=status]:empty{display:none}
 .coach-workspace-dialog [role=status]:not(:empty){margin-top:20px;padding:12px;border-left:3px solid #89d3ff;background:#103047}
 .coach-workspace-dialog .coach-footer{margin-top:20px;border-top:1px solid #27475e}
+.coach-invitation-list{display:grid;gap:1rem;min-width:0}
+.coach-invites-dialog h3,.coach-invites-dialog p{overflow-wrap:anywhere}
+.coach-invite-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.coach-invite-actions button{min-width:0;white-space:normal}
