@@ -67,3 +67,39 @@ it('rejects stale review, missing proof and a concurrent update', async () => {
  expect(tables.coach_assignments[0].assignment_json).not.toHaveProperty('coachReview')
 })
 it('contains backend errors without exposing SQL or private details', async () => {failure = true; const r = await GET(new Request(url)); expect(r.status).toBe(503); expect(await r.text()).not.toContain('private database')})
+
+const editStudent=()=>({kind:'edit-student',id:'student-one',expectedUpdatedAt:coachRevision,name:'Alex Court',level:'4.5',notes:'Work on return height',status:'paused'})
+const editAssignment=()=>({kind:'edit-assignment',id:'assignment-one',student:'student-one',expectedUpdatedAt:coachRevision,title:'Updated return practice',focus:'Height',dueDate:'2026-11-07',instructions:'Clear the net by three feet.',evidence:'Five deep returns',status:'completed'})
+it('edits only exposed student fields and retains contact, identity and player connection',async()=>{
+ const r=await PATCH(request('PATCH',editStudent()));expect(r.status).toBe(200)
+ const update=calls.find(c=>c.operation==='update')!
+ expect(Object.keys(update.payload!).sort()).toEqual(['level_label','notes','player_name','status','updated_at'])
+ expect(update.filters).toEqual(expect.arrayContaining([['coach_user_id',coachOwner],['id','student-one'],['updated_at',coachRevision]]))
+ expect(tables.coach_player_links[0]).toMatchObject({player_user_id:'linked-player',player_email:'private@example.test',identity_slug:'relentless-competitor-4-0',status:'paused'})
+ expect(Date.parse(String(update.payload!.updated_at))).toBeGreaterThan(Date.parse(coachRevision))
+})
+it('preserves completed proof, coach feedback, practice packs and unknown assignment fields',async()=>{
+ Object.assign(tables.coach_assignments[0].assignment_json as object,{coachReview:{note:'Keep this',nextFocus:'Height'},pack:{id:'pack-one'}})
+ expect((await PATCH(request('PATCH',editAssignment()))).status).toBe(200)
+ expect(tables.coach_assignments[0]).toMatchObject({status:'completed',assignment_json:{futureField:'keep',playerCheckIn:{evidence:'4/5'},coachReview:{note:'Keep this'},pack:{id:'pack-one'},detail:'Clear the net by three feet.',expectedEvidence:'Five deep returns'}})
+ expect(calls.find(c=>c.operation==='update')!.filters).toEqual(expect.arrayContaining([['coach_user_id',coachOwner],['student_link_id','student-one'],['updated_at',coachRevision]]))
+})
+it('rejects stale or foreign edits and concurrent student or player updates without overwriting them',async()=>{
+ for(const draft of [editStudent(),editAssignment()]){
+  expect((await PATCH(request('PATCH',{...draft,expectedUpdatedAt:'2020-01-01T00:00:00Z'}))).status).toBe(409)
+  race=true;expect((await PATCH(request('PATCH',draft))).status).toBe(409);race=false
+  tables.coach_player_links[0].updated_at=coachRevision;tables.coach_assignments[0].updated_at=coachRevision
+ }
+ expect((await PATCH(request('PATCH',{...editStudent(),id:'foreign'}))).status).toBe(404)
+ expect(tables.coach_player_links[0].player_name).toBe('Alex Rivera');expect(tables.coach_assignments[0].title).toBe('Return practice')
+})
+it('permits publishing a draft for an active student while rejecting reopens and paused publication',async()=>{
+ expect((await PATCH(request('PATCH',{...editAssignment(),status:'assigned'}))).status).toBe(409)
+ tables.coach_assignments[0].status='draft';tables.coach_player_links[0].status='paused'
+ expect((await PATCH(request('PATCH',{...editAssignment(),status:'assigned'}))).status).toBe(409)
+ tables.coach_player_links[0].status='active';expect((await PATCH(request('PATCH',{...editAssignment(),status:'assigned'}))).status).toBe(200)
+})
+it('rejects unsafe edit fields and invalid dates and statuses before reading data',async()=>{
+ for(const draft of [{...editStudent(),player_user_id:'other'},{...editStudent(),status:'admin'},{...editAssignment(),dueDate:'2026-02-30'},{...editAssignment(),assignment_json:{}}])expect((await PATCH(request('PATCH',draft))).status).toBe(400)
+ expect(calls).toEqual([])
+})

@@ -12,6 +12,10 @@ export type CoachCreate =
   | {kind: 'student'; id: string; name: string; level: string; notes: string}
   | {kind: 'assignment'; id: string; student: string; expectedUpdatedAt: string; title: string; focus: string; dueDate: string | null; instructions: string; evidence: string; status: 'draft' | 'assigned'}
 export type CoachReview = {id: string; student: string; expectedUpdatedAt: string; note: string; nextFocus: string}
+export type CoachEdit =
+  | {kind:'edit-student';id:string;expectedUpdatedAt:string;name:string;level:string;notes:string;status:CoachStudentStatus}
+  | {kind:'edit-assignment';id:string;student:string;expectedUpdatedAt:string;title:string;focus:string;dueDate:string|null;instructions:string;evidence:string;status:CoachAssignment['status']}
+export type CoachWrite=CoachCreate|CoachReview|CoachEdit
 export const coachRecord = (v: unknown): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error('Invalid coach record')
   return v as Record<string, unknown>
@@ -74,4 +78,15 @@ export function readCoachReview(value: unknown): CoachReview {
   const review = {id: coachId(r.id), student: coachId(r.student), expectedUpdatedAt: stamp(r.expectedUpdatedAt), note: text(r.note, 700).trim(), nextFocus: text(r.nextFocus, 300).trim()}
   if (!review.note && !review.nextFocus) throw Error('Add coach feedback')
   return review
+}
+export function readCoachEdit(value:unknown):CoachEdit {
+ const r=coachRecord(value),id=coachId(r.id),expectedUpdatedAt=stamp(r.expectedUpdatedAt)
+ if(r.kind==='edit-student'){
+  keys(r,['kind','id','expectedUpdatedAt','name','level','notes','status'])
+  if(!['active','needs_assignment','review_notes','paused'].includes(String(r.status)))throw Error('Invalid student status')
+  return {kind:r.kind,id,expectedUpdatedAt,name:text(r.name,300,true).trim(),level:text(r.level,160).trim(),notes:text(r.notes,8000).trim(),status:r.status as CoachStudentStatus}
+ }
+ if(r.kind!=='edit-assignment'||!['draft','assigned','completed','archived'].includes(String(r.status)))throw Error('Invalid assignment edit')
+ keys(r,['kind','id','student','expectedUpdatedAt','title','focus','dueDate','instructions','evidence','status'])
+ return {kind:r.kind,id,student:coachId(r.student),expectedUpdatedAt,title:text(r.title,300,true).trim(),focus:text(r.focus,1000).trim(),dueDate:date(r.dueDate),instructions:text(r.instructions,8000).trim(),evidence:text(r.evidence,2000).trim(),status:r.status as CoachAssignment['status']}
 }

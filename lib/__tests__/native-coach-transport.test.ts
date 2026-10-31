@@ -1,6 +1,6 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {expect, it, vi} from 'vitest'
-import {loadCoachWorkspace, saveCoachWorkspace, coachWriteMatches, CoachWorkspaceError, type CoachSend} from '../../mobile/src/coach-workspace-data'
+import {loadCoachWorkspace, saveCoachWorkspace, coachWriteMatches,coachWriteRetryable, CoachWorkspaceError, type CoachSend} from '../../mobile/src/coach-workspace-data'
 import {coachOwner, coachSnapshot, coachAssignmentDraft, coachReviewDraft} from '../../tests/fixtures/native-coach'
 function account() {return {auth: {getSession: vi.fn(async () => ({data: {session: {user: {id: coachOwner}, access_token: 'synthetic-coach-token'}}, error: null}))}} as unknown as SupabaseClient}
 const reply = (selected = '') => ({status: 200, headers: {}, url: 'https://www.tenaceiq.com/api/mobile/coach', data: {ok: true, ...coachSnapshot(selected)}})
@@ -45,4 +45,13 @@ it('exposes actionable conflicts without an implicit retry', async () => {
  const send = vi.fn<CoachSend>().mockResolvedValue({...reply('student-one'), status: 409})
  await expect(saveCoachWorkspace(account(), coachOwner, () => true, coachReviewDraft, false, send)).rejects.toBeInstanceOf(CoachWorkspaceError)
  expect(send).toHaveBeenCalledTimes(1)
+})
+it('edits with PATCH and requires an unchanged revision for retry after recovery',async()=>{
+ const saved=coachSnapshot('student-one'),s=saved.detail!.student,draft={kind:'edit-student' as const,id:s.id,expectedUpdatedAt:s.updatedAt,name:'Alex Court',level:s.level,notes:s.notes,status:s.status}
+ expect(coachWriteRetryable(saved,draft)).toBe(true)
+ s.name='Another coach edit';s.updatedAt='2026-11-01T00:00:00Z';expect(coachWriteRetryable(saved,draft)).toBe(false)
+ s.name=draft.name
+ const send=vi.fn<CoachSend>().mockResolvedValue({...reply('student-one'),data:{ok:true,...saved}})
+ expect((await saveCoachWorkspace(account(),coachOwner,()=>true,draft,false,send)).confirmed).toBe(true)
+ expect(send.mock.calls.map(c=>c[0])).toEqual(['PATCH'])
 })

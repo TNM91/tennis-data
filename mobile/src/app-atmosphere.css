@@ -324,7 +324,7 @@ body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-cur
 .coach-workspace-dialog .coach-proof{border-color:#376d6b;background:#103332}
 .coach-workspace-dialog .coach-written{white-space:pre-wrap;overflow-wrap:anywhere}
 .coach-workspace-dialog label{display:block;margin:22px 0 8px;font-size:.9375rem;font-weight:600}
-.coach-workspace-dialog input,.coach-workspace-dialog textarea{display:block;width:100%;max-width:100%;min-inline-size:0;margin:0;font-size:1rem;line-height:1.5;color:#f0f8ff;background:#06182a;border:1px solid #53728d;border-radius:14px;padding:13px}
+.coach-workspace-dialog input,.coach-workspace-dialog textarea,.coach-workspace-dialog select{display:block;width:100%;max-width:100%;min-inline-size:0;margin:0;font-size:1rem;line-height:1.5;color:#f0f8ff;background:#06182a;border:1px solid #53728d;border-radius:14px;padding:13px}
 .coach-workspace-dialog textarea{min-height:120px;resize:vertical}
 .coach-workspace-dialog [role=status]:empty{display:none}
 .coach-workspace-dialog [role=status]:not(:empty){margin-top:20px;padding:12px;border-left:3px solid #89d3ff;background:#103047}
