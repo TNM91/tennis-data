@@ -13,6 +13,7 @@ export type ScheduleCalendarFeedOptions = {
   productUrl?: string
   timeZone?: string
   durationMinutes?: number
+  includeEventUrls?: boolean
 }
 
 export type TennisCalendarEvent = {
@@ -211,7 +212,7 @@ export function buildTennisCalendarFeed(
       `SUMMARY:${escapeIcsText(event.title || 'TenAceIQ calendar item')}`,
       `DESCRIPTION:${escapeIcsText(event.description || '')}`,
       `LOCATION:${escapeIcsText(resolveCalendarLocation(event.location))}`,
-      `URL:${escapeIcsText(event.url || productUrl)}`,
+      ...(options.includeEventUrls === false ? [] : [`URL:${escapeIcsText(event.url || productUrl)}`]),
       ...buildIcsDateLines(event.date, event.time || '', timeZone, event.durationMinutes ?? durationMinutes),
       ...(recurrenceRule ? [`RRULE:${recurrenceRule}`] : []),
       'END:VEVENT',
