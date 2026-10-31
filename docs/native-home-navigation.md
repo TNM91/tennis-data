@@ -16,3 +16,13 @@ Navigation preserves current-owner/revision guards, closes direct tournament she
 `tests/e2e/mobile-navigation.e2e.ts` bundles the actual native entry point with a synthetic local auth adapter and bounded fake API responses. It checks linked-player order, fixed tab labels, Chats, Following, Matchup, coach inbox, direct league/tournament routing, focus return, reconnect/token refresh, account invalidation and overflow at 320/390px. No real accounts, permissions or production data are modified.
 
 The navigation checks pass in Chromium and WebKit, with larger-text reflow. Existing scoreboard checks cover unavailable/self-rated/fallback ratings, pending results, zero/all wins, long names, scorecard indexes and stale visits. These browser checks do not claim physical iPhone or Face ID testing. The native Swift, signing entitlements, storage, purchases and Face ID implementation are unchanged.
+
+## Tool finder and compact destination lists
+
+More has a labeled tool search over its nine existing destinations. It matches all typed words against titles, descriptions and a few explicit aliases (such as Face ID, login, coaching and uploads), ignoring case, accents and repeated whitespace. It filters the existing buttons and hides empty groups locally; it makes no request and stores no query. Counts, empty results, Clear and Escape support keyboard use. Hidden destinations leave the tab order.
+
+Opening a league or tournament retains the underlying search and returns focus to its button on close. Token refresh and reconnect also retain it. Navigating away, reopening More or changing account creates a fresh directory. Existing destination access checks remain in force.
+
+More and Coach group secondary destinations into compact lists with separators. Compete keeps Leagues and Tournaments prominent with distinct blue/green surfaces. Existing approved icons and court artwork are reused. No new artwork, credentials, permissions, statistics, billing or server changes.
+
+The dedicated `tests/playwright.native-navigation.config.ts` runs the actual-entry-point navigation fixture in Chromium and WebKit. It covers 320/390px phones with enlarged text, no-request filtering, accents/spacing, keyboard focus, no results, sheet return, session refresh, account invalidation and horizontal bounds. It requires no development server or production account.

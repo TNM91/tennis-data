@@ -258,6 +258,34 @@ button.app-tool.secondary{display:flex;align-items:center;gap:14px;width:100%;mi
 .app-hub-group{margin:22px 0 0;padding:0;border:0;background:transparent;box-shadow:none}
 .app-hub-group h2{margin:0 4px 12px;font-size:12px;font-weight:650;letter-spacing:.04em;color:#a2c9e3}
 .app-hub-tools{display:grid;gap:10px;min-width:0}
+/* Secondary destinations share one quiet list, with the main competition choices emphasized. */
+.app-tools-hub .app-hub-tools{gap:0;border:1px solid #2a4b64;border-radius:18px;background:#092137;overflow:hidden}
+.app-tools-hub .app-hub-tools button.app-tool{border:0;border-radius:0;min-height:82px;background:transparent;box-shadow:none;padding:15px 14px}
+.app-tools-hub .app-hub-tools button.app-tool:not([hidden])~button.app-tool:not([hidden]){border-top:1px solid #28465d}
+.app-tools-hub .app-tool-icon{width:38px;height:38px;flex-basis:38px;border-radius:12px;background:#143b54}
+.app-tools-hub .app-tool-icon .tiq-feature-icon{width:28px;height:28px}
+.app-tools-hub .app-tool-copy>span{line-height:1.45}
+.app-tools-hub .app-tool-arrow{margin-inline-start:auto}
+.app-tools-hub .app-tool:focus-visible{outline-offset:-4px}
+.app-tools-hub [hidden]{display:none!important}
+.app-tools-hub[data-hub="more"] .app-hub-heading{padding-bottom:16px}
+.app-tool-finder{margin:8px 2px 0;min-width:0}
+.app-tool-finder>label{font-size:12px;color:#bad8eb;margin:0 0 8px;font-weight:650}
+.app-tool-search{display:flex;align-items:center;gap:10px;border:1px solid #426e8e;border-radius:14px;padding:2px 10px;background:#071d31;min-width:0}
+.app-tool-search:focus-within{border-color:#83ceff;box-shadow:0 0 0 2px #83ceff33}
+.app-tool-search>span{display:grid;place-items:center;flex:0 0 20px;color:#9fcae5}
+.app-tool-search>span svg{width:20px;height:20px}
+.app-tool-search input{flex:1;min-width:0;width:0;min-height:48px;margin:0;padding:10px 0;border:0;border-radius:0;background:transparent;color:#f0f8ff;font-size:16px;box-shadow:none}
+.app-tool-search input:focus-visible{outline:0}
+.app-tool-search input::placeholder{color:#a6c3d8;opacity:1}
+.app-tool-search input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.app-tool-search button.secondary{flex:0 0 auto;width:auto;min-height:44px;margin:0;padding:8px 4px;border:0;background:none;color:#9dd9ff;font-size:13px}
+.app-tool-finder>[data-tool-count]{font-size:11px;color:#a6c7df;margin:9px 2px 0;line-height:1.5}
+.app-tools-empty{font-size:14px;color:#bad5e7;padding:24px 14px;border:1px dashed #426783;border-radius:16px;margin:20px 0}
+body[data-screen="compete"] .app-hub-group:first-of-type .app-hub-tools{gap:12px;border:0;border-radius:0;background:transparent;overflow:visible}
+body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool{border:1px solid #3c6c90;border-radius:20px;padding:20px 16px;box-shadow:inset 0 1px #76bbdf30}
+body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool[data-app-destination="tournaments"]{border-color:#52764a;background:linear-gradient(120deg,#173a40,#0a2638)}
+body[data-screen="compete"] .app-hub-group:first-of-type [data-app-destination="tournaments"] .app-tool-icon{color:#c6ed94;background:#254c42}
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool{min-height:120px;background:linear-gradient(120deg,#103654,#091e34);border-color:#3c6c90}
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-icon{width:52px;height:52px;flex-basis:52px;background:#164361}
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool strong{font-size:1.375rem}
@@ -267,7 +295,7 @@ body[data-screen] .app-navigation button{display:flex;flex-direction:column;alig
 .app-navigation button>span:first-child{display:grid;place-items:center;width:32px;height:30px}
 .app-navigation button>span:first-child>svg{width:26px;height:26px}
 body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"]{background:#123c5b;color:#eff9ff;box-shadow:inset 0 2px 0 #6bcfff}
-@media(min-width:650px){.lab-scoreboard,.lab-form-host,.lab-shortcuts,.app-tools-hub{max-width:600px;margin-left:auto;margin-right:auto}.lab-shortcuts{margin-top:18px}.app-hub-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:650px){.lab-scoreboard,.lab-form-host,.lab-shortcuts,.app-tools-hub{max-width:600px;margin-left:auto;margin-right:auto}.lab-shortcuts{margin-top:18px}.app-hub-tools{grid-template-columns:minmax(0,1fr)}body[data-screen="compete"] .app-hub-group:first-of-type .app-hub-tools{grid-template-columns:repeat(2,minmax(0,1fr))}body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool{flex-wrap:wrap;align-content:flex-start;min-height:180px}body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy{flex-basis:100%;order:2}}
 @media(max-width:360px){.lab-scoreboard .lab-rating-chart>div:first-child{padding-left:16px;min-height:185px}.lab-scoreboard .lab-rating-chart>div:not(:first-child){padding:12px 16px}.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale){font-size:34px}.lab-shortcuts{gap:6px}.lab-shortcuts .app-tool-copy strong{font-size:11px}.app-tool-copy strong{font-size:14px}.app-hub-heading h1{font-size:34px}}
 
 .lab-scoreboard .lab-rating-chart>div:not(:first-child) .rating-note.sr-only{margin:-1px!important}
