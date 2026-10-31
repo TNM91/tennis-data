@@ -1,4 +1,8 @@
 import {openCoachLessons} from './coach-lesson-view'
+import {createAppLinkHandoff,appLinkTitle} from './app-links'
+import {openSharedMatch} from './shared-match-view'
+import {openTeamInvite} from './team-invite-view'
+import {playerSetupHtml} from './player-setup'
 import {openCoachResources} from './coach-resources-view'
 import {openCoachMessages} from './coach-messages-view'
 import {openCoachVideo} from './coach-video-view'
@@ -88,10 +92,53 @@ let connection: ReturnType<typeof showPlayerConnection> | null = null
 let details: ReturnType<typeof createMatchDetails> | null = null
 let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 let biometricLogin:ReturnType<typeof mountBiometricSignIn>|null=null
+let sharedMatch:ReturnType<typeof openSharedMatch>|null=null
+let teamInvite:ReturnType<typeof openTeamInvite>|null=null
+let authReady=false
+const incoming=document.createElement('aside');incoming.className='app-link-handoff';incoming.hidden=true;incoming.setAttribute('aria-label','Shared link');app.before(incoming)
+const appLinks=createAppLinkHandoff((link,cold)=>{
+ incoming.hidden=!link
+ if(!link){incoming.replaceChildren();return}
+ incoming.innerHTML='<p role="status"><strong>'+appLinkTitle(link)+'</strong><span>'+(session?'Ready to open in TenAceIQ.':'Sign in to continue to your shared link.')+'</span></p><button type="button" data-link-open>'+(session?'Open link':'Sign in')+'</button><button type="button" class="secondary" data-link-dismiss aria-label="Dismiss shared link">×</button>'
+ incoming.querySelector('[data-link-dismiss]')!.addEventListener('click',()=>appLinks.clear())
+ incoming.querySelector('[data-link-open]')!.addEventListener('click',()=>{if(session)resumeAppLink();else if(guest)login()})
+ if(cold&&authReady&&session&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&!document.querySelector('dialog[open]')&&!connection&&!details?.isOpen())resumeAppLink()
+})
+function launchTeamInvite(initialLink=''){
+ if(!session||teamInvite?.isOpen())return
+ const owner=session.user.id,visit=revision
+ teamInvite=openTeamInvite(client,owner,()=>visit===revision&&owner===session?.user.id,scope=>{teamInvite=null;openTeamRoom(scope)},()=>{teamInvite=null},initialLink)
+}
+document.addEventListener('tenaceiq:open-shared-link',event=>{
+ const e=event as CustomEvent<{href?:unknown}>
+ if(typeof e.detail?.href!=='string'||!session)return
+ if(appLinks.receive(e.detail.href)){event.preventDefault();resumeAppLink()}
+})
+function resumeAppLink(){
+ if(!session||!appLinks.peek())return
+ if(connection?.isSaving()||document.querySelector('dialog[open]')){
+  incoming.querySelector('p span')!.textContent='Close your current form to open this link.';return
+ }
+ const owner=session.user.id
+ guardNavigation(()=>{
+  if(session?.user.id!==owner)return
+  const link=appLinks.take(owner);if(!link)return
+  if(link.kind==='chat'){openTeamRoom(link.scope);return}
+  showHub(link.kind==='league'||link.kind==='tournament'?'compete':'more')
+  const visit=revision,current=()=>visit===revision&&owner===session?.user.id
+  if(link.kind==='coach-invite')coachWorkspace=openCoachConnection(client,owner,current,undefined,undefined,link.href)
+  else if(link.kind==='team-invite')launchTeamInvite(link.href)
+  else if(link.kind==='league')competitions=openCompetitions(client,owner,current,'discover',()=>openTeamRoom(),undefined,undefined,link.id)
+  else if(link.kind==='tournament')tournaments=openTournaments(client,owner,current,()=>{tournaments=null},undefined,undefined,'Close',link.id)
+  else sharedMatch=openSharedMatch(client,owner,current,link.id)
+ })
+}
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if(accountSettings?.isOpen()){accountSettings.back()}
+    if(sharedMatch?.isOpen()){sharedMatch.dispose();sharedMatch=null;return}
+  if(teamInvite?.isOpen()){teamInvite.dispose();teamInvite=null;return}
+  if(accountSettings?.isOpen()){accountSettings.back()}
     else if(emailAuth){login()}
     else if(guest){guest.back()}
     else if(dataImports?.isOpen()){dataImports.back()}
@@ -115,6 +162,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
   biometricLogin?.dispose();biometricLogin=null
   const visit=++revision
   emailAuth?.dispose();emailAuth=null
@@ -188,6 +236,7 @@ function openGuest() {
 }
 
 function selectNavigation(screen:AppScreen) {
+  sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
   labRatingTrends?.dispose();labRatingTrends=null
   dataImports?.dispose();dataImports=null
   competitions?.dispose();competitions=null
@@ -324,6 +373,7 @@ const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),
 function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}nativePush.setSession(next);nativePurchases.setOwner(next?.user.id||null)}
 
 async function lab() {
+  sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
   emailAuth?.dispose();emailAuth=null
   accountSettings?.dispose();accountSettings=null
   goals?.dispose();goals=null
@@ -353,11 +403,13 @@ async function lab() {
   app.dataset.state = error ? 'unavailable' : 'ready'
   app.innerHTML = `${error
     ? '<h1 tabindex="-1">My Lab</h1><section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
-    : `${data?.linked_player_id&&data.linked_player_name?'<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">My Lab</small><h1 tabindex="-1">'+escape(data.linked_player_name)+'</h1><p>'+escape(data.linked_team_name||'Your tennis, in focus')+'</p></div><button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">'+nativeActionIcon('profile')+'</button></header>':''}<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
+    : `${data?.linked_player_id&&data.linked_player_name?'<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">My Lab</small><h1 tabindex="-1">'+escape(data.linked_player_name)+'</h1><p>'+escape(data.linked_team_name||'Your tennis, in focus')+'</p></div><button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">'+nativeActionIcon('profile')+'</button></header>':''}<div id="lab-identity">${data?.linked_player_id&&data.linked_player_name?labIdentityHtml(data):playerSetupHtml()}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
 
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
+  app.querySelector('[data-setup-team]')?.addEventListener('click',()=>launchTeamInvite())
+  app.querySelector('[data-setup-explore]')?.addEventListener('click',()=>navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')?.click())
   bindAppDestinations(app,openDestination)
   app.querySelectorAll<HTMLButtonElement>('[data-lab-goals]').forEach(button=>{button.onclick=()=>{
     if(goals?.isOpen()||training?.isOpen()||!data?.linked_player_id)return
@@ -452,16 +504,18 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
+  const resumeLink=(!session&&Boolean(next))||_event==='INITIAL_SESSION'
+  appLinks.setOwner(next?.user.id||null)
   // A late signed-out event must not reset an active public visit.
   if(!next&&!session&&(guest||emailAuth)){setTimeout(()=>setNativeSession(null),0);return}
   if(next){guest?.dispose();guest=null}
-  if (next?.user.id === session?.user.id && (accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
+  if (next?.user.id === session?.user.id && (sharedMatch?.isOpen() || teamInvite?.isOpen() || accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
   setTimeout(() => {
     if(next?.user.id!==session?.user.id)return
-    void (async()=>{if(session)await lab();else login();if(next?.user.id===session?.user.id)setNativeSession(session)})()
+    void (async()=>{if(session)await lab();else login();if(next?.user.id===session?.user.id){setNativeSession(session);authReady=true;if(session&&resumeLink)resumeAppLink()}})()
   }, 0)
 })
 client.auth.getSession().catch(() => {
@@ -469,7 +523,7 @@ client.auth.getSession().catch(() => {
   if(!session&&!guest)login()
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
   else {labRatingTrends?.dispose();labRatingTrends=null;client.auth.stopAutoRefresh()}
 })
-window.addEventListener('online', () => { if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })
+window.addEventListener('online', () => { if (session && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })

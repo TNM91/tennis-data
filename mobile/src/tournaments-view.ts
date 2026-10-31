@@ -33,11 +33,11 @@ export function tournamentDetailHtml(d:TournamentDetail,view:View,filters:Tourna
  return '<h3 tabindex="-1">'+({draw:'Draw',schedule:'Schedule',results:'Results'})[view]+'</h3>'+(view==='schedule'?'<p>Published court assignments · '+html(e.timeZone||'Time zone not published')+'. Live court calls are available at the tournament desk.</p>':'')+(total?tournamentMatchFiltersHtml(d.matches,view,filters)+'<p class="tournament-filter-status" tabindex="-1" role="status" data-tournament-filter-status>'+matches.length+' of '+total+' '+(total===1?'match':'matches')+' · selected division</p>':'')+(matches.length?matches.map(matchHtml).join(''):'<p>'+(total?'No matches fit these filters. Clear filters to see this division.':view==='results'?'No results have been recorded.':view==='schedule'?'Court assignments have not been published.':'The draw has not been published.')+'</p>')
 
 }
-export function openTournaments(client:SupabaseClient,owner:string,current:()=>boolean,onClose:()=>void,send?:ScenarioSend,trigger?:HTMLElement,backLabel='← Competitions'){
+export function openTournaments(client:SupabaseClient,owner:string,current:()=>boolean,onClose:()=>void,send?:ScenarioSend,trigger?:HTMLElement,backLabel='← Competitions',initialTournament=''){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog competitions-dialog tournaments-dialog';dialog.setAttribute('aria-label','Tournaments')
  let child:ReturnType<typeof openTournamentEntry>|null=null
- let disposed=false,version=0,busy=false,query='',selected='',division='',view:View='home',snapshot:TournamentSnapshot|null=null,notice='',filters=emptyTournamentMatchFilters(),entrant:Entrant|null=null,standingsScroll=0,standingFilters=emptyTournamentStandingFilters()
+ let disposed=false,version=0,busy=false,query='',selected=/^[a-zA-Z0-9_-]{1,80}$/.test(initialTournament)?initialTournament:'',division='',view:View='home',snapshot:TournamentSnapshot|null=null,notice='',filters=emptyTournamentMatchFilters(),entrant:Entrant|null=null,standingsScroll=0,standingFilters=emptyTournamentStandingFilters()
  const active=()=>!disposed&&current()
  const dispose=()=>{if(disposed)return;disposed=true;version++;child?.dispose();child=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();onClose();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const hidden=()=>{if(document.visibilityState==='hidden')dispose()}

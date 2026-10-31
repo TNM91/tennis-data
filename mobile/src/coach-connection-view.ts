@@ -4,7 +4,7 @@ import type {CoachSend} from './coach-workspace-data'
 import {coachConnectionRequest,CoachConnectionError} from './coach-connection-data'
 import {coachInvitationToken,type CoachConnection} from '../../lib/native-coach-connection-contract'
 
-export function openCoachConnection(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,send?:CoachSend){
+export function openCoachConnection(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,send?:CoachSend,initialLink=''){
  const dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog coach-workspace-dialog';dialog.setAttribute('aria-label','Accept coach invitation')
  let disposed=false,busy=false,leaving=false,attempted=false,uncertain=false,link='',token='',notice='',data:CoachConnection|null=null,pendingLeave:(()=>void)|null=null
  const active=()=>!disposed&&current(),focus=()=>dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})
@@ -42,6 +42,7 @@ export function openCoachConnection(client:SupabaseClient,owner:string,current:(
   dialog.querySelector('[data-connection-check]')?.addEventListener('click',()=>{void read()})
   dialog.querySelector('[data-connection-accept]')?.addEventListener('click',()=>{void accept()})
  }
- dialog.oncancel=e=>{e.preventDefault();back()};document.body.append(dialog);render();dialog.showModal();focus()
+ if(initialLink){try{coachInvitationToken(initialLink);link=initialLink}catch{/* Keep the manual review form for an invalid link. */}}
+ dialog.oncancel=e=>{e.preventDefault();back()};document.body.append(dialog);render();dialog.showModal();focus();if(link)void read()
  return {dispose,back,requestLeave,isOpen:()=>!disposed}
 }

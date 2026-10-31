@@ -145,3 +145,12 @@ test('the runtime probe waits for every required plugin before starting native a
  const probe=runtimeProbe();probe.page.Capacitor.isPluginAvailable=name=>name!=='TiqFiles'
  const report=JSON.parse(await probe.evaluate());assert.equal(report.complete,false);assert.equal(report.stage,'waiting_for_plugins');assert.equal(probe.page.__tiqNativeRuntimeSmoke,undefined);assert.deepEqual(probe.counts(),{finishCalls:0,shareCalls:0})
 })
+
+test('runtime failures preserve safe WebView diagnostics instead of hiding evaluation errors',()=>{
+ const swift=instrumentPurchaseSmoke(readFileSync(new URL('../native/TenAceIQPurchases.swift',import.meta.url),'utf8'))
+ assert.doesNotMatch(swift,/try\? await webView.callAsyncJavaScript/)
+ assert.match(swift,/webview_evaluation_failed/)
+ assert.match(swift,/"domain": failure.domain, "code": failure.code/)
+ for(const field of ['controllerPresent','webViewPresent','urlPresent','loading','attached'])assert.ok(swift.includes('"'+field+'"'))
+ assert.doesNotMatch(swift,/failure.localizedDescription|webView.url\?\.absoluteString/)
+})

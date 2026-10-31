@@ -1,3 +1,5 @@
+> Current Coach coverage: [complete native integration](native-coach-complete-integration.md). Shared invitations and first-visit setup: [native links and onboarding](native-links-onboarding.md). Historical limitations below may predate these implementations.
+
 # Native home and tennis navigation
 
 The app keeps five stable bottom destinations: **My Lab, Explore, Chats, Compete, More**. The bottom bar does not scroll. All five targets stay visible on a narrow phone. A full-screen team conversation hides the bar to keep the message composer clear; the Chats inbox retains the bar.
