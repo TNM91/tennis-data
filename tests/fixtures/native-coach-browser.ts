@@ -1,12 +1,25 @@
 import {coachSnapshot} from './native-coach'
 import {buildCoachAssignmentReview, type CoachAssignment} from '../../lib/coach-storage'
-import {readCoachCreate, readCoachReview} from '../../lib/native-coach-contract'
+import {readCoachCreate, readCoachReview,readCoachEdit} from '../../lib/native-coach-contract'
+import {readCoachConnectionIntent,type CoachConnection} from '../../lib/native-coach-connection-contract'
 import {readCoachInviteIntent, type CoachInvitation} from '../../lib/native-coach-invite-contract'
 const seed = coachSnapshot('student-one')
 const students = seed.students
 const assignments = new Map<string, CoachAssignment[]>([['student-one', seed.detail!.assignments]])
 let lose = false, race = false, denied = false, writes = 0
 const invitations = new Map<string, CoachInvitation[]>()
+let connection:CoachConnection={owner:seed.owner,name:'Alex Rivera',level:'4.0',message:'Bring your return practice check-in.',expiresAt:'2030-01-01T00:00:00Z',state:'ready',revision:'a'.repeat(64)}
+export function coachPreviewConnectionRequest(body?:BodyInit|null):Response{
+ const intent=readCoachConnectionIntent(JSON.parse(String(body)))
+ if(intent.token==='wrong-email')return Response.json({}, {status:403})
+ if(intent.action==='accept'){
+  writes++;const counter=document.querySelector('[data-coach-writes]');if(counter)counter.textContent='Coach writes: '+writes
+  if(intent.revision!==connection.revision)return Response.json({}, {status:409})
+  connection={...connection,state:'connected',revision:'b'.repeat(64)}
+  if(lose){lose=false;throw Error('Synthetic connection confirmation lost')}
+ }
+ return Response.json({ok:true,...connection})
+}
 export function coachPreviewInvitesRequest(method: string, url: URL, body?: BodyInit | null): Response {
  if (denied) return Response.json({ok: false}, {status: 403})
  let selected = url.searchParams.get('student') || ''
@@ -47,12 +60,24 @@ export function coachPreviewRequest(method: string, url: URL, body?: BodyInit | 
     assignments.set(selected, rows)
    }
   } else {
-   const draft = readCoachReview(JSON.parse(String(body))); selected = draft.student
+   const value=JSON.parse(String(body))
+   const draft='kind' in value?readCoachEdit(value):readCoachReview(value)
+   if('kind' in draft&&draft.kind==='edit-student'){
+    selected=draft.id;const s=students.find(s=>s.id===draft.id)
+    if(!s)return Response.json({}, {status:404})
+    if(race){s.updatedAt=new Date(Date.parse(s.updatedAt)+1).toISOString();race=false}
+    if(s.updatedAt!==draft.expectedUpdatedAt)return Response.json({}, {status:409})
+    Object.assign(s,{name:draft.name,level:draft.level,notes:draft.notes,status:draft.status,updatedAt:new Date(Math.max(Date.now(),Date.parse(s.updatedAt)+1)).toISOString()})
+   }else{
+   selected = draft.student
    const a = assignments.get(selected)?.find(a => a.id === draft.id)
    if (!a) return Response.json({ok: false}, {status: 404})
    if (race) {a.updatedAt = new Date().toISOString(); a.assignment.playerCheckIn = {recap: 'Newer player proof', evidence: '5/5', completedAt: a.updatedAt}; race = false}
    if (a.updatedAt !== draft.expectedUpdatedAt) return Response.json({ok: false}, {status: 409})
-   a.assignment = buildCoachAssignmentReview(a.assignment, draft); a.updatedAt = new Date().toISOString()
+   if('kind' in draft){Object.assign(a,{title:draft.title,focus:draft.focus,dueDate:draft.dueDate,status:draft.status});a.assignment={...a.assignment,detail:draft.instructions,expectedEvidence:draft.evidence}}
+   else a.assignment = buildCoachAssignmentReview(a.assignment, draft)
+   a.updatedAt = new Date(Math.max(Date.now(),Date.parse(a.updatedAt)+1)).toISOString()
+   }
   }
   if (lose) {lose = false; throw Error('Synthetic Coach confirmation lost')}
  }

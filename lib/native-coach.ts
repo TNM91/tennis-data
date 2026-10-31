@@ -1,6 +1,6 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {buildCoachStudentLinkPayload, buildCoachAssignmentPayload, buildCoachAssignmentReview, getPlayerAssignmentCheckIn, mapCoachAssignmentRow, type CoachStudentLinkRow, type CoachAssignmentRow} from './coach-storage'
-import {readNativeCoach, type NativeCoachStudent, type CoachCreate, type CoachReview} from './native-coach-contract'
+import {readNativeCoach, type NativeCoachStudent, type CoachCreate, type CoachReview, type CoachEdit} from './native-coach-contract'
 
 const studentFields = 'id,coach_user_id,player_user_id,player_name,identity_slug,level_label,status,notes,updated_at'
 const assignmentFields = 'id,coach_user_id,student_link_id,title,focus,due_date,status,assignment_json,updated_at'
@@ -60,4 +60,30 @@ export async function reviewNativeCoach(client: SupabaseClient, owner: string, d
   if (saved.error) throw Error('Coach review save failed')
   if (!saved.data) throw new NativeCoachFault(409, 'A newer check-in arrived. Refresh before saving your feedback.')
   return loadNativeCoach(client, owner, draft.student)
+}
+export async function editNativeCoach(client:SupabaseClient,owner:string,draft:CoachEdit){
+ const selected=draft.kind==='edit-student'?draft.id:draft.student
+ const s=await ownStudent(client,owner,selected)
+ const advanced=(stamp:string)=>new Date(Math.max(Date.now(),Date.parse(stamp)+1)).toISOString()
+ if(draft.kind==='edit-student'){
+  if(s.updatedAt!==draft.expectedUpdatedAt)throw new NativeCoachFault(409,'This student changed. Refresh before editing the record.')
+  const update={player_name:draft.name,level_label:draft.level,notes:draft.notes,status:draft.status,updated_at:advanced(s.updatedAt)}
+  const saved=await client.from('coach_player_links').update(update).eq('coach_user_id',owner).eq('id',draft.id).eq('updated_at',draft.expectedUpdatedAt).select('id').abortSignal(AbortSignal.timeout(12000)).maybeSingle()
+  if(saved.error)throw Error('Student edit not confirmed')
+  if(!saved.data)throw new NativeCoachFault(409,'A newer student update arrived. Refresh before saving.')
+ }else{
+  const result=await client.from('coach_assignments').select(assignmentFields).eq('coach_user_id',owner).eq('student_link_id',selected).eq('id',draft.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
+  if(result.error)throw Error('Assignment read failed')
+  if(!result.data)throw new NativeCoachFault(404,'That assignment is no longer available.')
+  const row=result.data as CoachAssignmentRow & {coach_user_id:string};if(row.coach_user_id!==owner)throw Error('Assignment ownership mismatch')
+  const a=mapCoachAssignmentRow(row)
+  if(a.updatedAt!==draft.expectedUpdatedAt||draft.status!==a.status&&(a.status!=='draft'||draft.status!=='assigned')||a.status==='draft'&&draft.status==='assigned'&&s.status==='paused')throw new NativeCoachFault(409,'This assignment changed. Refresh before saving practice details.')
+  const json={...a.assignment,detail:draft.instructions,expectedEvidence:draft.evidence}
+  if(JSON.stringify(json).length>32000)throw new NativeCoachFault(400,'Use shorter practice instructions or proof details.')
+  const update={title:draft.title,focus:draft.focus,due_date:draft.dueDate,status:draft.status,assignment_json:json,updated_at:advanced(a.updatedAt)}
+  const saved=await client.from('coach_assignments').update(update).eq('coach_user_id',owner).eq('student_link_id',selected).eq('id',draft.id).eq('updated_at',draft.expectedUpdatedAt).select('id').abortSignal(AbortSignal.timeout(12000)).maybeSingle()
+  if(saved.error)throw Error('Assignment edit not confirmed')
+  if(!saved.data)throw new NativeCoachFault(409,'A newer assignment or player check-in arrived. Refresh before saving.')
+ }
+ return loadNativeCoach(client,owner,selected)
 }

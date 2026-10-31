@@ -20,6 +20,6 @@ export async function shareCoachInvitation(invite: CoachInvitation, read: () => 
  if (!current()) throw Error('Coach account changed')
  if (!found || fresh.student.linked || fresh.student.paused || !coachInviteShareable(found) || found.updatedAt !== invite.updatedAt || found.href !== invite.href || found.email !== invite.email || found.message !== invite.message) return {snapshot: fresh, done: false}
  if (copy) await write({string: found.href})
- else await share({title: 'Connect on TenAceIQ', text: 'Open this invitation and sign in with ' + found.email + ' to connect with your coach.', url: found.href, dialogTitle: 'Share Coach invitation'})
+ else await share({title: 'Connect on TenAceIQ', text: 'Sign in with ' + found.email + '. In TenAceIQ, open More → Coach & training → Accept coach invitation and paste this link. You can also open the link to accept on the website.', url: found.href, dialogTitle: 'Share Coach invitation'})
  return {snapshot: fresh, done: true}
 }

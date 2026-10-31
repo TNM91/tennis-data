@@ -1,6 +1,7 @@
 import {openCompetitions} from './competitions-view'
 import {openTournaments} from './tournaments-view'
 import {openCoachWorkspace} from './coach-workspace-view'
+import {openCoachConnection} from './coach-connection-view'
 import {Browser} from './native-browser'
 import {navigationHtml,currentTab,appHubHtml,homeShortcutsHtml,bindAppDestinations,type AppScreen,type AppHub,type AppDestination} from './app-navigation'
 import {applePurchases} from './apple-purchases'
@@ -63,7 +64,7 @@ let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof openDataImports>|null=null
 let competitions:ReturnType<typeof openCompetitions>|null=null
 let tournaments:ReturnType<typeof openTournaments>|null=null
-let coachWorkspace:ReturnType<typeof openCoachWorkspace>|null=null
+let coachWorkspace:ReturnType<typeof openCoachWorkspace>|ReturnType<typeof openCoachConnection>|null=null
 let hub:AppHub|null=null
 let leagueOffice:ReturnType<typeof openLeagueOffice>|null=null
 let goals:ReturnType<typeof openLabGoals>|null=null
@@ -278,6 +279,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='coach'){guardNavigation(()=>showHub('coach'));return}
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  if(destination==='coach-workspace'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachWorkspace(client,owner,current,undefined,trigger);return}
+ if(destination==='coach-connection'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachConnection(client,owner,current,trigger);return}
  if(destination==='league-office'){if(!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
  if(destination==='imports'){if(!dataImports?.isOpen())dataImports=openDataImports(client,owner,current);return}
  if(destination==='account'){accountEntry.click();return}
