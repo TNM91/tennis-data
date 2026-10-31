@@ -1,10 +1,28 @@
 import {coachSnapshot} from './native-coach'
 import {buildCoachAssignmentReview, type CoachAssignment} from '../../lib/coach-storage'
 import {readCoachCreate, readCoachReview} from '../../lib/native-coach-contract'
+import {readCoachInviteIntent, type CoachInvitation} from '../../lib/native-coach-invite-contract'
 const seed = coachSnapshot('student-one')
 const students = seed.students
 const assignments = new Map<string, CoachAssignment[]>([['student-one', seed.detail!.assignments]])
 let lose = false, race = false, denied = false, writes = 0
+const invitations = new Map<string, CoachInvitation[]>()
+export function coachPreviewInvitesRequest(method: string, url: URL, body?: BodyInit | null): Response {
+ if (denied) return Response.json({ok: false}, {status: 403})
+ let selected = url.searchParams.get('student') || ''
+ if (method !== 'GET') {
+  const draft = readCoachInviteIntent(JSON.parse(String(body))); selected = draft.student
+  writes++; const counter = document.querySelector('[data-coach-writes]'); if (counter) counter.textContent = 'Coach writes: ' + writes
+  const rows = invitations.get(selected) || []
+  if (draft.action === 'create') {if (!rows.some(i => i.id === draft.id)) rows.unshift({id: draft.id, student: selected, email: draft.email, message: draft.message, status: 'pending', expiresAt: new Date(Date.now() + 7 * 86400000).toISOString(), updatedAt: new Date().toISOString(), href: 'https://www.tenaceiq.com/coach/invite/77777777-7777-4777-8777-777777777777'})}
+  else {const i = rows.find(i => i.id === draft.id); if (!i || i.updatedAt !== draft.expectedUpdatedAt || i.status !== 'pending') return Response.json({}, {status: 409}); i.status = 'revoked'; i.updatedAt = new Date(Date.parse(i.updatedAt) + 1).toISOString(); i.href = ''}
+  invitations.set(selected, rows)
+  if (lose) {lose = false; throw Error('Synthetic invitation confirmation lost')}
+ }
+ const s = students.find(s => s.id === selected)
+ if (!s) return Response.json({}, {status: 404})
+ return Response.json({ok: true, owner: seed.owner, student: {id: s.id, name: s.name, linked: s.linked, paused: s.status === 'paused', updatedAt: s.updatedAt}, invites: invitations.get(selected) || [], more: false})
+}
 export function coachPreviewControls(host: HTMLElement) {
  host.insertAdjacentHTML('beforeend', '<button type="button" data-coach-lose>Lose next Coach confirmation</button><button type="button" data-coach-race>Change Coach check-in before save</button><button type="button" data-coach-deny>Disable Coach access</button><p data-coach-writes>Coach writes: 0</p>')
  host.querySelector('[data-coach-lose]')?.addEventListener('click', () => {lose = true})

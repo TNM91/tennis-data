@@ -1,25 +1,27 @@
 import { createClient } from '@supabase/supabase-js'
-import { apiServerError } from '@/lib/api-error-response'
+import {acceptCoachInvitation, CoachInviteAcceptanceFault} from '@/lib/coach-invite-acceptance'
 import {
-  canAcceptCoachInviteEmail,
-  isCoachInviteExpired,
   mapCoachInviteRow,
   type CoachStudentInviteRow,
 } from '@/lib/coach-invites'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
+const json = (body: unknown, init?: ResponseInit) => Response.json(body, {...init, headers: {'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer'}})
 
 type InviteDetailRow = CoachStudentInviteRow & {
   coach_user_id: string
-      coach_player_links?:
+  accepted_by_user_id?: string | null
+  coach_player_links?:
     | {
+        player_user_id?: string | null
         coach_user_id?: string | null
         player_name: string | null
         identity_slug: string | null
         level_label: string | null
       }
     | {
+        player_user_id?: string | null
         coach_user_id?: string | null
         player_name: string | null
         identity_slug: string | null
@@ -30,6 +32,7 @@ type InviteDetailRow = CoachStudentInviteRow & {
 
 type InviteStudentRow = {
   coach_user_id?: string | null
+  player_user_id?: string | null
   player_name: string | null
   identity_slug: string | null
   level_label: string | null
@@ -40,37 +43,30 @@ function getInviteStudentRow(row: InviteDetailRow): InviteStudentRow | null {
   return row.coach_player_links ?? null
 }
 
-type InviteAcceptanceRow = {
-  id: string
-  student_link_id: string | null
-  invite_email: string
-  status: string
-  expires_at: string | null
-}
-
 export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
   const token = (await context.params).token?.trim() ?? ''
-  if (!token) return Response.json({ ok: false, message: 'Invite token is missing.' }, { status: 400 })
+  if (!/^[a-zA-Z0-9_.:-]{1,120}$/.test(token)) return json({ ok: false, message: 'Invite token is missing or invalid.' }, { status: 400 })
 
   const service = getServiceClient()
   if (!service) {
-    return Response.json({ ok: false, message: 'Coach invites are not configured yet.' }, { status: 503 })
+    return json({ ok: false, message: 'Coach invites are not configured yet.' }, { status: 503 })
   }
 
   const { data, error } = await service
     .from('coach_student_invites')
-    .select('id,coach_user_id,student_link_id,invite_email,invite_token,status,message,expires_at,updated_at,coach_player_links(coach_user_id,player_name,identity_slug,level_label)')
+    .select('id,coach_user_id,student_link_id,invite_email,invite_token,status,message,expires_at,updated_at,accepted_by_user_id,coach_player_links(coach_user_id,player_user_id,player_name,identity_slug,level_label)')
     .eq('invite_token', token)
     .maybeSingle()
 
-  if (error) return apiServerError('Could not load coach invite', error, 'That invite is temporarily unavailable.')
-  if (!data) return Response.json({ ok: false, message: 'Coach invite was not found.' }, { status: 404 })
+  if (error) return json({ok: false, message: 'That invitation is temporarily unavailable.'}, {status: 503})
+  if (!data) return json({ ok: false, message: 'Coach invite was not found.' }, { status: 404 })
 
   const row = data as unknown as InviteDetailRow
   const student = getInviteStudentRow(row)
-  return Response.json({
+  if (student?.coach_user_id !== undefined && student.coach_user_id !== row.coach_user_id) return json({ok: false, message: 'This student connection is unavailable.'}, {status: 409})
+  return json({
     ok: true,
-    invite: mapCoachInviteRow(row, new URL(request.url).origin),
+    invite: mapCoachInviteRow({...row, status: row.status === 'accepted' && row.student_link_id && student?.player_user_id !== row.accepted_by_user_id ? 'pending' : row.status}, new URL(request.url).origin),
     student: {
       playerName: student?.player_name ?? 'Invited player',
       identitySlug: student?.identity_slug ?? 'relentless-competitor-4-0',
@@ -81,16 +77,16 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
 
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
   const token = (await context.params).token?.trim() ?? ''
-  if (!token) return Response.json({ ok: false, message: 'Invite token is missing.' }, { status: 400 })
+  if (!/^[a-zA-Z0-9_.:-]{1,120}$/.test(token)) return json({ ok: false, message: 'Invite token is missing or invalid.' }, { status: 400 })
 
   const service = getServiceClient()
   if (!service) {
-    return Response.json({ ok: false, message: 'Coach invites are not configured yet.' }, { status: 503 })
+    return json({ ok: false, message: 'Coach invites are not configured yet.' }, { status: 503 })
   }
 
   const authToken = getBearerToken(request)
   if (!authToken) {
-    return Response.json({ ok: false, message: 'Sign in to accept this coach invite.' }, { status: 401 })
+    return json({ ok: false, message: 'Sign in to accept this coach invite.' }, { status: 401 })
   }
 
   const authClient = createClient(supabaseUrl, supabaseKey, {
@@ -100,50 +96,11 @@ export async function POST(request: Request, context: { params: Promise<{ token:
   const { data: userData, error: userError } = await authClient.auth.getUser(authToken)
   const user = userData.user
   if (userError || !user) {
-    return Response.json({ ok: false, message: 'Sign in to accept this coach invite.' }, { status: 401 })
+    return json({ ok: false, message: 'Sign in to accept this coach invite.' }, { status: 401 })
   }
 
-  const { data: inviteData, error: inviteError } = await service
-    .from('coach_student_invites')
-    .select('id,student_link_id,invite_email,status,expires_at')
-    .eq('invite_token', token)
-    .maybeSingle()
-
-  if (inviteError) return apiServerError('Could not load coach invite for acceptance', inviteError, 'That invite is temporarily unavailable.')
-  const invite = inviteData as InviteAcceptanceRow | null
-  if (!invite) return Response.json({ ok: false, message: 'Coach invite was not found.' }, { status: 404 })
-  if (invite.status !== 'pending') return Response.json({ ok: false, message: 'This coach invite is no longer pending.' }, { status: 409 })
-  if (isCoachInviteExpired(invite.expires_at)) {
-    await service.from('coach_student_invites').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('id', invite.id)
-    return Response.json({ ok: false, message: 'This coach invite has expired.' }, { status: 410 })
-  }
-
-  if (!canAcceptCoachInviteEmail(invite.invite_email, user.email)) {
-    return Response.json({ ok: false, message: 'Sign in with the email address this coach invited.' }, { status: 403 })
-  }
-
-  if (invite.student_link_id) {
-    const { error: linkError } = await service
-      .from('coach_player_links')
-      .update({ player_user_id: user.id, setup_status: 'linked', status: 'active', updated_at: new Date().toISOString() })
-      .eq('id', invite.student_link_id)
-
-    if (linkError) return apiServerError('Could not create coach student link', linkError, 'The coach connection could not be created.')
-  }
-
-  const { error: acceptError } = await service
-    .from('coach_student_invites')
-    .update({
-      status: 'accepted',
-      accepted_by_user_id: user.id,
-      accepted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', invite.id)
-
-  if (acceptError) return apiServerError('Could not mark coach invite accepted', acceptError, 'The invite could not be accepted.')
-
-  return Response.json({ ok: true })
+  try {await acceptCoachInvitation(service, token, user); return json({ok: true})}
+  catch (error) {return error instanceof CoachInviteAcceptanceFault ? json({ok: false, message: error.message}, {status: error.status}) : json({ok: false, message: 'The connection could not be confirmed. Refresh the invitation and try again.'}, {status: 503})}
 }
 
 function getServiceClient() {

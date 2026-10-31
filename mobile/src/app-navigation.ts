@@ -23,7 +23,7 @@ const tools:Record<string,Tool>={
  inbox:{destination:'training-inbox',title:'Your coach & weekly plans',detail:'Open assignments, send a check-in and review saved weeks.',icon:'inbox'},
  progress:{destination:'training-progress',title:'Training progress',detail:'Review the sessions and proof you have saved.',icon:'progress'},
  coachDesk:{destination:'coach-workspace',title:'Students & assignments',detail:'Plan practice and review your players’ check-ins.',icon:'coach'},
- coachWeb:{destination:'coach-web',title:'Advanced Coach tools',detail:'Connection invitations, calendars and session planning.',icon:'coach',web:true},
+ coachWeb:{destination:'coach-web',title:'Advanced Coach tools',detail:'Calendars, session planning and student setup.',icon:'coach',web:true},
 }
 function toolHtml(t:Tool,compact=false){return '<button type="button" class="secondary app-tool'+(compact?' is-shortcut':'')+'" data-app-destination="'+t.destination+'"><span class="app-tool-icon" aria-hidden="true">'+websiteUi.icons[t.icon]+'</span><span class="app-tool-copy"><strong>'+t.title+'</strong>'+(!compact?'<span>'+t.detail+'</span>':'')+(t.web?'<small>Opens website</small>':'')+'</span>'+(!compact?'<span class="app-tool-arrow" aria-hidden="true">'+(t.web?'↗':'›')+'</span>':'')+'</button>'}
 export function homeShortcutsHtml(){return '<nav class="lab-shortcuts" aria-label="Play and improve">'+['leagues','tournaments','coach'].map(key=>toolHtml(tools[key],true)).join('')+'</nav>'}

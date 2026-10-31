@@ -65,3 +65,30 @@ test('closes private Coach state on account change and rejects missing Coach acc
  await page.goto(origin); await expect(page.locator('.lab-scoreboard')).toBeVisible(); await page.getByRole('button', {name: 'Disable Coach access', exact: true}).click(); await page.getByRole('button', {name: 'More', exact: true}).click(); await page.locator('[data-app-destination="coach"]').click(); await page.locator('[data-app-destination="coach-workspace"]').click()
  d = page.getByRole('dialog', {name: 'Coach workspace', exact: true}); await expect(d).toContainText('Coach access is required'); await expect(d.getByRole('button', {name: 'Add a student', exact: true})).toHaveCount(0)
 })
+
+async function switchApp(page: Page) {
+ await page.evaluate(() => {Object.defineProperty(document, 'visibilityState', {configurable: true, value: 'hidden'}); document.dispatchEvent(new Event('visibilitychange'))})
+ await page.evaluate(() => {Object.defineProperty(document, 'visibilityState', {configurable: true, value: 'visible'}); document.dispatchEvent(new Event('visibilitychange'))})
+}
+for (const width of [320, 390]) test('keeps background drafts and creates and revokes a student invitation at ' + width + 'px', async ({page}) => {
+ await page.setViewportSize({width, height: 844}); const d = await open(page, true)
+ await d.getByRole('button', {name: 'Add a student', exact: true}).click(); await d.getByLabel('Player name', {exact: true}).fill('Taylor Chen'); await d.getByLabel('Private coaching notes', {exact: true}).fill('Private draft kept in memory')
+ await switchApp(page); await expect(d.getByLabel('Player name', {exact: true})).toHaveValue('Taylor Chen'); await expect(d.getByLabel('Private coaching notes', {exact: true})).toHaveValue('Private draft kept in memory')
+ await d.getByRole('button', {name: 'Review student record', exact: true}).click(); await switchApp(page); await expect(d).toContainText('Private draft kept in memory'); await d.getByRole('button', {name: 'Create student record', exact: true}).click()
+ await d.getByRole('button', {name: 'Student invitations', exact: true}).click(); const invite = page.getByRole('dialog', {name: 'Coach invitations', exact: true})
+ await invite.getByRole('button', {name: 'Create an invitation', exact: true}).click(); await invite.getByLabel('Player’s account email', {exact: true}).fill('a-long-tennis-player-name@example.test'); await invite.getByLabel('Message (optional)', {exact: true}).fill('Bring back your second-serve practice check-in.'); await switchApp(page)
+ await invite.getByRole('button', {name: 'Close Coach invitations', exact: true}).click(); await expect(invite).toContainText('Your unsaved invitation details will be discarded.'); await invite.getByRole('button', {name: 'Keep editing', exact: true}).click()
+ await expect(invite.getByLabel('Player’s account email', {exact: true})).toHaveValue('a-long-tennis-player-name@example.test')
+ await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-preview-refresh]')!.click()); await expect(invite.getByLabel('Message (optional)', {exact: true})).toHaveValue('Bring back your second-serve practice check-in.')
+ await invite.getByRole('button', {name: 'Review invitation', exact: true}).click(); await expect(invite).toContainText('seven days'); await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-coach-lose]')!.click()); await invite.getByRole('button', {name: 'Create invitation', exact: true}).click()
+ await expect(invite.getByRole('button', {name: 'Retry same change', exact: true})).toBeDisabled(); await switchApp(page); await invite.getByRole('button', {name: 'Check invitations', exact: true}).click()
+ await expect(invite.getByRole('button', {name: 'Share link', exact: true})).toBeVisible(); await expect(page.locator('[data-coach-writes]')).toHaveText('Coach writes: 2')
+ expect(await invite.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true); await fits(page)
+ await invite.getByRole('button', {name: 'Revoke link', exact: true}).click(); await invite.getByRole('button', {name: 'Revoke invitation', exact: true}).click(); await expect(invite).toContainText('Invitation revoked.'); await expect(invite.getByRole('button', {name: 'Share link', exact: true})).toHaveCount(0)
+ await invite.getByRole('button', {name: 'Close Coach invitations', exact: true}).click(); await expect(d.getByRole('button', {name: 'Student invitations', exact: true})).toBeFocused()
+})
+test('discards invitation drafts only by choice and removes both dialogs on account switch', async ({page}) => {
+ const d = await open(page); await d.getByRole('button', {name: /Alex Rivera/}).click(); await d.getByRole('button', {name: 'Student invitations', exact: true}).click()
+ const invite = page.getByRole('dialog', {name: 'Coach invitations', exact: true}); await expect(invite).toContainText('This student is connected.'); await expect(invite.getByRole('button', {name: 'Create an invitation', exact: true})).toHaveCount(0)
+ await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click()); await expect(invite).toHaveCount(0); await expect(d).toHaveCount(0)
+})
