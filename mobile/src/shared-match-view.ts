@@ -10,12 +10,12 @@ export function readLinkedMatch(value:unknown,id:string,today:string):RecentMatc
  for(const [field,max] of [['league_name',300],['score',500]] as const)if(r[field]!==null&&(typeof r[field]!=='string'||r[field].length>max))throw Error('Scorecard unavailable')
  return {id,match_date:r.match_date,match_type:String(r.match_type),league_name:r.league_name as string|null,score:r.score as string|null,winner_side:r.winner_side as string|null,match_players:[]}
 }
-export function openSharedMatch(client:SupabaseClient,owner:string,current:()=>boolean,id:string){
+export function openSharedMatch(client:SupabaseClient,owner:string,current:()=>boolean,id:string,trigger?:HTMLElement){
  const dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog shared-match-dialog';dialog.setAttribute('aria-label','Shared match scorecard')
  const host=document.createElement('div');dialog.append(host)
  let disposed=false,busy=false,details:ReturnType<typeof createMatchDetails>|null=null
  const active=()=>!disposed&&current()
- const dispose=()=>{if(disposed)return;disposed=true;details?.dispose();dialog.remove()}
+ const dispose=()=>{if(disposed)return;disposed=true;details?.dispose();dialog.close();dialog.remove();if(current()&&trigger?.isConnected)trigger.focus({preventScroll:true})}
  const read=async()=>{
   if(!active()||busy)return;busy=true
   host.innerHTML='<h2 tabindex="-1">Match scorecard</h2><p role="status">Loading the recorded court…</p><button type="button" data-shared-close>Close scorecard</button>'
