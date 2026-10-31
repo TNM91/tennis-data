@@ -3,7 +3,7 @@ import {PRODUCT_MOTTO} from '../../lib/product-story'
 import {nativeActionIcon} from './native-action-icons'
 
 export type AppScreen='lab'|'explore'|'following'|'matchup'|'teams'|'compete'|'more'|'coach'
-export type AppDestination=AppScreen|'leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-web'
+export type AppDestination=AppScreen|'leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-web'
 export type AppHub='compete'|'more'|'coach'
 export const mainTabs=[{screen:'lab',label:'My Lab',icon:'lab'},{screen:'explore',label:'Explore',icon:'explore'},{screen:'teams',label:'Chats',icon:'teams'},{screen:'compete',label:'Compete',icon:'compete'},{screen:'more',label:'More',icon:'more'}] as const
 export function currentTab(screen:AppScreen){return screen==='following'||screen==='matchup'||screen==='coach'?'more':screen}
@@ -22,12 +22,13 @@ const tools:Record<string,Tool>={
  training:{destination:'training',title:'Practice & drills',detail:'Build a focused session for your next step.',icon:'catalog'},
  inbox:{destination:'training-inbox',title:'Your coach & weekly plans',detail:'Open assignments, send a check-in and review saved weeks.',icon:'inbox'},
  progress:{destination:'training-progress',title:'Training progress',detail:'Review the sessions and proof you have saved.',icon:'progress'},
- coachWeb:{destination:'coach-web',title:'Coach workspace',detail:'Manage students and assignments on the website.',icon:'coach',web:true},
+ coachDesk:{destination:'coach-workspace',title:'Students & assignments',detail:'Plan practice and review your players’ check-ins.',icon:'coach'},
+ coachWeb:{destination:'coach-web',title:'Advanced Coach tools',detail:'Connection invitations, calendars and session planning.',icon:'coach',web:true},
 }
 function toolHtml(t:Tool,compact=false){return '<button type="button" class="secondary app-tool'+(compact?' is-shortcut':'')+'" data-app-destination="'+t.destination+'"><span class="app-tool-icon" aria-hidden="true">'+websiteUi.icons[t.icon]+'</span><span class="app-tool-copy"><strong>'+t.title+'</strong>'+(!compact?'<span>'+t.detail+'</span>':'')+(t.web?'<small>Opens website</small>':'')+'</span>'+(!compact?'<span class="app-tool-arrow" aria-hidden="true">'+(t.web?'↗':'›')+'</span>':'')+'</button>'}
 export function homeShortcutsHtml(){return '<nav class="lab-shortcuts" aria-label="Play and improve">'+['leagues','tournaments','coach'].map(key=>toolHtml(tools[key],true)).join('')+'</nav>'}
 export function appHubHtml(hub:AppHub){
- const groups=hub==='compete'?[{title:'Find your next match',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]:hub==='coach'?[{title:'Your game plan',keys:['inbox','training','progress']},{title:'For coaches',keys:['coachWeb']}]:[{title:'Your game',keys:['following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['imports','account']}]
+ const groups=hub==='compete'?[{title:'Find your next match',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]:hub==='coach'?[{title:'For coaches',keys:['coachDesk','coachWeb']},{title:'Your game plan',keys:['inbox','training','progress']}]:[{title:'Your game',keys:['following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['imports','account']}]
  const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'All your tennis'
  const note=hub==='compete'?'A season to chase. A draw to climb.':hub==='coach'?'Put a plan behind your next step.':PRODUCT_MOTTO
  return '<div class="app-tools-hub"><header class="app-hub-heading"><small class="stat-eyebrow">'+(hub==='more'?'More':'TenAceIQ')+'</small><h1 tabindex="-1">'+title+'</h1><p>'+note+'</p></header>'+groups.map(group=>'<section class="app-hub-group"><h2>'+group.title+'</h2><div class="app-hub-tools">'+group.keys.map(key=>toolHtml(tools[key])).join('')+'</div></section>').join('')+'<p role="alert" class="app-hub-notice"></p></div>'

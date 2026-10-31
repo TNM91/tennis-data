@@ -1,5 +1,6 @@
 import {openCompetitions} from './competitions-view'
 import {openTournaments} from './tournaments-view'
+import {openCoachWorkspace} from './coach-workspace-view'
 import {Browser} from './native-browser'
 import {navigationHtml,currentTab,appHubHtml,homeShortcutsHtml,bindAppDestinations,type AppScreen,type AppHub,type AppDestination} from './app-navigation'
 import {applePurchases} from './apple-purchases'
@@ -61,6 +62,7 @@ let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof openDataImports>|null=null
 let competitions:ReturnType<typeof openCompetitions>|null=null
 let tournaments:ReturnType<typeof openTournaments>|null=null
+let coachWorkspace:ReturnType<typeof openCoachWorkspace>|null=null
 let hub:AppHub|null=null
 let leagueOffice:ReturnType<typeof openLeagueOffice>|null=null
 let goals:ReturnType<typeof openLabGoals>|null=null
@@ -88,6 +90,7 @@ if (Capacitor.getPlatform() === 'android') {
     else if(dataImports?.isOpen()){dataImports.back()}
     else if(competitions?.isOpen()){competitions.back()}
     else if(tournaments?.isOpen()){tournaments.back()}
+    else if(coachWorkspace?.isOpen()){coachWorkspace.back()}
     else if(leagueOffice?.isOpen()){leagueOffice.back()}
     else if(goals?.isOpen()){goals.back()}
     else if(training?.isOpen()){training.back()}
@@ -113,7 +116,7 @@ function login(message = '') {
   labRatingTrends?.dispose();labRatingTrends=null
   dataImports?.dispose();dataImports=null
   competitions?.dispose();competitions=null
-  tournaments?.dispose();tournaments=null;hub=null
+  tournaments?.dispose();tournaments=null;coachWorkspace?.dispose();coachWorkspace=null;hub=null
   leagueOffice?.dispose();leagueOffice=null
   goals?.dispose();goals=null
   training?.dispose();training=null
@@ -175,7 +178,7 @@ function selectNavigation(screen:AppScreen) {
   labRatingTrends?.dispose();labRatingTrends=null
   dataImports?.dispose();dataImports=null
   competitions?.dispose();competitions=null
-  tournaments?.dispose();tournaments=null
+  tournaments?.dispose();tournaments=null;coachWorkspace?.dispose();coachWorkspace=null
   leagueOffice?.dispose();leagueOffice=null
   hub=screen==='compete'||screen==='more'||screen==='coach'?screen:null
   navigation.hidden = false
@@ -238,6 +241,7 @@ function openMatchup(){
 }
 
 function openTeamRoom(initialScope?:TeamChatDestination){
+  if(coachWorkspace?.isOpen()){coachWorkspace.requestLeave(()=>{coachWorkspace=null;openTeamRoom(initialScope)});return}
   if(comparison?.isNotebookOpen()){comparison.back();return}
   if(goals?.isOpen()){goals.back();return}
   if(!session || connection?.isSaving())return
@@ -265,6 +269,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='matchup'){openMatchup();return}
  if(destination==='coach'){guardNavigation(()=>showHub('coach'));return}
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
+ if(destination==='coach-workspace'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachWorkspace(client,owner,current,undefined,trigger);return}
  if(destination==='league-office'){if(!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
  if(destination==='imports'){if(!dataImports?.isOpen())dataImports=openDataImports(client,owner,current);return}
  if(destination==='account'){accountEntry.click();return}
@@ -424,7 +429,7 @@ client.auth.onAuthStateChange((_event, next) => {
   // A late signed-out event must not reset an active public visit.
   if(!next&&!session&&(guest||emailAuth)){setTimeout(()=>setNativeSession(null),0);return}
   if(next){guest?.dispose();guest=null}
-  if (next?.user.id === session?.user.id && (accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
+  if (next?.user.id === session?.user.id && (accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -438,7 +443,7 @@ client.auth.getSession().catch(() => {
   if(!session&&!guest)login()
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
   else {labRatingTrends?.dispose();labRatingTrends=null;client.auth.stopAutoRefresh()}
 })
-window.addEventListener('online', () => { if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })
+window.addEventListener('online', () => { if (session && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })

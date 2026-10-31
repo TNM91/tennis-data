@@ -1,0 +1,67 @@
+import {test, expect, type Page} from '@playwright/test'
+import {build} from 'esbuild'
+import {readFile} from 'node:fs/promises'
+import path from 'node:path'
+const origin = 'http://127.0.0.1:4285'
+let javascript = '', stylesheet = '', shell = ''
+test.describe.configure({retries: 0, timeout: 30000})
+test.beforeAll(async () => {
+ const bundle = await build({entryPoints: ['tests/fixtures/mobile-navigation.ts'], bundle: true, platform: 'browser', format: 'esm', outfile: 'fixture.js', write: false, jsx: 'automatic', loader: {'.module.css': 'local-css'}, plugins: [{name: 'synthetic-coach-account', setup(b) {b.onResolve({filter: /^@supabase\/supabase-js$/}, () => ({path: path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
+ javascript = bundle.outputFiles.find(f => f.path.endsWith('.js'))!.text
+ stylesheet = (await Promise.all(['style.css', 'website-ui.css', 'app.css', 'website-parity.css', 'app-atmosphere.css'].map(f => readFile('mobile/bundled/' + f, 'utf8')))).join('\n')
+ shell = await readFile('mobile/bundled/index.html', 'utf8')
+})
+test.beforeEach(async ({page}) => {
+ await page.route('**/*', async route => {
+  const url = new URL(route.request().url()); if (url.origin !== origin) return route.abort()
+  if (url.pathname === '/app.js') return route.fulfill({contentType: 'text/javascript', body: javascript})
+  if (url.pathname.endsWith('.css')) return route.fulfill({contentType: 'text/css', body: url.pathname === '/style.css' ? stylesheet + (url.searchParams.has('large') ? '\n:root{font-size:22px!important}' : '') : ''})
+  if (url.pathname.startsWith('/brand/') || url.pathname === '/logo.png') return route.fulfill({contentType: 'image/png', body: await readFile('mobile/bundled' + url.pathname)})
+  return route.fulfill({contentType: 'text/html', body: url.searchParams.has('large') ? shell.replace('./style.css', './style.css?large=1') : shell})
+ })
+})
+async function open(page: Page, large = false) {
+ await page.goto(origin + (large ? '/?large=1' : '')); await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
+ await page.getByRole('button', {name: 'More', exact: true}).click(); await page.locator('[data-app-destination="coach"]').click()
+ await page.locator('[data-app-destination="coach-workspace"]').click()
+ const d = page.getByRole('dialog', {name: 'Coach workspace', exact: true}); await expect(d).toContainText('Alex Rivera'); return d
+}
+async function fits(page: Page) {
+ expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+ expect(await page.getByRole('dialog', {name: 'Coach workspace', exact: true}).evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+}
+for (const width of [320, 390]) test('native Coach roster, assignments and player feedback at ' + width + 'px', async ({page}, info) => {
+ const errors: string[] = []; page.on('pageerror', e => errors.push(e.message)); await page.setViewportSize({width, height: 844}); const d = await open(page)
+ await fits(page); await d.getByRole('button', {name: /Alex Rivera/}).click(); await expect(d.getByRole('heading', {name: 'Alex Rivera', exact: true})).toBeFocused()
+ await d.getByRole('button', {name: /Deep return under pressure/}).click(); await expect(d).toContainText('Four of five returns stayed deep.')
+ await d.getByRole('button', {name: 'Review player check-in', exact: true}).click(); await d.getByLabel('Your feedback', {exact: true}).fill('Good depth. Split step a little earlier.'); await d.getByLabel('Next tennis focus', {exact: true}).fill('Return height')
+ await d.getByRole('button', {name: 'Review feedback', exact: true}).click(); await fits(page); await d.getByRole('button', {name: 'Save feedback', exact: true}).click(); await expect(d).toContainText('Saved to your Coach workspace.')
+ await d.getByRole('button', {name: /Deep return under pressure/}).click(); await expect(d).toContainText('Good depth. Split step a little earlier.'); await d.getByRole('button', {name: 'Back to student', exact: true}).click()
+ await d.getByRole('button', {name: 'Assign practice', exact: true}).click(); await d.getByLabel('Assignment title', {exact: true}).fill('Serve plus one'); await d.getByLabel('What to practise', {exact: true}).fill('Hit five wide serves and a deep forehand.'); await d.getByLabel('Due date (optional)', {exact: true}).fill('2026-11-07'); await fits(page)
+ await d.getByRole('button', {name: 'Review assignment', exact: true}).click(); await expect(d).toContainText('connected student'); await d.getByRole('button', {name: 'Assign practice', exact: true}).click(); await expect(d.getByRole('button', {name: /Serve plus one/})).toBeVisible()
+ await d.getByRole('button', {name: 'Close Coach workspace', exact: true}).click(); await expect(page.locator('[data-app-destination="coach-workspace"]')).toBeFocused()
+ const enlarged = await open(page, true); await fits(page); await enlarged.getByRole('button', {name: 'Add a student', exact: true}).click(); await enlarged.getByLabel('Player name', {exact: true}).fill('Taylor Chen'); await enlarged.getByLabel('Tennis level', {exact: true}).fill('3.5'); await enlarged.getByLabel('Private coaching notes', {exact: true}).fill('Build a reliable second serve.'); await fits(page)
+ await enlarged.getByRole('button', {name: 'Review student record', exact: true}).click(); await expect(enlarged).toContainText('No invitation is sent'); await enlarged.getByRole('button', {name: 'Create student record', exact: true}).click(); await expect(enlarged.getByRole('heading', {name: 'Taylor Chen', exact: true})).toBeVisible(); await expect(enlarged).toContainText('Roster only'); await fits(page)
+ await page.screenshot({path: info.outputPath('coach-student-large-text.png')}); expect(errors).toEqual([])
+})
+test('checks a lost confirmation without duplicate mutation, preserving draft on token refresh', async ({page}) => {
+ await page.setViewportSize({width: 320, height: 844}); const d = await open(page)
+ await d.getByRole('button', {name: 'Add a student', exact: true}).click(); await d.getByLabel('Player name', {exact: true}).fill('Jordan Rally')
+ await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-preview-refresh]')!.click()); await expect(d.getByLabel('Player name', {exact: true})).toHaveValue('Jordan Rally')
+ await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-coach-lose]')!.click())
+ await d.getByRole('button', {name: 'Review student record', exact: true}).click(); await d.getByRole('button', {name: 'Create student record', exact: true}).click()
+ await expect(d.getByRole('button', {name: 'Retry same update', exact: true})).toBeDisabled(); await d.getByRole('button', {name: 'Check saved work', exact: true}).click(); await expect(d.getByRole('heading', {name: 'Jordan Rally', exact: true})).toBeVisible()
+ await expect(page.locator('[data-coach-writes]')).toHaveText('Coach writes: 1')
+})
+test('rejects newer player proof and leaves editing only after confirmation', async ({page}) => {
+ const d = await open(page); await d.getByRole('button', {name: /Alex Rivera/}).click(); await d.getByRole('button', {name: /Deep return under pressure/}).click(); await d.getByRole('button', {name: 'Review player check-in', exact: true}).click(); await d.getByLabel('Your feedback', {exact: true}).fill('Keep the first version')
+ await d.getByRole('button', {name: 'Close Coach workspace', exact: true}).click(); await expect(d).toContainText('Your unsaved edits will be discarded.'); await d.getByRole('button', {name: 'Keep editing', exact: true}).click(); await expect(d.getByLabel('Your feedback', {exact: true})).toHaveValue('Keep the first version')
+ await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-coach-race]')!.click()); await d.getByRole('button', {name: 'Review feedback', exact: true}).click(); await d.getByRole('button', {name: 'Save feedback', exact: true}).click(); await expect(d).toContainText('This record changed.')
+ await d.getByRole('button', {name: 'Check saved work', exact: true}).click(); await expect(d.getByRole('button', {name: 'Retry same update', exact: true})).toBeDisabled(); await d.getByRole('button', {name: 'Back', exact: true}).click(); await d.getByRole('button', {name: 'Discard edits', exact: true}).click(); await d.getByRole('button', {name: /Deep return under pressure/}).click(); await expect(d).toContainText('Newer player proof'); await expect(d).not.toContainText('Keep the first version')
+})
+test('closes private Coach state on account change and rejects missing Coach access', async ({page}) => {
+ let d = await open(page); await d.getByRole('button', {name: 'Add a student', exact: true}).click(); await d.getByLabel('Player name', {exact: true}).fill('Private draft')
+ await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click()); await expect(d).toHaveCount(0); await expect(page.locator('.lab-scoreboard')).toBeVisible(); await expect(page.locator('body')).not.toContainText('Private draft')
+ await page.goto(origin); await expect(page.locator('.lab-scoreboard')).toBeVisible(); await page.getByRole('button', {name: 'Disable Coach access', exact: true}).click(); await page.getByRole('button', {name: 'More', exact: true}).click(); await page.locator('[data-app-destination="coach"]').click(); await page.locator('[data-app-destination="coach-workspace"]').click()
+ d = page.getByRole('dialog', {name: 'Coach workspace', exact: true}); await expect(d).toContainText('Coach access is required'); await expect(d.getByRole('button', {name: 'Add a student', exact: true})).toHaveCount(0)
+})
