@@ -133,9 +133,18 @@ export function instrumentPurchaseSmoke(source){
                     try? nativeData.write(to: reportURL.appendingPathExtension("native"), options: .atomic)
                 }
                 var lastReport: Data?
+                var webViewState: [String: Any] = [:]
                 for _ in 0..<120 {
-                    if let webView = self?.webView, webView.url != nil, !webView.isLoading, self?.viewIfLoaded?.window != nil,
-                       let value = try? await webView.callAsyncJavaScript("""
+                    // Preserve readiness and evaluation failures without recording a URL,
+                    // invitation token, account, or native error description.
+                    webViewState = ["ready": false, "stage": "waiting_for_webview_report",
+                                    "controllerPresent": self != nil, "webViewPresent": self?.webView != nil,
+                                    "urlPresent": self?.webView?.url != nil,
+                                    "loading": self?.webView?.isLoading ?? false,
+                                    "attached": self?.viewIfLoaded?.window != nil]
+                    if let webView = self?.webView, webView.url != nil, !webView.isLoading, self?.viewIfLoaded?.window != nil {
+                      do {
+                       let value = try await webView.callAsyncJavaScript("""
                            const cap = window.Capacitor;
                            // Hold the asynchronous job on the page while a native sheet is presented.
                            // Poll its report instead of making WebKit retain an evaluation's awaited result.
@@ -225,8 +234,8 @@ export function instrumentPurchaseSmoke(source){
                            })();
                            probe.promise.then(report=>{probe.report=report}).catch(error=>{probe.report=JSON.stringify({complete:true,ready:false,stage:probe.stage,error:String(error?.code||error?.message||'probe_failed').slice(0,160)})});
                            return JSON.stringify({complete:false,ready:false,stage:probe.stage});
-                           """, arguments: ["purchaseChannel": purchaseChannel, "restorePolicy": restorePolicy, "appLockPolicy": appLockPolicy], in: nil, contentWorld: .page),
-                       let json = value as? String,
+                           """, arguments: ["purchaseChannel": purchaseChannel, "restorePolicy": restorePolicy, "appLockPolicy": appLockPolicy], in: nil, contentWorld: .page)
+                       if let json = value as? String,
                        let data = json.data(using: .utf8),
                        let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
                         lastReport = data
@@ -234,10 +243,16 @@ export function instrumentPurchaseSmoke(source){
                             try? data.write(to: reportURL, options: .atomic)
                             return
                         }
+                       }
+                      } catch {
+                        let failure = error as NSError
+                        lastReport = try? JSONSerialization.data(withJSONObject: ["ready": false, "stage": "webview_evaluation_failed", "domain": failure.domain, "code": failure.code])
+                      }
                     }
                     try? await Task.sleep(nanoseconds: 250_000_000)
                 }
-                try? (lastReport ?? Data(#"{"ready":false,"stage":"waiting_for_webview_report"}"#.utf8)).write(to: reportURL, options: .atomic)
+                let readinessReport = try? JSONSerialization.data(withJSONObject: webViewState)
+                try? (lastReport ?? readinessReport ?? Data(#"{"ready":false,"stage":"waiting_for_webview_report"}"#.utf8)).write(to: reportURL, options: .atomic)
             }
         }
         #endif`)
