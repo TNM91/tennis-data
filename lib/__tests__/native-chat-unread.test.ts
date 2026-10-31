@@ -47,7 +47,7 @@ describe('owner-scoped chat badges',()=>{
  })
  it('returns only bounded room destinations and counts through the authenticated private endpoint',async()=>{
   vi.mocked(verifiedAccount).mockResolvedValue({user:{id:owner}} as never);vi.mocked(accountClient).mockReturnValue(service());vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','synthetic-service-key')
-  try{const response=await GET(new Request('https://www.tenaceiq.com/api/mobile/chats/unread'));expect(response.status).toBe(200);expect(await response.json()).toEqual({ok:true,...summary});expect(response.headers.get('cache-control')).toBe('private, no-store');expect(response.headers.get('referrer-policy')).toBe('no-referrer')}finally{vi.unstubAllEnvs()}
+  try{const response=await GET(new Request('https://www.tenaceiq.com/api/mobile/chats/unread'));expect(response.status).toBe(200);expect(await response.json()).toEqual({ok:true,...summary,coach:{available:false,total:0,connections:[]}});expect(response.headers.get('cache-control')).toBe('private, no-store');expect(response.headers.get('referrer-policy')).toBe('no-referrer')}finally{vi.unstubAllEnvs()}
  })
  it('pins bearer ownership and rejects redirects, failed responses and account switches in flight',async()=>{
   let currentOwner=owner

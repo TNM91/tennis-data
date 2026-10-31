@@ -23,3 +23,12 @@ export async function loadCoachChatConnections(client:SupabaseClient,owner:strin
  if(response.status!==200)throw Error('Coach conversations are unavailable. Try refreshing.')
  return readCoachChatConnections(response.data,owner)
 }
+
+/** Advances only to an existing message selected by this view; no device timestamp is submitted. */
+export async function markCoachChatRead(client:SupabaseClient,owner:string,current:()=>boolean,student:string,message:string,send:CoachSend=(_method,options)=>CapacitorHttp.patch(options)){
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(message))throw Error('Invalid read position')
+ const session=await scenarioOwner(client,owner,current),response=await send('PATCH',{url:'https://www.tenaceiq.com/api/mobile/coach/messages?'+new URLSearchParams({student:coachId(student)}),headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json','Cache-Control':'no-store'},disableRedirects:true,webFetchExtra:{cache:'no-store'},responseType:'json',connectTimeout:12000,readTimeout:15000,data:{message}})
+ await scenarioOwner(client,owner,current)
+ const body=coachRecord(response.data)
+ if(response.status!==200||body.ok!==true||body.owner!==owner||body.student!==student||body.through!==message)throw Error('Read position unavailable')
+}
