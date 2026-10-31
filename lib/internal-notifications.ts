@@ -6,38 +6,8 @@ import {
   notificationTypeEnabled,
 } from '@/lib/internal-notification-preferences'
 
-export type InternalNotificationType = 'message' | 'schedule' | 'support' | 'system'
-
-export type InternalNotification = {
-  id: string
-  recipientProfileId: string
-  actorUserId: string
-  notificationType: InternalNotificationType
-  title: string
-  body: string
-  href: string
-  conversationId: string
-  scheduleEventId: string
-  readAt: string
-  createdAt: string
-}
-
-type NotificationRow = {
-  id?: string | null
-  recipient_profile_id?: string | null
-  actor_user_id?: string | null
-  notification_type?: string | null
-  title?: string | null
-  body?: string | null
-  href?: string | null
-  conversation_id?: string | null
-  schedule_event_id?: string | null
-  read_at?: string | null
-  email_fallback_requested_at?: string | null
-  email_fallback_sent_at?: string | null
-  email_fallback_error?: string | null
-  created_at?: string | null
-}
+import {toInternalNotification as toNotification,type NotificationRow,type InternalNotification,type InternalNotificationType} from '@/lib/internal-notification-record'
+export type {InternalNotification,InternalNotificationType} from '@/lib/internal-notification-record'
 
 type ParticipantRow = {
   profile_id?: string | null
@@ -45,31 +15,6 @@ type ParticipantRow = {
 
 function cleanText(value: string | null | undefined) {
   return (value || '').trim()
-}
-
-function normalizeNotificationType(value: string | null | undefined): InternalNotificationType {
-  if (value === 'schedule' || value === 'support' || value === 'system') return value
-  return 'message'
-}
-
-function toNotification(row: NotificationRow): InternalNotification | null {
-  const id = cleanText(row.id)
-  const recipientProfileId = cleanText(row.recipient_profile_id)
-  if (!id || !recipientProfileId) return null
-
-  return {
-    id,
-    recipientProfileId,
-    actorUserId: cleanText(row.actor_user_id),
-    notificationType: normalizeNotificationType(row.notification_type),
-    title: cleanText(row.title),
-    body: cleanText(row.body),
-    href: cleanText(row.href),
-    conversationId: cleanText(row.conversation_id),
-    scheduleEventId: cleanText(row.schedule_event_id),
-    readAt: cleanText(row.read_at),
-    createdAt: cleanText(row.created_at),
-  }
 }
 
 export async function listInternalNotifications(userId: string, options: { unreadOnly?: boolean; limit?: number } = {}) {
