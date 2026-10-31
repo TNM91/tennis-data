@@ -7,7 +7,8 @@ import {parseChatUnread,loadChatUnread,createChatUnreadCounter} from '../../mobi
 import {verifiedAccount,accountClient} from '../mobile-account-auth'
 vi.mock('../mobile-account-auth',()=>({verifiedAccount:vi.fn(),accountClient:vi.fn()}))
 const owner='11111111-1111-4111-8111-111111111111',scope={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'}
-const summary={owner,total:7,teams:[{...scope,unread:7}]}
+const room={id:'33333333-3333-4333-8333-333333333333',name:'Practice',unread:5}
+const summary={owner,total:7,teams:[{...scope,unread:7,generalUnread:2,rooms:[room]}]}
 function service(rows:unknown[]= [{team_name:scope.teamName,league_name:scope.leagueName,flight:scope.flight}]){
  const q:Record<string,unknown>={then:(resolve:(value:unknown)=>unknown)=>Promise.resolve({data:rows,error:null}).then(resolve)}
  for(const method of ['select','eq','is','limit'])q[method]=vi.fn(()=>q)
@@ -20,6 +21,7 @@ describe('owner-scoped chat badges',()=>{
   expect(await nativeChatUnread(s,owner)).toEqual(summary)
   expect(s.q.eq).toHaveBeenCalledWith('profile_user_id',owner);expect(s.q.eq).toHaveBeenCalledWith('status','accepted');expect(s.q.is).toHaveBeenCalledWith('archived_at',null)
   expect(s.rpc).toHaveBeenCalledExactlyOnceWith('native_team_chat_rooms',{p_owner:owner,p_team:scope.teamName,p_league:scope.leagueName,p_flight:scope.flight,p_action:'list',p_id:null,p_name:null})
+  expect(summary.teams[0].rooms[0]).not.toHaveProperty('muted')
  })
  it('skips inaccessible/uninitialized rooms and fails closed for aggregate outages or unbounded lists',async()=>{
   const s=service();s.rpc.mockResolvedValue({data:{ok:false,status:403}});expect((await nativeChatUnread(s,owner)).total).toBe(0)
@@ -36,6 +38,16 @@ describe('owner-scoped chat badges',()=>{
   expect(parseChatUnread({ok:true,...summary},owner)).toEqual(summary)
   for(const value of [{...summary,owner:'other'},{...summary,total:8},{...summary,teams:[...summary.teams,...summary.teams]},{...summary,total:-1},{...summary,total:101}])expect(()=>parseChatUnread({ok:true,...value},owner)).toThrow()
   expect(parseChatUnread({ok:true,owner,total:100,teams:[{...scope,unread:100}]},owner).total).toBe(100)
+ })
+ it('validates room destinations and sums while retaining compatibility with the previous count-only response',()=>{
+  const team=summary.teams[0],parse=(change:unknown)=>parseChatUnread({ok:true,owner,total:7,teams:[change]},owner)
+  expect(parse({...scope,unread:7})).toEqual({owner,total:7,teams:[{...scope,unread:7}]})
+  for(const change of [{...team,generalUnread:3},{...team,generalUnread:undefined},{...team,rooms:undefined},{...team,rooms:[room,room]},{...team,rooms:[{...room,id:'https://example.test'}]},{...team,rooms:[{...room,name:'General'}]},{...team,rooms:[{...room,name:'x'.repeat(49)}]},{...team,rooms:[{...room,unread:-1}]}])expect(()=>parse(change)).toThrow()
+  expect(parseChatUnread({ok:true,owner,total:100,teams:[{...team,unread:100,generalUnread:100,rooms:[{...room,unread:100}]}]},owner).total).toBe(100)
+ })
+ it('returns only bounded room destinations and counts through the authenticated private endpoint',async()=>{
+  vi.mocked(verifiedAccount).mockResolvedValue({user:{id:owner}} as never);vi.mocked(accountClient).mockReturnValue(service());vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','synthetic-service-key')
+  try{const response=await GET(new Request('https://www.tenaceiq.com/api/mobile/chats/unread'));expect(response.status).toBe(200);expect(await response.json()).toEqual({ok:true,...summary});expect(response.headers.get('cache-control')).toBe('private, no-store');expect(response.headers.get('referrer-policy')).toBe('no-referrer')}finally{vi.unstubAllEnvs()}
  })
  it('pins bearer ownership and rejects redirects, failed responses and account switches in flight',async()=>{
   let currentOwner=owner

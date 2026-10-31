@@ -551,4 +551,19 @@ dialog.native-calendar-screen[open]{display:flex;flex-direction:column;gap:12px}
 .app-navigation .chat-unread-badge { position:absolute; inset-block-start:-5px; inset-inline-end:-10px; }
 .chat-unread-badge[hidden] { display:none!important; }
 .chats-team-card .chat-team-unread { position:static; flex:0 0 auto; }
+.chats-inbox-tools { display:grid; gap:12px; margin-block:12px 4px; min-inline-size:0; }
+.chats-inbox-tools[hidden],.chats-team-list>[hidden],.chats-unread-rooms[hidden] { display:none!important; }
+.chats-inbox-tools label { display:grid; gap:6px; min-inline-size:0; font-size:14px; color:#a5c2d8; }
+.chats-inbox-tools input { inline-size:100%; min-inline-size:0; margin:0; box-sizing:border-box; }
+.chats-inbox-filters { display:flex; gap:8px; flex-wrap:wrap; }
+.chats-inbox-filters button.secondary { inline-size:auto; min-block-size:44px; margin:0; padding:8px 18px; border-radius:24px; font-size:14px; }
+.chats-inbox-filters button[aria-pressed=true] { border-color:#73c5ff; background:#133b56; color:#e8f7ff; }
+.chats-inbox-status { color:#a5c2d8; font-size:13px; margin-block:10px; overflow-wrap:anywhere; }
+.chats-team-list>li { min-inline-size:0; }
+.chats-unread-rooms { display:grid; list-style:none; gap:2px; padding:0 0 10px 56px; margin:0; min-inline-size:0; }
+.chats-unread-rooms>li { min-inline-size:0; }
+.chats-unread-room.secondary { display:flex; justify-content:space-between; align-items:center; gap:10px; inline-size:100%; min-inline-size:0; min-block-size:44px; margin:0; padding:8px 10px; border:0; border-radius:10px; background:#0a273c; text-align:start; font-size:14px; }
+.chats-unread-room>[data-room-label] { min-inline-size:0; overflow-wrap:anywhere; }
+.chats-unread-room .chat-unread-badge { flex:0 0 auto; }
+.chats-unread-room:focus-visible,.chats-inbox-filters button:focus-visible { outline:2px solid #73c5ff; outline-offset:2px; }
 .chat-notification-settings { margin-block:20px; }

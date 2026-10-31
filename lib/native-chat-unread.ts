@@ -12,13 +12,15 @@ export async function nativeChatUnread(service:SupabaseClient,owner:string){
   if(typeof row.team_name!=='string'||!row.team_name.trim()||row.team_name.length>160||typeof row.league_name!=='string'||!row.league_name.trim()||row.league_name.length>160||row.flight!=null&&typeof row.flight!=='string'||String(row.flight||'').length>120)throw Error('Chat counts unavailable')
   const scope={teamName:row.team_name,leagueName:row.league_name,flight:row.flight||''};scopes.set(JSON.stringify(scope),scope)
  }
- const teams=[...scopes.values()].map(scope=>({...scope,unread:0}));let index=0,unavailable=false
+ const teams=[...scopes.values()].map(scope=>({...scope,unread:0,generalUnread:0,rooms:[] as {id:string;name:string;unread:number}[]}));let index=0,unavailable=false
  await Promise.all(Array.from({length:Math.min(4,teams.length)},async()=>{
   while(index<teams.length&&!unavailable){
    const team=teams[index++],result=await namedTeamChatRooms(service,owner,team,'list')
    // A team without an initialized room, or with revoked membership, has no accessible unread posts.
    if(!result.ok){if(result.status===403)continue;unavailable=true;throw Error('Chat counts unavailable')}
    if(!('rooms' in result)){unavailable=true;throw Error('Chat counts unavailable')}
+   team.generalUnread=result.generalUnread
+   team.rooms=result.rooms.map(({id,name,unread})=>({id,name,unread}))
    team.unread=Math.min(100,result.generalUnread+result.rooms.reduce((sum,room)=>sum+room.unread,0))
   }
  }))
