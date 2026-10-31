@@ -4,9 +4,12 @@ import {tournamentSnapshot} from './native-tournaments'
 import {DEFAULT_ENTITLEMENTS} from '../../lib/access-model-core'
 import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest} from './native-coach-browser'
 const originalFetch=window.fetch.bind(window)
+const fixtureState={requests:0}
+Object.assign(window,{navigationFixture:fixtureState})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
+ fixtureState.requests++
  if(url.pathname==='/api/mobile/coach')return coachPreviewRequest(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/invites')return coachPreviewInvitesRequest(init?.method||'GET',url,init?.body)
  let reply:unknown={ok:false,error:'Synthetic preview does not provide this service'}
