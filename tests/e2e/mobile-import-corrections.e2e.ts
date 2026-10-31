@@ -17,7 +17,7 @@ test.beforeEach(async({page})=>{
   const url=new URL(route.request().url());if(url.origin!==origin||!url.pathname.startsWith(prefix))return route.abort()
   if(url.pathname.endsWith('app.js'))return route.fulfill({contentType:'text/javascript',body:javascript})
   if(url.pathname.endsWith('style.css'))return route.fulfill({contentType:'text/css',body:stylesheet})
-  const assets:Record<string,string>={'logo.png':'mobile/bundled/logo.png','brand/approved/TiQ_White_Transparent_Refined.png':'public/brand/approved/TiQ_White_Transparent_Refined.png','brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png':'public/brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png'}
+  const assets:Record<string,string>={'logo.png':'mobile/bundled/logo.png','brand/approved/TiQ_White_Transparent_Refined.png':'public/brand/approved/TiQ_White_Transparent_Refined.png','brand/courts/tiq-native-ace-deuce-refined-20261031-v3.png':'public/brand/courts/tiq-native-ace-deuce-refined-20261031-v3.png'}
   const asset=assets[url.pathname.slice(prefix.length)];if(asset)return route.fulfill({contentType:'image/png',body:await readFile(asset)})
   if(url.pathname!==prefix&&url.pathname!==prefix+'index.html')return route.fulfill({status:404,body:''})
   return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="./style.css"></head><body data-screen="lab"><header class="app-header"><img src="./logo.png" alt="TenAceIQ"></header><main id="app"></main><script type="module" src="./app.js"></script></body></html>'})

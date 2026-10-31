@@ -3,7 +3,7 @@ import {App} from '@capacitor/app'
 import type {SupabaseClient,RealtimeChannel} from '@supabase/supabase-js'
 export type TeamLiveStatus='connecting'|'live'|'paused'|'offline'
 /** One foreground, content-free subscription. No idle API polling or presence traffic. */
-export function watchTeamChat(client:SupabaseClient,userId:string,roomId:string,isCurrent:()=>boolean,onRefresh:()=>Promise<void>,onStatus:(status:TeamLiveStatus)=>void,environment:{document:Pick<Document,'visibilityState'|'addEventListener'|'removeEventListener'>;window:Pick<Window,'addEventListener'|'removeEventListener'>;nativeApp?:Pick<typeof App,'addListener'|'getState'>}={document,window,...(Capacitor.isNativePlatform()?{nativeApp:App}:{})}) {
+export function watchTeamChat(client:SupabaseClient,userId:string,roomId:string|null,isCurrent:()=>boolean,onRefresh:()=>Promise<void>,onStatus:(status:TeamLiveStatus)=>void,environment:{document:Pick<Document,'visibilityState'|'addEventListener'|'removeEventListener'>;window:Pick<Window,'addEventListener'|'removeEventListener'>;nativeApp?:Pick<typeof App,'addListener'|'getState'>}={document,window,...(Capacitor.isNativePlatform()?{nativeApp:App}:{})}) {
  let nativeActive=!environment.nativeApp,nativeHandle:PluginListenerHandle|null=null
  let disposed=false,version=0,channel:RealtimeChannel|null=null,timer:ReturnType<typeof setTimeout>|null=null,running=false,queued=false,lastRefresh=0
  const valid=()=>!disposed && isCurrent()
@@ -31,10 +31,10 @@ export function watchTeamChat(client:SupabaseClient,userId:string,roomId:string,
    const {data,error}=await client.auth.getSession()
    if(!valid() || version!==current || !foreground())return
    if(error || data.session?.user.id!==userId){onStatus('offline');return}
-   const subscription=client.channel(`native-team-chat:${userId}:${roomId}`)
+   const subscription=client.channel(`native-team-chat:${userId}:${roomId||'inbox'}`)
    channel=subscription
-   subscription.on('postgres_changes',{event:'INSERT',schema:'public',table:'team_chat_signals',filter:`conversation_id=eq.${roomId}`},reconcile)
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'team_chat_signals',filter:`conversation_id=eq.${roomId}`},reconcile)
+   subscription.on('postgres_changes',{event:'INSERT',schema:'public',table:'team_chat_signals',...(roomId?{filter:`conversation_id=eq.${roomId}`}:{})},reconcile)
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'team_chat_signals',...(roomId?{filter:`conversation_id=eq.${roomId}`}:{})},reconcile)
     .subscribe(status=>{
      if(!valid() || version!==current)return
      if(status==='SUBSCRIBED'){onStatus('live');reconcile()}

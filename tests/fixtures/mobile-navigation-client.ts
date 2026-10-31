@@ -15,10 +15,13 @@ function data(table:string){
  return []
 }
 export function createClient(){return {
+ channel:()=>{const callbacks:(()=>void)[]=[];const channel={on:(_type:string,_filter:unknown,callback:()=>void)=>{callbacks.push(callback);return channel},subscribe:(status:(value:string)=>void)=>{queueMicrotask(()=>status('SUBSCRIBED'));chatSignals.add(callbacks);return channel}};return channel},removeChannel:async()=> 'ok',
  auth:{signInWithPassword:async()=>{signedIn=true;listener?.('SIGNED_IN',session());return {error:null}},getSession:async()=>({data:{session:session()},error:null}),onAuthStateChange:(fn:typeof listener)=>{listener=fn;queueMicrotask(()=>listener?.('INITIAL_SESSION',session()));return {data:{subscription:{unsubscribe(){}}}}},startAutoRefresh(){},stopAutoRefresh(){},signOut:async()=>{signedIn=false;listener?.('SIGNED_OUT',null);return {error:null}}},
  from:(table:string)=>{if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:null}={data:data(table),error:null};const chain:Record<string,unknown>={then:(resolve:(value:unknown)=>void)=>Promise.resolve(result).then(resolve)};for(const method of ['select','eq','in','order','limit','abortSignal','maybeSingle','single','ilike','or','is','not','range','gte','lte','lt','neq'])chain[method]=()=>chain;chain.eq=(field:string,value:string)=>{if(table==='matches'&&field==='id'&&Array.isArray(result.data))result.data=result.data.find((row:{id:string})=>row.id===value)||null;return chain};return chain},
  rpc:async()=>({data:[],error:null}),
  }}
+const chatSignals=new Set<(()=>void)[]>()
+export function emitChatSignal(){for(const callbacks of chatSignals)callbacks[0]?.()}
 export function refreshNavigationSession(){listener?.('TOKEN_REFRESHED',session())}
 export function switchNavigationOwner(){user={id:'22222222-2222-4222-8222-222222222222',email:'another-preview@example.test'};listener?.('SIGNED_IN',session())}
 

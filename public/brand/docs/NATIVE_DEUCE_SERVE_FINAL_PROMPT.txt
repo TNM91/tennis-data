@@ -1,6 +1,7 @@
 Built-in Image Gen; no CLI/API-key fallback.
 User-directed original fictional character variant. Previous photograph-based character drafts are superseded and are not production assets.
-Court candidate: courts/tiq-native-ace-deuce-generic-20261028-v2.png
+Historical v2 court: courts/tiq-native-ace-deuce-generic-20261028-v2.png
+Current native court: courts/tiq-native-ace-deuce-refined-20261031-v3.png (see NATIVE_SCOREBOARD_REFINEMENT_PROMPT.txt).
 Illustrated pose master: courts/tiq-generic-right-handed-trophy-pose-20261028-v2.png
 The private reference photographs are not public project assets.
 

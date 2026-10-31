@@ -8,7 +8,7 @@ export type AppDestination=AppScreen|'leagues'|'tournaments'|'league-office'|'im
 export type AppHub='compete'|'more'|'coach'
 export const mainTabs=[{screen:'lab',label:'My Lab',icon:'lab'},{screen:'explore',label:'Explore',icon:'explore'},{screen:'teams',label:'Chats',icon:'teams'},{screen:'compete',label:'Compete',icon:'compete'},{screen:'more',label:'More',icon:'more'}] as const
 export function currentTab(screen:AppScreen){return screen==='following'||screen==='matchup'||screen==='coach'?'more':screen}
-export function navigationHtml(){return mainTabs.map(t=>'<button type="button" data-screen="'+t.screen+'"><span aria-hidden="true">'+(t.icon==='more'?nativeActionIcon('more'):websiteUi.icons[t.icon])+'</span><span>'+t.label+'</span></button>').join('')}
+export function navigationHtml(){return mainTabs.map(t=>'<button type="button" data-screen="'+t.screen+'"><span class="nav-tab-icon" aria-hidden="true">'+(t.icon==='more'?nativeActionIcon('more'):websiteUi.icons[t.icon])+(t.screen==='teams'?'<span class="chat-unread-badge" data-chat-badge hidden></span>':'')+'</span><span>'+t.label+'</span></button>').join('')}
 type Tool={destination:AppDestination;title:string;detail:string;icon:keyof typeof websiteUi.icons;web?:boolean;keywords?:string}
 const tools:Record<string,Tool>={
  personalCalendar:{destination:'calendar',title:'Calendar',detail:'Your personal plans, competition dates and shared Coach sessions.',icon:'leagues',keywords:'agenda schedule dates availability events'},

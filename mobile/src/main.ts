@@ -2,6 +2,7 @@ import {openCalendar} from './calendar-view'
 import {openCoachLessons} from './coach-lesson-view'
 import {openUpdates} from './updates-view'
 import {createUpdatesCounter} from './updates-counter'
+import {createChatUnreadCounter,paintChatsBadge} from './chat-unread'
 import {createAppLinkHandoff,appLinkTitle} from './app-links'
 import {openSharedMatch} from './shared-match-view'
 import {openTeamInvite} from './team-invite-view'
@@ -72,7 +73,7 @@ const accountEntry=document.createElement('button')
 accountEntry.type='button';accountEntry.className='secondary native-account-entry';accountEntry.hidden=true;accountEntry.textContent='Account';accountEntry.setAttribute('aria-label','Account settings')
 const updatesEntry=document.createElement('button')
 updatesEntry.type='button';updatesEntry.className='secondary native-updates-entry';updatesEntry.setAttribute('aria-label','Updates');updatesEntry.innerHTML='<span aria-hidden="true">'+websiteUi.icons.alerts+'</span><span class="updates-header-badge" aria-hidden="true" hidden></span>'
-accountEntry.innerHTML='<span aria-hidden="true">'+nativeActionIcon('profile')+'</span>'
+accountEntry.innerHTML='<span aria-hidden="true">'+nativeActionIcon('settings')+'</span>'
 const headerActions=document.createElement('div');headerActions.className='native-header-actions';headerActions.hidden=true;headerActions.append(updatesEntry,accountEntry)
 document.querySelector('.app-header')!.append(headerActions)
 updatesEntry.onclick=()=>launchUpdates(updatesEntry)
@@ -357,7 +358,8 @@ function openTeamRoom(initialScope?:TeamChatDestination){
   comparison?.dispose();comparison=null;following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
   const userId=session.user.id,version=++revision
   selectNavigation('teams')
-  teamRoom=showTeamRoom(app,client,userId,()=>version===revision && userId===session?.user.id,initialScope)
+  teamRoom=showTeamRoom(app,client,userId,()=>version===revision && userId===session?.user.id,initialScope,{unread:()=>chatUnread.snapshot(),refresh:()=>{void chatUnread.refresh()},mountNotifications:host=>nativePush.mount(host)})
+  void chatUnread.refresh()
 }
 
 navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()=>openTeamRoom()
@@ -414,13 +416,14 @@ function showHub(next:AppHub){
  bindAppDestinations(app,openDestination);app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
 }
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
+const chatUnread=createChatUnreadCounter(client,value=>{paintChatsBadge(navigation.querySelector<HTMLElement>('[data-screen="teams"]')!,value?.total??null);teamRoom?.refreshUnread()})
 const updatesCounter=createUpdatesCounter(client,count=>{
  updatesEntry.setAttribute('aria-label',count===null?'Updates':'Updates, '+count+' unread')
  const badge=updatesEntry.querySelector<HTMLElement>('.updates-header-badge')!;badge.hidden=count===null||count===0;badge.textContent=count===null?'':count>99?'99+':String(count)
 })
 const nativePurchases=applePurchases(client)
 const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
-function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}nativePush.setSession(next);nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null)}
+function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}nativePush.setSession(next);nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
 async function lab() {
   agenda?.dispose();agenda=null

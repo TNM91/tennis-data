@@ -52,7 +52,7 @@ Native app court update — October 27, 2026 (user-directed)
   their existing originals. See NATIVE_ACE_SERVE_PROMPT.txt for the art brief.
 
 Native app court correction — October 28, 2026 (user-directed)
-  courts/tiq-native-ace-deuce-generic-20261028-v2.png — current native
+  courts/tiq-native-ace-deuce-generic-20261028-v2.png — retained native
   candidate backdrop. An original fictional right-handed athlete uses the approved separated-foot trophy pose at the deuce-side
   near baseline, faces across the net and prepares a diagonal serve. One
   racket and one tossed ball. Existing navy/blue night court and lights kept.
@@ -68,3 +68,13 @@ Native app court correction — October 28, 2026 (user-directed)
   October 28 identity correction: the original photo-based character drafts
   are superseded and removed from public assets. Use the generic v2 masters.
   The right-handed serve stance, court placement and lighting are retained.
+
+Native scoreboard refinement — October 31, 2026 (user-directed)
+  courts/tiq-native-ace-deuce-refined-20261031-v3.png — current native backdrop.
+  Built-in ImageGen refinement of the approved generic v2 court: cleaner blue
+  hard-court surface, sharper net/lines and more natural athlete rendering.
+  Same right-handed deuce-side trophy pose, separated feet, one tossed ball,
+  blue/navy kit, dark left space and night lighting. Fictional generic athlete.
+  1727 x 911 opaque PNG; use complete image proportionally, never mirrored.
+  Logos, icons, wordmark and interactive court geometry remain their originals.
+  See NATIVE_SCOREBOARD_REFINEMENT_PROMPT.txt for the complete edit prompt.

@@ -1,0 +1,11 @@
+# Native chat unread indicators
+
+Chats shows a lime unread-message badge on the main tab and each team in the inbox. Totals include General and named rooms, with 100 displayed as 99+. Muted conversations remain unread in the inbox; existing mute/block settings still suppress external notifications. Reading the message list advances its existing saved checkpoint. Opening a team or changing tabs alone does not clear unread messages.
+
+The verified-account GET `/api/mobile/chats/unread` returns only owner-scoped counts. It reuses the installed service-only `native_team_chat_rooms` list aggregate, which verifies current membership/removals, excludes the reader, deleted posts and blocked authors, and bounds each room count. No schema, grants, room creation or message bodies are involved. Duplicate links are collapsed; more than 50 links or any unavailable aggregate fails closed. There are at most four concurrent room reads, normally one per linked team.
+
+One foreground subscription to the existing RLS-protected, content-free `team_chat_signals` table invalidates counts. Bursts coalesce through the existing two-second chat reconciliation window. The subscription stops in the background and refreshes on resume/reconnect. Confirmed local read checkpoints and explicit inbox refresh also refresh counts. Same-account token refresh preserves the counter; account changes clear it immediately and discard old responses. There is no idle polling or persisted unread cache. A failed count hides the badge instead of reporting zero.
+
+External iPhone alerts reuse the existing approved APNs registration and delivery path. Chats now includes the same opt-in control as My Lab. Users enable Chat notifications and allow iOS notifications; team/room mute and block settings remain enforced. APNs uses generic message text and a recipient-bound room destination. No new Apple permission/capability, credential, paid provider, invitations or automatic message sends are added. Physical device delivery still needs user acceptance after installing the build.
+
+The top-right account action now uses a settings gear. The profile action remains the person icon. The native scoreboard uses the versioned v3 court master documented in `public/brand/docs/MANIFEST.txt`; existing approved logos and app icons retain their original bytes.

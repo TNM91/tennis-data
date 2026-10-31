@@ -13,6 +13,15 @@ function fixture(){
 }
 afterEach(()=>vi.useRealTimers())
 describe('foreground-only chat live reconciliation',()=>{
+ it('uses the same authorized, content-free signal table for the inbox and pauses it in the background',async()=>{
+  vi.useFakeTimers();const f=fixture(),refresh=vi.fn().mockResolvedValue(undefined)
+  const live=watchTeamChat(f.client,'owner',null,()=>true,refresh,()=>{},f.environment)
+  await Promise.resolve();await Promise.resolve()
+  expect(f.subscriptions[0].on.mock.calls.map(call=>call[1])).toEqual([{event:'INSERT',schema:'public',table:'team_chat_signals'},{event:'UPDATE',schema:'public',table:'team_chat_signals'}])
+  f.subscriptions[0].status!('SUBSCRIBED');await vi.advanceTimersByTimeAsync(250);expect(refresh).toHaveBeenCalledTimes(1)
+  f.doc.visibilityState='hidden';f.doc.dispatchEvent(new Event('visibilitychange'));f.subscriptions[0].callbacks[0]();await vi.advanceTimersByTimeAsync(60000)
+  expect(refresh).toHaveBeenCalledTimes(1);expect(f.mocks.removeChannel).toHaveBeenCalledTimes(1);live.dispose()
+ })
  it('subscribes only to content-free insert/update signals and never polls while idle',async()=>{
   vi.useFakeTimers();const f=fixture(),refresh=vi.fn().mockResolvedValue(undefined),status=vi.fn()
   const live=watchTeamChat(f.client,'owner','allowed-room',()=>true,refresh,status,f.environment)

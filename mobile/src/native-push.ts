@@ -40,10 +40,10 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
  const render=()=>{
   if(!host?.isConnected || !supported || !current)return
   host.replaceChildren()
-  const title=document.createElement('h2');title.textContent='Team alerts'
-  const text=document.createElement('p');text.textContent='Get a heads-up when your team posts. Message text stays off your lock screen.'
+  const title=document.createElement('h2');title.textContent='Chat notifications'
+  const text=document.createElement('p');text.textContent='Get iPhone notifications for new team messages. Tap an alert to open the conversation. Message text stays private.'
   const status=document.createElement('p');status.setAttribute('role','status');status.textContent=notice
-  const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=busy;button.textContent=installation?.owner===current.user.id?'Turn off team alerts':available?'Enable team alerts':'Check team alerts'
+  const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=busy;button.textContent=installation?.owner===current.user.id?'Turn off team alerts':available?'Enable chat notifications':'Check team alerts'
   button.onclick=()=>{void enqueue(async()=>{if(!current)return;busy=true;render();try{if(installation?.owner===current.user.id)await disable(current);else await enable(true)}catch{notice='Couldn’t save team alerts. Check your connection and try again.'}finally{busy=false;render()}})}
   host.append(title,text,status,button)
  }
@@ -88,7 +88,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   if(!valid(session.user.id,epoch))return
   if(permission.receive!=='granted'){
    if(device.owner===session.user.id)await disable(session)
-   notice=permission.receive==='denied'?'Allow notifications for TenAceIQ in iPhone Settings, then try again.':'Choose Enable team alerts when you’re ready.';return
+   notice=permission.receive==='denied'?'Allow notifications for TenAceIQ in iPhone Settings, then try again.':'Choose Enable chat notifications when you’re ready.';return
   }
   const token=await getToken()
   if(!valid(session.user.id,epoch)){await plugin.unregister();return}
@@ -119,7 +119,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
      if(!valid(session.user.id,epoch))return
      busy=true;render()
      if(device.owner===session.user.id)await enable(false)
-     else{await plugin.unregister();await clearDelivered();const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable team alerts when you’re ready.':'Team alerts are being prepared. Check again soon.'}}
+     else{await plugin.unregister();await clearDelivered();const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable chat notifications when you’re ready.':'Team alerts are being prepared. Check again soon.'}}
     }catch{notice='Can’t check team alerts. Try again when you’re connected.'}finally{busy=false;render()}
    })
   },

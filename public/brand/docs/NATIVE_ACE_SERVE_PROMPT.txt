@@ -1,6 +1,7 @@
 TENACEIQ NATIVE ACE SERVE BACKDROP — October 28, 2026
 
-Current native candidate master: public/brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png
+Historical v2 master: public/brand/courts/tiq-native-ace-deuce-generic-20261028-v2.png
+Current native refinement: courts/tiq-native-ace-deuce-refined-20261031-v3.png (see MANIFEST.txt).
 Dimensions: 1727 x 911, opaque PNG. SHA-256: ec2a543632aa4d6b0078e01b97036ecea29b63fd1d3044b27e47ac530a7de062
 
 User-directed correction: right-handed, deuce side, facing diagonally across
