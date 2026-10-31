@@ -62,7 +62,7 @@ test('rejects newer player proof and leaves editing only after confirmation', as
 test('closes private Coach state on account change and rejects missing Coach access', async ({page}) => {
  let d = await open(page); await d.getByRole('button', {name: 'Add a student', exact: true}).click(); await d.getByLabel('Player name', {exact: true}).fill('Private draft')
  await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click()); await expect(d).toHaveCount(0); await expect(page.locator('.lab-scoreboard')).toBeVisible(); await expect(page.locator('body')).not.toContainText('Private draft')
- await page.goto(origin); await expect(page.locator('.lab-scoreboard')).toBeVisible(); await page.getByRole('button', {name: 'Disable Coach access', exact: true}).click(); await page.getByRole('button', {name: 'More', exact: true}).click(); await page.locator('[data-app-destination="coach"]').click(); await page.locator('[data-app-destination="coach-workspace"]').click()
+ await page.goto(origin); await expect(page.locator('.lab-scoreboard')).toBeVisible(); await page.locator('[data-coach-deny]').waitFor({state: 'attached'}); await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-coach-deny]')!.click()); await page.getByRole('button', {name: 'More', exact: true}).click(); await page.locator('[data-app-destination="coach"]').click(); await page.locator('[data-app-destination="coach-workspace"]').click()
  d = page.getByRole('dialog', {name: 'Coach workspace', exact: true}); await expect(d).toContainText('Coach access is required'); await expect(d.getByRole('button', {name: 'Add a student', exact: true})).toHaveCount(0)
 })
 

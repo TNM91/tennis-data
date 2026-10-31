@@ -128,6 +128,11 @@ export function instrumentPurchaseSmoke(source){
                 if #available(iOS 16.0, *) { purchaseChannel = tiqPurchaseChannelProbe() } else { purchaseChannel = false }
                 let restorePolicy = await tiqRestoreReadProbe()
                 let appLockPolicy = await tiqBiometricSignInProbe()
+                let nativeDiagnostics: [String: Any] = ["biometric": appLockPolicy, "stage": TiqSmokeBiometricVault.stage, "applicationState": UIApplication.shared.applicationState.rawValue, "restore": restorePolicy]
+                if let nativeData = try? JSONSerialization.data(withJSONObject: nativeDiagnostics) {
+                    try? nativeData.write(to: reportURL.appendingPathExtension("native"), options: .atomic)
+                }
+                var lastReport: Data?
                 for _ in 0..<120 {
                     if let webView = self?.webView, webView.url != nil, !webView.isLoading, self?.viewIfLoaded?.window != nil,
                        let value = try? await webView.callAsyncJavaScript("""
@@ -189,15 +194,16 @@ export function instrumentPurchaseSmoke(source){
                            """, arguments: ["purchaseChannel": purchaseChannel, "restorePolicy": restorePolicy, "appLockPolicy": appLockPolicy], in: nil, contentWorld: .page),
                        let json = value as? String,
                        let data = json.data(using: .utf8),
-                       let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-                       result["ready"] as? Bool == true,
-                       self?.bridge?.plugin(withName: "TiqPurchases") != nil {
-                        try? data.write(to: reportURL, options: .atomic)
-                        return
+                       let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+                        lastReport = data
+                        if result["ready"] as? Bool == true, self?.bridge?.plugin(withName: "TiqPurchases") != nil {
+                            try? data.write(to: reportURL, options: .atomic)
+                            return
+                        }
                     }
                     try? await Task.sleep(nanoseconds: 250_000_000)
                 }
-                try? Data(#"{"ready":false}"#.utf8).write(to: reportURL, options: .atomic)
+                try? (lastReport ?? Data(#"{"ready":false}"#.utf8)).write(to: reportURL, options: .atomic)
             }
         }
         #endif`)

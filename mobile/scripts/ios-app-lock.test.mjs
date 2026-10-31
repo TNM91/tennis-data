@@ -31,7 +31,7 @@ test('native sign-in is explicit, device-local and ships no simulator evaluator'
  assert.throws(()=>instrumentAppLockSmoke(generated))
  assert.throws(()=>instrumentAppLockSmoke('unrecognized source'))
  assert.equal(verifyAppLockSmoke({nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:true}),true)
- for(const report of [{},{nativeBiometricSignInLifecycleVerified:true},{nativeBiometricSignInBridgeVerified:true}])assert.throws(()=>verifyAppLockSmoke(report))
+ for(const report of [{},{nativeBiometricSignInLifecycleVerified:true},{nativeBiometricSignInBridgeVerified:true},{nativeBiometricSignInLifecycleVerified:false,nativeBiometricSignInBridgeVerified:true},{nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:false}])assert.throws(()=>verifyAppLockSmoke(report))
 })
 
 test('the app-owned settings privacy manifest is an idempotent app resource',()=>{
