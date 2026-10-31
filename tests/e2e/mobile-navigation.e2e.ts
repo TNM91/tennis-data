@@ -1,3 +1,4 @@
+import '../fixtures/mobile-coach-chats-cases'
 import '../fixtures/mobile-chat-catchup-cases'
 import '../fixtures/mobile-calendar-practices-cases'
 import {test,expect,type Page} from '@playwright/test'

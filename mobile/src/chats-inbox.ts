@@ -8,12 +8,12 @@ const findText=(text:string)=>text.normalize('NFKC').toLocaleLowerCase().trim()
 const unreadLabel=(count:number)=>(count===100?'99+':String(count))+' unread messages'
 
 export function chatsInboxHtml(data:NativeTeamData){
- return `<header class="chats-intro"><small class="stat-eyebrow">Your tennis circle</small><h1 tabindex="-1">Chats</h1><p>Team talk, match plans and the moments between points.</p></header>
+ return `<header class="chats-intro"><small class="stat-eyebrow">Your tennis circle</small><h1 tabindex="-1">Chats</h1><p>Team talk, coach conversations and match plans.</p></header>
  <section aria-labelledby="chats-teams-title"><div class="chats-section-heading"><h2 id="chats-teams-title">Your teams</h2><button type="button" class="secondary" id="join-team">Join team</button></div>
  <div class="chats-inbox-tools" ${data.teams.length?'':'hidden'}><label for="chats-team-search">Find a team<input id="chats-team-search" type="search" maxlength="160" placeholder="Team or league" autocomplete="off"></label><div class="chats-inbox-filters" role="group" aria-label="Show teams"><button type="button" class="secondary" data-chats-filter="all" aria-pressed="true">All</button><button type="button" class="secondary" data-chats-filter="unread" aria-pressed="false">Unread</button></div></div>
  <p class="chats-inbox-status" role="status" data-chats-status></p>
  ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}"><span class="chats-team-avatar" aria-hidden="true">${html(team.teamName.trim().slice(0,1).toUpperCase())}</span><span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(team.leagueName)}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:'<p>Join your team with an invite from your captain.</p>'}
- <button type="button" class="secondary" id="refresh-team">Refresh teams</button></section><section class="chat-notification-settings" data-chat-notifications aria-label="Chat notifications"></section>`
+ <button type="button" class="secondary" id="refresh-team">Refresh teams</button></section><div data-coach-chats></div><section class="chat-notification-settings" data-chat-notifications aria-label="Chat notifications"></section>`
 }
 
 /** Filters and room jumps use the current authorized count snapshot; opening still reloads room access. */
