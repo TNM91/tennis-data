@@ -1,5 +1,6 @@
 import {calendarFixture,calendarPreview} from './mobile-calendar'
 import {openSyntheticLink} from './mobile-navigation-app'
+import {calendarTeamFixture,calendarTeamPreview} from './mobile-calendar-practices'
 import {updatesFixture,updateCoachStudent} from './mobile-updates-client'
 import {clearCoachDeviceData} from '../../mobile/src/coach-device-cleanup'
 import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complete-browser'
@@ -14,7 +15,7 @@ const fixtureState={requests:0}
 const chatUnreadFixture={total:7,fail:false,detailed:false,secondTeam:false,denyRoom:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
 const chatTeams=()=>[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
-Object.assign(window,{chatUnreadFixture})
+Object.assign(window,{chatUnreadFixture,calendarTeamFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
@@ -29,6 +30,7 @@ window.fetch=async(input,init)=>{
   const team=chatTeams().find(team=>team.teamName===selected&&team.leagueName===url.searchParams.get('league')&&team.flight===url.searchParams.get('flight'))
   return Response.json({ok:true,teams:chatTeams(),room:chatUnreadFixture.detailed&&team?{...team,id:roomId||'22222222-2222-4222-8222-222222222222',subject:team.teamName,messages:[],members:[],chatReady:false,...(roomId?{chatRoom:{id:roomId,parentId:'22222222-2222-4222-8222-222222222222',name:chatUnreadFixture.roomName,teamMuted:false}}:{})}:null})
  }
+ if(url.pathname==='/api/mobile/calendar/practices'||url.pathname==='/api/mobile/practices')return calendarTeamPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/calendar')return calendarPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/messages'){

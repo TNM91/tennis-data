@@ -4,6 +4,8 @@ import {calendarObject as obj,calendarText as text,calendarId as id,calendarDate
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 import type {PlayerCompetitionScheduleEvent} from '../../lib/player-competition-schedule'
 import {buildTennisCalendarFeed} from '../../lib/tiq-league-schedule-calendar'
+import {buildPracticeCalendarRange} from '../../lib/captain-practice-rsvp'
+import type {CalendarTeamPractice} from '../../lib/native-calendar-practices-contract'
 
 export function readCalendarItem(raw:unknown):PlayerCalendarItem|null{
  if(raw===null)return null
@@ -47,7 +49,7 @@ export function shiftCalendarPeriod(day:string,mode:'week'|'month',direction:num
  if(mode==='week')return shiftCalendarDay(day,direction*7)
  const d=new Date(day.slice(0,7)+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+direction);return d.toISOString().slice(0,10)
 }
-export type CalendarOccurrence={key:string;id:string;source:'personal'|'competition'|'coach';title:string;date:string;time:string;location:string;detail:string;kind:string;recurring:boolean;readiness:string}
+export type CalendarOccurrence={key:string;id:string;source:'personal'|'competition'|'coach'|'team';endTime?:string;teamStatus?:CalendarTeamPractice['status'];title:string;date:string;time:string;location:string;detail:string;kind:string;recurring:boolean;readiness:string}
 export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[]{
  const entries:CalendarOccurrence[]=[]
  for(const p of calendar.personal){
@@ -59,10 +61,12 @@ export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[
  }
  for(const c of calendar.competitions)entries.push({key:'competition:'+c.id,id:c.id,source:'competition',title:c.title,date:c.date,time:c.time,location:c.location,detail:[c.competitionName,c.detail,c.status].filter(Boolean).join(' · '),kind:c.kind,recurring:false,readiness:c.responseIsStale?'Date changed · Reply again':c.responseStatus==='available'?'Available':c.responseStatus==='unavailable'?'Can’t play':'No reply yet'})
  for(const c of calendar.coach)entries.push({...c,key:'coach:'+c.id,source:'coach',recurring:false,readiness:'Shared by your coach'})
+ for(const p of calendar.practices||[])entries.push({key:'team-practice:'+p.id,id:p.id,source:'team',title:p.title,date:p.date,time:p.time,endTime:p.endTime,teamStatus:p.status,location:p.location,detail:[p.scope.teamName,p.scope.leagueName,p.scope.flight,p.status==='confirmed'?'Scheduled':p.status[0].toUpperCase()+p.status.slice(1)].filter(Boolean).join(' · '),kind:'practice',recurring:false,readiness:p.status==='cancelled'?'Cancelled':p.status==='completed'?'Completed':({in:'In',out:'Out',maybe:'Maybe',unanswered:'No reply yet',waitlist:'Waitlist'}[p.response])+(p.captainConfirmed?' · Captain-confirmed':'')})
  return entries.sort((a,b)=>(a.date+'T'+(a.time||'00:00')+a.title).localeCompare(b.date+'T'+(b.time||'00:00')+b.title))
 }
+export const exportableCalendarOccurrences=(entries:CalendarOccurrence[])=>entries.filter(e=>e.source!=='team'||e.teamStatus!=='cancelled'&&(!e.time||Boolean(buildPracticeCalendarRange(e.date,e.time,e.endTime))))
 export function calendarExport(entries:CalendarOccurrence[],zone:string){
  if(entries.length>10000||!zone||zone.length>80)throw Error('Choose a smaller calendar export.')
  try{new Intl.DateTimeFormat('en-US',{timeZone:zone}).format()}catch{throw Error('Choose a valid time zone.')}
- return buildTennisCalendarFeed(entries.map(e=>({id:e.key,title:e.title,date:e.date,time:e.time,location:e.location,description:[e.detail,e.readiness,e.recurring?'One occurrence from a repeating personal entry.':''].filter(Boolean).join('\n'),durationMinutes:e.source==='coach'&&e.kind==='lesson'?60:90})),{calendarName:'TenAceIQ · Your tennis',timeZone:zone,includeEventUrls:false})
+ return buildTennisCalendarFeed(exportableCalendarOccurrences(entries).map(e=>{const range=e.source==='team'?buildPracticeCalendarRange(e.date,e.time,e.endTime):null,duration=range?(Number(range.end.slice(9,11))*60+Number(range.end.slice(11,13)))-(Number(range.start.slice(9,11))*60+Number(range.start.slice(11,13))):e.source==='coach'&&e.kind==='lesson'?60:90;return {id:e.key,title:e.title,date:e.date,time:e.time,location:e.location,description:[e.detail,e.readiness,e.recurring?'One occurrence from a repeating personal entry.':''].filter(Boolean).join('\n'),durationMinutes:duration}}),{calendarName:'TenAceIQ · Your tennis',timeZone:zone,includeEventUrls:false})
 }

@@ -1,10 +1,11 @@
 import {isValidCalendarDate} from './calendar-date'
 import {buildPlayerCalendarItemPayload,type PlayerCalendarItem,type PlayerCalendarItemInput} from './player-calendar-items'
 import type {PlayerCompetitionScheduleEvent} from './player-competition-schedule'
+import type {CalendarTeamPractice} from './native-calendar-practices-contract'
 
 export type CalendarRange={from:string;to:string}
 export type CalendarSharedDate={id:string;title:string;date:string;time:string;location:string;detail:string;kind:'lesson'|'reminder'}
-export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:PlayerCompetitionScheduleEvent[];coach:CalendarSharedDate[];warnings:string[]}
+export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:PlayerCompetitionScheduleEvent[];coach:CalendarSharedDate[];practices?:CalendarTeamPractice[];practicesUnavailable?:boolean;warnings:string[]}
 export type CalendarDraft={id:string;title:string;date:string;time:string;location:string;kind:PlayerCalendarItem['kind'];recurrenceRule:PlayerCalendarItem['recurrenceRule'];availabilityStatus:PlayerCalendarItem['availabilityStatus'];venueDirectoryId:string;venuePreferenceId:string}
 export type CalendarIntent=
  |{action:'create'|'update';item:CalendarDraft;expectedUpdatedAt:string}
