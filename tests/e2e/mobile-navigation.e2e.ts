@@ -1,4 +1,5 @@
 import {test,expect,type Page} from '@playwright/test'
+import '../fixtures/mobile-calendar-cases'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
 import path from 'node:path'
@@ -15,7 +16,7 @@ test.beforeEach(async({page})=>{
  await page.route('**/*',async route=>{
   const url=new URL(route.request().url());if(url.origin!==origin)return route.abort()
   if(url.pathname==='/app.js')return route.fulfill({contentType:'text/javascript',body:javascript})
-  if(url.pathname.endsWith('.css'))return route.fulfill({contentType:'text/css',body:url.pathname==='/style.css'?stylesheet+(url.searchParams.has('large')?'\n:root{font-size:22px!important}':''):''})
+  if(url.pathname.endsWith('.css'))return route.fulfill({contentType:'text/css',body:url.pathname==='/style.css'?stylesheet+(url.searchParams.has('large')?'\n:root{font-size:22px!important}.native-calendar-screen .cal-body{inline-size:calc(100% - 18px)}':''):''})
   if(url.pathname.startsWith('/brand/')||url.pathname==='/logo.png')return route.fulfill({contentType:'image/png',body:await readFile('mobile/bundled'+url.pathname)})
   return route.fulfill({contentType:'text/html',body:url.searchParams.has('large')?documentHtml.replace('./style.css','./style.css?large=1'):documentHtml})
  })
@@ -101,18 +102,18 @@ for(const width of [320,390])test('tool search stays local, accessible and prese
  await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
  await page.getByRole('button',{name:'More',exact:true}).click()
  const input=page.getByRole('searchbox',{name:'Find a tool',exact:true}),count=page.locator('[data-tool-count]'),tools=page.locator('.app-tool:visible')
- await expect(count).toHaveText('10 tools')
+ await expect(count).toHaveText('11 tools')
  const requests=await requestCount(page)
  await input.fill('  FACE   ID ');await expect(count).toHaveText('1 tool found');await expect(tools).toHaveCount(1);await expect(tools).toHaveAttribute('data-app-destination','account')
  await input.press('Tab');await expect(page.getByRole('button',{name:'Clear',exact:true})).toBeFocused()
  await page.getByRole('button',{name:'Clear',exact:true}).press('Tab');await expect(tools).toBeFocused()
- await page.getByRole('button',{name:'Clear',exact:true}).click();await expect(input).toBeFocused();await expect(count).toHaveText('10 tools')
+ await page.getByRole('button',{name:'Clear',exact:true}).click();await expect(input).toBeFocused();await expect(count).toHaveText('11 tools')
  await input.fill('coaching');await expect(tools).toHaveAttribute('data-app-destination','coach')
  await input.fill('uploads');await expect(tools).toHaveAttribute('data-app-destination','imports')
  await input.fill('STÁNDINGS');await expect(tools).toHaveAttribute('data-app-destination','leagues')
  await input.fill('<img src=x>');await expect(count).toHaveText('0 tools found');await expect(page.locator('[data-tools-empty]')).toBeVisible();await expect(page.locator('.app-hub-group:visible')).toHaveCount(0)
  await bounded(page);await expect(input).toBeFocused();expect(await requestCount(page)).toBe(requests)
- await input.press('Escape');await expect(count).toHaveText('10 tools');await expect(page.locator('[data-tools-empty]')).toBeHidden()
+ await input.press('Escape');await expect(count).toHaveText('11 tools');await expect(page.locator('[data-tools-empty]')).toBeHidden()
  await input.fill('tournaments');await expect(tools).toHaveCount(1);await bounded(page)
  await page.screenshot({path:info.outputPath('tools-search.png')})
  const opener=page.locator('[data-app-destination="tournaments"]');await opener.click()
@@ -121,12 +122,12 @@ for(const width of [320,390])test('tool search stays local, accessible and prese
  await page.getByRole('button',{name:'Simulate token refresh',exact:true}).click();await expect(input).toHaveValue('tournaments')
  await page.getByRole('button',{name:'Simulate reconnect',exact:true}).click();await expect(input).toHaveValue('tournaments')
  await page.getByRole('button',{name:'Simulate token refresh',exact:true}).click()
- await page.getByRole('button',{name:'More',exact:true}).click();await expect(input).toHaveValue('');await expect(count).toHaveText('10 tools')
+ await page.getByRole('button',{name:'More',exact:true}).click();await expect(input).toHaveValue('');await expect(count).toHaveText('11 tools')
  await page.screenshot({path:info.outputPath('tools-directory.png')});await bounded(page)
  for(const button of await tools.all())expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
  await input.fill('uploads');await page.getByRole('button',{name:'Switch synthetic account',exact:true}).click()
  await expect(input).toHaveCount(0);await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
- await page.getByRole('button',{name:'More',exact:true}).click();await expect(input).toHaveValue('');await expect(count).toHaveText('10 tools')
+ await page.getByRole('button',{name:'More',exact:true}).click();await expect(input).toHaveValue('');await expect(count).toHaveText('11 tools')
 })
 for(const width of [320,390])test('all destinations, direct competitions, focus return and reconnect at '+width+'px',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));await page.setViewportSize({width,height:844});await page.goto(origin)

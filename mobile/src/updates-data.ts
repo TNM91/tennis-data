@@ -5,7 +5,7 @@ import {isValidCalendarDate} from '../../lib/calendar-date'
 
 export type UpdateFilter={unread:boolean;category:'all'|'message'|'schedule'|'other'}
 export type UpdateCursor={createdAt:string;id:string}
-export type UpdateAction={kind:'link';link:AppLink;label:string}|{kind:'tool';destination:'lab'|'coach'|'training-inbox';label:string}|{kind:'conversation';id:string;label:string}
+export type UpdateAction={kind:'link';link:AppLink;label:string}|{kind:'tool';destination:'lab'|'coach'|'training-inbox'|'calendar';label:string}|{kind:'conversation';id:string;label:string}
 export type ResolvedUpdateAction=Exclude<UpdateAction,{kind:'conversation'}>|{kind:'coach-message';student:string;label:string}
 export type UpdatePage={rows:InternalNotification[];more:boolean;cursor:UpdateCursor|null}
 export const UPDATE_PAGE_SIZE=25,UPDATE_LOADED_LIMIT=100
@@ -86,6 +86,7 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
     const only=(keys:string[])=>Array.from(u.searchParams.keys()).every(k=>keys.includes(k)&&u.searchParams.getAll(k).length===1)
     if(u.pathname==='/messages'&&only(['thread'])&&!u.hash){const id=u.searchParams.get('thread');if(id&&uuid.test(id)&&(!row.conversationId||row.conversationId===id))return {kind:'conversation',id,label:'Open conversation'}}
     if(u.pathname==='/coach'&&only([])&&!u.hash)return {kind:'tool',destination:'coach',label:'Open Coach & training'}
+    if(u.pathname==='/mylab'&&only([])&&u.hash==='#my-calendar')return {kind:'tool',destination:'calendar',label:'Open calendar'}
     if(u.pathname==='/mylab'&&only([])&&['','#coach-assignments','#player-workshop'].includes(u.hash))return {kind:'tool',destination:u.hash==='#coach-assignments'?'training-inbox':'lab',label:u.hash==='#coach-assignments'?'Open coach plans':'Open My Lab'}
     if(/^\/level-up\/[a-z0-9-]{1,80}$/.test(u.pathname)&&only(['focus','card'])&&['','#level-up-flow'].includes(u.hash)&&[...u.searchParams.values()].every(s=>/^[a-zA-Z0-9_-]{1,100}$/.test(s)))return {kind:'tool',destination:'training-inbox',label:'Open coach plans'}
     return null
