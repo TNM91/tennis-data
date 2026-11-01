@@ -240,6 +240,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Use the Ubuntu archive for browser dependencies
+        run: |
+          # Preserve signed Ubuntu packages while avoiding the throttled Azure mirror.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          fi
       - name: Install locked dependencies and browser engines
         run: |
           npm ci

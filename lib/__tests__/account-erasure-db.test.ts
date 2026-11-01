@@ -9,9 +9,10 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
  try{
   await db.exec(await readSql(new URL('./fixtures/account-erasure-audited-schema.sql',import.meta.url)))
   await db.exec("create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$")
-  for(const file of ['20261028000100_native_account_requests.sql','20261028000200_automated_account_erasure.sql','20261028000300_apple_purchase_records.sql','20261028000400_apple_purchase_erasure_guard.sql','20261030000100_native_tournament_registration.sql'])await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
+  for(const file of ['20261028000100_native_account_requests.sql','20261028000200_automated_account_erasure.sql','20261028000300_apple_purchase_records.sql','20261028000400_apple_purchase_erasure_guard.sql','20261030000100_native_tournament_registration.sql','20261031000100_native_coach_alert_preferences.sql'])await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
 
+  await db.query('insert into internal_notification_preferences(profile_id,native_coach_alerts_enabled) values($1,true),($2,false)',[a,b])
   await db.query("insert into internal_messages(conversation_id,sender_user_id,body,metadata) values($1,$2,'Keep this reply',$3)",[room,b,JSON.stringify({quote:{author:a,body:'Private copied message'},other:'Keep'})])
   await db.query("insert into team_room_member_removals(conversation_id,profile_id,removed_by_user_id) values($1,$2,$3)",[room,b,a])
   await db.query("insert into internal_notifications(recipient_profile_id,actor_user_id,body) values($1,$2,'Private copied message')",[b,a])
@@ -101,6 +102,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   expect((await db.query("select * from api_rate_limits where scope='native-tournament-entry'")).rows).toHaveLength(0)
   await db.exec('set role service_role');expect(await action('verify',job.id,lease)).toMatchObject({ok:true})
   expect(await action('complete',job.id,lease)).toMatchObject({ok:true})
+  expect((await db.query('select profile_id,native_coach_alerts_enabled from internal_notification_preferences')).rows).toEqual([{profile_id:b,native_coach_alerts_enabled:false}])
   expect((await db.query('select account_id,verified_email,stripe_customer_id,status from account_deletion_requests')).rows).toEqual([{account_id:null,verified_email:null,stripe_customer_id:null,status:'completed'}])
   // A new dependency disables future automated erasure rather than silently extending a cascade.
   await db.exec('reset role');await db.exec('create table unexpected_owner(user_id uuid references auth.users(id) on delete cascade)')
