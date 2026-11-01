@@ -9,6 +9,7 @@ async function practice(page:Page,d:ReturnType<Page['getByRole']>){await d.locat
 for(const width of [320,390])test('Calendar team practices: readable dates, exact RSVP and retained filters at '+width+'px',async({page},info)=>{
  const d=await calendar(page,width);await expect(d.locator('.cal-event.team img')).toHaveCount(0);await expect(d.locator('.cal-event.team').first()).toContainText('Team practice · Baseline Aces');await expect(d.locator('.cal-event.team').first()).toContainText('Waitlist');await expect(d.locator('.cal-event.team').last()).toContainText('Cancelled')
  await d.getByRole('button',{name:'Month',exact:true}).click();await d.getByRole('combobox',{name:'Show',exact:true}).selectOption('team');await expect(d.locator('.cal-event')).toHaveCount(2)
+ await d.getByRole('searchbox',{name:'Find a date',exact:true}).fill('Baseline');await expect(d.locator('.cal-event')).toHaveCount(2)
  expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);expect(await d.locator('.cal-body').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
  await d.locator('.cal-event.team').first().scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('calendar-team-'+width+'.png')});const child=await practice(page,d)
  expect(await child.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);await expect(child.getByRole('button',{name:'Back to practices',exact:true})).toHaveCount(0)
@@ -17,6 +18,13 @@ for(const width of [320,390])test('Calendar team practices: readable dates, exac
  await expect(child).toContainText('Review your RSVP');await child.getByRole('button',{name:'Save RSVP',exact:true}).click();await expect(child).toContainText('Your RSVP is saved. Out.')
  await child.getByRole('button',{name:'Back to calendar',exact:true}).click();await expect(child).toHaveCount(0);await expect(d.getByRole('combobox',{name:'Show',exact:true})).toHaveValue('team');await expect(d.getByRole('button',{name:'Month',exact:true})).toHaveAttribute('aria-pressed','true');await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toContainText('Out');await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toBeFocused()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await expect(d.getByRole('searchbox',{name:'Find a date',exact:true})).toHaveValue('Baseline')
+})
+
+test('Calendar team practices: a search matching only a cancelled practice cannot export it',async({page})=>{
+ const d=await calendar(page),title=await d.locator('.cal-event.team').last().locator('strong').innerText(),before=await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)
+ await d.getByRole('combobox',{name:'Show',exact:true}).selectOption('team');await d.getByRole('searchbox',{name:'Find a date',exact:true}).fill(title);await expect(d.locator('.cal-event')).toHaveCount(1);await expect(d.locator('.cal-event')).toContainText('Cancelled');await expect(d.getByRole('button',{name:'Export',exact:true})).toBeDisabled()
+ expect(await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)).toBe(before)
 })
 test('Calendar team practices: interrupted RSVP uses the existing exact receipt check without a duplicate write',async({page})=>{
  const d=await calendar(page),child=await practice(page,d);await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.loseWrite=true)
