@@ -3,6 +3,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {coachConversationId} from './native-coach-chat-unread'
 import {chatTimestamp} from './chat-timestamp'
 import {deliverAppleChat,nativeCoachPayload,nativePushConfiguration} from './native-chat-push-server'
+import {nativeChatBadgeCounts} from './native-chat-badge'
 type Input={student:string;conversationId:string;actorId:string;recipientId:string;messageId:string}
 const uuid=(v:unknown):v is string=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
 /** One peer, at most three opted-in devices; no body selection or retry queue. */
@@ -34,7 +35,8 @@ export async function sendNativeCoachChatPush(service:SupabaseClient,input:Input
  const config=nativePushConfiguration();if(!config)return {sent:0,failed:0}
  try{
   const devices=await loadNativeCoachDevices(service,input);if(!devices.length)return {sent:0,failed:0}
-  const result=await deliverAppleChat(devices,'/messages?thread='+input.conversationId,input.conversationId,config,undefined,nativeCoachPayload)
+  const badges=await nativeChatBadgeCounts(service,[input.recipientId])
+  const result=await deliverAppleChat(devices,'/messages?thread='+input.conversationId,input.conversationId,config,undefined,nativeCoachPayload,badges)
   await Promise.all(result.expired.map(device=>service.from('native_push_devices').update({enabled:false}).eq('installation_id',device.installation_id).eq('profile_id',device.profile_id).eq('device_token',device.device_token).eq('updated_at',device.updated_at).abortSignal(AbortSignal.timeout(2000)).retry(false)))
   if(result.failed)console.warn('native_coach_alert_delivery_incomplete')
   return {sent:result.sent,failed:result.failed}

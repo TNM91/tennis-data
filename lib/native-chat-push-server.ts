@@ -4,6 +4,7 @@ import {createHash,createPublicKey,createPrivateKey,sign,type KeyObject} from 'n
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {buildTeamRoomScopeId,canManageTeamRoom,type TeamRoomScope} from './team-room'
 import {chatNotificationRecipients} from './team-chat-safety'
+import {nativeChatBadgeCounts} from './native-chat-badge'
 type ApnsConfig={keyId:string;teamId:string;key:KeyObject}
 export function nativePushConfiguration():ApnsConfig|null {
  if(process.env.VERCEL_ENV && process.env.VERCEL_ENV!=='production')return null
@@ -20,19 +21,20 @@ export function apnsAuthorization(config:ApnsConfig,now=Math.floor(Date.now()/10
  const token=body+'.'+sign('sha256',Buffer.from(body),{key:config.key,dsaEncoding:'ieee-p1363'}).toString('base64url')
  cachedProvider={fingerprint,issuedAt:now,token};return token
 }
-export function nativeChatPayload(recipient:string,href:string){
+type AppleChatPayload={aps:{alert:{title:string;body:string};sound:string;badge?:number};recipient:string;href:string}
+export function nativeChatPayload(recipient:string,href:string):AppleChatPayload{
  const url=new URL(href,'https://www.tenaceiq.com')
  if(url.origin!=='https://www.tenaceiq.com' || url.pathname!=='/team-room')throw Error('Invalid team destination')
  return {aps:{alert:{title:'TenAceIQ',body:'You have a new team message.'},sound:'default'},recipient,href:url.pathname+url.search}
 }
 type Device={installation_id:string;profile_id:string;device_token:string;updated_at:string}
-export function nativeCoachPayload(recipient:string,href:string){
+export function nativeCoachPayload(recipient:string,href:string):AppleChatPayload{
  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,url=new URL(href,'https://www.tenaceiq.com')
  if(!uuid.test(recipient)||url.origin!=='https://www.tenaceiq.com'||url.pathname!=='/messages'||url.hash||[...url.searchParams.keys()].some(k=>k!=='thread')||url.searchParams.getAll('thread').length!==1||!uuid.test(url.searchParams.get('thread')||''))throw Error('Invalid Coach destination')
  return {aps:{alert:{title:'TenAceIQ',body:'You have a new Coach message.'},sound:'default'},recipient,href:url.pathname+url.search}
 }
 type Delivery={status:number;reason?:string}
-export async function deliverAppleChat(devices:Device[],href:string,conversationId:string,configuration:ApnsConfig,sendOverride?:(device:Device,payload:ReturnType<typeof nativeChatPayload>)=>Promise<Delivery>,payloadFor=nativeChatPayload){
+export async function deliverAppleChat(devices:Device[],href:string,conversationId:string,configuration:ApnsConfig,sendOverride?:(device:Device,payload:ReturnType<typeof nativeChatPayload>)=>Promise<Delivery>,payloadFor=nativeChatPayload,badges:ReadonlyMap<string,number>=new Map()){
  const session=sendOverride?null:connect('https://api.push.apple.com')
  session?.on('error',()=>{})
  const deadline=Date.now()+10000,timeout=session?setTimeout(()=>session.destroy(),10000):null
@@ -53,7 +55,18 @@ export async function deliverAppleChat(devices:Device[],href:string,conversation
    request.end(JSON.stringify(payload))
   }catch{finish({status:0})}
  }))
- try{await Promise.all(Array.from({length:Math.min(4,devices.length)},async()=>{while(index<devices.length){if(Date.now()>deadline)break;const device=devices[index++];let result:Delivery;try{result=await send(device,payloadFor(device.profile_id,href))}catch{result={status:0}}if(result.status===200)sent++;else{failed++;if(result.status===410 || result.status===400 && result.reason==='BadDeviceToken')expired.push(device)}}}))}
+ try{await Promise.all(Array.from({length:Math.min(4,devices.length)},async()=>{
+  while(index<devices.length){
+   if(Date.now()>deadline)break
+   const device=devices[index++];let result:Delivery
+   try{
+    const payload=payloadFor(device.profile_id,href),badge=badges.get(device.profile_id)
+    result=await send(device,typeof badge==='number'&&Number.isInteger(badge)&&badge>=0&&badge<=100?{...payload,aps:{...payload.aps,badge}}:payload)
+   }catch{result={status:0}}
+   if(result.status===200)sent++
+   else{failed++;if(result.status===410 || result.status===400 && result.reason==='BadDeviceToken')expired.push(device)}
+  }
+ }))}
  finally{if(timeout)clearTimeout(timeout);session?.destroy()}
  return {sent,failed:failed+devices.length-index,expired}
 }
@@ -63,7 +76,9 @@ export async function sendNativeTeamChatPush(service:SupabaseClient,input:{conve
  if(!config || !input.recipients.length)return {sent:0,failed:0}
  try{
   const devices=await loadNativeChatDevices(service,input)
-  const result=await deliverAppleChat(devices,input.href,input.conversationId,config)
+  if(!devices.length)return {sent:0,failed:0}
+  const badges=await nativeChatBadgeCounts(service,devices.map(device=>device.profile_id))
+  const result=await deliverAppleChat(devices,input.href,input.conversationId,config,undefined,undefined,badges)
   for(const device of result.expired)await service.from('native_push_devices').update({enabled:false}).eq('installation_id',device.installation_id).eq('device_token',device.device_token).eq('updated_at',device.updated_at)
   if(result.failed)console.warn('Native team alert delivery incomplete',{failed:result.failed})
   return {sent:result.sent,failed:result.failed}

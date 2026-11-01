@@ -34,6 +34,21 @@ describe('Apple team alert boundaries',()=>{
   })
   expect(peak).toBe(4);expect(result.sent).toBe(8);expect(result.failed).toBe(3);expect(result.expired.map(device=>device.installation_id)).toEqual(['0','1'])
  })
+ it('sends each recipient’s absolute badge to every device, including zero, and preserves unknown badges',async()=>{
+  const ids=['one','one','two','unknown'],devices=ids.map((profile_id,i)=>({installation_id:String(i),profile_id,device_token:token,updated_at:'time'}))
+  const sent:Record<string,unknown>[]=[]
+  const send=vi.fn(async(_device:unknown,payload:unknown)=>{sent.push(payload as Record<string,unknown>);return {status:200}})
+  const result=await deliverAppleChat(devices,'/team-room?team=T&league=L','room',configuration,send,undefined,new Map([['one',7],['two',0]]))
+  expect(result.sent).toBe(4);expect(sent.map(p=>(p.aps as {badge?:number}).badge)).toEqual([7,7,0,undefined])
+  expect(sent[3].aps).not.toHaveProperty('badge');expect(sent.every(p=>JSON.stringify(p).includes('You have a new team message.'))).toBe(true)
+ })
+ it('omits invalid badge values rather than sending an Apple payload that can suppress the alert',async()=>{
+  for(const badge of [-1,101,1.5,NaN]){
+   const send=vi.fn<(device:unknown,payload:unknown)=>Promise<{status:number}>>().mockResolvedValue({status:200}),device={installation_id:'one',profile_id:'owner',device_token:token,updated_at:'time'}
+   await deliverAppleChat([device],'/team-room?team=T&league=L','room',configuration,send,undefined,new Map([['owner',badge]]))
+   expect(send.mock.calls[0][1]).not.toHaveProperty('aps.badge')
+  }
+ })
  it('fails closed before accessing devices if membership lookup fails',async()=>{
   vi.stubEnv('APNS_ENABLED','true');vi.stubEnv('APNS_KEY_ID',configuration.keyId);vi.stubEnv('APNS_TEAM_ID',configuration.teamId);vi.stubEnv('APNS_PRIVATE_KEY_BASE64',Buffer.from(key.privateKey.export({type:'pkcs8',format:'pem'})).toString('base64'))
   const from=vi.fn(()=>{const q:Record<string,unknown>={then:(resolve:(v:unknown)=>unknown)=>Promise.resolve(resolve({error:{},data:null}))};for(const method of ['select','in','eq','limit'])q[method]=()=>q;return q})
