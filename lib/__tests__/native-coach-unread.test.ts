@@ -28,7 +28,7 @@ beforeEach(()=>{state.owner=owner;state.verified=true;links=[link()];rows=[row()
 afterEach(()=>{vi.unstubAllEnvs();vi.restoreAllMocks()})
 
 it('batches current coach connections under RLS and returns counts without identities or message text',async()=>{
- expect(await nativeCoachChatUnread(state.client,owner)).toEqual({available:true,total:1,connections:[{id,unread:1}]})
+ expect(await nativeCoachChatUnread(state.client,owner)).toEqual({available:true,total:1,connections:[{id,unread:1,latest:message}]})
  expect(calls).toHaveLength(2)
  const first=calls[0].url.searchParams,second=calls[1].url.searchParams
  expect(first.get('or')).toBe('(coach_user_id.eq.'+owner+',player_user_id.eq.'+owner+')');expect(first.get('status')).toBe('neq.paused');expect(first.get('player_user_id')).toBe('not.is.null');expect(first.get('limit')).toBe('101')
@@ -41,7 +41,7 @@ it('compares read checkpoints with microsecond precision and caps each badge at 
 })
 it('returns known zero for no active connections or an uninitialized/inaccessible conversation without writes',async()=>{
  links=[];expect(await nativeCoachChatUnread(state.client,owner)).toEqual({available:true,total:0,connections:[]});expect(calls).toHaveLength(1)
- links=[link()];rows=[];expect((await nativeCoachChatUnread(state.client,owner)).connections).toEqual([{id,unread:0}]);expect(calls.every(c=>c.method==='GET')).toBe(true)
+ links=[link()];rows=[];expect((await nativeCoachChatUnread(state.client,owner)).connections).toEqual([{id,unread:0,latest:null}]);expect(calls.every(c=>c.method==='GET')).toBe(true)
 })
 it('rejects foreign/paused/duplicate links and cross-conversation or deleted message rows',async()=>{
  for(const changed of [{...link(),coach_user_id:other},{...link(),status:'paused'}]){links=[changed];await expect(nativeCoachChatUnread(state.client,owner)).rejects.toThrow()}
@@ -75,4 +75,12 @@ it('rejects paused, removed, foreign or mismatched conversations and missing mes
 it('keeps GET a read-only operation and read-update failures explicit',async()=>{
  await messages(new Request('https://synthetic.invalid/api/mobile/coach/messages?student='+id));expect(calls.some(c=>c.method!=='GET')).toBe(false)
  fail=true;expect((await PATCH(patch())).status).toBe(503)
+})
+
+it('projects the latest eligible incoming message even when already read, without another query',async()=>{
+ rows[0].participants=[{profile_id:owner,last_read_at:'2026-11-01T00:00:00Z'}]
+ const previous={...row().posts[0],id:'55555555-5555-4555-8555-555555555555',created_at:'2026-10-31T12:00:00.123455+00:00'}
+ rows[0].posts=[previous,row().posts[0]]
+ expect((await nativeCoachChatUnread(state.client,owner)).connections).toEqual([{id,unread:0,latest:message}])
+ expect(calls).toHaveLength(2);expect(calls.every(c=>c.method==='GET')).toBe(true)
 })
