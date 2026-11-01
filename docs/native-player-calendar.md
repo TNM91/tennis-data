@@ -5,6 +5,7 @@ The app opens Calendar from More or the My Lab calendar card. It uses existing a
 ## Player flow
 
 - Switch between Monday-first weeks and calendar months. Choose a day, all dates or a personal/competition/Coach filter.
+- Find an event by title, venue, opponent, competition or team name within the loaded week/month. Search works with the selected date and source filter; Clear and Escape restore the current unsearched view.
 - Add or edit a personal practice, match, lesson, reminder or availability note, then review before saving. Empty time means all day/time not set.
 - Repeat personal entries daily, weekly or monthly. Monthly entries skip months without the anchor day. Editing or deleting a repeating entry affects the whole series; individual exceptions are not supported by the existing storage model.
 - Review a competition’s current date, time and location before sending an availability reply. A personal availability note does not send an RSVP or alter a competition.
@@ -41,3 +42,11 @@ The calendar projection contains only date/time/location/title, exact scope and 
 Calendar export uses the recorded team-practice end time, or the existing 90-minute practice fallback capped at 23:59. Cancelled team practices and timed entries without a usable same-day export range are excluded; the export review counts only exportable dates. The selected event time zone, one-time-file behavior and explicit share action remain unchanged; no RSVP link or token is included. Exporting does not reply to or update a practice.
 
 Synthetic unit/API and both phone browser engines cover scoped invitations, current access, source limits/failures, queue placement, export duration, narrow/enlarged-text layouts, exact-event opening, reviewed RSVP, lost-reply recovery, retained filters/focus, nested Back and account disposal. Actual minified-bundle checks block all external HTTP and WebSocket traffic. Physical iPhone/VoiceOver and completing an external calendar import remain separate acceptance checks. No real practice, invitation, RSVP, message or notification is created for automated QA.
+
+## Agenda search and return
+
+The local finder indexes all occurrences in the loaded date window, including records beyond the first 100 displayed. It uses saved titles, venues, event/source labels, competition names/opponents and exact team scope labels. Case, accents, Unicode width and repeated spaces normalize; punctuation remains literal. Notes, availability replies, dates and account identifiers are not search fields. Source ordering, occurrence keys and saved statistics stay intact.
+
+Typing updates only the agenda, count and export availability; the search input and caret stay in place. Search and date/type filters persist through event details, practice RSVP return, same-account session renewal, period changes and explicit refresh. Returning restores the agenda action and scroll position. Closing or switching accounts clears the memory-only search. A saved personal event clears a hiding query along with the existing date/type reset so the confirmed event can be found.
+
+Export review states the query and includes only matching exportable occurrences in the current date/type window. Clearing search or opening/returning from read-only details makes no request or write. Existing range changes and explicit refresh keep their original requests; stale rows are cleared during loading, and failed sources show unavailable counts. Search adds no endpoint, database change, polling, permission, dependency or device storage. Existing review, RSVP and interrupted-write recovery still govern saved changes.
