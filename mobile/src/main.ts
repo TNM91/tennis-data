@@ -3,6 +3,7 @@ import {openCoachLessons} from './coach-lesson-view'
 import {openUpdates} from './updates-view'
 import {createUpdatesCounter} from './updates-counter'
 import {createChatUnreadCounter,paintChatsBadge,combinedChatUnread} from './chat-unread'
+import {createChatReceiptRefresh} from './chat-receipt-refresh'
 import {createAppLinkHandoff,appLinkTitle} from './app-links'
 import {openSharedMatch} from './shared-match-view'
 import {openTeamInvite} from './team-invite-view'
@@ -420,7 +421,8 @@ function showHub(next:AppHub){
 const coachIncoming=document.createElement('aside');coachIncoming.hidden=true;app.before(coachIncoming)
 const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(student,owner)=>{if(session?.user.id!==owner)return;showHub('coach');const visit=revision;coachWorkspace=openCoachMessages(client,owner,()=>visit===revision&&owner===session?.user.id,undefined,undefined,student,undefined,()=>{void chatUnread.refresh()})},undefined,undefined,()=>authReady&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&document.visibilityState==='visible')
 const coachAlerts=createCoachAlerts(client,()=>nativePush.isEnabled())
-const nativePush=createNativePush(client,scope=>openTeamRoom(scope),{onCoachOpen:(id,owner)=>coachHandoff.receive(id,owner),mountCoachAlerts:host=>coachAlerts.mount(host)})
+const chatReceipts=createChatReceiptRefresh(async owner=>{if(session?.user.id===owner)await chatUnread.refresh()})
+const nativePush=createNativePush(client,scope=>openTeamRoom(scope),{onCoachOpen:(id,owner)=>coachHandoff.receive(id,owner),onReceive:owner=>chatReceipts.receive(owner),mountCoachAlerts:host=>coachAlerts.mount(host)})
 const chatUnread=createChatUnreadCounter(client,value=>{paintChatsBadge(navigation.querySelector<HTMLElement>('[data-screen="teams"]')!,combinedChatUnread(value),value?.coach?.available===false);teamRoom?.refreshUnread()})
 const updatesCounter=createUpdatesCounter(client,count=>{
  updatesEntry.setAttribute('aria-label',count===null?'Updates':'Updates, '+count+' unread')
@@ -428,7 +430,7 @@ const updatesCounter=createUpdatesCounter(client,count=>{
 })
 const nativePurchases=applePurchases(client)
 const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
-function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
+function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
 async function lab() {
   agenda?.dispose();agenda=null

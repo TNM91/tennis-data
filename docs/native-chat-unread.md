@@ -8,6 +8,10 @@ One foreground subscription to the existing RLS-protected, content-free `team_ch
 
 External iPhone alerts reuse the existing approved APNs registration and delivery path. Chats now includes the same opt-in control as My Lab. Users enable Chat notifications and allow iOS notifications; team/room mute and block settings remain enforced. APNs uses generic message text and a recipient-bound room destination. No new Apple permission/capability, credential, paid provider, invitations or automatic message sends are added. Physical device delivery still needs user acceptance after installing the build.
 
+The device control is labeled **Turn off chat notifications** because it revokes that iPhone's registration for both team and Coach delivery. The separate Coach account choice stays saved when device notifications are turned off. Re-enabling the device never changes that choice.
+
+A foreground push receipt for the currently registered, signed-in recipient invalidates unread counts for a valid Team or Coach destination. Receipt bursts coalesce, with at least two seconds between refresh starts and at most one active refresh. Both document visibility and native App state must be active; background, malformed, foreign-account, disabled-device and stale-owner work is discarded. There is no idle polling or automatic retry after failure. Receipts do not navigate, load conversation bodies, acknowledge reads or rebuild open forms and message drafts. Notification taps retain their existing separate access-checked navigation flow. Physical APNs receipt and presentation remain separate from simulated bridge checks.
+
 The top-right account action now uses a settings gear. The profile action remains the person icon. The native scoreboard uses the versioned v3 court master documented in `public/brand/docs/MANIFEST.txt`; existing approved logos and app icons retain their original bytes.
 
 ## Inbox catch-up

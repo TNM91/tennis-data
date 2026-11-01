@@ -26,14 +26,14 @@ export function pushTeamDestination(data:unknown,userId:string):TeamChatDestinat
 export async function nativePushRequest(session:Session,data?:unknown,transport=CapacitorHttp):Promise<PushReply>{
  const options={url:'https://www.tenaceiq.com/api/mobile/push',headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json'},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:12000}
  const response=data===undefined?await transport.get(options):await transport.post({...options,data})
- if(response.status!==200 || response.data?.ok!==true)throw Error('Team alert settings could not be saved.')
+ if(response.status!==200 || response.data?.ok!==true)throw Error('Chat notification settings could not be saved.')
  return response.data
 }
-export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;clearDelivered?:()=>Promise<void>;request?:(session:Session,data?:unknown)=>Promise<PushReply>;onCoachOpen?:(conversation:string,owner:string)=>void;mountCoachAlerts?:(host:HTMLElement)=>void}={}) {
+export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;clearDelivered?:()=>Promise<void>;request?:(session:Session,data?:unknown)=>Promise<PushReply>;onCoachOpen?:(conversation:string,owner:string)=>void;onReceive?:(owner:string)=>void;mountCoachAlerts?:(host:HTMLElement)=>void}={}) {
  const supported=(deps.platform || Capacitor.getPlatform())==='ios'
  const plugin=deps.plugin || PushNotifications,storage=deps.storage || (supported?getNativeAuthStorage():undefined),request=deps.request || nativePushRequest
  const clearDelivered=deps.clearDelivered || (()=>nativeNotificationCleanup.clearDelivered())
- let disposed=false,resumeHandle:PluginListenerHandle|null=null,initialized=false,current:Session|null=null,version=0,host:HTMLElement|null=null,installation:Installation|null=null,available=false,busy=false,notice='Checking team alerts…',actionHandle:PluginListenerHandle|null=null
+ let disposed=false,resumeHandle:PluginListenerHandle|null=null,initialized=false,current:Session|null=null,version=0,host:HTMLElement|null=null,installation:Installation|null=null,available=false,busy=false,notice='Checking chat notifications…',actionHandle:PluginListenerHandle|null=null,receiptHandle:PluginListenerHandle|null=null
  let pendingAction:unknown=null
  let chain:Promise<unknown>=Promise.resolve()
  const enqueue=<T>(task:()=>Promise<T>)=>{const result=chain.then(task,task);chain=result.catch(()=>{});return result}
@@ -42,10 +42,10 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   if(!host?.isConnected || !supported || !current)return
   host.replaceChildren()
   const title=document.createElement('h2');title.textContent='Chat notifications'
-  const text=document.createElement('p');text.textContent='Get iPhone notifications for new team messages. Tap an alert to open the conversation. Message text stays private.'
+  const text=document.createElement('p');text.textContent='Allow chat notifications on this iPhone. Team and room mute settings still apply. Coach & player alerts are a separate choice below. Message text stays private.'
   const status=document.createElement('p');status.setAttribute('role','status');status.textContent=notice
-  const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=busy;button.textContent=installation?.owner===current.user.id?'Turn off team alerts':available?'Enable chat notifications':'Check team alerts'
-  button.onclick=()=>{void enqueue(async()=>{if(!current)return;busy=true;render();try{if(installation?.owner===current.user.id)await disable(current);else await enable(true)}catch{notice='Couldn’t save team alerts. Check your connection and try again.'}finally{busy=false;render()}})}
+  const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=busy;button.textContent=installation?.owner===current.user.id?'Turn off chat notifications':available?'Enable chat notifications':'Check chat notifications'
+  button.onclick=()=>{void enqueue(async()=>{if(!current)return;busy=true;render();try{if(installation?.owner===current.user.id)await disable(current);else await enable(true)}catch{notice='Couldn’t save chat notifications. Check your connection and try again.'}finally{busy=false;render()}})}
   host.append(title,text,status,button)
   if(deps.mountCoachAlerts){const coach=document.createElement('section');host.append(coach);deps.mountCoachAlerts(coach)}
  }
@@ -63,7 +63,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   await request(session,{installationId:device.id,secret:device.secret,enabled:false})
   await plugin.unregister()
   await clearDelivered()
-  device.owner='';await save();notice='Team alerts are off.'
+  device.owner='';await save();notice='Chat notifications are off on this iPhone. Your Coach alert choice stays saved.'
  }
  const getToken=async()=>{
   let done=false,timer:ReturnType<typeof setTimeout>|undefined,resolveToken:(token:string)=>void=()=>{},rejectToken:()=>void=()=>{}
@@ -84,7 +84,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   const device=await load(),capabilities=await request(session)
   if(!valid(session.user.id,epoch))return
   available=capabilities.available===true
-  if(!available){notice='Team alerts are being prepared. Check again soon.';return}
+  if(!available){notice='Chat notifications are being prepared. Check again soon.';return}
   let permission=await plugin.checkPermissions()
   if(prompt && permission.receive==='prompt')permission=await plugin.requestPermissions()
   if(!valid(session.user.id,epoch))return
@@ -98,11 +98,12 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   await request(session,{installationId:device.id,secret:device.secret,token,enabled:true})
   device.owner=session.user.id;await save()
   if(!valid(session.user.id,epoch)){await disable(session);return}
-  notice='Team alerts are on. Team mute and block settings still apply.'
+  notice='Chat notifications are on for this iPhone. Mute, block and account choices still apply.'
  }
  const openAlert=(data:unknown,user:string)=>{const scope=pushTeamDestination(data,user);if(scope)onOpen(scope);else{const conversation=pushCoachDestination(data,user);if(conversation)deps.onCoachOpen?.(conversation,user)}}
  if(supported)void plugin.addListener('pushNotificationActionPerformed',event=>{if(disposed)return;if(!initialized){const data=event.notification.data;pendingAction={recipient:data?.recipient,href:data?.href};return}const session=current;if(session)openAlert(event.notification.data,session.user.id)}).then(handle=>{if(disposed)void handle.remove();else actionHandle=handle}).catch(()=>{})
- if(supported && !deps.platform)void App.addListener('appStateChange',state=>{if(!state.isActive || busy || !current || installation?.owner!==current.user.id || disposed)return;void enqueue(async()=>{busy=true;try{await enable(false)}catch{notice='Couldn’t refresh team alerts. Check your connection and try again.'}finally{busy=false;render()}})}).then(handle=>{if(disposed)void handle.remove();else resumeHandle=handle}).catch(()=>{})
+ if(supported)void plugin.addListener('pushNotificationReceived',notification=>{const user=current?.user.id;if(disposed||!initialized||!user||installation?.owner!==user)return;if(pushTeamDestination(notification?.data,user)||pushCoachDestination(notification?.data,user))deps.onReceive?.(user)}).then(handle=>{if(disposed)void handle.remove();else receiptHandle=handle}).catch(()=>{if(!disposed)console.warn('native_chat_receipt_listener_unavailable')})
+ if(supported && !deps.platform)void App.addListener('appStateChange',state=>{if(!state.isActive || busy || !current || installation?.owner!==current.user.id || disposed)return;void enqueue(async()=>{busy=true;try{await enable(false)}catch{notice='Couldn’t refresh chat notifications. Check your connection and try again.'}finally{busy=false;render()}})}).then(handle=>{if(disposed)void handle.remove();else resumeHandle=handle}).catch(()=>{})
  return {
   mount(element:HTMLElement){host=element;if(!supported)element.hidden=true;else render()},
   setSession(session:Session|null){
@@ -122,13 +123,13 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
      if(!valid(session.user.id,epoch))return
      busy=true;render()
      if(device.owner===session.user.id)await enable(false)
-     else{await plugin.unregister();await clearDelivered();const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable chat notifications when you’re ready.':'Team alerts are being prepared. Check again soon.'}}
-    }catch{notice='Can’t check team alerts. Try again when you’re connected.'}finally{busy=false;render()}
+     else{await plugin.unregister();await clearDelivered();const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable chat notifications when you’re ready.':'Chat notifications are being prepared. Check again soon.'}}
+    }catch{notice='Can’t check chat notifications. Try again when you’re connected.'}finally{busy=false;render()}
    })
   },
   beforeSignOut(expectedOwner=current?.user.id){return enqueue(async()=>{if(!supported)return;if(!current){if(expectedOwner)throw Error('Account changed');return}if(current.user.id!==expectedOwner)throw Error('Account changed');const {data,error}=await client.auth.getSession();if(error||current?.user.id!==expectedOwner||data.session?.user.id!==expectedOwner)throw Error('Sign in again before changing alerts');const device=await load();if(current?.user.id!==expectedOwner)throw Error('Account changed');if(device.owner===expectedOwner)await disable(data.session);else{await plugin.unregister();await clearDelivered()}})},
   isEnabled(){return !disposed&&Boolean(current&&installation?.owner===current.user.id)&&!busy},
   isSupported(){return supported},
-  dispose(){disposed=true;version++;current=null;void actionHandle?.remove();void resumeHandle?.remove()},
+  dispose(){disposed=true;version++;current=null;void actionHandle?.remove();void receiptHandle?.remove();void resumeHandle?.remove()},
  }
 }
