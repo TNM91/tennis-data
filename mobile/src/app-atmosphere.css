@@ -431,6 +431,12 @@ body.native-chat-conversation .team-bubble-mine { background:#164567;border-radi
 body.native-chat-conversation .team-message-meta strong { font-size:13px;font-weight:650;color:#d1ecff; }
 body.native-chat-conversation .team-message-meta>span { font-size:10px;color:#aac5d9; }
 body.native-chat-conversation .team-bubble p { font-size:16px;line-height:1.55;color:#edf6fc; }
+body.native-chat-conversation .team-bubble-continuation { margin-block-start:3px;padding-block-start:8px; }
+body.native-chat-conversation .team-bubble:has(+.team-bubble-continuation) { margin-block-end:3px; }
+body.native-chat-conversation .team-bubble-continuation .chat-sender-avatar { display:none; }
+body.native-chat-conversation .team-bubble-continuation .team-message-meta { justify-content:flex-end; }
+body.native-chat-conversation .chat-date-divider { display:flex;align-items:center;justify-content:center;gap:12px;max-width:100%;margin:20px 0 14px;padding:0;border:0;background:transparent;color:#a8c3d5;font-size:.75rem;line-height:1.5;text-align:center;overflow-wrap:anywhere; }
+body.native-chat-conversation .chat-date-divider::before,body.native-chat-conversation .chat-date-divider::after { content:'';height:1px;flex:1 1 20px;min-width:8px;background:#2c4b63; }
 body.native-chat-conversation .chat-composer { background:#0f2c43;border-color:#3c6380;box-shadow:0 4px 20px #0003; }
 body.native-chat-conversation .chat-send-button { background:#75caff;color:#06213b; }
 @media(max-width:360px) {

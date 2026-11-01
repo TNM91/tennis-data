@@ -187,3 +187,76 @@ test('a live signal waits for the message menu to close before replacing its con
  expect(reads).toHaveLength(1)
  expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
 })
+
+for(const width of [320,390])test(`team timeline keeps dates, filters, actions and a live draft at ${width}px`,async({page},info)=>{
+ const second='88888888-8888-4888-8888-888888888888',tomorrow='99999999-9999-4999-8999-999999999999'
+ messages=[
+  {...base,id:ownId,senderUserId:owner,senderName:'Jordan Lee',isMine:true,canManageOwn:true,createdAt:'2026-10-28T16:00:00Z',body:'Ready for Saturday!'},
+  {...base,id:messageId,createdAt:'2026-10-28T16:01:00Z',body:'Meet at the north courts.'},
+  {...base,id:second,createdAt:'2026-10-28T16:02:00Z',body:'Unique needle: bring a new can of balls.'},
+  {...base,id:tomorrow,createdAt:'2026-10-29T16:03:00Z',body:'The courts are dry today.'}
+ ]
+ await page.setViewportSize({width,height:width===320?568:844});await page.goto(origin+prefix)
+ await page.addStyleTag({content:'html{font-size:20px} .team-bubble p{font-size:20px!important} .chat-room-heading h1{font-size:20px!important}'})
+ await expect(post(page,second)).toHaveClass(/team-bubble-continuation/)
+ await expect(post(page,second).locator('.chat-sender-avatar')).toBeHidden()
+ await expect(post(page,messageId).locator('.chat-sender-avatar')).toBeVisible()
+ await expect(post(page,second).locator('.team-message-meta strong')).toHaveClass(/sr-only/)
+ await expect(post(page,second).locator('time')).toHaveAttribute('datetime','2026-10-28T16:02:00Z')
+ await expect(post(page,second).locator('time')).toHaveAttribute('aria-label',/2026/)
+ await expect(page.locator('[data-chat-date-for]')).toHaveCount(2)
+ await expect(post(page,tomorrow)).not.toHaveClass(/team-bubble-continuation/)
+ const draft=page.locator('#chat-draft');await draft.fill('My unsent team message');await draft.evaluate(el=>{(window as unknown as {timelineInput:Element}).timelineInput=el;(el as HTMLTextAreaElement).setSelectionRange(3,8)})
+ await page.locator('.chat-room-options>summary').click();await page.locator('.chat-room-extra>summary').click();await page.locator('.chat-find>summary').click()
+ const query=page.locator('#chat-search');await query.fill('Unique needle')
+ await expect(page.locator('[data-chat-message]:not([hidden])')).toHaveCount(1)
+ await expect(page.locator('[data-chat-date-for]')).toHaveCount(1)
+ await expect(post(page,second)).not.toHaveClass(/team-bubble-continuation/)
+ await expect(post(page,second).locator('.team-message-meta strong')).not.toHaveClass(/sr-only/)
+ await query.fill('No matching message');await expect(page.locator('[data-chat-date-for]')).toHaveCount(0)
+ await page.locator('#chat-search-clear').click();await expect(page.locator('[data-chat-date-for]')).toHaveCount(2)
+ await page.getByRole('button',{name:'Close team tools',exact:true}).click()
+ await expect(post(page,second)).toHaveClass(/team-bubble-continuation/)
+ await draft.focus();await draft.evaluate(el=>(el as HTMLTextAreaElement).setSelectionRange(3,8))
+ messages.push({...base,id:pollId,createdAt:'2026-10-29T16:04:00Z',body:'See you there!'})
+ await page.evaluate(async()=>{await (window as unknown as {fixture:{refresh:()=>Promise<void>}}).fixture.refresh()})
+ await expect(post(page,pollId)).toHaveClass(/team-bubble-continuation/)
+ expect(await draft.evaluate(el=>el===(window as unknown as {timelineInput:Element}).timelineInput)).toBe(true)
+ await expect(draft).toHaveValue('My unsent team message')
+ expect(await draft.evaluate(el=>[(el as HTMLTextAreaElement).selectionStart,(el as HTMLTextAreaElement).selectionEnd])).toEqual([3,8])
+ await post(page,second).getByRole('button',{name:'Message actions for Alex Rivera',exact:true}).click()
+ await expect(page.getByRole('dialog',{name:'Alex Rivera',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'Close message actions',exact:true}).click()
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ expect(await page.locator('.team-conversation').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
+ await post(page,second).scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('chat-timeline-large-text.png'),fullPage:true})
+})
+
+test('the first unread message keeps its sender when it follows the same teammate',async({page})=>{
+ const second='88888888-8888-4888-8888-888888888888'
+ messages=[{...base,id:ownId,createdAt:'2026-10-28T16:58:00Z',body:'First message'},
+  {...base,id:second,createdAt:'2026-10-28T16:59:00Z',body:'Second message'},
+  {...base,id:messageId,createdAt:'2026-10-28T17:01:00Z',body:'Unread message'}]
+ await page.goto(origin+prefix)
+ await expect(post(page,second)).toHaveClass(/team-bubble-continuation/)
+ await expect(post(page).locator('#chat-unread-marker')).toHaveText('Unread messages')
+ await expect(post(page)).not.toHaveClass(/team-bubble-continuation/)
+ await expect(post(page).locator('.chat-sender-avatar')).toBeVisible()
+ await expect(post(page).locator('.team-message-meta strong')).not.toHaveClass(/sr-only/)
+ expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
+})
+
+test('a visible date divider never replaces the message reading anchor during live updates',async({page})=>{
+ messages=Array.from({length:45},(_,index)=>({...base,id:'aaaaaaaa-aaaa-4aaa-8aaa-'+String(index+1).padStart(12,'0'),createdAt:new Date(Date.UTC(2026,9,25+Math.floor(index/15),16,index%15)).toISOString(),body:'Court plans and team practice details '+index}))
+ await page.goto(origin+prefix)
+ const list=page.locator('.team-conversation');await expect(list.locator('[data-chat-date-for]')).toHaveCount(3)
+ await list.evaluate(el=>{const divider=el.querySelectorAll('[data-chat-date-for]')[1];el.scrollTop+=divider.getBoundingClientRect().top-el.getBoundingClientRect().top})
+ const reading=()=>list.evaluate(el=>{const top=el.getBoundingClientRect().top,item=Array.from(el.querySelectorAll<HTMLElement>('[data-chat-message]')).find(row=>!row.hidden&&row.getBoundingClientRect().bottom>top+1)!;return {id:item.dataset.chatMessage,delta:item.getBoundingClientRect().top-top}})
+ const before=await reading()
+ messages.push({...base,id:messageId,createdAt:'2026-10-28T16:00:00Z',body:'A newer day below your reading position'})
+ await page.evaluate(async()=>{await (window as unknown as {fixture:{refresh:()=>Promise<void>}}).fixture.refresh()})
+ await expect(list.locator('[data-chat-date-for]')).toHaveCount(4)
+ const after=await reading();expect(after.id).toBe(before.id);expect(Math.abs(after.delta-before.delta)).toBeLessThan(2)
+ expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
+})

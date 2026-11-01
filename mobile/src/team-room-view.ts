@@ -1,4 +1,5 @@
 import {createCoachChatsInbox} from './coach-chats-inbox'
+import {applyChatTimeline} from './chat-timeline'
 import {chatMessageActionsHtml,bindChatMessagePress} from './chat-message-menu'
 import {chatAttachmentMenuHtml,bindChatAttachmentClose} from './chat-attachment-menu'
 import {openAvailabilityReplies} from './availability-replies-view'
@@ -145,6 +146,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const applySearch=(room:NativeTeamRoom)=>{
   let count=0
   for(const item of app.querySelectorAll<HTMLElement>('[data-chat-message]')){const message=room.messages.find(message=>message.id===item.dataset.chatMessage);const visible=!!message&&chatMatches(message,chatFilter,searchText,userId);item.hidden=!visible;if(visible)count++}
+  const list=app.querySelector<HTMLElement>('.team-conversation');if(list)applyChatTimeline(list,room.messages,new Set([catchupStart||firstUnreadChat(room.messages,unread)]))
   const status=app.querySelector('#chat-search-status');if(status)status.textContent=chatFilterStatus(chatFilter,count,room.messages.length,searchText)
   const activeFilter=app.querySelector<HTMLElement>('#chat-active-filter');if(activeFilter){activeFilter.hidden=chatFilter==='all'&&!searchText.trim();activeFilter.innerHTML=`<span>${html(chatFilterStatus(chatFilter,count,room.messages.length,searchText))}</span><button type="button" class="secondary">Clear filters</button>`;activeFilter.querySelector('button')!.onclick=()=>{chatFilter='all';searchText='';render();app.querySelector<HTMLElement>('.team-conversation')?.focus({preventScroll:true})}}
   const empty=app.querySelector<HTMLElement>('#chat-filter-empty');if(empty){empty.hidden=count>0;empty.textContent=chatFilter==='all'&&!searchText.trim()?'Start the team conversation.':'No matching messages on this page. Try Earlier messages or choose All.'}
@@ -245,12 +247,13 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   if(!list)return
   const active=document.activeElement as HTMLElement|null,keepAlertFocus=Boolean(alertFocusId&&active?.closest<HTMLElement>('[data-chat-message]')?.dataset.chatMessage===alertFocusId&&(active.matches('.chat-match-card h3')||active.matches('[data-chat-message]')))
   const previous=list.scrollTop,top=list.getBoundingClientRect().top
-  const first=Array.from(list.children).find(child=>child.getBoundingClientRect().bottom>top+1) as HTMLElement|undefined
+  const first=Array.from(list.querySelectorAll<HTMLElement>('[data-chat-message]')).find(child=>!child.hidden&&child.getBoundingClientRect().bottom>top+1)
   const anchor=first?{id:first.dataset.chatMessage,delta:first.getBoundingClientRect().top-top}:null
   gifs.clear()
   const fragment=document.createElement('template');fragment.innerHTML=teamConversationHtml(room,Boolean(historyBefore),userId)
   const next=fragment.content.querySelector('.team-conversation')!
   list.replaceChildren(...Array.from(next.childNodes))
+  applySearch(room)
   list.scrollTop=latest?list.scrollHeight:previous
   if(!latest && anchor){const target=Array.from(list.children).find(child=>(child as HTMLElement).dataset.chatMessage===anchor.id);if(target)list.scrollTop+=target.getBoundingClientRect().top-list.getBoundingClientRect().top-anchor.delta}
   historyScroll=list.scrollTop
@@ -359,7 +362,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   captainView?.dispose();captainView=null
   const oldList=app.querySelector<HTMLElement>('.team-conversation')
   if(oldList)historyScroll=oldList.scrollTop
-  const oldTop=oldList?.getBoundingClientRect().top || 0,oldFirst=oldList?Array.from(oldList.children).find(child=>child.getBoundingClientRect().bottom>oldTop+1) as HTMLElement|undefined:undefined
+  const oldTop=oldList?.getBoundingClientRect().top || 0,oldFirst=oldList?Array.from(oldList.querySelectorAll<HTMLElement>('[data-chat-message]')).find(child=>!child.hidden&&child.getBoundingClientRect().bottom>oldTop+1):undefined
   const anchor=oldFirst?{id:oldFirst.dataset.chatMessage,delta:oldFirst.getBoundingClientRect().top-oldTop}:null
   if(inbox){
    app.innerHTML=chatsInboxHtml(snapshot)
@@ -483,6 +486,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
     app.querySelector<HTMLButtonElement>('#chat-discard')?.addEventListener('click',()=>{draft.discard();render()})
    }else panel.insertAdjacentHTML('beforeend','<p class="rating-context">Team posting is not available yet. Refresh after the next chat update.</p>')
    const conversation=app.querySelector<HTMLElement>('.team-conversation')!
+   applySearch(room)
    conversation.scrollTop=latest?conversation.scrollHeight:previousScroll
    if(!latest && anchor){const target=Array.from(conversation.children).find(child=>(child as HTMLElement).dataset.chatMessage===anchor.id);if(target)conversation.scrollTop+=target.getBoundingClientRect().top-conversation.getBoundingClientRect().top-anchor.delta}
    const jumpUnread=()=>{chatFilter='all';searchText='';const first=firstUnreadChat(room.messages,unread);catchupStart=first;catchingUp=!!first;initialCatchup=false;render();const list=app.querySelector<HTMLElement>('.team-conversation'),target=Array.from(list?.children||[]).find(item=>(item as HTMLElement).dataset.chatMessage===first) as HTMLElement|undefined;if(target&&list){list.scrollTop+=target.getBoundingClientRect().top-list.getBoundingClientRect().top;target.tabIndex=-1;target.scrollIntoView({block:'nearest'});target.focus({preventScroll:true})}}
