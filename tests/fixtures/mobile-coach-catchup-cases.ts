@@ -10,9 +10,10 @@ async function open(page:Page,width=390,long=false){
 async function add(page:Page,id:string,student='student-one',body='Fresh return practice note.'){
  await page.evaluate(({id,student,body})=>{const w=window as unknown as Preview;w.coachUnreadFixture.add(student,id,body);w.chatUnreadFixture.emit()},{id,student,body})
 }
-for(const width of [320,390])test('Coach catch-up preserves the live draft node and caret while loading an already-read new note at '+width+'px',async({page},info)=>{
+for(const width of [320,390])test('Coach explicit catch-up during search preserves the live draft node and caret while loading an already-read new note at '+width+'px',async({page},info)=>{
  const dialog=await open(page,width,true),draft=dialog.getByRole('textbox',{name:'Message',exact:true})
  await dialog.locator('[data-coach-message-id="44444444-4444-4444-8444-444444444444"]').scrollIntoViewIfNeeded();await expect(page.locator('[data-chat-badge]')).toHaveText('8');await draft.fill('Keep my slice return practice draft.')
+ await dialog.getByRole('button',{name:'Find in conversation',exact:true}).click();await draft.focus()
  await draft.evaluate(el=>{const w=window as unknown as Preview;w.preservedDraft=el as HTMLTextAreaElement;(el as HTMLTextAreaElement).setSelectionRange(5,12)})
  const before=await page.evaluate(()=>{const f=(window as unknown as Preview).coachUnreadFixture;return {loads:f.loads,reads:f.reads.length}})
  await page.evaluate(id=>{const w=window as unknown as Preview;w.coachUnreadFixture.add('student-one',id,'Fresh return practice note.');w.coachUnreadFixture.counts['student-one']=0;w.chatUnreadFixture.emit()},first)
@@ -28,8 +29,8 @@ for(const width of [320,390])test('Coach catch-up preserves the live draft node 
  await page.screenshot({path:info.outputPath('coach-catchup-loaded-'+width+'.png')})
  await page.evaluate(id=>{const w=window as unknown as Preview;w.coachUnreadFixture.add('student-one',id,'Immediate reply.');w.coachUnreadFixture.counts['student-one']=0;w.chatUnreadFixture.emit()},second);await expect(prompt).toBeVisible();await draft.focus();await draft.evaluate(el=>(el as HTMLTextAreaElement).setSelectionRange(2,9));await dialog.getByRole('button',{name:'Load updated messages',exact:true}).click();await expect(dialog).toContainText('Immediate reply.');await expect(prompt).toBeHidden();await expect(draft).toBeFocused();expect(await draft.evaluate(el=>[(el as HTMLTextAreaElement).selectionStart,(el as HTMLTextAreaElement).selectionEnd])).toEqual([2,9])
 })
-test('Coach catch-up retains activity that arrives after the refresh snapshot without prefetching it',async({page})=>{
- const dialog=await open(page);await expect(page.locator('[data-chat-badge]')).toHaveText('8');await add(page,first,'student-one','First new reply.');await expect(dialog.locator('[data-coach-catchup]')).toBeVisible()
+test('Coach explicit catch-up during search retains activity arriving after the refresh snapshot without prefetching it',async({page})=>{
+ const dialog=await open(page);await expect(page.locator('[data-chat-badge]')).toHaveText('8');await dialog.getByRole('button',{name:'Find in conversation',exact:true}).click();await add(page,first,'student-one','First new reply.');await expect(dialog.locator('[data-coach-catchup]')).toBeVisible()
  await page.evaluate(()=>(window as unknown as Preview).coachUnreadFixture.holdLoad=true);await dialog.getByRole('button',{name:'Load updated messages',exact:true}).click();await expect(dialog.locator('[data-refresh]')).toBeDisabled()
  await add(page,second,'student-one','Reply arriving during refresh.');await expect(page.locator('[data-chat-badge]')).toHaveText('10');await page.evaluate(()=>(window as unknown as Preview).coachUnreadFixture.releaseLoad())
  await expect(dialog).toContainText('First new reply.');await expect(dialog).not.toContainText('Reply arriving during refresh.');await expect(dialog.locator('[data-coach-catchup]')).toBeVisible();await expect(dialog.locator('[data-refresh]')).toBeEnabled()
@@ -37,7 +38,7 @@ test('Coach catch-up retains activity that arrives after the refresh snapshot wi
  await dialog.getByRole('button',{name:'Load updated messages',exact:true}).click();await expect(dialog).toContainText('Reply arriving during refresh.');await expect(dialog.locator('[data-coach-catchup]')).toBeHidden()
 })
 test('Coach catch-up ignores another conversation, retains known activity through an outage and discards a late old-account load',async({page})=>{
- const dialog=await open(page);await expect(page.locator('[data-chat-badge]')).toHaveText('8');await add(page,first,'student-two');await expect(page.locator('[data-chat-badge]')).toHaveText('9');await expect(dialog.locator('[data-coach-catchup]')).toBeHidden()
+ const dialog=await open(page);await expect(page.locator('[data-chat-badge]')).toHaveText('8');await dialog.getByRole('button',{name:'Find in conversation',exact:true}).click();await add(page,first,'student-two');await expect(page.locator('[data-chat-badge]')).toHaveText('9');await expect(dialog.locator('[data-coach-catchup]')).toBeHidden()
  await add(page,second);await expect(dialog.locator('[data-coach-catchup]')).toBeVisible();await page.evaluate(()=>{const w=window as unknown as Preview;w.coachUnreadFixture.unavailable=true;w.chatUnreadFixture.emit()});await expect(page.locator('.app-navigation [data-screen="teams"]')).toHaveAttribute('aria-label','Chats, at least 7 unread messages. Some counts unavailable.');await expect(dialog.locator('[data-coach-catchup]')).toBeVisible()
  await page.evaluate(()=>(window as unknown as Preview).coachUnreadFixture.holdLoad=true);await dialog.getByRole('button',{name:'Load updated messages',exact:true}).click();await expect(dialog.locator('[data-refresh]')).toBeDisabled();await page.evaluate(()=>(window as unknown as Preview).switchNavigationOwner());await expect(dialog).toHaveCount(0);await page.evaluate(()=>(window as unknown as Preview).coachUnreadFixture.releaseLoad());await expect(page.locator('[data-chat-badge]')).toHaveText('7');await expect(page.getByText('Fresh return practice note.',{exact:true})).toHaveCount(0)
 })

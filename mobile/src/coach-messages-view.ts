@@ -9,8 +9,10 @@ import {readCoachChatConnections,markCoachChatRead} from './coach-chats-data'
 import {createCoachMessageChangeTracker,watchCoachMessageCounts} from './coach-message-catchup'
 import type {ChatUnread} from './chat-unread'
 import {coachMessageHistory,coachMessageRanges,coachMessageText,type CoachHistoryMessage} from './coach-message-history'
+import {createCoachAutoCatchup} from './coach-auto-catchup'
 import './coach-premium.css'
 type ChatMessage=CoachHistoryMessage
+class CoachAutoCatchupCancelled extends Error{}
 export function openCoachMessages(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,send?:CoachSend,initialStudent?:string,onClose?:()=>void,onRead?:()=>void){
  const dialog=document.createElement('dialog');dialog.className='native-coach-screen coach-messages-screen';dialog.setAttribute('aria-label','Coach messages')
  let disposed=false,busy=false,selected='',notice='',text='',leaving=false,leaveAction:(()=>void)|null=null,pending:{id:string;body:string}|null=null,messages:ChatMessage[]=[],connections:{id:string;name:string}[]=[],more=false,checked=false
@@ -19,21 +21,43 @@ export function openCoachMessages(client:SupabaseClient,owner:string,current:()=
  let searching=false,query='',matchId='',searchReturn:HTMLElement|null=null
  const changes=createCoachMessageChangeTracker()
  const active=()=>!disposed&&current(),focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
- const dispose=()=>{if(disposed)return;disposed=true;stopCounts();summary=null;refreshFocus=null;searchReturn=null;query='';matchId='';readObserver?.disconnect();readObserver=null;document.removeEventListener('visibilitychange',readVisibility);void appHandle?.remove();pending=null;messages=[];connections=[];text='';dialog.close();dialog.remove();if(current()){if(trigger?.isConnected)trigger.focus({preventScroll:true});onClose?.()}}
+ const nearLatest=()=>{
+  const last=dialog.querySelector<HTMLElement>('[data-coach-message-id]:last-child');if(!last)return false
+  const bounds=last.getBoundingClientRect(),viewport=dialog.getBoundingClientRect(),top=Math.max(0,viewport.top,dialog.querySelector('header')?.getBoundingClientRect().bottom||0)
+  return bounds.height>0&&bounds.bottom<=Math.min(innerHeight,viewport.bottom)+4&&(bounds.bottom>top||dialog.scrollHeight-dialog.scrollTop-dialog.clientHeight<=64)
+ }
+ // WebKit rounds scroll offsets; following tolerates four pixels, while reads stay strict.
+ const scrollLatest=()=>{
+  const last=dialog.querySelector<HTMLElement>('[data-coach-message-id]:last-child');if(!last)return null
+  last.scrollIntoView({block:'end',behavior:'instant'})
+  const overflow=last.getBoundingClientRect().bottom-Math.min(innerHeight,dialog.getBoundingClientRect().bottom)
+  if(overflow>0)dialog.scrollTop+=Math.ceil(overflow)
+  return last
+ }
+ const canAutoLoad=()=>active()&&dialog.isConnected&&Boolean(selected)&&!pending&&!leaving&&!searching&&nativeActive&&document.visibilityState==='visible'&&summary?.owner===owner&&summary.coach?.available===true&&summary.coach.connections.some(connection=>connection.id===selected)&&nearLatest()
+ const autoCatchup=createCoachAutoCatchup(()=>!busy&&canAutoLoad(),()=>run(false,true,true))
+ const dispose=()=>{if(disposed)return;disposed=true;autoCatchup.dispose();stopCounts();summary=null;refreshFocus=null;searchReturn=null;query='';matchId='';readObserver?.disconnect();readObserver=null;document.removeEventListener('visibilitychange',readVisibility);void appHandle?.remove();pending=null;messages=[];connections=[];text='';dialog.close();dialog.remove();if(current()){if(trigger?.isConnected)trigger.focus({preventScroll:true});onClose?.()}}
  const requestLeave=(next?:()=>void)=>{if(busy&&!refreshing)return;if(text||pending){leaving=true;leaveAction=()=>{dispose();next?.()};render();focus()}else{dispose();next?.()}}
  const back=()=>{if(leaving){leaving=false;render()}else if(searching)closeSearch();else requestLeave();return true}
- const request=async(write:boolean)=>{const session=await scenarioOwner(client,owner,active),options={url:'https://www.tenaceiq.com/api/mobile/coach/messages'+(selected?'?'+new URLSearchParams({student:coachId(selected),...(pending?{message:pending.id}:{})}):''),headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json','Cache-Control':'no-store'},disableRedirects:true,responseType:'json' as const,webFetchExtra:{cache:'no-store' as const},connectTimeout:12000,readTimeout:30000,...(write&&pending?{data:pending}:{})};const r=send?await send(write?'POST':'GET',options):write?await CapacitorHttp.post(options):await CapacitorHttp.get(options);await scenarioOwner(client,owner,active);const body=coachRecord(r.data);if(r.status!==200||body.ok!==true||body.owner!==owner||JSON.stringify(body).length>500000)throw Error('Messages could not be confirmed. Refresh before trying again.');return body}
- const run=async(write=false,preserve=false)=>{
+ const request=async(write:boolean,automatic=false)=>{
+  const session=await scenarioOwner(client,owner,active)
+  if(automatic){
+   if(Capacitor.isNativePlatform()){try{nativeActive=(await App.getState()).isActive}catch{throw new CoachAutoCatchupCancelled()}}
+   if(!canAutoLoad())throw new CoachAutoCatchupCancelled()
+  }
+  const options={url:'https://www.tenaceiq.com/api/mobile/coach/messages'+(selected?'?'+new URLSearchParams({student:coachId(selected),...(pending?{message:pending.id}:{})}):''),headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json','Cache-Control':'no-store'},disableRedirects:true,responseType:'json' as const,webFetchExtra:{cache:'no-store' as const},connectTimeout:12000,readTimeout:30000,...(write&&pending?{data:pending}:{})};const r=send?await send(write?'POST':'GET',options):write?await CapacitorHttp.post(options):await CapacitorHttp.get(options);await scenarioOwner(client,owner,active);const body=coachRecord(r.data);if(r.status!==200||body.ok!==true||body.owner!==owner||JSON.stringify(body).length>500000)throw Error('Messages could not be confirmed. Refresh before trying again.');return body}
+ const run=async(write=false,preserve=false,automatic=false)=>{
   if(!active()||busy||write&&pending&&!checked)return
-  if(!write){readTried='';readNotice=''}
+  if(!write&&!automatic){readTried='';readNotice=''}
   const stable=preserve&&!write&&!pending&&!leaving&&Boolean(selected&&dialog.querySelector('[data-chat-form]'))
   const originalFocus=stable&&refreshFocus?refreshFocus:dialog.contains(document.activeElement)?document.activeElement as HTMLElement:null,ticket=changes.ticket()
   refreshFocus=null
+  if(selected)autoCatchup.started(selected+':'+ticket)
   busy=true;refreshing=stable;let follow=false
-  notice=write?'Sending message…':'Refreshing messages…'
+  notice=write?'Sending message…':automatic?'Updating conversation…':'Refreshing messages…'
   if(stable)paintActivity();else render()
   try{
-   const reply=await request(write);if(!active())return
+   const reply=await request(write,automatic);if(!active())return
    if(!selected){
     connections=readCoachChatConnections(reply,owner).connections
     selected=initialStudent?(connections.some(c=>c.id===initialStudent)?initialStudent:''):connections[0]?.id||''
@@ -43,18 +67,23 @@ export function openCoachMessages(client:SupabaseClient,owner:string,current:()=
     messages=reply.messages;more=reply.more===true;changes.loaded(ticket)
     const hit=reply.checked as ChatMessage|null
     if(pending&&hit?.id===pending.id&&hit.mine&&hit.body===pending.body){pending=null;text='';notice='Message sent.'}
-    else if(pending){checked=true;notice='This message was not found. Retry the same message or discard it.'}else notice=''
+    else if(pending){checked=true;notice='This message was not found. Retry the same message or discard it.'}else notice=automatic?'Conversation updated.':''
    }
-  }catch(error){if(active()){checked=false;notice=error instanceof Error?error.message:'Messages are unavailable.'}}
+  }catch(error){if(active()){if(error instanceof CoachAutoCatchupCancelled)notice='';else{checked=false;notice=error instanceof Error?error.message:'Messages are unavailable.'}}}
   finally{
    if(active()){
     busy=false;refreshing=false
     if(stable&&!leaving&&dialog.querySelector('[data-chat-form]')){
+     const followLatest=automatic&&canAutoLoad()&&document.activeElement!==dialog.querySelector('[name=body]')
      preservePosition(()=>{dialog.querySelector('.coach-direct-history')!.innerHTML=history();dialog.querySelector('[data-coach-history-hint]')!.textContent=more?'Latest 100 messages':'Private coach and player messages';paintSearch();paintActivity();observeRead()})
      if(originalFocus&&(!document.activeElement||document.activeElement===document.body||document.activeElement===dialog||document.activeElement===originalFocus)){
       if(originalFocus.isConnected&&!originalFocus.closest('[hidden]'))originalFocus.focus({preventScroll:true})
-      else dialog.querySelector<HTMLElement>(text?'[name=body]':'h1')?.focus({preventScroll:true})
+      else{
+       const sameMessage=originalFocus.dataset.coachMessageId?Array.from(dialog.querySelectorAll<HTMLElement>('[data-coach-message-id]')).find(item=>item.dataset.coachMessageId===originalFocus.dataset.coachMessageId):null
+       const target=sameMessage||dialog.querySelector<HTMLElement>(text?'[name=body]':'h1');target?.focus({preventScroll:true})
+      }
      }
+     if(followLatest){scrollLatest();void maybeRead()}
     }else{render();if(follow)void run();else focus()}
    }
   }
@@ -76,7 +105,7 @@ export function openCoachMessages(client:SupabaseClient,owner:string,current:()=
   }catch{if(active()&&selected===student)readNotice='Couldn’t update your read status. Refresh messages to try again.'}
   finally{readPending=false;if(active()){paintReadNotice();if(selected+':'+(messages.at(-1)?.id||'')!==readTried)void maybeRead()}}
  }
- const readVisibility=()=>{if(document.visibilityState==='visible')void maybeRead()}
+ const readVisibility=()=>{paintCatchup();if(document.visibilityState==='visible')void maybeRead()}
  const history=()=>coachMessageHistory(messages,connections.find(c=>c.id===selected)?.name||'Coach',searching?query:'')
  const preservePosition=(change:()=>void)=>{
   const body=dialog.querySelector('.coach-premium-body'),focused=document.activeElement as HTMLElement|null,top=dialog.querySelector('header')?.getBoundingClientRect().bottom||0
@@ -108,7 +137,7 @@ export function openCoachMessages(client:SupabaseClient,owner:string,current:()=
   if(!searching)return
   preservePosition(()=>{searching=false;query='';matchId='';const input=dialog.querySelector<HTMLInputElement>('[data-coach-search-input]');if(input)input.value='';paintSearch()})
   if(restore){const target=searchReturn?.isConnected&&!searchReturn.closest('[hidden]')?searchReturn:dialog.querySelector<HTMLElement>('[data-coach-search-toggle]');target?.focus({preventScroll:true})}
-  searchReturn=null;void maybeRead()
+  searchReturn=null;paintCatchup();void maybeRead()
  }
  const searchStep=(direction:number)=>{
   const matches=messages.filter(message=>coachMessageRanges(message.body,query).length>0);if(!matches.length)return
@@ -121,8 +150,8 @@ export function openCoachMessages(client:SupabaseClient,owner:string,current:()=
  }
  const jumpLatest=()=>{
   closeSearch(false)
-  const last=dialog.querySelector<HTMLElement>('[data-coach-message-id]:last-child');if(!last)return
-  last.scrollIntoView({block:'end',behavior:'instant'});last.focus({preventScroll:true});void maybeRead()
+  const last=scrollLatest();if(!last)return
+  last.focus({preventScroll:true});void maybeRead()
  }
  const paintCatchup=()=>{
   if(!active()||!dialog.isConnected)return
@@ -130,6 +159,7 @@ export function openCoachMessages(client:SupabaseClient,owner:string,current:()=
   changes.update(selected,value)
   const banner=dialog.querySelector<HTMLElement>('[data-coach-catchup]');if(!banner)return
   const hidden=leaving||!selected||!changes.waiting()
+  autoCatchup.signal(!hidden&&value?selected+':'+changes.ticket():null)
   banner.querySelector<HTMLButtonElement>('button')!.disabled=busy
   if(banner.hidden===hidden)return
   const restore=!banner.hidden&&hidden&&banner.contains(document.activeElement)
@@ -156,7 +186,7 @@ export function openCoachMessages(client:SupabaseClient,owner:string,current:()=
   dialog.querySelector('[data-coach-search-toggle]')?.addEventListener('click',()=>{
    if(searching){closeSearch();return}
    searchReturn=dialog.contains(document.activeElement)?document.activeElement as HTMLElement:null
-   preservePosition(()=>{searching=true;paintSearch()});dialog.querySelector<HTMLInputElement>('[data-coach-search-input]')?.focus({preventScroll:true})
+   preservePosition(()=>{searching=true;paintSearch()});paintCatchup();dialog.querySelector<HTMLInputElement>('[data-coach-search-input]')?.focus({preventScroll:true})
   })
   dialog.querySelector('[data-coach-search-close]')?.addEventListener('click',()=>closeSearch())
   dialog.querySelector('[data-coach-latest]')?.addEventListener('click',jumpLatest)
@@ -167,6 +197,6 @@ export function openCoachMessages(client:SupabaseClient,owner:string,current:()=
   paintSearch();paintActivity();observeRead()
  }
  stopCounts=watchCoachMessageCounts(owner,value=>{if(!active())return;summary=value;paintCatchup()})
- document.addEventListener('visibilitychange',readVisibility);dialog.addEventListener('scroll',()=>{void maybeRead()},true);if(Capacitor.isNativePlatform())void App.addListener('appStateChange',state=>{nativeActive=state.isActive;if(nativeActive)void maybeRead()}).then(handle=>{if(disposed)void handle.remove();else appHandle=handle}).catch(()=>{});document.body.append(dialog);dialog.showModal();dialog.oncancel=e=>{e.preventDefault();back()};render();void run()
+ document.addEventListener('visibilitychange',readVisibility);dialog.addEventListener('scroll',()=>{paintCatchup();void maybeRead()},true);if(Capacitor.isNativePlatform())void App.addListener('appStateChange',state=>{nativeActive=state.isActive;paintCatchup();if(nativeActive)void maybeRead()}).then(handle=>{if(disposed)void handle.remove();else appHandle=handle}).catch(()=>{});document.body.append(dialog);dialog.showModal();dialog.oncancel=e=>{e.preventDefault();back()};render();void run()
  return {dispose,requestLeave,back,isOpen:()=>!disposed}
 }
