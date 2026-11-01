@@ -2,12 +2,16 @@
 
 Updates brings the existing `internal_notifications` records into the app. The header bell shows an account-wide unread count; More → Updates opens the same inbox. All/Unread and type filters narrow the list. Dates, unread accents and short previews keep notices readable at narrow widths and larger text sizes.
 
+Find an update searches the titles and previews already loaded in this view. Matching is literal and case/accent/width insensitive, with a 160-character query limit. It searches all loaded pages, up to the existing 100-record boundary; older unseen notices are excluded. The matching/loaded count is separate from the account-wide unread total. Clear and Escape restore the current unsearched view. Typing and clearing make no requests, read acknowledgements or storage writes.
+
+Search stays in place across source/read filters, refresh, pagination, same-account token renewal and returning from an owned detail dialog. Its actual input node and cursor survive read-only rendering, including typing during a slow response. Refresh returns focus to its action unless the player keeps typing; loading older matches focuses the first newly available action. An unavailable initial/refresh read says unavailable instead of showing false zero matches. Disposing the view or changing accounts clears the query and index.
+
 ## Data and access
 
 - Reuses the website's notification projection and existing recipient RLS. This release adds no tables, grants, notification creation, push delivery, preferences or background jobs.
 - Every read and read-status write checks the current account before and after transport, filters by its recipient ID and pins that account's JWT to the query. Admin users still see only their own inbox here. Late responses from a previous account are discarded.
 - Pages contain 25 records, ordered by `created_at` and `id`. The cursor preserves PostgreSQL microseconds. At most 100 records are loaded; filtering or refreshing starts a new view. Duplicate or malformed results fail closed.
-- Mark read changes only `read_at` for the reviewed IDs. Mark shown read first lists the loaded unread notices to confirm. A separate owned read-back must confirm each ID before the UI updates. An interrupted write requires an explicit refresh before further writes; older unseen notices stay unchanged.
+- Mark read changes only `read_at` for the reviewed IDs. Mark shown read first lists the matching loaded unread notices to confirm. Search is disabled during that review, and only the frozen reviewed IDs can be submitted. Hidden matches, already-read records and older unseen notices stay unchanged. A separate owned read-back must confirm each ID before the UI updates. An interrupted write requires an explicit refresh before further writes; search never unlocks an uncertain write.
 - Unread count failures show an unknown state, not zero. One count runs on account entry, with another on an explicit inbox refresh or successful read action. Token refresh does not poll. Opening or refreshing the inbox uses one page query and one count; loading older records uses one query. A read action uses one bounded update, one read-back and one count. Coach conversation resolution adds one exact-ID read.
 
 ## Destinations and lifecycle
