@@ -42,6 +42,8 @@ import {openLevelUp} from './level-up-view'
 import {createTeamNavigationGuard} from './navigation-warning'
 import {labIdentityHtml,labActionsHtml} from './lab-home'
 import {createNativePush} from './native-push'
+import {createCoachAlerts} from './coach-alerts'
+import {createCoachAlertHandoff} from './coach-alert-handoff'
 import { showTeamRoom } from './team-room-view'
 import { showComparison } from './comparison-view'
 import { showFollowing } from './follows-view'
@@ -415,7 +417,10 @@ function showHub(next:AppHub){
  ++revision;selectNavigation(next);app.dataset.state='ready';app.innerHTML=appHubHtml(next)
  bindAppDestinations(app,openDestination);app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
 }
-const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
+const coachIncoming=document.createElement('aside');coachIncoming.hidden=true;app.before(coachIncoming)
+const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(student,owner)=>{if(session?.user.id!==owner)return;showHub('coach');const visit=revision;coachWorkspace=openCoachMessages(client,owner,()=>visit===revision&&owner===session?.user.id,undefined,undefined,student,undefined,()=>{void chatUnread.refresh()})},undefined,undefined,()=>authReady&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&document.visibilityState==='visible')
+const coachAlerts=createCoachAlerts(client,()=>nativePush.isEnabled())
+const nativePush=createNativePush(client,scope=>openTeamRoom(scope),{onCoachOpen:(id,owner)=>coachHandoff.receive(id,owner),mountCoachAlerts:host=>coachAlerts.mount(host)})
 const chatUnread=createChatUnreadCounter(client,value=>{paintChatsBadge(navigation.querySelector<HTMLElement>('[data-screen="teams"]')!,combinedChatUnread(value),value?.coach?.available===false);teamRoom?.refreshUnread()})
 const updatesCounter=createUpdatesCounter(client,count=>{
  updatesEntry.setAttribute('aria-label',count===null?'Updates':'Updates, '+count+' unread')
@@ -423,7 +428,7 @@ const updatesCounter=createUpdatesCounter(client,count=>{
 })
 const nativePurchases=applePurchases(client)
 const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
-function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}nativePush.setSession(next);nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
+function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
 async function lab() {
   agenda?.dispose();agenda=null
@@ -566,11 +571,11 @@ client.auth.onAuthStateChange((_event, next) => {
   if(next){guest?.dispose();guest=null}
   if (next?.user.id === session?.user.id && (agenda?.isOpen() || updates?.isOpen() || sharedMatch?.isOpen() || teamInvite?.isOpen() || accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
   session = next
-  revision++
+  const authRevision=++revision
   // Schedule outside the auth callback's lock before making another SDK call.
   setTimeout(() => {
-    if(next?.user.id!==session?.user.id)return
-    void (async()=>{if(session)await lab();else login();if(next?.user.id===session?.user.id){setNativeSession(session);authReady=true;if(session&&resumeLink)resumeAppLink()}})()
+    if(next?.user.id!==session?.user.id||authRevision!==revision)return
+    void (async()=>{if(session)await lab();else login();if(next?.user.id===session?.user.id){setNativeSession(session);authReady=true;if(session&&resumeLink)resumeAppLink();coachHandoff.resume()}})()
   }, 0)
 })
 client.auth.getSession().catch(() => {

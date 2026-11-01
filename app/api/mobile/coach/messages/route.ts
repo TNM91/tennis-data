@@ -3,6 +3,8 @@ import {markTeamChatRead} from '@/lib/team-chat-read'
 import {verifiedAccount,accountClient,readAccountJson} from '@/lib/mobile-account-auth'
 import {supabaseKey} from '@/lib/supabase-public-config'
 import {coachId,coachRecord} from '@/lib/native-coach-contract'
+import {after} from 'next/server'
+import {sendNativeCoachChatPush} from '@/lib/native-coach-chat-push'
 export const runtime='nodejs'
 export const maxDuration=30
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer'}})
@@ -28,6 +30,9 @@ async function handle(request:Request,write:boolean){
    if(!existing.data||existing.data.created_by_user_id===owner){const members=await client.from('internal_conversation_participants').upsert([{conversation_id:id,profile_id:link.coach_user_id,participant_role:'member'},{conversation_id:id,profile_id:link.player_user_id,participant_role:'member'}],{onConflict:'conversation_id,profile_id',ignoreDuplicates:true});if(members.error)throw Error()}
    const saved=await client.from('internal_messages').insert({id:messageId,conversation_id:id,sender_user_id:owner,body:body.body.trim(),message_kind:'message'})
    if(saved.error&&saved.error.code!=='23505')throw Error()
+   // A duplicate/recovery POST never schedules a second alert. Delivery failure
+   // must not change the outcome of an already saved message.
+   if(!saved.error){const key=process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();if(key)try{after(async()=>{await sendNativeCoachChatPush(accountClient(key),{student:selected,conversationId:id,actorId:owner,recipientId:link.coach_user_id===owner?link.player_user_id:link.coach_user_id,messageId})})}catch{console.warn('native_coach_alert_schedule_unavailable')}}
    const checked=await client.from('internal_messages').select('id,body,sender_user_id,conversation_id').eq('id',messageId).eq('conversation_id',id).eq('sender_user_id',owner).maybeSingle()
    if(checked.error||checked.data?.body!==body.body.trim())return json({ok:false},409)
   }

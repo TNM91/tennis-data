@@ -26,8 +26,13 @@ export function nativeChatPayload(recipient:string,href:string){
  return {aps:{alert:{title:'TenAceIQ',body:'You have a new team message.'},sound:'default'},recipient,href:url.pathname+url.search}
 }
 type Device={installation_id:string;profile_id:string;device_token:string;updated_at:string}
+export function nativeCoachPayload(recipient:string,href:string){
+ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,url=new URL(href,'https://www.tenaceiq.com')
+ if(!uuid.test(recipient)||url.origin!=='https://www.tenaceiq.com'||url.pathname!=='/messages'||url.hash||[...url.searchParams.keys()].some(k=>k!=='thread')||url.searchParams.getAll('thread').length!==1||!uuid.test(url.searchParams.get('thread')||''))throw Error('Invalid Coach destination')
+ return {aps:{alert:{title:'TenAceIQ',body:'You have a new Coach message.'},sound:'default'},recipient,href:url.pathname+url.search}
+}
 type Delivery={status:number;reason?:string}
-export async function deliverAppleChat(devices:Device[],href:string,conversationId:string,configuration:ApnsConfig,sendOverride?:(device:Device,payload:ReturnType<typeof nativeChatPayload>)=>Promise<Delivery>){
+export async function deliverAppleChat(devices:Device[],href:string,conversationId:string,configuration:ApnsConfig,sendOverride?:(device:Device,payload:ReturnType<typeof nativeChatPayload>)=>Promise<Delivery>,payloadFor=nativeChatPayload){
  const session=sendOverride?null:connect('https://api.push.apple.com')
  session?.on('error',()=>{})
  const deadline=Date.now()+10000,timeout=session?setTimeout(()=>session.destroy(),10000):null
@@ -48,7 +53,7 @@ export async function deliverAppleChat(devices:Device[],href:string,conversation
    request.end(JSON.stringify(payload))
   }catch{finish({status:0})}
  }))
- try{await Promise.all(Array.from({length:Math.min(4,devices.length)},async()=>{while(index<devices.length){if(Date.now()>deadline)break;const device=devices[index++];let result:Delivery;try{result=await send(device,nativeChatPayload(device.profile_id,href))}catch{result={status:0}}if(result.status===200)sent++;else{failed++;if(result.status===410 || result.status===400 && result.reason==='BadDeviceToken')expired.push(device)}}}))}
+ try{await Promise.all(Array.from({length:Math.min(4,devices.length)},async()=>{while(index<devices.length){if(Date.now()>deadline)break;const device=devices[index++];let result:Delivery;try{result=await send(device,payloadFor(device.profile_id,href))}catch{result={status:0}}if(result.status===200)sent++;else{failed++;if(result.status===410 || result.status===400 && result.reason==='BadDeviceToken')expired.push(device)}}}))}
  finally{if(timeout)clearTimeout(timeout);session?.destroy()}
  return {sent,failed:failed+devices.length-index,expired}
 }
