@@ -70,6 +70,29 @@
 .coach-message-catchup p::before{content:'';display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:#a4e21b;vertical-align:middle}
 .coach-message-catchup button{flex:0 0 auto}
 
+.coach-messages-screen .native-coach-header>div:first-child{flex:1 1 135px}
+.coach-conversation-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.coach-messages-screen .coach-conversation-actions button{padding:8px 11px!important}
+.coach-conversation-search{flex:1 0 100%;padding:12px 0 0;border-top:1px solid #294a63}
+.coach-conversation-search[hidden]{display:none!important}
+.coach-conversation-search label{display:block;font-size:.8125rem;color:#c4dfef;margin:0 0 8px}
+.coach-search-input-row{display:flex;gap:8px;align-items:center}
+.coach-messages-screen .coach-search-input-row input{flex:1 1 0;width:0;min-height:44px;border:1px solid #5487a8;border-radius:12px;background:#041324;color:#f0f9ff;font-size:1rem;padding:10px 12px}
+.coach-search-navigation{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px}
+.coach-search-navigation>div{display:flex;gap:6px;flex:0 0 auto}
+.coach-messages-screen .coach-search-navigation button{min-width:44px;font-size:1rem!important}
+.coach-search-navigation p{margin:0;font-size:.8125rem;color:#e5f4ff;line-height:1.4}
+.coach-conversation-search [data-coach-search-scope]{font-size:.7rem;color:#a7c7dd;line-height:1.4;margin:5px 0 0}
+.coach-direct-history .coach-message-day{align-self:center;text-align:center;margin:12px 0 4px;color:#a4c8de;font-size:.75rem;line-height:1.4}
+.coach-direct-message.is-continuation{margin-top:-9px;border-top-left-radius:10px}
+.coach-direct-message.is-continuation.is-mine{border-top-right-radius:10px}
+.coach-message-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;color:#b6d9ed;font-size:.75rem;line-height:1.4}
+.coach-message-meta span{font-weight:700;color:#edf7ff}
+.coach-message-meta time{font-size:.7rem;letter-spacing:0;text-transform:none}
+.coach-direct-message mark{background:#c0ed58;color:#10271b;border-radius:3px;padding:0 1px}
+.coach-direct-message.is-search-current{outline:2px solid #8bd5ff;outline-offset:3px}
+.coach-direct-message:focus-visible{outline:2px solid #8bd5ff;outline-offset:3px}
+
 .native-coach-video-host [data-tiq-video-review]{width:100%;max-width:1200px;margin:auto;padding:18px 14px 90px;min-height:0;overflow-x:clip}
 .native-coach-video-host [data-tiq-video-review]>*{max-width:100%}
 .native-coach-video-host button{min-height:44px;font-size:.875rem;line-height:1.35;width:auto}
