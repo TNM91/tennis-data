@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import UIKit
 import Capacitor
 import StoreKit
@@ -335,7 +336,8 @@ public final class TenAceIQNotifications: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "TenAceIQNotifications"
     public let jsName = "TiqNotifications"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "clearDelivered", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "clearDelivered", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBadge", returnType: CAPPluginReturnPromise)
     ]
 
     @objc func clearDelivered(_ call: CAPPluginCall) {
@@ -343,6 +345,35 @@ public final class TenAceIQNotifications: CAPPlugin, CAPBridgedPlugin {
             UNUserNotificationCenter.current().removeAllDeliveredNotifications()
             UIApplication.shared.applicationIconBadgeNumber = 0
             call.resolve()
+        }
+    }
+
+    @objc func setBadge(_ call: CAPPluginCall) {
+        guard let number = call.getValue("count") as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID() else {
+            call.reject("Invalid unread count.", "invalid_badge_count"); return
+        }
+        let value = number.doubleValue
+        guard value.isFinite, value.rounded(.towardZero) == value, value >= 0, value <= 100 else {
+            call.reject("Invalid unread count.", "invalid_badge_count"); return
+        }
+        let count = Int(value), center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            // Respect the iPhone's badge choice. Never request authorization here.
+            guard count == 0 || settings.badgeSetting == .enabled else {
+                call.resolve(["applied": false]); return
+            }
+            if #available(iOS 16.0, *) {
+                center.setBadgeCount(count) { error in
+                    if error != nil { call.reject("Unread badge unavailable.", "badge_unavailable") }
+                    else { call.resolve(["applied": true]) }
+                }
+            } else {
+                DispatchQueue.main.async {
+                    UIApplication.shared.applicationIconBadgeNumber = count
+                    call.resolve(["applied": true])
+                }
+            }
         }
     }
 }

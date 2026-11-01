@@ -9,6 +9,7 @@ import {teamChatMessageId} from '../../lib/team-chat-cursor'
 import {nativeNotificationCleanup} from './native-notification-cleanup'
 import type {TeamChatDestination} from './team-room-data'
 import {pushCoachDestination} from './coach-alert-handoff'
+import type {ChatUnread} from './chat-unread'
 const storageKey='native-push-installation-v1'
 type Installation={id:string;secret:string;owner:string}
 type PushReply={ok:boolean;available?:boolean}
@@ -29,20 +30,37 @@ export async function nativePushRequest(session:Session,data?:unknown,transport=
  if(response.status!==200 || response.data?.ok!==true)throw Error('Chat notification settings could not be saved.')
  return response.data
 }
-export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;clearDelivered?:()=>Promise<void>;request?:(session:Session,data?:unknown)=>Promise<PushReply>;onCoachOpen?:(conversation:string,owner:string)=>void;onReceive?:(owner:string)=>void;mountCoachAlerts?:(host:HTMLElement)=>void}={}) {
+export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;clearDelivered?:()=>Promise<void>;setBadge?:(count:number)=>Promise<{applied:boolean}>;request?:(session:Session,data?:unknown)=>Promise<PushReply>;onCoachOpen?:(conversation:string,owner:string)=>void;onReceive?:(owner:string)=>void;mountCoachAlerts?:(host:HTMLElement)=>void}={}) {
  const supported=(deps.platform || Capacitor.getPlatform())==='ios'
  const plugin=deps.plugin || PushNotifications,storage=deps.storage || (supported?getNativeAuthStorage():undefined),request=deps.request || nativePushRequest
- const clearDelivered=deps.clearDelivered || (()=>nativeNotificationCleanup.clearDelivered())
+ const clearDelivered=deps.clearDelivered || (()=>nativeNotificationCleanup.clearDelivered()),setBadge=deps.setBadge || (count=>nativeNotificationCleanup.setBadge({count}))
  let disposed=false,resumeHandle:PluginListenerHandle|null=null,initialized=false,current:Session|null=null,version=0,host:HTMLElement|null=null,installation:Installation|null=null,available=false,busy=false,notice='Checking chat notifications…',actionHandle:PluginListenerHandle|null=null,receiptHandle:PluginListenerHandle|null=null
  let pendingAction:unknown=null
  let chain:Promise<unknown>=Promise.resolve()
  const enqueue=<T>(task:()=>Promise<T>)=>{const result=chain.then(task,task);chain=result.catch(()=>{});return result}
  const valid=(user:string,epoch:number)=>current?.user.id===user && epoch===version
+ let badgeCount:number|null=null,badgeApplied:number|null=null,badgeQueued=false,badgeRevision=0,badgeStopped=false,badgeWarned=false
+ // Share registration/logout's queue: an older badge write must finish before cleanup.
+ const scheduleBadge=()=>{
+  if(!supported||disposed||badgeStopped||badgeQueued||badgeCount===null||badgeCount===badgeApplied||!current)return
+  const user=current.user.id,epoch=version
+  badgeQueued=true
+  void enqueue(async()=>{
+   const ticket=badgeRevision,count=badgeCount
+   try{
+    if(disposed||badgeStopped||!valid(user,epoch)||installation?.owner!==user||count===null||count===badgeApplied)return
+    await setBadge(count)
+    if(!disposed&&!badgeStopped&&valid(user,epoch)&&installation?.owner===user){badgeApplied=count;badgeWarned=false}
+   }catch{if(!disposed&&valid(user,epoch)&&!badgeWarned){badgeWarned=true;console.warn('native_chat_badge_unavailable')}}
+   finally{badgeQueued=false;if(ticket!==badgeRevision||epoch!==version)scheduleBadge()}
+  })
+ }
+ const clearAlerts=async()=>{await clearDelivered();badgeApplied=null}
  const render=()=>{
   if(!host?.isConnected || !supported || !current)return
   host.replaceChildren()
   const title=document.createElement('h2');title.textContent='Chat notifications'
-  const text=document.createElement('p');text.textContent='Allow chat notifications on this iPhone. Team and room mute settings still apply. Coach & player alerts are a separate choice below. Message text stays private.'
+  const text=document.createElement('p');text.textContent='Allow chat notifications on this iPhone. iPhone Settings controls banners, sounds and badges. Team and room mute settings still apply. Coach & player alerts are a separate choice below. Message text stays private.'
   const status=document.createElement('p');status.setAttribute('role','status');status.textContent=notice
   const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=busy;button.textContent=installation?.owner===current.user.id?'Turn off chat notifications':available?'Enable chat notifications':'Check chat notifications'
   button.onclick=()=>{void enqueue(async()=>{if(!current)return;busy=true;render();try{if(installation?.owner===current.user.id)await disable(current);else await enable(true)}catch{notice='Couldn’t save chat notifications. Check your connection and try again.'}finally{busy=false;render()}})}
@@ -62,7 +80,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   const device=await load()
   await request(session,{installationId:device.id,secret:device.secret,enabled:false})
   await plugin.unregister()
-  await clearDelivered()
+  await clearAlerts()
   device.owner='';await save();notice='Chat notifications are off on this iPhone. Your Coach alert choice stays saved.'
  }
  const getToken=async()=>{
@@ -99,6 +117,8 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   device.owner=session.user.id;await save()
   if(!valid(session.user.id,epoch)){await disable(session);return}
   notice='Chat notifications are on for this iPhone. Mute, block and account choices still apply.'
+  if(prompt)badgeStopped=false
+  badgeApplied=null;scheduleBadge()
  }
  const openAlert=(data:unknown,user:string)=>{const scope=pushTeamDestination(data,user);if(scope)onOpen(scope);else{const conversation=pushCoachDestination(data,user);if(conversation)deps.onCoachOpen?.(conversation,user)}}
  if(supported)void plugin.addListener('pushNotificationActionPerformed',event=>{if(disposed)return;if(!initialized){const data=event.notification.data;pendingAction={recipient:data?.recipient,href:data?.href};return}const session=current;if(session)openAlert(event.notification.data,session.user.id)}).then(handle=>{if(disposed)void handle.remove();else actionHandle=handle}).catch(()=>{})
@@ -114,22 +134,27 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
    const pending=pendingAction;pendingAction=null
    if(session && pending)openAlert(pending,session.user.id)
    const epoch=++version
+   badgeCount=null;badgeApplied=null;badgeRevision++;badgeStopped=false;badgeWarned=false
    if(!supported)return
    void enqueue(async()=>{
     try{
      const device=await load()
-     if(previous && previous.user.id!==session?.user.id && device.owner===previous.user.id){try{await disable(previous)}catch{await plugin.unregister();await clearDelivered()}}
-     if(!session){await plugin.unregister();await clearDelivered();return}
+     if(previous && previous.user.id!==session?.user.id && device.owner===previous.user.id){try{await disable(previous)}catch{await plugin.unregister();await clearAlerts()}}
+     if(!session){await plugin.unregister();await clearAlerts();return}
      if(!valid(session.user.id,epoch))return
      busy=true;render()
      if(device.owner===session.user.id)await enable(false)
-     else{await plugin.unregister();await clearDelivered();const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable chat notifications when you’re ready.':'Chat notifications are being prepared. Check again soon.'}}
+     else{await plugin.unregister();await clearAlerts();const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable chat notifications when you’re ready.':'Chat notifications are being prepared. Check again soon.'}}
     }catch{notice='Can’t check chat notifications. Try again when you’re connected.'}finally{busy=false;render()}
    })
   },
-  beforeSignOut(expectedOwner=current?.user.id){return enqueue(async()=>{if(!supported)return;if(!current){if(expectedOwner)throw Error('Account changed');return}if(current.user.id!==expectedOwner)throw Error('Account changed');const {data,error}=await client.auth.getSession();if(error||current?.user.id!==expectedOwner||data.session?.user.id!==expectedOwner)throw Error('Sign in again before changing alerts');const device=await load();if(current?.user.id!==expectedOwner)throw Error('Account changed');if(device.owner===expectedOwner)await disable(data.session);else{await plugin.unregister();await clearDelivered()}})},
+  syncBadge(value:ChatUnread|null){
+   if(!supported||disposed||!current||value?.owner!==current.user.id||value.coach?.available!==true||![value.total,value.coach.total].every(n=>Number.isInteger(n)&&n>=0&&n<=100))return
+   badgeCount=Math.min(100,value.total+value.coach.total);badgeRevision++;scheduleBadge()
+  },
+  beforeSignOut(expectedOwner=current?.user.id){if(current?.user.id===expectedOwner)badgeStopped=true;return enqueue(async()=>{try{if(!supported)return;if(!current){if(expectedOwner)throw Error('Account changed');return}if(current.user.id!==expectedOwner)throw Error('Account changed');const {data,error}=await client.auth.getSession();if(error||current?.user.id!==expectedOwner||data.session?.user.id!==expectedOwner)throw Error('Sign in again before changing alerts');const device=await load();if(current?.user.id!==expectedOwner)throw Error('Account changed');if(device.owner===expectedOwner)await disable(data.session);else{await plugin.unregister();await clearAlerts()}}catch(error){if(current?.user.id===expectedOwner){badgeStopped=false;scheduleBadge()}throw error}})},
   isEnabled(){return !disposed&&Boolean(current&&installation?.owner===current.user.id)&&!busy},
   isSupported(){return supported},
-  dispose(){disposed=true;version++;current=null;void actionHandle?.remove();void receiptHandle?.remove();void resumeHandle?.remove()},
+  dispose(){disposed=true;version++;current=null;badgeCount=null;badgeRevision++;void actionHandle?.remove();void receiptHandle?.remove();void resumeHandle?.remove()},
  }
 }

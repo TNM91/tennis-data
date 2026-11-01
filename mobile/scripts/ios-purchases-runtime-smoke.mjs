@@ -215,6 +215,7 @@ export function instrumentPurchaseSmoke(source){
                            } catch (error) { fileExportError=String(error?.code||error?.message||'file_probe_failed').slice(0,160); }
                            probe.stage = 'sign_in_bridge';
                            let notificationsCleared = false;
+                           let unreadBadgeVerified = false;
                            let appLockBridge = false;
                            try {
                                const state = await cap.Plugins.TiqBiometricSignIn.status();
@@ -226,11 +227,19 @@ export function instrumentPurchaseSmoke(source){
                                appLockBridge = invalidRejected && requestRejected && state.saved === false && typeof state.available === 'boolean' && ['faceID','touchID'].includes(state.biometry);
                            } catch {}
                            try {
+                               const n = cap.Plugins.TiqNotifications;
+                               let invalid = 0;
+                               for (const value of [-1, 101, 1.5, true, '7', null, undefined]) {
+                                   try { await n.setBadge({count:value}); } catch (error) { if (error.code === 'invalid_badge_count') invalid++; }
+                               }
+                               const positive = await n.setBadge({count:7});
+                               const zero = await n.setBadge({count:0});
+                               unreadBadgeVerified = invalid === 7 && typeof positive.applied === 'boolean' && zero.applied === true;
                                await cap.Plugins.TiqNotifications.clearDelivered();
                                await cap.Plugins.TiqNotifications.clearDelivered();
                                notificationsCleared = true;
                            } catch {}
-                           return JSON.stringify({complete:true,stage:'complete',fileExportError,ready: fileExportsVerified && appLockPolicy && appLockBridge && notificationsCleared && restorePolicy && restoreTimeout && restoreRetry && restoreTagged && restoreCancelled && purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeCoachFileExportBridgeVerified:fileExportsVerified,nativeBiometricSignInLifecycleVerified:appLockPolicy,nativeBiometricSignInBridgeVerified:appLockBridge, nativeColdStartNotificationsCleared:notificationsCleared,nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel,nativeRestorePolicyVerified:restorePolicy,nativeRestoreReadRecovery:restoreTimeout && restoreRetry,nativeRestoreFailureTagged:restoreTagged && restoreCancelled});
+                           return JSON.stringify({complete:true,stage:'complete',fileExportError,ready: fileExportsVerified && appLockPolicy && appLockBridge && notificationsCleared && unreadBadgeVerified && restorePolicy && restoreTimeout && restoreRetry && restoreTagged && restoreCancelled && purchaseChannel && rejected && productRejected && historyTimeout && prepareTimeout && retryTimeout && prepareTagged && confirmTagged && cancelResolved && deadlineStopped, platform: cap.getPlatform(), available: true, nativeCoachFileExportBridgeVerified:fileExportsVerified,nativeBiometricSignInLifecycleVerified:appLockPolicy,nativeBiometricSignInBridgeVerified:appLockBridge, nativeColdStartNotificationsCleared:notificationsCleared,nativeUnreadBadgeBridgeVerified:unreadBadgeVerified,nativeInvalidReceiptRejected: rejected, nativeInvalidProductRequestRejected: productRejected, nativeHistoryTimeoutRejected:historyTimeout, nativePreparationTimeoutRejected:prepareTimeout, nativePreparationLockReleased:retryTimeout,nativeConfirmationWaitUntimed:deadlineStopped,nativePreparationFailureTagged:prepareTagged,nativeConfirmationFailureTagged:confirmTagged,nativeCancellationResolved:cancelResolved,nativeSandboxChannelVerified:purchaseChannel,nativeRestorePolicyVerified:restorePolicy,nativeRestoreReadRecovery:restoreTimeout && restoreRetry,nativeRestoreFailureTagged:restoreTagged && restoreCancelled});
                            })();
                            probe.promise.then(report=>{probe.report=report}).catch(error=>{probe.report=JSON.stringify({complete:true,ready:false,stage:probe.stage,error:String(error?.code||error?.message||'probe_failed').slice(0,160)})});
                            return JSON.stringify({complete:false,ready:false,stage:probe.stage});
@@ -264,10 +273,11 @@ export function verifyPurchaseSmoke(report){
  assert.equal(report.platform,'ios','The check must run inside the iOS app')
  assert.equal(report.available,true,'StoreKit was not exported to the app JavaScript')
  assert.equal(report.nativeColdStartNotificationsCleared,true,'Cold-start notification cleanup did not respond through the native bridge')
+ assert.equal(report.nativeUnreadBadgeBridgeVerified,true,'Unread badge validation and updates did not respond through the native bridge')
  assert.equal(report.nativeInvalidReceiptRejected,true,'The native bridge did not reject the invalid test receipt')
  assert.equal(report.nativeInvalidProductRequestRejected,true,'The native bridge did not validate the product request')
  for(const key of ['nativeHistoryTimeoutRejected','nativePreparationTimeoutRejected','nativePreparationLockReleased','nativeConfirmationWaitUntimed','nativePreparationFailureTagged','nativeConfirmationFailureTagged','nativeCancellationResolved','nativeSandboxChannelVerified','nativeRestorePolicyVerified','nativeRestoreReadRecovery','nativeRestoreFailureTagged'])assert.equal(report[key],true,'The native read recovery probe failed: '+key)
- return {ready:true,platform:'ios',available:true,nativeCoachFileExportBridgeVerified:true,nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:true,nativeColdStartNotificationsCleared:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
+ return {ready:true,platform:'ios',available:true,nativeCoachFileExportBridgeVerified:true,nativeBiometricSignInLifecycleVerified:true,nativeBiometricSignInBridgeVerified:true,nativeColdStartNotificationsCleared:true,nativeUnreadBadgeBridgeVerified:true,nativeInvalidReceiptRejected:true,nativeInvalidProductRequestRejected:true,nativeHistoryTimeoutRejected:true,nativePreparationTimeoutRejected:true,nativePreparationLockReleased:true,nativeConfirmationWaitUntimed:true,nativePreparationFailureTagged:true,nativeConfirmationFailureTagged:true,nativeCancellationResolved:true,nativeSandboxChannelVerified:true,nativeRestorePolicyVerified:true,nativeRestoreReadRecovery:true,nativeRestoreFailureTagged:true}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [mode,file]=process.argv.slice(2)
