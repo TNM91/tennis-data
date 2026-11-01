@@ -53,6 +53,26 @@ describe('native team alert lifecycle',()=>{
   const f=fixture(),warn=vi.spyOn(console,'warn').mockImplementation(()=>{});try{f.controller.setSession(session());await vi.waitFor(()=>expect(f.controller.isEnabled()).toBe(true));f.setBadge.mockRejectedValueOnce(Error('Badge unavailable'));f.controller.syncBadge(unread());await vi.waitFor(()=>expect(warn).toHaveBeenCalledWith('native_chat_badge_unavailable'));await Promise.resolve();expect(f.setBadge).toHaveBeenCalledTimes(1)
   f.controller.syncBadge(unread());await vi.waitFor(()=>expect(f.setBadge).toHaveBeenCalledTimes(2));await f.controller.beforeSignOut();expect(f.clearDelivered).toHaveBeenCalled();f.controller.dispose()}finally{warn.mockRestore()}
  })
+ it.each([5,0])('does not confirm an iPhone-refused badge count of %i or retry it without a fresh snapshot',async count=>{
+  const f=fixture(),warn=vi.spyOn(console,'warn').mockImplementation(()=>{})
+  try{
+   f.controller.setSession(session());await vi.waitFor(()=>expect(f.controller.isEnabled()).toBe(true));const requests=f.request.mock.calls.length
+   f.setBadge.mockResolvedValueOnce({applied:false});f.controller.syncBadge(unread(count,0))
+   await vi.waitFor(()=>expect(f.setBadge).toHaveBeenCalledExactlyOnceWith(count));await Promise.resolve();expect(f.setBadge).toHaveBeenCalledTimes(1)
+   f.controller.syncBadge(unread(count,0));await vi.waitFor(()=>expect(f.setBadge.mock.calls).toEqual([[count],[count]]))
+   f.controller.syncBadge(unread(count,0));await Promise.resolve();expect(f.setBadge).toHaveBeenCalledTimes(2)
+   expect(f.request).toHaveBeenCalledTimes(requests);expect(f.plugin.requestPermissions).not.toHaveBeenCalled();expect(warn).not.toHaveBeenCalled();expect(f.controller.isEnabled()).toBe(true)
+  }finally{f.controller.dispose();warn.mockRestore()}
+ })
+ it('requires fresh native confirmation after an uncertain write even when the next snapshot matches an older confirmed count',async()=>{
+  const f=fixture(),warn=vi.spyOn(console,'warn').mockImplementation(()=>{})
+  try{
+   f.controller.setSession(session());await vi.waitFor(()=>expect(f.controller.isEnabled()).toBe(true));f.controller.syncBadge(unread(5,0));await vi.waitFor(()=>expect(f.setBadge).toHaveBeenCalledExactlyOnceWith(5))
+   f.setBadge.mockRejectedValueOnce(Error('Native result unavailable'));f.controller.syncBadge(unread(8,0));await vi.waitFor(()=>expect(warn).toHaveBeenCalledWith('native_chat_badge_unavailable'))
+   await Promise.resolve();expect(f.setBadge).toHaveBeenCalledTimes(2);f.controller.syncBadge(unread(5,0));await vi.waitFor(()=>expect(f.setBadge.mock.calls).toEqual([[5],[8],[5]]))
+   await f.controller.beforeSignOut();expect(f.clearDelivered).toHaveBeenCalled();expect(f.saved().owner).toBe('')
+  }finally{f.controller.dispose();warn.mockRestore()}
+ })
  it('invalidates counts for owned team and Coach receipts without opening either conversation',async()=>{const f=fixture();f.controller.setSession(session());await vi.waitFor(()=>expect(f.controller.isEnabled()).toBe(true));const calls=f.request.mock.calls.length;for(const href of ['/team-room?team=T&league=L','/messages?thread=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'])f.handlers.pushNotificationReceived({data:{recipient:'owner',href}} as never);expect(f.onReceive.mock.calls).toEqual([['owner'],['owner']]);expect(f.onOpen).not.toHaveBeenCalled();expect(f.onCoachOpen).not.toHaveBeenCalled();expect(f.request.mock.calls).toHaveLength(calls);expect(f.plugin.requestPermissions).not.toHaveBeenCalled();f.controller.dispose()})
  it('ignores early, malformed, foreign-account, disabled-device and disposed receipts',async()=>{const f=fixture(),own={data:{recipient:'owner',href:'/messages?thread=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'}};f.handlers.pushNotificationReceived(own as never);f.controller.setSession(session());await vi.waitFor(()=>expect(f.controller.isEnabled()).toBe(true));for(const data of [null,{recipient:'other',href:'/team-room?team=T&league=L'},{recipient:'owner',href:'/messages?thread=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa&owner=other'},{recipient:'owner',href:'https://outside.invalid/team-room?team=T&league=L'}])f.handlers.pushNotificationReceived({data} as never);expect(f.onReceive).not.toHaveBeenCalled();await f.controller.beforeSignOut();f.handlers.pushNotificationReceived(own as never);expect(f.onReceive).not.toHaveBeenCalled();f.controller.setSession(null);f.handlers.pushNotificationReceived(own as never);f.controller.dispose();f.handlers.pushNotificationReceived(own as never);expect(f.onReceive).not.toHaveBeenCalled();expect(f.removes.every(remove=>remove.mock.calls.length===1)).toBe(true)})
  it('removes late action and receipt listeners after disposal',async()=>{const removes=[vi.fn(async()=>{}),vi.fn(async()=>{})],complete:((handle:{remove:()=>Promise<void>})=>void)[]=[];const plugin={addListener:vi.fn(()=>new Promise(resolve=>complete.push(resolve)))} as unknown as PushNotificationsPlugin;const controller=createNativePush({} as SupabaseClient,vi.fn(),{platform:'ios',plugin});controller.dispose();complete.forEach((resolve,index)=>resolve({remove:removes[index]}));await vi.waitFor(()=>expect(removes.every(remove=>remove.mock.calls.length===1)).toBe(true))})

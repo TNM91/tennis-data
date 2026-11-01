@@ -49,9 +49,9 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
    const ticket=badgeRevision,count=badgeCount
    try{
     if(disposed||badgeStopped||!valid(user,epoch)||installation?.owner!==user||count===null||count===badgeApplied)return
-    await setBadge(count)
-    if(!disposed&&!badgeStopped&&valid(user,epoch)&&installation?.owner===user){badgeApplied=count;badgeWarned=false}
-   }catch{if(!disposed&&valid(user,epoch)&&!badgeWarned){badgeWarned=true;console.warn('native_chat_badge_unavailable')}}
+    const result=await setBadge(count)
+    if(!disposed&&!badgeStopped&&valid(user,epoch)&&installation?.owner===user){badgeApplied=result?.applied===true?count:null;if(result?.applied===true)badgeWarned=false}
+   }catch{if(!disposed&&valid(user,epoch)){badgeApplied=null;if(!badgeWarned){badgeWarned=true;console.warn('native_chat_badge_unavailable')}}}
    finally{badgeQueued=false;if(ticket!==badgeRevision||epoch!==version)scheduleBadge()}
   })
  }
