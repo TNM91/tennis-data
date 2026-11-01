@@ -92,6 +92,8 @@
 .coach-direct-message mark{background:#c0ed58;color:#10271b;border-radius:3px;padding:0 1px}
 .coach-direct-message.is-search-current{outline:2px solid #8bd5ff;outline-offset:3px}
 .coach-direct-message:focus-visible{outline:2px solid #8bd5ff;outline-offset:3px}
+.coach-messages-screen .coach-message-link{display:inline-block;max-width:100%;min-width:0;width:auto;min-height:44px;margin:0;padding:4px 0;border:0;border-radius:4px;background:transparent;color:#8bd5ff;font:inherit;text-align:start;text-decoration:underline;text-underline-offset:3px;white-space:normal;overflow-wrap:anywhere;vertical-align:baseline}
+.coach-messages-screen .coach-message-link:focus-visible{outline:2px solid #8bd5ff;outline-offset:3px}
 
 .native-coach-video-host [data-tiq-video-review]{width:100%;max-width:1200px;margin:auto;padding:18px 14px 90px;min-height:0;overflow-x:clip}
 .native-coach-video-host [data-tiq-video-review]>*{max-width:100%}
