@@ -1,16 +1,11 @@
 import {html} from './match-details'
 import {tokenizeTeamRoomMessageBody} from '../../lib/team-room-message-links'
 import {chatWebLink} from './chat-web-link'
+import {messageSearchRanges as coachMessageRanges} from './message-search'
+export {messageSearchRanges as coachMessageRanges} from './message-search'
 
 export type CoachHistoryMessage={id:string;mine:boolean;body:string;createdAt:string}
 
-// Match the original string so Unicode case folding cannot move highlight offsets.
-export function coachMessageRanges(body:string,query:string):{start:number;end:number}[]{
- const term=query.trim().slice(0,120)
- if(!term)return []
- const literal=term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
- return Array.from(body.matchAll(new RegExp(literal,'giu')),hit=>({start:hit.index!,end:hit.index!+hit[0].length}))
-}
 export function coachMessageText(body:string,query:string){
  const ranges=coachMessageRanges(body,query)
  let position=0,links=0

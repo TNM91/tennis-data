@@ -8,7 +8,7 @@ const origin='http://127.0.0.1:4261',prefix='/__chat-experience/'
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222',roomId='33333333-3333-4333-8333-333333333333'
 const ownId='44444444-4444-4444-8444-444444444444',pollId='55555555-5555-4555-8555-555555555555',practiceId='66666666-6666-4666-8666-666666666666',messageId='77777777-7777-4777-8777-777777777777'
 const scope={teamName:'Review Aces',leagueName:'City Tennis League',flight:'4.0'}
-let javascript='',stylesheet='',actions:ChatAction[]=[],messages:Record<string,unknown>[]=[]
+let javascript='',stylesheet='',actions:ChatAction[]=[],messages:Record<string,unknown>[]=[],historyQueries:string[]=[]
 const base={senderUserId:other,senderName:'Alex Rivera',kind:'message',deletedAt:'',isMine:false,replyToMessageId:'',card:null,reactions:[]}
 test.beforeAll(async()=>{
  const bundled=await build({stdin:{resolveDir:process.cwd(),sourcefile:'chat-experience-fixture.ts',loader:'ts',contents:`
@@ -29,7 +29,7 @@ test.beforeAll(async()=>{
  stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')
 })
 test.beforeEach(async({page})=>{
- actions=[]
+ actions=[];historyQueries=[]
  messages=[
   {...base,id:ownId,senderUserId:owner,senderName:'Jordan Lee',isMine:true,canManageOwn:true,createdAt:'2026-10-28T16:00:00Z',body:'Ready for Saturday!'},
   {...base,id:pollId,createdAt:'2026-10-28T16:01:00Z',body:`Poll: When should we practice?\n1. Saturday morning\n2. Sunday afternoon\nhttps://www.tenaceiq.com/team-room?poll=${pollId}`},
@@ -40,6 +40,7 @@ test.beforeEach(async({page})=>{
   const request=route.request(),url=new URL(request.url())
   if(url.origin==='https://www.tenaceiq.com'&&url.pathname.startsWith('/api/team-rooms')){
    expect(request.headers().authorization).toBe('Bearer synthetic-fixture-token')
+   if(url.pathname==='/api/team-rooms/search'){historyQueries.push(url.search);return route.fulfill({json:{ok:true,chatSearch:1,roomId,query:url.searchParams.get('q')||'',kind:url.searchParams.get('kind')||'all',beforeCursor:url.searchParams.get('before')||'',nextCursor:'',results:[]}})}
    if(page.url().includes('photo=1'))messages[messages.length-1].attachment={size:4,mimeType:'image/jpeg'}
    const room={...scope,id:roomId,subject:scope.teamName,messages,members:[{id:owner,name:'Jordan Lee',roles:['captain']},{id:other,name:'Alex Rivera',roles:['player']}],nextScheduledMatch:null,activeCardId:'',muted:false,chatReady:true,lastReadAt:'2026-10-28T17:00:00Z',blockedMembers:[],blockedUserIds:[],canManage:!page.url().includes('member=1')}
    if(request.method()==='GET')return route.fulfill({json:url.pathname.endsWith('/chat')?{ok:true,chatUpdate:true,room,nextCursor:'',beforeCursor:''}:{ok:true,teams:[scope],room}})
@@ -207,7 +208,7 @@ for(const width of [320,390])test(`team timeline keeps dates, filters, actions a
  await expect(page.locator('[data-chat-date-for]')).toHaveCount(2)
  await expect(post(page,tomorrow)).not.toHaveClass(/team-bubble-continuation/)
  const draft=page.locator('#chat-draft');await draft.fill('My unsent team message');await draft.evaluate(el=>{(window as unknown as {timelineInput:Element}).timelineInput=el;(el as HTMLTextAreaElement).setSelectionRange(3,8)})
- await page.locator('.chat-room-options>summary').click();await page.locator('.chat-room-extra>summary').click();await page.locator('.chat-find>summary').click()
+ await page.getByRole('button',{name:'Find in conversation',exact:true}).click()
  const query=page.locator('#chat-search');await query.fill('Unique needle')
  await expect(page.locator('[data-chat-message]:not([hidden])')).toHaveCount(1)
  await expect(page.locator('[data-chat-date-for]')).toHaveCount(1)
@@ -215,7 +216,7 @@ for(const width of [320,390])test(`team timeline keeps dates, filters, actions a
  await expect(post(page,second).locator('.team-message-meta strong')).not.toHaveClass(/sr-only/)
  await query.fill('No matching message');await expect(page.locator('[data-chat-date-for]')).toHaveCount(0)
  await page.locator('#chat-search-clear').click();await expect(page.locator('[data-chat-date-for]')).toHaveCount(2)
- await page.getByRole('button',{name:'Close team tools',exact:true}).click()
+ await page.locator('[data-chat-find-close]').click()
  await expect(post(page,second)).toHaveClass(/team-bubble-continuation/)
  await draft.focus();await draft.evaluate(el=>(el as HTMLTextAreaElement).setSelectionRange(3,8))
  messages.push({...base,id:pollId,createdAt:'2026-10-29T16:04:00Z',body:'See you there!'})
@@ -259,4 +260,99 @@ test('a visible date divider never replaces the message reading anchor during li
  await expect(list.locator('[data-chat-date-for]')).toHaveCount(4)
  const after=await reading();expect(after.id).toBe(before.id);expect(Math.abs(after.delta-before.delta)).toBeLessThan(2)
  expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
+})
+
+for(const width of [320,390])test(`quick find keeps links, local transport, history and drafts at ${width}px`,async({page},info)=>{
+ messages=[{...base,id:ownId,senderUserId:owner,senderName:'Jordan Lee',isMine:true,canManageOwn:true,createdAt:'2026-10-28T16:00:00Z',body:'Ready for Saturday'},
+  {...base,id:messageId,createdAt:'2026-10-28T16:01:00Z',body:'İ 🎾 Try [a+b]. See https://example.com/court?rep=2&side=deuce, then <img src=x>.'},
+  {...base,id:pollId,createdAt:'2026-10-28T16:02:00Z',body:'Another [A+B] from a teammate'}]
+ await page.setViewportSize({width,height:width===320?568:844});await page.goto(origin+prefix)
+ await page.addStyleTag({content:'html{font-size:20px}.team-bubble p{font-size:20px!important}'})
+ const draft=page.locator('#chat-draft');await draft.fill('My unsent reply');const draftNode=await draft.elementHandle()
+ const reads:string[]=[];page.on('request',request=>{if(new URL(request.url()).origin==='https://www.tenaceiq.com')reads.push(request.url())})
+ const toggle=page.getByRole('button',{name:'Find in conversation',exact:true});await toggle.click()
+ await expect(toggle).toHaveAttribute('aria-expanded','true');const query=page.getByRole('searchbox',{name:'Find a message',exact:true}),node=await query.elementHandle()
+ const before=reads.length,acknowledgements=actions.filter(action=>action.action==='mark_chat_read').length
+ await query.fill('[a+b]');await expect(page.locator('[data-chat-message]:not([hidden])')).toHaveCount(2)
+ await expect(post(page).locator('mark[data-chat-highlight]')).toHaveText('[a+b]')
+ await query.press('Enter');expect(reads).toHaveLength(before);expect(historyQueries).toHaveLength(0)
+ await query.fill('Jordan');await expect(post(page,ownId).locator('.team-message-meta strong mark')).toHaveText('Jordan')
+ await query.fill('court?rep=2&side');const link=post(page).locator('[data-chat-url]'),linkNode=await link.elementHandle(),url=await link.getAttribute('data-chat-url')
+ await expect(link.locator('mark')).toHaveText('court?rep=2&side');await query.fill('deuce')
+ expect(await linkNode!.evaluate(el=>el===document.querySelector('[data-chat-url]'))).toBe(true);await expect(link).toHaveAttribute('data-chat-url',url!)
+ await link.click();const review=page.getByRole('dialog',{name:'Open shared link',exact:true});await expect(review.locator('.chat-link-destination')).toHaveText(url!);await review.getByRole('button',{name:'Cancel',exact:true}).click()
+ await query.fill('<img');await expect(post(page).locator('mark')).toHaveText('<img');await expect(post(page).locator('img')).toHaveCount(0)
+ await query.fill('[A+B]');await query.evaluate(el=>(el as HTMLInputElement).setSelectionRange(1,4))
+ messages.push({...base,id:practiceId,createdAt:'2026-10-28T16:04:00Z',body:'[A+B] just arrived'})
+ await page.evaluate(async()=>{await (window as unknown as {fixture:{refresh:()=>Promise<void>}}).fixture.refresh()})
+ await expect(post(page,practiceId)).toBeVisible();expect(await node!.evaluate(el=>el===document.querySelector('#chat-search'))).toBe(true)
+ expect(await query.evaluate(el=>[(el as HTMLInputElement).selectionStart,(el as HTMLInputElement).selectionEnd])).toEqual([1,4])
+ expect(actions.filter(action=>action.action==='mark_chat_read')).toHaveLength(acknowledgements)
+ expect(await draftNode!.evaluate(el=>el===document.querySelector('#chat-draft'))).toBe(true);await expect(draft).toHaveValue('My unsent reply')
+ await page.getByRole('button',{name:'Search older history',exact:true}).click();const history=page.getByRole('dialog',{name:'Search team history',exact:true})
+ await expect(history.locator('#history-query')).toHaveValue('[A+B]');await expect.poll(()=>historyQueries.length).toBe(1)
+ expect(new URLSearchParams(historyQueries[0]).get('q')).toBe('[A+B]')
+ await history.getByRole('button',{name:'Back to conversation',exact:true}).click();await expect(page.locator('#chat-history-open')).toBeFocused()
+ await expect(query).toHaveValue('[A+B]');expect(await node!.evaluate(el=>el===document.querySelector('#chat-search'))).toBe(true)
+ await query.press('Escape');await expect(toggle).toBeFocused();await expect(toggle).toHaveAttribute('aria-expanded','false');await expect(page.locator('#chat-active-filter')).toBeVisible()
+ await toggle.click();await expect(query).toHaveValue('[A+B]');await page.locator('#chat-search-clear').click();await expect(page.locator('mark[data-chat-highlight]')).toHaveCount(0)
+ await page.locator('#chat-filter').selectOption('media');await expect(page.locator('[data-chat-date-for]')).toHaveCount(0);await page.locator('#chat-filter').selectOption('all')
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ expect(await page.locator('.chat-quick-find').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ const box=await draft.boundingBox();expect(box!.y+box!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+ expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
+ await page.screenshot({path:info.outputPath('chat-quick-find-large-text.png'),fullPage:true})
+})
+
+test('a one-character quick query never starts an older-history request',async({page})=>{
+ await page.goto(origin+prefix);await page.getByRole('button',{name:'Find in conversation',exact:true}).click()
+ await page.locator('#chat-search').fill('a');await page.locator('#chat-history-open').click()
+ const history=page.getByRole('dialog',{name:'Search team history',exact:true});await expect(history.locator('#history-status')).toContainText('two or more characters')
+ expect(historyQueries).toHaveLength(0);await history.getByRole('button',{name:'Back to conversation',exact:true}).click()
+ await expect(page.locator('#chat-search')).toHaveValue('a')
+})
+
+for(const failure of [false,true])test(`opening an older result ${failure?'retains finding on failure':'reveals the confirmed message outside the filter'}`,async({page})=>{
+ await page.goto(origin+prefix);await page.locator('#chat-draft').fill('Keep my reply')
+ const draftNode=await page.locator('#chat-draft').elementHandle()
+ await page.getByRole('button',{name:'Find in conversation',exact:true}).click();await page.locator('#chat-search').fill('Saturday')
+ await page.route('**/api/team-rooms/search?*',route=>{const u=new URL(route.request().url());return route.fulfill({json:{ok:true,chatSearch:1,roomId,query:u.searchParams.get('q'),kind:'all',beforeCursor:'',nextCursor:'',results:[{id:messageId,senderName:'Alex Rivera',preview:'Saturday practice',kind:'message',createdAt:'2026-10-28T16:03:00Z',photoMimeType:''}]}})})
+ await page.route('**/api/team-rooms/chat?*',route=>{
+  const u=new URL(route.request().url());if(!u.searchParams.has('focus'))return route.fallback()
+  expect(u.searchParams.get('focus')).toBe(messageId)
+  if(failure)return route.fulfill({status:503,json:{ok:false}})
+  return route.fulfill({json:{ok:true,chatUpdate:true,beforeCursor:'',nextCursor:'',focusMessageId:messageId,focusCursor:'2026-10-28T16:03:00Z|'+messageId,room:{...scope,id:roomId,messages:[{...base,id:messageId,createdAt:'2026-10-28T16:03:00Z',body:'Practice moved to Sunday'}],lastReadAt:'2026-10-28T17:00:00Z',blockedUserIds:[]}}})
+ })
+ const acknowledgements=actions.filter(action=>action.action==='mark_chat_read').length
+ await page.locator('#chat-history-open').click();await page.getByRole('button',{name:'Open in chat',exact:true}).click()
+ if(failure){
+  await expect(page.locator('#chat-history-status')).toContainText('could not be opened')
+  await expect(page.locator('#chat-quick-find-panel')).toBeVisible();await expect(page.locator('#chat-search')).toHaveValue('Saturday')
+  await expect(post(page,ownId)).toBeVisible();await expect(post(page)).toBeHidden()
+ }else{
+  await expect(post(page).locator('.chat-message-text')).toHaveText('Practice moved to Sunday');await expect(post(page)).toBeVisible();await expect(post(page)).toBeFocused()
+  await expect(page.locator('#chat-quick-find-panel')).toBeHidden();await expect(page.locator('#chat-active-filter')).toBeHidden();await expect(page.locator('#chat-search')).toHaveValue('')
+  await page.getByRole('button',{name:'Find in conversation',exact:true}).click();await page.locator('#chat-search').fill('No match')
+  await page.locator('#chat-latest').click();await expect(post(page).locator('.chat-message-text')).toHaveText('Who is up for doubles this weekend?')
+  await expect(page.locator('#chat-quick-find-panel')).toBeHidden();await expect(page.locator('#chat-search')).toHaveValue('');await expect(page.locator('[data-chat-message]:not([hidden])')).toHaveCount(4)
+ }
+ if(failure)expect(await draftNode!.evaluate(el=>el===document.querySelector('#chat-draft'))).toBe(true)
+ await expect(page.locator('#chat-draft')).toHaveValue('Keep my reply')
+ expect(actions.filter(action=>action.action==='mark_chat_read')).toHaveLength(acknowledgements)
+ expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
+})
+
+test('same-room full refresh retains the finder input, selection and draft',async({page})=>{
+ await page.goto(origin+prefix);await page.locator('#chat-draft').fill('Retain this draft')
+ await page.getByRole('button',{name:'Find in conversation',exact:true}).click();const query=page.locator('#chat-search');await query.fill('Saturday')
+ const node=await query.elementHandle()
+ let release!:()=>void,started!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve}),requested=new Promise<void>(resolve=>{started=resolve})
+ await page.route(/\/api\/team-rooms\?/,async route=>{started();await pending;return route.fallback()})
+ await page.locator('.chat-room-options>summary').click();await page.locator('.chat-room-extra>summary').click();await page.locator('#refresh-team').click();await requested
+ await page.locator('.chat-room-options>summary').click();await query.focus();await query.evaluate(el=>(el as HTMLInputElement).setSelectionRange(1,5));messages[0].body='Saturday confirmed after refresh';release()
+ await expect(post(page,ownId).locator('.chat-message-text')).toHaveText('Saturday confirmed after refresh')
+ await expect.poll(()=>node!.evaluate(el=>el===document.querySelector('#chat-search')&&document.activeElement===el&&(el as HTMLInputElement).selectionStart===1&&(el as HTMLInputElement).selectionEnd===5)).toBe(true)
+ await expect(page.locator('.chat-room-options')).not.toHaveAttribute('open','')
+ await expect(page.locator('#chat-draft')).toHaveValue('Retain this draft')
+ await expect(query).toHaveValue('Saturday');await expect(post(page,ownId)).toBeVisible();await expect(post(page)).toBeHidden()
 })
