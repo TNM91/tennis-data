@@ -1,4 +1,5 @@
 import '../fixtures/mobile-coach-unread-cases'
+import '../fixtures/mobile-coach-catchup-cases'
 import '../fixtures/mobile-coach-alerts-cases'
 import '../fixtures/mobile-chat-receipts-cases'
 import '../fixtures/mobile-coach-chats-cases'

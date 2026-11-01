@@ -14,11 +14,11 @@ export async function nativeCoachChatUnread(client:SupabaseClient,owner:string){
  const deadline=AbortSignal.timeout(8000)
  const links=await client.from('coach_player_links').select('id,coach_user_id,player_user_id,status').or('coach_user_id.eq.'+owner+',player_user_id.eq.'+owner).neq('status','paused').not('player_user_id','is',null).limit(101).abortSignal(deadline).retry(false)
  if(links.error||!Array.isArray(links.data)||links.data.length>100)throw Error('Coach counts unavailable')
- const expected=new Map<string,{id:string;other:string;unread:number}>(),ids=new Set<string>()
+ const expected=new Map<string,{id:string;other:string;unread:number;latest:string|null;latestTime:ReturnType<typeof stamp>|null}>(),ids=new Set<string>()
  for(const link of links.data){
   const id=coachId(link.id)
   if(ids.has(id)||!uuid(link.coach_user_id)||!uuid(link.player_user_id)||![link.coach_user_id,link.player_user_id].includes(owner)||!['active','needs_assignment','review_notes'].includes(link.status))throw Error('Coach counts unavailable')
-  ids.add(id);expected.set(coachConversationId(id),{id,other:link.coach_user_id===owner?link.player_user_id:link.coach_user_id,unread:0})
+  ids.add(id);expected.set(coachConversationId(id),{id,other:link.coach_user_id===owner?link.player_user_id:link.coach_user_id,unread:0,latest:null,latestTime:null})
  }
  if(expected.size){
   const result=await client.from('internal_conversations').select('id,conversation_type,related_entity_type,related_entity_id,status,participants:internal_conversation_participants!inner(profile_id,last_read_at),posts:internal_messages(id,conversation_id,sender_user_id,created_at,deleted_at)')
@@ -33,9 +33,10 @@ export async function nativeCoachChatUnread(client:SupabaseClient,owner:string){
    for(const post of row.posts){
     if(!uuid(post.id)||posts.has(post.id)||post.conversation_id!==row.id||post.sender_user_id!==connection.other||post.sender_user_id===owner||post.deleted_at!==null)throw Error('Coach counts unavailable')
     posts.add(post.id);const time=stamp(post.created_at);if(read===null||time>read)connection.unread++
+    if(connection.latestTime===null||time>connection.latestTime||time===connection.latestTime&&post.id>connection.latest!){connection.latest=post.id;connection.latestTime=time}
    }
   }
  }
- const connections=[...expected.values()].map(({id,unread})=>({id,unread}))
+ const connections=[...expected.values()].map(({id,unread,latest})=>({id,unread,latest}))
  return {available:true as const,total:Math.min(100,connections.reduce((sum,c)=>sum+c.unread,0)),connections}
 }

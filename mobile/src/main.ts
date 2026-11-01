@@ -4,6 +4,7 @@ import {openUpdates} from './updates-view'
 import {createUpdatesCounter} from './updates-counter'
 import {createChatUnreadCounter,paintChatsBadge,combinedChatUnread} from './chat-unread'
 import {createChatReceiptRefresh} from './chat-receipt-refresh'
+import {publishCoachMessageCounts} from './coach-message-catchup'
 import {createAppLinkHandoff,appLinkTitle} from './app-links'
 import {openSharedMatch} from './shared-match-view'
 import {openTeamInvite} from './team-invite-view'
@@ -423,7 +424,7 @@ const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.use
 const coachAlerts=createCoachAlerts(client,()=>nativePush.isEnabled())
 const chatReceipts=createChatReceiptRefresh(async owner=>{if(session?.user.id===owner)await chatUnread.refresh()})
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope),{onCoachOpen:(id,owner)=>coachHandoff.receive(id,owner),onReceive:owner=>chatReceipts.receive(owner),mountCoachAlerts:host=>coachAlerts.mount(host)})
-const chatUnread=createChatUnreadCounter(client,value=>{paintChatsBadge(navigation.querySelector<HTMLElement>('[data-screen="teams"]')!,combinedChatUnread(value),value?.coach?.available===false);teamRoom?.refreshUnread()})
+const chatUnread=createChatUnreadCounter(client,value=>{publishCoachMessageCounts(value);paintChatsBadge(navigation.querySelector<HTMLElement>('[data-screen="teams"]')!,combinedChatUnread(value),value?.coach?.available===false);teamRoom?.refreshUnread()})
 const updatesCounter=createUpdatesCounter(client,count=>{
  updatesEntry.setAttribute('aria-label',count===null?'Updates':'Updates, '+count+' unread')
  const badge=updatesEntry.querySelector<HTMLElement>('.updates-header-badge')!;badge.hidden=count===null||count===0;badge.textContent=count===null?'':count>99?'99+':String(count)

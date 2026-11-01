@@ -63,6 +63,12 @@
 @media(min-width:650px){.coach-form-pair{display:grid;grid-template-columns:1fr 1fr;gap:18px}.coach-lesson-blocks{grid-template-columns:1fr 1fr}}
 
 .coach-direct-history{display:flex;flex-direction:column;gap:14px;padding:16px 0 24px}.coach-direct-message{width:88%;background:#0e3048;border:1px solid #315875;border-radius:20px 20px 20px 5px;padding:14px 16px}.coach-direct-message.is-mine{align-self:flex-end;background:#154868;border-color:#4d88ac;border-radius:20px 20px 5px 20px}.coach-direct-message p{white-space:pre-wrap;margin:8px 0 0;color:#edf7ff}
+.coach-messages-screen .native-coach-header{flex-wrap:wrap;gap:12px}
+.coach-message-catchup{display:flex;flex:1 0 100%;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border:1px solid #397b9d;border-radius:14px;background:#10344e}
+.coach-message-catchup[hidden]{display:none!important}
+.coach-message-catchup p{margin:0;font-size:.875rem;font-weight:650;line-height:1.3;color:#edf7ff;overflow-wrap:anywhere}
+.coach-message-catchup p::before{content:'';display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:#a4e21b;vertical-align:middle}
+.coach-message-catchup button{flex:0 0 auto}
 
 .native-coach-video-host [data-tiq-video-review]{width:100%;max-width:1200px;margin:auto;padding:18px 14px 90px;min-height:0;overflow-x:clip}
 .native-coach-video-host [data-tiq-video-review]>*{max-width:100%}
