@@ -45,8 +45,11 @@ async function bounded(page:Page){
   if(!await page.locator(target).count())continue
   const box=await page.locator(target).boundingBox();if(!box)continue
   expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
-  const dimensions=await page.locator(target).evaluate(el=>{const parent=el.getBoundingClientRect();return {clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,overflowing:[...el.querySelectorAll('*')].map(child=>({child,box:child.getBoundingClientRect()})).filter(({box})=>box.right>parent.right+.25||box.left<parent.left-.25).slice(0,10).map(({child,box})=>({tag:child.tagName,className:child.className,text:child.textContent?.slice(0,70),left:box.left,right:box.right,font:getComputedStyle(child).font,fontSize:getComputedStyle(child).fontSize}))}})
-  expect(dimensions.scrollWidth<=dimensions.clientWidth,JSON.stringify({target,...dimensions})).toBe(true)
+  const dimensions=await page.locator(target).evaluate(el=>{const parent=el.getBoundingClientRect();return {clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,overflowing:[...el.querySelectorAll('*')].map(child=>({child,box:child.getBoundingClientRect()})).filter(({child,box})=>box.width>0&&box.height>0&&!child.closest('.sr-only')&&(box.right>parent.right+.25||box.left<parent.left-.25)).slice(0,10).map(({child,box})=>({tag:child.tagName,className:child.className,text:child.textContent?.slice(0,70),left:box.left,right:box.right,font:getComputedStyle(child).font,fontSize:getComputedStyle(child).fontSize}))}})
+  // Linux WebKit can report a one-pixel scroll/client difference after text enlargement.
+  // Keep the page check strict and separately require every child inside the card.
+  expect(dimensions.scrollWidth<=dimensions.clientWidth+1,JSON.stringify({target,...dimensions})).toBe(true)
+  expect(dimensions.overflowing,JSON.stringify({target,...dimensions})).toEqual([])
  }
 }
 for(const width of [320,390])test(`numbers lead the page and charted samples remain explicit at ${width}px`,async({page},info)=>{
