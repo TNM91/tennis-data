@@ -116,9 +116,6 @@ body[data-screen]:not(.native-chat-conversation) .tennis-tool-grid button.tennis
 body[data-screen="lab"] main>section.lab-rating-trends{margin-top:20px;padding:0;background:transparent;border:0;box-shadow:none}
 .lab-rating-trends>h2{font-size:18px;margin:0 0 12px;color:#edf7ff;letter-spacing:-.025em}
 .lab-rating-trends .lab-trend-entry.secondary{display:flex;align-items:center;gap:12px;inline-size:100%;min-inline-size:0;min-block-size:80px;margin:0;padding:14px;border:1px solid #315c7b;border-radius:18px;background:linear-gradient(120deg,#133a56,#0a253b);color:#ebf7ff;text-align:left}
-.lab-trend-entry-icon{display:grid;place-items:center;flex:0 0 42px;inline-size:42px;block-size:42px;border-radius:13px;background:#204c6a;color:#98d6ff}
-.lab-trend-entry-icon .tiq-feature-icon__glyph{inline-size:26px;block-size:26px}
-.lab-trend-entry-icon .tiq-feature-icon__badge{inline-size:9px;block-size:9px}
 .lab-trend-entry>span:nth-child(2){display:grid;gap:5px;min-inline-size:0;flex:1}
 .lab-trend-entry strong{font-size:14px;line-height:1.3;overflow-wrap:anywhere}
 .lab-trend-entry small{font-size:11px;line-height:1.4;color:#a9cde6;font-weight:400;overflow-wrap:anywhere}
@@ -241,15 +238,12 @@ body[data-screen="lab"] section.lab-scoreboard{margin-top:4px;padding:18px 0 6px
 .lab-form-heading>span{background:#12334e;border:0;color:#a7d1eb}
 .lab-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:18px 0 24px;min-width:0}
 button.app-tool.secondary{display:flex;align-items:center;gap:14px;width:100%;min-width:0;min-height:82px;margin:0;padding:16px;border:1px solid #294b68;border-radius:18px;background:#0b253d;text-align:left;color:#edf7ff}
-.app-tool-icon{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border-radius:14px;background:#133c5d;color:#9edcff}
-.app-tool-icon .tiq-feature-icon{width:32px;height:32px}
 .app-tool-copy{display:grid;gap:5px;min-width:0;flex:1}
 .app-tool-copy strong{font-size:.9375rem;line-height:1.35;letter-spacing:-.015em;overflow-wrap:anywhere}
 .app-tool-copy>span{color:#adcadf;font-size:.75rem;line-height:1.6;font-weight:400;overflow-wrap:anywhere}
 .app-tool-copy>small{font-size:10px;color:#8acfff;line-height:1.5}
 .app-tool-arrow{flex:0 0 auto;font-size:24px;line-height:1;color:#9ad6ff}
 .lab-shortcuts button.app-tool{flex-direction:column;justify-content:flex-start;gap:9px;min-height:108px;padding:14px 4px 12px;text-align:center;border-color:#2b4c67;background:#0a2138}
-.lab-shortcuts .app-tool-icon{width:38px;height:38px;flex-basis:38px;border-radius:12px;background:#133653}
 .lab-shortcuts .app-tool-copy{flex:0}
 .lab-shortcuts .app-tool-copy strong{font-size:.75rem;line-height:1.5;overflow-wrap:normal;word-break:normal}
 .app-hub-heading{padding:18px 4px 12px;margin:0}
@@ -261,9 +255,7 @@ button.app-tool.secondary{display:flex;align-items:center;gap:14px;width:100%;mi
 /* Secondary destinations share one quiet list, with the main competition choices emphasized. */
 .app-tools-hub .app-hub-tools{gap:0;border:1px solid #2a4b64;border-radius:18px;background:#092137;overflow:hidden}
 .app-tools-hub .app-hub-tools button.app-tool{border:0;border-radius:0;min-height:82px;background:transparent;box-shadow:none;padding:15px 14px}
-.app-tools-hub .app-hub-tools button.app-tool:not([hidden])~button.app-tool:not([hidden]){border-top:1px solid #28465d}
-.app-tools-hub .app-tool-icon{width:38px;height:38px;flex-basis:38px;border-radius:12px;background:#143b54}
-.app-tools-hub .app-tool-icon .tiq-feature-icon{width:28px;height:28px}
+.app-tools-hub .app-hub-tools :where(button.app-tool:not([hidden])~button.app-tool:not([hidden])){border-top:1px solid var(--premium-line)}
 .app-tools-hub .app-tool-copy>span{line-height:1.45}
 .app-tools-hub .app-tool-arrow{margin-inline-start:auto}
 .app-tools-hub .app-tool:focus-visible{outline-offset:-4px}
@@ -284,10 +276,7 @@ button.app-tool.secondary{display:flex;align-items:center;gap:14px;width:100%;mi
 .app-tools-empty{font-size:14px;color:#bad5e7;padding:24px 14px;border:1px dashed #426783;border-radius:16px;margin:20px 0}
 body[data-screen="compete"] .app-hub-group:first-of-type .app-hub-tools{gap:12px;border:0;border-radius:0;background:transparent;overflow:visible}
 body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool{border:1px solid #3c6c90;border-radius:20px;padding:20px 16px;box-shadow:inset 0 1px #76bbdf30}
-body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool[data-app-destination="tournaments"]{border-color:#52764a;background:linear-gradient(120deg,#173a40,#0a2638)}
-body[data-screen="compete"] .app-hub-group:first-of-type [data-app-destination="tournaments"] .app-tool-icon{color:#c6ed94;background:#254c42}
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool{min-height:120px;background:linear-gradient(120deg,#103654,#091e34);border-color:#3c6c90}
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-icon{width:52px;height:52px;flex-basis:52px;background:#164361}
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool strong{font-size:1.375rem}
 body[data-screen]:not(.native-chat-conversation) .app-navigation{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;overflow:visible;padding-left:max(6px,env(safe-area-inset-left));padding-right:max(6px,env(safe-area-inset-right))}
 body[data-screen] .app-navigation[hidden]{display:none}
@@ -393,7 +382,6 @@ body[data-screen="lab"] section.lab-scoreboard { border-color:#3a6480;border-rad
 .lab-form-host .lab-form-mark span { color:#c0d2df; }
 .lab-form-help { padding-top:5px; }
 .lab-shortcuts button.app-tool { border:0;background:#102b40;min-height:104px;box-shadow:inset 0 1px #365a74; }
-.lab-shortcuts .app-tool-icon { background:transparent;border-radius:0; }
 .lab-shortcuts .app-tool-copy strong { font-weight:600; }
 .lab-rating-trends .lab-trend-entry.secondary { border-color:#3b6683;background:#12344c;border-radius:18px; }
 .lab-trend-entry strong { font-weight:650; }
@@ -409,16 +397,11 @@ body[data-screen]:is([data-screen="compete"],[data-screen="more"],[data-screen="
 .app-tools-hub .app-hub-group h2 { color:#b6d0e3;font-size:12px;font-weight:600;letter-spacing:.02em; }
 .app-tools-hub .app-hub-tools { border-color:#2c4a61;background:#0c2438; }
 .app-tools-hub .app-hub-tools button.app-tool { padding:18px 14px; }
-.app-tools-hub .app-tool-icon { border-radius:12px;background:#163b55;color:#b3e2ff; }
 .app-tools-hub .app-tool-copy strong { font-weight:650;font-size:1rem; }
 .app-tools-hub .app-tool-copy>span { color:#acc8db; }
 .app-tools-hub .app-tool-arrow { font-size:26px;font-weight:400;color:#8acfff; }
 body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { background:#113149;border:1px solid #456b85;border-radius:20px;box-shadow:none; }
-body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool[data-app-destination="tournaments"] { background:#102b40;border-color:#3a5f78; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-icon { background:#1a4562;color:#b9e6ff; }
-body[data-screen="compete"] .app-hub-group:first-of-type [data-app-destination="tournaments"] .app-tool-icon { background:#1a4562;color:#b9e6ff; }
 body[data-screen="coach"] .app-hub-group:first-of-type [data-app-destination="coach-tactics"] { min-height:122px;padding:20px 14px;background:#143a54;border-bottom:1px solid #3b6681; }
-body[data-screen="coach"] [data-app-destination="coach-tactics"] .app-tool-icon { width:52px;height:52px;flex-basis:52px;background:#204c67; }
 body[data-screen="coach"] [data-app-destination="coach-tactics"] .app-tool-copy strong { font-size:1.4rem; }
 
 /* Sender initials keep group conversations easy to scan. No remote avatar requests. */
