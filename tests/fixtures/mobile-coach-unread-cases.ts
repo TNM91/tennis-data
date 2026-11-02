@@ -1,6 +1,6 @@
 import {test,expect,type Page} from '@playwright/test'
 const origin='http://127.0.0.1:4283',last='44444444-4444-4444-8444-444444444444'
-type Preview=Window&{coachChatFixture:{enabled:boolean};coachUnreadFixture:{enabled:boolean;unavailable:boolean;readFail:boolean;longHistory:boolean;newAfterRead:boolean;holdRead:boolean;releaseRead:()=>void;reads:{student:string;message:string}[]};chatUnreadFixture:{emit:()=>void};switchNavigationOwner:()=>void}
+type Preview=Window&{coachChatFixture:{enabled:boolean};coachUnreadFixture:{enabled:boolean;unavailable:boolean;readFail:boolean;longHistory:boolean;newAfterRead:boolean;holdLoad:boolean;releaseLoad:()=>void;loads:number;holdRead:boolean;releaseRead:()=>void;reads:{student:string;message:string}[]};chatUnreadFixture:{emit:()=>void};switchNavigationOwner:()=>void}
 async function inbox(page:Page,width=390){
  await page.routeWebSocket('**/*',ws=>ws.close());await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1')
  await page.evaluate(()=>{const w=window as unknown as Preview;w.coachChatFixture.enabled=true;w.coachUnreadFixture.enabled=true;w.chatUnreadFixture.emit()})
@@ -40,7 +40,9 @@ test('An unconfirmed Coach read keeps unread counts and retries only after an ex
 })
 test('Newer private messages remain unread after acknowledging an older rendered note',async({page})=>{
  await inbox(page);await page.evaluate(()=>(window as unknown as Preview).coachUnreadFixture.newAfterRead=true);const dialog=await latest(page)
- await expect(page.locator('[data-chat-badge]')).toHaveText('9');await dialog.getByRole('button',{name:'Close',exact:true}).click();await expect(page.locator('[data-coach-chat="student-one"] [data-coach-unread]')).toHaveText('1');await expect(page.locator('[data-team-unread]')).toHaveText('7')
+ // Keep the newer note out of the rendered page while checking the older checkpoint.
+ await expect(page.locator('[data-chat-badge]')).toHaveText('9');await expect.poll(()=>page.evaluate(()=>(window as unknown as Preview).coachUnreadFixture.loads)).toBe(2);await expect(dialog.locator('[data-coach-message-id="77777777-7777-4777-8777-777777777777"]')).toHaveCount(0);await dialog.getByRole('button',{name:'Close',exact:true}).click();await expect(page.locator('[data-coach-chat="student-one"] [data-coach-unread]')).toHaveText('1');await expect(page.locator('[data-team-unread]')).toHaveText('7')
+ await page.evaluate(()=>{(window as unknown as Preview).coachUnreadFixture.releaseLoad();return new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())))})
  expect(await page.evaluate(()=>(window as unknown as Preview).coachUnreadFixture.reads)).toEqual([{student:'student-one',message:last}])
 })
 test('A Coach read confirmation preserves the draft and typing focus',async({page})=>{
