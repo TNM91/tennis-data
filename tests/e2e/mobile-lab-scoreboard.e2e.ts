@@ -45,7 +45,8 @@ async function bounded(page:Page){
   if(!await page.locator(target).count())continue
   const box=await page.locator(target).boundingBox();if(!box)continue
   expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
-  expect(await page.locator(target).evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+  const dimensions=await page.locator(target).evaluate(el=>{const parent=el.getBoundingClientRect();return {clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,overflowing:[...el.querySelectorAll('*')].map(child=>({child,box:child.getBoundingClientRect()})).filter(({box})=>box.right>parent.right+.25||box.left<parent.left-.25).slice(0,10).map(({child,box})=>({tag:child.tagName,className:child.className,text:child.textContent?.slice(0,70),left:box.left,right:box.right,font:getComputedStyle(child).font,fontSize:getComputedStyle(child).fontSize}))}})
+  expect(dimensions.scrollWidth<=dimensions.clientWidth,JSON.stringify({target,...dimensions})).toBe(true)
  }
 }
 for(const width of [320,390])test(`numbers lead the page and charted samples remain explicit at ${width}px`,async({page},info)=>{
