@@ -1,0 +1,177 @@
+/* Native finishing layer. Artwork stays complete; visual hierarchy comes from surfaces and type. */
+body[data-screen] {
+ --premium-surface:#0c2336;
+ --premium-raised:#123149;
+ --premium-line:#34576f;
+ --premium-copy:#b9d0df;
+ --premium-ice:#88d4ff;
+ --premium-lime:#b5eb46;
+ font-feature-settings:"ss01" on;
+}
+body[data-screen]:not(.native-chat-conversation) #app,
+body[data-screen]:not(.native-chat-conversation) .app-header { max-inline-size:600px; }
+body[data-screen]:not(.native-chat-conversation) .app-header { padding-block:16px; }
+body[data-screen] .app-header .native-header-actions button {
+ background:#0c2338;border-color:#2d4e68;box-shadow:inset 0 1px #a0d7f014;
+}
+body[data-screen]:not(.native-chat-conversation) .app-navigation {
+ background:#061827f5;border-color:#35556b;box-shadow:0 -10px 30px #0003;
+}
+body[data-screen]:not(.native-chat-conversation) .app-navigation button {
+ border-radius:16px;font-size:min(.75rem,13px);min-block-size:62px;gap:5px;
+}
+body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"] {
+ background:linear-gradient(145deg,#1b4560,#102d43);box-shadow:inset 0 1px #83d8ff,0 3px 12px #0002;
+}
+
+/* Score, evidence, next move — the same order at every phone size. */
+.lab-scoreboard-intro { padding-block:12px 4px;gap:16px; }
+.lab-scoreboard-intro .stat-eyebrow { color:var(--premium-ice);font-size:.6875rem;letter-spacing:.18em; }
+body[data-screen="lab"] .lab-scoreboard-intro h1 { font-size:clamp(1.75rem,7.7vw,2.25rem);font-weight:750;letter-spacing:-.045em;margin-block:7px; }
+.lab-scoreboard-intro p { color:var(--premium-copy);font-size:.8125rem;line-height:1.5; }
+body[data-screen="lab"] section.lab-scoreboard {
+ padding-block:16px 4px;border-color:#41647d;border-radius:26px;background:#081e30;
+ box-shadow:inset 0 1px #b2e6ff20,0 16px 40px #0003;
+}
+.lab-scoreboard>h2 { display:flex;align-items:center;gap:9px;font-size:.8125rem;font-weight:650;padding-bottom:12px; }
+.lab-scoreboard>h2::before { content:"";inline-size:6px;block-size:6px;flex:none;border-radius:50%;background:var(--premium-lime); }
+.lab-scoreboard .lab-rating-chart>div:first-child {
+ min-block-size:200px;padding:18px 20px 16px;
+}
+.lab-scoreboard .lab-rating-chart dt { color:#bbdcf0;font-size:.75rem;font-weight:600;letter-spacing:.075em; }
+.lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) {
+ font-size:clamp(88px,25vw,124px);font-weight:750;letter-spacing:-.065em;margin-block:8px 6px;
+ text-shadow:0 2px 16px #03132730;
+}
+.lab-scoreboard .lab-rating-chart>div:first-child .rating-scale { max-inline-size:44%;margin-block-start:12px; }
+.lab-scoreboard .lab-rating-chart>div:first-child .rating-note { font-size:.6875rem;color:#c1d8e8;max-inline-size:45%; }
+.lab-scoreboard .lab-rating-chart>div:not(:first-child) {
+ padding:16px 20px 18px;background:linear-gradient(160deg,#14354d,#102a40);border-color:#35566e;
+}
+.lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale) { font-size:2.5rem;font-weight:700;margin-block-start:7px; }
+.lab-scoreboard .rating-scale meter,.lab-scoreboard .rating-scale meter::-webkit-meter-bar { height:5px;background:#28465c; }
+.lab-scoreboard .rating-scale meter::-webkit-meter-optimum-value { background:#85d3ff; }
+.lab-scoreboard .rating-scale-caption,.lab-scoreboard>div>.rating-context { font-size:.6875rem;line-height:1.6;margin-block-start:12px; }
+.lab-scoreboard .rating-context-info { border-color:#2d4a60;margin-block-start:10px; }
+.lab-scoreboard .rating-context-info summary { font-size:.75rem;color:#bad6e9; }
+.lab-scoreboard .rating-context-info p { font-size:.8125rem; }
+
+/* Loading reserves the scoreboard's space and never invents a rating. */
+.lab-rating-loading { padding:20px;min-block-size:330px; }
+.lab-rating-loading p { margin:0 0 22px;font-size:.875rem; }
+.lab-rating-loading-shapes { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+.lab-rating-loading-shapes span { min-block-size:64px;border-radius:12px;background:#17384e; }
+.lab-rating-loading-shapes span:first-child { grid-column:1/-1;inline-size:52%;min-block-size:110px; }
+.lab-rating-loading-shapes span { animation:premium-loading 1.6s ease-in-out infinite alternate; }
+@keyframes premium-loading { to { opacity:.45; } }
+
+.lab-form-host .lab-form-strip {
+ margin-block-start:20px;padding:20px 18px 16px;background:linear-gradient(145deg,#102e44,#0b2337);
+ border-color:#33556d;border-radius:24px;box-shadow:inset 0 1px #b2e6ff12;
+}
+.lab-form-heading h2 { font-size:1.25rem;font-weight:700;letter-spacing:-.03em; }
+.lab-form-heading>span { font-size:.6875rem;padding:5px 9px;background:#1a3d51;color:#cee4ef; }
+.lab-form-strip>p { font-size:.75rem;line-height:1.5; }
+.lab-form-overview { grid-template-columns:108px minmax(0,1fr);gap:20px;margin-block:20px; }
+.lab-form-record>strong { font-size:2rem;letter-spacing:-.045em; }
+.lab-form-record>span,.lab-form-record dt { font-size:.75rem; }
+.lab-form-record dd>span { font-size:.8125rem; }
+body[data-screen="lab"] .lab-form-overview .stat-donut-fill { stroke:#b5eb46;stroke-width:7; }
+body[data-screen="lab"] .lab-form-overview .stat-donut-track { stroke:#294b61;stroke-width:7; }
+.lab-form-host .lab-form-marks { gap:7px; }
+.lab-form-host .lab-form-marks .lab-form-mark { min-block-size:62px;padding-block:10px;border-radius:12px; }
+.lab-form-host .lab-form-mark strong { font-size:1.25rem; }
+.lab-form-host .lab-form-mark span { font-size:.625rem;line-height:1.5; }
+.lab-form-strip>p.lab-form-help { font-size:.6875rem;line-height:1.5;margin-block-start:14px; }
+.lab-shortcuts { gap:10px;margin-block:20px 28px; }
+.lab-shortcuts button.app-tool { border:1px solid #2c4b62;border-radius:18px;background:#0b2336;min-block-size:108px;box-shadow:inset 0 1px #99ceec10; }
+.lab-shortcuts .app-tool-icon { color:#a5deff; }
+.lab-shortcuts .app-tool-copy strong { font-size:.75rem;line-height:1.4; }
+.lab-rating-trends { margin-block:28px; }
+.lab-rating-trends>h2 { font-size:1.25rem;font-weight:700; }
+.lab-rating-trends .lab-trend-entry.secondary { min-block-size:94px;padding:18px 16px;border-color:#355f7a;background:linear-gradient(120deg,#143b55,#0b273e);border-radius:20px; }
+.lab-rating-trends .lab-trend-entry strong { font-size:1rem; }
+.lab-rating-trends .lab-trend-entry small { font-size:.8125rem;line-height:1.5;color:#b9d3e4; }
+.lab-rating-trends>p { font-size:.8125rem;line-height:1.55;color:var(--premium-copy); }
+
+/* Compact insight navigation; labels can wrap to a second row at larger text sizes. */
+body[data-screen="lab"] #recent-results { padding:22px 16px;border-radius:24px;background:#0a2134; }
+body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.035em;margin-block-end:20px; }
+body[data-screen="lab"] #recent-results .result-view-controls { display:flex;flex-wrap:wrap;gap:4px;padding:0 0 8px;border:0;border-block-end:1px solid #33546b;border-radius:0;background:transparent; }
+body[data-screen="lab"] #recent-results .result-view-controls button.secondary { flex:1 1 4.25em;font-size:.8125rem;min-block-size:44px;padding:10px 5px;border:0;border-radius:10px;color:#bcd5e5; }
+body[data-screen="lab"] #recent-results .result-view-controls button[aria-pressed="true"] { background:#183e55;color:#edf8ff;border:0;box-shadow:inset 0 -2px #87d7ff; }
+body[data-screen="lab"] #recent-results .match-pulse { gap:16px; }
+body[data-screen="lab"] .match-pulse .stat-donut-value { font-size:2.125rem;color:#f0f7fc; }
+body[data-screen="lab"] .match-pulse .stat-donut-value small { font-size:.9375rem; }
+body[data-screen="lab"] .match-pulse>div>span { font-size:.75rem;color:#bad3e3; }
+body[data-screen="lab"] .match-pulse p { font-size:.75rem; }
+body[data-screen="lab"] #recent-results .recent-form>div { background:#102d42;border:0;border-radius:14px; }
+body[data-screen="lab"] #recent-results .recent-form dd { font-size:2rem; }
+body[data-screen="lab"] #recent-results .lab-streak-grid>div { border:0;background:#102d42; }
+
+/* Coach and competition doors share strong type with distinct accents. */
+.app-tools-hub .app-hub-heading { padding-block:18px 24px; }
+body[data-screen] .app-tools-hub .app-hub-heading h1 { font-size:clamp(2rem,8.8vw,2.75rem);font-weight:750;letter-spacing:-.045em;margin-block:10px; }
+.app-tools-hub .app-hub-heading>p { font-size:.9375rem;line-height:1.55;color:#bbd3e2; }
+.app-tools-hub .app-hub-group { margin-block-start:28px;background:transparent;border:0;border-radius:0; }
+.app-tools-hub .app-hub-group h2 { font-size:.75rem;font-weight:650;letter-spacing:.055em;margin-block-end:12px;color:#c0d9e9; }
+.app-tools-hub .app-hub-tools { border-color:#2c4c63;border-radius:20px;background:#0b2336; }
+.app-tools-hub .app-hub-tools button.app-tool { padding:18px 16px; }
+.app-tools-hub .app-tool-copy>span { font-size:.8125rem;line-height:1.55;color:#b9d1e1; }
+.app-tools-hub .app-tool-copy strong { font-size:1rem;font-weight:650;letter-spacing:-.015em; }
+.app-tools-hub .app-tool-icon { background:#16384e;border-radius:14px; }
+body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;min-block-size:196px;padding:22px;border:1px solid #3b6782;border-radius:24px;background:linear-gradient(125deg,#184761,#0b263c);box-shadow:inset 0 1px #b4e6ff18,0 8px 20px #0002; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy { grid-column:1/-1;grid-row:2; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { grid-column:2;grid-row:1; }
+body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool[data-app-destination="tournaments"] { border-color:#537357;background:linear-gradient(125deg,#1c3b3d,#0b2635); }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy strong { font-size:1.5rem;font-weight:700; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-icon { background:#235069;inline-size:54px;block-size:54px;flex-basis:54px; }
+body[data-screen="compete"] .app-hub-group:first-of-type [data-app-destination="tournaments"] .app-tool-icon { background:#2d4c40;color:#d7efa6; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { color:#c1e5fa; }
+body[data-screen="coach"] .app-hub-group:first-of-type .app-hub-tools { overflow:visible; }
+body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool-featured {
+ position:relative;isolation:isolate;display:block;
+ min-block-size:clamp(210px,50vw,320px);aspect-ratio:auto;padding:22px 20px;margin-block-end:12px;
+ border:1px solid #416885;border-radius:22px;background:#071c34;box-shadow:0 12px 28px #0003;
+}
+.app-tool-court { position:absolute;z-index:-1;inset:12px;inline-size:calc(100% - 24px);block-size:auto;object-fit:contain;pointer-events:none; }
+body[data-screen="coach"] .app-tool-featured .app-tool-icon { display:none; }
+body[data-screen="coach"] .app-tool-featured .app-tool-copy { flex:0;inline-size:52%;gap:8px; }
+body[data-screen="coach"] .app-tool-featured .app-tool-copy strong { font-size:1.875rem;font-weight:750;letter-spacing:-.04em; }
+body[data-screen="coach"] .app-tool-featured .app-tool-copy>span { font-size:.8125rem;color:#d2e5f2; }
+body[data-screen="coach"] .app-tool-featured .app-tool-arrow { display:grid;place-items:center;inline-size:36px;block-size:36px;margin-block-start:12px;border-radius:50%;background:#b5eb46;color:#102635;line-height:1; }
+body[data-screen="coach"] .app-hub-group:first-of-type .app-hub-tools { border:0;background:transparent; }
+body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool:not(.app-tool-featured) { background:#0b2336;border:0;border-block-end:1px solid #2c4c63;border-radius:0; }
+body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool-featured+button { border-start-start-radius:18px;border-start-end-radius:18px; }
+body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool:last-child { border-end-start-radius:18px;border-end-end-radius:18px;border-block-end:0; }
+
+/* Conversation stays quiet, while input, unread and selection remain obvious. */
+body[data-screen="teams"]:not(.native-chat-conversation) .chats-intro h1 { font-size:2.5rem;font-weight:750;letter-spacing:-.045em; }
+body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-card { border-radius:18px;padding:18px 10px; }
+body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-avatar { background:linear-gradient(135deg,#225674,#12354d);border:1px solid #477994;box-shadow:inset 0 1px #acdfff20; }
+body.native-chat-conversation .team-bubble:not(.team-bubble-mine):not(.team-bubble-match) { background:#122c41;border:1px solid #29475e; }
+body.native-chat-conversation .team-bubble-mine { background:linear-gradient(130deg,#1b4e70,#163e5b);border:1px solid #396584; }
+body.native-chat-conversation .team-bubble p { font-size:1rem;line-height:1.55; }
+body.native-chat-conversation .team-message-meta strong { font-size:.8125rem; }
+body.native-chat-conversation .team-message-meta>span { font-size:.625rem; }
+body.native-chat-conversation .chat-composer { border-color:#527891;background:#102e44;box-shadow:0 4px 20px #0004,inset 0 1px #a6deff15; }
+body.native-chat-conversation .chat-send-button { background:#aee83c;color:#102638; }
+
+@media(min-width:650px) {
+ body[data-screen]:not(.native-chat-conversation) .app-header>img { inline-size:200px; }
+ body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { min-block-size:208px; }
+}
+@media(max-width:360px) {
+ .lab-scoreboard .lab-rating-chart>div:first-child { padding-inline:16px; }
+ .lab-scoreboard .lab-rating-chart>div:not(:first-child) { padding-inline:16px; }
+ .lab-scoreboard .lab-rating-chart>div:not(:first-child) dt { min-block-size:3em; }
+ .lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale) { font-size:2.125rem; }
+ .lab-form-overview { grid-template-columns:92px minmax(0,1fr);gap:14px; }
+ .lab-form-overview .stat-donut { inline-size:92px; }
+ .lab-form-record>strong { font-size:1.75rem; }
+ .lab-shortcuts { gap:7px; }
+ .lab-shortcuts button.app-tool { padding-inline:4px; }
+ body[data-screen="coach"] .app-tool-featured .app-tool-copy { inline-size:56%; }
+ body[data-screen="coach"] .app-tool-featured .app-tool-copy strong { font-size:1.75rem; }
+}
+@media(prefers-reduced-motion:reduce) { .lab-rating-loading-shapes span { animation:none; } }
