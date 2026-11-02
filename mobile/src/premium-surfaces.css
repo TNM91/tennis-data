@@ -1,4 +1,4 @@
-/* Native finishing layer. Artwork stays complete; visual hierarchy comes from surfaces and type. */
+/* Native finishing layer. Original artwork stays complete; light fades belong to its surrounding surfaces. */
 body[data-screen] {
  --premium-surface:#0c2336;
  --premium-raised:#123149;
@@ -23,6 +23,10 @@ body[data-screen]:not(.native-chat-conversation) .app-navigation button {
 body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"] {
  background:linear-gradient(145deg,#1b4560,#102d43);box-shadow:inset 0 1px #83d8ff,0 3px 12px #0002;
 }
+body[data-screen]:not(.native-chat-conversation) .app-atmosphere::after {
+ content:"";position:absolute;inset-block-start:78px;inset-inline-end:0;inline-size:min(100%,760px);aspect-ratio:1727/911;max-block-size:min(46dvh,400px);
+ background:linear-gradient(180deg,#041426,transparent 25%,transparent 75%,#041426),linear-gradient(90deg,#041426,transparent 55%,transparent 94%,#041426);
+}
 
 /* Score, evidence, next move — the same order at every phone size. */
 .lab-scoreboard-intro { padding-block:12px 4px;gap:16px; }
@@ -30,13 +34,22 @@ body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-cur
 body[data-screen="lab"] .lab-scoreboard-intro h1 { font-size:clamp(1.75rem,7.7vw,2.25rem);font-weight:750;letter-spacing:-.045em;margin-block:7px; }
 .lab-scoreboard-intro p { color:var(--premium-copy);font-size:.8125rem;line-height:1.5; }
 body[data-screen="lab"] section.lab-scoreboard {
- padding-block:16px 4px;border-color:#41647d;border-radius:26px;background:#081e30;
- box-shadow:inset 0 1px #b2e6ff20,0 16px 40px #0003;
+ --scoreboard-ink:#081e30;
+ position:relative;isolation:isolate;padding-block:20px 4px;border-color:#3d6179;border-radius:26px;background:var(--scoreboard-ink);
+ box-shadow:inset 0 1px #b2e6ff26,0 16px 40px #0003;
 }
-.lab-scoreboard>h2 { display:flex;align-items:center;gap:9px;font-size:.8125rem;font-weight:650;padding-bottom:12px; }
+.lab-scoreboard>h2 { position:relative;z-index:1;display:flex;align-items:center;gap:9px;font-size:.8125rem;font-weight:650;padding-bottom:12px; }
 .lab-scoreboard>h2::before { content:"";inline-size:6px;block-size:6px;flex:none;border-radius:50%;background:var(--premium-lime); }
+.rating-court-atmosphere {
+ position:absolute;z-index:-1;inset-block-start:-30px;inset-inline:0;aspect-ratio:1727/911;pointer-events:none;
+}
+.rating-court-atmosphere .rating-court-scene { inset:0;inline-size:100%;block-size:100%;object-fit:contain; }
+.rating-court-atmosphere::after {
+ content:"";position:absolute;inset:0;
+ background:linear-gradient(180deg,var(--scoreboard-ink),transparent 22%,transparent 84%,var(--scoreboard-ink)),linear-gradient(90deg,var(--scoreboard-ink),#081e3070 30%,transparent 62%,transparent 92%,var(--scoreboard-ink));
+}
 .lab-scoreboard .lab-rating-chart>div:first-child {
- min-block-size:200px;padding:18px 20px 16px;
+ min-block-size:220px;padding:18px 20px 16px;
 }
 .lab-scoreboard .lab-rating-chart dt { color:#bbdcf0;font-size:.75rem;font-weight:600;letter-spacing:.075em; }
 .lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) {
@@ -46,7 +59,7 @@ body[data-screen="lab"] section.lab-scoreboard {
 .lab-scoreboard .lab-rating-chart>div:first-child .rating-scale { max-inline-size:44%;margin-block-start:12px; }
 .lab-scoreboard .lab-rating-chart>div:first-child .rating-note { font-size:.6875rem;color:#c1d8e8;max-inline-size:45%; }
 .lab-scoreboard .lab-rating-chart>div:not(:first-child) {
- padding:16px 20px 18px;background:linear-gradient(160deg,#14354d,#102a40);border-color:#35566e;
+ padding:16px 20px 18px;background:linear-gradient(180deg,#102c4000,#113149a8);border-block-start-color:transparent;border-inline-color:#35566e70;
 }
 .lab-scoreboard .lab-rating-chart>div:not(:first-child)>dd:not(.rating-note):not(.rating-scale) { font-size:2.5rem;font-weight:700;margin-block-start:7px; }
 .lab-scoreboard .rating-scale meter,.lab-scoreboard .rating-scale meter::-webkit-meter-bar { height:5px;background:#28465c; }
@@ -84,12 +97,14 @@ body[data-screen="lab"] .lab-form-overview .stat-donut-track { stroke:#294b61;st
 .lab-form-host .lab-form-mark span { font-size:.625rem;line-height:1.5; }
 .lab-form-strip>p.lab-form-help { font-size:.6875rem;line-height:1.5;margin-block-start:14px; }
 .lab-shortcuts { gap:10px;margin-block:20px 28px; }
-.lab-shortcuts button.app-tool { border:1px solid #2c4b62;border-radius:18px;background:#0b2336;min-block-size:108px;box-shadow:inset 0 1px #99ceec10; }
-.lab-shortcuts .app-tool-icon { color:#a5deff; }
+.lab-shortcuts button.app-tool { border:1px solid #2c4b62;border-radius:18px;background:radial-gradient(ellipse at 50% 0,#1c465d80,transparent 78%),#0b2336;min-block-size:108px;box-shadow:inset 0 1px #99ceec20; }
+.lab-shortcuts .app-tool-icon { color:#a5deff;box-shadow:0 0 24px #72caff12; }
+.lab-shortcuts [data-app-destination="tournaments"] .app-tool-icon { color:#c5ee88;background:#284539; }
+.lab-shortcuts [data-app-destination="coach"] .app-tool-icon { color:#b7caff;background:#273852; }
 .lab-shortcuts .app-tool-copy strong { font-size:.75rem;line-height:1.4; }
 .lab-rating-trends { margin-block:28px; }
 .lab-rating-trends>h2 { font-size:1.25rem;font-weight:700; }
-.lab-rating-trends .lab-trend-entry.secondary { min-block-size:94px;padding:18px 16px;border-color:#355f7a;background:linear-gradient(120deg,#143b55,#0b273e);border-radius:20px; }
+.lab-rating-trends .lab-trend-entry.secondary { min-block-size:94px;padding:18px 16px;border-color:#355f7a;background:radial-gradient(ellipse at 100% 0,#3983a747,transparent 65%),linear-gradient(120deg,#143b55,#0b273e);border-radius:20px;box-shadow:inset 0 1px #91dfff22; }
 .lab-rating-trends .lab-trend-entry strong { font-size:1rem; }
 .lab-rating-trends .lab-trend-entry small { font-size:.8125rem;line-height:1.5;color:#b9d3e4; }
 .lab-rating-trends>p { font-size:.8125rem;line-height:1.55;color:var(--premium-copy); }
@@ -120,21 +135,28 @@ body[data-screen] .app-tools-hub .app-hub-heading h1 { font-size:clamp(2rem,8.8v
 .app-tools-hub .app-tool-copy>span { font-size:.8125rem;line-height:1.55;color:#b9d1e1; }
 .app-tools-hub .app-tool-copy strong { font-size:1rem;font-weight:650;letter-spacing:-.015em; }
 .app-tools-hub .app-tool-icon { background:#16384e;border-radius:14px; }
-body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;min-block-size:196px;padding:22px;border:1px solid #3b6782;border-radius:24px;background:linear-gradient(125deg,#184761,#0b263c);box-shadow:inset 0 1px #b4e6ff18,0 8px 20px #0002; }
+body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;min-block-size:212px;padding:22px;border:1px solid #3b6782;border-radius:24px;background:radial-gradient(ellipse at 100% 0,#328db33d,transparent 80%),linear-gradient(125deg,#143b55,#0b263c);box-shadow:inset 0 1px #b4e6ff26,0 8px 20px #0002; }
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy { grid-column:1/-1;grid-row:2; }
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { grid-column:2;grid-row:1; }
-body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool[data-app-destination="tournaments"] { border-color:#537357;background:linear-gradient(125deg,#1c3b3d,#0b2635); }
+body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool[data-app-destination="tournaments"] { border-color:#537357;background:radial-gradient(ellipse at 100% 0,#92bc4230,transparent 80%),linear-gradient(125deg,#1c3b3d,#0b2635); }
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy strong { font-size:1.5rem;font-weight:700; }
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-icon { background:#235069;inline-size:54px;block-size:54px;flex-basis:54px; }
 body[data-screen="compete"] .app-hub-group:first-of-type [data-app-destination="tournaments"] .app-tool-icon { background:#2d4c40;color:#d7efa6; }
 body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { color:#c1e5fa; }
+.competition-art { display:none; }
+body[data-screen="compete"] .app-hub-group:first-of-type .competition-art { position:absolute;z-index:-1;display:block;inset-block-start:10px;inset-inline-end:12px;inline-size:48%;max-inline-size:190px;color:#89d4fc;pointer-events:none; }
+.competition-art svg { display:block;inline-size:100%;block-size:auto;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;opacity:.32; }
+body[data-screen="compete"] .app-hub-group:first-of-type [data-app-destination="tournaments"] .competition-art { color:#c5ed8e; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { position:relative;z-index:1;display:grid;place-items:center;inline-size:36px;block-size:36px;border:1px solid #9ad6ff38;border-radius:50%;background:#0b263c9c; }
 body[data-screen="coach"] .app-hub-group:first-of-type .app-hub-tools { overflow:visible; }
 body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool-featured {
  position:relative;isolation:isolate;display:block;
  min-block-size:clamp(210px,50vw,320px);aspect-ratio:auto;padding:22px 20px;margin-block-end:12px;
  border:1px solid #416885;border-radius:22px;background:#071c34;box-shadow:0 12px 28px #0003;
 }
-.app-tool-court { position:absolute;z-index:-1;inset:12px;inline-size:calc(100% - 24px);block-size:auto;object-fit:contain;pointer-events:none; }
+.app-tool-court-atmosphere { position:absolute;z-index:-1;inset:0 0 auto;aspect-ratio:1727/911;overflow:hidden;border-radius:inherit;pointer-events:none; }
+.app-tool-court { position:absolute;inset:0;inline-size:100%;block-size:auto;object-fit:contain;pointer-events:none; }
+.app-tool-court-atmosphere::after { content:"";position:absolute;inset:0;background:linear-gradient(90deg,#071c34f5,#071c34bf 38%,transparent 70%),linear-gradient(180deg,#071c34,transparent 24%,transparent 68%,#071c34); }
 body[data-screen="coach"] .app-tool-featured .app-tool-icon { display:none; }
 body[data-screen="coach"] .app-tool-featured .app-tool-copy { flex:0;inline-size:52%;gap:8px; }
 body[data-screen="coach"] .app-tool-featured .app-tool-copy strong { font-size:1.875rem;font-weight:750;letter-spacing:-.04em; }
@@ -145,9 +167,27 @@ body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool:not(.app-
 body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool-featured+button { border-start-start-radius:18px;border-start-end-radius:18px; }
 body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool:last-child { border-end-start-radius:18px;border-end-end-radius:18px;border-block-end:0; }
 
+/* Discovery and next steps carry the same court-side light, with clear space for copy. */
+body[data-screen="explore"] .app-court-backdrop { display:none; }
+.explore-spotlight { position:relative;isolation:isolate;min-inline-size:0;margin-block:16px 22px;padding:24px 18px;border:1px solid #345b73;border-radius:24px;background:radial-gradient(ellipse at 100% 0,#245577a3,transparent 80%),#0a2439;overflow:hidden;box-shadow:inset 0 1px #94d8ff26; }
+.native-explore-hero .explore-spotlight h1 { position:relative;margin-block:14px 0;max-inline-size:18rem;font-size:clamp(2rem,8.5vw,2.75rem);line-height:1.15;letter-spacing:-.045em;text-wrap:balance; }
+.explore-spotlight .stat-eyebrow { position:relative;color:#a2dfff;font-size:.6875rem;letter-spacing:.12em; }
+.explore-court-lines { position:absolute;z-index:-1;inset-block-start:24px;inset-inline-end:-30px;inline-size:180px;block-size:280px;border:1px solid #91ccef24;transform:rotate(24deg);pointer-events:none;background:linear-gradient(90deg,transparent 12%,#91ccef24 12%,#91ccef24 calc(12% + 1px),transparent calc(12% + 1px),transparent 88%,#91ccef24 88%,#91ccef24 calc(88% + 1px),transparent calc(88% + 1px)),linear-gradient(180deg,transparent 30%,#91ccef24 30%,#91ccef24 calc(30% + 1px),transparent calc(30% + 1px),transparent 50%,#91ccef38 50%,#91ccef38 calc(50% + 1px),transparent calc(50% + 1px),transparent 70%,#91ccef24 70%,#91ccef24 calc(70% + 1px),transparent calc(70% + 1px)); }
+.native-explore-hero form input { box-shadow:inset 0 1px #b1dfff16; }
+.lab-next-band .lab-level-path { background:radial-gradient(ellipse at 100% 0,#30799b40,transparent 70%),#0c293e;border-color:#3f6b84;box-shadow:inset 0 1px #9edaff20; }
+.lab-level-path .lab-band-target>strong { color:#eefaff;text-shadow:0 4px 24px #79d0ff22; }
+.lab-level-path .lab-band-target>strong>span { color:#9bd7f6; }
+.lab-level-path .lab-band-practice { box-shadow:inset 0 1px #efffc090,0 5px 20px #a9e82c12; }
+.website-lab [data-native-part="repCard"] { background:radial-gradient(ellipse at 100% 0,#2f60823b,transparent 70%),#0b2439;border-color:#3a5f79;box-shadow:inset 0 1px #91d4ff1a; }
+
+/* Depth and a clear focus state make touch controls feel consistent across the app. */
+body[data-screen] :is(.app-tool,.lab-trend-entry,.lab-band-practice,.chats-team-card):focus-visible { outline:3px solid #bde8ff;outline-offset:3px; }
+body[data-screen] :is(.app-tool,.lab-trend-entry,.lab-band-practice) { transition:background-color 140ms ease,border-color 140ms ease; }
+body[data-screen] :is(.app-tool,.lab-trend-entry,.lab-band-practice):active { border-color:#9ad9fc; }
+
 /* Conversation stays quiet, while input, unread and selection remain obvious. */
 body[data-screen="teams"]:not(.native-chat-conversation) .chats-intro h1 { font-size:2.5rem;font-weight:750;letter-spacing:-.045em; }
-body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-card { border-radius:18px;padding:18px 10px; }
+body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-card { border-radius:18px;padding:18px 10px;background:radial-gradient(ellipse at 0 0,#1e4e6740,transparent 72%),#0c2437;box-shadow:inset 0 1px #b2e6ff12; }
 body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-avatar { background:linear-gradient(135deg,#225674,#12354d);border:1px solid #477994;box-shadow:inset 0 1px #acdfff20; }
 body.native-chat-conversation .team-bubble:not(.team-bubble-mine):not(.team-bubble-match) { background:#122c41;border:1px solid #29475e; }
 body.native-chat-conversation .team-bubble-mine { background:linear-gradient(130deg,#1b4e70,#163e5b);border:1px solid #396584; }
@@ -174,4 +214,4 @@ body.native-chat-conversation .chat-send-button { background:#aee83c;color:#1026
  body[data-screen="coach"] .app-tool-featured .app-tool-copy { inline-size:56%; }
  body[data-screen="coach"] .app-tool-featured .app-tool-copy strong { font-size:1.75rem; }
 }
-@media(prefers-reduced-motion:reduce) { .lab-rating-loading-shapes span { animation:none; } }
+@media(prefers-reduced-motion:reduce) { .lab-rating-loading-shapes span { animation:none; } body[data-screen] :is(.app-tool,.lab-trend-entry,.lab-band-practice) { transition:none; } }
