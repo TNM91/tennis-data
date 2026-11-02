@@ -18,7 +18,8 @@ test.beforeAll(async()=>{
  const owner=${JSON.stringify(owner)},scope=${JSON.stringify(scope)};
  let active=true;(window as any).fixture={};
  const client={auth:{getSession:async()=>({error:null,data:{session:{user:{id:owner},access_token:'synthetic-fixture-token'}}})}};
- const view=showTeamRoom(document.querySelector('#app')!,client as never,owner,()=>active,scope);
+ const selected=new URL(location.href).searchParams.has('named')?{...scope,chatRoomId:${JSON.stringify(roomId)}}:scope;
+ const view=showTeamRoom(document.querySelector('#app')!,client as never,owner,()=>active,selected);
  Object.assign((window as any).fixture,{dispose:()=>{view.dispose();active=false},invalidate:()=>{active=false},back:()=>view.back()});
  `},bundle:true,platform:'browser',format:'esm',outfile:'chat-experience-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},plugins:[{name:'synthetic-live-signals',setup(builder){
  // Replace only the live transport. The real room parser, actions, auth checks and rendering remain in use.
@@ -43,6 +44,7 @@ test.beforeEach(async({page})=>{
    if(url.pathname==='/api/team-rooms/search'){historyQueries.push(url.search);return route.fulfill({json:{ok:true,chatSearch:1,roomId,query:url.searchParams.get('q')||'',kind:url.searchParams.get('kind')||'all',beforeCursor:url.searchParams.get('before')||'',nextCursor:'',results:[]}})}
    if(page.url().includes('photo=1'))messages[messages.length-1].attachment={size:4,mimeType:'image/jpeg'}
    const room={...scope,id:roomId,subject:scope.teamName,messages,members:[{id:owner,name:'Jordan Lee',roles:['captain']},{id:other,name:'Alex Rivera',roles:['player']}],nextScheduledMatch:null,activeCardId:'',muted:false,chatReady:true,lastReadAt:'2026-10-28T17:00:00Z',blockedMembers:[],blockedUserIds:[],canManage:!page.url().includes('member=1')}
+   if(url.searchParams.has('chatRoom'))Object.assign(room,{chatRoom:{id:roomId,parentId:'88888888-8888-4888-8888-888888888888',name:'Practice',teamMuted:false}})
    if(request.method()==='GET')return route.fulfill({json:url.pathname.endsWith('/chat')?{ok:true,chatUpdate:true,room,nextCursor:'',beforeCursor:''}:{ok:true,teams:[scope],room}})
    const action=request.postDataJSON() as ChatAction;actions.push(action)
    if(action.action==='set_chat_reaction'){
@@ -402,4 +404,62 @@ for(const result of ['open','missing','failed','disposed','tabChanged'])test(`re
  await expect(page.locator('#chat-draft')).toHaveValue('Keep this unsent reply');expect(actions.filter(action=>action.action==='mark_chat_read')).toHaveLength(acknowledgements);expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  const composer=await page.locator('#chat-draft').boundingBox();expect(composer!.y+composer!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+})
+
+for(const result of ['open','named','closedFinder','latest','failed','removed','revoked','tabChanged','background','disposed','edited'])test(`back to reply: ${result}`,async({page})=>{
+ messages=[{...base,id:ownId,createdAt:'2026-10-28T16:00:00Z',body:'Meet at court four'},
+  {...base,id:messageId,createdAt:'2026-10-28T16:03:00Z',kind:result==='named'?'announcement':'message',replyToMessageId:ownId,body:'Reply: bring fresh tennis balls'}]
+ const focusRequests:string[]=[];let started:()=>void=()=>{},release:()=>void=()=>{},retry=false
+ const requested=new Promise<void>(resolve=>{started=resolve}),held=new Promise<void>(resolve=>{release=resolve})
+ await page.route('**/api/team-rooms/message?*',async route=>route.fulfill({json:{ok:true,messageView:1,roomId,requestedId:messageId,view:'reply',message:{id:ownId,senderName:'Alex Rivera',body:'Meet at court four',kind:'message',createdAt:'2026-10-28T16:00:00Z',editedAt:'',hasAttachment:false,truncated:false}}}))
+ await page.route('**/api/team-rooms/chat?*',async route=>{
+  const u=new URL(route.request().url()),id=u.searchParams.get('focus');if(!id)return route.fallback()
+  expect(route.request().headers().authorization).toBe('Bearer synthetic-fixture-token');expect(u.searchParams.get('team')).toBe(scope.teamName);expect(u.searchParams.get('league')).toBe(scope.leagueName);expect(u.searchParams.get('flight')).toBe(scope.flight)
+  expect(u.searchParams.get('chatRoom')).toBe(result==='named'?roomId:null);expect([ownId,messageId]).toContain(id);focusRequests.push(id)
+  const returning=id===messageId
+  if(returning){started();if(['tabChanged','background','disposed'].includes(result))await held
+   if(!retry&&result==='failed')return route.fulfill({status:503,json:{ok:false}})
+   if(result==='revoked')return route.fulfill({status:403,json:{ok:false}})
+  }
+  const message=messages[returning?1:0],changed=returning&&result==='edited'?{...message,body:'Updated practice note'}:returning&&result==='removed'?{...message,deletedAt:'2026-10-29T00:00:00Z'}:message
+  return route.fulfill({json:{ok:true,chatUpdate:true,beforeCursor:'',nextCursor:'',focusMessageId:id,focusCursor:String(message.createdAt)+'|'+id,room:{...scope,id:roomId,messages:[changed],lastReadAt:'2026-10-28T17:00:00Z',blockedUserIds:[],...(result==='named'?{chatRoom:{id:roomId,parentId:'88888888-8888-4888-8888-888888888888',name:'Practice',teamMuted:false}}:{})}}})
+ })
+ await page.setViewportSize({width:320,height:568});await page.goto(origin+prefix+(result==='named'?'?named=1':''));await page.addStyleTag({content:'html{font-size:20px}'})
+ const draft=page.locator('#chat-draft'),query=page.locator('#chat-search'),back=page.getByRole('button',{name:'Back to reply',exact:true})
+ await draft.fill('Keep my unsent reply');await expect(back).toBeHidden()
+ await page.getByRole('button',{name:'Find in conversation',exact:true}).click();await query.fill('Reply:');await query.evaluate((el:HTMLInputElement)=>el.setSelectionRange(1,4))
+ if(result==='named')await page.locator('#chat-filter').selectOption('announcements')
+ if(result==='closedFinder')await query.press('Escape')
+ const reads=actions.filter(action=>action.action==='mark_chat_read').length
+ await post(page).getByRole('button',{name:'Open original message',exact:true}).click();const original=page.getByRole('dialog',{name:'Original message',exact:true})
+ await original.getByRole('button',{name:'Open in chat',exact:true}).click();await expect(post(page,ownId)).toBeFocused();await expect(post(page)).toHaveCount(0);await expect(back).toBeVisible()
+ if(result==='latest'){
+  await page.getByRole('button',{name:'Back to latest messages',exact:true}).click();await expect(back).toBeHidden();await expect(query).toHaveValue('');expect(focusRequests).toEqual([ownId]);return
+ }
+ await back.click()
+ if(['tabChanged','background','disposed'].includes(result)){
+  await requested;await expect(back).toBeDisabled();await back.dispatchEvent('click');expect(focusRequests).toEqual([ownId,messageId])
+  if(result==='tabChanged'){await page.locator('.chat-room-options>summary').click();await page.locator('[data-team-tab="Members"]').click();await page.locator('.chat-room-options>summary').click();await page.locator('[data-team-tab="Conversation"]').click()}
+  if(result==='background')await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'))})
+  if(result==='disposed')await page.evaluate(()=>{(window as unknown as {fixture:{dispose:()=>void}}).fixture.dispose()})
+  const completed=page.waitForResponse(response=>new URL(response.url()).searchParams.get('focus')===messageId);release();await (await completed).finished();await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))))
+  await expect(post(page)).toHaveCount(0);await expect(post(page,ownId)).toBeVisible();await expect(query).toHaveValue('')
+  if(result!=='disposed'){await expect(back).toBeEnabled();await expect(page.locator('#chat-history-status')).toBeHidden()}
+ }else if(result==='revoked'){
+  await expect(page.getByRole('heading',{name:'Team unavailable'})).toBeVisible();await expect(back).toHaveCount(0);await expect(post(page)).toHaveCount(0)
+ }else if(result==='failed'||result==='removed'){
+  await expect(page.locator('#chat-history-status')).toContainText('reply could not be opened');await expect(back).toBeEnabled();await expect(post(page,ownId)).toBeVisible();await expect(query).toHaveValue('');await expect(post(page)).toHaveCount(0)
+  if(result==='failed'){retry=true;await back.click();await expect(post(page)).toBeFocused();await expect(query).toHaveValue('Reply:');await expect(back).toBeHidden();expect(focusRequests).toEqual([ownId,messageId,messageId])}
+ }else{
+  await expect(query).toHaveValue('Reply:');await expect(page.locator('#chat-filter')).toHaveValue(result==='named'?'announcements':'all');await expect(back).toBeHidden()
+  expect(await query.evaluate((el:HTMLInputElement)=>[el.selectionStart,el.selectionEnd])).toEqual([1,4])
+  if(result==='edited'){
+   await expect(page.locator('#chat-history-status')).toHaveText('Your reply no longer matches this search. Clear filters to see it.');await expect(page.locator('#chat-history-status')).toBeFocused();await expect(post(page)).toBeHidden();await page.locator('#chat-search-clear').click();await expect(post(page)).toBeVisible();await expect(post(page).locator('.chat-message-text')).toHaveText('Updated practice note')
+  }else{await expect(post(page)).toBeFocused();await expect(page.locator('#chat-history-status')).toHaveText('Back at your reply.')}
+  if(result==='closedFinder'){await expect(page.locator('#chat-quick-find-panel')).toBeHidden();await expect(page.locator('#chat-active-filter')).toBeVisible()}
+  else await expect(page.locator('#chat-quick-find-panel')).toBeVisible()
+ }
+ if(result!=='revoked')await expect(draft).toHaveValue('Keep my unsent reply')
+ expect(actions.filter(action=>action.action==='mark_chat_read')).toHaveLength(reads);expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
