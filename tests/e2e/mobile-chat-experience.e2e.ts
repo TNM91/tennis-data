@@ -356,3 +356,50 @@ test('same-room full refresh retains the finder input, selection and draft',asyn
  await expect(page.locator('#chat-draft')).toHaveValue('Retain this draft')
  await expect(query).toHaveValue('Saturday');await expect(post(page,ownId)).toBeVisible();await expect(post(page)).toBeHidden()
 })
+
+for(const result of ['open','missing','failed','disposed','tabChanged'])test(`reply original navigation: ${result}`,async({page})=>{
+ messages=[{...base,id:ownId,createdAt:'2026-10-28T16:00:00Z',body:'Bring two cans to court four'},
+  {...base,id:messageId,createdAt:'2026-10-28T16:03:00Z',replyToMessageId:ownId,body:'Reply: I can bring them'}]
+ let focusRequests=0,release:()=>void=()=>{},started:()=>void=()=>{};const pending=new Promise<void>(resolve=>{release=resolve}),requested=new Promise<void>(resolve=>{started=resolve})
+ let releaseFocus:()=>void=()=>{},focusStarted:()=>void=()=>{};const focusPending=new Promise<void>(resolve=>{releaseFocus=resolve}),focusRequested=new Promise<void>(resolve=>{focusStarted=resolve})
+ await page.route('**/api/team-rooms/message?*',async route=>{
+  const u=new URL(route.request().url());expect(u.searchParams.get('message')).toBe(messageId);expect(u.searchParams.get('view')).toBe('reply');expect(u.searchParams.get('team')).toBe(scope.teamName)
+  started();if(result==='disposed')await pending
+  if(result==='missing')return route.fulfill({status:404,json:{ok:false}})
+  return route.fulfill({json:{ok:true,messageView:1,roomId,requestedId:messageId,view:'reply',message:{id:ownId,senderName:'Alex Rivera',body:'Bring two cans to court four',kind:'message',createdAt:'2026-10-28T16:00:00Z',editedAt:'',hasAttachment:false,truncated:false}}})
+ })
+ await page.route('**/api/team-rooms/chat?*',async route=>{
+  const u=new URL(route.request().url());if(!u.searchParams.has('focus'))return route.fallback();focusRequests++;focusStarted();if(result==='tabChanged')await focusPending
+  expect(u.searchParams.get('focus')).toBe(ownId);expect(u.searchParams.get('team')).toBe(scope.teamName);expect(u.searchParams.get('league')).toBe(scope.leagueName);expect(u.searchParams.get('flight')).toBe(scope.flight)
+  if(result==='failed')return route.fulfill({status:503,json:{ok:false}})
+  return route.fulfill({json:{ok:true,chatUpdate:true,beforeCursor:'',nextCursor:'',focusMessageId:ownId,focusCursor:'2026-10-28T16:00:00Z|'+ownId,room:{...scope,id:roomId,messages,lastReadAt:'2026-10-28T17:00:00Z',blockedUserIds:[]}}})
+ })
+ await page.setViewportSize({width:320,height:568});await page.goto(origin+prefix);await page.addStyleTag({content:'html{font-size:20px}'});await page.locator('#chat-draft').fill('Keep this unsent reply')
+ await page.getByRole('button',{name:'Find in conversation',exact:true}).click();await page.locator('#chat-search').fill('Reply:')
+ await expect(post(page,ownId)).toBeHidden();const acknowledgements=actions.filter(action=>action.action==='mark_chat_read').length
+ await post(page).getByRole('button',{name:'Open original message',exact:true}).click();const original=page.getByRole('dialog',{name:'Original message',exact:true})
+ if(result==='disposed'){
+  await requested;await page.evaluate(()=>{(window as unknown as {fixture:{dispose:()=>void}}).fixture.dispose()});release();await expect(original).toHaveCount(0);expect(focusRequests).toBe(0);return
+ }
+ if(result==='missing'){
+  await expect(original.getByRole('status')).toContainText('Message unavailable');await expect(original.getByRole('button',{name:'Open in chat',exact:true})).toHaveCount(0);expect(focusRequests).toBe(0)
+  await original.getByRole('button',{name:'Back to conversation',exact:true}).click()
+ }else{
+  await expect(original.locator('.chat-message-text')).toHaveText('Bring two cans to court four');await original.getByRole('button',{name:'Open in chat',exact:true}).click()
+  if(result==='tabChanged'){
+   await focusRequested;await page.locator('.chat-room-options>summary').click();await page.locator('[data-team-tab="Members"]').click()
+   await page.locator('.chat-room-options>summary').click();await page.locator('[data-team-tab="Conversation"]').click();const completed=page.waitForResponse(response=>new URL(response.url()).searchParams.get('focus')===ownId);releaseFocus();await (await completed).finished();await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))))
+   await expect(page.locator('#chat-search')).toHaveValue('Reply:');await expect(post(page,ownId)).toBeHidden();await expect(page.locator('#chat-history-status')).toBeHidden()
+  }else if(result==='open'){
+   await expect(post(page,ownId)).toBeVisible();await expect(post(page,ownId)).toBeFocused();await expect(page.locator('#chat-history-status')).toBeVisible();await expect(page.locator('#chat-history-status')).toHaveText('Original message. Choose Latest to catch up.')
+   await expect(page.locator('#chat-search')).toHaveValue('');await expect(page.locator('#chat-quick-find-panel')).toBeHidden()
+  }else{
+   await expect(page.locator('#chat-history-status')).toBeVisible();await expect(page.locator('#chat-history-status')).toContainText('original message could not be opened');await expect(post(page,ownId)).toBeHidden()
+  }
+  expect(focusRequests).toBe(1)
+ }
+ if(result!=='open'){await expect(page.locator('#chat-search')).toHaveValue('Reply:');await expect(post(page)).toBeVisible()}
+ await expect(page.locator('#chat-draft')).toHaveValue('Keep this unsent reply');expect(actions.filter(action=>action.action==='mark_chat_read')).toHaveLength(acknowledgements);expect(actions.filter(action=>action.action!=='mark_chat_read')).toHaveLength(0)
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ const composer=await page.locator('#chat-draft').boundingBox();expect(composer!.y+composer!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+})

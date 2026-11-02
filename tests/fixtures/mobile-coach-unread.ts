@@ -8,7 +8,7 @@ export async function coachUnreadMessages(who:string,method:string,url:URL,raw?:
   const body=JSON.parse(String(raw)) as {message:string};coachUnreadFixture.reads.push({student,message:body.message})
   if(coachUnreadFixture.holdRead)await new Promise<void>(resolve=>{coachUnreadFixture.releaseRead=resolve})
   if(coachUnreadFixture.readFail)return Response.json({ok:false},{status:503})
-  if(coachUnreadFixture.newAfterRead)coachUnreadFixture.add(student,'77777777-7777-4777-8777-777777777777')
+  if(coachUnreadFixture.newAfterRead){coachUnreadFixture.holdLoad=true;coachUnreadFixture.add(student,'77777777-7777-4777-8777-777777777777')}
   const through=coachUnreadFixture.notes.find(note=>note.id===body.message)?.createdAt||'2026-10-31T12:00:00.123456Z'
   coachUnreadFixture.counts[student]=coachUnreadFixture.newAfterRead?1:coachUnreadFixture.notes.filter(note=>note.student===student&&Date.parse(note.createdAt)>Date.parse(through)).length
   return Response.json({ok:true,owner:who,student,through:body.message})
