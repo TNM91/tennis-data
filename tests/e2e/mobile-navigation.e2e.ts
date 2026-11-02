@@ -21,7 +21,7 @@ test.describe.configure({retries:0,timeout:25000})
 test.beforeAll(async()=>{
  const bundle=await build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^\.\/native-push$/},args=>args.importer.replace(/\\/g,"/").endsWith("/mobile/src/main.ts")?{path:path.resolve("tests/fixtures/mobile-native-coach-alerts.ts")}:undefined);b.onResolve({filter:/^@capacitor\/app$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-app.ts')}));b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
  javascript=bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text
- stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css'].map(file=>file==='app.css'?Promise.resolve(bundle.outputFiles.find(file=>file.path.endsWith('.css'))!.text):readFile('mobile/bundled/'+file,'utf8')))).join('\n')+'\n.preview-controls{padding:24px 12px 120px}.preview-controls button{min-height:44px}'
+ stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css','premium-surfaces.css'].map(file=>file==='app.css'?Promise.resolve(bundle.outputFiles.find(file=>file.path.endsWith('.css'))!.text):readFile('mobile/bundled/'+file,'utf8')))).join('\n')+'\n.preview-controls{padding:24px 12px 120px}.preview-controls button{min-height:44px}'
  documentHtml=await readFile('mobile/bundled/index.html','utf8')
 })
 test.beforeEach(async({page})=>{
@@ -158,10 +158,13 @@ for(const width of [320,390])test('all destinations, direct competitions, focus 
  await page.locator('[data-app-destination="tournaments"]').click();await expect(event).toContainText('Northside Open');await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click());await expect(event).toHaveCount(0);await expect(page.locator('.lab-scoreboard')).toContainText('4.42');expect(errors).toEqual([])
 })
 
-test('the complete approved court fits its stage at wider phone/tablet sizes',async({page})=>{
+test('the complete approved court stays proportional inside the scoreboard at wider phone/tablet sizes',async({page})=>{
  for(const width of [600,844]){
   await page.setViewportSize({width,height:844});await page.goto(origin);await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
-  expect(await page.locator('.rating-court-scene').evaluate(el=>{const scene=el.getBoundingClientRect(),row=el.parentElement!.querySelector('.lab-rating-chart>div')!.getBoundingClientRect();return scene.top>=row.top-1&&scene.bottom<=row.bottom+1&&scene.width<=row.width+1})).toBe(true)
+  const court=await page.locator('.rating-court-scene').evaluate(el=>{const scene=el.getBoundingClientRect(),card=el.closest('.lab-scoreboard')!.getBoundingClientRect();return {contained:scene.top>=card.top-1&&scene.bottom<=card.bottom+1&&scene.left>=card.left-1&&scene.right<=card.right+1,aspect:scene.width/scene.height,fit:getComputedStyle(el).objectFit}})
+  expect(court.contained).toBe(true)
+  expect(court.aspect).toBeCloseTo(1727/911,2)
+  expect(court.fit).toBe('contain')
   await bounded(page)
   for(const destination of ['Compete','More']){await page.getByRole('button',{name:destination,exact:true}).click();await bounded(page)}
  }
