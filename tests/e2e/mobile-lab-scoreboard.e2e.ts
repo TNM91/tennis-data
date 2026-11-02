@@ -9,7 +9,7 @@ const fixture=(page:Page)=>page.evaluate(()=>{const state=(window as unknown as 
 test.beforeAll(async()=>{
  const bundled=await build({entryPoints:['tests/fixtures/mobile-lab-scoreboard.ts'],bundle:true,platform:'browser',format:'esm',outfile:'lab-scoreboard-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'}})
  javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
- stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')
+ stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css','premium-surfaces.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')
 })
 test.beforeEach(async({page})=>{
  await page.route('**/*',async route=>{

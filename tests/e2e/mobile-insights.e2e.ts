@@ -10,7 +10,7 @@ test.beforeAll(async()=>{
  const bundled=await build({entryPoints:['tests/fixtures/mobile-insights.tsx'],bundle:true,platform:'browser',format:'esm',outfile:'insights-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'}})
  javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  const css=bundled.outputFiles.find(file=>file.path.endsWith('.css'))!.text
- stylesheet=(await Promise.all(['style.css','website-ui.css','app.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')+'\n'+css+'\n'+(await Promise.all(['website-parity.css','app-atmosphere.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')
+ stylesheet=(await Promise.all(['style.css','website-ui.css','app.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')+'\n'+css+'\n'+(await Promise.all(['website-parity.css','app-atmosphere.css','premium-surfaces.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')
 })
 test.beforeEach(async({page})=>{
  await page.route('**/*',async route=>{
@@ -32,6 +32,15 @@ async function bounded(page:Page){
  }
 }
 for(const width of [320,390]){
+ test(`three-set scorecard stays readable with larger text and returns keyboard focus at ${width}px`,async({page},info)=>{
+  await page.setViewportSize({width,height:844});await page.goto(origin+prefix+'?view=scorecard');await page.addStyleTag({content:':root{font-size:24px!important}'})
+  const opener=page.getByRole('button',{name:'Open sample scorecard',exact:true});await opener.focus();await opener.press('Enter')
+  await expect(page.getByRole('heading',{name:'Match details',exact:true})).toBeFocused();await expect(page.locator('.match-result-label')).toHaveText('Lost')
+  const table=page.getByRole('table');await expect(table.locator('tbody tr').first()).toContainText('Your side');await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['4','6','8']);await expect(table.locator('thead')).toContainText('TB')
+  for(const target of await page.locator('.match-scorecard-hero,.match-set-scores,.match-set-scores table,.match-side-card').all())expect(await target.evaluate(e=>e.scrollWidth<=e.clientWidth+1)).toBe(true)
+  await bounded(page);await page.screenshot({path:info.outputPath('match-scorecard-large-text.png')})
+  await page.getByRole('button',{name:'Back to My Lab',exact:true}).click();await expect(page.locator('#match-detail')).toHaveCount(0);await expect(page.getByRole('button',{name:'Open sample scorecard',exact:true})).toBeFocused()
+ })
  test(`rating windows and scorecard navigation stay truthful at ${width}px`,async({page},info)=>{
   await page.setViewportSize({width,height:844});await page.goto(origin+prefix+'?view=journey')
   const chart=page.getByRole('img',{name:'Rating trend across 5 saved ratings',exact:true})

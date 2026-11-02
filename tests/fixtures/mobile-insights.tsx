@@ -12,6 +12,8 @@ import type {TeamCourtSample} from '../../mobile/src/team-court-records-data'
 import type {PlayerPerformanceData} from '../../mobile/src/player-performance-data'
 import {showRecentResults} from '../../mobile/src/results-view'
 import type {RecentMatchRow} from '../../mobile/src/recent-results'
+import {createMatchDetails} from '../../mobile/src/match-details'
+import type {SupabaseClient} from '@supabase/supabase-js'
 const state={opened:'',active:true,invalidate:()=>{state.active=false}}
 Object.assign(window,{insightsFixture:state})
 const date=(ago:number)=>new Date(Date.now()-ago*86400000).toISOString().slice(0,10)
@@ -23,6 +25,14 @@ const choice={id:'fixture-player',name:'Alexandria-Marguerite Montgomery',locati
 function Profile(){const [view]=usePlayerProfileFormat(store);return <><PlayerProfileHeader choice={choice} player={{...choice,rating_source:'verified',overall_rating:4,overall_dynamic_rating:4.42,singles_dynamic_rating:4.37,doubles_dynamic_rating:4.49,tiq_rating_status:'current',tiq_rating_model:'fixture',tiq_rating_season:new Date().getUTCFullYear(),tiq_singles_matches:2,tiq_doubles_matches:4}} freshness={unknownImportFreshness} loading={false} failed={false} performance={data} state="ready" format={store}/><PlayerRecordGraphics data={data} view={view}/></>}
 function Journey(){const [opened,setOpened]=useState('');return <><PlayerJourney history={history} expandChart onOpenMatch={point=>{if(state.active){state.opened=point.matchId||'';setOpened(state.opened)}}}/><p id="opened-scorecard" role="status">{opened}</p></>}
 function Results(){useEffect(()=>{const rows:RecentMatchRow[]=Array.from({length:6},(_,i)=>({id:'result-'+i,match_date:i===5?'2025-10-24':date(i+1),match_type:i<2?'singles':'doubles',league_name:i===0?'City League':'Northside League',winner_side:i===1||i===5?'A':'B',score:'6-4 6-3',match_players:[{player_id:'fixture-player',side:'B'}]}));showRecentResults(document.querySelector('#results-content')!,rows,'fixture-player',row=>{state.opened=row.id},'your',true,{current:()=>state.active,load:async previous=>({rows:previous,hasMore:false})})},[]);return <section id="recent-results"><h1>Match insights</h1><div id="results-content"/></section>}
+function Scorecard(){useEffect(()=>{
+ const host=document.querySelector<HTMLElement>('#explore-content')!,button=host.querySelector<HTMLButtonElement>('button')!
+ const query={select(){return this},eq(){return this},order(){return this},limit(){return this},async abortSignal(){return {error:null,data:[{player_id:'fixture-player',side:'B',seat:1,players:{name:'Alexandria-Marguerite '+('Montgomery '.repeat(8)).trim()}},{player_id:'other-player',side:'A',seat:1,players:{name:'Jordan Lee'}}]}}}
+ const client={from:(name:string)=>{if(name!=='match_players')throw Error('Unexpected fixture request');return query}} as unknown as SupabaseClient
+ const details=createMatchDetails(host,client,()=>state.active,{local:true})
+ button.onclick=()=>details.open({id:'fixture-scorecard',match_date:'2026-10-29',match_type:'Doubles',league_name:'Northside Fall League',score:'6-4 3-6 10-8',winner_side:'A',match_players:[{player_id:'fixture-player',side:'B'}]},'fixture-player')
+ return ()=>details.dispose()
+},[]);return <div id="explore-content"><button type="button">Open sample scorecard</button></div>}
 const app=document.querySelector('#app')!,view=new URLSearchParams(location.search).get('view')||'journey'
 const nav=document.createElement('nav');nav.className='app-navigation';nav.setAttribute('aria-label','Main navigation');nav.innerHTML=(['lab','explore','following','matchup','teams'] as const).map(key=>`<button type="button" ${key==='lab'?'aria-current="page"':''}><span aria-hidden="true">${websiteUi.icons[key]}</span><span>${({lab:'My Lab',explore:'Explore',following:'Following',matchup:'Matchup',teams:'Chats'})[key]}</span></button>`).join('');app.after(nav)
-createRoot(app).render(view==='results'?<Results/>:<div className="website-ui insights-fixture">{view==='team'?<><h1>Team court results</h1><TeamCourtSampleView sample={sample}/></>:view==='profile'?<Profile/>:<Journey/>}</div>)
+createRoot(app).render(view==='scorecard'?<Scorecard/>:view==='results'?<Results/>:<div className="website-ui insights-fixture">{view==='team'?<><h1>Team court results</h1><TeamCourtSampleView sample={sample}/></>:view==='profile'?<Profile/>:<Journey/>}</div>)
