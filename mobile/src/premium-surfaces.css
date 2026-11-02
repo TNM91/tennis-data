@@ -273,6 +273,54 @@ body.native-chat-conversation .chat-send-button { background:#aee83c;color:#1026
 .competitions-dialog .competition-empty { border-style:solid;border-color:#34546c;background:#0b2336; }
 .competitions-dialog .competition-checked { font-size:.75rem;color:#a9c6d9; }
 
+/* Browse, enter, follow the decision — the same hierarchy for both disciplines. */
+.tournament-entry-dialog { --competition-accent:#d3edac;--competition-edge:#537365;--competition-light:#5b7b3a30; }
+.competitions-dialog .competition-card { padding:22px 18px;border-block-start:2px solid var(--competition-edge); }
+.competitions-dialog .competition-card h3 { font-size:1.375rem!important;line-height:1.35;letter-spacing:-.025em;margin-block:18px 12px!important; }
+.competitions-dialog .competition-card-meta { align-items:start;gap:10px 14px;font-size:.6875rem;line-height:1.5; }
+.competitions-dialog .competition-state { max-inline-size:100%;overflow-wrap:anywhere;font-weight:600; }
+.competitions-dialog .competition-state:is([data-state="registration_open"],[data-state="open"]) { color:#d4edb2;background:#203e3c;border-color:#627f69; }
+.competitions-dialog .competition-card-details { display:grid;gap:7px;margin-block:12px 18px;padding-inline-start:12px;border-inline-start:2px solid var(--competition-edge); }
+.competitions-dialog .competition-card-details p { margin:0;font-size:.8125rem;line-height:1.6; }
+.competitions-dialog .competition-card-detail { font-size:.8125rem;line-height:1.6; }
+.competitions-dialog .competition-entry { padding-block-start:12px;border-block-start:1px solid #36566b;color:#c9dfed;font-size:.8125rem;line-height:1.7; }
+.competitions-dialog .competition-card button.secondary { background:#16384d;border-color:#486c82;border-radius:14px; }
+.competitions-dialog .competition-search { padding:16px;border:1px solid #34556c;border-radius:18px;background:#0b2336; }
+.competitions-dialog .competition-search label { font-size:.8125rem;line-height:1.5; }
+.competitions-dialog .competition-search>div { display:flex;flex-wrap:wrap;gap:10px; }
+.competitions-dialog .competition-search input { flex:1 1 11rem;min-inline-size:0; }
+.competitions-dialog .competition-search button { flex:1 0 auto; }
+.competitions-dialog .competition-switch { gap:6px;padding:6px;border-radius:18px;border:1px solid #34556c;background:#081f32; }
+.competitions-dialog .competition-switch button.secondary { border:0;background:transparent;border-radius:12px;font-size:.8125rem!important; }
+.competitions-dialog .competition-switch button[aria-pressed="true"] { background:#1b4055!important;color:#edf8ff;box-shadow:inset 0 -2px var(--competition-accent); }
+.league-entry-dialog .entry-hero { margin-block:18px 22px;padding:22px 18px; }
+.league-entry-dialog .competition-header button.secondary { font-size:.8125rem!important; }
+.league-entry-dialog .entry-hero h2 { font-size:1.75rem!important;line-height:1.15;letter-spacing:-.035em;margin-block:10px 0; }
+.league-entry-dialog .entry-hero p { margin-block:12px 0;color:#c4dbe9;font-size:.875rem;line-height:1.6; }
+.league-entry-dialog form { gap:18px; }
+.league-entry-dialog .entry-fields { display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-inline-size:0;max-inline-size:100%;margin:0;padding:18px 14px;border:1px solid #385a70;border-radius:18px;background:linear-gradient(145deg,#123247,#0b2336); }
+.league-entry-dialog .entry-fields legend { padding-inline:7px;color:var(--competition-accent);font-size:.8125rem;font-weight:650;line-height:1.5;max-inline-size:100%;overflow-wrap:anywhere; }
+.league-entry-dialog .entry-fields>label:not(.entry-check) { display:grid;gap:8px;min-inline-size:0;margin:0;color:#dceaf3;font-size:.8125rem!important;line-height:1.5; }
+.league-entry-dialog .entry-fields :is(input:not([type=checkbox]),select) { inline-size:100%;min-inline-size:0;max-inline-size:100%;min-block-size:48px;border-color:#486c84;border-radius:12px;background:#081e31;color:#f0f7fc;font-size:1rem!important; }
+.league-entry-dialog .entry-fields input[readonly] { background:#19374b;color:#c2d9e8; }
+.league-entry-dialog .entry-fields p { margin:0;font-size:.8125rem!important;line-height:1.65;color:#c1d7e5; }
+.league-entry-dialog .entry-requirements { padding-block:12px;border-block:1px solid #385a70;color:var(--competition-accent); }
+.league-entry-dialog .entry-confirmations { background:#0b2336; }
+.league-entry-dialog .entry-check { margin:0;padding-block:6px;min-block-size:44px;line-height:1.6;font-size:.8125rem!important; }
+.league-entry-dialog .entry-check input { min-block-size:22px;accent-color:#b5eb46; }
+.league-entry-dialog form>button[type="submit"] { margin-block-start:0;min-block-size:54px;border-radius:16px; }
+.league-entry-dialog section.entry-receipts { padding:0;border:0;background:transparent;box-shadow:none; }
+.league-entry-dialog .entry-receipts article { gap:12px;padding:22px 18px;border-color:#45677b;background:linear-gradient(135deg,#14394b,#0b2336);box-shadow:inset 0 1px #b6e9ff16; }
+.league-entry-dialog .entry-receipts small { color:#afcddd;font-size:.6875rem;font-weight:650;letter-spacing:.1em;text-transform:uppercase; }
+.league-entry-dialog .entry-receipts strong { font-size:1.25rem;line-height:1.45;letter-spacing:-.015em;overflow-wrap:anywhere; }
+.league-entry-dialog .entry-receipts .entry-state { justify-self:start;max-inline-size:100%;padding:7px 10px;border:1px solid #667c8c;border-radius:12px;background:#193a4e;color:#e1edf5;font-size:.8125rem;line-height:1.5; }
+.league-entry-dialog [data-entry-state="pending"] .entry-state { border-color:#8b7f57;background:#3c3c2d;color:#f3dfa5; }
+.league-entry-dialog :is([data-entry-state="active"],[data-entry-state="approved"]) .entry-state { border-color:#698362;background:#203d38;color:#d4edb2; }
+.league-entry-dialog :is([data-entry-state="rejected"],[data-entry-state="declined"],[data-entry-state="removed"]) .entry-state { border-color:#8d6b78;background:#3a2c3a;color:#f5d0dc; }
+.league-entry-dialog .entry-note { font-size:.8125rem!important;line-height:1.65; }
+.league-entry-dialog :is([data-entry-notice],[data-registration-notice]):not(:empty) { padding:16px;border:1px solid #46677c;border-radius:14px;background:#123149;line-height:1.65;font-size:.8125rem; }
+.league-entry-dialog :is([data-entry-notice],[data-registration-notice])[role="alert"]:not(:empty) { border-color:#8b7f57;color:#f3dfa5; }
+
 @media(min-width:650px) {
  body[data-screen]:not(.native-chat-conversation) .app-header>img { inline-size:200px; }
  body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { min-block-size:208px; }
