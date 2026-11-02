@@ -11,7 +11,7 @@ export function showPlayerRatings(host:HTMLElement,client:SupabaseClient,playerI
   let request=0
   const load=async()=>{
     const version=++request
-    host.innerHTML='<p role="status">Loading recorded TIQ ratings…</p>'
+    host.innerHTML=options?.showcase?'<div class="lab-rating-loading" role="status"><p>Loading recorded TIQ ratings…</p><div class="lab-rating-loading-shapes" aria-hidden="true"><span></span><span></span><span></span></div></div>':'<p role="status">Loading recorded TIQ ratings…</p>'
     try {
       const player=await loadPlayerRatings(client,playerId)
       if(!isCurrent() || version!==request || !host.isConnected)return

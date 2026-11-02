@@ -18,6 +18,7 @@ await copyFile(new URL('src/index.html', root), new URL('bundled/index.html', ro
 await writeFile(new URL('bundled/style.css',root),scopeNativeStyles(await readFile(new URL('src/style.css',root),'utf8')))
 await copyFile(new URL('src/website-parity.css', root), new URL('bundled/website-parity.css', root))
 await copyFile(new URL('src/app-atmosphere.css', root), new URL('bundled/app-atmosphere.css', root))
+await writeFile(new URL('bundled/premium-surfaces.css',root),(await readFile(new URL('src/premium-surfaces.css',root),'utf8')).replace(/\r\n/g,'\n'))
 await copyFile(new URL('generated/website-ui.css', root), new URL('bundled/website-ui.css', root))
 await mkdir(new URL('bundled/brand/courts/',root),{recursive:true})
 await mkdir(new URL('bundled/brand/approved/',root),{recursive:true})
