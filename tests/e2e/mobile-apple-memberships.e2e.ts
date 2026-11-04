@@ -1,13 +1,15 @@
 import {test,expect} from '@playwright/test'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
+import {scopeNativeStyles} from '../../mobile/scripts/style-scope.mjs'
 const origin='http://127.0.0.1:4259',prefix='/__apple-membership-fixture/'
-let javascript='',accountJavascript='',stylesheet=''
+let javascript='',accountJavascript='',stylesheet='',accountStylesheet=''
 test.beforeAll(async()=>{
  const bundled=await build({entryPoints:['tests/fixtures/mobile-apple-memberships.ts'],bundle:true,platform:'browser',format:'esm',outfile:'apple-membership-fixture.js',loader:{'.module.css':'local-css'},jsx:'automatic',write:false})
  javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  const account=await build({entryPoints:['tests/fixtures/mobile-account-logout.ts'],bundle:true,platform:'browser',format:'esm',outfile:'account.js',jsx:'automatic',write:false});accountJavascript=account.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  stylesheet=(await Promise.all(['mobile/src/style.css','mobile/src/website-parity.css'].map(file=>readFile(file,'utf8')))).join('\n')
+ accountStylesheet=scopeNativeStyles(await readFile('mobile/src/style.css','utf8'))+'\n'+(await Promise.all(['mobile/generated/website-ui.css','mobile/src/website-parity.css','mobile/src/app-atmosphere.css','mobile/src/premium-surfaces.css'].map(file=>readFile(file,'utf8')))).join('\n')
 })
 test.beforeEach(async({page})=>{
  await page.route('**/*',route=>{
@@ -16,15 +18,15 @@ test.beforeEach(async({page})=>{
    const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,content-type','Access-Control-Allow-Methods':'GET,OPTIONS'}
    if(route.request().method()==='OPTIONS')return route.fulfill({status:204,headers,body:''})
    if(route.request().method()!=='GET')return route.abort()
-   if(url.pathname==='/api/mobile/account')return route.fulfill({status:page.url().includes('account-load-error')?503:200,headers,contentType:'application/json',body:JSON.stringify({ok:true,email:'paid-test@example.test',reviewDays:7,fulfillment:'automated',verificationRequired:false,request:null})})
+  if(url.pathname==='/api/mobile/account')return route.fulfill({status:page.url().includes('account-load-error')?503:200,headers,contentType:'application/json',body:JSON.stringify({ok:true,email:page.url().includes('account-ios')?'delivered+tenaceiq-apple-8fd8bdac-90f9-4011-91c1-2fca3df1515d@example.test':'paid-test@example.test',reviewDays:7,fulfillment:'automated',verificationRequired:false,request:null})})
    const captain=page.url().includes('account-captain')
    return route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify({ok:true,access:{role:'member',entitlements:{playerPlusSubscriptionActive:true,coachSubscriptionActive:false,captainSubscriptionActive:captain,tiqTeamLeagueEntryEnabled:false,tiqIndividualLeagueCreatorEnabled:false,playerPlusSubscriptionStatus:'active',coachSubscriptionStatus:'inactive',captainSubscriptionStatus:captain?'active':'inactive',playerPlusAccessExpiresAt:null,coachAccessExpiresAt:null,captainAccessExpiresAt:null,leagueAccessExpiresAt:null}}})})
   }
   if(url.pathname.endsWith('account.js')&&url.origin===origin)return route.fulfill({contentType:'text/javascript',body:accountJavascript})
   if(url.origin!==origin||!url.pathname.startsWith(prefix))return route.abort()
   if(url.pathname.endsWith('app.js'))return route.fulfill({contentType:'text/javascript',body:javascript})
-  if(url.pathname.endsWith('style.css'))return route.fulfill({contentType:'text/css',body:stylesheet})
-  return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css"></head><body><main><p>QA fixture · no account or live purchase</p><section id="membership" class="apple-membership-panel"></section></main><script type="module" src="./'+(url.searchParams.get('mode')?.startsWith('account-')?'account.js':'app.js')+'"></script></body></html>'})
+  if(url.pathname.endsWith('style.css'))return route.fulfill({contentType:'text/css',body:page.url().includes('mode=account-')?accountStylesheet:stylesheet})
+  return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css"></head><body'+(url.searchParams.get('mode')?.startsWith('account-')?' data-screen="lab"':'')+'><main><p>QA fixture · no account or live purchase</p><section id="membership" class="apple-membership-panel"></section></main><script type="module" src="./'+(url.searchParams.get('mode')?.startsWith('account-')?'account.js':'app.js')+'"></script></body></html>'})
  })
 })
 for(const width of [320,390])test(`plan errors and retry stay usable at ${width}px`,async({page},info)=>{
@@ -91,6 +93,76 @@ for(const width of [320,390])test('restore failure preserves active membership a
 async function openAccount(page:import('@playwright/test').Page,mode='account-ready'){
  await page.goto(origin+prefix+'?mode='+mode);await page.getByRole('button',{name:'Account settings',exact:true}).click();return page.getByRole('dialog',{name:'Account settings',exact:true})
 }
+async function installAccountIosBridge(page:import('@playwright/test').Page){
+ await page.addInitScript(()=>{
+  const calls:string[]=[]
+  const methods=(name:string,names:string[])=>({name,methods:names.map(name=>({name,rtype:'promise'}))})
+  Object.assign(window,{accountNativeCalls:calls,CapacitorCustomPlatform:{name:'ios'},Capacitor:{PluginHeaders:[methods('TiqBiometricSignIn',['status','forget','cancel']),methods('TiqPurchases',['addListener','removeListener','pending','restore','manage']),methods('CapacitorHttp',['get','post'])],nativePromise:async(plugin:string,method:string,options:{url?:string;headers?:Record<string,string>})=>{
+   calls.push(plugin+'.'+method)
+   if(plugin==='TiqBiometricSignIn'&&method==='status')return {available:true,saved:false,forCurrentOwner:false,biometry:'faceID'}
+   if(plugin==='TiqBiometricSignIn')return {}
+   if(plugin==='TiqPurchases'&&method==='addListener')return 'synthetic-listener'
+   if(plugin==='TiqPurchases'&&['removeListener','manage'].includes(method))return {}
+   if(plugin==='TiqPurchases'&&['pending','restore'].includes(method))return {transactions:[]}
+   if(plugin==='CapacitorHttp'&&method==='get'){
+    if(options.url?.endsWith('/api/mobile/apple-purchases'))return {status:200,data:{ok:true,applePurchases:1,enabled:true,environment:'Sandbox',canPurchase:false,webAccess:false,activeProductId:'com.tenaceiq.app.captain.monthly',products:[{id:'com.tenaceiq.app.player.monthly'},{id:'com.tenaceiq.app.captain.monthly'}]},headers:{},url:options.url}
+    const response=await fetch(options.url!,{headers:options.headers});return {status:response.status,data:await response.json(),headers:{},url:options.url}
+   }
+   throw Error('Unexpected fixture native call: '+plugin+'.'+method)
+  }}})
+ })
+}
+for(const width of [320,390])test('Account shortcuts retain visible controls and focus at '+width+'px',async({page},info)=>{
+ await page.setViewportSize({width,height:568});await installAccountIosBridge(page)
+ const d=await openAccount(page,'account-ios');await expect(d.getByText('Your Apple membership is active.',{exact:false})).toBeVisible()
+ await page.addStyleTag({content:':root{font-size:24px!important}'})
+ const nav=d.getByRole('navigation',{name:'Account sections',exact:true}),toolbar=d.locator('.account-settings-toolbar')
+ await expect(nav.getByRole('button')).toHaveCount(4)
+ const before=await toolbar.boundingBox()
+ for(const [label,heading]of [['Membership','Apple membership'],['Saved sign-in','Face ID sign-in'],['Account controls','Account controls'],['Your tools','Your tennis tools']]){
+  await nav.getByRole('button',{name:label,exact:true}).click()
+  const title=d.getByRole('heading',{name:heading,exact:true});await expect(d.getByRole('region',{name:heading,exact:true})).toBeFocused();await expect(title).toBeInViewport()
+  const after=await toolbar.boundingBox();expect(after!.y).toBeCloseTo(before!.y,0);expect(after!.height).toBeCloseTo(before!.height,0)
+  expect(await d.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)
+  expect(await d.locator('.account-settings-body').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)
+  await expect(d.getByRole('button',{name:'Log out',exact:true})).toBeInViewport()
+ }
+ await nav.getByRole('button',{name:'Saved sign-in',exact:true}).click()
+ await expect(d.getByRole('button',{name:'Turn on Face ID sign-in',exact:true})).toBeEnabled()
+ await expect(d).toContainText('Return to the app without unlocking it again.')
+ await page.screenshot({path:info.outputPath('account-signin-large-text.png')})
+ await nav.getByRole('button',{name:'Account controls',exact:true}).click()
+ await page.screenshot({path:info.outputPath('account-controls-large-text.png')})
+ await d.getByRole('button',{name:'Close account settings',exact:true}).click();await expect(d).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'Account settings',exact:true})).toBeFocused()
+ expect(await page.evaluate(()=>(window as unknown as {accountNativeCalls:string[]}).accountNativeCalls)).not.toContain('CapacitorHttp.post')
+})
+test('Unavailable native sections are omitted and account navigation survives child panes',async({page})=>{
+ const d=await openAccount(page),nav=()=>d.getByRole('navigation',{name:'Account sections',exact:true})
+ await expect(nav().getByRole('button')).toHaveText(['Your tools','Account controls'])
+ await nav().getByRole('button',{name:'Account controls',exact:true}).click()
+ await d.getByRole('button',{name:'Reset password',exact:true}).click();await expect(nav()).toHaveCount(0)
+ await d.getByRole('button',{name:'Back to account',exact:true}).click();await expect(d.getByRole('heading',{name:'Your account',exact:true})).toBeFocused()
+ await nav().getByRole('button',{name:'Account controls',exact:true}).click();await d.getByRole('button',{name:'Delete account',exact:true}).click()
+ await expect(d.getByRole('heading',{name:'Delete your account',exact:true})).toBeFocused()
+ await expect(d.getByRole('checkbox')).not.toBeChecked();await expect(d.getByRole('textbox',{name:'Type DELETE to confirm',exact:true})).toBeEmpty()
+ await d.getByRole('button',{name:'Keep my account',exact:true}).click()
+ await nav().getByRole('button',{name:'Your tools',exact:true}).click();await expect(d.getByRole('region',{name:'Your tennis tools',exact:true})).toBeFocused()
+})
+test('Account load failure focuses its message and retry restores sections',async({page})=>{
+ let reads=0
+ await page.route('https://www.tenaceiq.com/api/mobile/account',route=>{
+  const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,content-type','Access-Control-Allow-Methods':'GET,OPTIONS'}
+  if(route.request().method()==='OPTIONS')return route.fulfill({status:204,headers,body:''})
+  if(route.request().method()!=='GET')return route.abort()
+  reads++;return route.fulfill({status:reads===1?503:200,headers,json:{ok:true,email:'paid-test@example.test',reviewDays:7,fulfillment:'automated',verificationRequired:false,request:null}})
+ })
+ const d=await openAccount(page);await expect(d.getByRole('alert').filter({hasText:'Account settings could not be loaded'})).toBeFocused()
+ await d.getByRole('button',{name:'Retry account settings',exact:true}).click()
+ await expect(d.getByRole('heading',{name:'Your account',exact:true})).toBeFocused()
+ await expect(d.getByRole('navigation',{name:'Account sections',exact:true}).getByRole('button')).toHaveCount(2)
+ expect(reads).toBe(2)
+})
 for(const width of [320,390])test('Account logout stays visible and returns to login at '+width+'px',async({page},info)=>{
  await page.setViewportSize({width,height:568});const d=await openAccount(page),logout=d.getByRole('button',{name:'Log out',exact:true});await expect(d).toContainText('paid-test@example.test');await expect(d.locator('.account-access-badge')).toHaveText('Available');const box=await logout.boundingBox();expect(box!.y+box!.height).toBeLessThan(568);await page.addStyleTag({content:':root{font-size:22px!important}'});expect(await d.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);await page.screenshot({path:info.outputPath('apple-membership-account-logout.png')});await logout.click();await expect(page.getByRole('heading',{name:'Log in',exact:true})).toBeVisible();await expect(d).toHaveCount(0);expect(await page.evaluate(()=>(window as unknown as {accountLogoutFixture:{state:{events:string[];scopes:string[]}}}).accountLogoutFixture.state)).toMatchObject({events:['cleanup','logout'],scopes:['local']})
 })

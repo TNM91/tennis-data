@@ -81,7 +81,12 @@ accountEntry.innerHTML='<span aria-hidden="true">'+nativeActionIcon('settings')+
 const headerActions=document.createElement('div');headerActions.className='native-header-actions';headerActions.hidden=true;headerActions.append(updatesEntry,accountEntry)
 document.querySelector('.app-header')!.append(headerActions)
 updatesEntry.onclick=()=>launchUpdates(updatesEntry)
-accountEntry.onclick=()=>{if(!session||accountSettings?.isOpen()||competitions?.isOpen()||tournaments?.isOpen()||connection?.isSaving())return;const owner=session.user.id,visit=revision;accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner))}
+accountEntry.onclick=()=>launchAccount(accountEntry)
+function launchAccount(trigger:HTMLButtonElement){
+ if(!session||!trigger.isConnected||accountSettings?.isOpen()||competitions?.isOpen()||tournaments?.isOpen()||connection?.isSaving())return
+ const owner=session.user.id,visit=revision
+ accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner),trigger)
+}
 let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof openDataImports>|null=null
 let competitions:ReturnType<typeof openCompetitions>|null=null
@@ -392,7 +397,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='coach-tactics'){if(!coachWorkspace?.isOpen())coachWorkspace=openNativeTactics(client,owner,current,trigger,undefined,openCoachHref);return}
  if(destination==='league-office'){if(!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
  if(destination==='imports'){if(!dataImports?.isOpen())dataImports=openDataImports(client,owner,current);return}
- if(destination==='account'){accountEntry.click();return}
+ if(destination==='account'){launchAccount(trigger);return}
  if(destination==='training'||destination==='training-inbox'||destination==='training-progress'){
   if(!training?.isOpen())training=openLevelUp(client,owner,current,destination==='training-inbox'?'inbox':destination==='training-progress'?'progress':'catalog');return
  }
