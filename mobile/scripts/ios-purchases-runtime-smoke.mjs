@@ -120,16 +120,14 @@ export function instrumentPurchaseSmoke(source){
 
  const before=String.raw`
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--tiq-storekit-smoke") {
-            let startedURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json.started")
-            try? FileManager.default.createDirectory(at: startedURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? Data(#"{"controllerEntered":true}"#.utf8).write(to: startedURL, options: .atomic)
-        }
+        let startedURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json.started")
+        try? FileManager.default.createDirectory(at: startedURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? Data(#"{"controllerEntered":true}"#.utf8).write(to: startedURL, options: .atomic)
         #endif
         `
  return source.replace('import StoreKit','import StoreKit\nimport WebKit'+channelProbe+restoreProbe).replace(marker,before+marker+String.raw`
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--tiq-storekit-smoke") {
+        do {
             let reportURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json")
             try? FileManager.default.createDirectory(at: reportURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(#"{"controllerEntered":true,"pluginRegistered":true}"#.utf8).write(to: reportURL.appendingPathExtension("started"), options: .atomic)

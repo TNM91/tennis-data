@@ -3,11 +3,6 @@ name: Mobile iOS simulator build
 # Manual dispatch or an explicit PR label; never run on pushes or PR updates.
 on:
   workflow_dispatch:
-    inputs:
-      screenshots:
-        description: Capture App Store screenshots with local sample data
-        type: boolean
-        default: false
   pull_request:
     types: [labeled]
 
@@ -25,7 +20,6 @@ jobs:
     timeout-minutes: 25
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-      TIQ_CAPTURE_SCREENSHOTS: ${{ inputs.screenshots }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -60,18 +54,12 @@ jobs:
           npm run check:ios --prefix mobile
       - name: Add unsigned Debug runtime probe
         run: node mobile/scripts/ios-purchases-runtime-smoke.mjs --prepare mobile/ios/App/App/TenAceIQPurchases.swift
-      - name: Prepare sample data for screenshots
-        if: inputs.screenshots
-        run: node mobile/scripts/prepare-ios-screenshots.mjs "$RUNNER_TEMP/tiq-screenshot-web" mobile/ios/App/App/TenAceIQPurchases.swift
       - name: Boot iPhone simulator before compiling
         timeout-minutes: 4
         run: |
           set -euo pipefail
           xcrun simctl list devices available --json > "$RUNNER_TEMP/tiq-simulators.json"
           DEVICE=$(python3 -c 'import json,sys; devices=json.load(open(sys.argv[1]))["devices"]; phones=[d for runtime in sorted(devices, reverse=True) for d in devices[runtime] if d["name"].startswith("iPhone")]; assert phones, "No iPhone simulator available"; latest=[d for d in devices[next(r for r in sorted(devices,reverse=True) if any(p["name"].startswith("iPhone") for p in devices[r]))] if d["name"].startswith("iPhone")]; print(next((d["udid"] for d in latest if d["name"]=="iPhone 16e"), latest[0]["udid"]))' "$RUNNER_TEMP/tiq-simulators.json")
-          if test "$TIQ_CAPTURE_SCREENSHOTS" = true; then
-            DEVICE=$(python3 -c 'import json,sys; devices=json.load(open(sys.argv[1]))["devices"]; phones=[d for runtime in sorted(devices, reverse=True) for d in devices[runtime] if d["name"] in ("iPhone 17 Pro Max","iPhone 16 Pro Max")]; assert phones, "No compatible large iPhone simulator"; print(phones[0]["udid"])' "$RUNNER_TEMP/tiq-simulators.json")
-          fi
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
@@ -101,7 +89,7 @@ jobs:
           fi
           node mobile/scripts/ios-purchases-runtime-smoke.mjs --verify "$CONTAINER/Documents/tiq-storekit-smoke.json"
           cp "$CONTAINER/Documents/tiq-storekit-smoke.json" mobile/ios-storekit-smoke.json
-          if test "$TIQ_CAPTURE_SCREENSHOTS" != true; then xcrun simctl shutdown "$DEVICE"; fi
+          xcrun simctl shutdown "$DEVICE"
       - name: Capture simulator diagnostics
         timeout-minutes: 2
         if: always()
@@ -131,18 +119,3 @@ jobs:
           path: mobile/ios-simulator.zip
           if-no-files-found: error
           retention-days: 3
-      - name: Capture iPhone and iPad store screenshots
-        if: inputs.screenshots
-        timeout-minutes: 10
-        run: |
-          bash mobile/scripts/capture-ios-screenshots.sh "$TIQ_SIMULATOR_UDID" \
-            mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app \
-            "$RUNNER_TEMP/tiq-screenshot-web" "$RUNNER_TEMP/tiq-store-screenshots"
-      - name: Save App Store screenshots
-        if: inputs.screenshots
-        uses: actions/upload-artifact@v6
-        with:
-          name: tenaceiq-store-screenshots-${{ github.sha }}
-          path: ${{ runner.temp }}/tiq-store-screenshots
-          if-no-files-found: error
-          retention-days: 7
