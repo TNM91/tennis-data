@@ -78,3 +78,7 @@ Native scoreboard refinement — October 31, 2026 (user-directed)
   1727 x 911 opaque PNG; use complete image proportionally, never mirrored.
   Logos, icons, wordmark and interactive court geometry remain their originals.
   See NATIVE_SCOREBOARD_REFINEMENT_PROMPT.txt for the complete edit prompt.
+
+  courts/tiq-native-night-session.png — unbranded My Lab background from the
+  selected Night Session design. Empty blue court and one floodlight.
+  1122 x 1402 PNG. Display the entire image proportionally.
