@@ -38,18 +38,18 @@ if(swift){
             Task { @MainActor [weak self] in
                 let folder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                 let ready = folder.appendingPathComponent("tiq-store-screenshot-ready")
-                var result = "unavailable"
+                var result = "webview_unavailable"
                 for _ in 0..<60 {
                     if let webView = self?.webView, webView.url != nil, !webView.isLoading,
                        self?.viewIfLoaded?.window != nil {
                         do {
                             let value = try await webView.callAsyncJavaScript("""
-                                if (typeof window.tiqStoreScreenshot !== 'function') return '';
+                                if (typeof window.tiqStoreScreenshot !== 'function') return 'sample_bundle_not_ready';
                                 return await window.tiqStoreScreenshot(screen);
                                 """, arguments: ["screen": screen], in: nil, in: .page)
-                            if let name = value as? String, name == screen {
+                            if let name = value as? String {
                                 result = name
-                                break
+                                if name == screen { break }
                             }
                         } catch {
                             result = "webview_error"
