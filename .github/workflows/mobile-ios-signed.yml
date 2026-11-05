@@ -13,6 +13,13 @@ on:
         description: Upload the signed build to App Store Connect
         type: boolean
         default: false
+      distribution:
+        description: App Store upload is available only from master
+        type: choice
+        default: internal
+        options:
+          - internal
+          - app-store
 permissions:
   contents: read
 concurrency:
@@ -20,12 +27,17 @@ concurrency:
   cancel-in-progress: false
 jobs:
   signed:
-    if: github.repository == 'TNM91/tennis-data' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/codex/apple-mobile-build')
+    if: >-
+      github.repository == 'TNM91/tennis-data' &&
+      (github.ref == 'refs/heads/master' || (github.ref == 'refs/heads/codex/apple-mobile-build' && inputs.distribution == 'internal')) &&
+      (inputs.distribution == 'internal' || (inputs.distribution == 'app-store' && inputs.upload))
     environment: apple-testflight
     runs-on: macos-15
     timeout-minutes: 30
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      TIQ_IOS_DISTRIBUTION: ${{ inputs.distribution }}
+      TIQ_BUILD_NUMBER: ${{ inputs.build_number }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,8 +50,6 @@ jobs:
             package-lock.json
             mobile/package-lock.json
       - name: Prepare bundled native app
-        env:
-          TIQ_BUILD_NUMBER: ${{ inputs.build_number }}
         run: |
           npm ci
           npm ci --prefix mobile
@@ -63,7 +73,7 @@ jobs:
           printf '%s' "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/tiq-signing/distribution.p12"
           printf '%s' "$PROFILE" | base64 --decode > "$RUNNER_TEMP/tiq-signing/app.mobileprovision"
           security cms -D -i "$RUNNER_TEMP/tiq-signing/app.mobileprovision" > "$RUNNER_TEMP/tiq-signing/profile.plist"
-          python3 mobile/scripts/validate-ios-profile.py "$RUNNER_TEMP/tiq-signing/profile.plist" "$RUNNER_TEMP/tiq-signing"
+          python3 mobile/scripts/validate-ios-profile.py "$RUNNER_TEMP/tiq-signing/profile.plist" "$RUNNER_TEMP/tiq-signing" "$TIQ_IOS_DISTRIBUTION"
           KEYCHAIN_PASSWORD=$(openssl rand -hex 32)
           echo "::add-mask::$KEYCHAIN_PASSWORD"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/tiq-signing/build.keychain-db"
@@ -92,9 +102,8 @@ jobs:
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/tiq-app.xcarchive" \
             -exportPath "$RUNNER_TEMP/tiq-export" -exportOptionsPlist "$RUNNER_TEMP/tiq-signing/export.plist"
           python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist"
-          python3 mobile/scripts/validate-ios-beta-channel.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist" "$RUNNER_TEMP/tiq-signing/export.plist"
           codesign --verify --deep --strict "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app"
-          test -f "$RUNNER_TEMP/tiq-export/App.ipa"
+          python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$RUNNER_TEMP/tiq-export/App.ipa" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled
       - name: Upload to App Store Connect
         if: inputs.upload
         env:
@@ -112,6 +121,7 @@ jobs:
             --output-format json > "$RUNNER_TEMP/tiq-upload.json"
           python3 mobile/scripts/validate-altool-upload.py "$RUNNER_TEMP/tiq-upload.json"
       - name: Save signed app only
+        if: inputs.distribution == 'internal'
         uses: actions/upload-artifact@v6
         with:
           name: tenaceiq-ios-signed-${{ inputs.build_number }}

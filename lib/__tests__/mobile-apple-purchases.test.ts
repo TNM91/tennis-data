@@ -32,6 +32,24 @@ describe('native Apple purchase delivery',()=>{
   const f=fixture();expect(await f.service.recover(owner)).toBe(0);expect(f.store.restore).not.toHaveBeenCalled();expect(f.post).not.toHaveBeenCalled()
   expect(await f.service.restore(owner,'Sandbox')).toBe(1);expect(f.store.restore).toHaveBeenCalledExactlyOnceWith({environment:'Sandbox'});expect(f.store.finish).toHaveBeenCalledOnce()
  })
+ it('syncs and finishes pending transactions only in the signed-in account environment',async()=>{
+  const f=fixture()
+  const context={ok:true,applePurchases:1,enabled:true,environment:'Sandbox',canPurchase:false,webAccess:false,
+   activeProductId:sku,products:[{id:sku},{id:'com.tenaceiq.app.captain.monthly'}]}
+  f.get.mockResolvedValueOnce({status:200,data:context})
+  const sandbox={...tx,environment:'Sandbox'}
+  const production={...tx,environment:'Production',signedTransaction:'other.receipt.sig'}
+  f.store.pending.mockResolvedValueOnce({transactions:[production,sandbox]} as never)
+  expect(await f.service.recover(owner)).toBe(1)
+  expect(f.post).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({data:expect.objectContaining({signedTransaction:tx.signedTransaction})}))
+  expect(f.store.finish).toHaveBeenCalledExactlyOnceWith(sandbox)
+ })
+ it('keeps a transaction unfinished when the server acknowledgment has a different environment',async()=>{
+  const f=fixture()
+  f.store.purchase.mockResolvedValueOnce({state:'purchased',...tx,environment:'Production'} as never)
+  await expect(f.service.purchase(owner,sku)).rejects.toThrow('apple_unavailable')
+  expect(f.store.finish).not.toHaveBeenCalled()
+ })
  it('stops a new buy when an unfinished earlier purchase cannot sync',async()=>{
   const f=fixture();f.store.pending.mockResolvedValueOnce({transactions:[tx]} as never);f.fail();await expect(f.service.purchase(owner,sku)).rejects.toThrow();expect(f.store.purchase).not.toHaveBeenCalled();expect(f.store.finish).not.toHaveBeenCalled()
  })

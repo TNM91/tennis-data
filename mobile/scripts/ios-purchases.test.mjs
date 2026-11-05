@@ -89,14 +89,15 @@ test('preparation deadlines cannot cancel Apple confirmation or allow an expired
 
 test('internal betas reject production and never require app-download verification',()=>{
  const swift=readFileSync(new URL('../native/TenAceIQPurchases.swift',import.meta.url),'utf8')
- assert.doesNotMatch(swift,/AppTransaction|tiqPurchaseChannelProbe/)
- assert.match(swift,/channel == "TestFlightInternalSandbox" && expected == "Sandbox"/)
- assert.match(swift,/environment == \.sandbox/)
+ assert.doesNotMatch(swift,/tiqPurchaseChannelProbe/)
+ assert.match(swift,/case "TestFlightInternalSandbox": return expected == "Sandbox"/)
+ assert.match(swift,/guard purchaseChannel == "AppStore" else \{ return true \}\s+guard case \.verified\(let app\) = try await AppTransaction\.shared/)
  assert.match(swift,/transaction\.appBundleID == "com.tenaceiq.app"/)
- assert.match(swift,/transaction\.appAccountToken == token, self\.verifiedForBuild\(transaction\)/)
- assert.match(swift,/transaction\.appAccountToken == token, verifiedForBuild\(transaction\)/)
+ assert.match(swift,/transaction\.appAccountToken == token, self\.verifiedForBuild\(transaction, expected: expected\)/)
+ assert.match(swift,/transaction\.appAccountToken == token,\s+verifiedForBuild\(transaction, expected: expected\)/)
  assert.match(swift,/transaction\.appAccountToken != nil, verifiedForBuild\(transaction\)/)
- assert.match(swift,/guard matchesEnvironment\(call\) else/)
+ assert.match(swift,/guard appEnvironmentMatches else/)
+ assert.ok(swift.indexOf('try await self.matchesAppTransaction(expected: expected)')<swift.indexOf('product.purchase(confirmIn: presenter'))
 })
 
 function runtimeProbe(invalidExportCode='invalid_export',invalidBadgeCode='invalid_badge_count'){
