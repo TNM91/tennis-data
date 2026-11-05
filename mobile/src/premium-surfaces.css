@@ -29,6 +29,51 @@
  --shell-copy-muted:var(--premium-copy);
 }
 body[data-screen] { font-feature-settings:"ss01" on; }
+/* Account controls remain reachable while membership and sign-in sections scroll. */
+.account-settings-dialog[open] {
+ display:flex;flex-direction:column;max-block-size:calc(100dvh - 32px);padding:0;overflow:hidden;
+ background:var(--premium-page);border-color:var(--premium-line);box-shadow:0 24px 64px #0006;
+}
+.account-settings-dialog .account-settings-toolbar {
+ flex:none;gap:12px;margin:0;padding:12px 16px;border-block-end:1px solid var(--premium-line);background:var(--premium-surface);
+}
+.account-settings-dialog .account-settings-toolbar button {
+ min-block-size:44px;font-size:.8125rem;border-color:var(--premium-line);background:var(--premium-raised);color:#eff7ff;
+}
+.account-settings-dialog .account-dialog-close { flex:0 1 auto; }
+.account-settings-dialog .account-settings-body {
+ min-block-size:0;overflow:auto;overscroll-behavior:contain;padding:20px;scroll-padding-block:16px;
+}
+.account-settings-dialog .account-overview { display:block;margin-block-end:18px;padding:0;border:0;background:transparent; }
+.account-settings-dialog h1 { margin:0 0 10px;font-size:1.75rem;letter-spacing:-.035em; }
+.account-settings-dialog .account-email { margin:0;color:var(--premium-copy);font-size:.8125rem; }
+.account-settings-dialog .account-section-links { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-block:20px; }
+.account-settings-dialog .account-section-links button.secondary {
+ margin:0;padding:10px 8px;min-block-size:44px;border:1px solid var(--premium-line);border-radius:12px;
+ background:var(--premium-inset);color:var(--premium-ice);font-size:.8125rem;line-height:1.4;
+}
+.account-settings-dialog :is(.account-access-panel,.apple-membership-panel,.account-controls,.account-load-state,.account-request-status) {
+ min-inline-size:0;margin-block:16px;padding:18px;border:1px solid var(--premium-line);border-radius:18px;background:var(--premium-surface);
+}
+.account-settings-dialog :is(.account-access-panel,.apple-membership-panel,.account-controls) h2 { margin:0 0 12px;font-size:1.125rem;line-height:1.35; }
+.account-settings-dialog :is(.account-access-panel,.apple-membership-panel,.account-controls) p { color:var(--premium-copy);font-size:.875rem; }
+.account-settings-dialog .apple-membership-panel .apple-test-label { color:var(--premium-lime); }
+.account-settings-dialog [role=alert]:not(:empty) { color:#ffcabf; }
+.account-settings-dialog .account-action-list { gap:0;margin:0; }
+.account-settings-dialog .account-action-list button.secondary {
+ display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:start;min-inline-size:0;
+ min-block-size:56px;padding:14px 0;border:0;border-radius:0;border-block-end:1px solid var(--premium-line);background:transparent;
+ font-size:.875rem;line-height:1.5;box-shadow:none;
+}
+.account-settings-dialog .account-action-list button:last-child { border-block-end:0; }
+.account-settings-dialog .account-action-list span { min-inline-size:0; }
+.account-settings-dialog .account-action-list svg { inline-size:18px;block-size:18px;flex:none;transform:rotate(-90deg);color:var(--premium-copy); }
+.account-settings-dialog .account-action-list [data-delete] { color:#ffbdb2; }
+.account-settings-dialog .account-action-list [data-delete] svg { color:inherit; }
+.account-settings-dialog [data-account-logout-error]:not(:empty) { flex:none;max-block-size:25dvh;overflow:auto;margin:0;padding:12px 20px;background:var(--premium-surface);color:#ffcabf; }
+.account-settings-dialog :is([data-account-error],[data-account-notice]):empty { display:none; }
+.account-settings-dialog :is([data-account-section],[role=alert]):focus { outline:2px solid var(--premium-ice);outline-offset:4px; }
+.account-settings-dialog .account-section-links button:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 body[data-screen]:not(.native-chat-conversation) #app,
 body[data-screen]:not(.native-chat-conversation) .app-header { max-inline-size:600px; }
 body[data-screen]:not(.native-chat-conversation) .app-header { padding-block:16px; }
