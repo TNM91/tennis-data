@@ -1,6 +1,7 @@
 import {html} from './match-details'
 import type {NativeTeamData,TeamScope} from './team-room-data'
 import {paintTeamUnread,type ChatUnread} from './chat-unread'
+import websiteUi from '../generated/website-ui.json'
 
 export type ChatsInboxFilter={query:string;unreadOnly:boolean}
 const sameTeam=(a:TeamScope,b:TeamScope)=>a.teamName===b.teamName&&a.leagueName===b.leagueName&&a.flight===b.flight
@@ -8,7 +9,7 @@ const findText=(text:string)=>text.normalize('NFKC').toLocaleLowerCase().trim()
 const unreadLabel=(count:number)=>(count===100?'99+':String(count))+' unread messages'
 
 export function chatsInboxHtml(data:NativeTeamData){
- return `<header class="chats-intro"><small class="stat-eyebrow">Your tennis circle</small><h1 tabindex="-1">Chats</h1><p>Team talk, coach conversations and match plans.</p></header>
+ return `<header class="tab-hero chats-intro"><span class="tab-hero-icon" aria-hidden="true">${websiteUi.icons.teams}</span><small class="stat-eyebrow">Your tennis circle</small><h1 tabindex="-1">Chats</h1><p>Team talk, coach conversations and match plans.</p></header>
  <section aria-labelledby="chats-teams-title"><div class="chats-section-heading"><h2 id="chats-teams-title">Your teams</h2><button type="button" class="secondary" id="join-team">Join team</button></div>
  <div class="chats-inbox-tools" ${data.teams.length?'':'hidden'}><label for="chats-team-search">Find a team<input id="chats-team-search" type="search" maxlength="160" placeholder="Team or league" autocomplete="off"></label><div class="chats-inbox-filters" role="group" aria-label="Show teams"><button type="button" class="secondary" data-chats-filter="all" aria-pressed="true">All</button><button type="button" class="secondary" data-chats-filter="unread" aria-pressed="false">Unread</button></div></div>
  <p class="chats-inbox-status" role="status" data-chats-status></p>

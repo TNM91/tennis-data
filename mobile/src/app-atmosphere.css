@@ -17,8 +17,8 @@ body[data-screen="lab"] #recent-results .result-view-controls button.secondary {
 body[data-screen="lab"] #recent-results .result-view-controls button[aria-pressed="true"] { color:#94d6ff; background:none; box-shadow:inset 0 -2px #73c9ff; }
 body[data-screen]:not(.native-chat-conversation) { isolation:isolate; position:relative; background:#041426; }
 .app-atmosphere { display:none; position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
-/* My Lab owns its court scene from the moment the tab opens. */
-body[data-screen]:not([data-screen="lab"],.native-chat-conversation) .app-atmosphere { display:block; }
+/* The tab headers carry their own artwork. */
+body:is([data-screen="coach"],[data-screen="following"],[data-screen="matchup"]):not(.native-chat-conversation) .app-atmosphere { display:block; }
 .app-court-backdrop { position:absolute; top:78px; right:0; width:min(100%,760px); height:auto; max-height:min(46dvh,400px); object-fit:contain; object-position:top right; opacity:.6; }
 .app-brand-watermark { position:absolute; right:16px; bottom:126px; width:min(52vw,280px); height:auto; object-fit:contain; opacity:.09; }
 body[data-screen]:not(.native-chat-conversation) .app-header { padding:16px 2px 14px; border-color:#29445c; }
@@ -31,7 +31,6 @@ body[data-screen]:not(.native-chat-conversation) .app-navigation button { border
 body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current=page] { background:#123755; color:#edf8ff; box-shadow:inset 0 -2px 0 #69c8ff; }
 
 /* The numbers own the opening screen. One stadium surface replaces the nested card stack. */
-body[data-screen="lab"]:not(.native-chat-conversation) main { padding-top:0; }
 .lab-scoreboard-intro { padding:12px 2px 16px; margin:0; }
 .lab-scoreboard-intro .stat-eyebrow { display:block; line-height:12px; }
 .lab-scoreboard-intro h1 { font-size:32px; font-weight:800; letter-spacing:-.045em; line-height:1.12; margin:5px 0 3px; }
@@ -450,8 +449,7 @@ mark[data-chat-highlight] { padding:0;border-radius:2px;background:#bae86a;color
 .app-link-handoff strong,.app-link-handoff span{display:block;overflow-wrap:anywhere}
 .app-link-handoff span{color:#bad0e1;margin-top:.2rem}
 .app-link-handoff button{flex:none;width:auto;min-height:44px;padding:.6rem .8rem;font-size:.875rem;white-space:nowrap}
-.player-setup{padding:clamp(1rem,5vw,2rem);background:linear-gradient(135deg,#12354d,#091c30);border:1px solid #38617d;border-radius:1.5rem}
-.player-setup h1{font-size:clamp(1.8rem,7vw,2.5rem);line-height:1.1;letter-spacing:-.04em;margin:.7rem 0 1rem}
+.player-setup{padding:0;background:none;border:0}
 .player-setup ol{list-style:none;padding:0;margin:1.5rem 0;display:grid;gap:1.5rem}
 .player-setup li{display:flex;gap:.8rem;align-items:flex-start;min-width:0}
 .player-setup li>span{color:#72c6ff;font-size:.8rem;font-weight:700;letter-spacing:.1em;padding-top:.3rem}

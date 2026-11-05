@@ -516,7 +516,6 @@ body.native-chat-conversation .chat-composer { position:relative; flex-shrink:0;
 .chat-composer #chat-send-status:empty { display:none; }
 /* The opening scoreboard uses the approved court, with recorded values in the foreground. */
 body[data-screen="lab"] .app-header { padding:12px 0; }
-body[data-screen="lab"] main { padding-top:0; }
 .lab-scoreboard-intro { padding:8px 0 2px; margin:0 0 14px; border:0; }
 .lab-scoreboard-intro .stat-eyebrow { color:#82bded; font-size:10px; letter-spacing:.16em; }
 .lab-scoreboard-intro h1 { font-size:29px; font-weight:780; margin:6px 0; }
@@ -898,8 +897,6 @@ body.native-chat-conversation .chat-photo-open,body.native-chat-conversation .ch
 .competition-empty{padding:24px 18px;border:1px dashed #3b6382;border-radius:20px;margin-block:20px}.competition-empty h3{line-height:1.3}.competition-empty p{line-height:1.6;color:#b8d1e4}
 .competition-checked{font-size:.75rem!important;color:#90acc2!important;margin-block-start:24px!important}
 .competition-chat{margin-block-start:24px;font-size:1rem!important}
-.explore-competitions{display:grid!important;grid-template-columns:minmax(0,1fr) auto;text-align:start!important;gap:5px 12px;width:100%;margin-block:16px;padding:20px!important}
-.explore-competitions strong{font-size:1.15rem}.explore-competitions span:first-of-type{grid-column:1;font-size:.85rem;color:#b8d1e4}.explore-competitions span:last-child{grid-column:2;grid-row:1/3}
 
 .competition-header{padding:0!important;margin:0 0 16px!important;max-width:none!important;border:0!important}
 .competition-header button,.competition-switch button,.competition-tabs button{margin:0!important}
