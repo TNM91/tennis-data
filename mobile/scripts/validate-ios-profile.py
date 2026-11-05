@@ -7,6 +7,8 @@ import sys
 
 profile = plistlib.loads(pathlib.Path(sys.argv[1]).read_bytes())
 out = pathlib.Path(sys.argv[2])
+distribution = sys.argv[3] if len(sys.argv) > 3 else 'internal'
+assert distribution in ('internal', 'app-store'), 'Unknown iOS distribution'
 team = profile['TeamIdentifier'][0]
 uuid = profile['UUID']
 assert re.fullmatch(r'[A-Z0-9]{10}', team), 'Invalid team identifier'
@@ -24,6 +26,6 @@ out.joinpath('uuid').write_text(uuid)
 options = {'method': 'app-store-connect', 'destination': 'export', 'signingStyle': 'manual',
            'teamID': team, 'signingCertificate': 'Apple Distribution',
            'provisioningProfiles': {'com.tenaceiq.app': uuid}, 'manageAppVersionAndBuildNumber': False,
-           'uploadSymbols': True, 'testFlightInternalTestingOnly': True}
+           'uploadSymbols': True, 'testFlightInternalTestingOnly': distribution == 'internal'}
 out.joinpath('export.plist').write_bytes(plistlib.dumps(options))
 print('Validated distribution profile and generated manual export settings.')

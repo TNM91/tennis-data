@@ -419,13 +419,22 @@ public final class TenAceIQNotifications: CAPPlugin, CAPBridgedPlugin {
     }
 }
 
-// This signed internal-beta channel cannot initiate production purchases.
-// Subscription access still requires a verified, owner-bound transaction and server acknowledgment.
 private enum TiqPurchaseChannel {
     static func matches(bundleID: String?, channel: String?, expected: String?) -> Bool {
-        bundleID == "com.tenaceiq.app" && channel == "TestFlightInternalSandbox" && expected == "Sandbox"
+        guard bundleID == "com.tenaceiq.app" else { return false }
+        switch channel {
+        case "TestFlightInternalSandbox": return expected == "Sandbox"
+        case "AppStore": return expected == "Sandbox" || expected == "Production"
+        default: return false
+        }
     }
-    @available(iOS 16.0, *) static func accepts(_ environment: AppStore.Environment) -> Bool { environment == .sandbox }
+    @available(iOS 16.0, *) static func name(_ environment: AppStore.Environment) -> String? {
+        switch environment {
+        case .sandbox: return "Sandbox"
+        case .production: return "Production"
+        default: return nil
+        }
+    }
     static func cancelled(_ error: Error) -> Bool {
         if error is CancellationError { return true }
         if let store = error as? StoreKitError, case .userCancelled = store { return true }
@@ -473,34 +482,46 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     deinit { updatesTask?.cancel() }
 
     @MainActor private func capture(_ result: VerificationResult<Transaction>, announce: Bool) {
-        guard case .verified(let transaction) = result,
+        guard #available(iOS 16.0, *), case .verified(let transaction) = result,
               allowed.contains(transaction.productID), transaction.productType == .autoRenewable,
-              transaction.appAccountToken != nil, verifiedForBuild(transaction) else { return }
-        let id = String(transaction.id)
-        if waiting[id] != nil || waiting.count < 50 { waiting[id] = result }
+              transaction.appAccountToken != nil, verifiedForBuild(transaction),
+              let environment = TiqPurchaseChannel.name(transaction.environment) else { return }
+        let key = environment + ":" + String(transaction.id)
+        if waiting[key] != nil || waiting.count < 50 { waiting[key] = result }
         if announce { notifyListeners("transactionsChanged", data: [:], retainUntilConsumed: true) }
     }
-    @MainActor private func entries() -> [[String: String]] {
+    @MainActor private func entries(expected: String? = nil) -> [[String: String]] {
         waiting.values.compactMap { result in
-            guard case .verified(let transaction) = result, verifiedForBuild(transaction), let token = transaction.appAccountToken else { return nil }
+            guard #available(iOS 16.0, *), case .verified(let transaction) = result,
+                  verifiedForBuild(transaction, expected: expected), let token = transaction.appAccountToken,
+                  let environment = TiqPurchaseChannel.name(transaction.environment) else { return nil }
             return ["transactionId": String(transaction.id), "accountToken": token.uuidString.lowercased(),
-                    "signedTransaction": result.jwsRepresentation]
+                    "signedTransaction": result.jwsRepresentation, "environment": environment]
         }
     }
     @MainActor private func monthly(_ product: Product) -> Bool {
         product.type == .autoRenewable && product.subscription?.subscriptionPeriod.unit == .month && product.subscription?.subscriptionPeriod.value == 1
     }
+    private var purchaseChannel: String? {
+        Bundle.main.object(forInfoDictionaryKey: "TiqApplePurchaseChannel") as? String
+    }
     @MainActor private func matchesEnvironment(_ call: CAPPluginCall) -> Bool {
         guard #available(iOS 16.0, *) else { return false }
         return TiqPurchaseChannel.matches(bundleID: Bundle.main.bundleIdentifier,
-            channel: Bundle.main.object(forInfoDictionaryKey: "TiqApplePurchaseChannel") as? String,
-            expected: call.getString("environment"))
+            channel: purchaseChannel, expected: call.getString("environment"))
     }
-    @MainActor private func verifiedForBuild(_ transaction: Transaction) -> Bool {
+    @MainActor private func verifiedForBuild(_ transaction: Transaction, expected: String? = nil) -> Bool {
         guard #available(iOS 16.0, *),
-              TiqPurchaseChannel.matches(bundleID: Bundle.main.bundleIdentifier,
-                channel: Bundle.main.object(forInfoDictionaryKey: "TiqApplePurchaseChannel") as? String, expected: "Sandbox") else { return false }
-        return transaction.appBundleID == "com.tenaceiq.app" && TiqPurchaseChannel.accepts(transaction.environment)
+              let environment = TiqPurchaseChannel.name(transaction.environment),
+              expected == nil || environment == expected else { return false }
+        return transaction.appBundleID == "com.tenaceiq.app"
+            && TiqPurchaseChannel.matches(bundleID: Bundle.main.bundleIdentifier, channel: purchaseChannel, expected: environment)
+    }
+    @available(iOS 16.0, *) private func matchesAppTransaction(expected: String) async throws -> Bool {
+        // Only the App Store build can run in either environment. Check before opening a payment sheet.
+        guard purchaseChannel == "AppStore" else { return true }
+        guard case .verified(let app) = try await AppTransaction.shared else { return false }
+        return app.bundleID == Bundle.main.bundleIdentifier && TiqPurchaseChannel.name(app.environment) == expected
     }
     @objc func products(_ call: CAPPluginCall) {
         Task { @MainActor in
@@ -573,9 +594,14 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                 defer { if self.purchaseOperation == operation { self.purchaseOperation = nil; self.showingStoreSheet = false } }
                 var stage = "environment"
                 do {
-                    let environmentMatches = self.matchesEnvironment(call)
                     guard gate.active else { return }
-                    guard environmentMatches else { gate.reject("Apple environment does not match this account.", "environment_mismatch"); return }
+                    guard #available(iOS 16.0, *), let expected = call.getString("environment"), self.matchesEnvironment(call) else {
+                        gate.reject("Apple environment does not match this account.", "environment_mismatch"); return
+                    }
+                    stage = "app_receipt"
+                    let appEnvironmentMatches = try await self.matchesAppTransaction(expected: expected)
+                    guard gate.active else { return }
+                    guard appEnvironmentMatches else { gate.reject("Apple environment does not match this account.", "environment_mismatch"); return }
                     stage = "storefront"
                     let storefront = await Storefront.current
                     guard gate.active else { return }
@@ -589,7 +615,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                     stage = "entitlements"
                     for await entitlement in Transaction.currentEntitlements {
                         guard gate.active else { return }
-                        if case .verified(let current) = entitlement, self.verifiedForBuild(current), self.allowed.contains(current.productID) {
+                        if case .verified(let current) = entitlement, self.verifiedForBuild(current, expected: expected), self.allowed.contains(current.productID) {
                             gate.reject("Restore or manage the existing Apple membership first.", current.appAccountToken == token ? "existing_purchase" : "account_mismatch")
                             return
                         }
@@ -605,10 +631,11 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                     else { result = try await product.purchase(options: [.appAccountToken(token)]) }
                     switch result {
                     case .success(let verified):
-                        guard case .verified(let transaction) = verified, transaction.appAccountToken == token, self.verifiedForBuild(transaction) else { gate.reject("Purchase could not be verified.", "unverified_transaction"); return }
+                        guard case .verified(let transaction) = verified, transaction.appAccountToken == token, self.verifiedForBuild(transaction, expected: expected) else { gate.reject("Purchase could not be verified.", "unverified_transaction"); return }
                         self.capture(verified, announce: false)
                         gate.resolve(["state": "purchased", "transactionId": String(transaction.id),
-                                      "accountToken": token.uuidString.lowercased(), "signedTransaction": verified.jwsRepresentation])
+                                      "accountToken": token.uuidString.lowercased(), "signedTransaction": verified.jwsRepresentation,
+                                      "environment": expected])
                     case .pending: gate.resolve(["state": "pending"])
                     case .userCancelled: gate.resolve(["state": "cancelled"])
                     @unknown default: gate.reject("Purchase is unavailable.", "store_unavailable")
@@ -636,7 +663,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     @objc func restore(_ call: CAPPluginCall) {
         Task { @MainActor in
             guard !showingStoreSheet else { call.reject("Apple is already open.", "store_busy"); return }
-            guard matchesEnvironment(call) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }
+            guard let expected = call.getString("environment"), matchesEnvironment(call) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }
             let operation = UUID()
             showingStoreSheet = true; purchaseOperation = operation
             let gate = TiqStoreRead(call, nanoseconds: 15_000_000_000, code: "restore_history_timeout") { [weak self] in
@@ -649,7 +676,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                         var current: [VerificationResult<Transaction>] = []
                         for await result in Transaction.currentEntitlements {
                             guard gate.active else { return [] }
-                            if case .verified(let transaction) = result, self.verifiedForBuild(transaction),
+                            if case .verified(let transaction) = result, self.verifiedForBuild(transaction, expected: expected),
                                self.allowed.contains(transaction.productID), transaction.productType == .autoRenewable,
                                transaction.appAccountToken != nil { current.append(result) }
                             if current.count >= 50 { break }
@@ -669,7 +696,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                         guard gate.active else { return }
                         self.capture(result, announce: false)
                     }
-                    gate.resolve(["transactions": self.entries()])
+                    gate.resolve(["transactions": self.entries(expected: expected)])
                 } catch {
                     guard gate.active else { return }
                     let (_, details) = self.purchaseFailure(error, stage: "restore")
@@ -680,13 +707,19 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     }
     @objc func finish(_ call: CAPPluginCall) {
         Task { @MainActor in
-            guard let id = call.getString("transactionId"), let raw = call.getString("accountToken"), let token = UUID(uuidString: raw), let signed = call.getString("signedTransaction") else { call.reject("Invalid receipt.", "receipt_mismatch"); return }
-            guard let result = waiting[id] else { call.resolve(["finished": true]); return }
-            guard case .verified(let transaction) = result, transaction.appAccountToken == token, verifiedForBuild(transaction) else { call.reject("Receipt belongs to another account.", "receipt_mismatch"); return }
+            guard let id = call.getString("transactionId"), let raw = call.getString("accountToken"),
+                  let token = UUID(uuidString: raw), let signed = call.getString("signedTransaction"),
+                  let expected = call.getString("environment"), matchesEnvironment(call) else {
+                call.reject("Invalid receipt.", "receipt_mismatch"); return
+            }
+            let key = expected + ":" + id
+            guard let result = waiting[key] else { call.resolve(["finished": true]); return }
+            guard case .verified(let transaction) = result, transaction.appAccountToken == token,
+                  verifiedForBuild(transaction, expected: expected) else { call.reject("Receipt belongs to another account.", "receipt_mismatch"); return }
             guard result.jwsRepresentation == signed else { call.resolve(["finished": false]); return }
             // JS calls this only after the server durably acknowledges this exact transaction.
             await transaction.finish()
-            waiting.removeValue(forKey: id)
+            waiting.removeValue(forKey: key)
             call.resolve(["finished": true])
         }
     }

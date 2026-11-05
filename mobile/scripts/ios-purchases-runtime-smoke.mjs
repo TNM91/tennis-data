@@ -16,8 +16,16 @@ const channelProbe=String.raw`
     }
     for bundle in [nil, "com.tenaceiq.prototype", "other.app"] as [String?] {
         guard !TiqPurchaseChannel.matches(bundleID: bundle, channel: "TestFlightInternalSandbox", expected: "Sandbox") else { return false }
+        guard !TiqPurchaseChannel.matches(bundleID: bundle, channel: "AppStore", expected: "Production") else { return false }
     }
-    return TiqPurchaseChannel.accepts(.sandbox) && !TiqPurchaseChannel.accepts(.production) && !TiqPurchaseChannel.accepts(.xcode)
+    for expected in ["Production", "Sandbox"] {
+        guard TiqPurchaseChannel.matches(bundleID: "com.tenaceiq.app", channel: "AppStore", expected: expected) else { return false }
+    }
+    for expected in [nil, "Xcode", "", "sandbox"] as [String?] {
+        guard !TiqPurchaseChannel.matches(bundleID: "com.tenaceiq.app", channel: "AppStore", expected: expected) else { return false }
+    }
+    return TiqPurchaseChannel.name(.sandbox) == "Sandbox" && TiqPurchaseChannel.name(.production) == "Production"
+        && TiqPurchaseChannel.name(.xcode) == nil
         && TiqPurchaseChannel.cancelled(StoreKitError.userCancelled) && TiqPurchaseChannel.cancelled(CancellationError())
         && !TiqPurchaseChannel.cancelled(URLError(.notConnectedToInternet))
 }
@@ -72,7 +80,7 @@ export function instrumentPurchaseSmoke(source){
  const restoreMarker='let gate = TiqStoreRead(call, nanoseconds: 15_000_000_000, code: "restore_history_timeout")'
  assert.equal(source.split(restoreMarker).length,2,'Expected one bounded restore read')
  source=source.replace(restoreMarker,restoreMarker.replace('15_000_000_000','(call.getBool("tiqReadTimeoutSmoke") == true ? 5_000_000 : 15_000_000_000)'))
- const restoreEnvironment='guard matchesEnvironment(call) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }'
+ const restoreEnvironment='guard let expected = call.getString("environment"), matchesEnvironment(call) else { call.reject("Apple environment does not match this account.", "environment_mismatch"); return }'
  assert.equal(source.split(restoreEnvironment).length,2,'Expected one restore channel check')
  source=source.replace(restoreEnvironment,restoreEnvironment.replace('matchesEnvironment(call)','(matchesEnvironment(call) || call.getBool("tiqRestoreSmoke") == true)'))
  const restoreRead='let entitlements: [VerificationResult<Transaction>] = try await TiqRestoreRead.transactions(read: {'
@@ -99,7 +107,7 @@ export function instrumentPurchaseSmoke(source){
                     return
                 }
                 #endif`)
- const environmentMarker='let environmentMatches = self.matchesEnvironment(call)'
+ const environmentMarker='guard #available(iOS 16.0, *), let expected = call.getString("environment"), self.matchesEnvironment(call) else {'
  assert.equal(source.split(environmentMarker).length,2,'Expected explicit-action receipt recovery')
  source=source.replace(environmentMarker,String.raw`#if DEBUG
                     if let probe = call.getString("tiqPurchaseFailureSmoke") {
@@ -108,18 +116,20 @@ export function instrumentPurchaseSmoke(source){
                         throw NSError(domain: NSURLErrorDomain, code: -1009, userInfo: [NSLocalizedDescriptionKey: "private smoke details"])
                     }
                     #endif
-                    let environmentMatches = self.matchesEnvironment(call)`)
+                    `+environmentMarker)
 
  const before=String.raw`
         #if DEBUG
-        let startedURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json.started")
-        try? FileManager.default.createDirectory(at: startedURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? Data(#"{"controllerEntered":true}"#.utf8).write(to: startedURL, options: .atomic)
+        if ProcessInfo.processInfo.arguments.contains("--tiq-storekit-smoke") {
+            let startedURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json.started")
+            try? FileManager.default.createDirectory(at: startedURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? Data(#"{"controllerEntered":true}"#.utf8).write(to: startedURL, options: .atomic)
+        }
         #endif
         `
  return source.replace('import StoreKit','import StoreKit\nimport WebKit'+channelProbe+restoreProbe).replace(marker,before+marker+String.raw`
         #if DEBUG
-        do {
+        if ProcessInfo.processInfo.arguments.contains("--tiq-storekit-smoke") {
             let reportURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("tiq-storekit-smoke.json")
             try? FileManager.default.createDirectory(at: reportURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(#"{"controllerEntered":true,"pluginRegistered":true}"#.utf8).write(to: reportURL.appendingPathExtension("started"), options: .atomic)

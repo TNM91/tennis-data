@@ -4,11 +4,16 @@ import {appleMembershipProduct} from '../../lib/apple-membership-products'
 import {appleUuid,appleTransactionId,type AppleEnvironment} from '../../lib/apple-purchase-contract'
 import {ApplePurchaseError,appleNativePurchaseError,appleNativeRestoreError,type ApplePurchasePhase} from './apple-purchase-progress'
 import {appleProductError,parseAppleProducts} from './apple-product-catalog'
-export type AppleTransaction={transactionId:string;accountToken:string;signedTransaction:string}
+export type AppleTransaction={transactionId:string;accountToken:string;signedTransaction:string;environment?:AppleEnvironment}
 export type AppleStore={products:(options:{environment:AppleEnvironment})=>Promise<{available:boolean;products:{id:string;price:string}[]}>;purchase:(options:{productId:string;accountToken:string;environment:AppleEnvironment})=>Promise<{state:'purchased'|'cancelled'|'pending'}&Partial<AppleTransaction>>;pending:()=>Promise<{transactions:AppleTransaction[]}>;restore:(options:{environment:AppleEnvironment})=>Promise<{transactions:AppleTransaction[]}>;finish:(options:AppleTransaction)=>Promise<{finished:boolean}>;manage:()=>Promise<void>;addListener:(event:'transactionsChanged',listener:()=>void)=>Promise<PluginListenerHandle>}
 export type AppleContext={enabled:false}|{enabled:true;environment:AppleEnvironment;canPurchase:boolean;webAccess:boolean;activeProductId:string|null}
 const NativeApple=registerPlugin<AppleStore>('TiqPurchases')
-const transaction=(v:unknown):v is AppleTransaction=>!!v&&typeof v==='object'&&appleTransactionId((v as AppleTransaction).transactionId)&&appleUuid((v as AppleTransaction).accountToken)&&typeof(v as AppleTransaction).signedTransaction==='string'&&(v as AppleTransaction).signedTransaction.length<=24000
+function transaction(value:unknown):value is AppleTransaction{
+ if(!value||typeof value!=='object')return false
+ const {transactionId,accountToken,signedTransaction,environment}=value as AppleTransaction
+ return appleTransactionId(transactionId)&&appleUuid(accountToken)&&typeof signedTransaction==='string'&&signedTransaction.length<=24000
+  &&(environment===undefined||environment==='Sandbox'||environment==='Production')
+}
 export function parseAppleContext(value:unknown):AppleContext{
  if(!value||typeof value!=='object')throw Error('apple_unavailable')
  const r=value as Record<string,unknown>
@@ -33,15 +38,15 @@ export function createApplePurchases(client:SupabaseClient,options:{store?:Apple
  const context=async(expected:string)=>parseAppleContext(await request(expected))
  async function reconcile(expected:string,tx:AppleTransaction,progress:(phase:ApplePurchasePhase)=>void=()=>{}){
   if(!transaction(tx))throw Error('apple_unavailable')
-  const key=expected+':'+tx.transactionId,existing=inflight.get(key);if(existing)return existing
+  const key=expected+':'+(tx.environment??'')+':'+tx.transactionId,existing=inflight.get(key);if(existing)return existing
   const run=(async()=>{
    let operation=operations.get(key)
    if(!operation||operation.jws!==tx.signedTransaction){operation={jws:tx.signedTransaction,id:crypto.randomUUID()};operations.set(key,operation)}
    const r=await request(expected,{action:'reconcile',operationId:operation.id,signedTransaction:tx.signedTransaction}),receipt=r.receipt
-   if(r.applePurchases!==1||receipt?.transactionId!==tx.transactionId||receipt.accountToken?.toLowerCase()!==tx.accountToken.toLowerCase()||!['Production','Sandbox'].includes(receipt.environment))throw Error('apple_unavailable')
+   if(r.applePurchases!==1||receipt?.transactionId!==tx.transactionId||receipt.accountToken?.toLowerCase()!==tx.accountToken.toLowerCase()||!['Production','Sandbox'].includes(receipt.environment)||tx.environment&&receipt.environment!==tx.environment)throw Error('apple_unavailable')
    await session(expected)
    progress('finish')
-   const finished=await store.finish(tx)
+   const finished=await store.finish({...tx,environment:receipt.environment})
    if(finished.finished!==true)throw Error('purchase_sync_pending')
    operations.delete(key);listeners.forEach(fn=>fn())
   })();inflight.set(key,run)
@@ -52,7 +57,19 @@ export function createApplePurchases(client:SupabaseClient,options:{store?:Apple
   if(!available)return 0
   await session(expected)
   const existing=recovering.get(expected);if(existing)return existing
-  const run=(async()=>{let pending:Awaited<ReturnType<AppleStore['pending']>>;try{pending=await store.pending()}catch(error){await session(expected);throw appleNativePurchaseError(error)}await session(expected);const rows=transactions(pending);for(const tx of rows)await reconcile(expected,tx);return rows.length})()
+  const run=(async()=>{
+   let pending:Awaited<ReturnType<AppleStore['pending']>>
+   try{pending=await store.pending()}catch(error){await session(expected);throw appleNativePurchaseError(error)}
+   await session(expected)
+   let rows=transactions(pending)
+   if(rows.some(row=>row.environment)){
+    const active=await context(expected)
+    if(!active.enabled)return 0
+    rows=rows.filter(row=>!row.environment||row.environment===active.environment)
+   }
+   for(const tx of rows)await reconcile(expected,tx)
+   return rows.length
+  })()
   recovering.set(expected,run)
   try{return await run}finally{if(recovering.get(expected)===run)recovering.delete(expected)}
  }

@@ -12,6 +12,9 @@ assert.equal(config.webDir, 'bundled')
 assert.ok(!config.server, 'Store builds must use bundled assets')
 const build = process.env.TIQ_BUILD_NUMBER
 assert.match(build || '', /^[1-9][0-9]{0,8}$/, 'Provide a positive build number of at most nine digits')
+const distribution = process.env.TIQ_IOS_DISTRIBUTION ?? 'internal'
+assert.ok(['internal','app-store'].includes(distribution), 'Unknown iOS distribution')
+const purchaseChannel = distribution === 'app-store' ? 'AppStore' : 'TestFlightInternalSandbox'
 const projectPath = new URL('ios/App/App.xcodeproj/project.pbxproj', root)
 const project = await readFile(projectPath, 'utf8')
 assert.equal((project.match(/CODE_SIGN_STYLE = Automatic;/g) || []).length, 2, 'Expected only the two app signing configurations')
@@ -26,7 +29,7 @@ await writeFile(projectPath, project.replaceAll('PRODUCT_BUNDLE_IDENTIFIER = com
   .replace(/MARKETING_VERSION = [^;]+;/g, 'MARKETING_VERSION = 1.0;'))
 // Standing beta declaration: current native dependencies use only exempt OS HTTPS/Keychain encryption.
 // https://developer.apple.com/documentation/bundleresources/information-property-list/itsappusesnonexemptencryption
-await writeFile(infoPath, info.replace('<key>CFBundleDisplayName</key>', '<key>TiqApplePurchaseChannel</key>\n\t<string>TestFlightInternalSandbox</string>\n\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n\t<key>CFBundleDisplayName</key>').replace(/(<key>CFBundleDisplayName<\/key>\s*)<string>TenAceIQ Prototype<\/string>/, '$1<string>TenAceIQ</string>'))
+await writeFile(infoPath, info.replace('<key>CFBundleDisplayName</key>', `<key>TiqApplePurchaseChannel</key>\n\t<string>${purchaseChannel}</string>\n\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n\t<key>CFBundleDisplayName</key>`).replace(/(<key>CFBundleDisplayName<\/key>\s*)<string>TenAceIQ Prototype<\/string>/, '$1<string>TenAceIQ</string>'))
 await writeFile(configPath, JSON.stringify({...config, appId: 'com.tenaceiq.app', appName: 'TenAceIQ'}, null, 2) + '\n')
 console.log('Prepared generated iOS project for TenAceIQ 1.0. Signing and device verification are still required.')
 
