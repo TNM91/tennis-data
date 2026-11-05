@@ -50,7 +50,7 @@ for(const width of [320,390])test(`plan errors and retry stay usable at ${width}
  await page.getByRole('button',{name:'Subscribe · $1.99/month',exact:true}).click()
  await expect(page.getByText('Purchase canceled.',{exact:true})).toBeVisible()
  expect(await page.evaluate(()=>(window as unknown as {membershipFixture:{buyCalls:number;restoreCalls:number;manageCalls:number}}).membershipFixture)).toMatchObject({buyCalls:1,restoreCalls:0,manageCalls:0})
- await page.getByText('Already subscribed?',{exact:true}).click()
+ await page.getByText('Restore or manage purchases',{exact:true}).click()
  await page.getByRole('button',{name:'Restore purchases',exact:true}).click()
  await expect(page.getByText('No Apple memberships were found. Check the Apple Account used for the original purchase.')).toBeVisible()
  expect(await page.evaluate(()=>(window as unknown as {membershipFixture:{restoreCalls:number}}).membershipFixture.restoreCalls)).toBe(1)

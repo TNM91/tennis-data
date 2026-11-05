@@ -16,6 +16,11 @@
  --premium-panel-radius:18px;
  --premium-control-radius:14px;
  --premium-action:linear-gradient(180deg,#d2fa75,var(--brand-green));
+ --premium-court-inlay:
+  linear-gradient(156deg,transparent 67%,#9bc2ff21 67.2% 68.1%,transparent 68.3%) padding-box,
+  linear-gradient(160deg,#203b60,#112747 60%,#0b1d38) padding-box,
+  linear-gradient(145deg,#d4f886,#95bb58 38%,#486447 76%,#759c51) border-box;
+ --premium-placeholder:#a3b8d4;
  --night-session-scene:url("./brand/courts/tiq-native-night-session.png");
  --native-navy:var(--premium-page);
  --native-panel:var(--premium-surface);
@@ -37,6 +42,8 @@
 }
 body[data-screen] { font-feature-settings:"ss01" on; }
 body[data-screen]:not(.native-chat-conversation) { background:var(--premium-page);color:var(--premium-white); }
+#app :is(input,textarea)::placeholder,
+dialog :is(input,textarea)::placeholder { color:var(--premium-placeholder);opacity:1; }
 /* The app icon's diagonal lines sit behind the tab surfaces. */
 body:is([data-screen="lab"],[data-screen="explore"],[data-screen="teams"],[data-screen="compete"],[data-screen="more"]):not(.native-chat-conversation)::before {
  content:"";
@@ -94,6 +101,14 @@ body:has(.native-welcome) { background:radial-gradient(ellipse at 50% 0%,var(--p
 .account-settings-dialog :is(.account-access-panel,.apple-membership-panel,.account-controls) h2 { margin:0 0 12px;font-size:1.125rem;line-height:1.35; }
 .account-settings-dialog :is(.account-access-panel,.apple-membership-panel,.account-controls) p { color:var(--premium-copy);font-size:.875rem; }
 .account-settings-dialog .apple-membership-panel .apple-test-label { color:var(--premium-lime); }
+.account-settings-dialog .apple-membership-recovery>summary {
+ justify-content:space-between;gap:12px;color:var(--premium-ice);
+}
+.apple-membership-recovery>summary::after {
+ content:"";flex:none;inline-size:7px;block-size:7px;margin-inline-end:4px;
+ border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);
+}
+.apple-membership-recovery[open]>summary::after { transform:rotate(225deg); }
 .account-settings-dialog [role=alert]:not(:empty) { color:#ffcabf; }
 .account-settings-dialog .account-action-list { gap:0;margin:0; }
 .account-settings-dialog .account-action-list button.secondary {
@@ -159,10 +174,7 @@ body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-cur
  margin-inline:auto;
  border:1px solid transparent;
  border-radius:11px;
- background:
-  linear-gradient(156deg,transparent 67%,#9bc2ff21 67.2% 68.1%,transparent 68.3%) padding-box,
-  linear-gradient(160deg,#203b60,#112747 60%,#0b1d38) padding-box,
-  linear-gradient(145deg,#d4f886,#95bb58 38%,#486447 76%,#759c51) border-box;
+ background:var(--premium-court-inlay);
  box-shadow:inset 0 1px #f7faff14,0 2px 5px #020b1b88;
  pointer-events:none;
 }
@@ -293,7 +305,6 @@ body[data-screen="lab"] #recent-results { padding:22px 16px;border-radius:24px;b
 body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.035em;margin-block-end:20px; }
 body[data-screen="lab"] #recent-results .result-view-controls { display:flex;flex-wrap:wrap;gap:4px;padding:0 0 8px;border:0;border-block-end:1px solid #33546b;border-radius:0;background:transparent; }
 body[data-screen="lab"] #recent-results .result-view-controls button.secondary { flex:1 1 4.25em;font-size:.8125rem;min-block-size:44px;padding:10px 5px;border:0;border-radius:10px;color:#bcd5e5; }
-body[data-screen="lab"] #recent-results .result-view-controls button[aria-pressed="true"] { background:#183e55;color:#edf8ff;border:0;box-shadow:inset 0 -2px #87d7ff; }
 body[data-screen="lab"] #recent-results .match-pulse { gap:16px; }
 body[data-screen="lab"] .match-pulse .stat-donut-value { font-size:2.125rem;color:#f0f7fc; }
 body[data-screen="lab"] .match-pulse .stat-donut-value small { font-size:.9375rem; }
@@ -374,7 +385,20 @@ body[data-screen] .tab-hero:has(>.tab-hero-icon) { padding-inline-end:64px; }
 body[data-screen] .tab-primary-action { min-block-size:48px;border-radius:var(--premium-control-radius);background:var(--premium-action);color:var(--premium-page); }
 body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;background:var(--premium-surface);border-color:var(--premium-line);border-radius:var(--premium-panel-radius); }
 .explore-categories { background:var(--premium-inset);border-color:var(--premium-line);border-radius:var(--premium-control-radius); }
-.explore-categories button[aria-pressed="true"] { background:var(--premium-royal-deep);color:var(--premium-white); }
+/* View selectors use the same inlay as the active tab. Actions and status badges have their own treatments. */
+:is(body[data-screen="lab"] #recent-results .match-filters,
+    #following-list .match-filters,
+    #comparison-list>[role="group"],
+    .explore-categories,
+    body[data-screen="teams"] .chats-inbox-filters,
+    .cal-switch,
+    .updates-filters>[role="group"])>button[aria-pressed="true"],
+button.secondary[data-cal-all][aria-pressed="true"] {
+ background:var(--premium-court-inlay);
+ border:1px solid transparent;
+ color:var(--premium-white);
+ box-shadow:inset 0 1px #f7faff14;
+}
 .lab-next-band .lab-level-path { background:var(--premium-card);border-color:#3f6b84;box-shadow:inset 0 1px #9edaff20; }
 .lab-level-path .lab-band-target>strong { color:#eefaff;text-shadow:0 4px 24px #79d0ff22; }
 .lab-level-path .lab-band-target>strong>span { color:#9bd7f6; }
@@ -404,18 +428,15 @@ body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-avatar {
  border:1px solid var(--premium-line);
  color:var(--premium-white);
 }
-body[data-screen="teams"]:not(.native-chat-conversation) .chats-inbox-filters button[aria-pressed="true"] {
- background:var(--premium-royal-deep);
- border-color:var(--premium-royal-line);
- color:var(--premium-white);
-}
-body.native-chat-conversation .team-bubble:not(.team-bubble-mine):not(.team-bubble-match) { background:#122c41;border:1px solid #29475e; }
-body.native-chat-conversation .team-bubble-mine { background:linear-gradient(130deg,#1b4e70,#163e5b);border:1px solid #396584; }
+body.native-chat-conversation main#app { background:var(--premium-page); }
+body.native-chat-conversation .chat-room-header { border-color:var(--premium-line); }
+body.native-chat-conversation .team-bubble:not(.team-bubble-mine):not(.team-bubble-match) { background:var(--premium-surface);border:1px solid var(--premium-line); }
+body.native-chat-conversation .team-bubble-mine { background:linear-gradient(130deg,#254478,var(--premium-raised));border:1px solid #45689b; }
 body.native-chat-conversation .team-bubble p { font-size:1rem;line-height:1.55; }
 body.native-chat-conversation .team-message-meta strong { font-size:.8125rem; }
 body.native-chat-conversation .team-message-meta>span { font-size:.625rem; }
-body.native-chat-conversation .chat-composer { border-color:#527891;background:#102e44;box-shadow:0 4px 20px #0004,inset 0 1px #a6deff15; }
-body.native-chat-conversation .chat-send-button { background:#aee83c;color:#102638; }
+body.native-chat-conversation .chat-composer { border-color:var(--premium-line);background:var(--premium-surface);box-shadow:0 4px 20px #0004,inset 0 1px #a6deff15; }
+body.native-chat-conversation .chat-send-button { background:var(--premium-lime);color:var(--premium-page); }
 
 /* Recorded match details: one scorecard, followed by its sets and participants. */
 #match-detail.match-detail-view { padding:0;border:0;background:transparent;margin-block-start:0;min-inline-size:0; }
@@ -461,9 +482,26 @@ body.native-chat-conversation .chat-send-button { background:#aee83c;color:#1026
 .competitions-dialog .competition-card { background:var(--premium-card);border-color:#365970;box-shadow:inset 0 1px #b1e4ff12; }
 .competitions-dialog .competition-card-meta { letter-spacing:.035em;text-transform:none;color:var(--competition-accent); }
 .competitions-dialog .competition-card-meta>span:last-child { padding:4px 9px;border:1px solid #56778a70;border-radius:100px;background:#143247; }
-.competitions-dialog .competition-tabs { padding:6px;gap:4px;border:1px solid #304e65;border-radius:18px;background:#081f32; }
+.competitions-dialog .competition-tabs { padding:6px;gap:4px;border:1px solid var(--premium-line);border-radius:18px;background:var(--premium-inset); }
 .competitions-dialog .competition-tabs button.secondary { margin:0;border:0;border-radius:12px;background:transparent;font-size:.8125rem!important;min-block-size:44px; }
-.competitions-dialog .competition-tabs button[aria-pressed="true"] { background:#1b4055!important;color:#edf8ff!important;box-shadow:inset 0 -2px var(--competition-accent); }
+.competitions-dialog :is(.competition-tabs,.competition-switch) button[aria-pressed="true"] {
+ position:relative;
+ isolation:isolate;
+ background:transparent!important;
+ color:var(--premium-white)!important;
+ box-shadow:none;
+}
+.competitions-dialog :is(.competition-tabs,.competition-switch) button[aria-pressed="true"]::before {
+ content:"";
+ position:absolute;
+ inset:0;
+ z-index:-1;
+ border:1px solid transparent;
+ border-radius:inherit;
+ background:var(--premium-court-inlay);
+ box-shadow:inset 0 1px #f7faff14;
+ pointer-events:none;
+}
 .competitions-dialog .competition-metrics { gap:1px;border:1px solid #35596f;border-radius:20px;overflow:hidden;background:#35596f; }
 .competitions-dialog .competition-metrics>div { border:0;border-radius:0;padding:18px 6px;background:linear-gradient(160deg,#13384c,#0d283b); }
 .competitions-dialog .competition-metrics strong { font-size:1.75rem;letter-spacing:-.04em; }
@@ -504,15 +542,14 @@ body.native-chat-conversation .chat-send-button { background:#aee83c;color:#1026
 .competitions-dialog .competition-card-details p { margin:0;font-size:.8125rem;line-height:1.6; }
 .competitions-dialog .competition-card-detail { font-size:.8125rem;line-height:1.6; }
 .competitions-dialog .competition-entry { padding-block-start:12px;border-block-start:1px solid #36566b;color:#c9dfed;font-size:.8125rem;line-height:1.7; }
-.competitions-dialog .competition-card button.secondary { background:#16384d;border-color:#486c82;border-radius:14px; }
+.competitions-dialog .competition-card button.secondary { background:var(--premium-raised);border-color:var(--premium-line);border-radius:14px; }
 .competitions-dialog .competition-search { padding:16px;border:1px solid #34556c;border-radius:18px;background:var(--premium-surface); }
 .competitions-dialog .competition-search label { font-size:.8125rem;line-height:1.5; }
 .competitions-dialog .competition-search>div { display:flex;flex-wrap:wrap;gap:10px; }
 .competitions-dialog .competition-search input { flex:1 1 11rem;min-inline-size:0; }
 .competitions-dialog .competition-search button { flex:1 0 auto; }
-.competitions-dialog .competition-switch { gap:6px;padding:6px;border-radius:18px;border:1px solid #34556c;background:#081f32; }
+.competitions-dialog .competition-switch { gap:6px;padding:6px;border-radius:18px;border:1px solid var(--premium-line);background:var(--premium-inset); }
 .competitions-dialog .competition-switch button.secondary { border:0;background:transparent;border-radius:12px;font-size:.8125rem!important; }
-.competitions-dialog .competition-switch button[aria-pressed="true"] { background:#1b4055!important;color:#edf8ff;box-shadow:inset 0 -2px var(--competition-accent); }
 .league-entry-dialog .entry-hero { margin-block:18px 22px;padding:22px 18px; }
 .league-entry-dialog .competition-header button.secondary { font-size:.8125rem!important; }
 .league-entry-dialog .entry-hero h2 { font-size:1.75rem!important;line-height:1.15;letter-spacing:-.035em;margin-block:10px 0; }
