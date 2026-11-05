@@ -38,7 +38,7 @@ capture_listing() {
   local device=$1 folder=$2 width=$3 height=$4
   xcrun simctl status_bar "$device" override --time '9:41' --dataNetwork wifi \
     --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 \
-    --batteryState unplugged --batteryLevel 100
+    --batteryState discharging --batteryLevel 100
   xcrun simctl install "$device" "$app"
   capture "$device" lab "$folder/01-my-lab.jpg" "$width" "$height"
   capture "$device" explore "$folder/02-explore.jpg" "$width" "$height"
