@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { showExplore as showPlayers } from './explore'
 import { showDirectory } from './directory-view'
 import { showRankings } from './rankings-view'
+import {nativeActionIcon} from './native-action-icons'
 
 export type ExploreCategory='Players'|'Teams'|'Leagues'|'Rankings'
 type Category=ExploreCategory|'Overview'
@@ -13,7 +14,27 @@ export const exploreTools=[
  {category:'Leagues',title:'Find a league',detail:'Browse teams and league context.'},
  {category:'Rankings',title:'Check rankings',detail:'Compare the field by recorded TIQ rating.'},
 ] as const
-export function exploreHomeHtml(competitions=false){return `<div class="native-explore-hero"><header class="explore-spotlight"><small class="stat-eyebrow">Your tennis, connected</small><h1 tabindex="-1">Find players, teams, leagues.</h1></header><form id="native-search"><label class="sr-only" for="native-search-kind">Search category</label><select id="native-search-kind" name="category"><option value="Players">Players</option><option value="Teams">Teams</option><option value="Leagues">Leagues</option><option value="Rankings">Rankings by location</option></select><label class="sr-only" for="native-search-term">Search tennis</label><input id="native-search-term" name="term" type="search" minlength="2" maxlength="80" required placeholder="Search a player, team, league or area"><button type="submit">Search</button></form><div class="website-ui website-explore">${websiteUi.explore}</div>${competitions?'<button type="button" class="secondary explore-competitions" data-open-competitions><strong>Competitions</strong><span>TiQ leagues · schedules · standings</span><span aria-hidden="true">↗</span></button>':''}</div>`}
+export function exploreHomeHtml(competitions=false){
+ return `<div class="native-explore-hero">
+  <header class="tab-hero tab-hero-court explore-spotlight"><small class="stat-eyebrow">Your tennis, connected</small><h1 tabindex="-1">Find players, teams, leagues.</h1></header>
+  <form id="native-search">
+   <label class="sr-only" for="native-search-term">Search tennis</label>
+   <input id="native-search-term" name="term" type="search" minlength="2" maxlength="80" required placeholder="Search a player, team, league or area">
+   <label class="sr-only" for="native-search-kind">Search category</label>
+   <div class="explore-search-category">
+    <select id="native-search-kind" name="category"><option value="Players">Players</option><option value="Teams">Teams</option><option value="Leagues">Leagues</option><option value="Rankings">Rankings by location</option></select>
+    <span aria-hidden="true">${nativeActionIcon('down')}</span>
+   </div>
+   <button class="tab-primary-action" type="submit">Search</button>
+  </form>
+  <div class="website-ui website-explore">${websiteUi.explore}</div>
+  ${competitions?`<button type="button" class="secondary app-tool explore-competitions" data-open-competitions>
+   <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.compete}</span>
+   <span class="app-tool-copy"><strong>Competitions</strong><span>TiQ leagues · schedules · standings</span></span>
+   <span class="app-tool-arrow" aria-hidden="true">›</span>
+  </button>`:''}
+ </div>`
+}
 export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initial:Category='Overview',access?:PublicBrowseAccess,onCompetitions?:(trigger:HTMLElement)=>void) {
   let disposed=false
   let currentCategory:Category|null=null
