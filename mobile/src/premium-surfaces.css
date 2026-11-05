@@ -117,66 +117,60 @@ body[data-screen] .app-header .native-header-actions button {
  background:var(--premium-surface);border-color:var(--premium-line);box-shadow:inset 0 1px #a0d7f014;
 }
 body[data-screen]:not(.native-chat-conversation) .app-navigation {
- left:max(10px,env(safe-area-inset-left));
- right:max(10px,env(safe-area-inset-right));
- bottom:max(8px,env(safe-area-inset-bottom));
- max-inline-size:560px;
- margin-inline:auto;
- padding:4px;
- gap:2px;
- border:1px solid var(--premium-line);
- border-radius:22px;
- background:linear-gradient(180deg,#142842,var(--premium-page));
- box-shadow:0 8px 24px #020915a6,inset 0 1px #b2c8ff14;
-}
-body[data-screen]:not(.native-chat-conversation):has(.app-navigation:not([hidden]))::after {
- content:"";
- position:fixed;
- inset:auto 0 0;
- block-size:calc(80px + env(safe-area-inset-bottom));
- z-index:4;
- pointer-events:none;
- background:linear-gradient(transparent,var(--premium-page) 90%);
+ bottom:0;
+ padding-top:0;
+ padding-right:max(6px,env(safe-area-inset-right),calc((100% - 588px) / 2));
+ padding-bottom:env(safe-area-inset-bottom);
+ padding-left:max(6px,env(safe-area-inset-left),calc((100% - 588px) / 2));
+ gap:0;
+ border:0;
+ border-top:1px solid #2c4774;
+ background:linear-gradient(180deg,#0b1b34,var(--premium-page));
+ box-shadow:none;
+ backdrop-filter:none;
 }
 body[data-screen]:not(.native-chat-conversation) .app-navigation button {
- min-block-size:62px;
- padding:4px 0;
- gap:3px;
- border-radius:var(--premium-control-radius);
- font-size:min(.6875rem,4vw);
+ position:relative;
+ min-block-size:54px;
+ padding:5px 0 3px;
+ gap:1px;
+ border-radius:0;
+ font-size:min(.75rem,4vw);
  font-weight:600;
  line-height:1.25;
- color:var(--premium-copy);
+ color:#aabedb;
 }
 body[data-screen] .app-navigation button>span:last-child { max-inline-size:100%;overflow-wrap:anywhere; }
 body[data-screen] .app-navigation button:focus-visible { outline:2px solid var(--premium-ice);outline-offset:-2px; }
 body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"] {
  color:var(--premium-white);
- background:none;
+ background:radial-gradient(ellipse 64% 95% at 50% 54%,#24489e,transparent 80%);
  box-shadow:none;
  font-weight:750;
 }
-body[data-screen]:not(.native-chat-conversation) .app-navigation button>.nav-tab-icon {
- inline-size:min(46px,100%);
- block-size:34px;
- border-radius:13px;
-}
-body[data-screen] .app-navigation button[aria-current="page"]>.nav-tab-icon {
- background:linear-gradient(145deg,#274b9d,var(--premium-royal-deep));
- box-shadow:inset 0 0 0 1px #6488ff9c,0 2px 8px #06132670;
-}
-body[data-screen] .app-navigation button[aria-current="page"]>.nav-tab-icon::after {
+body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"]::before {
  content:"";
  position:absolute;
+ inset-block-start:-2px;
  inset-inline:0;
- inset-block-end:0;
- inline-size:12px;
+ inline-size:26px;
  block-size:2px;
  margin-inline:auto;
  border-radius:2px;
- background:var(--premium-lime);
+ background:var(--premium-royal-line);
 }
-body[data-screen] .app-navigation .chat-unread-badge { inset-block-start:-3px;inset-inline-end:-3px; }
+body[data-screen] .app-navigation button>.nav-tab-icon { inline-size:28px;block-size:28px; }
+body[data-screen] .app-navigation .tiq-feature-icon { inline-size:25px;block-size:25px;color:inherit; }
+body[data-screen] .app-navigation :is(.tiq-feature-icon__glyph,.nav-tab-icon>svg) { inline-size:24px;block-size:24px; }
+body[data-screen] .app-navigation .tiq-feature-icon__badge { display:none; }
+body[data-screen] .app-navigation .chat-unread-badge {
+ inset-block-start:-2px;
+ inset-inline-end:-7px;
+ min-inline-size:15px;
+ block-size:15px;
+ padding-inline:3px;
+ font-size:10px;
+}
 body[data-screen]:not(.native-chat-conversation) .app-atmosphere::after {
  content:"";position:absolute;inset-block-start:78px;inset-inline-end:0;inline-size:min(100%,760px);aspect-ratio:1727/911;max-block-size:min(46dvh,400px);
  background:linear-gradient(180deg,var(--premium-page),transparent 25%,transparent 75%,var(--premium-page)),linear-gradient(90deg,var(--premium-page),transparent 55%,transparent 94%,var(--premium-page));
