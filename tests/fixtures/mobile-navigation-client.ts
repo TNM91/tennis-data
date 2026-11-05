@@ -6,6 +6,12 @@ let linked=!new URL(location.href).searchParams.has('unlinked')
 let listener:((event:string,session:unknown)=>void)|null=null
 const session=()=>signedIn?{user,access_token:'synthetic-local-token'}:null
 const player={overall_rating:4,overall_dynamic_rating:4.42,singles_dynamic_rating:4.37,doubles_dynamic_rating:4.49,rating_source:'verified'}
+let pendingLabProfile:Promise<void>|null=null
+let releaseLabProfile:(()=>void)|null=null
+export const labProfileFixture={
+ defer(){pendingLabProfile=new Promise<void>(resolve=>{releaseLabProfile=resolve})},
+ release(){releaseLabProfile?.();releaseLabProfile=null;pendingLabProfile=null},
+}
 function data(table:string){
  if(table==='profiles'&&!linked)return {linked_player_id:null,linked_player_name:null,linked_team_name:null,linked_league_name:null}
  if(table==='profiles')return {linked_player_id:navigationOwner,linked_player_name:'Jordan Lee',linked_team_name:'Baseline Aces',linked_league_name:'City Tennis League'}
@@ -17,7 +23,7 @@ function data(table:string){
 export function createClient(){return {
  channel:()=>{const callbacks:(()=>void)[]=[];const channel={on:(_type:string,_filter:unknown,callback:()=>void)=>{callbacks.push(callback);return channel},subscribe:(status:(value:string)=>void)=>{queueMicrotask(()=>status('SUBSCRIBED'));chatSignals.add(callbacks);return channel}};return channel},removeChannel:async()=> 'ok',
  auth:{signInWithPassword:async()=>{signedIn=true;listener?.('SIGNED_IN',session());return {error:null}},getSession:async()=>({data:{session:session()},error:null}),onAuthStateChange:(fn:typeof listener)=>{listener=fn;queueMicrotask(()=>listener?.('INITIAL_SESSION',session()));return {data:{subscription:{unsubscribe(){}}}}},startAutoRefresh(){},stopAutoRefresh(){},signOut:async()=>{signedIn=false;listener?.('SIGNED_OUT',null);return {error:null}}},
- from:(table:string)=>{if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:null}={data:data(table),error:null};const chain:Record<string,unknown>={then:(resolve:(value:unknown)=>void)=>Promise.resolve(result).then(resolve)};for(const method of ['select','eq','in','order','limit','abortSignal','maybeSingle','single','ilike','or','is','not','range','gte','lte','lt','neq'])chain[method]=()=>chain;chain.eq=(field:string,value:string)=>{if(table==='matches'&&field==='id'&&Array.isArray(result.data))result.data=result.data.find((row:{id:string})=>row.id===value)||null;return chain};return chain},
+ from:(table:string)=>{if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:null}={data:data(table),error:null};let select='';const chain:Record<string,unknown>={then:async(resolve:(value:unknown)=>void)=>{if(table==='profiles'&&select.includes('linked_league_name'))await pendingLabProfile;return resolve(result)}};for(const method of ['eq','in','order','limit','abortSignal','maybeSingle','single','ilike','or','is','not','range','gte','lte','lt','neq'])chain[method]=()=>chain;chain.select=(fields:string)=>{select=fields;return chain};chain.eq=(field:string,value:string)=>{if(table==='matches'&&field==='id'&&Array.isArray(result.data))result.data=result.data.find((row:{id:string})=>row.id===value)||null;return chain};return chain},
  rpc:async()=>({data:[],error:null}),
  }}
 const chatSignals=new Set<(()=>void)[]>()
