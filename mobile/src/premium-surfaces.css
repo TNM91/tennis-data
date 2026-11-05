@@ -81,13 +81,16 @@ body[data-screen] .app-header .native-header-actions button {
  background:#0c2338;border-color:#2d4e68;box-shadow:inset 0 1px #a0d7f014;
 }
 body[data-screen]:not(.native-chat-conversation) .app-navigation {
- background:#061827f5;border-color:#35556b;box-shadow:0 -10px 30px #0003;
+ background:#071725;border-color:#ffffff12;box-shadow:0 -8px 28px #0003;
 }
 body[data-screen]:not(.native-chat-conversation) .app-navigation button {
- border-radius:16px;font-size:min(.75rem,13px);min-block-size:62px;gap:5px;
+ position:relative;border-radius:14px;font-size:.6875rem;font-weight:600;line-height:1.4;min-block-size:62px;gap:4px;color:#a8bdcb;
 }
 body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"] {
- background:var(--premium-raised);box-shadow:inset 0 1px #83d8ff,0 3px 12px #0002;
+ color:#e5f3d6;background:#b5eb460c;box-shadow:inset 0 1px #b5eb4618;
+}
+body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"]::before {
+ content:"";position:absolute;inset-block-start:-7px;inline-size:24px;block-size:2px;border-radius:0 0 2px 2px;background:var(--premium-lime);
 }
 body[data-screen]:not(.native-chat-conversation) .app-atmosphere::after {
  content:"";position:absolute;inset-block-start:78px;inset-inline-end:0;inline-size:min(100%,760px);aspect-ratio:1727/911;max-block-size:min(46dvh,400px);
@@ -197,15 +200,26 @@ body[data-screen] .app-tools-hub .app-hub-heading h1 { font-size:clamp(2rem,8.8v
 .app-tools-hub .app-hub-tools button.app-tool { padding:18px 16px; }
 .app-tools-hub .app-tool-copy>span { font-size:.8125rem;line-height:1.55;color:#b9d1e1; }
 .app-tools-hub .app-tool-copy strong { font-size:1rem;font-weight:650;letter-spacing:-.015em; }
-body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;min-block-size:212px;padding:22px;border:1px solid #3b6782;border-radius:24px;background:var(--premium-card);box-shadow:inset 0 1px #b4e6ff26,0 8px 20px #0002; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy { grid-column:1/-1;grid-row:2; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { grid-column:2;grid-row:1; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy strong { font-size:1.5rem;font-weight:700; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { color:#c1e5fa; }
-.competition-art { display:none; }
-body[data-screen="compete"] .app-hub-group:first-of-type .competition-art { position:absolute;z-index:-1;display:block;inset-block-start:10px;inset-inline-end:12px;inline-size:48%;max-inline-size:190px;color:#89d4fc;pointer-events:none; }
-.competition-art svg { display:block;inline-size:100%;block-size:auto;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;opacity:.32; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { position:relative;z-index:1;display:grid;place-items:center;inline-size:36px;block-size:36px;border:1px solid #9ad6ff38;border-radius:50%;background:#0b263c9c; }
+.competition-category,.competition-action { display:none; }
+body[data-screen="compete"] .app-tools-hub .app-hub-heading { padding-block:12px 22px;border-bottom-color:#ffffff12; }
+body[data-screen="compete"] .app-tools-hub .app-hub-heading h1 { font-size:clamp(2rem,8.5vw,2.5rem);font-weight:650; }
+body[data-screen="compete"] .app-tools-hub .app-hub-heading>p { max-inline-size:25em;color:var(--premium-copy);font-size:.875rem;line-height:1.6; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-hub-tools { gap:12px;overflow:visible;border:0;border-radius:0;background:transparent; }
+body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool {
+ position:relative;isolation:isolate;display:grid;grid-template-columns:32px minmax(0,1fr) 18px;align-items:start;column-gap:16px;row-gap:18px;
+ min-block-size:0;padding:22px 20px 0;border:1px solid #2b485c;border-radius:18px;background:linear-gradient(125deg,#112c3b,#0a1e2d);box-shadow:inset 0 1px #ffffff08;
+}
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-icon { margin-block-start:4px; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy { grid-column:2;grid-row:1;gap:8px; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy strong { font-size:1.5625rem;font-weight:650;line-height:1.15;letter-spacing:-.035em; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy>span { color:#b9cdd9;font-size:.8125rem;line-height:1.6; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy .competition-category { display:block;color:#bedb96;font-size:.625rem;font-weight:650;letter-spacing:.12em;line-height:1.5;text-transform:uppercase; }
+body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { grid-column:3;grid-row:1;display:block;inline-size:auto;block-size:auto;margin-block-start:3px;border:0;border-radius:0;background:none;color:#afc8d7;font-size:24px; }
+body[data-screen="compete"] .app-hub-group:first-of-type .competition-action { display:flex;grid-column:1/-1;align-items:center;justify-content:space-between;gap:12px;min-block-size:44px;border-block-start:1px solid #ffffff10;color:#d8e7dd;font-size:.75rem;font-weight:600; }
+body[data-screen="compete"] .competition-action>span { color:var(--premium-lime);font-size:18px; }
+body[data-screen="compete"] .app-hub-group:not(:first-of-type) .app-hub-tools { border-color:#ffffff12;border-radius:16px;background:#0a1e2d; }
+body[data-screen="compete"] .app-hub-group:not(:first-of-type) button.app-tool { padding:18px 16px; }
+body[data-screen="compete"] .app-hub-group:not(:first-of-type) .app-tool-copy strong { font-weight:600;font-size:.9375rem; }
 body[data-screen="coach"] .app-hub-group:first-of-type .app-hub-tools { overflow:visible; }
 body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool-featured {
  position:relative;isolation:isolate;display:block;
@@ -475,7 +489,6 @@ body[data-screen] .app-header .tiq-feature-icon__glyph { inline-size:21px;block-
 
 @media(min-width:650px) {
  body[data-screen]:not(.native-chat-conversation) .app-header>img { inline-size:200px; }
- body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { min-block-size:208px; }
 }
 @media(max-width:360px) {
  .lab-scoreboard .lab-rating-chart>div:first-child { padding-inline:16px; }
