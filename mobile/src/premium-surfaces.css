@@ -143,23 +143,31 @@ body[data-screen]:not(.native-chat-conversation) .app-navigation button {
 body[data-screen] .app-navigation button>span:last-child { max-inline-size:100%;overflow-wrap:anywhere; }
 body[data-screen] .app-navigation button:focus-visible { outline:2px solid var(--premium-ice);outline-offset:-2px; }
 body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"] {
+ isolation:isolate;
  color:var(--premium-white);
- background:radial-gradient(ellipse 64% 95% at 50% 54%,#24489e,transparent 80%);
+ background:none;
  box-shadow:none;
  font-weight:750;
 }
 body[data-screen]:not(.native-chat-conversation) .app-navigation button[aria-current="page"]::before {
  content:"";
  position:absolute;
- inset-block-start:-2px;
+ z-index:-1;
+ inset-block:3px 0;
  inset-inline:0;
- inline-size:26px;
- block-size:2px;
+ inline-size:min(62px,calc(100% - 6px));
  margin-inline:auto;
- border-radius:2px;
- background:var(--premium-royal-line);
+ border:1px solid transparent;
+ border-radius:11px;
+ background:
+  linear-gradient(156deg,transparent 67%,#9bc2ff21 67.2% 68.1%,transparent 68.3%) padding-box,
+  linear-gradient(160deg,#203b60,#112747 60%,#0b1d38) padding-box,
+  linear-gradient(145deg,#d4f886,#95bb58 38%,#486447 76%,#759c51) border-box;
+ box-shadow:inset 0 1px #f7faff14,0 2px 5px #020b1b88;
+ pointer-events:none;
 }
 body[data-screen] .app-navigation button>.nav-tab-icon { inline-size:28px;block-size:28px; }
+body[data-screen] .app-navigation button[aria-current="page"]>.nav-tab-icon { color:#e7f4c6; }
 body[data-screen] .app-navigation .tiq-feature-icon { inline-size:25px;block-size:25px;color:inherit; }
 body[data-screen] .app-navigation :is(.tiq-feature-icon__glyph,.nav-tab-icon>svg) { inline-size:24px;block-size:24px; }
 body[data-screen] .app-navigation .tiq-feature-icon__badge { display:none; }
