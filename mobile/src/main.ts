@@ -463,7 +463,7 @@ async function lab() {
   const version = ++revision
   details = createMatchDetails(app, client, () => version === revision && current.user.id === session?.user.id)
   app.dataset.state = 'loading'
-  app.innerHTML = `<h1>My Lab</h1><p role="status">Loading your player profile…</p>`
+  app.innerHTML = '<header class="lab-scoreboard-intro"><div><h1>My Lab</h1><p role="status">Loading your player profile…</p></div></header>'
   const { data, error } = await client.from('profiles')
     .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
     .eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()

@@ -158,6 +158,25 @@ for(const width of [320,390])test('all destinations, direct competitions, focus 
  await page.locator('[data-app-destination="tournaments"]').click();await expect(event).toContainText('Northside Open');await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click());await expect(event).toHaveCount(0);await expect(page.locator('.lab-scoreboard')).toContainText('4.42');expect(errors).toEqual([])
 })
 
+type LabProfilePreviewWindow=Window&{labProfileFixture:typeof import('../fixtures/mobile-navigation-client').labProfileFixture}
+test('Explore to My Lab keeps the Night Session canvas while the profile loads',async({page})=>{
+ await page.goto(origin)
+ await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
+ const canvas=()=>page.evaluate(()=>getComputedStyle(document.body).background)
+ const loadedCanvas=await canvas()
+ const tabs=page.locator('.app-navigation')
+ await tabs.getByRole('button',{name:'Explore',exact:true}).click()
+ await expect(page.locator('.explore-spotlight')).toBeVisible()
+ await page.evaluate(()=>(window as unknown as LabProfilePreviewWindow).labProfileFixture.defer())
+ await tabs.getByRole('button',{name:'My Lab',exact:true}).click()
+ await expect(page.getByText('Loading your player profile…')).toBeVisible()
+ await expect(page.locator('.app-court-backdrop')).toBeHidden()
+ await expect(page.locator('.app-brand-watermark')).toBeHidden()
+ expect(await canvas()).toBe(loadedCanvas)
+ await page.evaluate(()=>(window as unknown as LabProfilePreviewWindow).labProfileFixture.release())
+ await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
+ await expect(page.locator('.rating-court-scene')).toBeVisible()
+})
 test('the complete approved court stays proportional inside the scoreboard at wider phone/tablet sizes',async({page})=>{
  for(const width of [600,844]){
   await page.setViewportSize({width,height:844});await page.goto(origin);await expect(page.locator('.lab-scoreboard')).toContainText('4.42')

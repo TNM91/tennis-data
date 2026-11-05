@@ -120,7 +120,6 @@ body[data-screen]:not(.native-chat-conversation) .app-atmosphere::after {
  content:"";position:absolute;inset-block-start:78px;inset-inline-end:0;inline-size:min(100%,760px);aspect-ratio:1727/911;max-block-size:min(46dvh,400px);
  background:linear-gradient(180deg,var(--premium-page),transparent 25%,transparent 75%,var(--premium-page)),linear-gradient(90deg,var(--premium-page),transparent 55%,transparent 94%,var(--premium-page));
 }
-body[data-screen="lab"]:has(.lab-scoreboard) .app-atmosphere::after,
 body[data-screen="explore"] .app-atmosphere::after,
 body[data-screen="compete"] .app-atmosphere::after,
 body[data-screen="more"] .app-atmosphere::after,
@@ -129,7 +128,7 @@ body[data-screen="teams"]:not(.native-chat-conversation) .app-atmosphere::after 
 }
 
 /* Score, evidence, next move — the same order at every phone size. */
-body[data-screen="lab"]:has(.lab-scoreboard),
+body[data-screen="lab"],
 body[data-screen="explore"]:not(.native-chat-conversation),
 body[data-screen="compete"]:not(.native-chat-conversation),
 body[data-screen="more"]:not(.native-chat-conversation),

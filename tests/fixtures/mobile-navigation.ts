@@ -8,7 +8,7 @@ import {calendarTeamFixture,calendarTeamPreview} from './mobile-calendar-practic
 import {updatesFixture,updateCoachStudent} from './mobile-updates-client'
 import {clearCoachDeviceData} from '../../mobile/src/coach-device-cleanup'
 import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complete-browser'
-import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal} from './mobile-navigation-client'
+import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal,labProfileFixture} from './mobile-navigation-client'
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {tournamentSnapshot} from './native-tournaments'
 import {DEFAULT_ENTITLEMENTS} from '../../lib/access-model-core'
@@ -20,7 +20,7 @@ const chatUnreadFixture={total:7,reads:0,fail:false,detailed:false,secondTeam:fa
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
 const chatTeams=()=>[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 Object.assign(window,{chatUnreadFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
-Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner})
+Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
