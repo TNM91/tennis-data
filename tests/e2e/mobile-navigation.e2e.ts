@@ -144,7 +144,7 @@ for(const width of [320,390])test('tool search stays local, accessible and prese
 for(const width of [320,390])test('all destinations, direct competitions, focus return and reconnect at '+width+'px',async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));await page.setViewportSize({width,height:844});await page.goto(origin)
  await expect(page.locator('.lab-scoreboard')).toContainText('4.42');await expect(page.locator('.app-navigation button>span:last-child')).toHaveText(['My Lab','Explore','Chats','Compete','More']);await bounded(page)
- const scene=page.locator('.rating-court-scene');await expect(scene).toHaveAttribute('width','1727');expect(await scene.evaluate(el=>getComputedStyle(el).objectFit)).toBe('contain')
+ const scene=page.locator('.rating-court-scene');await expect(scene).toHaveAttribute('width','1122');expect(await scene.evaluate(el=>getComputedStyle(el).objectFit)).toBe('contain')
  expect(await page.evaluate(()=>{const score=document.querySelector('.lab-scoreboard')!,form=document.querySelector('.lab-form-host')!,focus=document.querySelector('#lab-identity')!;return Boolean(score.compareDocumentPosition(form)&Node.DOCUMENT_POSITION_FOLLOWING)&&Boolean(form.compareDocumentPosition(focus)&Node.DOCUMENT_POSITION_FOLLOWING)})).toBe(true)
  await page.screenshot({path:info.outputPath('home.png')})
  await page.locator('.app-navigation [data-screen="teams"]').click();await expect(page.getByRole('heading',{name:'Chats',exact:true})).toBeVisible();await page.getByRole('button',{name:'Compete',exact:true}).click();await expect(page.getByRole('heading',{name:'Compete',exact:true})).toBeFocused()
@@ -163,7 +163,7 @@ test('the complete approved court stays proportional inside the scoreboard at wi
   await page.setViewportSize({width,height:844});await page.goto(origin);await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
   const court=await page.locator('.rating-court-scene').evaluate(el=>{const scene=el.getBoundingClientRect(),card=el.closest('.lab-scoreboard')!.getBoundingClientRect();return {contained:scene.top>=card.top-1&&scene.bottom<=card.bottom+1&&scene.left>=card.left-1&&scene.right<=card.right+1,aspect:scene.width/scene.height,fit:getComputedStyle(el).objectFit}})
   expect(court.contained).toBe(true)
-  expect(court.aspect).toBeCloseTo(1727/911,2)
+  expect(court.aspect).toBeCloseTo(1122/1402,2)
   expect(court.fit).toBe('contain')
   await bounded(page)
   for(const destination of ['Compete','More']){await page.getByRole('button',{name:destination,exact:true}).click();await bounded(page)}
