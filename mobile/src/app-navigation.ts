@@ -35,16 +35,23 @@ const tools:Record<string,Tool>={
  video:{destination:'coach-video',title:'Video review',detail:'Record, slow down and mark up a player’s clip.',icon:'coach'},
  coachMessages:{destination:'coach-messages',title:'Coach messages',detail:'A private conversation with your connected coach or player.',icon:'teams'},
 }
-function competitionArtwork(destination:AppDestination){
- const drawing=destination==='leagues'?'<path d="M22 22h156v96H22zM36 22v96m128-96v96M22 70h156M36 46h128M36 94h128M100 46v48"/>':destination==='tournaments'?'<path d="M22 24h30v24h34m-64 48h30V72h34m92-48h-30v24h-34m64 48h-30V72h-34M86 48v24m28-24v24M86 60h28"/><circle cx="100" cy="60" r="6"/>':''
- return drawing?'<span class="competition-art" aria-hidden="true"><svg viewBox="0 0 200 140" fill="none" focusable="false">'+drawing+'</svg></span>':''
+function toolHtml(t:Tool,compact=false,featured=false){
+ const competition=!compact&&(t.destination==='leagues'||t.destination==='tournaments')
+ const category=t.destination==='leagues'?'Season play':'Event play'
+ const action=t.destination==='leagues'?'Find your league':'Explore events'
+ return '<button type="button" class="secondary app-tool'+(compact?' is-shortcut':'')+(competition?' app-tool-competition':'')+(featured?' app-tool-featured':'')+'" data-app-destination="'+t.destination+'" data-tool-search="'+html([t.title,t.detail,t.keywords||''].join(' '))+'">'
+  +(featured?'<span class="app-tool-court-atmosphere" aria-hidden="true"><img class="app-tool-court" src="./brand/courts/tiq-native-ace-deuce-refined-20261031-v3.png" alt="" width="1727" height="911"></span>':'')
+  +'<span class="app-tool-icon" aria-hidden="true">'+websiteUi.icons[t.icon]+'</span><span class="app-tool-copy">'
+  +(competition?'<small class="competition-category">'+category+'</small>':'')
+  +'<strong>'+t.title+'</strong>'+(!compact?'<span>'+t.detail+'</span>':'')+(t.web?'<small>Opens website</small>':'')+'</span>'
+  +(!compact?'<span class="app-tool-arrow" aria-hidden="true">'+(t.web?'↗':'›')+'</span>':'')
+  +(competition?'<span class="competition-action" aria-hidden="true">'+action+'<span>→</span></span>':'')+'</button>'
 }
-function toolHtml(t:Tool,compact=false,featured=false){return '<button type="button" class="secondary app-tool'+(compact?' is-shortcut':'')+(featured?' app-tool-featured':'')+'" data-app-destination="'+t.destination+'" data-tool-search="'+html([t.title,t.detail,t.keywords||''].join(' '))+'">'+(featured?'<span class="app-tool-court-atmosphere" aria-hidden="true"><img class="app-tool-court" src="./brand/courts/tiq-native-ace-deuce-refined-20261031-v3.png" alt="" width="1727" height="911"></span>':'')+(!compact?competitionArtwork(t.destination):'')+'<span class="app-tool-icon" aria-hidden="true">'+websiteUi.icons[t.icon]+'</span><span class="app-tool-copy"><strong>'+t.title+'</strong>'+(!compact?'<span>'+t.detail+'</span>':'')+(t.web?'<small>Opens website</small>':'')+'</span>'+(!compact?'<span class="app-tool-arrow" aria-hidden="true">'+(t.web?'↗':'›')+'</span>':'')+'</button>'}
 export function homeShortcutsHtml(){return '<nav class="lab-shortcuts" aria-label="Play and improve">'+['leagues','tournaments','coach'].map(key=>toolHtml(tools[key],true)).join('')+'</nav>'}
 export function appHubHtml(hub:AppHub){
  const groups=hub==='compete'?[{title:'Find your next match',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]:hub==='coach'?[{title:'For coaches',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video']},{title:'Your game plan',keys:['coachMessages','inbox','connection','training','progress']}]:[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]
  const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'All your tennis'
- const note=hub==='compete'?'A season to chase. A draw to climb.':hub==='coach'?'Put a plan behind your next step.':PRODUCT_MOTTO
+ const note=hub==='compete'?'Find your competition. Arrive with a plan.':hub==='coach'?'Put a plan behind your next step.':PRODUCT_MOTTO
  const total=groups.reduce((count,group)=>count+group.keys.length,0)
  return '<div class="app-tools-hub" data-hub="'+hub+'"><header class="app-hub-heading"><small class="stat-eyebrow">'+(hub==='more'?'More':'TenAceIQ')+'</small><h1 tabindex="-1">'+title+'</h1><p>'+note+'</p></header>'+(hub==='more'?'<div class="app-tool-finder"><label for="app-tool-query">Find a tool</label><div class="app-tool-search"><span aria-hidden="true">'+nativeActionIcon('search')+'</span><input id="app-tool-query" type="search" maxlength="80" autocomplete="off" placeholder="Leagues, coach, account…" aria-controls="app-tool-results"><button type="button" class="secondary" data-clear-tool-search hidden>Clear</button></div><p role="status" data-tool-count>'+total+' tools</p></div>':'')+'<div id="app-tool-results">'+groups.map(group=>'<section class="app-hub-group"><h2>'+group.title+'</h2><div class="app-hub-tools">'+group.keys.map(key=>toolHtml(tools[key],false,hub==='coach'&&key==='tactics')).join('')+'</div></section>').join('')+'</div>'+(hub==='more'?'<p class="app-tools-empty" data-tools-empty hidden>No tools found. Try coach, leagues or account.</p>':'')+'<p role="alert" class="app-hub-notice"></p></div>'
 }
