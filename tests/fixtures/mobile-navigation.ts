@@ -14,6 +14,7 @@ import {tournamentSnapshot} from './native-tournaments'
 import {DEFAULT_ENTITLEMENTS} from '../../lib/access-model-core'
 import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coachPreviewConnectionRequest} from './native-coach-browser'
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
+import {trainingInboxPreview} from './mobile-training-inbox'
 const originalFetch=window.fetch.bind(window)
 const fixtureState={requests:0}
 const chatUnreadFixture={total:7,reads:0,fail:false,detailed:false,secondTeam:false,denyRoom:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
@@ -51,6 +52,7 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/coach/invites')return coachPreviewInvitesRequest(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/connection')return coachPreviewConnectionRequest(init?.body)
  if(url.pathname==='/api/mobile/coach/tactics')return tacticsPreviewRequest(init?.method||'GET',url,init?.body)
+ const trainingReply=trainingInboxPreview(url,init?.method||'GET',init?.body);if(trainingReply)return trainingReply
  let reply:unknown={ok:false,error:'Synthetic preview does not provide this service'}
  if(url.pathname==='/api/leagues/summary'&&new URL(location.href).searchParams.has('explore-return'))reply={leagues:[{key:'northside',leagueName:'Northside League',flight:'4.0',year:'2026',season:'Fall',teamCount:4,matchCount:6,districtArea:'Northside'}]}
  if(url.pathname==='/api/profile/link'){connectNavigationPlayer();reply={ok:true,profile:{linked_player_id:navigationOwner}}}

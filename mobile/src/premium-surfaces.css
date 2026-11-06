@@ -493,6 +493,53 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .comparison-fold-body { padding:0 12px 12px; }
 .comparison-fold-body>section { margin:12px 0;padding:14px;background:var(--premium-inset);border-color:var(--premium-line);box-shadow:none; }
 .comparison-fold-body>h2 { margin:18px 0 0; }
+.training-dialog.training-inbox-screen {
+ padding:16px;border-color:var(--premium-line);background:var(--premium-page);overflow-wrap:anywhere;
+}
+.training-inbox-header {
+ position:sticky;inset-block-start:-16px;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;
+ margin:-16px -16px 12px;padding:12px 16px;background:var(--premium-page);border-block-end:1px solid var(--premium-line);
+}
+.training-inbox-header h1 { margin:0;font-size:1.2rem;line-height:1.2; }
+.training-inbox-header button.secondary { inline-size:auto;flex:none;min-block-size:44px;margin:0;padding:8px 12px;font-size:.8125rem; }
+.training-inbox-screen .training-inbox-tabs {
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:0 0 12px;
+ background:var(--premium-inset);border-color:var(--premium-line);
+}
+.training-inbox-screen .training-inbox-tabs button.secondary {
+ min-inline-size:0;min-block-size:44px;padding:8px 4px;font-size:.75rem;line-height:1.3;white-space:normal;
+}
+.training-inbox-screen .training-inbox-tabs button[aria-pressed="false"] { background:transparent;color:var(--premium-copy); }
+.training-inbox-screen [data-inbox-region] { scroll-margin-block-start:72px; }
+.training-inbox-screen [data-inbox-region][hidden] { display:none; }
+.training-inbox-screen [data-inbox-region] section {
+ margin:0 0 10px;padding:14px;border-color:var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-surface);box-shadow:none;
+}
+.training-inbox-screen [data-inbox-region] .training-assignment-next { background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22; }
+.training-assignment-meta { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px; }
+.training-assignment-meta small { color:var(--premium-ice);font-size:.6875rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase; }
+.training-assignment-meta span {
+ padding:4px 8px;border:1px solid var(--premium-line);border-radius:999px;background:var(--premium-inset);
+ color:var(--premium-copy);font-size:.6875rem;font-weight:700;line-height:1.35;
+}
+.training-assignment-meta :is([data-due-tone="overdue"],[data-due-tone="today"]) { color:#ffcf98; }
+.training-assignment-meta [data-due-tone="done"] { color:var(--premium-lime); }
+.training-inbox-screen .training-assignment h2 { margin:10px 0 6px;color:var(--premium-white);font-size:1.0625rem;line-height:1.25; }
+.training-inbox-screen .training-assignment h3 { margin:12px 0 4px;font-size:.875rem; }
+.training-assignment p,.training-assignment li { margin:5px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
+.training-assignment .training-assignment-date { font-size:.75rem;color:var(--premium-ice); }
+.training-assignment .training-assignment-proof {
+ margin:12px 0;padding:10px 12px;background:var(--premium-inset);border-inline-start:2px solid var(--premium-royal-line);border-radius:8px;
+}
+.training-assignment-proof strong { display:block;color:var(--premium-white); }
+.training-assignment-actions { display:grid;gap:6px;margin-block-start:12px; }
+.training-assignment-actions button { min-block-size:44px;margin:0;padding:8px 10px;font-size:.8125rem; }
+.training-inbox-fold {
+ margin-block:8px;padding:0 12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface);
+}
+.training-inbox-fold>summary { color:var(--premium-white);font-size:.8125rem;font-weight:700; }
+.training-inbox-note { color:var(--premium-copy);font-size:.75rem;line-height:1.5; }
 /* View selectors use the same inlay as the active tab. Actions and status badges have their own treatments. */
 :is(body[data-screen="lab"] #recent-results .match-filters,
     body[data-screen="lab"] .lab-form-filters,
@@ -500,6 +547,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
     #comparison-list>[role="group"],
     #comparison-result .match-filters,
     .coach-hub-lanes,
+    .training-inbox-tabs,
     .explore-categories,
     body[data-screen="teams"] .chats-inbox-filters,
     .cal-switch,

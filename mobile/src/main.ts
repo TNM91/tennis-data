@@ -399,7 +399,11 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='imports'){if(!dataImports?.isOpen())dataImports=openDataImports(client,owner,current);return}
  if(destination==='account'){launchAccount(trigger);return}
  if(destination==='training'||destination==='training-inbox'||destination==='training-progress'){
-  if(!training?.isOpen())training=openLevelUp(client,owner,current,destination==='training-inbox'?'inbox':destination==='training-progress'?'progress':'catalog');return
+  if(!training?.isOpen()){
+   trigger.focus({preventScroll:true})
+   training=openLevelUp(client,owner,current,destination==='training-inbox'?'inbox':destination==='training-progress'?'progress':'catalog')
+  }
+  return
  }
 
  navigation.querySelector<HTMLButtonElement>('[data-screen="'+destination+'"]')?.click()
