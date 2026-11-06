@@ -1,6 +1,6 @@
 import {test,expect,type Page} from '@playwright/test'
 const origin='http://127.0.0.1:4283',last='44444444-4444-4444-8444-444444444444'
-type Preview=Window&{coachChatFixture:{enabled:boolean};coachUnreadFixture:{enabled:boolean;unavailable:boolean;readFail:boolean;longHistory:boolean;newAfterRead:boolean;holdLoad:boolean;releaseLoad:()=>void;loads:number;holdRead:boolean;releaseRead:()=>void;reads:{student:string;message:string}[]};chatUnreadFixture:{emit:()=>void};switchNavigationOwner:()=>void}
+type Preview=Window&{coachChatFixture:{enabled:boolean};coachUnreadFixture:{enabled:boolean;unavailable:boolean;readFail:boolean;longHistory:boolean;newAfterRead:boolean;holdLoad:boolean;releaseLoad:()=>void;loads:number;holdRead:boolean;releaseRead:()=>void;reads:{student:string;message:string}[]};chatUnreadFixture:{reads:number;opened:string[];emit:()=>void};switchNavigationOwner:()=>void}
 async function inbox(page:Page,width=390){
  await page.routeWebSocket('**/*',ws=>ws.close());await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1')
  await page.evaluate(()=>{const w=window as unknown as Preview;w.coachChatFixture.enabled=true;w.coachUnreadFixture.enabled=true;w.chatUnreadFixture.emit()})
@@ -11,10 +11,25 @@ async function latest(page:Page){
 }
 for(const width of [320,390])test('Coach unread badges stay separate from team filters and clear after the latest note is visible at '+width+'px',async({page},info)=>{
  await inbox(page,width);await expect(page.locator('[data-team-unread]')).toHaveText('7');await expect(page.locator('[data-coach-chat="student-one"] [data-coach-unread]')).toHaveText('2')
- await page.getByRole('searchbox',{name:'Find a team'}).fill('Baseline');await page.locator('[data-chats-filter="unread"]').click();await page.locator('[data-coach-filter="unread"]').click()
+ const shortcuts=page.getByRole('group',{name:'Chat inbox shortcuts'})
+ const teamJump=shortcuts.getByRole('button',{name:'Team chats 7 unread',exact:true})
+ const coachJump=shortcuts.locator('[data-chats-jump="chats-coach-inbox"]')
+ await expect(coachJump).toHaveAccessibleName('Coach & player 3 unread')
+ expect(await shortcuts.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await page.screenshot({path:info.outputPath('chat-shortcuts-'+width+'.png')})
+ const traffic=()=>page.evaluate(()=>{const w=window as unknown as Preview;return {counts:w.chatUnreadFixture.reads,team:w.chatUnreadFixture.opened.length,coach:w.coachUnreadFixture.loads,read:w.coachUnreadFixture.reads.length}})
+ const before=await traffic()
+ await teamJump.click();await expect(page.getByRole('heading',{name:'Your teams',exact:true})).toBeFocused()
+ await page.getByRole('searchbox',{name:'Find a team'}).fill('Baseline');await page.locator('[data-chats-filter="unread"]').click()
+ await coachJump.click();const coachHeading=page.getByRole('heading',{name:'Coach & player',exact:true})
+ await expect(coachHeading).toBeFocused();await expect(coachHeading).toBeInViewport({ratio:1})
+ expect(await traffic()).toEqual(before)
+ await page.locator('[data-coach-filter="unread"]').click()
  const dialog=await latest(page);await expect(page.locator('[data-chat-badge]')).toHaveText('8');await expect(page.locator('[data-team-unread]')).toHaveText('7')
  expect(await page.evaluate(()=>(window as unknown as Preview).coachUnreadFixture.reads)).toEqual([{student:'student-one',message:last}])
  await dialog.getByRole('button',{name:'Close',exact:true}).click();await expect(page.locator('[data-coach-chat="student-one"]')).toHaveCount(0);await expect(page.locator('[data-coach-filter="unread"]')).toBeFocused();await expect(page.locator('[data-coach-filter="unread"]')).toHaveAttribute('aria-pressed','true')
+ await expect(teamJump).toHaveAccessibleName('Team chats 7 unread')
+ await expect(coachJump).toHaveAccessibleName('Coach & player 1 unread')
  await expect(page.getByRole('searchbox',{name:'Find a team'})).toHaveValue('Baseline');await expect(page.locator('[data-chats-filter="unread"]')).toHaveAttribute('aria-pressed','true')
  await page.locator('[data-coach-filter="all"]').click();await expect(page.locator('[data-coach-chat="student-one"] [data-coach-unread]')).toBeHidden()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:info.outputPath('coach-unread-'+width+'.png')})
@@ -22,6 +37,8 @@ for(const width of [320,390])test('Coach unread badges stay separate from team f
 test('Coach count outages keep the team badge and never claim that private conversations are caught up',async({page})=>{
  await inbox(page);await page.evaluate(()=>{const w=window as unknown as Preview;w.coachUnreadFixture.unavailable=true;w.chatUnreadFixture.emit()})
  await expect(page.locator('.app-navigation [data-screen="teams"]')).toHaveAttribute('aria-label','Chats, at least 7 unread messages. Some counts unavailable.');await expect(page.locator('[data-chat-badge]')).toHaveText('7')
+ await expect(page.locator('[data-chats-jump="chats-team-inbox"]')).toHaveAccessibleName('Team chats 7 unread')
+ await expect(page.locator('[data-chats-jump="chats-coach-inbox"]')).toHaveAccessibleName('Coach & player Private chats')
  await page.locator('[data-coach-filter="unread"]').click();await expect(page.locator('[data-coach-chat-status]')).toContainText('Unread counts unavailable');await expect(page.locator('[data-coach-chat]')).toHaveCount(0)
  await page.evaluate(()=>(window as unknown as Preview).coachUnreadFixture.unavailable=false);await page.getByRole('button',{name:'Refresh conversations',exact:true}).click();await expect(page.locator('[data-coach-chat]')).toHaveCount(2);await expect(page.locator('[data-chat-badge]')).toHaveText('10')
 })
