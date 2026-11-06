@@ -11,7 +11,14 @@ for(const width of [320,390])test('Calendar team practices: readable dates, exac
  await d.getByRole('button',{name:'Month',exact:true}).click();await d.getByRole('combobox',{name:'Show',exact:true}).selectOption('team');await expect(d.locator('.cal-event')).toHaveCount(2)
  await d.getByRole('searchbox',{name:'Find a date',exact:true}).fill('Baseline');await expect(d.locator('.cal-event')).toHaveCount(2)
  expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);expect(await d.locator('.cal-body').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
- await d.locator('.cal-event.team').first().scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('calendar-team-'+width+'.png')});const child=await practice(page,d)
+ const highlight=d.locator('[data-cal-highlight]'),jump=highlight.getByRole('button',{name:'Jump to event',exact:true})
+ await expect(highlight.locator('.stat-eyebrow')).toHaveText('Today');await expect(highlight).toContainText('18:00 – 20:15');await expect(highlight).toContainText('Northside Tennis Center');await expect(highlight.locator('img')).toHaveCount(0)
+ await expect(jump).toHaveAccessibleDescription('Team practice: Return + first ball <img src=x>')
+ await highlight.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('calendar-highlight-'+width+'.png')})
+ const beforeJump=await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)
+ await jump.click();await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toBeFocused()
+ expect(await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)).toBe(beforeJump)
+ await page.screenshot({path:info.outputPath('calendar-team-'+width+'.png')});const child=await practice(page,d)
  expect(await child.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);await expect(child.getByRole('button',{name:'Back to practices',exact:true})).toHaveCount(0)
  const request=new URLSearchParams(await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.find(r=>r.query.includes('eventId'))!.query));expect(Object.fromEntries(request)).toEqual({team:'Baseline Aces',league:'City League',flight:'4.0',eventId:event})
  await child.locator('[data-response="out"]').click();expect(await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.filter(r=>r.method==='PATCH').length)).toBe(0)
@@ -24,6 +31,7 @@ for(const width of [320,390])test('Calendar team practices: readable dates, exac
 test('Calendar team practices: a search matching only a cancelled practice cannot export it',async({page})=>{
  const d=await calendar(page),title=await d.locator('.cal-event.team').last().locator('strong').innerText(),before=await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)
  await d.getByRole('combobox',{name:'Show',exact:true}).selectOption('team');await d.getByRole('searchbox',{name:'Find a date',exact:true}).fill(title);await expect(d.locator('.cal-event')).toHaveCount(1);await expect(d.locator('.cal-event')).toContainText('Cancelled');await expect(d.getByRole('button',{name:'Export',exact:true})).toBeDisabled()
+ await expect(d.getByRole('button',{name:'Jump to event',exact:true})).toHaveCount(0)
  expect(await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)).toBe(before)
 })
 test('Calendar team practices: interrupted RSVP uses the existing exact receipt check without a duplicate write',async({page})=>{

@@ -484,11 +484,21 @@ dialog.native-calendar-screen[open]{display:flex;flex-direction:column;gap:12px}
 .cal-body{overflow-y:auto;overscroll-behavior:contain;flex:1;scroll-padding-block:14px;padding:2px 3px 18px}
 .cal-body [data-cal-status]:empty{display:none}
 .cal-body [data-cal-status]{color:#c5dceb;font-size:.9rem;margin:4px 0 14px;overflow-wrap:anywhere}
-.cal-hero{position:relative;display:flex;align-items:center;gap:14px;margin:0;padding:18px 16px;border:1px solid #235879;border-radius:22px;background:radial-gradient(ellipse at top right,#105079 0,transparent 65%),linear-gradient(120deg,#092a45,#061b30);overflow:hidden}
-.cal-hero h2{font-size:clamp(1.35rem,5vw,1.8rem);letter-spacing:-.035em;line-height:1.08;margin:12px 0}
-.cal-hero p{color:#b7cfe0;font-size:.9rem;line-height:1.5;margin:0}
-.cal-hero>span{flex:0 0 44px;color:#79cbff;opacity:.8}.cal-hero svg{width:44px;height:44px}
-.cal-hero .stat-eyebrow{font-size:.65rem;letter-spacing:.13em;color:#b2e52e}
+.native-calendar-screen .cal-hero{
+ margin:0;padding:18px 16px;border:1px solid var(--premium-line);border-radius:22px;
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card);
+ box-shadow:inset 0 1px #b2c8ff22;overflow-wrap:anywhere;
+}
+.cal-hero-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cal-hero-top span{display:flex;flex:none;color:var(--premium-ice)}
+.cal-hero-top svg{inline-size:30px;block-size:30px}
+.cal-hero .stat-eyebrow{font-size:.65rem;letter-spacing:.13em;color:var(--premium-lime)}
+.cal-hero h2{font-size:clamp(1.35rem,5vw,1.8rem);letter-spacing:-.035em;line-height:1.08;margin:6px 0 8px}
+.cal-hero p{color:var(--premium-copy);font-size:.9rem;line-height:1.4;margin:0}
+.native-calendar-screen .cal-hero button[data-cal-jump]{
+ margin-block-start:12px;background:var(--premium-inset);border-color:var(--premium-line);
+ border-radius:var(--premium-control-radius);color:var(--premium-white);
+}
 .cal-toolbar,.cal-period,.cal-agenda-title{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:18px 0}
 .cal-toolbar{flex-wrap:wrap}.cal-filter-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);align-items:end}.cal-period h3{font-size:1rem;text-align:center;margin:0;overflow-wrap:anywhere}.cal-period button{flex:0 0 44px;font-size:1.6rem;padding:2px}
 .cal-switch{display:flex;gap:4px;border:1px solid #204560;border-radius:14px;padding:3px;background:#061d33}
@@ -514,7 +524,7 @@ dialog.native-calendar-screen[open]{display:flex;flex-direction:column;gap:12px}
 .cal-footnote{font-size:.76rem;line-height:1.6;color:#8cabc1;margin:24px 0 6px}.cal-warning{font-size:.85rem;padding:12px;border:1px solid #816335;border-radius:12px;color:#f0d4a1;background:#30291e;line-height:1.5}
 .cal-panel,.cal-form{margin:0;display:flex;flex-direction:column;gap:17px;border:1px solid #234a66;border-radius:22px;background:linear-gradient(150deg,#0b2941,#061c31);padding:22px 18px;overflow-wrap:anywhere}
 .cal-panel h2,.cal-form h2{font-size:1.5rem;letter-spacing:-.025em;margin:0 0 5px}.cal-panel h3{margin:0;font-size:1.2rem}.cal-panel p,.cal-form p{margin:0;color:#afc9dc;font-size:.9rem;line-height:1.6;white-space:pre-line}.cal-form label,.cal-panel label{color:#d1e2ee;font-size:.9rem}.cal-form-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.cal-empty{padding:25px 16px;border:1px dashed #345774;border-radius:18px}.cal-empty h3{font-size:1.05rem;margin:0 0 8px}.cal-empty p{color:#a8c3d7;font-size:.9rem;line-height:1.5;margin:0}
-@media(min-width:700px){dialog.native-calendar-screen{padding-inline:max(24px,calc((100vw - 700px)/2))}.cal-grid button{min-block-size:58px}.cal-hero{padding:28px}.cal-hero>span,.cal-hero svg{width:62px;height:62px;flex-basis:62px}}
+@media(min-width:700px){dialog.native-calendar-screen{padding-inline:max(24px,calc((100vw - 700px)/2))}.cal-grid button{min-block-size:58px}.native-calendar-screen .cal-hero{padding:28px}}
 .updates-body { flex:1; overflow-y:auto; overscroll-behavior:contain; padding-block:18px 24px; }
 .updates-summary { display:flex; align-items:center; gap:14px; padding:18px; margin-block-end:22px; border:1px solid #31526c; border-radius:20px; background:linear-gradient(115deg,#123a57,#092339); }
 .updates-summary-icon { display:grid; place-items:center; flex:none; inline-size:42px; block-size:42px; color:#79c8ff; }
