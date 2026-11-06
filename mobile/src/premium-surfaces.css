@@ -441,6 +441,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
     body[data-screen="lab"] .lab-form-filters,
     #following-list .match-filters,
     #comparison-list>[role="group"],
+    #comparison-result .match-filters,
     .explore-categories,
     body[data-screen="teams"] .chats-inbox-filters,
     .cal-switch,

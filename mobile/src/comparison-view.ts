@@ -13,10 +13,14 @@ import {findPlayers,type PlayerChoice} from './player-connection'
 import {loadComparison,comparisonCard,type ComparedPlayer} from './comparison-data'
 import {showExplore as showPlayer} from './explore'
 import {html,createMatchDetails} from './match-details'
+type MatchType='singles'|'doubles'
+
 export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initial?:{players:readonly PlayerChoice[];localMatches?:boolean;scrollHost?:HTMLElement}) {
- let notes:ReturnType<typeof openLabGoals>|null=null,matchType:'singles'|'doubles'='singles';let disposed=false,revision=0,view:RatingView='overall',data:ComparedPlayer[]|null=null,detail:ReturnType<typeof showPlayer>|null=null,scroll=0
+ let notes:ReturnType<typeof openLabGoals>|null=null,matchType:MatchType='singles';let disposed=false,revision=0,view:RatingView='overall',data:ComparedPlayer[]|null=null,detail:ReturnType<typeof showPlayer>|null=null,scroll=0
  let meetings:ReturnType<typeof createMatchDetails>|null=null
- let seeds=comparisonSeedPlayers(initial?.players);if(seeds)view='singles'
+ const seeds=comparisonSeedPlayers(initial?.players)
+ const lineups:Record<MatchType,Array<PlayerChoice|null>>={singles:seeds??[null,null],doubles:[null,null,null,null]}
+ if(seeds)view='singles'
  const valid=()=>!disposed && isCurrent()
  app.innerHTML='<h1 tabindex="-1">Matchup</h1><p role="status">Checking your player access…</p>'
  app.querySelector<HTMLElement>('h1')!.focus()
@@ -26,6 +30,7 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
    if(!valid())return
    if(!allowed){app.innerHTML=`<h1 tabindex="-1">Matchup</h1><p>Player comparison is included with ${html(MEMBERSHIP_TIERS.player_plus.name)} access.</p>`;app.querySelector<HTMLElement>('h1')!.focus();return}
    setup()
+   app.querySelector<HTMLElement>('h1')!.focus()
   }catch{
    if(!valid())return
    app.innerHTML='<h1 tabindex="-1">Matchup</h1><p role="alert">Can’t check your access. Check your connection and try again.</p><button type="button" class="secondary">Retry access</button>'
@@ -66,30 +71,84 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
    if(focus)host.querySelector<HTMLElement>(checkBusy?'[role="status"]':'[data-load-check]')?.focus({preventScroll:true})
   }
   app.innerHTML=`<div id="comparison-list"><small>Matchup</small><h1 tabindex="-1">${html(MATCHUP_STORY.headline)}</h1><p>Compare singles or doubles, review the rating-based read, and save a courtside plan.</p><div role="group" aria-label="Match type"><button type="button" class="secondary" data-match-type="singles" aria-pressed="${matchType==='singles'}">Singles</button><button type="button" class="secondary" data-match-type="doubles" aria-pressed="${matchType==='doubles'}">Doubles</button></div><div id="comparison-pickers"></div><button type="button" id="compare-players" disabled>Compare players</button><p role="status" id="comparison-status"></p><div id="comparison-result"></div></div><div id="comparison-player" hidden></div>`
-  app.querySelector<HTMLElement>('h1')!.focus()
   const list=app.querySelector<HTMLElement>('#comparison-list')!,playerHost=app.querySelector<HTMLElement>('#comparison-player')!,result=list.querySelector<HTMLElement>('#comparison-result')!,status=list.querySelector<HTMLElement>('#comparison-status')!,compare=list.querySelector<HTMLButtonElement>('#compare-players')!
-  const chosen:Array<PlayerChoice|null>=seeds?seeds.map(player=>({...player})):Array.from({length:matchType==='doubles'?4:2},()=>null);seeds=null
+  const chosen=lineups[matchType],editing=new Set<number>()
+  let comparing=false
   const pickerRevision=chosen.map(()=>0)
-  list.querySelectorAll<HTMLButtonElement>('[data-match-type]').forEach(b=>{b.onclick=()=>{if(!valid()||notes?.isOpen())return;revision++;data=null;meetings?.dispose();meetings=null;matchType=b.dataset.matchType as 'singles'|'doubles';view=matchType;setup();app.querySelector<HTMLElement>('[data-match-type="'+matchType+'"]')?.focus()}})
+  list.querySelectorAll<HTMLButtonElement>('[data-match-type]').forEach(b=>{b.onclick=()=>{
+   const next=b.dataset.matchType as MatchType
+   if(!valid()||!list.isConnected||list.hidden||notes?.isOpen()||next===matchType)return
+   revision++;data=null;meetings?.dispose();meetings=null;matchType=next;view=next;setup()
+   app.querySelector<HTMLElement>('[data-match-type="'+matchType+'"]')?.focus({preventScroll:true})
+  }})
   const pickers=list.querySelector<HTMLElement>('#comparison-pickers')!
-  pickers.innerHTML=chosen.map((_,index)=>`<section data-picker="${index}"><h2>${matchType==='doubles'?(index<2?'Your side':'Other side')+' · ':''}Player ${index+1}</h2><form><label>Player ${index+1} name<input type="search" minlength="2" maxlength="80" required autocomplete="off"></label><button class="secondary">Search player ${index+1}</button></form><p role="status"></p><div class="comparison-choices"></div></section>`).join('')
-  const reset=()=>{historical=null;checkBusy=false;checkNotice='';opponentHistory=null;opponentBusy=false;opponentNotice='';histories=null;historyBusy=false;historyNotice='';meetings?.dispose();meetings=null;revision++;data=null;result.innerHTML='';status.textContent='';compare.disabled=chosen.some(p=>!p)||new Set(chosen.filter(p=>p).map(p=>p!.id)).size!==chosen.filter(p=>p).length;if(new Set(chosen.filter(p=>p).map(p=>p!.id)).size!==chosen.filter(p=>p).length)status.textContent='Choose different players for every slot.'}
+  pickers.innerHTML=chosen.map((_,index)=>`<section data-picker="${index}">
+   <h2>${matchType==='doubles'?(index<2?'Your side':'Other side')+' · ':''}Player ${index+1}</h2>
+   <div class="comparison-pick-summary" data-picker-summary hidden>
+    <strong data-picked-name></strong><p data-picked-context></p>
+    <button type="button" class="secondary" data-change-player>Change</button>
+   </div>
+   <div data-picker-search>
+    <form><label>Player ${index+1} name<input type="search" minlength="2" maxlength="80" required autocomplete="off"></label><button class="secondary">Search player ${index+1}</button></form>
+    <button type="button" class="secondary" data-keep-player hidden>Keep player ${index+1}</button>
+    <p role="status"></p><div class="comparison-choices"></div>
+   </div>
+  </section>`).join('')
+  const hasDuplicate=()=>{
+   const ids=chosen.flatMap(player=>player?[player.id]:[])
+   return new Set(ids).size!==ids.length
+  }
+  const updateCompare=()=>{
+   compare.disabled=comparing||editing.size>0||chosen.some(player=>!player)||hasDuplicate()
+   pickers.querySelectorAll<HTMLButtonElement>('[data-change-player]').forEach(button=>button.disabled=comparing)
+  }
+  const reset=()=>{historical=null;checkBusy=false;checkNotice='';opponentHistory=null;opponentBusy=false;opponentNotice='';histories=null;historyBusy=false;historyNotice='';meetings?.dispose();meetings=null;revision++;data=null;comparing=false;result.innerHTML='';status.textContent=hasDuplicate()?'Choose different players for every slot.':'';updateCompare()}
   pickers.querySelectorAll<HTMLElement>('[data-picker]').forEach(panel=>{
    const index=Number(panel.dataset.picker),form=panel.querySelector<HTMLFormElement>('form')!,input=form.querySelector<HTMLInputElement>('input')!,button=form.querySelector<HTMLButtonElement>('button')!,notice=panel.querySelector<HTMLElement>('[role="status"]')!,choices=panel.querySelector<HTMLElement>('.comparison-choices')!
-   const seed=chosen[index];if(seed){input.value=seed.name.slice(0,80);notice.textContent=`Selected: ${seed.name} · ${seed.location||'Location unavailable'} · ${seed.flight||'Flight unavailable'}`}
-   input.oninput=()=>{pickerRevision[index]++;chosen[index]=null;notice.textContent='Search, then choose a player.';choices.innerHTML='';button.disabled=false;reset()}
+   const summary=panel.querySelector<HTMLElement>('[data-picker-summary]')!,search=panel.querySelector<HTMLElement>('[data-picker-search]')!,change=summary.querySelector<HTMLButtonElement>('[data-change-player]')!,keep=search.querySelector<HTMLButtonElement>('[data-keep-player]')!
+   const pickerActive=()=>valid()&&panel.isConnected&&!list.hidden&&!notes?.isOpen()
+   const paint=()=>{
+    const player=chosen[index]
+    summary.hidden=!player||editing.has(index)
+    search.hidden=!summary.hidden
+    keep.hidden=!player
+    panel.toggleAttribute('data-player-selected',!summary.hidden)
+    if(player){
+     summary.querySelector<HTMLElement>('[data-picked-name]')!.textContent=player.name
+     summary.querySelector<HTMLElement>('[data-picked-context]')!.textContent=[player.location,player.flight].filter(Boolean).join(' · ')
+     change.setAttribute('aria-label',`Change player ${index+1}, ${player.name}`)
+    }
+   }
+   const clearSearch=()=>{pickerRevision[index]++;notice.textContent='';choices.innerHTML='';button.disabled=false}
+   const closeSearch=()=>{clearSearch();editing.delete(index);paint();updateCompare();change.focus({preventScroll:true})}
+   change.onclick=()=>{
+    const player=chosen[index]
+    if(!pickerActive()||change.disabled||!player)return
+    clearSearch();editing.add(index);paint();updateCompare()
+    input.value=player.name.slice(0,80);input.focus();input.select()
+   }
+   keep.onclick=()=>{if(pickerActive()&&editing.has(index))closeSearch()}
+   input.oninput=()=>{if(pickerActive()&&!search.hidden)clearSearch()}
    form.onsubmit=async event=>{
-    event.preventDefault();if(button.disabled || !valid())return
-    const request=++pickerRevision[index];chosen[index]=null;reset();button.disabled=true;choices.innerHTML='';notice.textContent='Finding players…'
+    event.preventDefault();if(button.disabled||!pickerActive()||search.hidden)return
+    const request=++pickerRevision[index];button.disabled=true;choices.innerHTML='';notice.textContent='Finding players…'
     try{
      const players=await findPlayers(client,input.value)
-     if(!valid() || request!==pickerRevision[index])return
+     if(!pickerActive()||request!==pickerRevision[index])return
      notice.textContent=players.length?'Choose a record below. Showing up to 12.':'No players found. Try the name used in league results.'
      choices.innerHTML=players.map((player,i)=>`<button type="button" class="secondary" data-choice="${i}">${html(player.name)} · ${html(player.location || 'Location unavailable')} · ${html(player.flight || 'Flight unavailable')}</button>`).join('')
-     choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>{chosen[index]=players[Number(control.dataset.choice)];notice.textContent=`Selected: ${chosen[index]!.name}`;choices.innerHTML='';reset()}})
-    }catch{if(valid() && request===pickerRevision[index])notice.textContent='Can’t find players. Check your connection and search again.'}
-    finally{if(valid() && request===pickerRevision[index])button.disabled=false}
+     choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>{
+      if(!pickerActive()||!control.isConnected||request!==pickerRevision[index])return
+      const player=players[Number(control.dataset.choice)]
+      const changed=chosen[index]?.id!==player.id
+      if(changed)chosen[index]=player
+      closeSearch()
+      if(changed)reset()
+     }})
+    }catch{if(pickerActive()&&request===pickerRevision[index])notice.textContent='Can’t find players. Check your connection and search again.'}
+    finally{if(pickerActive()&&request===pickerRevision[index])button.disabled=false}
    }
+   paint()
   })
   reset()
   const back=()=>{detail?.dispose();detail=null;playerHost.hidden=true;playerHost.innerHTML='';list.hidden=false;if(initial?.scrollHost)initial.scrollHost.scrollTop=scroll;else window.scrollTo(0,scroll);result.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}
@@ -114,13 +173,13 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
    result.querySelectorAll<HTMLButtonElement>('[data-comparison-player]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;meetings?.dispose();meetings=null;scroll=initial?.scrollHost?.scrollTop??window.scrollY;list.hidden=true;playerHost.hidden=false;detail=showPlayer(playerHost,client,valid,{player:data[Number(button.dataset.comparisonPlayer)].player,back,backLabel:'Back to comparison',localMatches:initial?.localMatches,scrollHost:initial?.scrollHost})}})
   }
   compare.onclick=async()=>{
-   if(!valid() || chosen.some(p=>!p) || compare.disabled)return
+   if(!valid()||!list.isConnected||list.hidden||notes?.isOpen()||compare.disabled)return
    meetings?.dispose();meetings=null
    historical=null;checkBusy=false;checkNotice=''
    opponentHistory=null;opponentBusy=false;opponentNotice=''
    histories=null;historyBusy=false;historyNotice=''
    const request=++revision,players=chosen.filter((p):p is PlayerChoice=>p!==null)
-   compare.disabled=true;result.innerHTML='';status.textContent='Loading recorded comparison…'
+   comparing=true;updateCompare();result.innerHTML='';status.textContent='Loading recorded comparison…'
    try{
     const eligible=await canUsePlayerInsights(client,valid)
     if(!valid() || request!==revision)return
@@ -129,7 +188,7 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
     if(!valid() || request!==revision)return
     data=loaded;status.textContent='Comparison ready.';render();result.querySelector<HTMLElement>('h2')!.focus();result.scrollIntoView({block:'start'})
    }catch{if(valid() && request===revision)status.textContent='Can’t load the comparison. Check your connection, then compare again.'}
-   finally{if(valid() && request===revision)compare.disabled=false}
+   finally{if(valid() && request===revision){comparing=false;updateCompare()}}
   }
  }
  void start()
