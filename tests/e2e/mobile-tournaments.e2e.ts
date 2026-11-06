@@ -10,6 +10,34 @@ async function open(page:Page,mode=''){await page.goto(origin+prefix+'?view='+mo
 async function change(page:Page,v:Record<string,unknown>){await page.evaluate(v=>Object.assign((window as unknown as {tournamentFixture:{state:Record<string,unknown>}}).tournamentFixture.state,v),v)}
 async function division(page:Page,mode=''){const d=await open(page,mode);await d.getByRole('button',{name:/^Open tournament/}).click();await d.getByRole('button',{name:/^Open division/}).click();await expect(d.getByRole('button',{name:'Draw',exact:true})).toBeVisible();return d}
 async function bounded(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await page.getByRole('dialog',{name:'Tournaments',exact:true}).evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)}
+test('tournament browse return focuses the exact reordered division and event',async({page})=>{
+ await page.setViewportSize({width:390,height:720})
+ const dialog=await open(page,'browse-return')
+ await page.addStyleTag({content:':root{font-size:22px!important}'})
+ const search=dialog.getByRole('searchbox',{name:'Find a tournament'})
+ const event=dialog.getByRole('button',{name:'Open tournament Northside Open',exact:true})
+ const division=dialog.getByRole('button',{name:'Open division 4.0 Doubles',exact:true})
+ await search.fill('Open')
+ await dialog.getByRole('button',{name:'Search',exact:true}).click()
+ await expect(event).toHaveAttribute('data-tournament-open','5')
+ await event.click()
+ await expect(division).toHaveAttribute('data-tournament-division','5')
+ await division.click()
+ await expect(dialog.getByRole('button',{name:'Draw',exact:true})).toBeVisible()
+ await change(page,{reorderCards:true})
+ await dialog.getByRole('button',{name:'← Event',exact:true}).click()
+ await expect(division).toHaveAttribute('data-tournament-division','6')
+ await expect(division).toBeFocused()
+ await expect(division).toBeInViewport({ratio:1})
+
+ await dialog.getByRole('button',{name:'← Tournaments',exact:true}).click()
+ await expect(event).toHaveAttribute('data-tournament-open','6')
+ await expect(event).toBeFocused()
+ await expect(event).toBeInViewport({ratio:1})
+ await expect(search).toHaveValue('Open')
+ expect(await dialog.evaluate(el=>el.scrollTop)).toBeGreaterThan(0)
+ await bounded(page)
+})
 for(const width of [320,390]){
  test('published event, division, draw, schedule, results and standings at '+width+'px',async({page},info)=>{await page.setViewportSize({width,height:844});const d=await division(page);await bounded(page);await expect(d.locator('.competition-metrics>p,.competition-metrics>button')).toHaveCount(0);await d.getByRole('button',{name:'Draw',exact:true}).click();await expect(d).toContainText('Jordan Serve');await d.getByRole('button',{name:'Schedule',exact:true}).click();await expect(d).toContainText('Court 2');await expect(d).toContainText('America/Chicago');await bounded(page);await page.screenshot({path:info.outputPath('tournaments-schedule.png')});await d.getByRole('button',{name:'Results',exact:true}).click();await expect(d).toContainText('6-4 6-3');await expect(d).not.toContainText('Jordan Serve');await d.getByRole('button',{name:'Standings',exact:true}).click();await expect(d).toContainText('1 W · 0 L · 100%');await page.screenshot({path:info.outputPath('tournaments-standings.png')});await d.getByRole('button',{name:'← Event',exact:true}).click();await expect(d.getByRole('button',{name:/^Open division/})).toBeVisible();await d.getByRole('button',{name:'← Tournaments',exact:true}).click();await expect(d.getByLabel('Find a tournament')).toBeVisible();await d.getByRole('button',{name:'← Competitions',exact:true}).click();await expect(page.getByRole('dialog',{name:'Competitions',exact:true})).toBeVisible()})
  test('long names and larger text stay within the phone at '+width+'px',async({page},info)=>{await page.setViewportSize({width,height:844});const d=await division(page,'long');await page.addStyleTag({content:':root{font-size:22px!important}'});for(const tab of ['Draw','Schedule','Results','Standings']){await d.getByRole('button',{name:tab,exact:true}).click();await bounded(page)}await page.screenshot({path:info.outputPath('tournaments-large-text.png')})})

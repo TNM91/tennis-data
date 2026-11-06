@@ -7,7 +7,7 @@ import {openCompetitions} from '../../mobile/src/competitions-view'
 import {labActionsHtml} from '../../mobile/src/lab-home'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail,competitionPlayerDetail} from './competitions-data'
 const mode=new URLSearchParams(location.search).get('view')||'team'
-const state={playerWithdrawn:false,playerReordered:false,teamWithdrawn:false,teamReordered:false,finderChanged:false,calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
+const state={cardOrder:'original',playerWithdrawn:false,playerReordered:false,teamWithdrawn:false,teamReordered:false,finderChanged:false,calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
 function detailForFinder(){
  const d=mode.includes('player')?competitionPlayerDetail():competitionDetail();if(mode.includes('player')){
   if(mode.includes('long')){const name='Alex '+('Championship'.repeat(18));d.participants[0].name=name;for(const row of [...d.fixtures,...d.results]){if(row.a==='Alex Server')row.a=name;if(row.b==='Alex Server')row.b=name;if('winner' in row&&row.winner==='Alex Server')row.winner=name}}
@@ -57,6 +57,11 @@ const send:ScenarioSend=async options=>{
  if(snapshot.scope==='discover')snapshot.connections=[]
  if(snapshot.query==='nothing')snapshot.leagues=[]
  if(mode.includes('finder'))snapshot.leagues.push({...snapshot.leagues[0],id:'league-two',name:'Second season'})
+ if(mode==='browse-return'&&!p.get('league')){
+  const [league]=snapshot.leagues
+  const others=Array.from({length:6},(_,index)=>({...league,id:'league-extra-'+index,name:'Night League '+(index+1)}))
+  snapshot.leagues=state.cardOrder==='removed'?others:state.cardOrder==='reordered'?[...others,league]:[...others.slice(0,5),league,others[5]]
+ }
  if(p.get('league')){snapshot.detail=detailForFinder();if(p.get('league')==='league-two')snapshot.detail.league={...snapshot.leagues[1]}}
  if(mode==='long'){snapshot.leagues[0].name='Northside'+('Championship'.repeat(15));if(snapshot.detail)snapshot.detail.league.name=snapshot.leagues[0].name}
  if(mode==='incomplete'&&snapshot.detail){snapshot.detail.moreResults=true;snapshot.detail.standingsAvailable=false;snapshot.detail.standings=[]}

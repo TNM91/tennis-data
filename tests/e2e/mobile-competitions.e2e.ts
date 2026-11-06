@@ -10,6 +10,38 @@ const state=(page:Page)=>page.evaluate(()=>(window as unknown as {competitionFix
 async function open(page:Page,mode='team'){await page.goto(origin+prefix+'?view='+mode);await page.getByRole('button',{name:'Your competitions'}).click();await expect(page.getByRole('dialog')).toContainText('Awaiting approval')}
 async function bounded(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);const widths=await page.getByRole('dialog').evaluate(el=>({client:el.clientWidth,scroll:el.scrollWidth,overflow:[...el.querySelectorAll('*')].filter(c=>c.getBoundingClientRect().right>el.getBoundingClientRect().right).slice(0,8).map(c=>({tag:c.tagName,cls:c.className,text:c.textContent?.slice(0,40),width:c.getBoundingClientRect().width}))}));if(widths.scroll>widths.client)await page.screenshot({path:test.info().outputPath('competitions-overflow.png')});expect(widths.scroll<=widths.client,JSON.stringify(widths)).toBe(true)}
 async function change(page:Page,values:Record<string,unknown>){await page.evaluate(v=>Object.assign((window as unknown as {competitionFixture:{state:Record<string,unknown>}}).competitionFixture.state,v),values)}
+test('league browse return preserves the search and focuses the exact reordered card',async({page})=>{
+ await page.setViewportSize({width:320,height:720})
+ await open(page,'browse-return')
+ await page.addStyleTag({content:':root{font-size:22px!important}'})
+ const dialog=page.getByRole('dialog',{name:'Competitions',exact:true})
+ const browse=dialog.getByRole('button',{name:'Browse leagues',exact:true})
+ const search=dialog.getByRole('searchbox',{name:'Find a TiQ league'})
+ const league=dialog.getByRole('button',{name:'Open league Northside Night League — Fall Doubles',exact:true})
+ await browse.click()
+ await search.fill('Night League')
+ await dialog.getByRole('button',{name:'Search',exact:true}).click()
+ await expect(league).toHaveAttribute('data-competition-league','5')
+ await league.click()
+ await expect(dialog.getByRole('heading',{name:'Coming up',exact:true})).toBeVisible()
+ await change(page,{cardOrder:'reordered'})
+ await dialog.getByRole('button',{name:'← Competitions',exact:true}).click()
+ await expect(league).toHaveAttribute('data-competition-league','6')
+ await expect(league).toBeFocused()
+ await expect(league).toBeInViewport({ratio:1})
+ await expect(search).toHaveValue('Night League')
+ await expect(browse).toHaveAttribute('aria-pressed','true')
+ expect(await dialog.evaluate(el=>el.scrollTop)).toBeGreaterThan(0)
+ await bounded(page)
+
+ await league.click()
+ await expect(dialog.getByRole('heading',{name:'Coming up',exact:true})).toBeVisible()
+ await change(page,{cardOrder:'removed'})
+ await dialog.getByRole('button',{name:'← Competitions',exact:true}).click()
+ await expect(dialog.getByRole('heading',{name:'Competitions',exact:true})).toBeFocused()
+ await expect(league).toHaveCount(0)
+ await expect(search).toHaveValue('Night League')
+})
 for(const width of [320,390]){
  test('league schedule, results, approved roster and shared standings at '+width+'px',async({page},info)=>{
   await page.setViewportSize({width,height:844});await open(page);await bounded(page);await page.screenshot({path:info.outputPath('competitions-home.png')})

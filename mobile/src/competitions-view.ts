@@ -11,6 +11,7 @@ import {html} from './match-details'
 import {bindLeagueListFinder,emptyLeagueListFinder,emptyLeagueListFilters,leagueParticipantsViewHtml,type LeagueListFilters} from './league-list-finder'
 import {bindLeaguePlayerActions,openLeaguePlayerEvidence,restoreLeaguePlayerFocus} from './league-player-evidence'
 import {bindLeagueTeamActions,openLeagueTeamEvidence,restoreLeagueTeamFocus} from './league-team-evidence'
+import {restoreLeagueEvidenceFocus as restoreListFocus} from './league-evidence-dialog'
 type View='home'|'fixtures'|'results'|'standings'|'participants'
 const stateLabel=(v:string)=>(({draft:'Draft',registration_open:'Registration open',active:'In season',completed:'Completed',archived:'Past season'} as Record<string,string>)[v]||v.replaceAll('_',' '))
 export function competitionCardsHtml(snapshot:CompetitionSnapshot){
@@ -35,6 +36,7 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
  dialog.className='captain-lineup-dialog competitions-dialog';dialog.setAttribute('aria-label','Competitions')
  let disposed=false,version=0,busy=false,scope=initial,query='',selected=/^[a-zA-Z0-9_-]{1,80}$/.test(initialLeague)?initialLeague:'',view:View='home',snapshot:CompetitionSnapshot|null=null,notice=''
  let filters=emptyLeagueFinder(),lists=emptyLeagueListFinder()
+ let leagueListScroll:number|null=null
  let teamEvidence:ReturnType<typeof openLeagueTeamEvidence>|null=null
  let entry:ReturnType<typeof openLeagueEntry>|null=null
  let tournaments:ReturnType<typeof openTournaments>|null=null
@@ -42,7 +44,18 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
  const dispose=()=>{if(disposed)return;disposed=true;version++;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const hidden=()=>{if(document.visibilityState==='hidden')dispose()}
  const focus=()=>dialog.querySelector<HTMLElement>(selected?'[data-competition-content] h3':'h2')?.focus({preventScroll:true})
- const back=()=>{if(!active()){dispose();return true}if(teamEvidence?.isOpen())return teamEvidence.back();if(tournaments?.isOpen())return tournaments.back();if(entry?.isOpen())return entry.back();if(selected){selected='';view='home';void load()}else dispose();return true}
+ const back=()=>{
+  if(!active()){dispose();return true}
+  if(teamEvidence?.isOpen())return teamEvidence.back()
+  if(tournaments?.isOpen())return tournaments.back()
+  if(entry?.isOpen())return entry.back()
+  if(selected){
+   const returning=leagueListScroll===null?undefined:{id:selected,scroll:leagueListScroll}
+   selected='';view='home';leagueListScroll=null
+   void load(returning)
+  }else dispose()
+  return true
+ }
  const render=()=>{
   if(!active())return
   const d=snapshot?.detail
@@ -58,7 +71,14 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   dialog.querySelectorAll<HTMLButtonElement>('[data-competition-scope]').forEach(b=>{b.onclick=()=>{scope=b.dataset.competitionScope as CompetitionScope;void load()}})
   dialog.querySelector('[data-competition-discover]')?.addEventListener('click',()=>{scope='discover';void load()})
   dialog.querySelector<HTMLFormElement>('form.competition-search')?.addEventListener('submit',e=>{e.preventDefault();query=String(new FormData(e.currentTarget as HTMLFormElement).get('q')||'').trim();void load()})
-  dialog.querySelectorAll<HTMLButtonElement>('[data-competition-league]').forEach(b=>{b.onclick=()=>{const l=snapshot?.leagues[Number(b.dataset.competitionLeague)];if(l){selected=l.id;view='home';filters=emptyLeagueFinder();lists=emptyLeagueListFinder();void load()}}})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-competition-league]').forEach(b=>{b.onclick=()=>{
+   const league=snapshot?.leagues[Number(b.dataset.competitionLeague)]
+   if(!league)return
+   leagueListScroll=dialog.scrollTop
+   selected=league.id;view='home';filters=emptyLeagueFinder();lists=emptyLeagueListFinder()
+   dialog.scrollTop=0
+   void load()
+  }})
   dialog.querySelectorAll<HTMLButtonElement>('[data-competition-view]').forEach(b=>{b.onclick=()=>{view=b.dataset.competitionView as View;render();focus()}})
   dialog.querySelector('[data-competition-entry]')?.addEventListener('click',()=>{if(!selected||entry?.isOpen())return;entry=openLeagueEntry(client,owner,active,selected,()=>{entry=null;if(active())void load()},send)})
   if(d)bindLeagueTeamActions(dialog,d,()=>active()&&!busy,team=>{
@@ -73,12 +93,19 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   bindLeagueMatchFinder(dialog,()=>active()&&!busy,next=>{if(view!=='fixtures'&&view!=='results')return;filters[view]=next;render();dialog.querySelector<HTMLElement>('[data-league-filter-summary]')?.focus()})
   dialog.querySelector('[data-competition-chats]')?.addEventListener('click',()=>{dispose();onChats?.()})
  }
- const load=async()=>{
+ const load=async(returning?:{id:string;scroll:number})=>{
   if(!active())return
   const attempt=++version;busy=true;snapshot=null;notice='Loading your competition records…';render()
   try{const result=await loadCompetitions(client,owner,()=>active()&&version===attempt,scope,query,selected,send);if(active()&&version===attempt){snapshot=result;notice=''}}
   catch{if(active()&&version===attempt)notice='Couldn’t load these competitions. Refresh to try again.'}
-  finally{if(active()&&version===attempt){busy=false;render();focus();if(notice)dialog.querySelector<HTMLElement>('[data-competition-notice]')?.focus()}}
+  finally{if(active()&&version===attempt){
+   busy=false;render()
+   const index=returning?snapshot?.leagues.findIndex(league=>league.id===returning.id)??-1:-1
+   const opener=index>=0?dialog.querySelector<HTMLElement>('[data-competition-league="'+index+'"]'):null
+   if(notice)dialog.querySelector<HTMLElement>('[data-competition-notice]')?.focus()
+   else if(opener&&returning)restoreListFocus(dialog,opener,returning.scroll)
+   else focus()
+  }}
  }
  dialog.oncancel=e=>{e.preventDefault();back()};document.addEventListener('visibilitychange',hidden);document.body.append(dialog);dialog.showModal();void load()
  return {dispose,isOpen:()=>!disposed,back}

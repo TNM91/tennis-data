@@ -6,7 +6,7 @@ import type {TournamentEntryReceipt} from '../../lib/native-tournament-entry-con
 import {tournamentEntrySnapshot,tournamentReceipt} from './native-tournament-entry'
 import {tournamentOwner as owner,tournamentSnapshot,tournamentSummary} from './native-tournaments'
 const mode=new URL(location.href).searchParams.get('view')||''
-const state={owner,active:true,offline:false,delay:false,calls:0,entryPosts:0,entrySaved:false,entryLostReply:false,entryConflict:false,decisionSaved:false,declined:false,removeEntrant:false,prependStanding:false,removeGroup:false,withholdDraw:false,release:()=>{}}
+const state={owner,active:true,offline:false,delay:false,calls:0,entryPosts:0,entrySaved:false,entryLostReply:false,entryConflict:false,decisionSaved:false,declined:false,removeEntrant:false,prependStanding:false,removeGroup:false,withholdDraw:false,reorderCards:false,release:()=>{}}
 const client={auth:{getSession:async()=>({data:{session:{user:{id:state.owner},access_token:'fixture-only'}}})}} as unknown as SupabaseClient
 const send:ScenarioSend=async o=>{
  state.calls++;if(state.delay)await new Promise<void>(resolve=>{state.release=resolve});if(state.offline)throw Error('Offline')
@@ -24,6 +24,12 @@ const send:ScenarioSend=async o=>{
   data={ok:true,...s}
  }else if(u.pathname.endsWith('/tournaments')){
   const s=tournamentSnapshot(u.searchParams.get('tournament')||'',u.searchParams.get('division')||'');s.query=u.searchParams.get('q')||''
+  if(mode==='browse-return'&&!s.division){
+   const parent=s.detail?.root.id||'',cards=s.detail?s.detail.divisions:s.tournaments
+   const others=Array.from({length:6},(_,index)=>({...tournamentSummary('extra-'+index,parent),name:(parent?'Division ':'Open ')+(index+1)}))
+   cards.splice(0,0,...others.slice(0,5))
+   cards.splice(state.reorderCards?5:6,0,others[5])
+  }
   if(mode==='long'){s.tournaments[0].name='NorthsideChampionship'.repeat(12);if(s.detail){s.detail.root.name=s.tournaments[0].name;s.detail.divisions[0].name='DoublesDivision'.repeat(15);if(s.detail.active)s.detail.active.name=s.detail.divisions[0].name;s.detail.matches.forEach(m=>{m.a='AlexServe'.repeat(25);if(m.winner)m.winner=m.a;m.court='Court'.repeat(25)});s.detail.standings.forEach(r=>{r.name='AlexServe'.repeat(25)})}}
   if(mode.startsWith('standings')&&s.detail){
    if(mode==='standings-divisions')s.detail.divisions.push({...tournamentSummary('division-two','event-one'),name:'Second flight'})

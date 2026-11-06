@@ -517,6 +517,7 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 .competitions-dialog .competition-hero { border-color:var(--competition-edge);background:var(--premium-card);box-shadow:inset 0 1px #b1e4ff20; }
 .competitions-dialog .competition-hero small { color:var(--competition-accent);font-weight:650; }
 .competitions-dialog .competition-card { background:var(--premium-card);border-color:#365970;box-shadow:inset 0 1px #b1e4ff12; }
+.competitions-dialog .competition-card:focus-within { border-color:var(--premium-royal-line); }
 .competitions-dialog .competition-card-meta { letter-spacing:.035em;text-transform:none;color:var(--competition-accent); }
 .competitions-dialog .competition-card-meta>span:last-child { padding:4px 9px;border:1px solid #56778a70;border-radius:100px;background:#143247; }
 .competitions-dialog .competition-tabs { padding:6px;gap:4px;border:1px solid var(--premium-line);border-radius:18px;background:var(--premium-inset); }

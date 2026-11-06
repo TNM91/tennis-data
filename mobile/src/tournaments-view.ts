@@ -38,12 +38,24 @@ export function openTournaments(client:SupabaseClient,owner:string,current:()=>b
  dialog.className='captain-lineup-dialog competitions-dialog tournaments-dialog';dialog.setAttribute('aria-label','Tournaments')
  let child:ReturnType<typeof openTournamentEntry>|null=null
  let disposed=false,version=0,busy=false,query='',selected=/^[a-zA-Z0-9_-]{1,80}$/.test(initialTournament)?initialTournament:'',division='',view:View='home',snapshot:TournamentSnapshot|null=null,notice='',filters=emptyTournamentMatchFilters(),entrant:Entrant|null=null,standingsScroll=0,standingFilters=emptyTournamentStandingFilters()
+ let tournamentListScroll:number|null=null,divisionListScroll=0
  const active=()=>!disposed&&current()
  const dispose=()=>{if(disposed)return;disposed=true;version++;child?.dispose();child=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();onClose();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const hidden=()=>{if(document.visibilityState==='hidden')dispose()}
  const focus=()=>(dialog.querySelector<HTMLElement>('[data-tournament-content] h3')||dialog.querySelector<HTMLElement>('h2'))?.focus({preventScroll:true})
  const returnToStandings=()=>{const previousEntrant=entrant;entrant=null;view='standings';render();const i=snapshot?.detail?.standings.findIndex(s=>s.name===previousEntrant?.name&&s.group===previousEntrant?.group)??-1,target=dialog.querySelector<HTMLElement>('[data-tournament-entrant="'+i+'"]')||dialog.querySelector<HTMLElement>('[data-tournament-content] h3');restoreListFocus(dialog,target,standingsScroll)}
- const back=()=>{if(!active()){dispose();return true}if(child?.isOpen())return child.back();if(entrant){returnToStandings()}else if(division){division='';view='home';filters=emptyTournamentMatchFilters();standingFilters=emptyTournamentStandingFilters();void load()}else if(selected){selected='';view='home';filters=emptyTournamentMatchFilters();standingFilters=emptyTournamentStandingFilters();void load()}else dispose();return true}
+ const back=()=>{
+  if(!active()){dispose();return true}
+  if(child?.isOpen())return child.back()
+  if(entrant){returnToStandings();return true}
+  if(!selected){dispose();return true}
+  const returning=division?{id:division,scroll:divisionListScroll}:tournamentListScroll===null?undefined:{id:selected,scroll:tournamentListScroll}
+  if(division)division=''
+  else{selected='';tournamentListScroll=null}
+  view='home';filters=emptyTournamentMatchFilters();standingFilters=emptyTournamentStandingFilters()
+  void load(returning)
+  return true
+ }
  const render=()=>{
   if(!active())return
   const d=snapshot?.detail,t=d?.active||d?.root
@@ -55,8 +67,22 @@ export function openTournaments(client:SupabaseClient,owner:string,current:()=>b
   dialog.querySelector('[data-tournament-back]')?.addEventListener('click',back)
   dialog.querySelector('[data-tournament-refresh]')?.addEventListener('click',()=>{void load()})
   dialog.querySelector<HTMLFormElement>('.competition-search')?.addEventListener('submit',e=>{e.preventDefault();query=String(new FormData(e.currentTarget as HTMLFormElement).get('q')||'').trim();void load()})
-  dialog.querySelectorAll<HTMLButtonElement>('[data-tournament-open]').forEach(b=>{b.onclick=()=>{const t=snapshot?.tournaments[Number(b.dataset.tournamentOpen)];if(t){selected=t.id;view='home';filters=emptyTournamentMatchFilters();standingFilters=emptyTournamentStandingFilters();void load()}}})
-  dialog.querySelectorAll<HTMLButtonElement>('[data-tournament-division]').forEach(b=>{b.onclick=()=>{const t=snapshot?.detail?.divisions[Number(b.dataset.tournamentDivision)];if(t){division=t.id;view='home';filters=emptyTournamentMatchFilters();standingFilters=emptyTournamentStandingFilters();void load()}}})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-tournament-open]').forEach(b=>{b.onclick=()=>{
+   const tournament=snapshot?.tournaments[Number(b.dataset.tournamentOpen)]
+   if(!tournament)return
+   tournamentListScroll=dialog.scrollTop
+   selected=tournament.id;view='home';filters=emptyTournamentMatchFilters();standingFilters=emptyTournamentStandingFilters()
+   dialog.scrollTop=0
+   void load()
+  }})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-tournament-division]').forEach(b=>{b.onclick=()=>{
+   const entry=snapshot?.detail?.divisions[Number(b.dataset.tournamentDivision)]
+   if(!entry)return
+   divisionListScroll=dialog.scrollTop
+   division=entry.id;view='home';filters=emptyTournamentMatchFilters();standingFilters=emptyTournamentStandingFilters()
+   dialog.scrollTop=0
+   void load()
+  }})
   dialog.querySelectorAll<HTMLButtonElement>('[data-tournament-entrant]').forEach(b=>{b.onclick=()=>{if(!active()||busy)return;const s=snapshot?.detail?.standings[Number(b.dataset.tournamentEntrant)];if(!s||snapshot?.detail?.drawNotice)return;standingsScroll=dialog.scrollTop;entrant={name:s.name,group:s.group};render();dialog.scrollTop=0;focus()}})
   bindTournamentStandingsFinder(dialog,()=>active()&&!busy&&!entrant&&view==='standings'&&!!snapshot?.detail?.active,next=>{standingFilters=next;render();dialog.querySelector<HTMLElement>('[data-tournament-standings-status]')?.focus()})
   const filterFocus=()=>dialog.querySelector<HTMLElement>('[data-tournament-filter-status]')?.focus({preventScroll:true})
@@ -64,10 +90,19 @@ export function openTournaments(client:SupabaseClient,owner:string,current:()=>b
   dialog.querySelector('[data-tournament-clear-filters]')?.addEventListener('click',()=>{if(!active())return;filters=emptyTournamentMatchFilters();render();filterFocus()})
   dialog.querySelectorAll<HTMLButtonElement>('[data-tournament-view]').forEach(b=>{b.onclick=()=>{view=b.dataset.tournamentView as View;render();focus()}})
  }
- const load=async()=>{if(!active())return;const attempt=++version;busy=true;snapshot=null;notice='Loading published tournaments…';render()
+ const load=async(returning?:{id:string;scroll:number})=>{if(!active())return;const attempt=++version;busy=true;snapshot=null;notice='Loading published tournaments…';render()
   try{const result=await loadTournaments(client,owner,()=>active()&&version===attempt,query,selected,division,send);if(active()&&version===attempt){snapshot=result;notice=''}}
   catch{if(active()&&version===attempt)notice='Couldn’t load these tournaments. Refresh to try again.'}
-  finally{if(active()&&version===attempt){busy=false;render();focus();if(notice)dialog.querySelector<HTMLElement>('[data-tournament-notice]')?.focus()}}
+  finally{if(active()&&version===attempt){
+   busy=false;render()
+   const cards=selected?snapshot?.detail?.divisions:snapshot?.tournaments
+   const index=returning?cards?.findIndex(card=>card.id===returning.id)??-1:-1
+   const action=selected?'data-tournament-division':'data-tournament-open'
+   const opener=index>=0?dialog.querySelector<HTMLElement>('['+action+'="'+index+'"]'):null
+   if(notice)dialog.querySelector<HTMLElement>('[data-tournament-notice]')?.focus()
+   else if(opener&&returning)restoreListFocus(dialog,opener,returning.scroll)
+   else focus()
+  }}
  }
  dialog.oncancel=e=>{e.preventDefault();back()};document.addEventListener('visibilitychange',hidden);document.body.append(dialog);dialog.showModal();void load()
  return {dispose,isOpen:()=>!disposed,back}
