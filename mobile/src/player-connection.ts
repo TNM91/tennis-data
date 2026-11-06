@@ -40,9 +40,10 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
   let selected: PlayerChoice | null = null
   const valid = () => !disposed && isCurrent()
   app.dataset.state = 'connect-player'
-  app.innerHTML = '<h1 tabindex="-1">Find your tennis record</h1><p>Search your name, then check the location and flight before connecting your record to My Lab.</p><form id="player-search"><label>Your tennis name<input name="player-name" type="search" autocomplete="name" minlength="2" maxlength="80" required></label><button>Search players</button></form><p role="status" id="player-search-status"></p><p role="alert" id="player-link-error"></p><div id="player-choices"></div><section id="player-confirm" hidden></section><button type="button" class="secondary" id="back-lab">Back to My Lab</button>'
+  app.innerHTML = '<div id="player-search-panel"><h1 tabindex="-1">Find your tennis record</h1><p>Search your name and check the location and flight.</p><form id="player-search"><label>Your tennis name<input name="player-name" type="search" autocomplete="name" minlength="2" maxlength="80" required></label><button>Search players</button></form></div><p role="status" id="player-search-status"></p><p role="alert" id="player-link-error"></p><div id="player-choices"></div><section id="player-confirm" aria-labelledby="player-confirm-title" hidden></section><button type="button" class="secondary" id="back-lab">Back to My Lab</button>'
   app.querySelector<HTMLElement>('h1')!.focus()
   const form = app.querySelector<HTMLFormElement>('#player-search')!
+  const searchPanel = app.querySelector<HTMLElement>('#player-search-panel')!
   const searchButton = form.querySelector<HTMLButtonElement>('button')!
   const input = form.querySelector<HTMLInputElement>('input')!
   const status = app.querySelector<HTMLElement>('#player-search-status')!
@@ -73,15 +74,25 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
     try {
       const rows = await actions.search(input.value)
       if (!valid() || version !== request) return
-      status.textContent = rows.length ? `${rows.length} record${rows.length === 1 ? '' : 's'} found. Showing up to 12; add more of your name to narrow the results.` : 'No records found. Try the name used in your league results.'
+      const summary = rows.length ? `${rows.length} record${rows.length === 1 ? '' : 's'} found.${rows.length === 12 ? ' Add more of your name to narrow the results.' : ''}` : 'No records found. Try the name used in your league results.'
+      status.textContent = summary
       choices.innerHTML = `<ul class="player-choices">${rows.map((row,index) => `<li><h2>${html(row.name)}</h2><p>${html(row.location || 'Location unavailable')} · ${html(row.flight || 'Flight unavailable')}</p><button type="button" class="secondary" data-player-choice="${index}">Review this record<span class="sr-only"> for ${html(row.name)}</span></button></li>`).join('')}</ul>`
       choices.querySelectorAll<HTMLButtonElement>('[data-player-choice]').forEach(button => {
         button.onclick = () => {
           if (saving || !valid()) return
           selected = rows[Number(button.dataset.playerChoice)]
+          searchPanel.hidden = choices.hidden = true
+          status.textContent = ''
           confirmation.hidden = false
-          confirmation.innerHTML = `<h2 tabindex="-1">Is this your record?</h2><p><strong>${html(selected.name)}</strong><br>${html(selected.location || 'Location unavailable')} · ${html(selected.flight || 'Flight unavailable')}</p><p>Connect only your own tennis record. Your matches will appear in My Lab.</p><button type="button" id="confirm-player">Connect my player</button>`
-          confirmation.querySelector<HTMLElement>('h2')!.focus()
+          confirmation.innerHTML = `<h1 id="player-confirm-title" tabindex="-1">Is this your record?</h1><p><strong>${html(selected.name)}</strong><br>${html(selected.location || 'Location unavailable')} · ${html(selected.flight || 'Flight unavailable')}</p><p>Connect your own record to see your TiQ scoreboard and recent matches in My Lab.</p><button type="button" id="confirm-player">Connect my player</button><button type="button" class="secondary" id="change-player">Back to search results</button>`
+          confirmation.querySelector<HTMLElement>('h1')!.focus()
+          confirmation.querySelector<HTMLButtonElement>('#change-player')!.onclick = () => {
+            clearSelection()
+            searchPanel.hidden = choices.hidden = false
+            error.textContent = ''
+            status.textContent = summary
+            button.focus()
+          }
           confirmation.querySelector<HTMLButtonElement>('#confirm-player')!.onclick = async () => {
             if (saving || !selected || !valid()) return
             saving = true

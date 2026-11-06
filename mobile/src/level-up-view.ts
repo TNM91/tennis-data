@@ -5,6 +5,7 @@ import {Browser} from './native-browser'
 import {loadTrainingPlans,loadTrainingCoachWork,type TrainingCoachWork} from './training-inbox-data'
 import {trainingPlansHtml,trainingCoachWorkHtml,trainingInboxLaunches} from './training-inbox-view'
 import type {WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
+import {openCalendar} from './calendar-view'
 import {loadTrainingChoices,saveTrainingChoices,chooseTrainingIdentity,emptyTrainingChoices,trainingPlanHtml,trainingIdentity} from './training-identity'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {LEVEL_UP_CARDS,LEVEL_UP_MODULES} from '../../lib/level-up/level-up-cards'
@@ -29,10 +30,11 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  if(initial==='catalog'&&launch){selected=LEVEL_UP_CARDS.find(c=>c.id===launch.cardId)||null;phase=selected?'card':'catalog';if(selected)sessionDirection=trainingIdentity(launch.identitySlug)?launch.identitySlug:choices.active}
  let replyEditor:ReturnType<typeof openWeeklyCoachReply>|null=null
  let coachEditor:ReturnType<typeof openCoachCheckIn>|null=null
+ let practiceCalendar:ReturnType<typeof openCalendar>|null=null
  let weekPending:WeeklyChange|null=null,weekBusy=false,weekAttempted=false,weekConflict=false,weekLeaving=false,weekNotice='',plansVersion=0,coachVersion=0
  const completed=new Set<string>(),clock=new TrainingClock(),active=()=>!disposed&&current()
- const dispose=()=>{if(disposed)return;disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;practiceModule=null;choices=emptyTrainingChoices();plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';clearInterval(tick);document.removeEventListener('visibilitychange',visibility);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
- const requestClose=()=>{if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}dispose()}
+ const dispose=()=>{if(disposed)return;disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;practiceCalendar?.dispose();practiceCalendar=null;version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;practiceModule=null;choices=emptyTrainingChoices();plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';clearInterval(tick);document.removeEventListener('visibilitychange',visibility);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
+ const requestClose=()=>{if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(practiceCalendar?.isOpen()){practiceCalendar.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}dispose()}
  const accessCopy=()=>allowed===true?'Self-guided training saves privately to your account.':allowed===false?`${MEMBERSHIP_TIERS.player_plus.name} access is required to save self-guided training. You can still read the cards and your account history.`:accessError?'Account access could not be checked.':'Checking your player access…'
  const catalogue=()=>{const matches=trainingSelection(LEVEL_UP_CARDS,query,setting);return `<p>${matches.length} training cards match. Showing ${Math.min(24,matches.length)}; narrow your search for more.</p><ul class="matches">${matches.slice(0,24).map(c=>`<li><h3>${html(c.title)}</h3><p>${c.durationMinutes} min · ${html(c.pack)} · ${html(c.intensity)} intensity</p><p>${html(c.tennisGoal)}</p><button type="button" class="secondary" data-card="${html(c.id)}">Open training<span class="sr-only"> ${html(c.title)}</span></button></li>`).join('')}</ul>`}
  const bindCards=()=>dialog.querySelectorAll<HTMLButtonElement>('[data-card]').forEach(b=>{b.onclick=()=>{selected=LEVEL_UP_CARDS.find(c=>c.id===b.dataset.card)||null;if(!selected)return;cardFromPlan=phase==='plan';cardFromInbox=false;sessionDirection=choices.active;sessionOrigin='';phase='card';notice='';render();focus()}})
@@ -100,6 +102,17 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   }})
   dialog.querySelector<HTMLButtonElement>('[data-plan-refresh]')?.addEventListener('click',()=>{void readPlans()})
   dialog.querySelector<HTMLButtonElement>('[data-coach-refresh]')?.addEventListener('click',()=>{void readCoach()})
+  const schedule=dialog.querySelector<HTMLButtonElement>('[data-week-schedule]')
+  if(schedule)schedule.onclick=()=>{
+   const {weekSchedule,scheduleTitle}=schedule.dataset
+   if(!active()||practiceCalendar?.isOpen()||!scheduleTitle)return
+   practiceCalendar=openCalendar(client,owner,active,undefined,{practiceTitle:scheduleTitle,onClose:()=>{
+    practiceCalendar=null
+    const button=dialog.querySelector<HTMLButtonElement>('[data-week-schedule]')
+    if(button&&button.dataset.weekSchedule===weekSchedule)button.focus({preventScroll:true})
+    else focus()
+   }})
+  }
   dialog.querySelectorAll<HTMLButtonElement>('[data-inbox-card]').forEach(button=>{button.onclick=()=>{
    if(!active())return
    const launch=trainingInboxLaunches(plans||[],coachWork).find(item=>item.key===button.dataset.inboxCard)

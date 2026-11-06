@@ -11,19 +11,24 @@ import websiteUi from '../generated/website-ui.json'
 const label=(day:string)=>new Date(day+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})
 const repeatNames:Record<string,string>={'':'Does not repeat','FREQ=DAILY':'Every day','FREQ=WEEKLY':'Every week','FREQ=MONTHLY':'Every month on this day'}
 type Panel='agenda'|'editor'|'review'|'delete'|'respond'|'export'|'recovery'|'leave'
-export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initialFilter:'all'|'coach'='all'){
+export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:'all'|'coach'|{practiceTitle:string;onClose:()=>void}='all'){
  const dialog=document.createElement('dialog');dialog.className='native-calendar-screen';dialog.setAttribute('aria-label','Your calendar')
  let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',failed=false,mode:'week'|'month'='week',anchor=localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
- let filter:string=initialFilter
+ let filter:string=typeof initial==='string'?initial:'all'
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago',reply:'available'|'unavailable'='available'
+ let schedulingRep=false
  let query='',agendaOpener='',agendaScroll=0,finderSource:NativeCalendar|null=null,finder:ReturnType<typeof createCalendarFinder>|null=null
  const active=()=>!disposed&&current()
  const range=()=>calendarWindow(anchor,mode)
  const occurrences=()=>{if(calendar!==finderSource){finderSource=calendar;finder=calendar?createCalendarFinder(calendar):null}return finder?.entries||[]}
  const visible=()=>{occurrences();return (finder?.find(query)||[]).filter(e=>(!day||e.date===day)&&(filter==='all'||e.source===filter))}
- const focus=()=>dialog.querySelector<HTMLElement>('h2, h1')?.focus({preventScroll:true})
- const dispose=()=>{if(disposed)return;disposed=true;practiceView?.dispose();practiceView=null;void cancelCoachFile(owner).catch(()=>{});calendar=null;finder=null;finderSource=null;query='';draft=null;pending=null;dialog.close();dialog.remove();if(current()&&trigger?.isConnected)trigger.focus({preventScroll:true})}
+ const focus=()=>{
+  const step=schedulingRep?dialog.querySelector<HTMLElement>('.cal-body h2[tabindex]'):null
+  const heading=step??dialog.querySelector<HTMLElement>('h2, h1')
+  heading?.focus({preventScroll:true})
+ }
+ const dispose=()=>{if(disposed)return;disposed=true;practiceView?.dispose();practiceView=null;void cancelCoachFile(owner).catch(()=>{});calendar=null;finder=null;finderSource=null;query='';draft=null;pending=null;dialog.close();dialog.remove();if(current()){if(typeof initial==='object')initial.onClose();else if(trigger?.isConnected)trigger.focus({preventScroll:true})}}
  const dirty=()=>!!draft&&panel!=='agenda'||Boolean(practiceView?.isOpen())
  const back=()=>{
   if(practiceView?.isOpen()){practiceView.back();return true}
@@ -43,7 +48,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   catch{if(active()){calendar=null;failed=true;notice=(message?message+' ':'')+'Your calendar couldn’t load. Check your connection and retry.'}}
   finally{if(active()){busy=false;render();if(!focusKey||!focusAgendaEvent(focusKey))focus()}}
  }
- const confirmed=async(message:string)=>{pending=null;draft=null;baseline='';selected=null;panel='agenda';await refresh(message)}
+ const confirmed=async(message:string)=>{pending=null;draft=null;baseline='';selected=null;schedulingRep=false;panel='agenda';await refresh(message)}
  const perform=async(intent:CalendarIntent)=>{
   if(!active()||busy||pending)return
   busy=true;pending=intent;notice='Saving your calendar change…';render()
@@ -67,14 +72,19 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
     const id=intent.action==='delete'?intent.id:intent.item.id,result=await calendarRequest(client,owner,active,{item:id}),saved=readCalendarItem(result.item);if(!active())return
     if(intent.action==='delete'&&!saved||intent.action!=='delete'&&saved&&sameCalendarDraft(personalDraft(saved),intent.item)){if(saved){anchor=saved.date;day='';filter='all';query=''}await confirmed(intent.action==='delete'?'Deletion confirmed.':'Your personal event is saved.');return}
     pending=null
-    if(saved){draft=personalDraft(saved);baseline=saved.updatedAt;panel='editor';notice='The saved entry differs. Review this latest version before making a change.'}
+    if(saved){draft=personalDraft(saved);baseline=saved.updatedAt;schedulingRep=false;panel='editor';notice='The saved entry differs. Review this latest version before making a change.'}
     else if(intent.action!=='delete'){draft=intent.action==='update'?{...intent.item,id:'player-calendar-'+crypto.randomUUID()}:intent.item;baseline='';panel='editor';notice=intent.action==='update'?'That event is no longer saved. Review a new personal copy.':'No saved entry was found. Review this event before saving it.'}
     else{panel='agenda';notice='Refresh to check your calendar.'}
    }
   }catch{if(active())notice='The saved result is still unavailable. Keep this screen open and check again when connected.'}
   finally{if(active()){busy=false;render();focus()}}
  }
- const setDraft=(item?:CalendarDraft,stamp='')=>{draft=item||{id:'player-calendar-'+crypto.randomUUID(),title:'',date:day||anchor,time:'',location:'',kind:'practice',recurrenceRule:'',availabilityStatus:'',venueDirectoryId:'',venuePreferenceId:''};baseline=stamp;panel='editor';notice='';render();dialog.querySelector<HTMLInputElement>('[name="title"]')?.focus()}
+ const setDraft=(item?:CalendarDraft,stamp='',practiceTitle='')=>{
+  draft=item||{id:'player-calendar-'+crypto.randomUUID(),title:practiceTitle.trim().slice(0,160).trim(),date:day||anchor,time:'',location:'',kind:'practice',recurrenceRule:'',availabilityStatus:'',venueDirectoryId:'',venuePreferenceId:''}
+  baseline=stamp;schedulingRep=Boolean(practiceTitle);panel='editor';notice='';render()
+  if(schedulingRep)focus()
+  else dialog.querySelector<HTMLInputElement>('[name="title"]')?.focus()
+ }
  const field=(name:string,title:string,value:string,type='text',max=160)=>`<label>${title}<input name="${name}" type="${type}" value="${html(value)}" ${type==='date'?'min="1900-01-01" max="2199-12-31"':''} ${type==='text'?'maxlength="'+max+'"':''}></label>`
  const details=(e:{title:string;date:string;time:string;endTime?:string;location:string})=>`<h3>${html(e.title)}</h3><p>${html(label(e.date))} · ${html(e.time?e.time.slice(0,5)+(e.endTime?' – '+e.endTime:''):'All day / time not set')}</p>${e.location?'<p>'+html(e.location)+'</p>':''}`
  const agendaCount=(list=visible())=>!calendar?(busy?'Loading…':'Unavailable'):filter==='team'&&calendar.practicesUnavailable?'Unavailable':list.length+' '+(query.trim()?'matching ':'')+(list.length===1?'date':'dates')
@@ -109,8 +119,21 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(panel==='agenda')return agenda()
   if(panel==='leave')return `<section class="cal-panel"><h2 tabindex="-1">Leave this calendar change?</h2><p>${pending?'The saved result is still unconfirmed. Your calendar will need a fresh check when you return.':'Your unsaved changes will be discarded.'}</p><button data-cal-stay>Keep reviewing</button><button class="secondary" data-cal-discard>Discard and close</button></section>`
   if(panel==='recovery')return '<section class="cal-panel"><h2 tabindex="-1">Check the saved result</h2><p>The connection ended before we could confirm your change. Check your saved calendar before trying again.</p><button data-cal-recover '+(busy?'disabled':'')+'>Check saved entry</button></section>'
-  if(panel==='editor'&&draft)return `<form class="cal-form"><h2 tabindex="-1">${baseline?'Edit personal event':'Add personal event'}</h2>${field('title','Title',draft.title)}<div class="cal-form-pair">${field('date','Date',draft.date,'date')}${field('time','Time (optional)',draft.time,'time')}</div>${field('location','Location (optional)',draft.location)}<label>Type<select name="kind">${['practice','match','lesson','reminder','availability'].map(k=>'<option value="'+k+'" '+(draft!.kind===k?'selected':'')+'>'+k[0].toUpperCase()+k.slice(1)+'</option>').join('')}</select></label><label>Repeat<select name="recurrenceRule">${Object.entries(repeatNames).map(([k,v])=>'<option value="'+k+'" '+(draft!.recurrenceRule===k?'selected':'')+'>'+v+'</option>').join('')}</select></label><label data-cal-availability ${draft.kind==='availability'?'':'hidden'}>Personal availability<select name="availabilityStatus"><option value="available" ${draft.availabilityStatus==='available'?'selected':''}>Available</option><option value="unavailable" ${draft.availabilityStatus==='unavailable'?'selected':''}>Unavailable</option></select></label><p>${draft.recurrenceRule?'Edits apply to the whole repeating series. Monthly dates skip months without that day.':'Leave time empty for an all-day entry.'} Personal events don’t book a court, send a team message or reply to a competition.</p><button type="submit">Review event</button>${baseline&&selected?'<button type="button" class="secondary" data-cal-delete-review>'+(selected.recurring?'Delete repeating series':'Delete event')+'</button>':''}<button type="button" class="secondary" data-cal-back>Cancel</button></form>`
-  if(panel==='review'&&draft)return `<section class="cal-panel"><h2 tabindex="-1">Review personal event</h2>${details(draft)}<p>${html(draft.kind)} · ${html(repeatNames[draft.recurrenceRule])}</p>${draft.kind==='availability'?'<p>Personal note: '+html(draft.availabilityStatus)+'. No competition reply is sent.</p>':''}${draft.recurrenceRule?'<p>This saves the whole repeating series.</p>':''}<button data-cal-save ${busy?'disabled':''}>${baseline?'Save changes':'Save personal event'}</button><button class="secondary" data-cal-edit ${busy?'disabled':''}>Keep editing</button></section>`
+  if(panel==='editor'&&draft)return `<form class="cal-form">
+   <h2 tabindex="-1">${schedulingRep?'Schedule practice':baseline?'Edit personal event':'Add personal event'}</h2>
+   ${field('title','Title',draft.title)}
+   <div class="cal-form-pair">${field('date','Date',draft.date,'date')}${field('time',schedulingRep?'Time':'Time (optional)',draft.time,'time')}</div>
+   ${schedulingRep?'<p>Save a private practice on your calendar. Leave the time blank for an all-day entry.</p>':`
+    ${field('location','Location (optional)',draft.location)}
+    <label>Type<select name="kind">${['practice','match','lesson','reminder','availability'].map(k=>'<option value="'+k+'" '+(draft!.kind===k?'selected':'')+'>'+k[0].toUpperCase()+k.slice(1)+'</option>').join('')}</select></label>
+    <label>Repeat<select name="recurrenceRule">${Object.entries(repeatNames).map(([k,v])=>'<option value="'+k+'" '+(draft!.recurrenceRule===k?'selected':'')+'>'+v+'</option>').join('')}</select></label>
+    <label data-cal-availability ${draft.kind==='availability'?'':'hidden'}>Personal availability<select name="availabilityStatus"><option value="available" ${draft.availabilityStatus==='available'?'selected':''}>Available</option><option value="unavailable" ${draft.availabilityStatus==='unavailable'?'selected':''}>Unavailable</option></select></label>
+    <p>${draft.recurrenceRule?'Edits apply to the whole repeating series. Monthly dates skip months without that day.':'Leave time empty for an all-day entry.'} Personal events don’t book a court, send a team message or reply to a competition.</p>`}
+   <button type="submit">${schedulingRep?'Review practice':'Review event'}</button>
+   ${baseline&&selected?'<button type="button" class="secondary" data-cal-delete-review>'+(selected.recurring?'Delete repeating series':'Delete event')+'</button>':''}
+   <button type="button" class="secondary" data-cal-back>Cancel</button>
+  </form>`
+  if(panel==='review'&&draft)return `<section class="cal-panel"><h2 tabindex="-1">${schedulingRep?'Review practice':'Review personal event'}</h2>${details(draft)}<p>${html(draft.kind)} · ${html(repeatNames[draft.recurrenceRule])}</p>${draft.kind==='availability'?'<p>Personal note: '+html(draft.availabilityStatus)+'. No competition reply is sent.</p>':''}${draft.recurrenceRule?'<p>This saves the whole repeating series.</p>':''}<button data-cal-save ${busy?'disabled':''}>${schedulingRep?'Save private practice':baseline?'Save changes':'Save personal event'}</button><button class="secondary" data-cal-edit ${busy?'disabled':''}>Keep editing</button></section>`
   if(panel==='delete'&&selected)return `<section class="cal-panel"><h2 tabindex="-1">Delete ${selected.recurring?'repeating series':'personal event'}?</h2>${details(selected)}<p>${selected.recurring?'Every occurrence from this personal series will be removed.':'This removes this personal event from your saved calendar.'}</p><button data-cal-delete ${busy?'disabled':''}>Delete ${selected.recurring?'whole series':'event'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Keep event</button></section>`
   if(panel==='respond'&&selected?.source==='team'){
    const closed=selected.teamStatus==='cancelled'||selected.teamStatus==='completed'
@@ -178,7 +201,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   dialog.querySelector('.cal-body')!.scrollTop=scroll
   const on=(selector:string,fn:(button:HTMLButtonElement)=>void)=>dialog.querySelectorAll<HTMLButtonElement>(selector).forEach(button=>button.onclick=()=>{if(active()&&!busy)fn(button)})
   dialog.querySelector('[data-cal-close]')!.addEventListener('click',back)
-  on('[data-cal-back]',back);on('[data-cal-stay]',()=>{panel=returnPanel;render()});on('[data-cal-discard]',dispose)
+  on('[data-cal-back]',back);on('[data-cal-stay]',()=>{panel=returnPanel;render();if(schedulingRep)focus()});on('[data-cal-discard]',dispose)
   on('[data-cal-refresh]',()=>void refresh());on('[data-cal-new]',()=>setDraft());on('[data-cal-recover]',()=>void recover())
   on('[data-cal-today]',()=>{anchor=localCalendarDate();day=anchor;void refresh()})
   on('[data-cal-mode]',b=>{mode=b.dataset.calMode as typeof mode;day='';void refresh()})
@@ -195,10 +218,15 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   on('[data-cal-agenda]',returnAgenda)
   const form=dialog.querySelector<HTMLFormElement>('form')
   if(form&&draft){
-   const sync=()=>{const data=new FormData(form),location=String(data.get('location')||''),kind=String(data.get('kind'));draft={...draft!,title:String(data.get('title')||''),date:String(data.get('date')||''),time:String(data.get('time')||''),location,kind:kind as CalendarDraft['kind'],recurrenceRule:String(data.get('recurrenceRule')||'') as CalendarDraft['recurrenceRule'],availabilityStatus:kind==='availability'?String(data.get('availabilityStatus')||'available') as CalendarDraft['availabilityStatus']:'',...(location!==draft!.location?{venueDirectoryId:'',venuePreferenceId:''}:{})};form.querySelector<HTMLElement>('[data-cal-availability]')!.hidden=kind!=='availability'}
+   const sync=()=>{
+    const data=new FormData(form),location=String(data.get('location')??draft!.location),kind=String(data.get('kind')??draft!.kind) as CalendarDraft['kind']
+    draft={...draft!,title:String(data.get('title')||''),date:String(data.get('date')||''),time:String(data.get('time')||''),location,kind,recurrenceRule:String(data.get('recurrenceRule')??draft!.recurrenceRule) as CalendarDraft['recurrenceRule'],availabilityStatus:kind==='availability'?String(data.get('availabilityStatus')||'available') as CalendarDraft['availabilityStatus']:'',...(location!==draft!.location?{venueDirectoryId:'',venuePreferenceId:''}:{})}
+    const availability=form.querySelector<HTMLElement>('[data-cal-availability]')
+    if(availability)availability.hidden=kind!=='availability'
+   }
    form.oninput=sync;form.onchange=sync;form.onsubmit=e=>{e.preventDefault();sync();try{draft=calendarDraft(draft);panel='review';notice='';render();focus()}catch(error){notice=error instanceof Error?error.message:'Review this event.';status()}}
   }
-  on('[data-cal-edit]',()=>{panel='editor';render()});on('[data-cal-delete-review]',()=>{panel='delete';render();focus()})
+  on('[data-cal-edit]',()=>{panel='editor';render();if(schedulingRep)focus()});on('[data-cal-delete-review]',()=>{panel='delete';render();focus()})
   on('[data-cal-save]',()=>{if(draft)void perform({action:baseline?'update':'create',item:draft,expectedUpdatedAt:baseline})})
   on('[data-cal-delete]',()=>{if(selected)void perform({action:'delete',id:selected.id,expectedUpdatedAt:baseline})})
   const replySelect=dialog.querySelector<HTMLSelectElement>('[data-cal-reply]');if(replySelect)replySelect.onchange=()=>{reply=replySelect.value as typeof reply}
@@ -207,6 +235,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const zoneSelect=dialog.querySelector<HTMLSelectElement>('[data-cal-zone]');if(zoneSelect)zoneSelect.onchange=()=>{zone=zoneSelect.value}
   on('[data-cal-export]',()=>{busy=true;notice='Preparing calendar file…';render();void (async()=>{try{const blob=new Blob([calendarExport(visible(),zone)],{type:'text/calendar'});await exportCoachFile(owner,active,blob,'TenAceIQ-'+range().from+'-'+range().to+'.ics');if(active())notice='Calendar file prepared. Add it to your preferred calendar to finish.'}catch{if(active())notice='Calendar export wasn’t completed. You can try sharing again.'}finally{if(active()){busy=false;render()}}})()})
  }
- dialog.addEventListener('cancel',e=>{e.preventDefault();back()});document.body.append(dialog);dialog.showModal();void refresh()
+ dialog.addEventListener('cancel',e=>{e.preventDefault();back()});document.body.append(dialog);dialog.showModal()
+ if(typeof initial==='object')setDraft(undefined,'',initial.practiceTitle)
+ else void refresh()
  return {dispose,isOpen:()=>!disposed&&dialog.open,back,hasDraft:dirty}
 }

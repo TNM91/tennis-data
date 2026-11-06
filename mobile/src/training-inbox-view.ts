@@ -14,8 +14,9 @@ function weeklyRepHtml(plan:WeeklyLevelUpPlan,rep:WeeklyLevelUpPlanRep,canChange
  return `<article class="training-week-rep${next?' training-week-rep-next':''}">
   <small>${next?'Next rep · ':rep.completedAt?'Recorded complete · ':''}${html(rep.label)}</small>
   <h3>${html(rep.title)}</h3><p>${html(rep.detail)}</p>
-  ${hasDrill||canChange?`<div class="training-week-actions">
+  ${hasDrill||canChange||next?`<div class="training-week-actions">
    ${hasDrill?`<button type="button" class="secondary" data-inbox-card="${html(JSON.stringify(['plan',plan.id,rep.id]))}">Practice privately<span class="sr-only"> ${html(rep.title)}</span></button>`:''}
+   ${next?`<button type="button" class="secondary" data-week-schedule="${html(JSON.stringify([plan.id,rep.id]))}" data-schedule-title="${html(rep.title)}">Schedule this rep</button>`:''}
    ${canChange?`<button type="button" class="secondary" data-week-mark="${html(JSON.stringify([plan.id,rep.id]))}" data-week-completed="${!rep.completedAt}">${rep.completedAt?'Reopen rep':'Mark rep done'}<span class="sr-only"> ${html(rep.title)}</span></button>`:''}
   </div>`:''}
   ${hasDrill?'':'<p>Follow the written rep. This focus has no exact matching drill card in the app yet.</p>'}
