@@ -4,6 +4,24 @@ type CalendarWindow=Window&{calendarFixture:{loseWrite:boolean;fail:boolean;fail
 async function calendarScreen(page:Page,width=390){
  await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1');await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="calendar"]').click();const dialog=page.getByRole('dialog',{name:'Your calendar',exact:true});await expect(dialog.locator('.cal-event')).toHaveCount(3);return dialog
 }
+test('Calendar: the lead card advances to later events without removing earlier dates',async({page})=>{
+ const now=new Date()
+ now.setHours(12,0,0,0)
+ await page.clock.setFixedTime(now)
+ const calendar=await calendarScreen(page)
+ const highlight=calendar.locator('[data-cal-highlight]')
+ const jump=highlight.getByRole('button',{name:'Jump to event',exact:true})
+ await expect(jump).toHaveAccessibleDescription('Serve + first ball')
+
+ now.setHours(18,30)
+ await page.clock.setFixedTime(now)
+ await calendar.getByRole('button',{name:'Refresh',exact:true}).click()
+ await expect(jump).toHaveAccessibleDescription(/Riverside Rally/)
+ await jump.click()
+ await expect(calendar.locator('.cal-event.competition')).toBeFocused()
+ await expect(calendar.locator('.cal-event.coach')).toContainText('Lesson: Jordan Lee')
+ await expect(calendar.locator('.cal-event')).toHaveCount(3)
+})
 for(const width of [320,390])test('Calendar: week, month and event forms stay contained at '+width+'px with larger text',async({page},info)=>{
  const d=await calendarScreen(page,width);expect(await d.locator('.cal-type>span').evaluate(el=>{const r=document.createRange();r.selectNodeContents(el);return r.getClientRects().length})).toBe(1);await expect(d).toContainText('Serve + first ball');await expect(d).toContainText('Lesson: Jordan Lee');await expect(d).toContainText('Riverside Rally')
  await d.getByRole('button',{name:'Month',exact:true}).click();await expect(d.locator('.cal-grid button')).toHaveCount(new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate())
@@ -164,6 +182,9 @@ test('Calendar finder: a failed or held refresh clears stale dates and keeps unk
 })
 
 test('Calendar finder: search sees dates beyond the first page and Show more restores keyboard focus',async({page})=>{
+ const now=new Date()
+ now.setHours(12,0,0,0)
+ await page.clock.setFixedTime(now)
  const d=await calendarScreen(page)
  await page.evaluate(()=>{const f=(window as unknown as CalendarWindow).calendarFixture,base=f.personal[0];f.personal=Array.from({length:121},(_,i)=>({...base,id:'calendar-'+i,title:i===120?'Serve target beyond first page':'Availability '+String(i).padStart(3,'0'),kind:i===120?'practice':'availability',availabilityStatus:i===120?'':'available'}))})
  await d.getByRole('button',{name:'Refresh',exact:true}).click();await expect(d.locator('.cal-event')).toHaveCount(100)

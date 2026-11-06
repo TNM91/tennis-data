@@ -135,14 +135,18 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  const field=(name:string,title:string,value:string,type='text',max=160)=>`<label>${title}<input name="${name}" type="${type}" value="${html(value)}" ${type==='date'?'min="1900-01-01" max="2199-12-31"':''} ${type==='text'?'maxlength="'+max+'"':''}></label>`
  const details=(e:{title:string;date:string;time:string;endTime?:string;location:string})=>`<h3>${html(e.title)}</h3><p>${html(label(e.date))} · ${html(e.time?e.time.slice(0,5)+(e.endTime?' – '+e.endTime:''):'All day / time not set')}</p>${e.location?'<p>'+html(e.location)+'</p>':''}`
  const agendaCount=(list=visible())=>!calendar?(busy?'Loading…':'Unavailable'):filter==='team'&&calendar.practicesUnavailable?'Unavailable':list.length+' '+(query.trim()?'matching ':'')+(list.length===1?'date':'dates')
- const nextAgendaEvent=(list:CalendarOccurrence[],today:string)=>list.find(event=>
-  event.date>=today&&event.kind!=='availability'&&
-  event.teamStatus!=='cancelled'&&event.teamStatus!=='completed'&&
-  (event.source!=='competition'||!calendar?.competitions.some(match=>match.id===event.id&&match.status==='Completed'))
- )
- const agendaHighlight=(list:CalendarOccurrence[],today:string)=>{
-  const event=nextAgendaEvent(list,today)
-  const eyebrow=!event?'Play. Plan. Improve.':event.date===today?'Today':'Next in this view'
+ const agendaHighlight=(list:CalendarOccurrence[],now=new Date())=>{
+  const today=localCalendarDate(now)
+  const timeNow=now.toTimeString().slice(0,5)
+  const scheduledNow=(event:CalendarOccurrence)=>event.date===today&&event.teamStatus==='confirmed'&&
+   Boolean(event.time&&event.endTime&&event.time<=timeNow&&timeNow<event.endTime)
+  const event=list.find(event=>{
+   if(event.date<today||event.kind==='availability'||event.teamStatus==='cancelled'||event.teamStatus==='completed')return false
+   if(event.source==='competition'&&calendar?.competitions.some(match=>match.id===event.id&&match.status==='Completed'))return false
+   return event.date>today||!event.time||event.time.slice(0,5)>=timeNow||scheduledNow(event)
+  })
+  let eyebrow='Play. Plan. Improve.'
+  if(event)eyebrow=scheduledNow(event)?'Scheduled now':event.date===today?'Today':'Next in this view'
   const top=`<div class="cal-hero-top"><small class="stat-eyebrow">${eyebrow}</small><span aria-hidden="true">${websiteUi.icons.leagues}</span></div>`
   if(!event)return top+'<h2>Your tennis calendar</h2><p>Personal plans and shared dates.</p>'
   const time=event.time?event.time.slice(0,5)+(event.endTime?' – '+event.endTime:''):''
@@ -167,12 +171,13 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const window=range(),events=matchingEvents(),byDate=groupByDate(events),dates:string[]=[]
   for(let d=window.from;d<=window.to;d=shiftCalendarDay(d,1))dates.push(d)
   const lead=mode==='month'?(new Date(window.from+'T12:00:00Z').getUTCDay()+6)%7:0
-  const list=visible(events),local=localCalendarDate(),period=mode==='month'?new Date(window.from+'T12:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'}):label(window.from)+' – '+label(window.to)
+  const now=new Date()
+  const list=visible(events),local=localCalendarDate(now),period=mode==='month'?new Date(window.from+'T12:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'}):label(window.from)+' – '+label(window.to)
   const days=dates.map(date=>{
    const matches=byDate.get(date)??[]
    return `<button data-cal-day="${date}" aria-label="${html(dateLabel(date,matches.length))}" aria-pressed="${day===date}" ${date===local?'aria-current="date"':''} ${busy?'disabled':''}><span>${Number(date.slice(8))}</span><span class="cal-dots" aria-hidden="true">${dateDots(matches)}</span></button>`
   }).join('')
-  return `<section class="cal-hero"><div data-cal-highlight>${agendaHighlight(list,local)}</div></section><div class="cal-toolbar"><div class="cal-switch" role="group" aria-label="Calendar view">${(['week','month'] as const).map(m=>'<button data-cal-mode="'+m+'" aria-pressed="'+(mode===m)+'" '+(busy?'disabled':'')+'>'+m[0].toUpperCase()+m.slice(1)+'</button>').join('')}</div><button class="secondary" data-cal-today ${busy?'disabled':''}>Today</button></div><div class="cal-period"><button class="secondary" data-cal-step="-1" aria-label="Previous ${mode}" ${busy?'disabled':''}>‹</button><h3>${html(period)}</h3><button class="secondary" data-cal-step="1" aria-label="Next ${mode}" ${busy?'disabled':''}>›</button></div><div class="cal-grid" aria-label="Choose a date">${['M','T','W','T','F','S','S'].map(d=>'<span class="cal-weekday" aria-hidden="true">'+d+'</span>').join('')}${'<span></span>'.repeat(lead)}${days}</div><div class="cal-legend"><span>● Personal</span><span>● Competition</span><span>● Coach</span><span>● Team practice</span></div><div class="cal-toolbar cal-filter-toolbar"><button class="secondary" data-cal-all aria-pressed="${!day}" ${busy?'disabled':''}>All dates</button><label class="cal-type"><span>Show</span><select data-cal-filter ${busy?'disabled':''}><option value="all">All types</option><option value="personal">Personal</option><option value="competition">Competitions</option><option value="coach">Coach</option><option value="team">Team practices</option></select></label></div><div class="cal-search"><label for="cal-search">Find a date</label><div class="cal-search-field"><input id="cal-search" data-cal-query type="search" maxlength="160" autocomplete="off" placeholder="Match, practice, lesson or venue" aria-describedby="cal-search-help" value="${html(query)}" ${busy?'disabled':''}><button type="button" class="secondary" data-cal-clear aria-label="Clear calendar search" ${query?'':'hidden'} ${busy?'disabled':''}>Clear</button></div><p class="cal-search-help" id="cal-search-help">Search names, opponents and venues in this ${mode}.</p></div>${calendar?.warnings.map(w=>'<p class="cal-warning" role="alert">'+html(w)+'</p>').join('')||''}<div class="cal-agenda-title"><h2 tabindex="-1">${day?html(label(day)):'Your agenda'}</h2><span data-cal-count role="status" aria-live="polite" aria-atomic="true">${agendaCount(list)}</span></div><div data-cal-results>${agendaRows(list)}</div><p class="cal-footnote">Competition dates come from your approved entries. Team practices appear when you’re invited and have current team access. Personal availability notes don’t send an RSVP.</p>`
+  return `<section class="cal-hero"><div data-cal-highlight>${agendaHighlight(list,now)}</div></section><div class="cal-toolbar"><div class="cal-switch" role="group" aria-label="Calendar view">${(['week','month'] as const).map(m=>'<button data-cal-mode="'+m+'" aria-pressed="'+(mode===m)+'" '+(busy?'disabled':'')+'>'+m[0].toUpperCase()+m.slice(1)+'</button>').join('')}</div><button class="secondary" data-cal-today ${busy?'disabled':''}>Today</button></div><div class="cal-period"><button class="secondary" data-cal-step="-1" aria-label="Previous ${mode}" ${busy?'disabled':''}>‹</button><h3>${html(period)}</h3><button class="secondary" data-cal-step="1" aria-label="Next ${mode}" ${busy?'disabled':''}>›</button></div><div class="cal-grid" aria-label="Choose a date">${['M','T','W','T','F','S','S'].map(d=>'<span class="cal-weekday" aria-hidden="true">'+d+'</span>').join('')}${'<span></span>'.repeat(lead)}${days}</div><div class="cal-legend"><span>● Personal</span><span>● Competition</span><span>● Coach</span><span>● Team practice</span></div><div class="cal-toolbar cal-filter-toolbar"><button class="secondary" data-cal-all aria-pressed="${!day}" ${busy?'disabled':''}>All dates</button><label class="cal-type"><span>Show</span><select data-cal-filter ${busy?'disabled':''}><option value="all">All types</option><option value="personal">Personal</option><option value="competition">Competitions</option><option value="coach">Coach</option><option value="team">Team practices</option></select></label></div><div class="cal-search"><label for="cal-search">Find a date</label><div class="cal-search-field"><input id="cal-search" data-cal-query type="search" maxlength="160" autocomplete="off" placeholder="Match, practice, lesson or venue" aria-describedby="cal-search-help" value="${html(query)}" ${busy?'disabled':''}><button type="button" class="secondary" data-cal-clear aria-label="Clear calendar search" ${query?'':'hidden'} ${busy?'disabled':''}>Clear</button></div><p class="cal-search-help" id="cal-search-help">Search names, opponents and venues in this ${mode}.</p></div>${calendar?.warnings.map(w=>'<p class="cal-warning" role="alert">'+html(w)+'</p>').join('')||''}<div class="cal-agenda-title"><h2 tabindex="-1">${day?html(label(day)):'Your agenda'}</h2><span data-cal-count role="status" aria-live="polite" aria-atomic="true">${agendaCount(list)}</span></div><div data-cal-results>${agendaRows(list)}</div><p class="cal-footnote">Competition dates come from your approved entries. Team practices appear when you’re invited and have current team access. Personal availability notes don’t send an RSVP.</p>`
  }
  const content=()=>{
   if(panel==='agenda')return agenda()
@@ -214,7 +219,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   })
   const rows=dialog.querySelector<HTMLElement>('[data-cal-results]'),count=dialog.querySelector<HTMLElement>('[data-cal-count]'),clear=dialog.querySelector<HTMLButtonElement>('[data-cal-clear]'),exportButton=dialog.querySelector<HTMLButtonElement>('[data-cal-export-review]')
   const highlight=dialog.querySelector<HTMLElement>('[data-cal-highlight]')
-  if(highlight)highlight.innerHTML=agendaHighlight(list,localCalendarDate())
+  if(highlight)highlight.innerHTML=agendaHighlight(list)
   if(rows)rows.innerHTML=agendaRows(list)
   if(count)count.textContent=agendaCount(list)
   if(clear)clear.hidden=!query

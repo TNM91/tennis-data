@@ -7,6 +7,9 @@ async function calendar(page:Page,width=390){
 }
 async function practice(page:Page,d:ReturnType<Page['getByRole']>){await d.locator('[data-cal-event="team-practice:'+event+'"]').click();await expect(d).toContainText('18:00 – 20:15');await d.getByRole('button',{name:'Open practice & RSVP',exact:true}).click();const child=page.getByRole('dialog',{name:'Team practices',exact:true});await expect(child).toContainText('Your RSVP · Jordan Lee');return child}
 for(const width of [320,390])test('Calendar team practices: readable dates, exact RSVP and retained filters at '+width+'px',async({page},info)=>{
+ const now=new Date()
+ now.setHours(17,0,0,0)
+ await page.clock.setFixedTime(now)
  const d=await calendar(page,width);await expect(d.locator('.cal-event.team img')).toHaveCount(0);await expect(d.locator('.cal-event.team').first()).toContainText('Team practice · Baseline Aces');await expect(d.locator('.cal-event.team').first()).toContainText('Waitlist');await expect(d.locator('.cal-event.team').last()).toContainText('Cancelled')
  await d.getByRole('button',{name:'Month',exact:true}).click();await d.getByRole('combobox',{name:'Show',exact:true}).selectOption('team');await expect(d.locator('.cal-event')).toHaveCount(2)
  await d.getByRole('searchbox',{name:'Find a date',exact:true}).fill('Baseline');await expect(d.locator('.cal-event')).toHaveCount(2)
@@ -33,6 +36,23 @@ for(const width of [320,390])test('Calendar team practices: readable dates, exac
  await child.getByRole('button',{name:'Back to calendar',exact:true}).click();await expect(child).toHaveCount(0);await expect(d.getByRole('combobox',{name:'Show',exact:true})).toHaveValue('team');await expect(d.getByRole('button',{name:'Month',exact:true})).toHaveAttribute('aria-pressed','true');await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toContainText('Out');await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toBeFocused()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await expect(d.getByRole('searchbox',{name:'Find a date',exact:true})).toHaveValue('Baseline')
+})
+
+test('Calendar team practices: a confirmed practice is featured until its scheduled end',async({page})=>{
+ const now=new Date()
+ now.setHours(19,0,0,0)
+ await page.clock.setFixedTime(now)
+ const agenda=await calendar(page)
+ await agenda.getByRole('combobox',{name:'Show',exact:true}).selectOption('team')
+ const highlight=agenda.locator('[data-cal-highlight]')
+ await expect(highlight.locator('.stat-eyebrow')).toHaveText('Scheduled now')
+ await expect(highlight.getByRole('button',{name:'Jump to event',exact:true})).toHaveAccessibleDescription(/Return \+ first ball/)
+
+ now.setHours(20,15)
+ await page.clock.setFixedTime(now)
+ await agenda.getByRole('button',{name:'Refresh',exact:true}).click()
+ await expect(agenda.locator('.cal-event.team')).toHaveCount(2)
+ await expect(highlight.getByRole('button',{name:'Jump to event',exact:true})).toHaveCount(0)
 })
 
 test('Calendar team practices: a cancelled practice stays visible with export and replies closed',async({page})=>{
