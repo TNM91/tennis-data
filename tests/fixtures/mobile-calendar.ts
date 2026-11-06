@@ -2,7 +2,7 @@ import {localCalendarDate,shiftCalendarDay} from '../../mobile/src/calendar-data
 import {personalDraft,calendarIntent,type CalendarDraft} from '../../lib/native-calendar-contract'
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 const owner='11111111-1111-4111-8111-111111111111',today=localCalendarDate(),updated='2026-10-31T10:00:00.123456+00:00'
-export const calendarFixture={fail:false,loseWrite:false,defer:false,release:()=>{},requests:[] as {method:string;query:string;body:unknown}[],personal:[{id:'player-calendar-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',title:'Serve + first ball',date:shiftCalendarDay(today,-7),time:'18:00',location:'Northside courts',kind:'practice',recurrenceRule:'FREQ=WEEKLY',availabilityStatus:'',createdAt:updated,updatedAt:updated,venueDirectoryId:'',venuePreferenceId:''}] as PlayerCalendarItem[],competitions:[{id:'league:city-league:match-one',kind:'league',eventType:'match',competitionId:'city-league',competitionName:'City League',title:'City League: vs Riverside Rally — doubles under the lights',date:today,time:'19:30',location:'Northside Tennis Center · Court 3',opponent:'Riverside Rally',detail:'Week 4',href:'',status:'Confirmed',responseStatus:'',responseUpdatedAt:'',responseIsStale:false}],coach:[{id:'coach-lesson-one',title:'Lesson: Jordan Lee',date:today,time:'08:30',location:'Court 2',detail:'Focus: return position',kind:'lesson'}]}
+export const calendarFixture={fail:false,failAgendaReads:0,loseWrite:false,defer:false,release:()=>{},requests:[] as {method:string;query:string;body:unknown}[],personal:[{id:'player-calendar-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',title:'Serve + first ball',date:shiftCalendarDay(today,-7),time:'18:00',location:'Northside courts',kind:'practice',recurrenceRule:'FREQ=WEEKLY',availabilityStatus:'',createdAt:updated,updatedAt:updated,venueDirectoryId:'',venuePreferenceId:''}] as PlayerCalendarItem[],competitions:[{id:'league:city-league:match-one',kind:'league',eventType:'match',competitionId:'city-league',competitionName:'City League',title:'City League: vs Riverside Rally — doubles under the lights',date:today,time:'19:30',location:'Northside Tennis Center · Court 3',opponent:'Riverside Rally',detail:'Week 4',href:'',status:'Confirmed',responseStatus:'',responseUpdatedAt:'',responseIsStale:false}],coach:[{id:'coach-lesson-one',title:'Lesson: Jordan Lee',date:today,time:'08:30',location:'Court 2',detail:'Focus: return position',kind:'lesson'}]}
 export async function calendarPreview(method:string,url:URL,body:unknown){
  const intent=body?JSON.parse(String(body)):null;calendarFixture.requests.push({method,query:url.search,body:intent})
  if(calendarFixture.defer){calendarFixture.defer=false;await new Promise<void>(resolve=>{calendarFixture.release=resolve})}
@@ -17,6 +17,10 @@ export async function calendarPreview(method:string,url:URL,body:unknown){
   return Response.json({ok:true,owner,item:action.action==='delete'?null:calendarFixture.personal.find(p=>p.id===action.item.id)})
  }
  const id=url.searchParams.get('item');if(id)return Response.json({ok:true,owner,item:calendarFixture.personal.find(p=>p.id===id)||null})
+ if(calendarFixture.failAgendaReads>0){
+  calendarFixture.failAgendaReads--
+  return Response.json({ok:false},{status:503})
+ }
  const from=url.searchParams.get('from')!,to=url.searchParams.get('to')!
  return Response.json({ok:true,owner,range:{from,to},personal:calendarFixture.personal.filter(p=>p.date<=to&&(p.date>=from||p.recurrenceRule)),competitions:calendarFixture.competitions.filter(e=>e.date>=from&&e.date<=to),coach:calendarFixture.coach.filter(e=>e.date>=from&&e.date<=to),warnings:[]})
 }

@@ -14,7 +14,8 @@ const repeatNames:Record<string,string>={'':'Does not repeat','FREQ=DAILY':'Ever
 type Panel='agenda'|'editor'|'review'|'delete'|'respond'|'export'|'recovery'|'leave'
 export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:'all'|'coach'|{practiceTitle:string;onClose:()=>void}='all'){
  const dialog=document.createElement('dialog');dialog.className='native-calendar-screen';dialog.setAttribute('aria-label','Your calendar')
- let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',failed=false,mode:'week'|'month'='week',anchor=localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
+ let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'='week',anchor=localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
+ let failedRefresh:{message:string;focusKey:string}|null=null
  let filter:string=typeof initial==='string'?initial:'all'
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago',reply:'available'|'unavailable'='available'
@@ -41,12 +42,12 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   dispose();return true
  }
  const status=()=>{const p=dialog.querySelector<HTMLElement>('[data-cal-status]');if(p)p.textContent=notice}
- const refresh=async(message='',keepPanel=false,focusKey='')=>{
+ const refresh=async(message='',focusKey='')=>{
   if(!active())return
-  busy=true;failed=false;calendar=null;notice=message||'Loading your tennis dates…';render()
+  busy=true;failedRefresh=null;calendar=null;notice=message||'Loading your tennis dates…';render()
   const expected=range()
-  try{const value=await loadCalendarSources(client,owner,active,expected);if(!active())return;calendar=value;notice=message;shown=100;if(!keepPanel)panel='agenda'}
-  catch{if(active()){calendar=null;failed=true;notice=(message?message+' ':'')+'Your calendar couldn’t load. Check your connection and retry.'}}
+  try{const value=await loadCalendarSources(client,owner,active,expected);if(!active())return;calendar=value;notice=message;shown=100;panel='agenda'}
+  catch{if(active()){calendar=null;failedRefresh={message,focusKey};notice=(message?message+' ':'')+'Your calendar couldn’t load. Check your connection and retry.'}}
   finally{if(active()){busy=false;render();if(!focusKey||!focusAgendaEvent(focusKey))focus()}}
  }
  const confirmed=async(message:string,saved:PlayerCalendarItem|null=null)=>{
@@ -62,7 +63,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    filter='all'
    query=''
   }
-  await refresh(message,false,saved?personalOccurrenceKey(saved.id,saved.date):'')
+  await refresh(message,saved?personalOccurrenceKey(saved.id,saved.date):'')
  }
  const perform=async(intent:CalendarIntent)=>{
   if(!active()||busy||pending)return
@@ -219,12 +220,12 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  const render=()=>{
   if(!active())return
   const scroll=dialog.querySelector('.cal-body')?.scrollTop||0
-  dialog.innerHTML=`<header class="cal-heading"><div><small class="stat-eyebrow">Your tennis</small><h1 tabindex="-1">Calendar</h1></div><button class="secondary" data-cal-close>Close</button></header><div class="cal-body"><p data-cal-status role="${failed||pending?'alert':'status'}">${html(notice)}</p>${content()}</div>${panel==='agenda'?'<footer class="cal-actions"><button data-cal-new '+(busy||!calendar?'disabled':'')+'>＋ Add event</button><button class="secondary" data-cal-export-review '+(busy||!exportableCalendarOccurrences(visible()).length?'disabled':'')+'>Export</button><button class="secondary" data-cal-refresh '+(busy?'disabled':'')+'>'+ (failed?'Retry':'Refresh')+'</button></footer>':''}`
+  dialog.innerHTML=`<header class="cal-heading"><div><small class="stat-eyebrow">Your tennis</small><h1 tabindex="-1">Calendar</h1></div><button class="secondary" data-cal-close>Close</button></header><div class="cal-body"><p data-cal-status role="${failedRefresh||pending?'alert':'status'}">${html(notice)}</p>${content()}</div>${panel==='agenda'?'<footer class="cal-actions"><button data-cal-new '+(busy||!calendar?'disabled':'')+'>＋ Add event</button><button class="secondary" data-cal-export-review '+(busy||!exportableCalendarOccurrences(visible()).length?'disabled':'')+'>Export</button><button class="secondary" data-cal-refresh '+(busy?'disabled':'')+'>'+ (failedRefresh?'Retry':'Refresh')+'</button></footer>':''}`
   dialog.querySelector('.cal-body')!.scrollTop=scroll
   const on=(selector:string,fn:(button:HTMLButtonElement)=>void)=>dialog.querySelectorAll<HTMLButtonElement>(selector).forEach(button=>button.onclick=()=>{if(active()&&!busy)fn(button)})
   dialog.querySelector('[data-cal-close]')!.addEventListener('click',back)
   on('[data-cal-back]',back);on('[data-cal-stay]',()=>{panel=returnPanel;render();if(schedulingRep)focus()});on('[data-cal-discard]',dispose)
-  on('[data-cal-refresh]',()=>void refresh());on('[data-cal-new]',()=>setDraft());on('[data-cal-recover]',()=>void recover())
+  on('[data-cal-refresh]',()=>void refresh(failedRefresh?.message,failedRefresh?.focusKey));on('[data-cal-new]',()=>setDraft());on('[data-cal-recover]',()=>void recover())
   on('[data-cal-today]',()=>{anchor=localCalendarDate();day=anchor;void refresh()})
   on('[data-cal-mode]',b=>{mode=b.dataset.calMode as typeof mode;day='';void refresh()})
   on('[data-cal-step]',b=>{const next=shiftCalendarPeriod(anchor,mode,Number(b.dataset.calStep));try{calendarWindow(next,mode)}catch{return}anchor=next;day='';void refresh()})
@@ -235,7 +236,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   on('[data-cal-practice]',()=>{
    const p=calendar?.practices?.find(p=>p.id===selected?.id);if(!p||practiceView?.isOpen())return
    const key='team-practice:'+p.id
-   practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh('',false,key)},'','Back to calendar',p.id)
+   practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh('',key)},'','Back to calendar',p.id)
   })
   on('[data-cal-agenda]',returnAgenda)
   const form=dialog.querySelector<HTMLFormElement>('form')

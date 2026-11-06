@@ -1,6 +1,6 @@
 import {test,expect,type Page} from '@playwright/test'
 const origin='http://127.0.0.1:4283'
-type CalendarWindow=Window&{calendarFixture:{loseWrite:boolean;fail:boolean;defer:boolean;release:()=>void;requests:{method:string;body:{action:string}}[];personal:{id:string;title:string;updatedAt:string}[]};refreshNavigationSession:()=>void;switchNavigationOwner:()=>void}
+type CalendarWindow=Window&{calendarFixture:{loseWrite:boolean;fail:boolean;failAgendaReads:number;defer:boolean;release:()=>void;requests:{method:string;body:{action:string}}[];personal:{id:string;title:string;updatedAt:string}[]};refreshNavigationSession:()=>void;switchNavigationOwner:()=>void}
 async function calendarScreen(page:Page,width=390){
  await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1');await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="calendar"]').click();const dialog=page.getByRole('dialog',{name:'Your calendar',exact:true});await expect(dialog.locator('.cal-event')).toHaveCount(3);return dialog
 }
@@ -28,6 +28,26 @@ test('Calendar: a lost save response recovers the same record without a second w
  const d=await calendarScreen(page);await d.getByRole('button',{name:'Add event',exact:false}).click();await d.getByRole('textbox',{name:'Title',exact:true}).fill('Confirmed recovery');await d.getByRole('button',{name:'Review event',exact:true}).click();await page.evaluate(()=>{(window as unknown as CalendarWindow).calendarFixture.loseWrite=true});await d.getByRole('button',{name:'Save personal event',exact:true}).click()
  await expect(d).toContainText('Check the saved result');await expect(d.getByRole('button',{name:'Save personal event',exact:true})).toHaveCount(0);await d.getByRole('button',{name:'Check saved entry',exact:true}).click();await expect(d.locator('.cal-event').filter({hasText:'Confirmed recovery'})).toHaveCount(1)
  expect(await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.filter(r=>r.method==='POST').length)).toBe(1)
+})
+test('Calendar: retry after a confirmed save restores the saved practice without another write',async({page})=>{
+ const calendar=await calendarScreen(page,320)
+ const status=calendar.locator('[data-cal-status]')
+ const retry=calendar.getByRole('button',{name:'Retry',exact:true})
+ await calendar.getByRole('button',{name:'Add event',exact:false}).click()
+ await calendar.getByRole('textbox',{name:'Title',exact:true}).fill('Confirmed serve practice')
+ await calendar.getByRole('button',{name:'Review event',exact:true}).click()
+ await page.evaluate(()=>{(window as unknown as CalendarWindow).calendarFixture.failAgendaReads=2})
+ await calendar.getByRole('button',{name:'Save personal event',exact:true}).click()
+ await expect(status).toContainText('Personal event saved. Your calendar couldn’t load.')
+ await retry.click()
+ await expect(status).toContainText('Personal event saved. Your calendar couldn’t load.')
+ await retry.click()
+ const savedPractice=calendar.locator('.cal-event.personal').filter({hasText:'Confirmed serve practice'})
+ await expect(savedPractice).toBeFocused()
+ await expect(savedPractice).toBeInViewport()
+ await expect(status).toHaveText('Personal event saved.')
+ const writes=await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.filter(request=>request.method==='POST'))
+ expect(writes).toHaveLength(1)
 })
 test('Calendar: recurring deletion reviews the whole series and availability sends only after confirmation',async({page})=>{
  const d=await calendarScreen(page);await d.locator('.cal-event').filter({hasText:'Serve + first ball'}).click();await d.getByRole('button',{name:'Delete repeating series',exact:true}).click();await expect(d).toContainText('Every occurrence');await d.getByRole('button',{name:'Keep event',exact:true}).click();await expect(d.locator('.cal-event')).toHaveCount(3)
