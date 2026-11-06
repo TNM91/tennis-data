@@ -407,8 +407,6 @@ body[data-screen]:is([data-screen="compete"],[data-screen="more"],[data-screen="
 .app-tools-hub .app-tool-copy>span { color:#acc8db; }
 .app-tools-hub .app-tool-arrow { font-size:26px;font-weight:400;color:#8acfff; }
 body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool { background:#113149;border:1px solid #456b85;border-radius:20px;box-shadow:none; }
-body[data-screen="coach"] .app-hub-group:first-of-type [data-app-destination="coach-tactics"] { min-height:122px;padding:20px 14px;background:#143a54;border-bottom:1px solid #3b6681; }
-body[data-screen="coach"] [data-app-destination="coach-tactics"] .app-tool-copy strong { font-size:1.4rem; }
 
 /* Sender initials keep group conversations easy to scan. No remote avatar requests. */
 .chat-sender-avatar { display:none; }

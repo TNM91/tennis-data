@@ -4,7 +4,7 @@ import {nativeActionIcon} from './native-action-icons'
 import {html} from './match-details'
 
 export type AppScreen='lab'|'explore'|'following'|'matchup'|'teams'|'compete'|'more'|'coach'
-export type AppDestination=AppScreen|'leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'|'updates'|'calendar'
+export type AppDestination=AppScreen|'leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'|'coach-dates'|'updates'|'calendar'
 export type AppHub='compete'|'more'|'coach'
 export const mainTabs=[{screen:'lab',label:'My Lab',icon:'lab'},{screen:'explore',label:'Explore',icon:'explore'},{screen:'teams',label:'Chats',icon:'teams'},{screen:'compete',label:'Compete',icon:'compete'},{screen:'more',label:'More',icon:'more'}] as const
 export function currentTab(screen:AppScreen){return screen==='following'||screen==='matchup'||screen==='coach'?'more':screen}
@@ -29,11 +29,12 @@ const tools:Record<string,Tool>={
  coachDesk:{destination:'coach-workspace',title:'Students & assignments',detail:'Plan practice and review your players’ check-ins.',icon:'coach'},
  tactics:{destination:'coach-tactics',title:'Tactics',detail:'A full-screen court for patterns, movement and match plans.',icon:'tactics'},
  lessons:{destination:'coach-lessons',title:'Lesson planner',detail:'Session plans, development lessons and practice packs.',icon:'coach'},
+ lessonDates:{destination:'coach-dates',title:'Lesson dates',detail:'Shared lessons and follow-up dates.',icon:'calendar'},
  calendar:{destination:'coach-calendar',title:'Coach calendar',detail:'Lessons, follow-up dates and calendar subscriptions.',icon:'calendar'},
  weeks:{destination:'coach-weeks',title:'Shared weeks',detail:'Guide the next rep, answer questions and adjust practice.',icon:'catalog'},
  proof:{destination:'coach-proof',title:'Player proof',detail:'Shared sessions, player reflections and progress.',icon:'progress'},
  video:{destination:'coach-video',title:'Video review',detail:'Record, slow down and mark up a player’s clip.',icon:'coach'},
- coachMessages:{destination:'coach-messages',title:'Coach messages',detail:'A private conversation with your connected coach or player.',icon:'teams'},
+ coachMessages:{destination:'coach-messages',title:'Coach messages',detail:'Private chats with your coach or players.',icon:'teams'},
 }
 function toolHtml(t:Tool,compact=false,featured=false){
  const competition=!compact&&(t.destination==='leagues'||t.destination==='tournaments')
@@ -49,11 +50,34 @@ function toolHtml(t:Tool,compact=false,featured=false){
 }
 export function homeShortcutsHtml(){return '<nav class="lab-shortcuts" aria-label="Play and improve">'+['leagues','tournaments','coach'].map(key=>toolHtml(tools[key],true)).join('')+'</nav>'}
 export function appHubHtml(hub:AppHub){
- const groups=hub==='compete'?[{title:'Find your next match',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]:hub==='coach'?[{title:'For coaches',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video']},{title:'Your game plan',keys:['coachMessages','inbox','connection','training','progress']}]:[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]
+ const groups:{title:string;keys:string[];lane?:'player'|'studio'}[]=hub==='compete'
+  ?[{title:'Find your next match',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]
+  :hub==='coach'
+   ?[{title:'Your game plan',keys:['lessonDates','inbox','connection','training','progress'],lane:'player'},{title:'Coach studio',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video'],lane:'studio'}]
+   :[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]
  const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'All your tennis'
- const note=hub==='compete'?'Find your competition. Arrive with a plan.':hub==='coach'?'Put a plan behind your next step.':PRODUCT_MOTTO
+ const note=hub==='compete'?'Find your competition. Arrive with a plan.':hub==='coach'?'Lessons, practice and conversations.':PRODUCT_MOTTO
  const total=groups.reduce((count,group)=>count+group.keys.length,0)
- return '<div class="app-tools-hub" data-hub="'+hub+'"><header class="tab-hero'+(hub==='compete'?' tab-hero-court':'')+' app-hub-heading">'+(hub==='more'?'<span class="tab-hero-icon" aria-hidden="true">'+nativeActionIcon('more')+'</span>':'')+'<small class="stat-eyebrow">'+(hub==='more'?'More':'TenAceIQ')+'</small><h1 tabindex="-1">'+title+'</h1><p>'+note+'</p></header>'+(hub==='more'?'<div class="app-tool-finder"><label for="app-tool-query">Find a tool</label><div class="app-tool-search"><span aria-hidden="true">'+nativeActionIcon('search')+'</span><input id="app-tool-query" type="search" maxlength="80" autocomplete="off" placeholder="Leagues, coach, account…" aria-controls="app-tool-results"><button type="button" class="secondary" data-clear-tool-search hidden>Clear</button></div><p role="status" data-tool-count>'+total+' tools</p></div>':'')+'<div id="app-tool-results">'+groups.map(group=>'<section class="app-hub-group"><h2>'+group.title+'</h2><div class="app-hub-tools">'+group.keys.map(key=>toolHtml(tools[key],false,hub==='coach'&&key==='tactics')).join('')+'</div></section>').join('')+'</div>'+(hub==='more'?'<p class="app-tools-empty" data-tools-empty hidden>No tools found. Try coach, leagues or account.</p>':'')+'<p role="alert" class="app-hub-notice"></p></div>'
+ const coachControls=hub==='coach'?`<div class="coach-hub-messages">${toolHtml(tools.coachMessages)}</div>
+  <div class="coach-hub-lanes" role="group" aria-label="Coach and training tools">
+   <button type="button" class="secondary" aria-controls="coach-player-tools" aria-pressed="true">For players</button>
+   <button type="button" class="secondary" aria-controls="coach-studio-tools" aria-pressed="false">For coaches</button>
+  </div>`:''
+ const groupHtml=groups.map(group=>{
+  const lane=group.lane?` id="coach-${group.lane}-tools" data-coach-lane${group.lane==='studio'?' hidden':''}`:''
+  return `<section class="app-hub-group"${lane}><h2>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],false,key==='tactics')).join('')}</div></section>`
+ }).join('')
+ const toolFinder=hub==='more'?`<div class="app-tool-finder"><label for="app-tool-query">Find a tool</label><div class="app-tool-search"><span aria-hidden="true">${nativeActionIcon('search')}</span><input id="app-tool-query" type="search" maxlength="80" autocomplete="off" placeholder="Leagues, coach, account…" aria-controls="app-tool-results"><button type="button" class="secondary" data-clear-tool-search hidden>Clear</button></div><p role="status" data-tool-count>${total} tools</p></div>`:''
+ return `<div class="app-tools-hub" data-hub="${hub}">
+  <header class="tab-hero${hub==='compete'?' tab-hero-court':''} app-hub-heading">
+   ${hub==='more'?`<span class="tab-hero-icon" aria-hidden="true">${nativeActionIcon('more')}</span>`:''}
+   ${hub==='coach'?'':`<small class="stat-eyebrow">${hub==='more'?'More':'TenAceIQ'}</small>`}
+   <h1 tabindex="-1">${title}</h1><p>${note}</p>
+  </header>
+  ${coachControls}${toolFinder}<div id="app-tool-results">${groupHtml}</div>
+  ${hub==='more'?'<p class="app-tools-empty" data-tools-empty hidden>No tools found. Try coach, leagues or account.</p>':''}
+  <p role="alert" class="app-hub-notice"></p>
+ </div>`
 }
 function bindToolFinder(host:HTMLElement){
  const input=host.querySelector<HTMLInputElement>('#app-tool-query')
@@ -78,5 +102,12 @@ function bindToolFinder(host:HTMLElement){
 export function bindAppDestinations(host:HTMLElement,open:(destination:AppDestination,trigger:HTMLButtonElement)=>void){
  const valid=new Set<AppDestination>([...mainTabs.map(t=>t.screen),...Object.values(tools).map(t=>t.destination)])
  host.querySelectorAll<HTMLButtonElement>('[data-app-destination]').forEach(button=>{button.onclick=()=>{const destination=button.dataset.appDestination as AppDestination;if(valid.has(destination))open(destination,button)}})
+ const lanes=Array.from(host.querySelectorAll<HTMLButtonElement>('.coach-hub-lanes button'))
+ const panels=host.querySelectorAll<HTMLElement>('[data-coach-lane]')
+ for(const lane of lanes)lane.onclick=()=>{
+  lanes.forEach(button=>button.setAttribute('aria-pressed',String(button===lane)))
+  panels.forEach(panel=>panel.hidden=panel.id!==lane.getAttribute('aria-controls'))
+  lane.focus({preventScroll:true})
+ }
  bindToolFinder(host)
 }

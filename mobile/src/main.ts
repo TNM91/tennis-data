@@ -286,10 +286,10 @@ function launchCompetitions(scope:'mine'|'discover'='mine',trigger?:HTMLElement)
  const owner=session.user.id,visit=revision
  competitions=openCompetitions(client,owner,()=>visit===revision&&owner===session?.user.id,scope,()=>navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')?.click(),undefined,trigger)
 }
-function launchCalendar(trigger:HTMLElement){
+function launchCalendar(trigger:HTMLElement,initialFilter:'all'|'coach'='all'){
  if(!session||agenda?.isOpen()||connection?.isSaving()||document.querySelector('dialog[open]'))return
  const owner=session.user.id,visit=revision
- agenda=openCalendar(client,owner,()=>visit===revision&&owner===session?.user.id,trigger)
+ agenda=openCalendar(client,owner,()=>visit===revision&&owner===session?.user.id,trigger,initialFilter)
 }
 function launchUpdates(trigger:HTMLElement){
  if(!session||updates?.isOpen()||connection?.isSaving()||document.querySelector('dialog[open]'))return
@@ -376,7 +376,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="compete"]')!.onclick=
 navigation.querySelector<HTMLButtonElement>('[data-screen="more"]')!.onclick=()=>{if(!connection?.isSaving())guardNavigation(()=>showHub('more'))}
 function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='updates'){launchUpdates(trigger);return}
- if(destination==='calendar'){launchCalendar(trigger);return}
+ if(destination==='calendar'||destination==='coach-dates'){launchCalendar(trigger,destination==='coach-dates'?'coach':'all');return}
  if(!session||!trigger.isConnected||connection?.isSaving())return
  if(destination==='leagues'){launchCompetitions('mine',trigger);return}
  if(destination==='tournaments'){
@@ -409,7 +409,13 @@ function openCoachHref(href:string){
  if(url.origin!=='https://www.tenaceiq.com')return false
  const destination:AppDestination|null=url.pathname==='/coach'?'coach':url.pathname==='/video-review'?'coach-video':url.pathname.startsWith('/tactics')?'coach-tactics':/^\/player-development\/[^/]+\/coach-planner$/.test(url.pathname)?'coach-lessons':url.pathname==='/messages'?'coach-messages':url.pathname.startsWith('/level-up/')?'training':null
  if(!destination||!session)return false
- const open=()=>{coachWorkspace?.dispose();coachWorkspace=null;showHub('coach');if(destination==='coach')return;const button=app.querySelector<HTMLButtonElement>('[data-app-destination="'+destination+'"]');if(button)openDestination(destination,button)}
+ const open=()=>{
+  coachWorkspace?.dispose();coachWorkspace=null;showHub('coach');if(destination==='coach')return
+  const button=app.querySelector<HTMLButtonElement>('[data-app-destination="'+destination+'"]');if(!button)return
+  const hiddenLane=button.closest<HTMLElement>('[data-coach-lane][hidden]')
+  if(hiddenLane)app.querySelector<HTMLButtonElement>(`[aria-controls="${hiddenLane.id}"]`)?.click()
+  openDestination(destination,button)
+ }
  if(coachWorkspace?.isOpen())coachWorkspace.requestLeave(open);else open()
  return true
 }

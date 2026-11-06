@@ -21,7 +21,7 @@ test.beforeEach(async ({page}) => {
  })
 })
 
-async function hub(page:Page,large=false){await page.goto(origin+(large?'/?large=1':''));await expect(page.locator('.lab-scoreboard')).toBeVisible();await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="coach"]').click();await expect(page.locator('[data-app-destination="coach-web"]')).toHaveCount(0);await expect(page.locator('.app-tools-hub')).not.toContainText('Opens website')}
+async function hub(page:Page,large=false){await page.goto(origin+(large?'/?large=1':''));await expect(page.locator('.lab-scoreboard')).toBeVisible();await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="coach"]').click();await page.getByRole('button',{name:'For coaches',exact:true}).click();await expect(page.locator('[data-app-destination="coach-web"]')).toHaveCount(0);await expect(page.locator('.app-tools-hub')).not.toContainText('Opens website')}
 async function fits(page:Page,d:ReturnType<Page['getByRole']>){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)}
 for(const width of [320,390])test('plans a lesson from existing packs, reads shared work and messages a connected player at '+width,async({page},info)=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.setViewportSize({width,height:844});await hub(page)

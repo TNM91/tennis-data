@@ -346,8 +346,27 @@ body[data-screen="compete"] .app-hub-group:first-of-type .competition-action { d
 body[data-screen="compete"] .competition-action>span { color:var(--premium-lime);font-size:18px; }
 body[data-screen="compete"] .app-hub-group:not(:first-of-type) button.app-tool { padding:18px 16px; }
 body[data-screen="compete"] .app-hub-group:not(:first-of-type) .app-tool-copy strong { font-weight:600;font-size:.9375rem; }
-body[data-screen="coach"] .app-hub-group:first-of-type .app-hub-tools { overflow:visible; }
-body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool-featured {
+.app-tools-hub[data-hub="coach"] .app-hub-heading { padding:14px 16px; }
+.app-tools-hub[data-hub="coach"] .app-hub-heading h1 { margin:0 0 6px;font-size:1.625rem; }
+.coach-hub-messages { margin-block:12px; }
+.coach-hub-messages button.app-tool.secondary {
+ min-block-size:72px;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;
+}
+.coach-hub-messages .app-tool-arrow { color:var(--premium-lime); }
+.coach-hub-lanes {
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;
+ border:1px solid var(--premium-line);border-radius:16px;background:var(--premium-inset);
+}
+.coach-hub-lanes button.secondary {
+ min-inline-size:0;min-block-size:44px;margin:0;padding:8px 4px;border:1px solid transparent;
+ border-radius:12px;font-size:.8125rem;
+}
+.coach-hub-lanes button.secondary[aria-pressed="false"] { background:transparent;border-color:transparent;color:var(--premium-copy); }
+.app-tools-hub [data-coach-lane] { margin-block-start:18px; }
+#coach-player-tools .app-hub-tools button.app-tool { min-block-size:68px;padding:12px 14px; }
+#coach-studio-tools .app-hub-tools { overflow:visible;border:0;background:transparent; }
+#coach-studio-tools button.app-tool-featured {
  position:relative;isolation:isolate;display:block;
  min-block-size:clamp(210px,50vw,320px);aspect-ratio:auto;padding:22px 20px;margin-block-end:12px;
  border:1px solid #416885;border-radius:22px;background:#071c34;box-shadow:0 12px 28px #0003;
@@ -360,10 +379,9 @@ body[data-screen="coach"] .app-tool-featured .app-tool-copy { flex:0;inline-size
 body[data-screen="coach"] .app-tool-featured .app-tool-copy strong { font-size:1.875rem;font-weight:750;letter-spacing:-.04em; }
 body[data-screen="coach"] .app-tool-featured .app-tool-copy>span { font-size:.8125rem;color:#d2e5f2; }
 body[data-screen="coach"] .app-tool-featured .app-tool-arrow { display:grid;place-items:center;inline-size:36px;block-size:36px;margin-block-start:12px;border-radius:50%;background:#b5eb46;color:#102635;line-height:1; }
-body[data-screen="coach"] .app-hub-group:first-of-type .app-hub-tools { border:0;background:transparent; }
-body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool:not(.app-tool-featured) { background:var(--premium-surface);border:0;border-block-end:1px solid #2c4c63;border-radius:0; }
-body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool-featured+button { border-start-start-radius:18px;border-start-end-radius:18px; }
-body[data-screen="coach"] .app-hub-group:first-of-type button.app-tool:last-child { border-end-start-radius:18px;border-end-end-radius:18px;border-block-end:0; }
+#coach-studio-tools button.app-tool:not(.app-tool-featured) { background:var(--premium-surface);border:0;border-block-end:1px solid var(--premium-line);border-radius:0; }
+#coach-studio-tools button.app-tool-featured+button { border-start-start-radius:18px;border-start-end-radius:18px; }
+#coach-studio-tools button.app-tool:last-child { border-end-start-radius:18px;border-end-end-radius:18px;border-block-end:0; }
 
 /* Explore sets the surface, type and control treatments for the main tabs. */
 body[data-screen] .tab-hero {
@@ -481,6 +499,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
     #following-list .match-filters,
     #comparison-list>[role="group"],
     #comparison-result .match-filters,
+    .coach-hub-lanes,
     .explore-categories,
     body[data-screen="teams"] .chats-inbox-filters,
     .cal-switch,

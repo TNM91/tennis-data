@@ -21,7 +21,7 @@ test.beforeEach(async ({page}) => {
  })
 })
 async function open(page:Page,large=false){
- await page.goto(origin+(large?'/?large=1':''));await expect(page.locator('.lab-scoreboard')).toBeVisible();await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="coach"]').click();await page.locator('[data-app-destination="coach-tactics"]').click()
+ await page.goto(origin+(large?'/?large=1':''));await expect(page.locator('.lab-scoreboard')).toBeVisible();await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="coach"]').click();await page.getByRole('button',{name:'For coaches',exact:true}).click();await page.locator('[data-app-destination="coach-tactics"]').click()
  const d=page.getByRole('dialog',{name:'Tactics',exact:true});await expect(d.locator('[data-tiq-studio]')).toBeVisible();return d
 }
 async function fits(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await page.getByRole('dialog',{name:'Tactics',exact:true}).evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)}

@@ -11,9 +11,10 @@ import websiteUi from '../generated/website-ui.json'
 const label=(day:string)=>new Date(day+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})
 const repeatNames:Record<string,string>={'':'Does not repeat','FREQ=DAILY':'Every day','FREQ=WEEKLY':'Every week','FREQ=MONTHLY':'Every month on this day'}
 type Panel='agenda'|'editor'|'review'|'delete'|'respond'|'export'|'recovery'|'leave'
-export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement){
+export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initialFilter:'all'|'coach'='all'){
  const dialog=document.createElement('dialog');dialog.className='native-calendar-screen';dialog.setAttribute('aria-label','Your calendar')
- let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',failed=false,mode:'week'|'month'='week',anchor=localCalendarDate(),day='',filter='all',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
+ let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',failed=false,mode:'week'|'month'='week',anchor=localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
+ let filter:string=initialFilter
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago',reply:'available'|'unavailable'='available'
  let query='',agendaOpener='',agendaScroll=0,finderSource:NativeCalendar|null=null,finder:ReturnType<typeof createCalendarFinder>|null=null
