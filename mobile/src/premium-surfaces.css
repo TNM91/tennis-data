@@ -533,8 +533,16 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
  margin:12px 0;padding:10px 12px;background:var(--premium-inset);border-inline-start:2px solid var(--premium-royal-line);border-radius:8px;
 }
 .training-assignment-proof strong { display:block;color:var(--premium-white); }
-.training-assignment-actions { display:grid;gap:6px;margin-block-start:12px; }
-.training-assignment-actions button { min-block-size:44px;margin:0;padding:8px 10px;font-size:.8125rem; }
+:is(.training-assignment-actions,.training-week-actions) { display:grid;gap:6px;margin-block-start:12px; }
+:is(.training-assignment-actions,.training-week-actions) button { min-block-size:44px;margin:0;padding:8px 10px;font-size:.8125rem; }
+.training-inbox-screen .training-week h2 { margin:0 0 6px;color:var(--premium-white);font-size:1.0625rem;line-height:1.25; }
+.training-week p { margin:5px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
+.training-week .training-week-meta { font-size:.75rem;color:var(--premium-ice); }
+.training-week-rep { margin-block:10px;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.training-week-rep-next { background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22; }
+.training-inbox-screen .training-week-rep h3 { margin:4px 0 6px;font-size:.9375rem;line-height:1.3; }
+.training-week-rep small { color:var(--premium-ice);font-size:.6875rem;font-weight:750;letter-spacing:.06em;text-transform:uppercase; }
+.training-inbox-screen [data-inbox-card] { scroll-margin-block:72px 12px; }
 .training-inbox-fold {
  margin-block:8px;padding:0 12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface);
 }

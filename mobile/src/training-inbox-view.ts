@@ -1,5 +1,5 @@
 import {LEVEL_UP_CARDS} from '../../lib/level-up/level-up-cards'
-import {getWeeklyLevelUpPlanReps,getWeeklyLevelUpPlanProgress,buildWeeklyLevelUpCoachNotification,type WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
+import {buildWeeklyLevelUpCoachNotification,getWeeklyLevelUpPlanProgress,getWeeklyLevelUpPlanReps,getWeeklyLevelUpPlanWeekStart,selectWeeklyLevelUpPlanForMyQuest,type WeeklyLevelUpPlan,type WeeklyLevelUpPlanRep} from '../../lib/level-up/weekly-plan'
 import {getCoachAssignmentSummary,getCoachAssignmentPack,getCoachAssignmentReview,getPlayerAssignmentCheckIn,getCoachAssignmentDueState,sortPlayerAssignmentsForAction,type CoachAssignment} from '../../lib/coach-storage'
 import {formatWeekdayDate} from '../../lib/captain-formatters'
 import {html} from './match-details'
@@ -8,7 +8,53 @@ import type {TrainingCoachWork} from './training-inbox-data'
 export type TrainingInboxLaunch={key:string;cardId:string;identitySlug:string;label:string}
 export function trainingInboxLaunches(plans:WeeklyLevelUpPlan[],work:TrainingCoachWork|null){const launches:TrainingInboxLaunch[]=[];for(const p of plans)for(const rep of getWeeklyLevelUpPlanReps(p))if(LEVEL_UP_CARDS.some(c=>c.id===rep.focusId))launches.push({key:JSON.stringify(['plan',p.id,rep.id]),cardId:rep.focusId,identitySlug:rep.identitySlug,label:rep.title});for(const a of work?.assignments||[]){const pack=getCoachAssignmentPack(a.assignment),ids=pack?pack.items.slice(0,30).map(i=>i.cardId):typeof a.assignment.cardId==='string'?[a.assignment.cardId]:[];for(const id of new Set(ids))if(LEVEL_UP_CARDS.some(c=>c.id===id))launches.push({key:JSON.stringify(['coach',a.id,id]),cardId:id,identitySlug:work?.links.find(l=>l.id===a.studentLinkId)?.identitySlug||'',label:a.title})}return launches}
 const direction=(slug:string)=>trainingIdentity(slug)?.title.replace(/^The /,'')||slug
-export function trainingPlansHtml(plans:WeeklyLevelUpPlan[],canChange=false){return `<h2>Your saved weeks</h2><p>Latest ${plans.length} saved plan${plans.length===1?'':'s'}, up to 12. Opening a drill does not change its completion status. Mark a rep done after you finish the work.</p>${plans.length?plans.map(p=>{const progress=getWeeklyLevelUpPlanProgress(p);return `<section><h3>Week of ${html(p.weekStart)}</h3><p>${html(direction(p.identitySlug))} · ${progress.completed}/${progress.total} recorded complete${p.sharedWithCoach?' · Shared with coach':''}</p><p>${html(p.summary)}</p>${p.strongestFocus?`<p><strong>Strongest focus:</strong> ${html(p.strongestFocus)}</p>`:''}${p.coachResponse?`<h3>${html(buildWeeklyLevelUpCoachNotification(p,p.coachResponse).title)}</h3><p>${html(p.coachResponse.note)}</p>${p.coachResponse.playerReply?`<p>Your reply: ${p.coachResponse.playerReply.action==='acknowledged'?'Seen':'Question'}${p.coachResponse.playerReply.message?' · '+html(p.coachResponse.playerReply.message):''}</p>`:`<p>No player reply is recorded.</p>${p.sharedWithCoach&&p.studentLinkId&&p.coachUserId?`<button type="button" class="secondary" data-week-reply="${html(p.id)}">Reply to coach<span class="sr-only"> Week of ${html(p.weekStart)}</span></button>`:''}`}`:''}<ol>${getWeeklyLevelUpPlanReps(p).map(rep=>`<li><h3>${html(rep.title)}</h3><p>${html(rep.label)} · ${rep.completedAt?'Recorded complete':'Not recorded complete'}</p><p>${html(rep.detail)}</p>${canChange?`<button type="button" class="secondary" data-week-mark="${html(JSON.stringify([p.id,rep.id]))}" data-week-completed="${!rep.completedAt}">${rep.completedAt?'Reopen rep':'Mark rep done'}<span class="sr-only"> ${html(rep.title)}</span></button>`:''}${LEVEL_UP_CARDS.some(c=>c.id===rep.focusId)?`<button type="button" class="secondary" data-inbox-card="${html(JSON.stringify(['plan',p.id,rep.id]))}">Practice this drill privately<span class="sr-only"> ${html(rep.title)}</span></button>`:'<p>Follow the written rep. This focus has no exact matching drill card in the app yet.</p>'}</li>`).join('')}</ol></section>`}).join(''):'<p>No weekly plans are saved to your account yet. Plans saved only on the website device are not included.</p>'}`}
+
+function weeklyRepHtml(plan:WeeklyLevelUpPlan,rep:WeeklyLevelUpPlanRep,canChange:boolean,next=false){
+ const hasDrill=LEVEL_UP_CARDS.some(card=>card.id===rep.focusId)
+ return `<article class="training-week-rep${next?' training-week-rep-next':''}">
+  <small>${next?'Next rep · ':rep.completedAt?'Recorded complete · ':''}${html(rep.label)}</small>
+  <h3>${html(rep.title)}</h3><p>${html(rep.detail)}</p>
+  ${hasDrill||canChange?`<div class="training-week-actions">
+   ${hasDrill?`<button type="button" class="secondary" data-inbox-card="${html(JSON.stringify(['plan',plan.id,rep.id]))}">Practice privately<span class="sr-only"> ${html(rep.title)}</span></button>`:''}
+   ${canChange?`<button type="button" class="secondary" data-week-mark="${html(JSON.stringify([plan.id,rep.id]))}" data-week-completed="${!rep.completedAt}">${rep.completedAt?'Reopen rep':'Mark rep done'}<span class="sr-only"> ${html(rep.title)}</span></button>`:''}
+  </div>`:''}
+  ${hasDrill?'':'<p>Follow the written rep. This focus has no exact matching drill card in the app yet.</p>'}
+ </article>`
+}
+
+function weeklyPlanCard(plan:WeeklyLevelUpPlan,canChange:boolean,currentWeek:string,featured=false){
+ const progress=getWeeklyLevelUpPlanProgress(plan),response=plan.coachResponse
+ const next=featured?progress.nextRep:null
+ const otherReps=getWeeklyLevelUpPlanReps(plan).filter(rep=>rep.id!==next?.id)
+ const weekDate=formatWeekdayDate(plan.weekStart)
+ return `<section class="training-week">
+  <h2>${plan.weekStart===currentWeek?'This week':`Week of ${html(weekDate)}`}</h2>
+  <p class="training-week-meta">${html(direction(plan.identitySlug))}${plan.sharedWithCoach?' · Shared with coach':''}</p>
+  <p class="training-week-meta"><strong>${progress.completed}/${progress.total} recorded complete</strong></p>
+  <p>${html(plan.summary)}</p>
+  ${plan.strongestFocus?`<p><strong>Strongest focus:</strong> ${html(plan.strongestFocus)}</p>`:''}
+  ${response?`<aside class="training-week-rep">
+   <h3>${html(buildWeeklyLevelUpCoachNotification(plan,response).title)}</h3><p>${html(response.note)}</p>
+   ${response.playerReply?`<p>Your reply: ${response.playerReply.action==='acknowledged'?'Seen':'Question'}${response.playerReply.message?' · '+html(response.playerReply.message):''}</p>`:''}
+   ${!response.playerReply&&plan.sharedWithCoach&&plan.studentLinkId&&plan.coachUserId?`<button type="button" class="secondary" data-week-reply="${html(plan.id)}">Reply to coach<span class="sr-only"> Week of ${html(weekDate)}</span></button>`:''}
+  </aside>`:''}
+  ${next?weeklyRepHtml(plan,next,canChange,true):''}
+  ${featured&&otherReps.length?`<details class="training-inbox-fold" data-inbox-fold="${html(JSON.stringify(['week-reps',plan.id]))}">
+   <summary>${next?'Other reps':'Week’s reps'} (${otherReps.length})</summary>
+   ${otherReps.map(rep=>weeklyRepHtml(plan,rep,canChange)).join('')}
+  </details>`:otherReps.map(rep=>weeklyRepHtml(plan,rep,canChange)).join('')}
+ </section>`
+}
+
+export function trainingPlansHtml(plans:WeeklyLevelUpPlan[],canChange=false){
+ const currentWeek=getWeeklyLevelUpPlanWeekStart()
+ const featured=selectWeeklyLevelUpPlanForMyQuest(plans,currentWeek)
+ if(!featured)return '<p>No weekly plans are saved to your account yet.</p>'
+ const otherWeeks=plans.filter(plan=>plan.id!==featured.id)
+ return `${weeklyPlanCard(featured,canChange,currentWeek,true)}
+  ${otherWeeks.length?`<details class="training-inbox-fold" data-inbox-fold="saved-weeks"><summary>More saved weeks (${otherWeeks.length})</summary>${otherWeeks.map(plan=>weeklyPlanCard(plan,canChange,currentWeek)).join('')}</details>`:''}
+  <p class="training-inbox-note">Mark a rep done after you finish the work.${plans.length===12?' Showing the latest 12 saved plans.':''}</p>`
+}
 function assignmentCard(a:CoachAssignment,work:TrainingCoachWork,now:Date,featured=false){
  const summary=getCoachAssignmentSummary(a.assignment),pack=getCoachAssignmentPack(a.assignment)
  const review=getCoachAssignmentReview(a.assignment),checkIn=getPlayerAssignmentCheckIn(a.assignment)
