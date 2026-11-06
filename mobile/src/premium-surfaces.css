@@ -392,6 +392,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
     .explore-categories,
     body[data-screen="teams"] .chats-inbox-filters,
     .cal-switch,
+    .player-practice-dialog .match-filters,
     .updates-filters>[role="group"])>button[aria-pressed="true"],
 button.secondary[data-cal-all][aria-pressed="true"] {
  background:var(--premium-court-inlay);
@@ -399,6 +400,42 @@ button.secondary[data-cal-all][aria-pressed="true"] {
  color:var(--premium-white);
  box-shadow:inset 0 1px #f7faff14;
 }
+.player-practice-dialog {
+ background:var(--premium-page);border-color:var(--premium-line);color:var(--premium-white);
+ overflow-wrap:anywhere;
+}
+.player-practice-header {
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 8px;margin:0;padding:0 0 8px;
+}
+.player-practice-dialog h1 { font-size:clamp(1.4rem,5vw,1.75rem);margin:0 0 6px; }
+.player-practice-header h1 { font-size:1.25rem;margin:0; }
+.player-practice-header p { grid-column:1 / -1;margin:0;color:var(--premium-copy);font-size:.875rem;line-height:1.45; }
+.player-practice-header [data-close] { inline-size:auto;min-block-size:44px;margin:0;padding:6px 10px; }
+.player-practice-dialog :is(.player-practice-brief,.player-practice-reply,.player-practice-focus) {
+ margin:14px 0 0;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-surface);
+}
+.player-practice-dialog .player-practice-brief {
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card);
+ box-shadow:inset 0 1px #b2c8ff22;
+}
+.player-practice-brief .stat-eyebrow { color:var(--premium-lime);margin:0 0 6px; }
+.player-practice-brief:is([data-practice-state="cancelled"],[data-practice-state="completed"]) .stat-eyebrow { color:var(--premium-copy); }
+.player-practice-dialog .player-practice-brief h2 { margin:0 0 12px;line-height:1.2; }
+.player-practice-dialog .player-practice-brief dl { display:grid;gap:8px;margin:0; }
+.player-practice-dialog .player-practice-brief dt { margin:0;color:var(--premium-ice);font-size:.65rem; }
+.player-practice-dialog .player-practice-brief dd { margin:0;color:var(--premium-white);font-size:.9rem;font-weight:600;line-height:1.4; }
+.player-practice-dialog :is(.player-practice-reply,.player-practice-focus) h3 { margin:0 0 8px; }
+.player-practice-dialog :is(.player-practice-reply,.player-practice-focus) p { margin:0 0 8px;color:var(--premium-copy);font-size:.875rem;line-height:1.45; }
+.player-practice-dialog .player-practice-reply .player-practice-reply-status { color:var(--premium-ice);font-weight:750; }
+.player-practice-responses { display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px; }
+.player-practice-dialog .player-practice-responses button {
+ flex:1 1 auto;inline-size:auto;min-block-size:44px;margin:0;padding:8px;
+}
+.player-practice-note { margin-top:10px;border-top:1px solid var(--premium-line); }
+.player-practice-note summary { color:var(--premium-ice);font-size:.875rem;line-height:1.35; }
+.player-practice-note textarea { margin-top:0; }
+.player-practice-dialog :is(button,summary,textarea):focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 .lab-next-band .lab-level-path { background:var(--premium-card);border-color:#3f6b84;box-shadow:inset 0 1px #9edaff20; }
 .lab-level-path .lab-band-target>strong { color:#eefaff;text-shadow:0 4px 24px #79d0ff22; }
 .lab-level-path .lab-band-target>strong>span { color:#9bd7f6; }
