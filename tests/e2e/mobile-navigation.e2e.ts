@@ -492,6 +492,9 @@ test('My Lab opens saved weeks directly and returns to the shortcut on a narrow 
  await expect(shortcut).toBeFocused()
 })
 test('My Lab puts the current tennis week directly under the scoreboard',async({page},info)=>{
+ const now=new Date()
+ now.setHours(8,0,0,0)
+ await page.clock.setFixedTime(now)
  await page.setViewportSize({width:320,height:844})
  await page.goto(origin+'/?large=1')
  const shortcut=page.getByRole('button',{name:/Up next Open Calendar/})
