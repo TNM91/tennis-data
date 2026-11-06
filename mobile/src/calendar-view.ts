@@ -12,10 +12,11 @@ import websiteUi from '../generated/website-ui.json'
 const label=(day:string)=>new Date(day+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})
 const repeatNames:Record<string,string>={'':'Does not repeat','FREQ=DAILY':'Every day','FREQ=WEEKLY':'Every week','FREQ=MONTHLY':'Every month on this day'}
 type Panel='agenda'|'editor'|'review'|'delete'|'respond'|'export'|'recovery'|'leave'
+type RefreshContext={message?:string;focusKey?:string;focusControl?:string}
 export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:'all'|'coach'|{practiceTitle:string;onClose:()=>void}='all'){
  const dialog=document.createElement('dialog');dialog.className='native-calendar-screen';dialog.setAttribute('aria-label','Your calendar')
  let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'='week',anchor=localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
- let failedRefresh:{message:string;focusKey:string}|null=null
+ let failedRefresh:RefreshContext|null=null
  let filter:string=typeof initial==='string'?initial:'all'
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago',reply:'available'|'unavailable'='available'
@@ -42,13 +43,21 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   dispose();return true
  }
  const status=()=>{const p=dialog.querySelector<HTMLElement>('[data-cal-status]');if(p)p.textContent=notice}
- const refresh=async(message='',focusKey='')=>{
+ const refresh=async(context:RefreshContext={})=>{
   if(!active())return
+  const {message='',focusKey='',focusControl}=context
   busy=true;failedRefresh=null;calendar=null;notice=message||'Loading your tennis dates…';render()
   const expected=range()
   try{const value=await loadCalendarSources(client,owner,active,expected);if(!active())return;calendar=value;notice=message;shown=100;panel='agenda'}
-  catch{if(active()){calendar=null;failedRefresh={message,focusKey};notice=(message?message+' ':'')+'Your calendar couldn’t load. Check your connection and retry.'}}
-  finally{if(active()){busy=false;render();if(!focusKey||!focusAgendaEvent(focusKey))focus()}}
+  catch{if(active()){calendar=null;failedRefresh=context;notice=(message?message+' ':'')+'Your calendar couldn’t load. Check your connection and retry.'}}
+  finally{if(active()){
+   busy=false;render()
+   const control=focusControl?dialog.querySelector<HTMLElement>(failedRefresh?'[data-cal-refresh]':focusControl):null
+   if(!focusKey||!focusAgendaEvent(focusKey)){
+    if(control)control.focus({preventScroll:true})
+    else focus()
+   }
+  }}
  }
  const confirmed=async(message:string,saved:PlayerCalendarItem|null=null)=>{
   pending=null
@@ -63,7 +72,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    filter='all'
    query=''
   }
-  await refresh(message,saved?personalOccurrenceKey(saved.id,saved.date):'')
+  await refresh({message,focusKey:saved?personalOccurrenceKey(saved.id,saved.date):''})
  }
  const perform=async(intent:CalendarIntent)=>{
   if(!active()||busy||pending)return
@@ -176,6 +185,15 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(clear)clear.hidden=!query
   if(exportButton)exportButton.disabled=busy||!calendar||!exportableCalendarOccurrences(list).length
  }
+ const selectAgendaDay=(date:string)=>{
+  day=date;shown=100
+  dialog.querySelectorAll<HTMLButtonElement>('[data-cal-day],[data-cal-all]').forEach(button=>{
+   button.setAttribute('aria-pressed',String((button.dataset.calDay??'')===day))
+  })
+  const heading=dialog.querySelector('.cal-agenda-title h2')
+  if(heading)heading.textContent=day?label(day):'Your agenda'
+  paintAgenda()
+ }
  const focusAgendaEvent=(key:string)=>{
   const position=visible().findIndex(event=>event.key===key)
   if(position<0)return false
@@ -225,18 +243,28 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const on=(selector:string,fn:(button:HTMLButtonElement)=>void)=>dialog.querySelectorAll<HTMLButtonElement>(selector).forEach(button=>button.onclick=()=>{if(active()&&!busy)fn(button)})
   dialog.querySelector('[data-cal-close]')!.addEventListener('click',back)
   on('[data-cal-back]',back);on('[data-cal-stay]',()=>{panel=returnPanel;render();if(schedulingRep)focus()});on('[data-cal-discard]',dispose)
-  on('[data-cal-refresh]',()=>void refresh(failedRefresh?.message,failedRefresh?.focusKey));on('[data-cal-new]',()=>setDraft());on('[data-cal-recover]',()=>void recover())
-  on('[data-cal-today]',()=>{anchor=localCalendarDate();day=anchor;void refresh()})
-  on('[data-cal-mode]',b=>{mode=b.dataset.calMode as typeof mode;day='';void refresh()})
-  on('[data-cal-step]',b=>{const next=shiftCalendarPeriod(anchor,mode,Number(b.dataset.calStep));try{calendarWindow(next,mode)}catch{return}anchor=next;day='';void refresh()})
-  on('[data-cal-day]',b=>{day=day===b.dataset.calDay?'':b.dataset.calDay!;shown=100;render()})
-  on('[data-cal-all]',()=>{day='';shown=100;render()})
-  const select=dialog.querySelector<HTMLSelectElement>('[data-cal-filter]');if(select){select.value=filter;select.onchange=()=>{filter=select.value;shown=100;render()}}
+  on('[data-cal-refresh]',()=>void refresh(failedRefresh??{focusControl:'[data-cal-refresh]'}));on('[data-cal-new]',()=>setDraft());on('[data-cal-recover]',()=>void recover())
+  on('[data-cal-today]',()=>{anchor=localCalendarDate();day=anchor;void refresh({focusControl:'[data-cal-today]'})})
+  on('[data-cal-mode]',b=>{
+   const next=b.dataset.calMode as typeof mode
+   if(next===mode)return
+   const nextAnchor=day||anchor
+   try{calendarWindow(nextAnchor,next)}catch{return}
+   anchor=nextAnchor;mode=next;void refresh({focusControl:`[data-cal-mode="${mode}"]`})
+  })
+  on('[data-cal-step]',b=>{
+   const direction=Number(b.dataset.calStep),next=shiftCalendarPeriod(anchor,mode,direction)
+   try{calendarWindow(next,mode)}catch{return}
+   anchor=next;day='';void refresh({focusControl:`[data-cal-step="${direction}"]`})
+  })
+  on('[data-cal-day]',b=>{const date=b.dataset.calDay!;selectAgendaDay(day===date?'':date)})
+  on('[data-cal-all]',()=>selectAgendaDay(''))
+  const select=dialog.querySelector<HTMLSelectElement>('[data-cal-filter]');if(select){select.value=filter;select.onchange=()=>{filter=select.value;shown=100;paintAgenda()}}
   bindAgenda()
   on('[data-cal-practice]',()=>{
    const p=calendar?.practices?.find(p=>p.id===selected?.id);if(!p||practiceView?.isOpen())return
    const key='team-practice:'+p.id
-   practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh('',key)},'','Back to calendar',p.id)
+   practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh({focusKey:key})},'','Back to calendar',p.id)
   })
   on('[data-cal-agenda]',returnAgenda)
   const form=dialog.querySelector<HTMLFormElement>('form')
