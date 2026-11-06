@@ -42,7 +42,7 @@ import {labTrainingOverview} from './lab-training-overview'
 import {showExplore as showPlayerDetail} from './explore'
 import {openLevelUp} from './level-up-view'
 import {createTeamNavigationGuard} from './navigation-warning'
-import {labIdentityHtml,labActionsHtml,labScoreboardHtml} from './lab-home'
+import {labIdentityHtml,labActionsHtml,labScoreboardHtml,labTrainingActionsHtml} from './lab-home'
 import {createNativePush} from './native-push'
 import {createCoachAlerts} from './coach-alerts'
 import {createCoachAlertHandoff} from './coach-alert-handoff'
@@ -297,6 +297,10 @@ function launchUpdates(trigger:HTMLElement){
  const leave=()=>{updates?.dispose();updates=null}
  updates=openUpdates(client,owner,current,()=>updatesCounter.refresh(),(action,button,active)=>{
   if(action.kind==='coach-message')return openCoachMessages(client,owner,active,button,undefined,action.student,undefined,()=>{void chatUnread.refresh()})
+  if(action.kind==='coach-plan'){
+   button.focus({preventScroll:true})
+   return openLevelUp(client,owner,active,{view:'weeks',planId:action.planId})
+  }
   if(action.kind==='tool'){
    if(action.destination==='calendar')return openCalendar(client,owner,active,button)
    if(action.destination==='training-inbox')return openLevelUp(client,owner,active,'inbox')
@@ -481,7 +485,7 @@ async function lab() {
   app.dataset.state = error ? 'unavailable' : 'ready'
   app.innerHTML = `${error
     ? '<header class="tab-hero tab-hero-court"><h1 tabindex="-1">My Lab</h1><p role="alert">Can’t load your profile. Check your connection, then try again.</p></header>'
-    : `${data?.linked_player_id?labScoreboardHtml(data):''}<div id="lab-identity">${data?.linked_player_id&&data.linked_player_name?labIdentityHtml(data):playerSetupHtml()}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
+    : `${data?.linked_player_id?labScoreboardHtml(data):''}<div id="lab-identity">${data?.linked_player_id&&data.linked_player_name?labIdentityHtml(data):playerSetupHtml()}</div>${data?.linked_player_id&&data.linked_player_name?labTrainingActionsHtml():''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
 
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
@@ -498,7 +502,13 @@ async function lab() {
     },()=>{if(!active()||!selectedLabGoal)return;const host=app.querySelector<HTMLElement>('#lab-identity');if(host){host.innerHTML=labIdentityHtml(data,undefined,selectedLabGoal);bindLabActions();if(heroTrigger)host.querySelector<HTMLElement>('[data-lab-goals]')?.focus({preventScroll:true})}})
   }})
   app.querySelectorAll<HTMLButtonElement>('[data-lab-screen]').forEach(b=>{b.onclick=()=>{if(b.dataset.labScreen==='competitions'){launchCompetitions('mine',b);return}if(b.dataset.labScreen==='following'){openFollowing();return}if(b.dataset.labScreen==='matchup'){openMatchup();return}navigation.querySelector<HTMLButtonElement>(`[data-screen="${b.dataset.labScreen}"]`)?.click()}})
-  app.querySelectorAll<HTMLButtonElement>('[data-training]').forEach(b=>{b.onclick=()=>{if(training?.isOpen())return;training=openLevelUp(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,b.dataset.training==='inbox'?'inbox':b.dataset.training==='progress'?'progress':'catalog',b.dataset.training==='next'?{cardId:b.dataset.trainingCard||'',identitySlug:b.dataset.trainingDirection||''}:undefined)}})
+  app.querySelectorAll<HTMLButtonElement>('[data-training]').forEach(button=>{button.onclick=()=>{
+   if(training?.isOpen())return
+   const action=button.dataset.training
+   const initial=action==='weeks'?{view:'weeks'} as const:action==='inbox'||action==='progress'?action:'catalog'
+   button.focus({preventScroll:true})
+   training=openLevelUp(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,initial,action==='next'?{cardId:button.dataset.trainingCard||'',identitySlug:button.dataset.trainingDirection||''}:undefined)
+  }})
   app.querySelectorAll<HTMLButtonElement>('[data-lab-profile]').forEach(button=>{button.onclick=()=>{if(!data?.linked_player_id||!data.linked_player_name)return;details?.dispose();details=null;const profileVersion=++revision;selectNavigation('explore');profileOpen=true;explore=showPlayerDetail(app,client,()=>profileVersion===revision&&current.user.id===session?.user.id,{player:{id:data.linked_player_id,name:data.linked_player_name,location:null,flight:null},back:()=>{void lab()},backLabel:'Back to My Lab'})}})
   app.querySelectorAll<HTMLButtonElement>('[data-connect-player],#connect-player').forEach(connectButton=>{connectButton.onclick = () => {
     details?.dispose()

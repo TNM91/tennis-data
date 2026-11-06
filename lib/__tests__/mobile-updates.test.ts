@@ -50,6 +50,12 @@ describe('owned Updates records and cursors',()=>{
  })
 })
 describe('Updates app destinations',()=>{
+ it('accepts only the canonical coach-plan destination with one bounded plan ID',()=>{
+  const href=(query:string,hash='#level-up-coach-update')=>'/level-up/my-quest?'+query+hash
+  expect(updateAction({...item(),href:href('coachUpdate=week%3A123')})).toEqual({kind:'coach-plan',planId:'week:123',label:'Open coach update'})
+  for(const query of ['coachUpdate=','coachUpdate=%00','coachUpdate='+'x'.repeat(241),'coachUpdate=week&coachUpdate=other','coachUpdate=week&extra=1'])expect(updateAction({...item(),href:href(query)})).toBeNull()
+  expect(updateAction({...item(),href:href('coachUpdate=week','#level-up-flow')})).toBeNull()
+ })
  it('uses known content links and app tools, never a website or an auth/billing redirect',()=>{
   expect(updateAction(item())).toMatchObject({kind:'link',link:{kind:'tournament',id:'open-draw'}})
   expect(updateAction({...item(),href:'/mylab#coach-assignments'})).toMatchObject({kind:'tool',destination:'training-inbox'})

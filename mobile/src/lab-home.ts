@@ -5,6 +5,18 @@ import {nativeActionIcon} from './native-action-icons'
 import type {LabTrainingOverview} from './lab-training-overview'
 export type LabProfile={linked_player_id?:string|null;linked_player_name?:string|null;linked_team_name?:string|null;linked_league_name?:string|null}
 
+export function labTrainingActionsHtml(){
+ return `<section class="lab-training-overview" aria-labelledby="lab-training-title">
+  <h2 id="lab-training-title">Your training</h2>
+  <p>Pick up a saved weekly plan or see your recent practice.</p>
+  <div class="lab-training-actions">
+   <button type="button" data-training="weeks">Open saved weeks</button>
+   <button type="button" class="secondary" id="lab-training-refresh">Load training overview</button>
+  </div>
+  <p role="status" id="lab-training-status"></p>
+ </section>`
+}
+
 export function labScoreboardHtml(profile:LabProfile){
  const name=profile.linked_player_name
  return `<section class="tab-hero lab-stat-panel lab-scoreboard" aria-labelledby="lab-ratings-title">

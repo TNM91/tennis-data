@@ -27,6 +27,10 @@ const currentPlan:WeeklyLevelUpPlan={
  ],
 }
 const plans=[currentPlan,{...currentPlan,id:'training-previous-week',weekStart:shiftCalendarDay(weekStart,-7),summary:'Hold depth on the move',reps:[{...currentPlan.reps[1],title:'Move through the return'}]}]
+if(new URL(location.href).searchParams.has('training-coach-update')){
+ const coachUserId='synthetic-coach',previous=plans[1]
+ plans[1]={...previous,sharedWithCoach:true,coachUserId,studentLinkId:link.id,coachResponse:{action:'adjusted',note:'Recover toward the center after the return.',targetRepId:previous.reps[0].id,replacementRep:null,coachUserId,updatedAt,playerReply:{action:'acknowledged',message:'',playerUserId:navigationOwner,updatedAt}}}
+}
 const sessions:(TrainingSave&{playerUserId:string;sessionJson:{cardId:string}})[]=[]
 export function trainingInboxPreview(url:URL,method:string,body?:BodyInit|null){
  if(!new URL(location.href).searchParams.has('training-inbox-review'))return null

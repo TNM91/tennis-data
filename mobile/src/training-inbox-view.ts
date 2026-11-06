@@ -46,12 +46,14 @@ function weeklyPlanCard(plan:WeeklyLevelUpPlan,canChange:boolean,currentWeek:str
  </section>`
 }
 
-export function trainingPlansHtml(plans:WeeklyLevelUpPlan[],canChange=false){
+export function trainingPlansHtml(plans:WeeklyLevelUpPlan[],canChange=false,requestedPlanId?:string){
  const currentWeek=getWeeklyLevelUpPlanWeekStart()
- const featured=selectWeeklyLevelUpPlanForMyQuest(plans,currentWeek)
- if(!featured)return '<p>No weekly plans are saved to your account yet.</p>'
+ const requested=requestedPlanId?plans.find(plan=>plan.id===requestedPlanId):undefined
+ const unavailable=requestedPlanId&&!requested?'<p role="status">This saved week is unavailable.</p>':''
+ const featured=requested??selectWeeklyLevelUpPlanForMyQuest(plans,currentWeek)
+ if(!featured)return unavailable+'<p>No weekly plans are saved to your account yet.</p>'
  const otherWeeks=plans.filter(plan=>plan.id!==featured.id)
- return `${weeklyPlanCard(featured,canChange,currentWeek,true)}
+ return `${unavailable}${weeklyPlanCard(featured,canChange,currentWeek,true)}
   ${otherWeeks.length?`<details class="training-inbox-fold" data-inbox-fold="saved-weeks"><summary>More saved weeks (${otherWeeks.length})</summary>${otherWeeks.map(plan=>weeklyPlanCard(plan,canChange,currentWeek)).join('')}</details>`:''}
   <p class="training-inbox-note">Mark a rep done after you finish the work.${plans.length===12?' Showing the latest 12 saved plans.':''}</p>`
 }
