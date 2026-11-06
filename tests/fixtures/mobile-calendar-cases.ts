@@ -122,8 +122,18 @@ for(const width of [320,390])test('Calendar finder: local search keeps the input
 })
 
 test('Calendar finder: event return, type and day filters, refresh and session renewal retain the search',async({page})=>{
- const d=await calendarScreen(page),input=d.getByRole('searchbox',{name:'Find a date',exact:true});await input.fill('Northside');await expect(d.locator('.cal-event')).toHaveCount(2)
- await d.getByRole('combobox',{name:'Show',exact:true}).selectOption('competition');await d.locator('.cal-event').click();await d.getByRole('button',{name:'Back to calendar',exact:true}).click()
+ const d=await calendarScreen(page),input=d.getByRole('searchbox',{name:'Find a date',exact:true})
+ const today=d.locator('[data-cal-day][aria-current="date"]'),dots=today.locator('.cal-dots i')
+ await expect(dots).toHaveClass(['personal','competition','coach'])
+ await input.fill('Northside');await expect(d.locator('.cal-event')).toHaveCount(2)
+ await expect(dots).toHaveClass(['personal','competition']);await expect(today).toHaveAttribute('aria-label',/2 matching events$/)
+ await d.getByRole('combobox',{name:'Show',exact:true}).selectOption('competition')
+ await expect(dots).toHaveClass(['competition']);await expect(today).toHaveAttribute('aria-label',/1 matching event$/)
+ const otherDay=d.locator('[data-cal-day]:not([aria-current])').first()
+ await otherDay.press('Enter');await expect(otherDay).toBeFocused();await expect(d.locator('.cal-event')).toHaveCount(0)
+ await expect(dots).toHaveClass(['competition'])
+ await d.getByRole('button',{name:'All dates',exact:true}).click()
+ await d.locator('.cal-event').click();await d.getByRole('button',{name:'Back to calendar',exact:true}).click()
  await expect(input).toHaveValue('Northside');await expect(d.getByRole('combobox',{name:'Show',exact:true})).toHaveValue('competition');await expect(d.locator('.cal-event')).toBeFocused()
  const before=await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.length)
  await page.evaluate(()=>{(window as unknown as CalendarWindow).refreshNavigationSession();window.dispatchEvent(new Event('online'))});await expect(input).toHaveValue('Northside')
@@ -144,7 +154,11 @@ test('Calendar finder: export reviews the query and includes only matching loade
 
 test('Calendar finder: a failed or held refresh clears stale dates and keeps unknown counts distinct from no matches',async({page})=>{
  const d=await calendarScreen(page),input=d.getByRole('searchbox',{name:'Find a date',exact:true});await input.fill('Riverside');await page.evaluate(()=>{(window as unknown as CalendarWindow).calendarFixture.fail=true});await d.getByRole('button',{name:'Refresh',exact:true}).click()
- await expect(d.locator('[data-cal-count]')).toHaveText('Unavailable');await expect(d.locator('.cal-event')).toHaveCount(0);await expect(input).toHaveValue('Riverside');await d.getByRole('button',{name:'Retry',exact:true}).click();await expect(d.locator('.cal-event')).toHaveCount(1)
+ const today=d.locator('[data-cal-day][aria-current="date"]')
+ await expect(d.locator('[data-cal-count]')).toHaveText('Unavailable');await expect(d.locator('.cal-event')).toHaveCount(0)
+ await expect(today).toHaveAttribute('aria-label',/events unavailable$/);await expect(today.locator('.cal-dots i')).toHaveCount(0)
+ await expect(input).toHaveValue('Riverside');await d.getByRole('button',{name:'Retry',exact:true}).click();await expect(d.locator('.cal-event')).toHaveCount(1)
+ await expect(today).toHaveAttribute('aria-label',/1 matching event$/)
  await page.evaluate(()=>{(window as unknown as CalendarWindow).calendarFixture.defer=true});await d.getByRole('button',{name:'Refresh',exact:true}).click();await expect(d.locator('.cal-event')).toHaveCount(0);await expect(input).toBeDisabled()
  await page.evaluate(()=>(window as unknown as CalendarWindow).switchNavigationOwner());await expect(d).toHaveCount(0);await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.release());await expect(page.getByRole('dialog')).toHaveCount(0)
 })
