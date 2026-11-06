@@ -110,7 +110,6 @@ body[data-screen]:not(.native-chat-conversation) .tennis-tool-grid button.tennis
 .lab-form-host .lab-form-marks .lab-form-mark{min-block-size:56px;padding:8px 2px;border-radius:12px;background:#0d2940;border-color:#335875}
 .lab-form-host .lab-form-mark.is-win{border-color:#6b984a;background:#1a382d}
 .lab-form-host .lab-form-mark.is-loss{border-color:#795267;background:#312837}
-.lab-form-strip>p.lab-form-help{margin:10px 0 2px;font-size:10px;color:#a5c5db}
 body[data-screen="lab"] main>section.lab-rating-trends{margin-top:20px;padding:0;background:transparent;border:0;box-shadow:none}
 .lab-rating-trends>h2{font-size:18px;margin:0 0 12px;color:#edf7ff;letter-spacing:-.025em}
 .lab-rating-trends .lab-trend-entry.secondary{display:flex;align-items:center;gap:12px;inline-size:100%;min-inline-size:0;min-block-size:80px;margin:0;padding:14px;border:1px solid #315c7b;border-radius:18px;background:linear-gradient(120deg,#133a56,#0a253b);color:#ebf7ff;text-align:left}

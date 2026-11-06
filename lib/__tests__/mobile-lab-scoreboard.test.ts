@@ -17,6 +17,11 @@ describe('native My Lab visual evidence',()=>{
   expect(labRecentFormHtml(rows,'owner')).toContain('4W · 1L');expect(labRecentFormHtml(rows,'owner')).toContain('Latest 5 decided results in your loaded matches')
   expect(labRecentFormHtml(rows,'other')).toBe('');expect(labRecentFormHtml([row('pending',null)],'owner')).toBe('')
  })
+ it('chooses the newest five decided courts within the format while keeping original scorecard indexes',()=>{
+  const rows=[row('duplicate',null),...Array.from({length:5},(_,i)=>row('double-'+i)),row('duplicate','B','singles'),...Array.from({length:6},(_,i)=>row('single-'+i,'B','singles'))]
+  expect(labRecentSample(rows,'owner').every(item=>item.format==='doubles')).toBe(true)
+  expect(labRecentSample(rows,'owner','singles').map(item=>item.index)).toEqual([7,8,9,10,11])
+ })
  it('distinguishes a zero win rate from unavailable data and never emits invalid chart coordinates or markup',()=>{
   expect(statDonutHtml(0,'Recent wins')).toContain('Recent wins: 0%');expect(statDonutHtml(0,'Recent wins')).not.toContain('stat-donut-fill')
   expect(statDonutHtml(100,'Recent wins')).toContain('stroke-dasharray="100 100"')

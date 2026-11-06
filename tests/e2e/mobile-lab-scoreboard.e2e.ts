@@ -94,11 +94,33 @@ test('missing, fallback and extreme records stay honest and bounded',async({page
   if(scenario==='long'){await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:info.outputPath('lab-scoreboard-long-name.png'),fullPage:false})}
  }
 })
-test('scorecard indexes and stale-visit guards use the shared form binding',async({page})=>{
+test('recent form filters keep exact scorecards, focus and session guards',async({page})=>{
+ await page.setViewportSize({width:320,height:720})
  await page.goto(origin+prefix)
- await page.locator('[data-lab-form-index="2"]').click();expect((await fixture(page)).opened).toBe('court-2')
+ await page.addStyleTag({content:':root{font-size:22px!important}'})
+ const card=page.locator('.lab-form-strip'),format=card.getByRole('group',{name:'Recent form format'})
+ const singles=format.getByRole('button',{name:'Singles',exact:true})
+ await singles.focus();await singles.press('Enter')
+ await expect(singles).toBeFocused();await expect(singles).toHaveAttribute('aria-pressed','true')
+ await expect(card.getByRole('status')).toHaveText('Latest 4 decided singles results in your loaded matches')
+ await expect(card.getByRole('img',{name:'Wins in your latest 4 decided singles results: 100%',exact:true})).toBeVisible()
+ await expect(page.locator('#results-content [data-match-filter="All"]')).toHaveAttribute('aria-pressed','true')
+ await card.locator('[data-lab-form-index="9"]').click()
+ expect((await fixture(page)).opened).toBe('court-9');await bounded(page)
+ const doubles=format.getByRole('button',{name:'Doubles',exact:true})
+ await doubles.click()
+ await expect(card.getByRole('status')).toHaveText('Latest 5 decided doubles results in your loaded matches')
+ await expect(card.locator('[data-lab-form-index]')).toHaveCount(5)
+ expect((await fixture(page)).authReads).toBe(0)
  await page.evaluate(()=>(window as unknown as {labFixture:Fixture}).labFixture.invalidate())
- await page.locator('[data-lab-form-index="0"]').click();expect((await fixture(page)).opened).toBe('court-2')
+ await card.locator('[data-lab-form-index="2"]').click();expect((await fixture(page)).opened).toBe('court-9')
+ await singles.click();await expect(doubles).toHaveAttribute('aria-pressed','true')
+
+ await page.evaluate(()=>(window as unknown as {labFixture:Fixture}).labFixture.render('doubles-only'))
+ await singles.click()
+ await expect(card.getByRole('status')).toHaveText('No decided singles results in your loaded matches.')
+ await expect(card.locator('[data-lab-form-index],.stat-donut')).toHaveCount(0)
+ await doubles.click();await expect(card.locator('[data-lab-form-index]')).toHaveCount(5)
 })
 test('history remains opt-in, follows its session guard and supports retry',async({page})=>{
  await page.goto(origin+prefix);expect((await fixture(page)).authReads).toBe(0)

@@ -1,7 +1,7 @@
 import {navigationHtml,homeShortcutsHtml} from '../../mobile/src/app-navigation'
 import {labIdentityHtml,labScoreboardHtml} from '../../mobile/src/lab-home'
 import {ratingsHtml} from '../../mobile/src/player-ratings-view'
-import {labRecentFormHtml,bindLabFormScorecards} from '../../mobile/src/lab-recent-form'
+import {mountLabRecentForm} from '../../mobile/src/lab-recent-form'
 import {labLevelPathHtml} from '../../mobile/src/lab-level-path'
 import {showRecentResults} from '../../mobile/src/results-view'
 import {mountLabRatingTrends} from '../../mobile/src/lab-rating-trends'
@@ -23,13 +23,14 @@ state.render=(scenario='default')=>{
  if(scenario==='empty'){player.overall_dynamic_rating=null;player.singles_dynamic_rating=null;player.doubles_dynamic_rating=null;rows=[]}
  if(scenario==='self')player.rating_source='self'
  if(scenario==='pending')rows=rows.map(row=>({...row,winner_side:null}))
+ if(scenario==='doubles-only')rows=rows.filter(row=>row.match_type==='doubles')
  if(scenario==='all-losses')rows=rows.map(row=>({...row,winner_side:'A'}))
  if(scenario==='all-wins')rows=rows.map(row=>({...row,winner_side:'B'}))
  const name=scenario==='long'?'Alexandria-Marguerite Montgomery':'Jordan Lee'
- app.innerHTML=labScoreboardHtml({linked_player_name:name,linked_team_name:'Review Aces'})+'<div class="lab-form-host">'+labRecentFormHtml(rows,owner)+'</div>'+homeShortcutsHtml()+'<section id="rating-trends"></section><section id="recent-results"><h2>Recent matches</h2><div id="results-content"></div></section><div class="lab-next-band">'+labLevelPathHtml(player)+'</div><div id="lab-identity">'+labIdentityHtml({linked_player_id:owner,linked_player_name:name})+'</div>'
+ app.innerHTML=labScoreboardHtml({linked_player_name:name,linked_team_name:'Review Aces'})+'<div class="lab-form-host"></div>'+homeShortcutsHtml()+'<section id="rating-trends"></section><section id="recent-results"><h2>Recent matches</h2><div id="results-content"></div></section><div class="lab-next-band">'+labLevelPathHtml(player)+'</div><div id="lab-identity">'+labIdentityHtml({linked_player_id:owner,linked_player_name:name})+'</div>'
  app.querySelector('[data-lab-ratings]')!.innerHTML=ratingsHtml(player,true,true)
  const current=()=>state.active&&revision===version
- bindLabFormScorecards(app.querySelector<HTMLElement>('.lab-form-host')!,rows,current,row=>{state.opened=row.id})
+ mountLabRecentForm(app.querySelector<HTMLElement>('.lab-form-host')!,rows,owner,current,row=>{state.opened=row.id})
  showRecentResults(app.querySelector<HTMLElement>('#results-content')!,rows,owner,row=>{state.opened=row.id},'your',true)
  const client={auth:{getSession:async()=>{state.authReads++;return {data:{session:null},error:Error('Synthetic unavailable session')}}}}
  trends=mountLabRatingTrends(app.querySelector<HTMLElement>('#rating-trends')!,client as never,owner,current)

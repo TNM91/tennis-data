@@ -28,7 +28,7 @@ import {PRODUCT_MOTTO,MEMBERSHIP_TIERS} from '../../lib/product-story'
 import type {TeamChatDestination} from './team-room-data'
 import {nativeActionIcon} from './native-action-icons'
 import websiteUi from '../generated/website-ui.json'
-import {labRecentFormHtml,bindLabFormScorecards} from './lab-recent-form'
+import {mountLabRecentForm} from './lab-recent-form'
 import {labLevelPathHtml} from './lab-level-path'
 import {loadOlderResults} from './recent-results-history'
 import {mountLabRatingTrends} from './lab-rating-trends'
@@ -558,8 +558,7 @@ async function lab() {
           return
         }
         const rows = (result.data || []) as RecentMatchRow[]
-        formSection.innerHTML=labRecentFormHtml(rows,playerId)
-        bindLabFormScorecards(formSection,rows,()=>version===revision&&current.user.id===session?.user.id,row=>details?.open(row,playerId))
+        mountLabRecentForm(formSection,rows,playerId,()=>version===revision&&current.user.id===session?.user.id,row=>details?.open(row,playerId))
         content.dataset.state = rows.length ? 'ready' : 'empty'
         showRecentResults(content, rows, playerId, row => details?.open(row, playerId),'your',true,{current:()=>version===revision&&current.user.id===session?.user.id,load:loaded=>loadOlderResults(client,playerId,loaded)})
       }
