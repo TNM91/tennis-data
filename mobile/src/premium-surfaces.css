@@ -410,6 +410,32 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
  grid-column:2;grid-row:2;inline-size:auto;min-block-size:44px;margin:0;padding:8px 10px;
  border-color:var(--premium-line);background:var(--premium-inset);font-size:.8125rem;
 }
+#following-list .following-tools,#following-list .following-card-actions {
+ display:flex;flex-wrap:wrap;gap:8px;
+}
+#following-list .following-tools button.secondary,#following-list .following-card-actions button.secondary {
+ inline-size:auto;min-block-size:44px;margin:0;padding:8px 12px;font-size:.8125rem;line-height:1.35;
+}
+#following-list #following-search { background:var(--premium-inset);border-color:var(--premium-line); }
+#following-status:empty { display:none; }
+.following-cards { display:grid;gap:8px;margin:12px 0;padding:0;list-style:none; }
+.following-cards>li {
+ min-inline-size:0;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-surface);overflow-wrap:anywhere;
+}
+.following-cards>li:focus-within { border-color:var(--premium-royal-line);background:var(--premium-card); }
+#following-list .following-card-open.secondary {
+ display:flex;align-items:center;justify-content:space-between;gap:12px;min-block-size:64px;
+ inline-size:100%;min-inline-size:0;margin:0;padding:12px 14px;border:0;
+ background:transparent;text-align:start;color:var(--premium-ice);
+}
+.following-card-copy { display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-inline-size:0;overflow-wrap:anywhere; }
+.following-card-copy strong { color:var(--premium-white);font-size:1rem;line-height:1.3; }
+.following-card-copy>span { color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
+.following-card-unavailable { padding:12px 14px; }
+.following-card-unavailable p,.following-card-actions p { margin:8px 0 0;color:var(--premium-copy);font-size:.8125rem; }
+.following-card-actions { padding:8px 14px 12px;border-block-start:1px solid var(--premium-line); }
+.following-card-actions p { flex-basis:100%;margin:0; }
 /* View selectors use the same inlay as the active tab. Actions and status badges have their own treatments. */
 :is(body[data-screen="lab"] #recent-results .match-filters,
     body[data-screen="lab"] .lab-form-filters,
