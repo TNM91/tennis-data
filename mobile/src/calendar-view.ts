@@ -31,6 +31,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  let filter:string=typeof initial==='string'?initial:'all'
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago',reply:'available'|'unavailable'='available'
+ let draftStart:CalendarDraft|null=null
+ let discardDestination:'agenda'|'close'='close'
  let schedulingRep=false
  let query='',agendaOpener='',agendaScroll=0,finderSource:NativeCalendar|null=null,finder:ReturnType<typeof createCalendarFinder>|null=null
  const active=()=>!disposed&&current()
@@ -46,14 +48,24 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const heading=step??dialog.querySelector<HTMLElement>('h2, h1')
   heading?.focus({preventScroll:true})
  }
- const dispose=()=>{if(disposed)return;disposed=true;practiceView?.dispose();practiceView=null;void cancelCoachFile(owner).catch(()=>{});calendar=null;finder=null;finderSource=null;query='';draft=null;pending=null;dialog.close();dialog.remove();if(current()){if(typeof initial==='object')initial.onClose();else if(trigger?.isConnected)trigger.focus({preventScroll:true})}}
+ const dispose=()=>{if(disposed)return;disposed=true;practiceView?.dispose();practiceView=null;void cancelCoachFile(owner).catch(()=>{});calendar=null;finder=null;finderSource=null;query='';draft=null;draftStart=null;pending=null;dialog.close();dialog.remove();if(current()){if(typeof initial==='object')initial.onClose();else if(trigger?.isConnected)trigger.focus({preventScroll:true})}}
  const dirty=()=>!!draft&&panel!=='agenda'||Boolean(practiceView?.isOpen())
+ const confirmDiscard=(destination:'agenda'|'close')=>{
+  discardDestination=destination
+  returnPanel=panel
+  panel='leave'
+  render();focus()
+ }
+ const cancelEditor=()=>{
+  if(schedulingRep||!calendar){back();return}
+  if(draft&&draftStart&&sameCalendarDraft(draft,draftStart))returnAgenda()
+  else confirmDiscard('agenda')
+ }
  const back=()=>{
   if(practiceView?.isOpen()){practiceView.back();return true}
   if(busy){notice='Finishing this calendar check…';status();return true}
   if(panel==='leave'){panel=returnPanel;render();return true}
-  if(pending){returnPanel=panel;panel='leave';render();focus();return true}
-  if(panel==='editor'||panel==='review'){returnPanel=panel;panel='leave';render();focus();return true}
+  if(pending||panel==='editor'||panel==='review'){confirmDiscard('close');return true}
   if(panel!=='agenda'){returnAgenda();return true}
   dispose();return true
  }
@@ -77,6 +89,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  const confirmed=async(message:string,saved:PlayerCalendarItem|null=null)=>{
   pending=null
   draft=null
+  draftStart=null
   baseline=''
   selected=null
   schedulingRep=false
@@ -119,7 +132,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
      return
     }
     pending=null
-    if(saved){draft=personalDraft(saved);baseline=saved.updatedAt;schedulingRep=false;panel='editor';notice='The saved entry differs. Review this latest version before making a change.'}
+    if(saved){draft=personalDraft(saved);draftStart=draft;baseline=saved.updatedAt;schedulingRep=false;panel='editor';notice='The saved entry differs. Review this latest version before making a change.'}
     else if(intent.action!=='delete'){draft=intent.action==='update'?{...intent.item,id:'player-calendar-'+crypto.randomUUID()}:intent.item;baseline='';panel='editor';notice=intent.action==='update'?'That event is no longer saved. Review a new personal copy.':'No saved entry was found. Review this event before saving it.'}
     else{panel='agenda';notice='Refresh to check your calendar.'}
    }
@@ -128,6 +141,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const setDraft=(item?:CalendarDraft,stamp='',practiceTitle='')=>{
   draft=item||{id:'player-calendar-'+crypto.randomUUID(),title:practiceTitle.trim().slice(0,160).trim(),date:day||anchor,time:'',location:'',kind:'practice',recurrenceRule:'',availabilityStatus:'',venueDirectoryId:'',venuePreferenceId:''}
+  draftStart=draft
   baseline=stamp;schedulingRep=Boolean(practiceTitle);panel='editor';notice='';render()
   if(schedulingRep)focus()
   else dialog.querySelector<HTMLInputElement>('[name="title"]')?.focus()
@@ -181,6 +195,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const content=()=>{
   if(panel==='agenda')return agenda()
+  if(panel==='leave'&&discardDestination==='agenda')return '<section class="cal-panel"><h2 tabindex="-1">Discard changes?</h2><p>Your changes to this personal event will be discarded.</p><button data-cal-stay>Keep editing</button><button class="secondary" data-cal-discard>Discard changes</button></section>'
   if(panel==='leave')return `<section class="cal-panel"><h2 tabindex="-1">Leave this calendar change?</h2><p>${pending?'The saved result is still unconfirmed. Your calendar will need a fresh check when you return.':'Your unsaved changes will be discarded.'}</p><button data-cal-stay>Keep reviewing</button><button class="secondary" data-cal-discard>Discard and close</button></section>`
   if(panel==='recovery')return '<section class="cal-panel"><h2 tabindex="-1">Check the saved result</h2><p>The connection ended before we could confirm your change. Check your saved calendar before trying again.</p><button data-cal-recover '+(busy?'disabled':'')+'>Check saved entry</button></section>'
   if(panel==='editor'&&draft)return `<form class="cal-form">
@@ -195,7 +210,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
     <p>${draft.recurrenceRule?'Edits apply to the whole repeating series. Monthly dates skip months without that day.':'Leave time empty for an all-day entry.'} Personal events don’t book a court, send a team message or reply to a competition.</p>`}
    <button type="submit">${schedulingRep?'Review practice':'Review event'}</button>
    ${baseline&&selected?'<button type="button" class="secondary" data-cal-delete-review>'+(selected.recurring?'Delete repeating series':'Delete event')+'</button>':''}
-   <button type="button" class="secondary" data-cal-back>Cancel</button>
+   <button type="button" class="secondary" data-cal-cancel>Cancel</button>
   </form>`
   if(panel==='review'&&draft)return `<section class="cal-panel"><h2 tabindex="-1">${schedulingRep?'Review practice':'Review personal event'}</h2>${details(draft)}<p>${html(draft.kind)} · ${html(repeatNames[draft.recurrenceRule])}</p>${draft.kind==='availability'?'<p>Personal note: '+html(draft.availabilityStatus)+'. No competition reply is sent.</p>':''}${draft.recurrenceRule?'<p>This saves the whole repeating series.</p>':''}<button data-cal-save ${busy?'disabled':''}>${schedulingRep?'Save private practice':baseline?'Save changes':'Save personal event'}</button><button class="secondary" data-cal-edit ${busy?'disabled':''}>Keep editing</button></section>`
   if(panel==='delete'&&selected)return `<section class="cal-panel"><h2 tabindex="-1">Delete ${selected.recurring?'repeating series':'personal event'}?</h2>${details(selected)}<p>${selected.recurring?'Every occurrence from this personal series will be removed.':'This removes this personal event from your saved calendar.'}</p><button data-cal-delete ${busy?'disabled':''}>Delete ${selected.recurring?'whole series':'event'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Keep event</button></section>`
@@ -244,6 +259,10 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   row.scrollIntoView({block:'nearest'})
   return true
  }
+ const rememberAgenda=(opener:string)=>{
+  agendaOpener=opener
+  agendaScroll=dialog.querySelector('.cal-body')?.scrollTop||0
+ }
  const bindAgenda=()=>{
   const input=dialog.querySelector<HTMLInputElement>('[data-cal-query]'),rows=dialog.querySelector<HTMLElement>('[data-cal-results]'),clear=dialog.querySelector<HTMLButtonElement>('[data-cal-clear]')
   if(!input||!rows)return
@@ -263,16 +282,17 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    if(!button||!rows.contains(button))return
    if(button.hasAttribute('data-cal-more')){const first=visible()[shown];if(first)focusAgendaEvent(first.key);return}
    selected=visible().find(e=>e.key===button.dataset.calEvent)||null;if(!selected)return
-   agendaOpener=selected.key;agendaScroll=dialog.querySelector('.cal-body')?.scrollTop||0
-   if(selected.source==='personal'){const p=calendar!.personal.find(p=>p.id===selected!.id)!;draft=personalDraft(p);baseline=p.updatedAt;panel='editor'}
+   rememberAgenda(selected.key)
+   if(selected.source==='personal'){const p=calendar!.personal.find(p=>p.id===selected!.id)!;draft=personalDraft(p);draftStart=draft;baseline=p.updatedAt;panel='editor'}
    else{reply=calendar?.competitions.find(e=>e.id===selected!.id)?.responseStatus==='unavailable'?'unavailable':'available';panel='respond'}
    notice='';render();focus()
   }
  }
  const returnAgenda=()=>{
-  draft=null;selected=null;panel='agenda';notice='';render()
+  draft=null;draftStart=null;baseline='';selected=null;panel='agenda';notice='';render()
   const body=dialog.querySelector('.cal-body');if(body)body.scrollTop=agendaScroll
-  const opener=agendaOpener==='export'?dialog.querySelector<HTMLButtonElement>('[data-cal-export-review]'):Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-cal-event]')).find(b=>b.dataset.calEvent===agendaOpener)
+  const footerOpener=agendaOpener==='new'?'[data-cal-new]':agendaOpener==='export'?'[data-cal-export-review]':null
+  const opener=footerOpener?dialog.querySelector<HTMLButtonElement>(footerOpener):Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-cal-event]')).find(b=>b.dataset.calEvent===agendaOpener)
   ;(opener||dialog.querySelector<HTMLInputElement>('[data-cal-query]'))?.focus({preventScroll:true})
  }
  const render=()=>{
@@ -282,8 +302,14 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   dialog.querySelector('.cal-body')!.scrollTop=scroll
   const on=(selector:string,fn:(button:HTMLButtonElement)=>void)=>dialog.querySelectorAll<HTMLButtonElement>(selector).forEach(button=>button.onclick=()=>{if(active()&&!busy)fn(button)})
   dialog.querySelector('[data-cal-close]')!.addEventListener('click',back)
-  on('[data-cal-back]',back);on('[data-cal-stay]',()=>{panel=returnPanel;render();if(schedulingRep)focus()});on('[data-cal-discard]',dispose)
-  on('[data-cal-refresh]',()=>void refresh(failedRefresh??{focusControl:'[data-cal-refresh]'}));on('[data-cal-new]',()=>setDraft());on('[data-cal-recover]',()=>void recover())
+  on('[data-cal-cancel]',cancelEditor)
+  on('[data-cal-stay]',()=>{
+   panel=returnPanel;render()
+   if(discardDestination==='agenda')dialog.querySelector<HTMLElement>('.cal-form h2')?.focus()
+   else if(schedulingRep)focus()
+  })
+  on('[data-cal-discard]',()=>{if(discardDestination==='agenda')returnAgenda();else dispose()})
+  on('[data-cal-refresh]',()=>void refresh(failedRefresh??{focusControl:'[data-cal-refresh]'}));on('[data-cal-new]',()=>{rememberAgenda('new');setDraft()});on('[data-cal-recover]',()=>void recover())
   on('[data-cal-today]',()=>{anchor=localCalendarDate();day=anchor;void refresh({focusControl:'[data-cal-today]'})})
   on('[data-cal-mode]',b=>{
    const next=b.dataset.calMode as typeof mode
@@ -322,7 +348,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   on('[data-cal-delete]',()=>{if(selected)void perform({action:'delete',id:selected.id,expectedUpdatedAt:baseline})})
   const replySelect=dialog.querySelector<HTMLSelectElement>('[data-cal-reply]');if(replySelect)replySelect.onchange=()=>{reply=replySelect.value as typeof reply}
   on('[data-cal-respond]',()=>{const e=calendar?.competitions.find(e=>e.id===selected?.id);if(e)void perform({action:'respond',eventId:e.id,response:reply,snapshot:{title:e.title,date:e.date,time:e.time,location:e.location},expectedResponseUpdatedAt:e.responseUpdatedAt||'',requestId:crypto.randomUUID()})})
-  on('[data-cal-export-review]',()=>{agendaOpener='export';agendaScroll=dialog.querySelector('.cal-body')?.scrollTop||0;panel='export';notice='';render();focus()})
+  on('[data-cal-export-review]',()=>{rememberAgenda('export');panel='export';notice='';render();focus()})
   const zoneSelect=dialog.querySelector<HTMLSelectElement>('[data-cal-zone]');if(zoneSelect)zoneSelect.onchange=()=>{zone=zoneSelect.value}
   on('[data-cal-export]',()=>{busy=true;notice='Preparing calendar file…';render();void (async()=>{try{const blob=new Blob([calendarExport(visible(),zone)],{type:'text/calendar'});await exportCoachFile(owner,active,blob,'TenAceIQ-'+range().from+'-'+range().to+'.ics');if(active())notice='Calendar file prepared. Add it to your preferred calendar to finish.'}catch{if(active())notice='Calendar export wasn’t completed. You can try sharing again.'}finally{if(active()){busy=false;render()}}})()})
  }
