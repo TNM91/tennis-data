@@ -59,7 +59,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     window.scrollTo(0,searchScroll)
     previousFocus?.focus({preventScroll:true})
   }
-  async function open(player: PlayerChoice,nested=false) {
+  async function open(player: PlayerChoice,nested=false,trigger?:HTMLElement) {
     if (!valid()) return
     roster?.dispose();roster=null
     header?.dispose();header=null
@@ -69,7 +69,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     selected = player
     initial?.onPlayerChange?.(player)
     const version = ++request
-    if(!nested){previousFocus = document.activeElement as HTMLElement | null;searchScroll = window.scrollY}
+    if(!nested){previousFocus = trigger??null;searchScroll = window.scrollY}
     search.hidden = true
     intro.hidden = true
     playerPanel.hidden = false
@@ -126,7 +126,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
       if (!valid() || version !== request) return
       status.textContent = rows.length ? `${rows.length} player${rows.length===1?'':'s'} found. Showing up to 12; add more of the name to narrow your search.` : 'No players found. Try the name used in league results.'
       choices.innerHTML = `<ul class="player-choices">${rows.map((player,index)=>`<li><h2>${html(player.name)}</h2><p>${html(player.location || 'Location unavailable')} · ${html(player.flight || 'Flight unavailable')}</p><button type="button" class="secondary" data-explore-player="${index}">View player<span class="sr-only"> ${html(player.name)}</span></button></li>`).join('')}</ul>`
-      choices.querySelectorAll<HTMLButtonElement>('[data-explore-player]').forEach(control=>{control.onclick=()=>{void open(rows[Number(control.dataset.explorePlayer)])}})
+      choices.querySelectorAll<HTMLButtonElement>('[data-explore-player]').forEach(control=>{control.onclick=()=>{void open(rows[Number(control.dataset.explorePlayer)],false,control)}})
     } catch {
       if (!valid() || version !== request) return
       status.textContent = ''

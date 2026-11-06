@@ -38,7 +38,7 @@ export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=
       content.innerHTML=rows.length?rankingCards(rows):'<p>No recorded TIQ ratings matched this view. Try another view or clear the location.</p>'
       content.querySelectorAll<HTMLButtonElement>('[data-ranking-player]').forEach(button=>{button.onclick=()=>{
         if(!valid())return
-        selected=true;scroll=window.scrollY;previousFocus=document.activeElement as HTMLElement|null;list.hidden=true;detail.hidden=false
+        selected=true;scroll=window.scrollY;previousFocus=button;list.hidden=true;detail.hidden=false
         player=showPlayer(detail,client,valid,{player:rows[Number(button.dataset.rankingPlayer)].player,back},'',access)
       }})
     } catch {

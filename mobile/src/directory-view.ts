@@ -32,17 +32,17 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
   const choices=search.querySelector<HTMLElement>('#directory-choices')!
   const detail=app.querySelector<HTMLElement>('#directory-detail')!
   const back=()=>{clearRoster();request++;selected=false;detail.hidden=true;detail.innerHTML='';search.hidden=false;window.scrollTo(0,scroll);previousFocus?.focus({preventScroll:true})}
-  const open=(markup:string)=>{
-    clearRoster();request++;selected=true;scroll=window.scrollY;previousFocus=document.activeElement as HTMLElement|null
+  const open=(markup:string,trigger?:HTMLElement)=>{
+    clearRoster();request++;selected=true;scroll=window.scrollY;previousFocus=trigger??null
     search.hidden=true;detail.hidden=false
     detail.innerHTML=`<button type="button" class="secondary" id="directory-back">Back to ${mode.toLowerCase()}</button>${markup}`
     detail.querySelector<HTMLButtonElement>('#directory-back')!.onclick=initial?.team&&initial.back?initial.back:back
     if(initial?.team&&initial.back)detail.querySelector<HTMLButtonElement>('#directory-back')!.textContent=initial.backLabel||'Back to following'
     window.scrollTo(0,0);detail.querySelector<HTMLElement>('h1')!.focus({preventScroll:true})
   }
-  const openTeam=(team:TeamChoice)=>{
+  const openTeam=(team:TeamChoice,trigger?:HTMLElement)=>{
     if(!valid())return
-    open(`<h1 tabindex="-1">${html(team.name)}</h1><p>${html(team.league || 'League unavailable')} · ${html(team.flight || 'Flight unavailable')}</p><p>${team.source==='observation'?'Public source observation':'Recorded team context'}</p><div id="team-follow-control"></div><h2>Recorded fixtures</h2><div id="team-records" aria-live="polite"></div><div id="team-roster-details"></div>`)
+    open(`<h1 tabindex="-1">${html(team.name)}</h1><p>${html(team.league || 'League unavailable')} · ${html(team.flight || 'Flight unavailable')}</p><p>${team.source==='observation'?'Public source observation':'Recorded team context'}</p><div id="team-follow-control"></div><h2>Recorded fixtures</h2><div id="team-records" aria-live="polite"></div><div id="team-roster-details"></div>`,trigger)
     const version=request,content=detail.querySelector<HTMLElement>('#team-records')!
     if(access)showPublicSignIn(detail.querySelector<HTMLElement>('#team-follow-control')!,access,()=>valid()&&selected&&request===version)
     const follow=directoryFollowItem(team);if(!access&&follow){const host=detail.querySelector<HTMLElement>('#team-follow-control')!;showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}
@@ -72,14 +72,14 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
         if(!valid() || version!==request)return
         status.textContent=`${result.teams.length} team record${result.teams.length===1?'':'s'} found.${result.limited?' Showing a limited sample; add more of the name to narrow it.':''}${result.partial?' Some sources are unavailable; results may be incomplete.':''}`
         choices.innerHTML=result.teams.length?`<ul class="player-choices">${result.teams.map((team,index)=>`<li><h2>${html(team.name)}</h2><p>${html(team.league || 'League unavailable')} · ${html(team.flight || 'Flight unavailable')}</p><button type="button" class="secondary" data-choice="${index}">View team<span class="sr-only"> ${html(team.name)}</span></button></li>`).join('')}</ul>`:'<p>No teams found. Try the team name used in your league schedule.</p>'
-        choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>openTeam(result.teams[Number(control.dataset.choice)])})
+        choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>openTeam(result.teams[Number(control.dataset.choice)],control)})
       } else {
         const result=await loadLeagues()
         if(!valid() || version!==request)return
         const filtered=filterLeagues(initial?.league?followedLeagueRows(result.rows,initial.league):result.rows,text),rows=filtered.slice(0,12)
         status.textContent=`${filtered.length} league record${filtered.length===1?'':'s'} found. Showing ${rows.length}.${filtered.length>12?' Search a name, flight, or area to narrow the list.':''}${result.notice?' '+result.notice:''}`
         choices.innerHTML=rows.length?`<ul class="player-choices">${rows.map((league,index)=>`<li><h2>${html(league.leagueName)}</h2><p>${[league.year,league.season,league.flight,league.ustaSection,league.districtArea].filter(Boolean).map(html).join(' · ') || 'Area unavailable'}</p><button type="button" class="secondary" data-choice="${index}">View league<span class="sr-only"> ${html(league.leagueName)} ${html([league.year,league.season,league.flight].filter(Boolean).join(' '))}</span></button></li>`).join('')}</ul>`:initial?.league?'<p>No matching seasons in the available league summary. Return to Following or check again later.</p>':'<p>No leagues found. Try another name or area.</p>'
-        choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>{if(valid()){const row=rows[Number(control.dataset.choice)];open(leagueDetails(row));const follow=directoryFollowItem(row),version=request;if(access){const host=document.createElement('div');detail.append(host);showPublicSignIn(host,access,()=>valid()&&selected&&request===version)}else if(follow){const host=document.createElement('div');detail.append(host);showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}}}})
+        choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>{if(valid()){const row=rows[Number(control.dataset.choice)];open(leagueDetails(row),control);const follow=directoryFollowItem(row),version=request;if(access){const host=document.createElement('div');detail.append(host);showPublicSignIn(host,access,()=>valid()&&selected&&request===version)}else if(follow){const host=document.createElement('div');detail.append(host);showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}}}})
       }
     } catch {
       if(!valid() || version!==request)return

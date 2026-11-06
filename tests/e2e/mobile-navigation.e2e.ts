@@ -164,6 +164,57 @@ for(const width of [320,390])test('all destinations, direct competitions, focus 
  await page.locator('[data-app-destination="tournaments"]').click();await expect(event).toContainText('Northside Open');await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click());await expect(event).toHaveCount(0);await expect(page.locator('.lab-scoreboard')).toContainText('4.42');expect(errors).toEqual([])
 })
 
+for(const width of [320,390])test('Explore keeps its search and returns focus to the tapped result at '+width+'px',async({page},info)=>{
+ await page.setViewportSize({width,height:844})
+ await page.goto(origin+'/?large=1&explore-return=1')
+ await page.locator('.app-navigation [data-screen="explore"]').click()
+ const categories=page.getByRole('group',{name:'Explore categories'})
+ const overview=categories.getByRole('button',{name:'Explore',exact:true})
+ const search=page.getByRole('searchbox',{name:'Search tennis'})
+ const category=page.getByRole('combobox',{name:'Search category'})
+ const submit=page.locator('#native-search').getByRole('button',{name:'Search',exact:true})
+ const checkReturn=async(term:string,kind:string)=>{
+  await overview.click()
+  await expect(search).toHaveValue(term)
+  await expect(category).toHaveValue(kind)
+  await expect(submit).toBeFocused()
+ }
+ const openAndBack=async(action:string,back:string,field:string)=>{
+  const card=page.getByRole('button',{name:action,exact:true})
+  await page.getByRole('searchbox',{name:field,exact:true}).focus()
+  await card.scrollIntoViewIfNeeded()
+  // WebKit can dispatch a tap without focusing the button.
+  const scroll=await card.evaluate(el=>{const y=window.scrollY;(el as HTMLButtonElement).click();return y})
+  await page.getByRole('button',{name:back,exact:true}).click()
+  await expect(card).toBeFocused()
+  expect((await card.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+  expect(await card.evaluate(el=>el.parentElement!.scrollWidth<=el.parentElement!.clientWidth)).toBe(true)
+  expect(Math.abs(await page.evaluate(()=>window.scrollY)-scroll)).toBeLessThanOrEqual(2)
+ }
+
+ await search.fill('Jordan');await submit.click()
+ await openAndBack('View player Jordan Lee 6','Back to search','Player name')
+ await expect(page.getByRole('searchbox',{name:'Player name',exact:true})).toHaveValue('Jordan')
+ await page.screenshot({path:info.outputPath('explore-restored-player.png')})
+ await checkReturn('Jordan','Players')
+
+ await search.fill('Baseline');await category.selectOption('Teams');await submit.click()
+ await openAndBack('View team Baseline Aces','Back to teams','Team name')
+ await checkReturn('Baseline','Teams')
+
+ await search.fill('Northside');await category.selectOption('Leagues');await submit.click()
+ await openAndBack('View league Northside League 2026 Fall 4.0','Back to leagues','League or area')
+ await checkReturn('Northside','Leagues')
+
+ await category.selectOption('Rankings');await submit.click()
+ const singles=page.getByRole('group',{name:'Ranking view'}).getByRole('button',{name:'Singles',exact:true})
+ await singles.click()
+ await openAndBack('View player Jordan Lee 6','Back to rankings','Location (optional)')
+ await expect(singles).toHaveAttribute('aria-pressed','true')
+ await expect(page.getByRole('searchbox',{name:'Location (optional)'})).toHaveValue('Northside')
+ await checkReturn('Northside','Rankings')
+ await bounded(page)
+})
 type LabProfilePreviewWindow=Window&{labProfileFixture:typeof import('../fixtures/mobile-navigation-client').labProfileFixture}
 test('Explore to My Lab keeps the Night Session canvas while the profile loads',async({page})=>{
  await page.goto(origin)

@@ -52,6 +52,7 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/coach/connection')return coachPreviewConnectionRequest(init?.body)
  if(url.pathname==='/api/mobile/coach/tactics')return tacticsPreviewRequest(init?.method||'GET',url,init?.body)
  let reply:unknown={ok:false,error:'Synthetic preview does not provide this service'}
+ if(url.pathname==='/api/leagues/summary'&&new URL(location.href).searchParams.has('explore-return'))reply={leagues:[{key:'northside',leagueName:'Northside League',flight:'4.0',year:'2026',season:'Fall',teamCount:4,matchCount:6,districtArea:'Northside'}]}
  if(url.pathname==='/api/profile/link'){connectNavigationPlayer();reply={ok:true,profile:{linked_player_id:navigationOwner}}}
  if(url.pathname==='/api/auth/access')reply={ok:true,access:{role:'admin',entitlements:{...DEFAULT_ENTITLEMENTS}}}
  if(url.pathname==='/api/mobile/competitions'){const snapshot=competitionSnapshot();snapshot.scope=url.searchParams.get('scope')==='discover'?'discover':'mine';snapshot.query=url.searchParams.get('q')||'';if(url.searchParams.get('league'))snapshot.detail=competitionDetail();reply={ok:true,...snapshot}}

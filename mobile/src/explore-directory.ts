@@ -39,19 +39,54 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
   let disposed=false
   let currentCategory:Category|null=null
   let active:ReturnType<typeof showPlayers>|ReturnType<typeof showDirectory>|ReturnType<typeof showRankings>|null=null
+  let overviewReturn:{trigger:HTMLElement;scroll:number}|null=null
   app.dataset.state='explore'
   app.innerHTML='<div class="explore-categories" role="group" aria-label="Explore categories"><button type="button" data-category="Overview">Explore</button><button type="button" data-category="Players">Players</button><button type="button" data-category="Teams">Teams</button><button type="button" data-category="Leagues">Leagues</button><button type="button" data-category="Rankings">Rankings</button></div><div id="explore-content"></div>'
   const content=app.querySelector<HTMLElement>('#explore-content')!
+  const template=document.createElement('template')
+  template.innerHTML=exploreHomeHtml(Boolean(onCompetitions))
+  const overview=template.content.firstElementChild as HTMLElement
   const valid=()=>!disposed && isCurrent()
-  const select=(category:Category,term='')=>{
+  const overviewActive=()=>valid()&&currentCategory==='Overview'&&overview.isConnected
+  const select=(category:Category,term='',trigger?:HTMLElement)=>{
     if(!valid() || currentCategory===category)return
+    if(currentCategory==='Overview'&&trigger)overviewReturn={trigger,scroll:window.scrollY}
     currentCategory=category
     active?.dispose();active=null
     app.querySelectorAll<HTMLButtonElement>('[data-category]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.category===category)))
-    if(category==='Overview'){content.innerHTML=exploreHomeHtml(Boolean(onCompetitions));content.querySelector('[data-open-competitions]')?.addEventListener('click',e=>onCompetitions?.(e.currentTarget as HTMLElement));content.querySelectorAll<HTMLButtonElement>('[data-native-ui-action]').forEach(b=>{b.onclick=()=>{const action=b.dataset.nativeUiAction||'';if(action==='search'){content.querySelector<HTMLInputElement>('#native-search-term')?.focus();return}if(action.startsWith('explore:'))select(action.slice(8) as ExploreCategory)}});content.querySelector<HTMLFormElement>('#native-search')!.onsubmit=e=>{e.preventDefault();const form=e.currentTarget as HTMLFormElement,fields=new FormData(form),term=String(fields.get('term')||'').trim();if(term.length<2||term.length>80)return;const category=String(fields.get('category')) as ExploreCategory;if(!['Players','Teams','Leagues','Rankings'].includes(category))return;select(category,term)};content.querySelector<HTMLElement>('h1')?.focus();window.scrollTo(0,0);return}
+    if(category==='Overview'){
+      content.replaceChildren(overview)
+      const previous=overviewReturn
+      overviewReturn=null
+      window.scrollTo(0,previous?.scroll??0)
+      const opener=previous?.trigger.isConnected?previous.trigger:overview.querySelector<HTMLElement>('h1')
+      opener?.focus({preventScroll:true})
+      return
+    }
     active=category==='Players'?showPlayers(content,client,valid,undefined,term,access):category==='Rankings'?showRankings(content,client,valid,term,access):showDirectory(content,category,client,valid,term,undefined,access)
   }
-  app.querySelectorAll<HTMLButtonElement>('[data-category]').forEach(button=>{button.onclick=()=>select(button.dataset.category as Category)})
+  overview.querySelector<HTMLButtonElement>('[data-open-competitions]')?.addEventListener('click',e=>{
+    if(overviewActive())onCompetitions?.(e.currentTarget as HTMLElement)
+  })
+  overview.querySelectorAll<HTMLButtonElement>('[data-native-ui-action]').forEach(button=>{
+    button.onclick=()=>{
+      if(!overviewActive())return
+      const action=button.dataset.nativeUiAction||''
+      if(action==='search'){overview.querySelector<HTMLInputElement>('#native-search-term')?.focus();return}
+      if(action.startsWith('explore:'))select(action.slice(8) as ExploreCategory,'',button)
+    }
+  })
+  const form=overview.querySelector<HTMLFormElement>('#native-search')!
+  form.onsubmit=event=>{
+    event.preventDefault()
+    if(!overviewActive())return
+    const fields=new FormData(form),term=String(fields.get('term')||'').trim()
+    if(term.length<2||term.length>80)return
+    const category=String(fields.get('category')) as ExploreCategory
+    if(!['Players','Teams','Leagues','Rankings'].includes(category))return
+    select(category,term,form.querySelector<HTMLButtonElement>('button[type="submit"]')!)
+  }
+  app.querySelectorAll<HTMLButtonElement>('[data-category]').forEach(button=>{button.onclick=()=>select(button.dataset.category as Category,'',button)})
   select(initial)
   return {dispose:()=>{disposed=true;active?.dispose()},back:()=>{if(active?.back())return true;if(currentCategory!=='Overview'){select('Overview');return true}return false}}
 }

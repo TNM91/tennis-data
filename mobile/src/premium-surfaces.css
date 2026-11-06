@@ -394,6 +394,22 @@ body[data-screen] .tab-hero:has(>.tab-hero-icon) { padding-inline-end:64px; }
 body[data-screen] .tab-primary-action { min-block-size:48px;border-radius:var(--premium-control-radius);background:var(--premium-action);color:var(--premium-page); }
 body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;background:var(--premium-surface);border-color:var(--premium-line);border-radius:var(--premium-panel-radius); }
 .explore-categories { background:var(--premium-inset);border-color:var(--premium-line);border-radius:var(--premium-control-radius); }
+#explore-content .player-choices { display:grid;gap:8px;margin-block:12px; }
+#explore-content .player-choices>li {
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 10px;
+ min-inline-size:0;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-surface);overflow-wrap:anywhere;
+}
+#explore-content .player-choices>li:focus-within {
+ border-color:var(--premium-royal-line);background:var(--premium-card);
+}
+#explore-content .player-choices :is(h2,.ranking-heading,.ranking-note) { grid-column:1 / -1; }
+#explore-content .player-choices h2 { margin:0;font-size:1rem;line-height:1.3; }
+#explore-content .player-choices p { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
+#explore-content .player-choices button.secondary {
+ grid-column:2;grid-row:2;inline-size:auto;min-block-size:44px;margin:0;padding:8px 10px;
+ border-color:var(--premium-line);background:var(--premium-inset);font-size:.8125rem;
+}
 /* View selectors use the same inlay as the active tab. Actions and status badges have their own treatments. */
 :is(body[data-screen="lab"] #recent-results .match-filters,
     body[data-screen="lab"] .lab-form-filters,
