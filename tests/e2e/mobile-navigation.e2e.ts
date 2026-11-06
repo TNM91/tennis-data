@@ -534,7 +534,10 @@ test('Schedule this rep opens a private Calendar draft and recovers a lost save 
  await page.evaluate(()=>{(window as unknown as CalendarPreviewWindow).calendarFixture.loseWrite=true})
  await calendar.getByRole('button',{name:'Save private practice',exact:true}).click()
  await calendar.getByRole('button',{name:'Check saved entry',exact:true}).click()
- await expect(calendar.locator('.cal-event.personal').filter({hasText:'Split and recover'})).toHaveCount(1)
+ const savedPractice=calendar.locator('.cal-event.personal').filter({hasText:'Split and recover'})
+ await expect(savedPractice).toHaveCount(1)
+ await expect(savedPractice).toBeFocused()
+ await expect(savedPractice).toBeInViewport()
  const result=await page.evaluate(()=>{
   const fixture=(window as unknown as CalendarPreviewWindow).calendarFixture
   return {writes:fixture.requests.filter(r=>r.method==='POST').length,saved:fixture.personal.find(item=>item.title==='Split and recover')}

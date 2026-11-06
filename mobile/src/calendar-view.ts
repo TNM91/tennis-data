@@ -1,7 +1,8 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {html} from './match-details'
 import {calendarDraft,personalDraft,sameCalendarDraft,type CalendarDraft,type CalendarIntent,type NativeCalendar} from '../../lib/native-calendar-contract'
-import {calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,exportableCalendarOccurrences,type CalendarOccurrence} from './calendar-data'
+import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
+import {calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,exportableCalendarOccurrences,personalOccurrenceKey,type CalendarOccurrence} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
 import {createCalendarFinder} from './calendar-finder'
 import {openPlayerPractices} from './player-practices-view'
@@ -48,16 +49,34 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   catch{if(active()){calendar=null;failed=true;notice=(message?message+' ':'')+'Your calendar couldn’t load. Check your connection and retry.'}}
   finally{if(active()){busy=false;render();if(!focusKey||!focusAgendaEvent(focusKey))focus()}}
  }
- const confirmed=async(message:string)=>{pending=null;draft=null;baseline='';selected=null;schedulingRep=false;panel='agenda';await refresh(message)}
+ const confirmed=async(message:string,saved:PlayerCalendarItem|null=null)=>{
+  pending=null
+  draft=null
+  baseline=''
+  selected=null
+  schedulingRep=false
+  panel='agenda'
+  if(saved){
+   anchor=saved.date
+   day=''
+   filter='all'
+   query=''
+  }
+  await refresh(message,false,saved?personalOccurrenceKey(saved.id,saved.date):'')
+ }
  const perform=async(intent:CalendarIntent)=>{
   if(!active()||busy||pending)return
   busy=true;pending=intent;notice='Saving your calendar change…';render()
   try{
    const result=await calendarRequest(client,owner,active,{},intent);if(!active())return
    if(intent.action==='respond'){if(result.eventId!==intent.eventId||result.response!==intent.response||typeof result.updatedAt!=='string')throw Error();await confirmed(typeof result.warning==='string'&&result.warning?result.warning:'Availability reply saved. Refresh if the organizer changes the date.')}
-   else{const saved=readCalendarItem(result.item);if(intent.action==='delete'?saved!==null:!saved||!sameCalendarDraft(personalDraft(saved),intent.item))throw Error();if(saved){anchor=saved.date;day='';filter='all';query=''}await confirmed(intent.action==='delete'?'Personal event deleted.':'Personal event saved.')}
+   else{
+    const saved=readCalendarItem(result.item)
+    if(intent.action==='delete'?saved!==null:!saved||!sameCalendarDraft(personalDraft(saved),intent.item))throw Error()
+    await confirmed(intent.action==='delete'?'Personal event deleted.':'Personal event saved.',saved)
+   }
   }catch{if(active()){panel='recovery';notice='We couldn’t confirm the result. Check the saved entry before trying again.'}}
-  finally{if(active()){busy=false;render();focus()}}
+  finally{if(active()&&busy){busy=false;render();focus()}}
  }
  const recover=async()=>{
   if(!pending||busy||!active())return
@@ -70,14 +89,17 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
     pending=null;panel='agenda';selected=null;notice='The current reply differs or this date moved. Open the date to review its latest schedule.'
    }else{
     const id=intent.action==='delete'?intent.id:intent.item.id,result=await calendarRequest(client,owner,active,{item:id}),saved=readCalendarItem(result.item);if(!active())return
-    if(intent.action==='delete'&&!saved||intent.action!=='delete'&&saved&&sameCalendarDraft(personalDraft(saved),intent.item)){if(saved){anchor=saved.date;day='';filter='all';query=''}await confirmed(intent.action==='delete'?'Deletion confirmed.':'Your personal event is saved.');return}
+    if(intent.action==='delete'&&!saved||intent.action!=='delete'&&saved&&sameCalendarDraft(personalDraft(saved),intent.item)){
+     await confirmed(intent.action==='delete'?'Deletion confirmed.':'Your personal event is saved.',saved)
+     return
+    }
     pending=null
     if(saved){draft=personalDraft(saved);baseline=saved.updatedAt;schedulingRep=false;panel='editor';notice='The saved entry differs. Review this latest version before making a change.'}
     else if(intent.action!=='delete'){draft=intent.action==='update'?{...intent.item,id:'player-calendar-'+crypto.randomUUID()}:intent.item;baseline='';panel='editor';notice=intent.action==='update'?'That event is no longer saved. Review a new personal copy.':'No saved entry was found. Review this event before saving it.'}
     else{panel='agenda';notice='Refresh to check your calendar.'}
    }
   }catch{if(active())notice='The saved result is still unavailable. Keep this screen open and check again when connected.'}
-  finally{if(active()){busy=false;render();focus()}}
+  finally{if(active()&&busy){busy=false;render();focus()}}
  }
  const setDraft=(item?:CalendarDraft,stamp='',practiceTitle='')=>{
   draft=item||{id:'player-calendar-'+crypto.randomUUID(),title:practiceTitle.trim().slice(0,160).trim(),date:day||anchor,time:'',location:'',kind:'practice',recurrenceRule:'',availabilityStatus:'',venueDirectoryId:'',venuePreferenceId:''}

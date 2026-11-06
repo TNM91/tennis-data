@@ -50,13 +50,14 @@ export function shiftCalendarPeriod(day:string,mode:'week'|'month',direction:num
  const d=new Date(day.slice(0,7)+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+direction);return d.toISOString().slice(0,10)
 }
 export type CalendarOccurrence={key:string;id:string;source:'personal'|'competition'|'coach'|'team';endTime?:string;teamStatus?:CalendarTeamPractice['status'];title:string;date:string;time:string;location:string;detail:string;kind:string;recurring:boolean;readiness:string}
+export const personalOccurrenceKey=(id:string,day:string)=>`personal:${id}:${day}`
 export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[]{
  const entries:CalendarOccurrence[]=[]
  for(const p of calendar.personal){
   for(let day=calendar.range.from;day<=calendar.range.to;day=shiftCalendarDay(day,1)){
    const offset=(Date.parse(day+'T12:00:00Z')-Date.parse(p.date+'T12:00:00Z'))/86400000
    const matches=offset>=0&&(day===p.date||p.recurrenceRule==='FREQ=DAILY'||p.recurrenceRule==='FREQ=WEEKLY'&&offset%7===0||p.recurrenceRule==='FREQ=MONTHLY'&&day.slice(8)===p.date.slice(8))
-   if(matches)entries.push({key:'personal:'+p.id+':'+day,id:p.id,source:'personal',title:p.title,date:day,time:p.time,location:p.location,detail:p.kind==='availability'?(p.availabilityStatus==='available'?'Personal note · Available':'Personal note · Unavailable'):'Personal '+p.kind,kind:p.kind,recurring:!!p.recurrenceRule,readiness:''})
+   if(matches)entries.push({key:personalOccurrenceKey(p.id,day),id:p.id,source:'personal',title:p.title,date:day,time:p.time,location:p.location,detail:p.kind==='availability'?(p.availabilityStatus==='available'?'Personal note · Available':'Personal note · Unavailable'):'Personal '+p.kind,kind:p.kind,recurring:!!p.recurrenceRule,readiness:''})
   }
  }
  for(const c of calendar.competitions)entries.push({key:'competition:'+c.id,id:c.id,source:'competition',title:c.title,date:c.date,time:c.time,location:c.location,detail:[c.competitionName,c.detail,c.status].filter(Boolean).join(' · '),kind:c.kind,recurring:false,readiness:c.responseIsStale?'Date changed · Reply again':c.responseStatus==='available'?'Available':c.responseStatus==='unavailable'?'Can’t play':'No reply yet'})
