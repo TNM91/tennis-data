@@ -1,7 +1,7 @@
 import {it,expect,vi,beforeEach} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {ComparedPlayer} from '../../mobile/src/comparison-data'
-import {sharedComparisonCards,parseRatingSnapshots,loadComparisonRatingHistory,ratingHistoryHtml} from '../../mobile/src/comparison-rating-context'
+import {comparisonScoreboard,sharedComparisonCards,parseRatingSnapshots,loadComparisonRatingHistory,ratingHistoryHtml} from '../../mobile/src/comparison-rating-context'
 import {sumLastFiveRatingDeltas} from '../rating-form'
 import {ratingSignal} from '../rating-signal'
 import {canFollowPlayers} from '../../mobile/src/follows-data'
@@ -10,6 +10,21 @@ const player=(id:string,rating=4):ComparedPlayer=>({player:{id,name:id,location:
 const row=(id='1',player_id='a',rating_type='overall',date='2026-10-24',delta:number|null=.02)=>({id,player_id,rating_type,snapshot_date:date,dynamic_rating:4.2,delta,track:'tiq' as const})
 function fake(){let owner='owner',fail='',change=false;const queries:Array<{filters:Record<string,string>;limit:number}>=[];return {client:{auth:{getSession:async()=>({data:{session:{user:{id:owner}}},error:null})},from(){const filters:Record<string,string>={};let limit=0;const q={select(){return q},eq(k:string,v:string){filters[k]=v;return q},order(){return q},limit(n:number){limit=n;return q},abortSignal(){return q},then(resolve:(v:unknown)=>unknown){queries.push({filters:{...filters},limit});if(change)owner='other';return Promise.resolve({data:[row('1',filters.player_id,filters.rating_type)],error:fail===filters.player_id?{message:'synthetic unavailable'}:null}).then(resolve)}};return q}} as unknown as SupabaseClient,queries,setOwner(v:string){owner=v},fail(v:string){fail=v},change(){change=true}}}
 beforeEach(()=>vi.mocked(canFollowPlayers).mockResolvedValue(true))
+it('shows only the selected recorded split, with complete side averages and clear rating sources',()=>{
+ const a=player('a',4),b=player('b',4.4),c=player('c',4.5),d=player('d',4.7)
+ a.player.name='<Alex>'
+ a.ratings!.rating_source='self'
+ c.ratings!.doubles_dynamic_rating=null
+ const doubles=comparisonScoreboard([a,b,c,d],'doubles')
+ expect(doubles).toContain('Doubles TIQ ratings')
+ expect(doubles).toContain('&lt;Alex&gt; / b')
+ expect(doubles).toContain('4.20')
+ expect(doubles).toContain('Includes self-rating')
+ expect(doubles).toContain('Rating pending')
+ expect(doubles).not.toContain('4.60')
+ expect(comparisonScoreboard([a,b],'singles')).not.toContain('4.00')
+ expect(comparisonScoreboard([a,b],'overall')).toContain('Self-rated')
+})
 it('uses actual shared website card presentation, recorded splits and projection fallback with safe text',()=>{const a=player('a');a.player.name='TIQ_TIQ_OVERALL <script>bad</script>';const h=sharedComparisonCards([a,player('b',4.4)],'singles');expect(h).toContain('TIQ DYNAMIC');expect(h).toContain('USTA CURRENT');expect(h).not.toContain('USTA DYNAMIC');expect(h).toContain('Singles projection rating');expect(h).toContain('4.00');expect(h).not.toContain('3.80');expect(h).toContain('Pending verification');expect(h).toContain('TIQ_TIQ_OVERALL &lt;script&gt;');expect(h).not.toMatch(/<script|style=|<style|<a\b/);expect(h).not.toContain('3.50')})
 it('keeps self-rated USTA values pending, averages only complete doubles sides and labels projection kind',()=>{const a=player('a');a.ratings!.rating_source='self';const h=sharedComparisonCards([a,player('b',4.4),player('c',4.5),player('d',4.7)],'doubles');expect(h).toContain('a / b');expect(h).toContain('4.20 S');expect(h).toContain('Pending');expect(h).toContain('Doubles projection rating');expect(h).toContain('4.60');expect(h).not.toContain('Singles projection rating');const missing=player('e');missing.ratings=null;expect(sharedComparisonCards([a,missing,player('c'),player('d')],'overall')).toContain('—')})
 it('shares signal thresholds and takes five snapshots before dropping missing deltas',()=>{expect(ratingSignal(.15).label).toBe('Hot');expect(ratingSignal(.07).label).toBe('Rising');expect(ratingSignal(-.15).label).toBe('Cooling');expect(ratingSignal(-.07).label).toBe('Softening');expect(ratingSignal(0).label).toBe('Stable');const rows=Array.from({length:6},(_,i)=>row(String(i),'a','singles','2026-10-24',i===0?null:i===5?9:.01));expect(sumLastFiveRatingDeltas(rows,'a','singles')).toBe(.04);expect(sumLastFiveRatingDeltas(rows,'b','singles')).toBeNull();expect(sumLastFiveRatingDeltas([row('0','a','singles','2026-10-24',0)],'a','singles')).toBe(0)})

@@ -2,7 +2,7 @@ import {trajectoryGeometry} from '../../lib/rating-trajectory'
 import {publishedUstaLabel} from '../../lib/published-usta-rating'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {ComparedPlayer} from './comparison-data'
-import type {RatingView} from '../../lib/player-rating-display'
+import {getRatingViewLabel,type RatingView} from '../../lib/player-rating-display'
 import {formatRating} from '../../lib/captain-formatters'
 import {isValidCalendarDate} from '../../lib/calendar-date'
 import {sumLastFiveRatingDeltas} from '../../lib/rating-form'
@@ -10,10 +10,30 @@ import {canFollowPlayers} from './follows-data'
 import {html} from './match-details'
 import websiteUi from '../generated/website-ui.json'
 const validRating=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value)&&value>=1.5&&value<=7
+function averageSideRating(side:ComparedPlayer[],view:RatingView){
+ const values=side.map(player=>player.ratings?.[`${view}_dynamic_rating`])
+ return values.every(validRating)?values.reduce((sum,value)=>sum+value,0)/values.length:null
+}
+export function comparisonScoreboard(players:ComparedPlayer[],view:RatingView){
+ if(![2,4].includes(players.length))return ''
+ const split=players.length/2,sides=[players.slice(0,split),players.slice(split)]
+ const scores=sides.map(side=>averageSideRating(side,view))
+ const cards=sides.map((side,index)=>{
+  const rating=scores[index]
+  const label=split===2?(index===0?'Your side':'Other side'):`Player ${index+1}`
+  const selfRated=rating!==null&&side.some(player=>player.ratings?.rating_source==='self')
+  return `<div class="comparison-score-side">
+   <small>${label}</small>
+   <h3>${side.map(player=>html(player.player.name)).join(' / ')}</h3>
+   <p class="comparison-score-value">${rating===null?'<span aria-hidden="true">—</span><span class="sr-only">Rating pending</span>':formatRating(rating)}${selfRated?`<span class="comparison-score-source">${split===2?'Includes self-rating':'Self-rated'}</span>`:''}</p>
+  </div>`
+ })
+ return `<div class="comparison-scoreboard" role="group" aria-label="${getRatingViewLabel(view)} TIQ ratings">${cards.join('')}</div>
+  <p class="comparison-result-note">TIQ ratings are estimates.${scores.includes(null)?' A dash means the rating is pending.':''}</p>`
+}
 export function sharedComparisonCards(players:ComparedPlayer[],view:RatingView){
  if(![2,4].includes(players.length))return ''
  const engine=players.length===4?'doubles':'singles',split=players.length/2,sides=[players.slice(0,split),players.slice(split)]
- const average=(side:ComparedPlayer[],kind:RatingView)=>{const values=side.map(p=>p.ratings?.[`${kind}_dynamic_rating` as keyof NonNullable<ComparedPlayer['ratings']>]);return values.every(validRating)?values.reduce((sum,n)=>sum+n,0)/values.length:null}
  const projection=(side:ComparedPlayer[])=>{const values=side.map(p=>p.ratings?.[`${engine}_dynamic_rating`]??p.ratings?.overall_dynamic_rating);return values.every(validRating)?values.reduce((sum,n)=>sum+n,0)/values.length:null}
  const projections=sides.map(projection)
  return '<div class="website-ui website-comparison-cards">'+sides.map((side,index)=>{
@@ -21,7 +41,7 @@ export function sharedComparisonCards(players:ComparedPlayer[],view:RatingView){
   const tone=self?'self':'none',signal=self?'Self-rated — verified results will build your TIQ estimate.':''
   const favored=projections.every(validRating)&&projections[index]!>projections[1-index]!
   const values:Record<string,string>={TIQ_COMPARE_TITLE:side.map(p=>p.player.name).join(' / '),TIQ_COMPARE_SUBTITLE:players.length===4?index===0?'Your side':'Other side':side[0].player.location||'No location set',TIQ_COMPARE_PROJECTION:formatRating(projections[index])+(self?' S':''),TIQ_COMPARE_SIGNAL:signal,TIQ_USTA_CURRENT:side.map(p=>(side.length>1?p.player.name+': ':'')+publishedUstaLabel(p.ratings)).join(' / ')}
-  for(const kind of ['overall','singles','doubles'] as const){const value=average(side,kind);values['TIQ_TIQ_'+kind.toUpperCase()]=formatRating(value)+(self&&value!==null?' S':'')}
+  for(const kind of ['overall','singles','doubles'] as const){const value=averageSideRating(side,kind);values['TIQ_TIQ_'+kind.toUpperCase()]=formatRating(value)+(self&&value!==null?' S':'')}
   const key=`${view}:${Number(favored)}:${tone}` as keyof typeof websiteUi.compareCards
   return websiteUi.compareCards[key].replace('Singles projection rating',engine==='doubles'?'Doubles projection rating':'Singles projection rating').replace(/TIQ_[A-Z_]+/g,key=>html(values[key]??key))
  }).join('')+'</div><p class="rating-context">TIQ provides the dynamic Overall, Singles and Doubles estimates. USTA current shows each player’s verified published level; missing levels stay pending. TIQ side ratings average both players only when both are recorded.</p>'

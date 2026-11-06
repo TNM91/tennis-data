@@ -2,12 +2,12 @@ import {comparisonSeedPlayers} from './roster-comparison-selection'
 import {loadHistoricalCheck,historicalCheckHtml} from './historical-rating-check'
 import type {HistoricalCheck} from '../../lib/historical-rating-check'
 import {loadOpponentMeetings,opposingMeetings,opponentHistoryHtml,type OpponentHistory} from './opponent-meetings'
-import {sharedComparisonCards,loadComparisonRatingHistory,ratingHistoryHtml,type PlayerRatingHistory} from './comparison-rating-context'
+import {comparisonScoreboard,sharedComparisonCards,loadComparisonRatingHistory,ratingHistoryHtml,type PlayerRatingHistory} from './comparison-rating-context'
 import {comparisonPreparation,courtsideHtml,bindCourtside} from './matchup-preparation'
 import {openLabGoals} from './lab-goals-view'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {MATCHUP_STORY,MEMBERSHIP_TIERS} from '../../lib/product-story'
-import type {RatingView} from '../../lib/player-rating-display'
+import {getRatingViewLabel,type RatingView} from '../../lib/player-rating-display'
 import {canFollowPlayers as canUsePlayerInsights} from './follows-data'
 import {findPlayers,type PlayerChoice} from './player-connection'
 import {loadComparison,comparisonCard,type ComparedPlayer} from './comparison-data'
@@ -151,26 +151,55 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
    paint()
   })
   reset()
-  const back=()=>{detail?.dispose();detail=null;playerHost.hidden=true;playerHost.innerHTML='';list.hidden=false;if(initial?.scrollHost)initial.scrollHost.scrollTop=scroll;else window.scrollTo(0,scroll);result.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}
+  const back=(opener:HTMLButtonElement)=>{detail?.dispose();detail=null;playerHost.hidden=true;playerHost.innerHTML='';list.hidden=false;if(initial?.scrollHost)initial.scrollHost.scrollTop=scroll;else window.scrollTo(0,scroll);opener.focus({preventScroll:true})}
   const render=()=>{
    if(!data)return
    const prep=comparisonPreparation(data)
-   result.innerHTML=`<h2 tabindex="-1">Recorded comparison</h2><div class="match-filters" role="group" aria-label="Comparison view">${(['overall','singles','doubles'] as RatingView[]).map(value=>`<button type="button" class="secondary" data-view="${value}" aria-pressed="${view===value}">${value[0].toUpperCase()+value.slice(1)}</button>`).join('')}</div><p class="rating-context">TIQ ratings are estimates, not official USTA ratings. Singles and Doubles use Overall when a separate rating is missing. Ratings provide an estimate, not a guaranteed result. Model confidence is not measured prediction accuracy.</p>${sharedComparisonCards(data,view)}<section class="comparison-rating-history" data-rating-history></section>${prep?`<h2>${html(prep.title)}</h2><p>${html(prep.evidence)}</p><div data-courtside>${courtsideHtml(prep.context,prep.courtPlan,matchType==='doubles')}</div>`:'<p>Courtside preparation needs a valid recorded rating for every selected player.</p>'}<section class="comparison-rating-history" data-historical-check></section><section class="encounter-history" data-opponent-history></section>${data.map((player,index)=>comparisonCard(player,view,index,false)).join('')}`
+   const openPanels=new Set(Array.from(result.querySelectorAll<HTMLDetailsElement>('details[data-comparison-panel][open]'),panel=>panel.dataset.comparisonPanel))
+   const planOpen=!!result.querySelector('[data-courtside] button[aria-expanded="true"]')
+   result.innerHTML=`
+    <h2 tabindex="-1">Recorded comparison</h2>
+    <div class="match-filters" role="group" aria-label="Comparison view">${(['overall','singles','doubles'] as const).map(value=>`<button type="button" class="secondary" data-view="${value}" aria-pressed="${view===value}">${getRatingViewLabel(value)}</button>`).join('')}</div>
+    ${comparisonScoreboard(data,view)}
+    <div class="comparison-plan">
+     ${prep?`<div data-courtside>${courtsideHtml(prep.context,prep.courtPlan,matchType==='doubles')}</div>
+     <p class="comparison-result-note" data-prep-status role="status"></p>
+     <p class="comparison-result-note" data-prep-evidence>${html(prep.evidence)} The model’s confidence label describes the rating gap, and actual results may vary.</p>`:'<h3>Courtside plan</h3><p class="comparison-result-note">Courtside preparation needs a valid recorded rating for every selected player.</p>'}
+    </div>
+    <details class="comparison-fold" data-comparison-panel="ratings" ${openPanels.has('ratings')?'open':''}>
+     <summary>Rating breakdown</summary>
+     <div class="comparison-fold-body">${sharedComparisonCards(data,view)}</div>
+    </details>
+    <details class="comparison-fold" data-comparison-panel="evidence" ${openPanels.has('evidence')?'open':''}>
+     <summary>Rating history, meetings and results</summary>
+     <div class="comparison-fold-body">
+      <section class="comparison-rating-history" data-rating-history></section>
+      <section class="encounter-history" data-opponent-history></section>
+      <section class="comparison-rating-history" data-historical-check></section>
+      <h2>Recent player results</h2>
+      ${data.map((player,index)=>comparisonCard(player,view,index,false)).join('')}
+     </div>
+    </details>`
    updateHistory()
    updateOpponents()
    updateCheck()
    const prepHost=result.querySelector<HTMLElement>('[data-courtside]')
    if(prepHost&&prep)bindCourtside(prepHost,()=>{void (async()=>{
-    const prepVersion=revision,prepCurrent=()=>valid()&&prepVersion===revision&&prepHost.isConnected;const button=prepHost.querySelector<HTMLButtonElement>('[data-native-ui-action="prep-save"]')!;if(button.disabled||notes?.isOpen()||!valid())return;button.disabled=true;status.textContent='Checking your linked player…'
+    const prepVersion=revision,prepCurrent=()=>valid()&&prepVersion===revision&&prepHost.isConnected
+    const button=prepHost.querySelector<HTMLButtonElement>('[data-native-ui-action="prep-save"]')!,prepStatus=result.querySelector<HTMLElement>('[data-prep-status]')!
+    if(button.disabled||notes?.isOpen()||!prepCurrent())return
+    button.disabled=true;prepStatus.textContent='Checking your linked player…'
     try{const auth=await client.auth.getSession();if(auth.error||!prepCurrent()||!auth.data.session)throw Error();const owner=auth.data.session.user.id
      const profile=await client.from('profiles').select('linked_player_id').eq('id',owner).abortSignal(AbortSignal.timeout(12000)).maybeSingle();if(!prepCurrent())return;if(profile.error||!profile.data?.linked_player_id)throw Error('Connect your player in My Lab before saving match prep.')
-     const again=await client.auth.getSession();if(!prepCurrent()||again.error||again.data.session?.user.id!==owner)return
-     notes=openLabGoals(client,{owner,player:profile.data.linked_player_id},prepCurrent,()=>{},()=>{status.textContent='Your account notebook is closed. Saved plans are available in My Lab → Open goals and notes.'},prep)
-    }catch(error){if(prepCurrent())status.textContent=error instanceof Error&&error.message?error.message:'Could not open your account notebook. Try again.'}
+     const again=await client.auth.getSession();if(!prepCurrent())return
+     if(again.error||again.data.session?.user.id!==owner)throw Error('Sign in again to save your courtside plan.')
+     prepStatus.textContent=''
+     notes=openLabGoals(client,{owner,player:profile.data.linked_player_id},prepCurrent,()=>{},()=>{prepStatus.textContent='Saved plans are available in My Lab → Open goals and notes.';button.focus({preventScroll:true})},prep)
+    }catch(error){if(prepCurrent())prepStatus.textContent=error instanceof Error&&error.message?error.message:'Could not open your account notebook. Try again.'}
     finally{if(prepCurrent())button.disabled=false}
-   })()})
+   })()},planOpen)
    result.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button=>{button.onclick=()=>{meetings?.dispose();meetings=null;view=button.dataset.view as RatingView;render();result.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus({preventScroll:true})}})
-   result.querySelectorAll<HTMLButtonElement>('[data-comparison-player]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;meetings?.dispose();meetings=null;scroll=initial?.scrollHost?.scrollTop??window.scrollY;list.hidden=true;playerHost.hidden=false;detail=showPlayer(playerHost,client,valid,{player:data[Number(button.dataset.comparisonPlayer)].player,back,backLabel:'Back to comparison',localMatches:initial?.localMatches,scrollHost:initial?.scrollHost})}})
+   result.querySelectorAll<HTMLButtonElement>('[data-comparison-player]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;meetings?.dispose();meetings=null;scroll=initial?.scrollHost?.scrollTop??window.scrollY;list.hidden=true;playerHost.hidden=false;detail=showPlayer(playerHost,client,valid,{player:data[Number(button.dataset.comparisonPlayer)].player,back:()=>back(button),backLabel:'Back to comparison',localMatches:initial?.localMatches,scrollHost:initial?.scrollHost})}})
   }
   compare.onclick=async()=>{
    if(!valid()||!list.isConnected||list.hidden||notes?.isOpen()||compare.disabled)return

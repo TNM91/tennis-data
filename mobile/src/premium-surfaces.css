@@ -436,6 +436,45 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .following-card-unavailable p,.following-card-actions p { margin:8px 0 0;color:var(--premium-copy);font-size:.8125rem; }
 .following-card-actions { padding:8px 14px 12px;border-block-start:1px solid var(--premium-line); }
 .following-card-actions p { flex-basis:100%;margin:0; }
+#comparison-result { margin-block-start:24px;scroll-margin-block-start:calc(12px + env(safe-area-inset-top)); }
+#comparison-result:empty { display:none; }
+#comparison-result>.match-filters {
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;
+ margin:0 0 12px;background:var(--premium-inset);border-color:var(--premium-line);
+}
+#comparison-result>.match-filters button { min-inline-size:0;padding:8px 4px;font-size:.8125rem; }
+#comparison-result>.match-filters button[aria-pressed="false"] { background:transparent;border-color:transparent;color:var(--premium-copy); }
+.comparison-scoreboard {
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:var(--premium-card);
+ border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);box-shadow:inset 0 1px #b2c8ff22;
+}
+.comparison-score-side { display:flex;flex-direction:column;gap:6px;padding:14px;overflow-wrap:anywhere; }
+.comparison-score-side+.comparison-score-side { border-inline-start:1px solid var(--premium-line); }
+.comparison-score-side small { color:var(--premium-ice);font-size:.6875rem;font-weight:700;line-height:1.3; }
+.comparison-score-side h3 { margin:0;flex:1;color:var(--premium-white);font-size:.9375rem;line-height:1.3; }
+.comparison-score-side .comparison-score-value {
+ margin:0;color:var(--premium-lime);font-size:clamp(1.65rem,8vw,2.4rem);font-weight:800;
+ font-variant-numeric:tabular-nums;line-height:1.08;letter-spacing:-.04em;
+}
+.comparison-score-source { display:block;margin-block-start:4px;color:var(--premium-copy);font-size:.6875rem;font-weight:600;line-height:1.3;letter-spacing:normal; }
+#comparison-result .comparison-result-note { margin:8px 0 0;color:var(--premium-copy);font-size:.75rem;line-height:1.5; }
+.comparison-result-note:empty { display:none; }
+.comparison-plan { margin-block:20px 16px;overflow-wrap:anywhere; }
+.comparison-plan>h3 { margin-block-end:8px; }
+.comparison-plan:has(button[aria-expanded="false"]) [data-prep-evidence] { display:none; }
+.comparison-plan button[aria-expanded] { min-block-size:44px;padding:8px 12px;font-size:.8125rem; }
+.comparison-fold {
+ margin-block-start:10px;background:var(--premium-surface);border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);overflow-wrap:anywhere;
+}
+.comparison-fold>summary {
+ min-block-size:44px;padding:12px 14px;color:var(--premium-white);font-size:.875rem;
+ font-weight:700;line-height:1.35;cursor:pointer;
+}
+.comparison-fold>summary::marker { color:var(--premium-ice); }
+.comparison-fold-body { padding:0 12px 12px; }
+.comparison-fold-body>section { margin:12px 0;padding:14px;background:var(--premium-inset);border-color:var(--premium-line);box-shadow:none; }
+.comparison-fold-body>h2 { margin:18px 0 0; }
 /* View selectors use the same inlay as the active tab. Actions and status badges have their own treatments. */
 :is(body[data-screen="lab"] #recent-results .match-filters,
     body[data-screen="lab"] .lab-form-filters,

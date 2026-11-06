@@ -22,8 +22,12 @@ export function courtsideHtml(context:string,plan:string,doubles:boolean,prefix=
  const values:Record<string,string>={TIQ_PREP_CONTEXT:context,TIQ_PREP_PLAN:plan}
  return '<div class="website-ui website-courtside">'+websiteUi.courtside[doubles?1:0].replace(/TIQ_PREP_(?:CONTEXT|PLAN)/g,key=>html(values[key])).replace(/(id|aria-controls)="([^"]+)"/g,(_,attribute,id)=>`${attribute}="${prefix}-${id}"`)+'</div>'
 }
-export function bindCourtside(host:HTMLElement,save?:()=>void){
+export function bindCourtside(host:HTMLElement,save?:()=>void,startOpen=true){
  const toggle=host.querySelector<HTMLButtonElement>('button[aria-controls]'),content=Array.from(host.querySelectorAll<HTMLElement>('[id]')).find(e=>e.id===toggle?.getAttribute('aria-controls'))
- if(toggle&&content)toggle.onclick=()=>{content.hidden=!content.hidden;toggle.setAttribute('aria-expanded',String(!content.hidden));toggle.textContent=content.hidden?'Open courtside view':'Close courtside view'}
+ if(toggle&&content){
+  const setOpen=(open:boolean)=>{content.hidden=!open;toggle.setAttribute('aria-expanded',String(open));toggle.textContent=open?'Close courtside view':'Open courtside view'}
+  setOpen(startOpen)
+  toggle.onclick=()=>setOpen(content.hidden)
+ }
  const button=host.querySelector<HTMLButtonElement>('[data-native-ui-action="prep-save"]');if(button){if(save)button.onclick=save;else button.remove()}
 }
