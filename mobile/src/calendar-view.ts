@@ -23,7 +23,8 @@ const groupByDate=(events:CalendarOccurrence[])=>{
 }
 const dateDots=(events:CalendarOccurrence[])=>calendarSources.filter(source=>events.some(event=>event.source===source)).map(source=>`<i class="${source}"></i>`).join('')
 type Panel='agenda'|'editor'|'review'|'delete'|'respond'|'export'|'recovery'|'leave'
-type RefreshContext={message?:string;focusKey?:string;focusControl?:string}
+type AgendaOpener={kind:'row'|'featured';key:string}|{kind:'new'|'export'}
+type RefreshContext={message?:string;focusKey?:string;focusControl?:string;preferFeatured?:boolean}
 export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:'all'|'coach'|{practiceTitle:string;onClose:()=>void}='all'){
  const dialog=document.createElement('dialog');dialog.className='native-calendar-screen';dialog.setAttribute('aria-label','Your calendar')
  let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'='week',anchor=localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
@@ -34,7 +35,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  let draftStart:CalendarDraft|null=null
  let discardDestination:'agenda'|'close'='close'
  let schedulingRep=false
- let query='',agendaOpener='',agendaScroll=0,finderSource:NativeCalendar|null=null,finder:ReturnType<typeof createCalendarFinder>|null=null
+ let agendaOpener:AgendaOpener|null=null
+ let query='',agendaScroll=0,finderSource:NativeCalendar|null=null,finder:ReturnType<typeof createCalendarFinder>|null=null
  const active=()=>!disposed&&current()
  const range=()=>calendarWindow(anchor,mode)
  const matchingEvents=()=>{
@@ -72,7 +74,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  const status=()=>{const p=dialog.querySelector<HTMLElement>('[data-cal-status]');if(p)p.textContent=notice}
  const refresh=async(context:RefreshContext={})=>{
   if(!active())return
-  const {message='',focusKey='',focusControl}=context
+  const {message='',focusKey='',focusControl,preferFeatured}=context
   busy=true;failedRefresh=null;calendar=null;notice=message||'Loading your tennis dates…';render()
   const expected=range()
   try{const value=await loadCalendarSources(client,owner,active,expected);if(!active())return;calendar=value;notice=message;shown=100;panel='agenda'}
@@ -80,7 +82,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   finally{if(active()){
    busy=false;render()
    const control=focusControl?dialog.querySelector<HTMLElement>(failedRefresh?'[data-cal-refresh]':focusControl):null
-   if(!focusKey||!focusAgendaEvent(focusKey)){
+   if(!focusKey||!focusAgendaEvent(focusKey,preferFeatured)){
     if(control)control.focus({preventScroll:true})
     else focus()
    }
@@ -165,7 +167,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(!event)return top+'<h2>Your tennis calendar</h2><p>Personal plans and shared dates.</p>'
   const time=event.time?event.time.slice(0,5)+(event.endTime?' – '+event.endTime:''):''
   const dateAndTime=[event.date===today?'':label(event.date),time].filter(Boolean).join(' · ')
-  return top+`<h2 id="cal-highlight-title">${html(event.title)}</h2>${dateAndTime?'<p>'+html(dateAndTime)+'</p>':''}${event.location?'<p>'+html(event.location)+'</p>':''}<button type="button" class="secondary" data-cal-jump="${html(event.key)}" aria-describedby="cal-highlight-title">Jump to event</button>`
+  return top+`<h2 id="cal-highlight-title">${html(event.title)}</h2>${dateAndTime?'<p>'+html(dateAndTime)+'</p>':''}${event.location?'<p>'+html(event.location)+'</p>':''}<button type="button" class="secondary" data-cal-open-event="${html(event.key)}" aria-describedby="cal-highlight-title">Open event</button>`
  }
  const agendaRows=(list=visible())=>{
   if(!calendar)return '<p>'+(!busy?'Your dates are unavailable. Retry to check the calendar.':'Loading dates…')+'</p>'
@@ -249,7 +251,15 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(heading)heading.textContent=day?label(day):'Your agenda'
   paintAgenda()
  }
- const focusAgendaEvent=(key:string)=>{
+ const focusAgendaEvent=(key:string,preferFeatured=false)=>{
+  if(preferFeatured){
+   const button=dialog.querySelector<HTMLButtonElement>('[data-cal-open-event]')
+   if(button?.dataset.calOpenEvent===key){
+    button.focus({preventScroll:true})
+    button.scrollIntoView({block:'nearest'})
+    return true
+   }
+  }
   const position=visible().findIndex(event=>event.key===key)
   if(position<0)return false
   if(position>=shown){shown=Math.ceil((position+1)/100)*100;paintAgenda()}
@@ -259,9 +269,31 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   row.scrollIntoView({block:'nearest'})
   return true
  }
- const rememberAgenda=(opener:string)=>{
+ const rememberAgenda=(opener:AgendaOpener)=>{
   agendaOpener=opener
   agendaScroll=dialog.querySelector('.cal-body')?.scrollTop||0
+ }
+ const openAgendaEvent=(key:string,kind:'row'|'featured')=>{
+  if(!calendar)return
+  const event=visible().find(item=>item.key===key)
+  if(!event)return
+  if(event.source==='personal'){
+   const saved=calendar.personal.find(item=>item.id===event.id)
+   if(!saved)return
+   draft=personalDraft(saved)
+   draftStart=draft
+   baseline=saved.updatedAt
+   panel='editor'
+  }else{
+   const competition=calendar.competitions.find(item=>item.id===event.id)
+   reply=competition?.responseStatus==='unavailable'?'unavailable':'available'
+   panel='respond'
+  }
+  selected=event
+  rememberAgenda({kind,key})
+  notice=''
+  render()
+  dialog.querySelector<HTMLElement>('.cal-body h2')?.focus()
  }
  const bindAgenda=()=>{
   const input=dialog.querySelector<HTMLInputElement>('[data-cal-query]'),rows=dialog.querySelector<HTMLElement>('[data-cal-results]'),clear=dialog.querySelector<HTMLButtonElement>('[data-cal-clear]')
@@ -269,8 +301,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const highlight=dialog.querySelector<HTMLElement>('[data-cal-highlight]')
   if(highlight)highlight.onclick=event=>{
    if(!active()||busy||panel!=='agenda')return
-   const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-cal-jump]'):null
-   if(button?.dataset.calJump)focusAgendaEvent(button.dataset.calJump)
+   const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-cal-open-event]'):null
+   if(button?.dataset.calOpenEvent)openAgendaEvent(button.dataset.calOpenEvent,'featured')
   }
   const reset=()=>{if(!active()||busy||panel!=='agenda'||!input.isConnected)return;query='';input.value='';shown=100;paintAgenda();input.focus({preventScroll:true})}
   input.oninput=()=>{if(!active()||busy||panel!=='agenda'||!input.isConnected)return;query=input.value.slice(0,160);if(input.value!==query)input.value=query;shown=100;paintAgenda()}
@@ -281,18 +313,16 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-cal-event],[data-cal-more]'):null
    if(!button||!rows.contains(button))return
    if(button.hasAttribute('data-cal-more')){const first=visible()[shown];if(first)focusAgendaEvent(first.key);return}
-   selected=visible().find(e=>e.key===button.dataset.calEvent)||null;if(!selected)return
-   rememberAgenda(selected.key)
-   if(selected.source==='personal'){const p=calendar!.personal.find(p=>p.id===selected!.id)!;draft=personalDraft(p);draftStart=draft;baseline=p.updatedAt;panel='editor'}
-   else{reply=calendar?.competitions.find(e=>e.id===selected!.id)?.responseStatus==='unavailable'?'unavailable':'available';panel='respond'}
-   notice='';render();focus()
+   if(button.dataset.calEvent)openAgendaEvent(button.dataset.calEvent,'row')
   }
  }
  const returnAgenda=()=>{
   draft=null;draftStart=null;baseline='';selected=null;panel='agenda';notice='';render()
   const body=dialog.querySelector('.cal-body');if(body)body.scrollTop=agendaScroll
-  const footerOpener=agendaOpener==='new'?'[data-cal-new]':agendaOpener==='export'?'[data-cal-export-review]':null
-  const opener=footerOpener?dialog.querySelector<HTMLButtonElement>(footerOpener):Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-cal-event]')).find(b=>b.dataset.calEvent===agendaOpener)
+  const origin=agendaOpener
+  if(origin?.kind==='featured'&&focusAgendaEvent(origin.key,true))return
+  const footerOpener=origin?.kind==='new'?'[data-cal-new]':origin?.kind==='export'?'[data-cal-export-review]':null
+  const opener=footerOpener?dialog.querySelector<HTMLButtonElement>(footerOpener):Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-cal-event]')).find(b=>origin?.kind==='row'&&b.dataset.calEvent===origin.key)
   ;(opener||dialog.querySelector<HTMLInputElement>('[data-cal-query]'))?.focus({preventScroll:true})
  }
  const render=()=>{
@@ -309,7 +339,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    else if(schedulingRep)focus()
   })
   on('[data-cal-discard]',()=>{if(discardDestination==='agenda')returnAgenda();else dispose()})
-  on('[data-cal-refresh]',()=>void refresh(failedRefresh??{focusControl:'[data-cal-refresh]'}));on('[data-cal-new]',()=>{rememberAgenda('new');setDraft()});on('[data-cal-recover]',()=>void recover())
+  on('[data-cal-refresh]',()=>void refresh(failedRefresh??{focusControl:'[data-cal-refresh]'}));on('[data-cal-new]',()=>{rememberAgenda({kind:'new'});setDraft()});on('[data-cal-recover]',()=>void recover())
   on('[data-cal-today]',()=>{anchor=localCalendarDate();day=anchor;void refresh({focusControl:'[data-cal-today]'})})
   on('[data-cal-mode]',b=>{
    const next=b.dataset.calMode as typeof mode
@@ -330,7 +360,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   on('[data-cal-practice]',()=>{
    const p=calendar?.practices?.find(p=>p.id===selected?.id);if(!p||practiceView?.isOpen())return
    const key='team-practice:'+p.id
-   practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh({focusKey:key})},'','Back to calendar',p.id)
+   const preferFeatured=agendaOpener?.kind==='featured'&&agendaOpener.key===key
+   practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh({focusKey:key,preferFeatured})},'','Back to calendar',p.id)
   })
   on('[data-cal-agenda]',returnAgenda)
   const form=dialog.querySelector<HTMLFormElement>('form')
@@ -348,7 +379,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   on('[data-cal-delete]',()=>{if(selected)void perform({action:'delete',id:selected.id,expectedUpdatedAt:baseline})})
   const replySelect=dialog.querySelector<HTMLSelectElement>('[data-cal-reply]');if(replySelect)replySelect.onchange=()=>{reply=replySelect.value as typeof reply}
   on('[data-cal-respond]',()=>{const e=calendar?.competitions.find(e=>e.id===selected?.id);if(e)void perform({action:'respond',eventId:e.id,response:reply,snapshot:{title:e.title,date:e.date,time:e.time,location:e.location},expectedResponseUpdatedAt:e.responseUpdatedAt||'',requestId:crypto.randomUUID()})})
-  on('[data-cal-export-review]',()=>{rememberAgenda('export');panel='export';notice='';render();focus()})
+  on('[data-cal-export-review]',()=>{rememberAgenda({kind:'export'});panel='export';notice='';render();focus()})
   const zoneSelect=dialog.querySelector<HTMLSelectElement>('[data-cal-zone]');if(zoneSelect)zoneSelect.onchange=()=>{zone=zoneSelect.value}
   on('[data-cal-export]',()=>{busy=true;notice='Preparing calendar file…';render();void (async()=>{try{const blob=new Blob([calendarExport(visible(),zone)],{type:'text/calendar'});await exportCoachFile(owner,active,blob,'TenAceIQ-'+range().from+'-'+range().to+'.ics');if(active())notice='Calendar file prepared. Add it to your preferred calendar to finish.'}catch{if(active())notice='Calendar export wasn’t completed. You can try sharing again.'}finally{if(active()){busy=false;render()}}})()})
  }

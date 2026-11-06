@@ -5,7 +5,8 @@ async function calendar(page:Page,width=390){
  await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1');await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.enabled=true)
  await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="calendar"]').click();const d=page.getByRole('dialog',{name:'Your calendar',exact:true});await expect(d.locator('.cal-event.team')).toHaveCount(2);return d
 }
-async function practice(page:Page,d:ReturnType<Page['getByRole']>){await d.locator('[data-cal-event="team-practice:'+event+'"]').click();await expect(d).toContainText('18:00 – 20:15');await d.getByRole('button',{name:'Open practice & RSVP',exact:true}).click();const child=page.getByRole('dialog',{name:'Team practices',exact:true});await expect(child).toContainText('Your RSVP · Jordan Lee');return child}
+async function openRsvp(page:Page,d:ReturnType<Page['getByRole']>){await expect(d).toContainText('18:00 – 20:15');await d.getByRole('button',{name:'Open practice & RSVP',exact:true}).click();const child=page.getByRole('dialog',{name:'Team practices',exact:true});await expect(child).toContainText('Your RSVP · Jordan Lee');return child}
+async function practice(page:Page,d:ReturnType<Page['getByRole']>){await d.locator('[data-cal-event="team-practice:'+event+'"]').click();return openRsvp(page,d)}
 for(const width of [320,390])test('Calendar team practices: readable dates, exact RSVP and retained filters at '+width+'px',async({page},info)=>{
  const now=new Date()
  now.setHours(17,0,0,0)
@@ -14,14 +15,16 @@ for(const width of [320,390])test('Calendar team practices: readable dates, exac
  await d.getByRole('button',{name:'Month',exact:true}).click();await d.getByRole('combobox',{name:'Show',exact:true}).selectOption('team');await expect(d.locator('.cal-event')).toHaveCount(2)
  await d.getByRole('searchbox',{name:'Find a date',exact:true}).fill('Baseline');await expect(d.locator('.cal-event')).toHaveCount(2)
  expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);expect(await d.locator('.cal-body').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
- const highlight=d.locator('[data-cal-highlight]'),jump=highlight.getByRole('button',{name:'Jump to event',exact:true})
+ const highlight=d.locator('[data-cal-highlight]'),openEvent=highlight.getByRole('button',{name:'Open event',exact:true})
  await expect(highlight.locator('.stat-eyebrow')).toHaveText('Today');await expect(highlight).toContainText('18:00 – 20:15');await expect(highlight).toContainText('Northside Tennis Center');await expect(highlight.locator('img')).toHaveCount(0)
- await expect(jump).toHaveAccessibleDescription('Team practice: Return + first ball <img src=x>')
+ await expect(openEvent).toHaveAccessibleDescription('Team practice: Return + first ball <img src=x>')
  await highlight.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('calendar-highlight-'+width+'.png')})
- const beforeJump=await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)
- await jump.click();await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toBeFocused()
- expect(await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)).toBe(beforeJump)
- await page.screenshot({path:info.outputPath('calendar-team-'+width+'.png')});const child=await practice(page,d)
+ await d.locator('[data-cal-event="team-practice:'+event+'"]').scrollIntoViewIfNeeded()
+ await page.screenshot({path:info.outputPath('calendar-team-'+width+'.png')})
+ const beforeOpen=await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)
+ await openEvent.click();await expect(d.getByRole('heading',{name:'Team practice',exact:true})).toBeFocused()
+ expect(await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)).toBe(beforeOpen)
+ const child=await openRsvp(page,d)
  expect(await child.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);await expect(child.getByRole('button',{name:'Back to practices',exact:true})).toHaveCount(0)
  const brief=child.locator('.player-practice-brief'),rsvp=child.getByRole('group',{name:'Your practice response'})
  await expect(brief).toContainText('6:00 PM–8:15 PM');await expect(brief).toContainText('Northside Tennis Center');await expect(brief.locator('img')).toHaveCount(0)
@@ -33,7 +36,7 @@ for(const width of [320,390])test('Calendar team practices: readable dates, exac
  await child.locator('[data-response="out"]').click();expect(await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.filter(r=>r.method==='PATCH').length)).toBe(0)
  await expect(child).toContainText('Review your RSVP');await expect(brief).toContainText('Northside Tennis Center');await child.getByRole('button',{name:'Save RSVP',exact:true}).click();await expect(child).toContainText('Your RSVP is saved. Out.')
  await expect(child.locator('.player-practice-reply-status')).toHaveText('Out')
- await child.getByRole('button',{name:'Back to calendar',exact:true}).click();await expect(child).toHaveCount(0);await expect(d.getByRole('combobox',{name:'Show',exact:true})).toHaveValue('team');await expect(d.getByRole('button',{name:'Month',exact:true})).toHaveAttribute('aria-pressed','true');await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toContainText('Out');await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toBeFocused()
+ await child.getByRole('button',{name:'Back to calendar',exact:true}).click();await expect(child).toHaveCount(0);await expect(d.getByRole('combobox',{name:'Show',exact:true})).toHaveValue('team');await expect(d.getByRole('button',{name:'Month',exact:true})).toHaveAttribute('aria-pressed','true');await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toContainText('Out');await expect(openEvent).toBeFocused()
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await expect(d.getByRole('searchbox',{name:'Find a date',exact:true})).toHaveValue('Baseline')
 })
@@ -46,19 +49,19 @@ test('Calendar team practices: a confirmed practice is featured until its schedu
  await agenda.getByRole('combobox',{name:'Show',exact:true}).selectOption('team')
  const highlight=agenda.locator('[data-cal-highlight]')
  await expect(highlight.locator('.stat-eyebrow')).toHaveText('Scheduled now')
- await expect(highlight.getByRole('button',{name:'Jump to event',exact:true})).toHaveAccessibleDescription(/Return \+ first ball/)
+ await expect(highlight.getByRole('button',{name:'Open event',exact:true})).toHaveAccessibleDescription(/Return \+ first ball/)
 
  now.setHours(20,15)
  await page.clock.setFixedTime(now)
  await agenda.getByRole('button',{name:'Refresh',exact:true}).click()
  await expect(agenda.locator('.cal-event.team')).toHaveCount(2)
- await expect(highlight.getByRole('button',{name:'Jump to event',exact:true})).toHaveCount(0)
+ await expect(highlight.getByRole('button',{name:'Open event',exact:true})).toHaveCount(0)
 })
 
 test('Calendar team practices: a cancelled practice stays visible with export and replies closed',async({page})=>{
  const d=await calendar(page),title=await d.locator('.cal-event.team').last().locator('strong').innerText(),before=await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)
  await d.getByRole('combobox',{name:'Show',exact:true}).selectOption('team');await d.getByRole('searchbox',{name:'Find a date',exact:true}).fill(title);await expect(d.locator('.cal-event')).toHaveCount(1);await expect(d.locator('.cal-event')).toContainText('Cancelled');await expect(d.getByRole('button',{name:'Export',exact:true})).toBeDisabled()
- await expect(d.getByRole('button',{name:'Jump to event',exact:true})).toHaveCount(0)
+ await expect(d.getByRole('button',{name:'Open event',exact:true})).toHaveCount(0)
  expect(await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.requests.length)).toBe(before)
  await d.locator('.cal-event').click();await d.getByRole('button',{name:'View practice',exact:true}).click()
  const child=page.getByRole('dialog',{name:'Team practices',exact:true})
