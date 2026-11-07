@@ -16,7 +16,7 @@ import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coac
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
 import {trainingInboxPreview} from './mobile-training-inbox'
 const originalFetch=window.fetch.bind(window)
-const fixtureState={requests:0}
+const fixtureState={requests:0,teamInviteActions:[] as string[]}
 if(new URL(location.href).searchParams.has('team-practice-review')){
  calendarTeamFixture.enabled=true
  calendarTeamFixture.items[0].title='Return + first ball'
@@ -32,6 +32,17 @@ window.fetch=async(input,init)=>{
  // Track tool-driven traffic separately from the independent live unread counter.
  if(url.pathname==='/api/mobile/chats/unread'){chatUnreadFixture.reads++;return Response.json(chatUnreadFixture.fail?{ok:false}:{ok:true,owner:currentNavigationOwner(),total:chatUnreadFixture.total,...(coachUnreadFixture.enabled?{coach:coachUnreadCounts(currentNavigationOwner())}:{}),teams:chatTeams().map((team,i)=>({...team,unread:i?0:chatUnreadFixture.total,...(chatUnreadFixture.detailed?{generalUnread:i?0:Math.min(2,chatUnreadFixture.total),rooms:i?[]:[{id:chatRoomId,name:chatUnreadFixture.roomName,unread:Math.max(0,chatUnreadFixture.total-2)}]}:{})}))},{status:chatUnreadFixture.fail?503:200})}
  fixtureState.requests++
+ if(url.pathname==='/api/mobile/team-invites'){
+  const command=JSON.parse(String(init?.body))
+  const scope={...chatTeam,roomId:chatRoomId,expiresAt:'2027-06-30T18:00:00Z'}
+  const expected={...scope,inviteId:'55555555-5555-4555-8555-555555555555',creatorId:navigationOwner}
+  if(command.token!=='44444444-4444-4444-8444-444444444444')return Response.json({ok:false,message:'Invite unavailable.'},{status:404})
+  fixtureState.teamInviteActions.push(command.action)
+  if(command.action==='preview')return Response.json({ok:true,nativeTeamInvite:1,review:{...scope,expected,linkVersion:'v1',alreadyJoined:false}})
+  if(command.action!=='join'||JSON.stringify(command.expected)!==JSON.stringify({invite:expected,linkVersion:'v1'}))return Response.json({ok:false,message:'Invite changed.'},{status:409})
+  chatUnreadFixture.detailed=true
+  return Response.json({ok:true,nativeTeamInvite:1,joined:true,roomId:chatRoomId,scope})
+ }
  if(url.pathname==='/api/mobile/coach/alerts'){if(init?.method==='POST'){nativeCoachAlertFixture.enabled=JSON.parse(String(init.body)).enabled;nativeCoachAlertFixture.writes.push(nativeCoachAlertFixture.enabled)}return Response.json({ok:true,owner:currentNavigationOwner(),enabled:nativeCoachAlertFixture.enabled,available:true})}
  if(url.pathname==='/api/team-rooms'){
   if(coachChatFixture.teamFail)return Response.json({ok:false},{status:503})

@@ -8,24 +8,55 @@ export function openTeamInvite(client:SupabaseClient,owner:string,current:()=>bo
  let disposed=false,busy=false,uncertain=false,token='',input=nativeInviteToken(initialLink)?initialLink:'',notice='',review:NativeInviteReview|null=null
  const valid=()=>!disposed && current()
  const dispose=()=>{disposed=true;dialog.remove()}
- const close=()=>{dispose();closed()}
+ const close=()=>{if(busy&&review)return;dispose();closed()}
  const render=()=>{
   if(!valid())return
-  dialog.innerHTML=`<h2>Join your team</h2><p>Paste the invite your captain shared.</p><label>Team invite<input id="team-invite-input" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="600" value="${html(input)}" ${busy||uncertain?'disabled':''}></label><button type="button" class="secondary" id="team-invite-review" ${busy||uncertain?'disabled':''}>${busy&&!review?'Checking…':'Review invite'}</button>${review?`<section><h3>${html(review.teamName)}</h3><p>${html(review.leagueName)} · ${html(review.flight||'Flight unavailable')}</p><p>${review.alreadyJoined?'You are already connected to this team.':'Join as a player. Your first team becomes your default team. Your existing teams and alert settings stay as they are.'}</p><p class="rating-context">Invite expires ${html(new Date(review.expiresAt).toLocaleDateString())}.</p>${!review.alreadyJoined?'<p class="rating-context">Your teammates will see a join notice. Team alerts use your current iPhone notification settings. Email alerts stay off unless you previously enabled them.</p>':''}<button type="button" id="team-invite-join" ${busy?'disabled':''}>${busy?'Joining…':uncertain?'Retry same join':review.alreadyJoined?'Open team':'Join as player'}</button></section>`:''}<p role="status">${html(notice)}</p><button type="button" class="secondary" id="team-invite-close">${uncertain?'Close and refresh teams':'Close'}</button>`
-  dialog.querySelector<HTMLInputElement>('#team-invite-input')!.oninput=e=>{input=(e.currentTarget as HTMLInputElement).value;review=null;token='';dialog.querySelector('section')?.remove()}
+  dialog.innerHTML=`<header class="team-invite-heading"><h2 tabindex="-1">Join your team</h2>
+   <button type="button" class="secondary" id="team-invite-close" ${busy&&review?'disabled':''}>Close</button></header>
+   ${review?`<section class="team-invite-preview" aria-labelledby="team-invite-name">
+    <small class="stat-eyebrow">Invite preview</small>
+    <h3 id="team-invite-name" tabindex="-1">${html(review.teamName)}</h3>
+    <dl><div><dt>League</dt><dd>${html(review.leagueName)}</dd></div><div><dt>Flight</dt><dd>${html(review.flight||'Not listed')}</dd></div></dl>
+    <p class="rating-context">Invite expires ${html(new Date(review.expiresAt).toLocaleDateString(undefined,{dateStyle:'medium'}))}.</p>
+   </section>
+   <p>${review.alreadyJoined?'You’re already connected to this team.':'Your first team becomes your default. Teammates will see a join notice.'}</p>
+   ${review.alreadyJoined?'':'<p class="rating-context">Alerts use your iPhone and email settings.</p>'}
+   <button type="button" id="team-invite-join" ${busy?'disabled':''}>${busy?'Joining…':uncertain?'Retry same join':review.alreadyJoined?'Open team':'Join as player'}</button>
+   ${busy||uncertain?'':'<button type="button" class="secondary" data-invite-change>Use a different invite</button>'}`
+   :`<p>Paste the invite your captain shared. You’ll see the team before you join.</p>
+    <form data-invite-form><label>Team invite<input id="team-invite-input" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="600" value="${html(input)}" ${busy?'disabled':''}></label>
+    <button type="submit" ${busy?'disabled':''}>${busy?'Checking…':'Review invite'}</button></form>`}
+   <p role="status" tabindex="-1" data-invite-feedback>${html(notice)}</p>`
+  const field=dialog.querySelector<HTMLInputElement>('#team-invite-input')
+  if(field)field.oninput=()=>{input=field.value;notice='';dialog.querySelector('[data-invite-feedback]')!.textContent=''}
   dialog.querySelector<HTMLButtonElement>('#team-invite-close')!.onclick=close
-  dialog.querySelector<HTMLButtonElement>('#team-invite-review')!.onclick=()=>{void (async()=>{
-   token=nativeInviteToken(input);if(!token){notice='Paste a valid TenAceIQ team invite.';review=null;render();return}
-   busy=true;notice='';review=null;render()
-   try{const result=await inviteRequest(client,owner,valid,token,null);if(valid())review=result}catch(cause){if(valid())notice=cause instanceof Error?cause.message:'Invite unavailable.'}finally{if(valid()){busy=false;render()}}
-  })()}
+  dialog.querySelector('[data-invite-form]')?.addEventListener('submit',event=>{event.preventDefault();void preview()})
+  dialog.querySelector('[data-invite-change]')?.addEventListener('click',()=>{
+   review=null;token='';notice='';render();dialog.querySelector<HTMLInputElement>('input')?.focus()
+  })
   dialog.querySelector<HTMLButtonElement>('#team-invite-join')?.addEventListener('click',()=>{void (async()=>{
    if(busy||!review)return
    if(review.alreadyJoined){const scope=review;dispose();joined(scope);return}
    busy=true;notice='';render()
-   try{const result=await inviteRequest(client,owner,valid,token,review);if(valid()){dispose();joined(result)}}catch(cause){if(valid()){uncertain=cause instanceof InviteError && cause.uncertain;notice=cause instanceof Error?cause.message:'Join unavailable.';if(!uncertain)review=null}}finally{if(valid()){busy=false;render()}}
+   try{const result=await inviteRequest(client,owner,valid,token,review);if(valid()){dispose();joined(result)}}catch(cause){if(valid()){uncertain=cause instanceof InviteError && cause.uncertain;notice=cause instanceof Error?cause.message:'Join unavailable.';if(!uncertain)review=null}}finally{if(valid()){busy=false;render();focusFeedback()}}
   })()})
  }
- dialog.addEventListener('cancel',e=>{e.preventDefault();close()});render();dialog.showModal();dialog.querySelector<HTMLInputElement>('input')?.focus();if(input)dialog.querySelector<HTMLButtonElement>('#team-invite-review')?.click()
+ const focusFeedback=()=>dialog.querySelector<HTMLElement>('[data-invite-feedback]')?.focus()
+ async function preview(){
+  if(busy||!valid())return
+  token=nativeInviteToken(input)
+  if(!token){notice='Paste a valid TenAceIQ team invite.';render();focusFeedback();return}
+  busy=true;notice='';render()
+  try{const result=await inviteRequest(client,owner,valid,token,null);if(valid())review=result}
+  catch(cause){if(valid())notice=cause instanceof Error?cause.message:'Invite unavailable.'}
+  finally{
+   if(valid()){
+    busy=false;render()
+    if(review)dialog.querySelector<HTMLElement>('#team-invite-name')?.focus()
+    else focusFeedback()
+   }
+  }
+ }
+ dialog.addEventListener('cancel',e=>{e.preventDefault();close()});render();dialog.showModal();dialog.querySelector<HTMLElement>('h2')?.focus();if(input)void preview()
  return {dispose,isOpen:()=>!disposed}
 }

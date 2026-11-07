@@ -122,6 +122,28 @@ body[data-screen="lab"] .player-setup .native-entry-hero h1 { max-inline-size:14
 #player-confirm button { margin-block-start:8px; }
 #player-confirm :is([role="alert"],[role="status"]):empty,
 #player-search-panel :is([role="alert"],[role="status"]):empty { display:none; }
+.team-invite-dialog[open] {
+ max-block-size:min(85dvh,620px);padding:16px;border-color:var(--premium-line);
+ border-radius:var(--premium-panel-radius);background:var(--premium-page);overflow-wrap:anywhere;
+}
+.team-invite-dialog .team-invite-heading {
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;
+ padding:0 0 10px;margin:0;border-color:var(--premium-line);
+}
+.team-invite-heading h2 { margin:0;font-size:1.125rem; }
+.team-invite-dialog p,.team-invite-dialog label { color:var(--premium-copy);font-size:.8125rem; }
+.team-invite-dialog button { min-block-size:44px;margin:8px 0 0; }
+.team-invite-dialog #team-invite-close { inline-size:auto;margin:0;padding:8px 12px;font-size:.75rem; }
+.team-invite-dialog .team-invite-preview {
+ margin-block:12px;padding:14px;border-color:var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-card);
+}
+.team-invite-preview h3 { margin:8px 0 12px;font-size:1.25rem;line-height:1.2; }
+.team-invite-preview dl { display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px;margin:0; }
+.team-invite-preview dt { margin:0;font-size:.6875rem;color:var(--premium-copy); }
+.team-invite-preview dd { margin:4px 0 0;font-size:.875rem; }
+.team-invite-preview .rating-context { margin-block:10px 0; }
+.team-invite-dialog [data-invite-feedback]:empty { display:none; }
 /* Account controls remain reachable while membership and sign-in sections scroll. */
 .account-settings-dialog[open] {
  display:flex;flex-direction:column;max-block-size:calc(100dvh - 32px);padding:0;overflow:hidden;
