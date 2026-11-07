@@ -41,7 +41,7 @@ for(const width of [320,390])test('training hierarchy and match controls stay cl
 })
 async function bounded(page:Page){
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
- for(const target of ['.lab-scoreboard','.lab-form-strip','.lab-level-path','.lab-trend-entry']){
+ for(const target of ['.lab-scoreboard','.lab-form-strip','.lab-level-path','.lab-trend-entry','.lab-match-form']){
   if(!await page.locator(target).count())continue
   const box=await page.locator(target).boundingBox();if(!box)continue
   expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
@@ -71,7 +71,12 @@ for(const width of [320,390])test(`numbers lead the page and charted samples rem
 for(const width of [320,390])test(`format and league views use the same loaded results at ${width}px`,async({page},info)=>{
  await page.setViewportSize({width,height:width===320?568:844});await page.goto(origin+prefix)
  const results=page.locator('#results-content')
+ const form=results.getByRole('region',{name:'Form result insights',exact:true})
  await expect(results.getByRole('img',{name:'Decided win rate in loaded recent results: 70%',exact:true})).toBeVisible()
+ await expect(form.getByText('7W · 3L',{exact:true})).toBeVisible()
+ await expect(form.locator('.lab-match-streaks dd')).toHaveText(['2','2'])
+ await page.locator(width===390?'#recent-results h2':'.result-view-controls').evaluate(el=>el.scrollIntoView({block:'start'}))
+ await page.screenshot({path:info.outputPath('lab-match-form-summary.png')})
  await results.locator('[data-match-filter="Singles"]').click()
  await expect(results.getByRole('img',{name:'Decided win rate in loaded recent results: 100%',exact:true})).toBeVisible();await expect(results).toContainText('4 singles matches')
  await results.locator('[data-match-filter="Doubles"]').click();await expect(results.getByRole('img',{name:'Decided win rate in loaded recent results: 50%',exact:true})).toBeVisible()
@@ -86,7 +91,11 @@ test('missing, fallback and extreme records stay honest and bounded',async({page
   await page.evaluate(scenario=>(window as unknown as {labFixture:Fixture}).labFixture.render(scenario),scenario)
   await bounded(page)
   if(scenario==='empty'){await expect(page.locator('.lab-scoreboard meter')).toHaveCount(0);await expect(page.locator('.lab-form-strip')).toHaveCount(0);await expect(page.locator('#results-content')).toContainText('No matches are connected to this player record yet.')}
-  if(scenario==='pending')await expect(page.locator('#results-content').getByRole('img',{name:'Decided win rate in loaded recent results: no decided results',exact:true})).toBeVisible()
+  if(scenario==='pending'){
+   await expect(page.locator('#results-content').getByRole('img',{name:'Decided win rate in loaded recent results: no decided results',exact:true})).toBeVisible()
+   await expect(page.locator('.lab-match-form')).toContainText('10 pending')
+   await expect(page.locator('.lab-match-streaks')).toHaveCount(0)
+  }
   if(scenario==='fallback')await expect(page.locator('.lab-scoreboard')).toContainText('Overall used')
   if(scenario==='self')await expect(page.locator('.lab-level-path meter')).toHaveCount(0)
   if(scenario==='all-losses'){await expect(page.locator('.lab-form-strip').getByRole('img',{name:'Wins in your latest 5 decided individual results: 0%',exact:true})).toBeVisible();await expect(page.locator('.lab-form-strip .stat-donut-fill')).toHaveCount(0)}

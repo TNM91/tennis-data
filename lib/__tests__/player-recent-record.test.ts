@@ -36,6 +36,6 @@ describe('shared My Lab recent record',()=>{
   expect(recentStatsHtml([],'me','All')).toContain('No singles results in this sample')
   const rows=[match('Doubles','A')]
   expect(resultsHtml(rows,'me','All')).not.toContain('lab-recent-stats')
-  expect(resultsHtml(rows,'me','All','your',true)).toContain('lab-recent-stats')
+  expect(resultsHtml(rows,'me','All','your',true)).toContain('lab-match-form')
  })
 })

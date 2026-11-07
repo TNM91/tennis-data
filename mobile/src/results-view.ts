@@ -23,17 +23,56 @@ export function recentForm(rows: RecentMatchRow[], playerId: string) {
     return form
   }, {wins: 0, losses: 0, pending: 0})
 }
+
+function latestResultChips(rows: RecentMatchRow[], playerId: string) {
+  const items = rows.slice(0, 5).map(row => {
+    const result = matchResult(row, playerId)
+    const symbol = result === 'Won' ? 'W' : result === 'Lost' ? 'L' : '—'
+    return `<li data-outcome="${symbol}" aria-label="${html(matchDate(row.match_date))}: ${result}">${symbol}</li>`
+  }).join('')
+  return `<ol aria-label="Latest results, newest first">${items}</ol>`
+}
+
 export function recentPulseHtml(rows:RecentMatchRow[],playerId:string) {
   const form=recentForm(rows,playerId),decided=form.wins+form.losses
   const percent=decided?Math.round(form.wins/decided*100):null
-  return `<div class="match-pulse"><div class="match-pulse-rate"><span>Decided win rate</span>${statDonutHtml(percent,'Decided win rate in loaded recent results')}${percent===null?'<p>No decided results yet.</p>':`<meter class="sr-only" aria-hidden="true" min="0" max="100" value="${percent}" aria-label="Win percentage in loaded recent results">${percent}%</meter><p>${form.wins} ${form.wins===1?'win':'wins'} · ${form.losses} ${form.losses===1?'loss':'losses'}</p>`}</div><div class="match-pulse-form"><span>Latest form</span><ol aria-label="Latest results, newest first">${rows.slice(0,5).map(row=>{const result=matchResult(row,playerId),symbol=result==='Won'?'W':result==='Lost'?'L':'—';return `<li data-outcome="${symbol}" aria-label="${html(matchDate(row.match_date))}: ${result}">${symbol}</li>`}).join('')}</ol><p>Newest first · ${form.pending} pending</p></div></div>`
+  return `<div class="match-pulse"><div class="match-pulse-rate"><span>Decided win rate</span>${statDonutHtml(percent,'Decided win rate in loaded recent results')}${percent===null?'<p>No decided results yet.</p>':`<meter class="sr-only" aria-hidden="true" min="0" max="100" value="${percent}" aria-label="Win percentage in loaded recent results">${percent}%</meter><p>${form.wins} ${form.wins===1?'win':'wins'} · ${form.losses} ${form.losses===1?'loss':'losses'}</p>`}</div><div class="match-pulse-form"><span>Latest form</span>${latestResultChips(rows,playerId)}<p>Newest first · ${form.pending} pending</p></div></div>`
 }
+
+function matchFormSummary(rows: RecentMatchRow[], playerId: string, stats: ReturnType<typeof playerRecentRecord>) {
+  if (!rows.length) return ''
+  return `<div class="lab-match-form">
+    <div class="lab-match-form-record">
+      ${statDonutHtml(stats.winRate, 'Decided win rate in loaded recent results')}
+      <div>
+        <p>Decided win rate</p>
+        ${stats.winRate === null ? '<strong>No decided results yet</strong>' : `<strong>${stats.wins}W · ${stats.losses}L</strong>`}
+        ${stats.pending ? `<p>${stats.pending} pending</p>` : ''}
+      </div>
+    </div>
+    <div class="lab-match-form-latest match-pulse-form">
+      <p>Latest results <span>Newest first</span></p>
+      ${latestResultChips(rows, playerId)}
+    </div>
+    ${stats.winRate === null ? '' : `<dl class="lab-match-streaks" aria-label="Win streaks">
+      <div><dt>Current win streak</dt><dd>${stats.currentWinStreak}</dd></div>
+      <div><dt>Best win streak</dt><dd>${stats.bestWinStreak}</dd></div>
+    </dl>`}
+    ${stats.winRate !== null && stats.pending ? '<p class="lab-match-form-note">Pending matches don’t affect streaks.</p>' : ''}
+  </div>`
+}
+
 export function recentStatsHtml(rows:RecentMatchRow[],playerId:string,filter:MatchFilter,view:'all'|'form'|'formats'='all'){
- const record=(matches:RecentMatchRow[])=>playerRecentRecord(matches.map(row=>({date:row.match_date,result:matchResult(row,playerId)==='Won'?'W':matchResult(row,playerId)==='Lost'?'L':'pending'})))
- const stats=record(filteredMatches(rows,filter))
+ const record=(matches:RecentMatchRow[])=>playerRecentRecord(matches.map(row=>{
+  const result=matchResult(row,playerId)
+  return {date:row.match_date,result:result==='Won'?'W':result==='Lost'?'L':'pending'}
+ }))
+ const shown=filteredMatches(rows,filter)
+ const stats=record(shown)
+ if (view === 'form') return matchFormSummary(shown, playerId, stats)
  const streak=`<h3>Build your next run</h3><dl class="lab-streak-grid"><div><dt>Current win streak</dt><dd>${stats.currentWinStreak}<small> decided ${stats.currentWinStreak===1?'win':'wins'}</small></dd></div><div><dt>Best win streak</dt><dd>${stats.bestWinStreak}<small> in this sample</small></dd></div></dl><p class="rating-context">${filter==='All'?'All formats':filter} \u00b7 latest ${rows.length} connected results. Pending results do not end a decided-result streak. This is not your full-history record.</p>`
  const formats=`<h3>Singles &amp; doubles</h3><div class="lab-format-grid">${(['Singles','Doubles'] as const).map(mode=>{const matches=filteredMatches(rows,mode),r=record(matches);return `<div><h4>${mode}</h4><div class="lab-format-read">${statDonutHtml(r.winRate,mode+' decided win rate in loaded results')}<div><strong>${r.wins}W · ${r.losses}L</strong><span>Decided win rate</span></div></div>${r.winRate===null?'':`<meter class="sr-only" aria-hidden="true" min="0" max="100" value="${r.winRate}" aria-label="${mode} decided win percentage in loaded recent results">${r.winRate}%</meter>`}<p>${r.wins} ${r.wins===1?'win':'wins'} \u00b7 ${r.losses} ${r.losses===1?'loss':'losses'} \u00b7 ${r.pending} pending</p><small>${matches.length?'From your loaded recent results.':'No '+mode.toLowerCase()+' results in this sample.'}</small>${matches.length?`<button type="button" class="secondary lab-format-open" data-format-matches="${mode}" aria-label="View ${mode.toLowerCase()} match sample">View ${matches.length} ${matches.length===1?'match':'matches'} <span aria-hidden="true">→</span></button>`:''}</div>`}).join('')}</div><p class="rating-context">Format comparison always uses the same loaded sample. Use the match-type filter for your form, streaks, league/year records and match list.</p>`
- return `<section class="lab-recent-stats" aria-label="Recent result insights">${view!=='formats'?streak:''}${view!=='form'?formats:''}</section>`
+ return `<section class="lab-recent-stats" aria-label="Recent result insights">${view!=='formats'?streak:''}${formats}</section>`
 }
 
 function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolean) {
@@ -69,13 +108,16 @@ function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolea
 
 export function resultsHtml(rows: RecentMatchRow[], playerId: string, filter: MatchFilter, owner = 'your', compact=false,breakdown:BreakdownView='leagues',view:ResultView=breakdown==='seasons'?'years':'form') {
   const shown = filteredMatches(rows, filter)
-  const form = recentForm(shown, playerId)
+  const form = compact ? null : recentForm(shown, playerId)
   const list = matchListHtml(shown, playerId, compact)
+  const sampleLabel = compact && filter === 'All'
+    ? `Latest ${rows.length} connected ${rows.length === 1 ? 'result' : 'results'}.`
+    : `${shown.length} ${filter === 'All' ? 'match' : filter.toLowerCase() + ' match'}${shown.length === 1 ? '' : 'es'} in ${html(owner)} latest ${rows.length} connected results.`
   return `<div class="match-filters" role="group" aria-label="Match type">${filters.map(value => `<button type="button" class="secondary" data-match-filter="${value}" aria-pressed="${value === filter}">${value}</button>`).join('')}</div>
     ${compact ? list + resultViewControls(view) : ''}
     <div role="status" class="form-status">
-      <p>${shown.length} ${filter === 'All' ? 'match' : filter.toLowerCase() + ' match'}${shown.length === 1 ? '' : 'es'} in ${html(owner)} latest ${rows.length} connected results.</p>
-      ${shown.length && (!compact || view === 'form') ? `${recentPulseHtml(shown,playerId)}<dl class="recent-form" aria-label="Recent form"><div><dt>Wins</dt><dd>${form.wins}</dd></div><div><dt>Losses</dt><dd>${form.losses}</dd></div><div><dt>Pending</dt><dd>${form.pending}</dd></div></dl>` : !shown.length ? `<p>No matches of this type in ${html(owner)} latest results. Try All.</p>` : ''}
+      <p>${sampleLabel}</p>
+      ${!shown.length ? `<p>No matches of this type in ${html(owner)} latest results. Try All.</p>` : form ? `${recentPulseHtml(shown,playerId)}<dl class="recent-form" aria-label="Recent form"><div><dt>Wins</dt><dd>${form.wins}</dd></div><div><dt>Losses</dt><dd>${form.losses}</dd></div><div><dt>Pending</dt><dd>${form.pending}</dd></div></dl>` : ''}
     </div>
     ${compact ? `<div id="lab-result-panel" role="region" aria-label="${view[0].toUpperCase()+view.slice(1)} result insights">${view==='form'||view==='formats'?recentStatsHtml(rows,playerId,filter,view):labResultBreakdownHtml(shown,playerId,view==='years'?'seasons':'leagues',rows.length,filter==='All'?'All formats':filter,false)}</div>` : list}`
 }
