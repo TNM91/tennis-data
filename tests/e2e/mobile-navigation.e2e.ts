@@ -204,6 +204,49 @@ for(const width of [320,390])test('all destinations, direct competitions, focus 
  await page.locator('[data-app-destination="tournaments"]').click();await expect(event).toContainText('Northside Open');await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click());await expect(event).toHaveCount(0);await expect(page.locator('.lab-scoreboard')).toContainText('4.42');expect(errors).toEqual([])
 })
 
+for(const {width,large} of [{width:390,large:false},{width:320,large:true}])test('My Lab shortcuts fit the screen and open their destinations at '+width+'px',async({page},info)=>{
+ await page.setViewportSize({width,height:844})
+ await page.goto(origin+(large?'/?large=1':''))
+ await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
+ const shortcuts=page.getByRole('navigation',{name:'Play and improve',exact:true})
+ const leagues=shortcuts.getByRole('button',{name:'Leagues',exact:true})
+ const tournaments=shortcuts.getByRole('button',{name:'Tournaments',exact:true})
+ const coach=shortcuts.getByRole('button',{name:'Coach & training',exact:true})
+ await expect(leagues).toHaveAccessibleDescription('Schedules & standings')
+ await expect(tournaments).toHaveAccessibleDescription('Events & draws')
+ await expect(coach).toHaveAccessibleDescription('Lessons, drills & check-ins')
+ const leagueBox=(await leagues.boundingBox())!,tournamentBox=(await tournaments.boundingBox())!,coachBox=(await coach.boundingBox())!
+ const shortcutBox=(await shortcuts.boundingBox())!
+ if(large){
+  expect(tournamentBox.y).toBeGreaterThan(leagueBox.y)
+  expect(leagueBox.width).toBeCloseTo(shortcutBox.width)
+  expect(tournamentBox.width).toBeCloseTo(shortcutBox.width)
+ }else{
+  expect(tournamentBox.y).toBeCloseTo(leagueBox.y)
+  expect(tournamentBox.x).toBeGreaterThan(leagueBox.x)
+ }
+ expect(coachBox.y).toBeGreaterThan(tournamentBox.y)
+ expect(coachBox.width).toBeCloseTo(shortcutBox.width)
+ for(const button of await shortcuts.getByRole('button').all()){
+  expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+  expect(await button.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ }
+ await bounded(page)
+ await shortcuts.evaluate(el=>el.scrollIntoView({block:'center'}))
+ await page.screenshot({path:info.outputPath('my-lab-shortcuts.png')})
+ await leagues.press('Enter')
+ const league=page.getByRole('dialog',{name:'Competitions',exact:true})
+ await expect(league).toContainText('Northside Night League')
+ await league.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(leagues).toBeFocused()
+ await tournaments.press('Enter')
+ const events=page.getByRole('dialog',{name:'Tournaments',exact:true})
+ await expect(events).toContainText('Northside Open')
+ await events.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(tournaments).toBeFocused()
+ await coach.press('Enter')
+ await expect(page.getByRole('heading',{name:'Coach & training',exact:true})).toBeFocused()
+})
 for(const width of [320,390])test('Following keeps saved cards compact and separates confirmed removal at '+width+'px',async({page},info)=>{
  await page.setViewportSize({width,height:844})
  await page.goto(origin+'/?large=1&following-review=1')

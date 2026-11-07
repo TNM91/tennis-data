@@ -35,19 +35,33 @@ const tools:Record<string,Tool>={
  video:{destination:'coach-video',title:'Video review',detail:'Record, slow down and mark up a player’s clip.',icon:'coach'},
  coachMessages:{destination:'coach-messages',title:'Coach messages',detail:'Private chats with your coach or players.',icon:'teams'},
 }
-function toolHtml(t:Tool,compact=false,featured=false){
- const competition=!compact&&(t.destination==='leagues'||t.destination==='tournaments')
+function toolHtml(t:Tool,featured=false){
+ const competition=t.destination==='leagues'||t.destination==='tournaments'
  const category=t.destination==='leagues'?'Season play':'Event play'
  const action=t.destination==='leagues'?'Find your league':'Explore events'
- return '<button type="button" class="secondary app-tool'+(compact?' is-shortcut':'')+(competition?' app-tool-competition':'')+(featured?' app-tool-featured':'')+'" data-app-destination="'+t.destination+'" data-tool-search="'+html([t.title,t.detail,t.keywords||''].join(' '))+'">'
+ return '<button type="button" class="secondary app-tool'+(competition?' app-tool-competition':'')+(featured?' app-tool-featured':'')+'" data-app-destination="'+t.destination+'" data-tool-search="'+html([t.title,t.detail,t.keywords||''].join(' '))+'">'
   +(featured?'<span class="app-tool-court-atmosphere" aria-hidden="true"><img class="app-tool-court" src="./brand/courts/tiq-native-ace-deuce-refined-20261031-v3.png" alt="" width="1727" height="911"></span>':'')
   +'<span class="app-tool-icon" aria-hidden="true">'+websiteUi.icons[t.icon]+'</span><span class="app-tool-copy">'
   +(competition?'<small class="competition-category">'+category+'</small>':'')
-  +'<strong>'+t.title+'</strong>'+(!compact?'<span>'+t.detail+'</span>':'')+(t.web?'<small>Opens website</small>':'')+'</span>'
-  +(!compact?'<span class="app-tool-arrow" aria-hidden="true">'+(t.web?'↗':'›')+'</span>':'')
+  +'<strong>'+t.title+'</strong><span>'+t.detail+'</span>'+(t.web?'<small>Opens website</small>':'')+'</span>'
+  +'<span class="app-tool-arrow" aria-hidden="true">'+(t.web?'↗':'›')+'</span>'
   +(competition?'<span class="competition-action" aria-hidden="true">'+action+'<span>→</span></span>':'')+'</button>'
 }
-export function homeShortcutsHtml(){return '<nav class="lab-shortcuts" aria-label="Play and improve">'+['leagues','tournaments','coach'].map(key=>toolHtml(tools[key],true)).join('')+'</nav>'}
+export function homeShortcutsHtml(){
+ const shortcuts=[
+  [tools.leagues,'Schedules & standings'],
+  [tools.tournaments,'Events & draws'],
+  [tools.coach,'Lessons, drills & check-ins'],
+ ] as const
+ return `<nav class="lab-shortcuts" aria-label="Play and improve">${shortcuts.map(([tool,detail])=>{
+  const id=`lab-shortcut-${tool.destination}`
+  return `<button type="button" class="secondary app-tool${tool.destination==='coach'?' lab-shortcut-coach':''}" data-app-destination="${tool.destination}" aria-labelledby="${id}-title" aria-describedby="${id}-detail">
+   <span class="lab-shortcut-icon" aria-hidden="true">${websiteUi.icons[tool.icon]}</span>
+   <span class="app-tool-copy"><strong id="${id}-title">${html(tool.title)}</strong><span id="${id}-detail">${html(detail)}</span></span>
+   <span class="app-tool-arrow" aria-hidden="true">›</span>
+  </button>`
+ }).join('')}</nav>`
+}
 export function appHubHtml(hub:AppHub){
  const groups:{title:string;keys:string[];lane?:'player'|'studio'}[]=hub==='compete'
   ?[{title:'Browse competitions',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]
@@ -64,7 +78,7 @@ export function appHubHtml(hub:AppHub){
   </div>`:''
  const groupHtml=groups.map(group=>{
   const lane=group.lane?` id="coach-${group.lane}-tools" data-coach-lane${group.lane==='studio'?' hidden':''}`:''
-  return `<section class="app-hub-group"${lane}>${group.lane==='player'?'<div class="coach-next-assignment" data-coach-next-assignment hidden></div>':''}<h2>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],false,key==='tactics')).join('')}</div></section>`
+  return `<section class="app-hub-group"${lane}>${group.lane==='player'?'<div class="coach-next-assignment" data-coach-next-assignment hidden></div>':''}<h2>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],key==='tactics')).join('')}</div></section>`
  }).join('')
  const toolFinder=hub==='more'?`<div class="app-tool-finder" role="search" aria-label="Tools">
   <label for="app-tool-query" class="sr-only">Find a tool</label>
