@@ -24,7 +24,9 @@ describe('Chat expression and inbox',()=>{
  it('shows exact authorized team scopes without invented message previews or unread counts',()=>{
   const markup=chatsInboxHtml({room:null,teams:[{teamName:'<Aces>',leagueName:'City & Court',flight:'4.0'},{teamName:'Aces',leagueName:'Other',flight:'4.5'}]})
   expect(markup).toContain('&lt;Aces&gt;');expect(markup).toContain('City &amp; Court');expect(markup).toContain('data-open-team-chat="0"');expect(markup).toContain('data-open-team-chat="1"');expect(markup).not.toContain('<Aces>');expect(markup.match(/data-team-unread aria-hidden="true" hidden><\/span>/g)).toHaveLength(2);expect(markup).not.toMatch(/\d+ unread messages/)
-  expect(chatsInboxHtml({room:null,teams:[]})).toContain('Join your team with an invite')
+  const empty=chatsInboxHtml({room:null,teams:[]})
+  expect(empty).toContain('id="join-team"')
+  expect(empty).toContain('Use a team invite')
  })
  it('bundles actual bounded animated tennis GIFs with still previews and no third-party requests',()=>{
   expect(library).toHaveLength(12)
