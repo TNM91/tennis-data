@@ -14,7 +14,7 @@ describe('My Lab result views',()=>{
   for(const view of ['leagues','years'] as const){const output=resultsHtml([row],'me','All','your',true,'leagues',view);expect(output).toContain('lab-result-breakdown');expect(output).not.toContain('lab-format-grid');expect(output).not.toContain('Current win streak');expect(output).not.toContain('data-result-breakdown=')}
  })
  it('retains sample labels, empty format recovery and matching list actions in every view',()=>{
-  for(const view of ['form','formats','leagues','years'] as ResultView[]){const output=resultsHtml([row],'me','Singles','your',true,'leagues',view);expect(output).toContain('latest 1 connected results');expect(output).toContain('data-index="0"');expect(resultsHtml([row],'me','Doubles','your',true,'leagues',view)).toContain('Try All.')}
+  for(const view of ['form','formats','leagues','years'] as ResultView[]){const output=resultsHtml([row],'me','Singles','your',true,'leagues',view);expect(output).toContain('latest 1 connected result');expect(output).toContain('data-index="0"');expect(resultsHtml([row],'me','Doubles','your',true,'leagues',view)).toContain('Try All.')}
  })
  it('keeps player profile result layouts unchanged',()=>{
   const output=resultsHtml([row],'me','All')

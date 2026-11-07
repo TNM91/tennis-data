@@ -256,7 +256,7 @@ for (const width of [320, 390]) test(`Recent matches puts filtered scorecards wi
   await doubles.tap()
   await expect(doubles).toHaveAttribute('aria-pressed', 'true')
   await expect(list).toHaveAttribute('open', '')
-  await expect(summary).toContainText('6 matches')
+  await expect(summary).toContainText('6 doubles matches')
   await expect(list.getByRole('button')).toHaveCount(6)
   await bounded(page)
   await recent.locator('h2').evaluate(el => el.scrollIntoView({block:'start'}))

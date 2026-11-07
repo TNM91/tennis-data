@@ -41,7 +41,7 @@ for(const width of [320,390])test('training hierarchy and match controls stay cl
 })
 async function bounded(page:Page){
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
- for(const target of ['.lab-scoreboard','.lab-form-strip','.lab-level-path','.lab-trend-entry','.lab-match-form']){
+ for(const target of ['.lab-scoreboard','.lab-form-strip','.lab-level-path','.lab-trend-entry','.lab-match-form','.lab-format-grid']){
   if(!await page.locator(target).count())continue
   const box=await page.locator(target).boundingBox();if(!box)continue
   expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
@@ -80,7 +80,11 @@ for(const width of [320,390])test(`format and league views use the same loaded r
  await results.locator('[data-match-filter="Singles"]').click()
  await expect(results.getByRole('img',{name:'Decided win rate in loaded recent results: 100%',exact:true})).toBeVisible();await expect(results).toContainText('4 singles matches')
  await results.locator('[data-match-filter="Doubles"]').click();await expect(results.getByRole('img',{name:'Decided win rate in loaded recent results: 50%',exact:true})).toBeVisible()
- await results.locator('[data-result-view="formats"]').click();await expect(results.locator('.lab-format-grid')).toContainText('100%');await expect(results.locator('.lab-format-grid')).toContainText('50%')
+ await results.locator('[data-result-view="formats"]').click()
+ const comparison=results.getByRole('region',{name:'Singles and doubles comparison',exact:true})
+ await expect(comparison.getByRole('meter',{name:/^Singles decided/})).toHaveAttribute('value','100')
+ await expect(comparison.getByRole('meter',{name:/^Doubles decided/})).toHaveAttribute('value','50')
+ await page.locator(width===390?'#recent-results h2':'.result-view-controls').evaluate(el=>el.scrollIntoView({block:'start'}))
  await page.screenshot({path:info.outputPath('lab-scoreboard-format-insights.png'),fullPage:false})
  await results.locator('[data-result-view="leagues"]').click();await expect(results.locator('.lab-breakdown-list')).toContainText('City Tennis League');await expect(results.locator('.lab-breakdown-list')).toContainText('3W / 3L')
  await results.locator('[data-result-view="years"]').click();await expect(results.locator('.lab-breakdown-list')).toContainText('2026');await bounded(page)
@@ -95,6 +99,10 @@ test('missing, fallback and extreme records stay honest and bounded',async({page
    await expect(page.locator('#results-content').getByRole('img',{name:'Decided win rate in loaded recent results: no decided results',exact:true})).toBeVisible()
    await expect(page.locator('.lab-match-form')).toContainText('10 pending')
    await expect(page.locator('.lab-match-streaks')).toHaveCount(0)
+   await page.locator('[data-result-view="formats"]').click()
+   const comparison=page.getByRole('region',{name:'Singles and doubles comparison',exact:true})
+   await expect(comparison.getByRole('meter')).toHaveCount(0)
+   await expect(comparison.getByRole('button',{name:'View 6 doubles scorecards',exact:true})).toBeVisible()
   }
   if(scenario==='fallback')await expect(page.locator('.lab-scoreboard')).toContainText('Overall used')
   if(scenario==='self')await expect(page.locator('.lab-level-path meter')).toHaveCount(0)

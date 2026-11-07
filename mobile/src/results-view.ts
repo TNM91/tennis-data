@@ -62,20 +62,44 @@ function matchFormSummary(rows: RecentMatchRow[], playerId: string, stats: Retur
   </div>`
 }
 
-export function recentStatsHtml(rows:RecentMatchRow[],playerId:string,filter:MatchFilter,view:'all'|'form'|'formats'='all'){
- const record=(matches:RecentMatchRow[])=>playerRecentRecord(matches.map(row=>{
-  const result=matchResult(row,playerId)
-  return {date:row.match_date,result:result==='Won'?'W':result==='Lost'?'L':'pending'}
- }))
- const shown=filteredMatches(rows,filter)
- const stats=record(shown)
- if (view === 'form') return matchFormSummary(shown, playerId, stats)
- const streak=`<h3>Build your next run</h3><dl class="lab-streak-grid"><div><dt>Current win streak</dt><dd>${stats.currentWinStreak}<small> decided ${stats.currentWinStreak===1?'win':'wins'}</small></dd></div><div><dt>Best win streak</dt><dd>${stats.bestWinStreak}<small> in this sample</small></dd></div></dl><p class="rating-context">${filter==='All'?'All formats':filter} \u00b7 latest ${rows.length} connected results. Pending results do not end a decided-result streak. This is not your full-history record.</p>`
- const formats=`<h3>Singles &amp; doubles</h3><div class="lab-format-grid">${(['Singles','Doubles'] as const).map(mode=>{const matches=filteredMatches(rows,mode),r=record(matches);return `<div><h4>${mode}</h4><div class="lab-format-read">${statDonutHtml(r.winRate,mode+' decided win rate in loaded results')}<div><strong>${r.wins}W · ${r.losses}L</strong><span>Decided win rate</span></div></div>${r.winRate===null?'':`<meter class="sr-only" aria-hidden="true" min="0" max="100" value="${r.winRate}" aria-label="${mode} decided win percentage in loaded recent results">${r.winRate}%</meter>`}<p>${r.wins} ${r.wins===1?'win':'wins'} \u00b7 ${r.losses} ${r.losses===1?'loss':'losses'} \u00b7 ${r.pending} pending</p><small>${matches.length?'From your loaded recent results.':'No '+mode.toLowerCase()+' results in this sample.'}</small>${matches.length?`<button type="button" class="secondary lab-format-open" data-format-matches="${mode}" aria-label="View ${mode.toLowerCase()} match sample">View ${matches.length} ${matches.length===1?'match':'matches'} <span aria-hidden="true">→</span></button>`:''}</div>`}).join('')}</div><p class="rating-context">Format comparison always uses the same loaded sample. Use the match-type filter for your form, streaks, league/year records and match list.</p>`
- return `<section class="lab-recent-stats" aria-label="Recent result insights">${view!=='formats'?streak:''}${formats}</section>`
+function matchRecord(rows: RecentMatchRow[], playerId: string) {
+  return playerRecentRecord(rows.map(row => {
+    const result = matchResult(row, playerId)
+    return {date:row.match_date, result:result === 'Won' ? 'W' : result === 'Lost' ? 'L' : 'pending'}
+  }))
 }
 
-function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolean) {
+function formatComparisonHtml(rows: RecentMatchRow[], playerId: string) {
+  const formats = (['Singles', 'Doubles'] as const).map(mode => {
+    const matches = filteredMatches(rows, mode)
+    const {wins, losses, pending, winRate} = matchRecord(matches, playerId)
+    const lower = mode.toLowerCase()
+    const record = winRate === null ? 'No decided results yet' : `${wins}W · ${losses}L`
+    return `<div class="lab-format-row">
+      <div class="lab-format-row-heading"><h4>${mode}</h4>${winRate === null ? '' : `<strong aria-hidden="true">${winRate}%</strong>`}</div>
+      ${winRate === null ? '' : `<meter min="0" max="100" value="${winRate}" aria-label="${mode} decided win percentage in loaded recent results">${winRate}%</meter>`}
+      <p>${matches.length ? record + (pending ? ` · ${pending} pending` : '') : `No ${lower} results in this sample.`}</p>
+      ${matches.length ? `<button type="button" class="secondary lab-format-open" data-format-matches="${mode}">
+        <span>View ${matches.length} ${lower} ${matches.length === 1 ? 'scorecard' : 'scorecards'}</span><span class="app-tool-arrow" aria-hidden="true">›</span>
+      </button>` : ''}
+    </div>`
+  }).join('')
+  return `<section class="lab-format-grid" aria-label="Singles and doubles comparison">
+    <div class="lab-format-heading"><h3>Singles &amp; doubles</h3><p>Decided win rate</p></div>
+    ${formats}
+  </section>`
+}
+
+export function recentStatsHtml(rows: RecentMatchRow[], playerId: string, filter: MatchFilter, view: 'all' | 'form' | 'formats' = 'all') {
+  if (view === 'formats') return formatComparisonHtml(rows, playerId)
+  const shown = filteredMatches(rows, filter)
+  const stats = matchRecord(shown, playerId)
+  if (view === 'form') return matchFormSummary(shown, playerId, stats)
+  const streak = `<h3>Build your next run</h3><dl class="lab-streak-grid"><div><dt>Current win streak</dt><dd>${stats.currentWinStreak}<small> decided ${stats.currentWinStreak===1?'win':'wins'}</small></dd></div><div><dt>Best win streak</dt><dd>${stats.bestWinStreak}<small> in this sample</small></dd></div></dl><p class="rating-context">${filter==='All'?'All formats':filter} · latest ${rows.length} connected results. Pending results do not end a decided-result streak. This is not your full-history record.</p>`
+  return `<section class="lab-recent-stats" aria-label="Recent result insights">${streak}${formatComparisonHtml(rows, playerId)}</section>`
+}
+
+function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolean, filter: MatchFilter) {
   if (!rows.length) return ''
   const entries = rows.map((row, index) => {
     const result = matchResult(row, playerId)
@@ -100,8 +124,9 @@ function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolea
   }).join('')
   const list = `<ol class="matches">${entries}</ol><small>Scores are shown as recorded, in the source’s court order.</small>`
   if (!compact) return list
+  const format = filter === 'All' ? '' : `${filter.toLowerCase()} `
   return `<details class="recent-match-list">
-    <summary><span class="app-tool-copy"><strong>Match scorecards</strong><span>${rows.length} ${rows.length === 1 ? 'match' : 'matches'}</span></span><span class="app-tool-arrow" aria-hidden="true">›</span></summary>
+    <summary><span class="app-tool-copy"><strong>Match scorecards</strong><span>${rows.length} ${format}${rows.length === 1 ? 'match' : 'matches'}</span></span><span class="app-tool-arrow" aria-hidden="true">›</span></summary>
     ${list}
   </details>`
 }
@@ -109,10 +134,12 @@ function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolea
 export function resultsHtml(rows: RecentMatchRow[], playerId: string, filter: MatchFilter, owner = 'your', compact=false,breakdown:BreakdownView='leagues',view:ResultView=breakdown==='seasons'?'years':'form') {
   const shown = filteredMatches(rows, filter)
   const form = compact ? null : recentForm(shown, playerId)
-  const list = matchListHtml(shown, playerId, compact)
-  const sampleLabel = compact && filter === 'All'
-    ? `Latest ${rows.length} connected ${rows.length === 1 ? 'result' : 'results'}.`
-    : `${shown.length} ${filter === 'All' ? 'match' : filter.toLowerCase() + ' match'}${shown.length === 1 ? '' : 'es'} in ${html(owner)} latest ${rows.length} connected results.`
+  const list = matchListHtml(shown, playerId, compact, filter)
+  const loadedSample = `${rows.length} connected ${rows.length === 1 ? 'result' : 'results'}`
+  const shownMatches = `${shown.length} ${filter === 'All' ? 'match' : filter.toLowerCase() + ' match'}${shown.length === 1 ? '' : 'es'}`
+  let sampleLabel = `${shownMatches} in ${html(owner)} latest ${rows.length} connected results.`
+  if (compact && filter === 'All') sampleLabel = `Latest ${loadedSample}.`
+  if (compact && view === 'formats') sampleLabel = `Both formats use the latest ${loadedSample}.`
   return `<div class="match-filters" role="group" aria-label="Match type">${filters.map(value => `<button type="button" class="secondary" data-match-filter="${value}" aria-pressed="${value === filter}">${value}</button>`).join('')}</div>
     ${compact ? list + resultViewControls(view) : ''}
     <div role="status" class="form-status">
@@ -140,7 +167,7 @@ export function showRecentResults(content: HTMLElement, initialRows: RecentMatch
     })
     content.querySelectorAll<HTMLButtonElement>('[data-format-matches]').forEach(button=>{button.onclick=()=>{
       if(!valid())return
-      activeView='form';render(button.dataset.formatMatches as MatchFilter)
+      render(button.dataset.formatMatches as MatchFilter)
       const list=content.querySelector<HTMLDetailsElement>('.recent-match-list');if(list){list.open=true;list.querySelector<HTMLElement>('summary')?.focus({preventScroll:true});list.scrollIntoView({block:'start'})}
     }})
     const shown = filteredMatches(rows, filter)

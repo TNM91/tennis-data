@@ -27,8 +27,9 @@ describe('shared My Lab recent record',()=>{
   const output=recentStatsHtml(rows,'me','Singles')
   expect(output).toContain('Singles · latest 3 connected results')
   expect(output).toContain('value="100" aria-label="Doubles')
-  expect(output).toContain('0 wins · 1 loss · 0 pending')
-  expect(output).toContain('1 win · 0 losses · 1 pending')
+  expect(output).toContain('value="0" aria-label="Singles')
+  expect(output).toContain('0W · 1L')
+  expect(output).toContain('1W · 0L · 1 pending')
   expect(output).toContain('not your full-history record')
  })
  it('shows absent formats without meters or invented wins and limits new panels to My Lab',()=>{
