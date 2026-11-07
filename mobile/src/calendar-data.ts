@@ -65,6 +65,19 @@ export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[
  for(const p of calendar.practices||[])entries.push({key:'team-practice:'+p.id,id:p.id,source:'team',title:p.title,date:p.date,time:p.time,endTime:p.endTime,teamStatus:p.status,location:p.location,detail:[p.scope.teamName,p.scope.leagueName,p.scope.flight,p.status==='confirmed'?'Scheduled':p.status[0].toUpperCase()+p.status.slice(1)].filter(Boolean).join(' · '),kind:'practice',recurring:false,readiness:p.status==='cancelled'?'Cancelled':p.status==='completed'?'Completed':({in:'In',out:'Out',maybe:'Maybe',unanswered:'No reply yet',waitlist:'Waitlist'}[p.response])+(p.captainConfirmed?' · Captain-confirmed':'')})
  return entries.sort((a,b)=>(a.date+'T'+(a.time||'00:00')+a.title).localeCompare(b.date+'T'+(b.time||'00:00')+b.title))
 }
+export function isPracticeInProgress(event:CalendarOccurrence,now:Date){
+ const time=now.toTimeString().slice(0,5)
+ return event.date===localCalendarDate(now)&&event.teamStatus==='confirmed'&&
+  Boolean(event.time&&event.endTime&&event.time<=time&&time<event.endTime)
+}
+
+export function isCurrentCalendarOccurrence(event:CalendarOccurrence,calendar:NativeCalendar,now:Date){
+ const today=localCalendarDate(now)
+ if(event.date<today||event.kind==='availability'||event.teamStatus==='cancelled'||event.teamStatus==='completed')return false
+ if(event.source==='competition'&&calendar.competitions.some(match=>match.id===event.id&&match.status==='Completed'))return false
+ return event.date>today||!event.time||event.time.slice(0,5)>=now.toTimeString().slice(0,5)||isPracticeInProgress(event,now)
+}
+
 export const exportableCalendarOccurrences=(entries:CalendarOccurrence[])=>entries.filter(e=>e.source!=='team'||e.teamStatus!=='cancelled'&&(!e.time||Boolean(buildPracticeCalendarRange(e.date,e.time,e.endTime))))
 export function calendarExport(entries:CalendarOccurrence[],zone:string){
  if(entries.length>10000||!zone||zone.length>80)throw Error('Choose a smaller calendar export.')

@@ -12,10 +12,11 @@ async function inbox(page:Page,width=390){
 for(const width of [320,390]){
  test('Coach conversations open from Chats with exact identity and retained team filters at '+width+'px',async({page},info)=>{
   await inbox(page,width)
+  await page.locator('[data-team-chat-filters] > summary').click()
   await page.getByRole('searchbox',{name:'Find a team'}).fill('Baseline');await page.locator('[data-chats-filter="unread"]').click()
   await expect(page.locator('[data-coach-chat] img')).toHaveCount(0);await expect(page.locator('[data-coach-chat="student-one"]')).toContainText('Alex Rivera <img src=x>')
   expect(await page.evaluate(()=>(window as unknown as Preview).coachChatFixture.requests)).toEqual([{method:'GET',student:'',message:''}])
-  await page.getByRole('searchbox',{name:'Find a conversation'}).fill('Jordan');await expect(page.locator('[data-coach-chat]')).toHaveCount(1)
+  await page.locator('[data-coach-chat-filters] > summary').click();await page.getByRole('searchbox',{name:'Find a conversation'}).fill('Jordan');await expect(page.locator('[data-coach-chat]')).toHaveCount(1)
   await page.locator('[data-coach-chat="student-two"]').click()
   const dialog=page.getByRole('dialog',{name:'Coach messages',exact:true})
   await expect(dialog.getByRole('combobox',{name:'Conversation',exact:true})).toHaveValue('student-two');await expect(dialog).toContainText('Ready for our lesson.')
@@ -50,10 +51,10 @@ test('Coach Chats distinguishes an unavailable service and rejects disconnected 
  expect(await page.evaluate(()=>(window as unknown as Preview).coachChatFixture.requests.filter(r=>r.student))).toHaveLength(0)
 })
 test('Coach Chats clears private conversation drafts and search on an account change',async({page})=>{
- await inbox(page);await page.getByRole('searchbox',{name:'Find a conversation'}).fill('Alex');await page.locator('[data-coach-chat="student-one"]').click()
+ await inbox(page);await page.locator('[data-coach-chat-filters] > summary').click();await page.getByRole('searchbox',{name:'Find a conversation'}).fill('Alex');await page.locator('[data-coach-chat="student-one"]').click()
  const dialog=page.getByRole('dialog',{name:'Coach messages',exact:true});await expect(dialog).toContainText('Bring your return notes.');await dialog.getByRole('textbox',{name:'Message',exact:true}).fill('Private draft')
  await page.evaluate(()=>(window as unknown as Preview).switchNavigationOwner());await expect(dialog).toHaveCount(0)
- await page.locator('.app-navigation [data-screen="teams"]').click();await expect(page.getByRole('searchbox',{name:'Find a conversation'})).toHaveValue('');await expect(page.locator('[data-coach-chat]')).toHaveCount(2)
+ await page.locator('.app-navigation [data-screen="teams"]').click();await expect(page.locator('[data-coach-chat]')).toHaveCount(2);await expect(page.getByRole('searchbox',{name:'Find a conversation'})).toHaveCount(0);await page.locator('[data-coach-chat-filters] > summary').click();await expect(page.getByRole('searchbox',{name:'Find a conversation'})).toHaveValue('')
 })
 test('Coach Chats stays available when the team directory fails',async({page})=>{
  await page.goto(origin);await page.evaluate(()=>{const f=(window as unknown as Preview).coachChatFixture;f.enabled=true;f.teamFail=true})

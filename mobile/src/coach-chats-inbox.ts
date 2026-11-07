@@ -6,10 +6,16 @@ import type {ChatUnread} from './chat-unread'
 /** One connection read on first mount, then explicit refresh; no message prefetch or polling. */
 export function createCoachChatsInbox(client:SupabaseClient,owner:string,current:()=>boolean,getCounts:()=>ChatUnread|null=()=>null,refreshCounts:()=>void=()=>{}){
  const element=document.createElement('section');element.className='chats-coach-inbox';element.setAttribute('aria-label','Coach & player conversations')
- let disposed=false,started=false,busy=false,epoch=0,query='',notice='',more=false,unreadOnly=false,connections:CoachChatConnection[]=[],summary=getCounts()
+ let disposed=false,started=false,busy=false,epoch=0,query='',notice='',more=false,unreadOnly=false,filtersOpen=false,connections:CoachChatConnection[]=[],summary=getCounts()
  let conversation:ReturnType<typeof openCoachMessages>|null=null
  const active=()=>!disposed&&current(),find=(value:string)=>value.normalize('NFKC').toLocaleLowerCase().trim()
  const unread=(id:string)=>summary?.owner===owner&&summary.coach?.available?summary.coach.connections.find(c=>c.id===id)?.unread:undefined
+ const filterTarget=()=>{
+  const filters=element.querySelector<HTMLDetailsElement>('[data-coach-chat-filters]')
+  if(!filters||filters.hidden)return element.querySelector<HTMLElement>('h2')
+  const selector=filters.open?'[data-coach-filter="'+(unreadOnly?'unread':'all')+'"]':'summary'
+  return filters.querySelector<HTMLElement>(selector)
+ }
  const paintRows=()=>{
   const rows=element.querySelector<HTMLElement>('[data-coach-chat-rows]');if(!rows)return
   const unknown=connections.some(c=>unread(c.id)===undefined)
@@ -26,7 +32,7 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
      conversation=openCoachMessages(client,owner,active,button,undefined,connection.id,()=>{
       conversation=null;if(!active()||!element.isConnected)return
       const target=Array.from(element.querySelectorAll<HTMLButtonElement>('[data-coach-chat]')).find(button=>button.dataset.coachChat===connection.id)
-      ;(target||element.querySelector<HTMLElement>('[data-coach-filter="'+(unreadOnly?'unread':'all')+'"]')||element.querySelector<HTMLElement>('h2'))?.focus({preventScroll:true})
+      ;(target||filterTarget())?.focus({preventScroll:true})
      },refreshCounts)
     };row.append(button)
    }
@@ -38,14 +44,25 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
    button.setAttribute('aria-label',connection.name+', '+role+(count===undefined?', unread count unavailable':', '+(count===100?'99+':count)+' unread messages'))
   }
   element.querySelectorAll<HTMLButtonElement>('[data-coach-filter]').forEach(button=>button.setAttribute('aria-pressed',String((button.dataset.coachFilter==='unread')===unreadOnly)))
+  element.querySelector<HTMLElement>('[data-coach-filter-active]')!.hidden=!query.trim()&&!unreadOnly
   element.querySelector('[data-coach-chat-status]')!.textContent=notice||(!connections.length?'Your active coach connections will appear here.':unknown?'Unread counts unavailable for some conversations. Refresh to try again.':!visible.length?(query?'No conversations match your search.':unreadOnly?'You’re all caught up.':'No conversations to show.'):more?'Showing your latest 100 connections.':'')
-  if(lostFocus&&element.isConnected)element.querySelector<HTMLElement>('[data-coach-filter="'+(unreadOnly?'unread':'all')+'"]')?.focus({preventScroll:true})
+  if(lostFocus&&element.isConnected)filterTarget()?.focus({preventScroll:true})
  }
  const render=()=>{
-  element.innerHTML='<div class="chats-section-heading"><h2 tabindex="-1">Coach &amp; player</h2><button type="button" class="secondary" data-coach-chat-refresh aria-label="Refresh conversations">Refresh</button></div><p class="rating-context">Private conversations</p><label data-coach-search-label>Find a conversation<input type="search" data-coach-chat-search maxlength="160" placeholder="Name" autocomplete="off"></label><div class="chats-inbox-filters" role="group" aria-label="Show coach conversations"><button type="button" class="secondary" data-coach-filter="all" aria-pressed="true">All</button><button type="button" class="secondary" data-coach-filter="unread" aria-pressed="false">Unread</button></div><p role="status" data-coach-chat-status></p><ul class="chats-team-list" data-coach-chat-rows></ul>'
+  element.innerHTML=`<div class="chats-section-heading"><h2 tabindex="-1">Coach &amp; player</h2><button type="button" class="secondary" data-coach-chat-refresh aria-label="Refresh conversations">Refresh</button></div>
+   <details class="chats-filter-drawer" data-coach-chat-filters>
+    <summary>Search &amp; filter conversations<span class="chats-filter-active" data-coach-filter-active hidden>Active</span></summary>
+    <div class="chats-inbox-tools">
+     <label>Find a conversation<input type="search" data-coach-chat-search maxlength="160" placeholder="Name" autocomplete="off"></label>
+     <div class="chats-inbox-filters" role="group" aria-label="Show coach conversations"><button type="button" class="secondary" data-coach-filter="all" aria-pressed="true">All</button><button type="button" class="secondary" data-coach-filter="unread" aria-pressed="false">Unread</button></div>
+    </div>
+   </details>
+   <ul class="chats-team-list" data-coach-chat-rows></ul><p role="status" data-coach-chat-status></p>`
   element.querySelector<HTMLButtonElement>('[data-coach-chat-refresh]')!.disabled=busy
-  element.querySelector<HTMLElement>('[data-coach-search-label]')!.hidden=!connections.length
-  element.querySelector<HTMLElement>('[aria-label="Show coach conversations"]')!.hidden=!connections.length
+  const filters=element.querySelector<HTMLDetailsElement>('[data-coach-chat-filters]')!
+  filters.hidden=!connections.length
+  filters.open=filtersOpen
+  filters.addEventListener('toggle',()=>{if(filters.isConnected)filtersOpen=filters.open})
   element.querySelector('[data-coach-chat-refresh]')!.addEventListener('click',()=>void refresh(true))
   const input=element.querySelector<HTMLInputElement>('[data-coach-chat-search]')!;input.value=query;input.addEventListener('input',()=>{query=input.value.slice(0,160);paintRows()})
   element.querySelectorAll<HTMLButtonElement>('[data-coach-filter]').forEach(button=>button.addEventListener('click',()=>{unreadOnly=button.dataset.coachFilter==='unread';paintRows()}))

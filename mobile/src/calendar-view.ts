@@ -2,7 +2,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {html} from './match-details'
 import {calendarDraft,personalDraft,sameCalendarDraft,type CalendarDraft,type CalendarIntent,type NativeCalendar} from '../../lib/native-calendar-contract'
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
-import {calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,exportableCalendarOccurrences,personalOccurrenceKey,type CalendarOccurrence} from './calendar-data'
+import {calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,exportableCalendarOccurrences,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,type CalendarOccurrence} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
 import {createCalendarFinder} from './calendar-finder'
 import {openPlayerPractices} from './player-practices-view'
@@ -28,9 +28,13 @@ type RefreshContext={message?:string;focusKey?:string;focusControl?:string;prefe
 type MatchAvailability=NativeCalendar['competitions'][number]
 type AvailabilityChoice=NonNullable<MatchAvailability['responseStatus']>
 const savedReply=(match?:MatchAvailability):AvailabilityChoice=>match?.responseIsStale?'':match?.responseStatus??''
-export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:'all'|'coach'|{practiceTitle:string;onClose:()=>void}='all'){
+export type CalendarStart='all'|'coach'|{practiceTitle:string;onClose:()=>void}|{event?:CalendarOccurrence;onClose:(changed:boolean)=>void}
+export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all'){
+ const practice=typeof initial==='object'&&'practiceTitle' in initial?initial:null
+ let initialEvent=typeof initial==='object'&&!('practiceTitle' in initial)?initial.event:undefined
+ let changed=false
  const dialog=document.createElement('dialog');dialog.className='native-calendar-screen';dialog.setAttribute('aria-label','Your calendar')
- let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'='week',anchor=localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
+ let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'='week',anchor=initialEvent?.date??localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
  let failedRefresh:RefreshContext|null=null
  let filter:string=typeof initial==='string'?initial:'all'
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
@@ -61,7 +65,19 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const heading=step??dialog.querySelector<HTMLElement>('h2, h1')
   heading?.focus({preventScroll:true})
  }
- const dispose=()=>{if(disposed)return;disposed=true;practiceView?.dispose();practiceView=null;void cancelCoachFile(owner).catch(()=>{});calendar=null;finder=null;finderSource=null;query='';draft=null;draftStart=null;pending=null;dialog.close();dialog.remove();if(current()){if(typeof initial==='object')initial.onClose();else if(trigger?.isConnected)trigger.focus({preventScroll:true})}}
+ const dispose=()=>{
+  if(disposed)return
+  disposed=true
+  practiceView?.dispose()
+  practiceView=null
+  void cancelCoachFile(owner).catch(()=>{})
+  calendar=null;finder=null;finderSource=null;query='';draft=null;draftStart=null;pending=null;initialEvent=undefined
+  dialog.close()
+  dialog.remove()
+  if(!current())return
+  if(!practice&&trigger?.isConnected)trigger.focus({preventScroll:true})
+  if(typeof initial==='object')initial.onClose(changed)
+ }
  const dirty=()=>!!draft&&panel!=='agenda'||Boolean(pending)||hasReplyChanges()||Boolean(practiceView?.isOpen())
  const confirmDiscard=(destination:'agenda'|'close')=>{
   discardDestination=destination
@@ -101,6 +117,20 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  })
  const finishAgendaRead=({focusKey,focusControl,preferFeatured}:RefreshContext)=>{
   busy=false
+  if(calendar&&initialEvent){
+   const target=initialEvent
+   initialEvent=undefined
+   const event=visible().find(item=>item.key===target.key&&item.date===target.date)
+   if(event&&isCurrentCalendarOccurrence(event,calendar,new Date())){
+    changed=event.title!==target.title||event.time!==target.time||event.endTime!==target.endTime||event.location!==target.location
+    openAgendaEvent(event.key,'row')
+    return
+   }
+   changed=true
+   notice=target.source==='team'&&calendar.practicesUnavailable
+    ?'This practice couldn’t be checked. Refresh to try again.'
+    :'This event moved or is no longer available. Review your latest dates below.'
+  }
   render()
   if(focusKey&&focusAgendaEvent(focusKey,preferFeatured))return
   const control=focusControl?dialog.querySelector<HTMLElement>(failedRefresh?'[data-cal-refresh]':focusControl):null
@@ -117,6 +147,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   finally{if(active())finishAgendaRead(context)}
  }
  const confirmed=async(context:RefreshContext,{saved,loaded}:{saved?:PlayerCalendarItem|null;loaded?:NativeCalendar}={})=>{
+  changed=true
   pending=null
   draft=null
   draftStart=null
@@ -210,16 +241,10 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  const agendaCount=(list=visible())=>!calendar?(busy?'Loading…':'Unavailable'):filter==='team'&&calendar.practicesUnavailable?'Unavailable':list.length+' '+(query.trim()?'matching ':'')+(list.length===1?'date':'dates')
  const agendaHighlight=(list:CalendarOccurrence[],now=new Date())=>{
   const today=localCalendarDate(now)
-  const timeNow=now.toTimeString().slice(0,5)
-  const scheduledNow=(event:CalendarOccurrence)=>event.date===today&&event.teamStatus==='confirmed'&&
-   Boolean(event.time&&event.endTime&&event.time<=timeNow&&timeNow<event.endTime)
-  const event=list.find(event=>{
-   if(event.date<today||event.kind==='availability'||event.teamStatus==='cancelled'||event.teamStatus==='completed')return false
-   if(event.source==='competition'&&calendar?.competitions.some(match=>match.id===event.id&&match.status==='Completed'))return false
-   return event.date>today||!event.time||event.time.slice(0,5)>=timeNow||scheduledNow(event)
-  })
+  const snapshot=calendar
+  const event=snapshot?list.find(event=>isCurrentCalendarOccurrence(event,snapshot,now)):undefined
   let eyebrow='Play. Plan. Improve.'
-  if(event)eyebrow=scheduledNow(event)?'Scheduled now':event.date===today?'Today':'Next in this view'
+  if(event)eyebrow=isPracticeInProgress(event,now)?'Scheduled now':event.date===today?'Today':'Next in this view'
   const top=`<div class="cal-hero-top"><small class="stat-eyebrow">${eyebrow}</small><span aria-hidden="true">${websiteUi.icons.leagues}</span></div>`
   if(!event)return top+'<h2>Your tennis calendar</h2><p>Personal plans and shared dates.</p>'
   const time=event.time?event.time.slice(0,5)+(event.endTime?' – '+event.endTime:''):''
@@ -451,7 +476,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   on('[data-cal-export]',()=>{busy=true;notice='Preparing calendar file…';render();void (async()=>{try{const blob=new Blob([calendarExport(visible(),zone)],{type:'text/calendar'});await exportCoachFile(owner,active,blob,'TenAceIQ-'+range().from+'-'+range().to+'.ics');if(active())notice='Calendar file prepared. Add it to your preferred calendar to finish.'}catch{if(active())notice='Calendar export wasn’t completed. You can try sharing again.'}finally{if(active()){busy=false;render()}}})()})
  }
  dialog.addEventListener('cancel',e=>{e.preventDefault();back()});document.body.append(dialog);dialog.showModal()
- if(typeof initial==='object')setDraft(undefined,'',initial.practiceTitle)
+ if(practice)setDraft(undefined,'',practice.practiceTitle)
  else void refresh()
  return {dispose,isOpen:()=>!disposed&&dialog.open,back,hasDraft:dirty}
 }

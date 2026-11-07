@@ -7,6 +7,27 @@ async function calendar(page:Page,width=390){
 }
 async function openRsvp(page:Page,d:ReturnType<Page['getByRole']>){await expect(d).toContainText('18:00 – 20:15');await d.getByRole('button',{name:'Open practice & RSVP',exact:true}).click();const child=page.getByRole('dialog',{name:'Team practices',exact:true});await expect(child).toContainText('Your RSVP · Jordan Lee');return child}
 async function practice(page:Page,d:ReturnType<Page['getByRole']>){await d.locator('[data-cal-event="team-practice:'+event+'"]').click();return openRsvp(page,d)}
+test('My Lab Up Next links to the exact team practice and its RSVP',async({page},info)=>{
+ const now=new Date()
+ now.setHours(19,0,0,0)
+ await page.clock.setFixedTime(now)
+ await page.setViewportSize({width:390,height:844})
+ await page.goto(origin+'/?team-practice-review=1')
+ const shortcut=page.locator('.lab-up-next button')
+ await expect(shortcut).toContainText('Scheduled now')
+ await expect(shortcut).toContainText('Northside Tennis Center')
+ await shortcut.scrollIntoViewIfNeeded()
+ await page.screenshot({path:info.outputPath('my-lab-up-next-team-practice.png')})
+ await shortcut.click()
+ const d=page.getByRole('dialog',{name:'Your calendar',exact:true})
+ await expect(d.getByRole('heading',{name:'Team practice',exact:true})).toBeFocused()
+ const child=await openRsvp(page,d)
+ await expect(child.locator('.player-practice-reply-status')).toHaveText('Waitlist')
+ await child.getByRole('button',{name:'Back to calendar',exact:true}).click()
+ await expect(d.locator('[data-cal-event="team-practice:'+event+'"]')).toBeFocused()
+ await d.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(shortcut).toBeFocused()
+})
 for(const width of [320,390])test('Calendar team practices: readable dates, exact RSVP and retained filters at '+width+'px',async({page},info)=>{
  const now=new Date()
  now.setHours(17,0,0,0)

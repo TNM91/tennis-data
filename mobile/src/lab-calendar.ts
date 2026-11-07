@@ -2,6 +2,10 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {CapacitorHttp,type HttpOptions,type HttpResponse} from '@capacitor/core'
 import {isValidCalendarDate} from '../../lib/calendar-date'
 import {html} from './match-details'
+import {calendarOccurrences,isCurrentCalendarOccurrence,isPracticeInProgress,localCalendarDate,shiftCalendarDay,type CalendarOccurrence} from './calendar-data'
+import {loadCalendarSources} from './calendar-practices-data'
+import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
+import type {NativeCalendar} from '../../lib/native-calendar-contract'
 import websiteUi from '../generated/website-ui.json'
 export type CourtEvent={id:string;source:'personal'|'competition';title:string;date:string;time:string;location:string;detail:string;kind:string;readiness:string;recurrence:string}
 export type CourtCalendar={events:CourtEvent[];competitionUnavailable:boolean}
@@ -39,17 +43,62 @@ export function courtCalendarHtml(calendar:CourtCalendar,now=new Date()){
  const card=next?'<div class="website-ui website-lab">'+websiteUi.nextCourt.replace(/TIQ_EVENT_[A-Z]+/g,key=>html(values[key]||''))+'</div>':''
  return card+(calendar.competitionUnavailable?'<p role="alert">Competition dates are unavailable. These personal dates may not include your next match. Refresh to try again.</p>':'')+'<details id="lab-calendar-dates"><summary>Saved calendar dates</summary><p>Account calendar entries and league or tournament dates. Team-room practices and dates saved only in a browser are not included. Availability replies and calendar edits are available on the website.</p>'+(upcoming.length?upcoming.slice(0,100).map(e=>'<article><h3>'+html(e.title)+'</h3><p>'+html(dateLabel(e))+'</p><p>'+html([e.kind,e.location,e.detail,e.readiness].filter(Boolean).join(' · '))+'</p>'+(e.recurrence?'<p>Repeats '+html(e.recurrence.replace('FREQ=','').toLowerCase())+' from the saved date. Future occurrences are not expanded here.</p>':'')+'</article>').join('')+(upcoming.length>100?'<p>Showing the next 100 saved entries.</p>':''):'<p>No upcoming saved dates in the calendars loaded.</p>')+'</details>'
 }
-export function mountCourtCalendar(host:HTMLElement,client:SupabaseClient,owner:string,current:()=>boolean,open?:(button:HTMLButtonElement)=>void){
- if(open){
-  host.innerHTML='<button type="button" class="secondary app-tool"><span class="app-tool-icon" aria-hidden="true">'+websiteUi.icons.leagues+'</span><span class="app-tool-copy"><small>Up next</small><strong>Open Calendar</strong><span>Matches, lessons and practice.</span></span><span aria-hidden="true">›</span></button>'
-  const button=host.querySelector<HTMLButtonElement>('button')!
-  button.onclick=()=>{if(current())open(button)}
-  return
+export function createLabUpNext(client:SupabaseClient,currentOwner:()=>string|undefined){
+ let version=0
+ let cached:{owner:string;date:string;expires:number;read:Promise<NativeCalendar|null>}|null=null
+ const clear=()=>{version++;cached=null}
+ const readWeek=(owner:string)=>{
+  const today=localCalendarDate()
+  if(cached?.owner===owner&&cached.date===today&&Date.now()<cached.expires)return cached.read
+  const request=++version
+  const active=()=>request===version&&currentOwner()===owner
+  const read=loadCalendarSources(client,owner,active,{from:today,to:shiftCalendarDay(today,6)}).catch(()=>null)
+  cached={owner,date:today,expires:Date.now()+5*60_000,read}
+  void read.then(value=>{if(active()&&cached&&(!value||value.warnings.length))cached.expires=Date.now()+30_000})
+  return read
  }
- host.innerHTML='<h2>Your calendar</h2><button type="button" class="secondary">Load calendar</button><p role="status">Check your next saved match and calendar dates.</p><div data-calendar-content></div>'
- const button=host.querySelector<HTMLButtonElement>('button')!,status=host.querySelector<HTMLElement>('[role="status"]')!,content=host.querySelector<HTMLElement>('[data-calendar-content]')!
- button.onclick=async()=>{if(button.disabled||!current())return;button.disabled=true;content.replaceChildren();status.textContent='Loading your calendar…'
- try{const calendar=await loadCourtCalendar(client,owner,()=>current()&&host.isConnected);if(!current()||!host.isConnected)return;content.innerHTML=courtCalendarHtml(calendar);status.textContent='Calendar loaded.';button.textContent='Refresh calendar';content.querySelector<HTMLButtonElement>('[data-native-ui-action="calendar"]')?.addEventListener('click',()=>{const list=content.querySelector<HTMLDetailsElement>('details')!;list.open=true;list.querySelector('summary')?.focus()})}
- catch{if(current()&&host.isConnected)status.textContent='Calendar unavailable. Check your connection and try again.'}
- finally{if(current()&&host.isConnected)button.disabled=false}}
+ const mount=(host:HTMLElement,owner:string,current:()=>boolean,linked:boolean,
+  open:(button:HTMLButtonElement,event:CalendarOccurrence|undefined,onClose:(changed:boolean)=>void)=>void)=>{
+  host.innerHTML=`<button type="button" class="secondary app-tool">
+   <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.calendar}</span>
+   <span class="app-tool-copy">
+    <small data-next-kicker>Up next</small>
+    <strong data-next-title>Open Calendar</strong>
+    <span data-next-details>Matches, lessons and practice.</span>
+    <span class="lab-next-action" data-next-action hidden>View event</span>
+   </span><span aria-hidden="true">›</span>
+  </button>`
+  const button=host.querySelector<HTMLButtonElement>('button')!
+  const kicker=button.querySelector<HTMLElement>('[data-next-kicker]')!
+  const title=button.querySelector<HTMLElement>('[data-next-title]')!
+  const details=button.querySelector<HTMLElement>('[data-next-details]')!
+  const action=button.querySelector<HTMLElement>('[data-next-action]')!
+  const active=()=>host.isConnected&&current()
+  let event:CalendarOccurrence|undefined
+  const paint=(calendar:NativeCalendar|null)=>{
+   if(!active())return
+   const now=new Date()
+   const incomplete=!calendar||calendar.warnings.length>0
+   event=calendar?calendarOccurrences(calendar).find(item=>isCurrentCalendarOccurrence(item,calendar,now)):undefined
+   kicker.textContent=event&&isPracticeInProgress(event,now)?'Scheduled now':event&&incomplete?'Next loaded date':'Up next'
+   title.textContent=event?.title??'Open Calendar'
+   action.hidden=!event
+   if(!event){details.textContent=incomplete?'Check your tennis dates.':'No events in the next 7 days.';return}
+   action.textContent=event.source==='team'?'View practice':'View event'
+   const date=event.date===localCalendarDate(now)?'Today':new Date(event.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})
+   const time=formatCaptainPracticeTimeRange(event.time.slice(0,5),event.endTime)
+   details.textContent=[date,time,event.location].filter(Boolean).join(' · ')
+  }
+  button.onclick=()=>{
+   if(!active())return
+   button.focus({preventScroll:true})
+   open(button,event,changed=>{
+    if(!changed)return
+    clear()
+    if(linked&&active())void readWeek(owner).then(paint)
+   })
+  }
+  if(linked)void readWeek(owner).then(paint)
+ }
+ return {mount,clear}
 }

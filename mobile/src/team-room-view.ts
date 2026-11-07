@@ -69,7 +69,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  let initialMessageId=initialScope?.messageId||'',historyFocusId='',alertFocusId=''
  let inbox=!initialScope
  let disposed=false,revision=0,selected:TeamScope|undefined=initialScope?{teamName:initialScope.teamName,leagueName:initialScope.leagueName,flight:initialScope.flight,...(initialScope.chatRoomId?{chatRoomId:initialScope.chatRoomId}:{})}:undefined,tab:'Match day'|'Conversation'|'Members'|'Captain'='Conversation',snapshot:NativeTeamData|null=null
- const inboxFilter:ChatsInboxFilter={query:'',unreadOnly:false}
+ const inboxFilter:ChatsInboxFilter={query:'',unreadOnly:false,filtersOpen:false}
  let inboxView:ReturnType<typeof bindChatsInbox>|null=null
  let roomPicker:ReturnType<typeof openChatRooms>|null=null
  let historySearch:ReturnType<typeof openChatHistory>|null=null

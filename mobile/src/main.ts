@@ -1,4 +1,4 @@
-import {openCalendar} from './calendar-view'
+import {openCalendar,type CalendarStart} from './calendar-view'
 import {openCoachLessons} from './coach-lesson-view'
 import {openUpdates} from './updates-view'
 import {createUpdatesCounter} from './updates-counter'
@@ -34,7 +34,7 @@ import {loadOlderResults} from './recent-results-history'
 import {mountLabRatingTrends} from './lab-rating-trends'
 import {openDataImports} from './data-imports-view'
 import {openLeagueOffice} from './league-office-view'
-import {mountCourtCalendar} from './lab-calendar'
+import {createLabUpNext} from './lab-calendar'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
 import {loadTrainingHistory} from './level-up-data'
@@ -105,6 +105,7 @@ let accountSettings:ReturnType<typeof openAccountSettings>|null=null
 let guest:ReturnType<typeof showGuestExplore>|null=null
 let storageUnavailable=false
 let session: Session | null = null
+const labUpNext=createLabUpNext(client,()=>session?.user.id)
 let revision = 0
 let profileOpen=false
 let connection: ReturnType<typeof showPlayerConnection> | null = null
@@ -288,10 +289,10 @@ function launchCompetitions(scope:'mine'|'discover'='mine',trigger?:HTMLElement)
  const owner=session.user.id,visit=revision
  competitions=openCompetitions(client,owner,()=>visit===revision&&owner===session?.user.id,scope,()=>navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')?.click(),undefined,trigger)
 }
-function launchCalendar(trigger:HTMLElement,initialFilter:'all'|'coach'='all'){
+function launchCalendar(trigger:HTMLElement,initial:CalendarStart='all'){
  if(!session||agenda?.isOpen()||connection?.isSaving()||document.querySelector('dialog[open]'))return
  const owner=session.user.id,visit=revision
- agenda=openCalendar(client,owner,()=>visit===revision&&owner===session?.user.id,trigger,initialFilter)
+ agenda=openCalendar(client,owner,()=>visit===revision&&owner===session?.user.id,trigger,initial)
 }
 function launchUpdates(trigger:HTMLElement){
  if(!session||updates?.isOpen()||connection?.isSaving()||document.querySelector('dialog[open]'))return
@@ -533,7 +534,8 @@ async function lab() {
     const scoreboard=app.querySelector('.lab-scoreboard')
     if(scoreboard)scoreboard.after(calendar)
     else app.querySelector('#refresh')!.before(calendar)
-    mountCourtCalendar(calendar,client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,button=>{button.focus({preventScroll:true});launchCalendar(button)})
+    labUpNext.mount(calendar,current.user.id,()=>version===revision&&current.user.id===session?.user.id,Boolean(scoreboard),
+      (button,event,onClose)=>launchCalendar(button,{event,onClose}))
   }
   const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
   app.insertAdjacentHTML('beforeend', accountLinksHtml)
@@ -597,6 +599,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
+  if(next?.user.id!==session?.user.id)labUpNext.clear()
   const resumeLink=(!session&&Boolean(next))||_event==='INITIAL_SESSION'
   appLinks.setOwner(next?.user.id||null)
   // A late signed-out event must not reset an active public visit.

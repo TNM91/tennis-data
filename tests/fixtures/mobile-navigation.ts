@@ -17,6 +17,10 @@ import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-bro
 import {trainingInboxPreview} from './mobile-training-inbox'
 const originalFetch=window.fetch.bind(window)
 const fixtureState={requests:0}
+if(new URL(location.href).searchParams.has('team-practice-review')){
+ calendarTeamFixture.enabled=true
+ calendarTeamFixture.items[0].title='Return + first ball'
+}
 const chatUnreadFixture={total:7,reads:0,fail:false,detailed:false,secondTeam:false,denyRoom:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
 const chatTeams=()=>[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
