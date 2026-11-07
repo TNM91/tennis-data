@@ -6,7 +6,7 @@ import {createMatchDetails} from '../../mobile/src/match-details'
 afterEach(()=>{vi.unstubAllGlobals();vi.clearAllMocks()})
 function fixture(deferred=false,publicBrowse?:{signIn:()=>void}){
  let current=true,detail:Record<string,unknown>|null=null,resolve!:(value:unknown)=>void
- const profileButton={dataset:{matchPlayer:'0'},onclick:null as null|(()=>void)},backButton={onclick:null as null|(()=>void)}
+ const profileButton={dataset:{matchPlayer:'0'},focus:vi.fn(),onclick:null as null|(()=>void)},backButton={onclick:null as null|(()=>void)}
  const content={dataset:{},innerHTML:'',querySelectorAll:()=>[profileButton]},history={pushState:vi.fn(),replaceState:vi.fn(),back:vi.fn()}
  const app={dataset:{} as Record<string,string>,querySelector:()=>detail,append:(value:Record<string,unknown>)=>{detail=value}}
  vi.stubGlobal('history',history);vi.stubGlobal('location',{hash:'#match'});vi.stubGlobal('window',{addEventListener:vi.fn(),removeEventListener:vi.fn(),scrollY:0,scrollTo:vi.fn()})

@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react'
 import {createRoot} from 'react-dom/client'
-import websiteUi from '../../mobile/generated/website-ui.json'
+import {navigationHtml} from '../../mobile/src/app-navigation'
 import {PlayerJourney} from '../../mobile/src/player-journey-view'
 import type {JourneyHistory} from '../../mobile/src/player-journey-data'
 import {PlayerRecordGraphics} from '../../mobile/src/player-record-graphics'
@@ -27,12 +27,19 @@ function Journey(){const [opened,setOpened]=useState('');return <><PlayerJourney
 function Results(){useEffect(()=>{const rows:RecentMatchRow[]=Array.from({length:6},(_,i)=>({id:'result-'+i,match_date:i===5?'2025-10-24':date(i+1),match_type:i<2?'singles':'doubles',league_name:i===0?'City League':'Northside League',winner_side:i===1||i===5?'A':'B',score:'6-4 6-3',match_players:[{player_id:'fixture-player',side:'B'}]}));showRecentResults(document.querySelector('#results-content')!,rows,'fixture-player',row=>{state.opened=row.id},'your',true,{current:()=>state.active,load:async previous=>({rows:previous,hasMore:false})})},[]);return <section id="recent-results"><h1>Match insights</h1><div id="results-content"/></section>}
 function Scorecard(){useEffect(()=>{
  const host=document.querySelector<HTMLElement>('#explore-content')!,button=host.querySelector<HTMLButtonElement>('button')!
- const query={select(){return this},eq(){return this},order(){return this},limit(){return this},async abortSignal(){return {error:null,data:[{player_id:'fixture-player',side:'B',seat:1,players:{name:'Alexandria-Marguerite '+('Montgomery '.repeat(8)).trim()}},{player_id:'other-player',side:'A',seat:1,players:{name:'Jordan Lee'}}]}}}
+ const longName=new URLSearchParams(location.search).has('long')
+ const players=[
+  {player_id:'fixture-player',side:'B',seat:1,players:{name:'Alexandria-Marguerite '+('Montgomery '.repeat(longName?8:1)).trim()}},
+  {player_id:'other-player',side:'A',seat:1,players:{name:'Jordan Lee'}},
+  {player_id:'fixture-partner',side:'B',seat:2,players:{name:'Casey Morgan'}},
+  {player_id:'other-partner',side:'A',seat:2,players:{name:'Sam Rivera'}},
+ ]
+ const query={select(){return this},eq(){return this},order(){return this},limit(){return this},async abortSignal(){return {error:null,data:players}}}
  const client={from:(name:string)=>{if(name!=='match_players')throw Error('Unexpected fixture request');return query}} as unknown as SupabaseClient
  const details=createMatchDetails(host,client,()=>state.active,{local:true})
  button.onclick=()=>details.open({id:'fixture-scorecard',match_date:'2026-10-29',match_type:'Doubles',league_name:'Northside Fall League',score:'6-4 3-6 10-8',winner_side:'A',match_players:[{player_id:'fixture-player',side:'B'}]},'fixture-player')
  return ()=>details.dispose()
 },[]);return <div id="explore-content"><button type="button">Open sample scorecard</button></div>}
 const app=document.querySelector('#app')!,view=new URLSearchParams(location.search).get('view')||'journey'
-const nav=document.createElement('nav');nav.className='app-navigation';nav.setAttribute('aria-label','Main navigation');nav.innerHTML=(['lab','explore','following','matchup','teams'] as const).map(key=>`<button type="button" ${key==='lab'?'aria-current="page"':''}><span aria-hidden="true">${websiteUi.icons[key]}</span><span>${({lab:'My Lab',explore:'Explore',following:'Following',matchup:'Matchup',teams:'Chats'})[key]}</span></button>`).join('');app.after(nav)
+const nav=document.createElement('nav');nav.className='app-navigation';nav.setAttribute('aria-label','Main navigation');nav.innerHTML=navigationHtml();nav.querySelector('[data-screen="lab"]')?.setAttribute('aria-current','page');app.after(nav)
 createRoot(app).render(view==='scorecard'?<Scorecard/>:view==='results'?<Results/>:<div className="website-ui insights-fixture">{view==='team'?<><h1>Team court results</h1><TeamCourtSampleView sample={sample}/></>:view==='profile'?<Profile/>:<Journey/>}</div>)

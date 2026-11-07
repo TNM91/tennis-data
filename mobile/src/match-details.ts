@@ -74,11 +74,22 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
           ${row.score ? '<p class="scorecard-source-note">Listed in the original court order.</p>' : ''}
         </div>
       </div>
-      ${labels.publicBrowse || labels.neutral ? '' : '<button type="button" class="secondary" data-share-scorecard>Review scorecard sharing</button>'}
-      <div id="match-players" aria-live="polite" data-state="loading"><p role="status">Loading the players…</p></div>`
+      <section class="match-court-players" aria-labelledby="match-court-players-title">
+        <h2 id="match-court-players-title">Players on court</h2>
+        <div id="match-players" aria-live="polite" data-state="loading"><p>Loading players…</p></div>
+      </section>
+      ${labels.publicBrowse || labels.neutral ? '' : `<button type="button" class="secondary" data-share-scorecard aria-labelledby="match-share-title" aria-describedby="match-share-detail">
+        <span class="app-tool-copy"><strong id="match-share-title">Review scorecard sharing</strong><span id="match-share-detail">Check the public link before sharing</span></span>
+        <span class="app-tool-arrow" aria-hidden="true">›</span>
+      </button>`}`
     app.append(detail)
     const shareButton=detail.querySelector<HTMLButtonElement>('[data-share-scorecard]')
-    if(shareButton)shareButton.onclick=()=>{if(!valid()||version!==request||!detail.isConnected)return;sharing?.dispose();sharing=openScorecardShare(client,row.id,playerId,()=>valid()&&version===request&&detail.isConnected)}
+    if (shareButton) shareButton.onclick = () => {
+      if (!valid() || version !== request || !detail.isConnected) return
+      sharing?.dispose()
+      shareButton.focus({preventScroll:true})
+      sharing = openScorecardShare(client, row.id, playerId, () => valid() && version === request && detail.isConnected)
+    }
     detail.querySelector<HTMLButtonElement>('#back-matches')!.onclick = () => {if(labels.local){close();labels.onClose?.()}else history.back()}
     if(labels.scrollHost)labels.scrollHost.scrollTop=0;else window.scrollTo(0, 0)
     detail.querySelector<HTMLElement>('h1')!.focus({preventScroll: true})
@@ -93,16 +104,36 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
       return
     }
     const rows = (result.data || []) as Participant[]
-    content.dataset.state = rows.length ? 'ready' : 'empty'
-    const yourSide = row.match_players.find(player => player.player_id === playerId)?.side
-    content.innerHTML = (['A', 'B'] as const).map(side => {
-      const entries = rows.map((row,index)=>({row,index})).filter(entry=>entry.row.side===side).sort((a,b)=>(a.row.seat??99)-(b.row.seat??99))
-      return `<section class="match-side-card"${yourSide === side ? ' data-own-side' : ''}><h2>Side ${side}${yourSide === side ? ' &middot; ' + html(labels.sideLabel || 'Your side') : ''}</h2>${entries.length ? `<ul class="match-participants">${entries.map(({row,index})=>{const choice=matchParticipantChoice(rows,index);const name=participantNames([row],side)[0];return `<li>${choice?`<button type="button" class="secondary" data-match-player="${index}"><span>${html(name)}</span><small>View player profile</small></button>`:`<p>${html(name)}</p>`}</li>`}).join('')}</ul>` : '<p>Players unavailable</p>'}</section>`
+    if (!rows.some(player => player.side === 'A' || player.side === 'B')) {
+      content.dataset.state = 'empty'
+      content.innerHTML = '<p>No players are listed for this match.</p>'
+      return
+    }
+    content.dataset.state = 'ready'
+    const yourSide = labels.neutral ? null : row.match_players.find(player => player.player_id === playerId)?.side
+    const sides = yourSide === 'B' ? ['B', 'A'] as const : ['A', 'B'] as const
+    content.innerHTML = sides.map(side => {
+      const entries = rows.map((player, index) => ({player, index}))
+        .filter(({player}) => player.side === side)
+        .sort((a, b) => (a.player.seat ?? 99) - (b.player.seat ?? 99))
+      const players = entries.map(({player, index}) => {
+        const name = html(participantNames([player], side)[0])
+        if (!matchParticipantChoice(rows, index)) return `<li><p>${name}</p></li>`
+        return `<li><button type="button" class="secondary" data-match-player="${index}">
+          <span class="sr-only">View player profile for </span><span>${name}</span><span class="app-tool-arrow" aria-hidden="true">›</span>
+        </button></li>`
+      }).join('')
+      return `<section class="match-side-card"${yourSide === side ? ' data-own-side' : ''}>
+        <h3>Side ${side}${yourSide === side ? ` <span>${html(labels.sideLabel || 'Your side')}</span>` : ''}</h3>
+        ${players ? `<ul class="match-participants">${players}</ul>` : '<p>Players unavailable</p>'}
+      </section>`
     }).join('')
     content.querySelectorAll<HTMLButtonElement>('[data-match-player]').forEach(button=>{button.onclick=()=>{
       if(!valid()||version!==request||!detail.isConnected)return
       const choice=matchParticipantChoice(rows,Number(button.dataset.matchPlayer));if(!choice)return
-      profile?.dispose();profile=openRosterPlayerProfile(client,choice,()=>valid()&&version===request&&detail.isConnected,'Back to match details',labels.publicBrowse)
+      profile?.dispose()
+      button.focus({preventScroll:true})
+      profile=openRosterPlayerProfile(client,choice,()=>valid()&&version===request&&detail.isConnected,'Back to match details',labels.publicBrowse)
     }})
   }
   const pop = () => {
