@@ -39,7 +39,7 @@ async function bounded(page:Page){
  for(const button of await page.locator('.app-tools-hub .app-tool:visible').all())expect(await button.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
 }
 const requestCount=(page:Page)=>page.evaluate(()=>(window as unknown as {navigationFixture:{requests:number}}).navigationFixture.requests)
-type CalendarPreviewWindow=Window&{calendarFixture:{loseWrite:boolean;requests:{method:string}[];personal:{title:string;kind:string;time:string}[];coach:unknown[]};switchNavigationOwner:()=>void}
+type CalendarPreviewWindow=Window&{calendarFixture:typeof import('../fixtures/mobile-calendar').calendarFixture;switchNavigationOwner:()=>void}
 const calendarRequestCount=(page:Page)=>page.evaluate(()=>(window as unknown as CalendarPreviewWindow).calendarFixture.requests.length)
 type UpdatesPreviewWindow=Window&{updatesFixture:{failList:boolean;failCount:boolean;loseWrite:boolean;deferList:boolean;release:()=>void;queries:{table:string;method:string;ids:string[];owner:string|null}[];rows:{id:string;read_at:string|null}[]};refreshNavigationSession:()=>void;switchNavigationOwner:()=>void}
 async function updatesScreen(page:Page,width=390){
@@ -543,6 +543,45 @@ test('My Lab Up Next checks moved dates and drops the previous account preview',
  await page.evaluate(()=>(window as unknown as CalendarPreviewWindow).switchNavigationOwner())
  await expect(shortcut).toContainText('Check your tennis dates.')
  await expect(shortcut).not.toContainText('Riverside Rally')
+})
+test('Compete opens the next match, updates availability and hides a withdrawn match',async({page},info)=>{
+ const now=new Date()
+ now.setHours(8,0,0,0)
+ await page.clock.setFixedTime(now)
+ await page.setViewportSize({width:320,height:844})
+ await page.goto(origin+'/?large=1')
+ await expect(page.locator('.lab-up-next button')).toContainText('Lesson: Jordan Lee')
+ await page.getByRole('button',{name:'Compete',exact:true}).click()
+ const nextMatch=page.locator('[data-compete-next-match] button')
+ await expect(nextMatch.locator('[data-next-title]')).toHaveText('vs Riverside Rally')
+ await expect(nextMatch).toContainText('Today · 7:30 PM · Northside Tennis Center')
+ await expect(nextMatch).toContainText('No reply yet')
+ expect(await calendarRequestCount(page)).toBe(1)
+ await bounded(page)
+ await nextMatch.scrollIntoViewIfNeeded()
+ await page.screenshot({path:info.outputPath('compete-next-match.png')})
+
+ await nextMatch.click()
+ const calendar=page.getByRole('dialog',{name:'Your calendar',exact:true})
+ await expect(calendar.getByRole('heading',{name:'Your availability',exact:true})).toBeFocused()
+ await calendar.getByRole('combobox',{name:'Your reply'}).selectOption('available')
+ await calendar.getByRole('button',{name:'Confirm availability reply'}).click()
+ await expect(calendar.getByRole('status').filter({hasText:'Saved your'})).toBeVisible()
+ await calendar.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(nextMatch).toBeFocused()
+ await expect(nextMatch).toContainText('View match · Available')
+
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as CalendarPreviewWindow).calendarFixture
+  fixture.competitions=[{...fixture.competitions[0],id:'league:city-league:entry',eventType:'competition',title:'City League season',status:'Approved'}]
+ })
+ await nextMatch.click()
+ await expect(calendar.getByRole('status').filter({hasText:'This event moved or is no longer available'})).toBeVisible()
+ await calendar.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(nextMatch).toBeHidden()
+ await expect(page.getByRole('heading',{name:'Compete',exact:true})).toBeFocused()
+ await expect(page.locator('[data-app-destination="leagues"]')).toBeVisible()
+ await expect(page.locator('[data-app-destination="tournaments"]')).toBeVisible()
 })
 test('Schedule this rep opens a private Calendar draft and recovers a lost save without completing the rep',async({page},info)=>{
  await page.setViewportSize({width:320,height:844})

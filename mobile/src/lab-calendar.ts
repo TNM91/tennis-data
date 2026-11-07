@@ -43,7 +43,7 @@ export function courtCalendarHtml(calendar:CourtCalendar,now=new Date()){
  const card=next?'<div class="website-ui website-lab">'+websiteUi.nextCourt.replace(/TIQ_EVENT_[A-Z]+/g,key=>html(values[key]||''))+'</div>':''
  return card+(calendar.competitionUnavailable?'<p role="alert">Competition dates are unavailable. These personal dates may not include your next match. Refresh to try again.</p>':'')+'<details id="lab-calendar-dates"><summary>Saved calendar dates</summary><p>Account calendar entries and league or tournament dates. Team-room practices and dates saved only in a browser are not included. Availability replies and calendar edits are available on the website.</p>'+(upcoming.length?upcoming.slice(0,100).map(e=>'<article><h3>'+html(e.title)+'</h3><p>'+html(dateLabel(e))+'</p><p>'+html([e.kind,e.location,e.detail,e.readiness].filter(Boolean).join(' · '))+'</p>'+(e.recurrence?'<p>Repeats '+html(e.recurrence.replace('FREQ=','').toLowerCase())+' from the saved date. Future occurrences are not expanded here.</p>':'')+'</article>').join('')+(upcoming.length>100?'<p>Showing the next 100 saved entries.</p>':''):'<p>No upcoming saved dates in the calendars loaded.</p>')+'</details>'
 }
-export function createLabUpNext(client:SupabaseClient,currentOwner:()=>string|undefined){
+export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>string|undefined){
  let version=0
  let cached:{owner:string;date:string;expires:number;read:Promise<NativeCalendar|null>}|null=null
  const clear=()=>{version++;cached=null}
@@ -58,7 +58,8 @@ export function createLabUpNext(client:SupabaseClient,currentOwner:()=>string|un
   return read
  }
  const mount=(host:HTMLElement,owner:string,current:()=>boolean,linked:boolean,
-  open:(button:HTMLButtonElement,event:CalendarOccurrence|undefined,onClose:(changed:boolean)=>void)=>void)=>{
+  open:(button:HTMLButtonElement,event:CalendarOccurrence|undefined,onClose:(changed:boolean)=>void)=>void,kind:'up-next'|'match'='up-next')=>{
+  const matchOnly=kind==='match'
   host.innerHTML=`<button type="button" class="secondary app-tool">
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.calendar}</span>
    <span class="app-tool-copy">
@@ -79,15 +80,27 @@ export function createLabUpNext(client:SupabaseClient,currentOwner:()=>string|un
    if(!active())return
    const now=new Date()
    const incomplete=!calendar||calendar.warnings.length>0
-   event=calendar?calendarOccurrences(calendar).find(item=>isCurrentCalendarOccurrence(item,calendar,now)):undefined
-   kicker.textContent=event&&isPracticeInProgress(event,now)?'Scheduled now':event&&incomplete?'Next loaded date':'Up next'
-   title.textContent=event?.title??'Open Calendar'
+   const matches=matchOnly&&calendar
+    ?new Map(calendar.competitions.filter(item=>item.eventType==='match').map(item=>[item.id,item]))
+    :null
+   event=calendar?calendarOccurrences(calendar).find(item=>
+    (!matches||item.source==='competition'&&matches.has(item.id))&&isCurrentCalendarOccurrence(item,calendar,now)):undefined
+   if(matchOnly){
+    if(!event&&host.contains(document.activeElement)){
+     host.parentElement?.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
+    }
+    host.hidden=!event
+    if(!event)return
+   }
+   kicker.textContent=matchOnly?'Your next match':event&&isPracticeInProgress(event,now)?'Scheduled now':event&&incomplete?'Next loaded date':'Up next'
+   const match=event?matches?.get(event.id):undefined
+   title.textContent=match?.opponent?'vs '+match.opponent:event?.title??'Open Calendar'
    action.hidden=!event
    if(!event){details.textContent=incomplete?'Check your tennis dates.':'No events in the next 7 days.';return}
-   action.textContent=event.source==='team'?'View practice':'View event'
+   action.textContent=matchOnly?'View match · '+event.readiness:event.source==='team'?'View practice':'View event'
    const date=event.date===localCalendarDate(now)?'Today':new Date(event.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})
    const time=formatCaptainPracticeTimeRange(event.time.slice(0,5),event.endTime)
-   details.textContent=[date,time,event.location].filter(Boolean).join(' · ')
+   details.textContent=[match?.opponent?match.competitionName:'',date,time,event.location].filter(Boolean).join(' · ')
   }
   button.onclick=()=>{
    if(!active())return

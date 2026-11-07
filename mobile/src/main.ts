@@ -34,7 +34,7 @@ import {loadOlderResults} from './recent-results-history'
 import {mountLabRatingTrends} from './lab-rating-trends'
 import {openDataImports} from './data-imports-view'
 import {openLeagueOffice} from './league-office-view'
-import {createLabUpNext} from './lab-calendar'
+import {createCalendarHighlights} from './lab-calendar'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
 import {loadTrainingHistory} from './level-up-data'
@@ -105,7 +105,7 @@ let accountSettings:ReturnType<typeof openAccountSettings>|null=null
 let guest:ReturnType<typeof showGuestExplore>|null=null
 let storageUnavailable=false
 let session: Session | null = null
-const labUpNext=createLabUpNext(client,()=>session?.user.id)
+const calendarHighlights=createCalendarHighlights(client,()=>session?.user.id)
 let revision = 0
 let profileOpen=false
 let connection: ReturnType<typeof showPlayerConnection> | null = null
@@ -440,6 +440,12 @@ function showHub(next:AppHub){
  recovery?.dispose();recovery=null;details?.dispose();details=null
  ++revision;selectNavigation(next);app.dataset.state='ready';app.innerHTML=appHubHtml(next)
  bindAppDestinations(app,openDestination);app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
+ const nextMatch=app.querySelector<HTMLElement>('[data-compete-next-match]')
+ if(nextMatch){
+  const owner=session.user.id,visit=revision
+  calendarHighlights.mount(nextMatch,owner,()=>visit===revision&&owner===session?.user.id,true,
+   (button,event,onClose)=>launchCalendar(button,{event,onClose}),'match')
+ }
 }
 const coachIncoming=document.createElement('aside');coachIncoming.hidden=true;app.before(coachIncoming)
 const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(student,owner)=>{if(session?.user.id!==owner)return;showHub('coach');const visit=revision;coachWorkspace=openCoachMessages(client,owner,()=>visit===revision&&owner===session?.user.id,undefined,undefined,student,undefined,()=>{void chatUnread.refresh()})},undefined,undefined,()=>authReady&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&document.visibilityState==='visible')
@@ -534,7 +540,7 @@ async function lab() {
     const scoreboard=app.querySelector('.lab-scoreboard')
     if(scoreboard)scoreboard.after(calendar)
     else app.querySelector('#refresh')!.before(calendar)
-    labUpNext.mount(calendar,current.user.id,()=>version===revision&&current.user.id===session?.user.id,Boolean(scoreboard),
+    calendarHighlights.mount(calendar,current.user.id,()=>version===revision&&current.user.id===session?.user.id,Boolean(scoreboard),
       (button,event,onClose)=>launchCalendar(button,{event,onClose}))
   }
   const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
@@ -599,7 +605,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if(next?.user.id!==session?.user.id)labUpNext.clear()
+  if(next?.user.id!==session?.user.id)calendarHighlights.clear()
   const resumeLink=(!session&&Boolean(next))||_event==='INITIAL_SESSION'
   appLinks.setOwner(next?.user.id||null)
   // A late signed-out event must not reset an active public visit.

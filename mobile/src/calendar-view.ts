@@ -122,7 +122,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    initialEvent=undefined
    const event=visible().find(item=>item.key===target.key&&item.date===target.date)
    if(event&&isCurrentCalendarOccurrence(event,calendar,new Date())){
-    changed=event.title!==target.title||event.time!==target.time||event.endTime!==target.endTime||event.location!==target.location
+    changed=event.title!==target.title||event.time!==target.time||event.endTime!==target.endTime||
+     event.location!==target.location||event.readiness!==target.readiness
     openAgendaEvent(event.key,'row')
     return
    }

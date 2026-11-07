@@ -51,7 +51,7 @@ function toolHtml(t:Tool,compact=false,featured=false){
 export function homeShortcutsHtml(){return '<nav class="lab-shortcuts" aria-label="Play and improve">'+['leagues','tournaments','coach'].map(key=>toolHtml(tools[key],true)).join('')+'</nav>'}
 export function appHubHtml(hub:AppHub){
  const groups:{title:string;keys:string[];lane?:'player'|'studio'}[]=hub==='compete'
-  ?[{title:'Find your next match',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]
+  ?[{title:'Browse competitions',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]
   :hub==='coach'
    ?[{title:'Your game plan',keys:['lessonDates','inbox','connection','training','progress'],lane:'player'},{title:'Coach studio',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video'],lane:'studio'}]
    :[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]
@@ -74,6 +74,7 @@ export function appHubHtml(hub:AppHub){
    ${hub==='coach'?'':`<small class="stat-eyebrow">${hub==='more'?'More':'TenAceIQ'}</small>`}
    <h1 tabindex="-1">${title}</h1><p>${note}</p>
   </header>
+  ${hub==='compete'?'<div class="compete-next-match" data-compete-next-match hidden></div>':''}
   ${coachControls}${toolFinder}<div id="app-tool-results">${groupHtml}</div>
   ${hub==='more'?'<p class="app-tools-empty" data-tools-empty hidden>No tools found. Try coach, leagues or account.</p>':''}
   <p role="alert" class="app-hub-notice"></p>
