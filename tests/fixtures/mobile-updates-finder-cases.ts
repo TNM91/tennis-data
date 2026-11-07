@@ -22,7 +22,15 @@ for(const width of [320,390])test('Updates finder: local literal search retains 
  await input.press('Escape');await expect(input).toHaveValue('');await expect(input).toBeFocused();await expect(dialog).toBeVisible();await expect(count).toHaveText('25 loaded updates')
  await input.fill('league');await dialog.getByRole('button',{name:'Clear',exact:true}).click();await expect(input).toBeFocused();await expect(input).toHaveValue('')
  await input.fill('season');expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
- expect(await dialog.getByRole('button',{name:'Unread',exact:true}).evaluate(el=>{const range=document.createRange();range.selectNodeContents(el);return range.getClientRects().length})).toBe(1)
+ const unread=dialog.getByRole('button',{name:'Unread',exact:true})
+ await expect(unread).toHaveCSS('white-space','nowrap')
+ const label=await unread.evaluate(button=>{
+  const range=document.createRange()
+  range.selectNodeContents(button)
+  const text=range.getBoundingClientRect(),bounds=button.getBoundingClientRect()
+  return {fits:text.width>0&&text.left>=bounds.left&&text.right<=bounds.right,textWidth:text.width,buttonWidth:bounds.width}
+ })
+ expect(label.fits,JSON.stringify(label)).toBe(true)
  await page.screenshot({path:info.outputPath('updates-finder-'+width+'.png')})
 })
 test('Updates finder: bulk review freezes only matching unread IDs',async({page})=>{
