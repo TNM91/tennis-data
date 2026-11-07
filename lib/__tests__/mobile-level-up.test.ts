@@ -35,6 +35,16 @@ describe('native Level Up training',()=>{
   expect(partial).toContain('Shared with coach')
   expect(trainingHistoryHtml([])).toContain('Save a completed drill to start your training history.')
  })
+ it('offers a repeat only for the latest resolvable drill and handles older saved records',()=>{
+  const older={...row(),cardId:'',focusId:card.id}
+  const history=trainingHistoryHtml([older,row()])
+  expect(history.match(/Practice this drill again/g)).toHaveLength(1)
+  expect(history).toContain(`data-card="${card.id}"`)
+  const retired=trainingHistoryHtml([{...older,cardId:'retired-drill'},row()])
+  expect(retired).toContain('Browse training cards')
+  expect(retired).not.toContain('Practice this drill again')
+  expect(trainingHistoryHtml([])).toContain('Browse training cards')
+ })
 })
 
 describe('website practice modules in native training',()=>{

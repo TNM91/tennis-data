@@ -48,11 +48,14 @@ export function trainingCardHtml(card:LevelUpCard){
 }
 export function trainingModuleHtml(practiceModule:LevelUpModule,completed:ReadonlySet<string>=new Set()){const cards=practiceModule.cardIds.map(id=>LEVEL_UP_CARDS.find(c=>c.id===id));return `<h2>${html(practiceModule.title)}</h2><p>${html(practiceModule.subtitle)}</p><p>${html(practiceModule.durationLabel)} · ${html(practiceModule.level)}</p><p>${html(practiceModule.description)}</p>${practiceModule.useWhen?`<p>${html(practiceModule.useWhen)}</p>`:''}${practiceModule.sessionPlan?.length?`<h3>Your practice plan</h3><ol>${practiceModule.sessionPlan.map(step=>`<li>${html(step)}</li>`).join('')}</ol>`:''}<h3>What to notice</h3><p>${html(practiceModule.proof)}</p>${practiceModule.successCriteria?`<p>${html(practiceModule.successCriteria)}</p>`:''}<h3>Train in this order</h3><p>${practiceModule.cardIds.filter(id=>completed.has(id)).length} of ${practiceModule.cardIds.length} cards saved during this visit.</p><ol>${cards.map(c=>c?`<li><h3>${html(c.title)}</h3>${completed.has(c.id)?'<p>Saved during this visit</p>':''}<p>${c.durationMinutes} min · ${html(c.tennisGoal)}</p><button type="button" class="secondary" data-card="${html(c.id)}">Open training<span class="sr-only"> ${html(c.title)}</span></button></li>`:'<li>This training card is unavailable.</li>').join('')}</ol><p>Save each completed card to your account. These checkmarks reset when you close Level Up. Saved sessions stay in Your progress; module completion is not stored.</p>`}
 const historyContextLabels:Record<string,string>={alone:'Solo',partner:'With a partner',singles:'Singles',doubles:'Doubles',coach:'With a coach'}
+const trainingHistoryActionHtml=(card?:LevelUpCard)=>`<button type="button" class="secondary training-history-action" data-progress-control="next-drill" ${card?`data-card="${html(card.id)}"`:'data-catalog'}>${card?'Practice this drill again':'Browse training cards'}</button>`
 export function trainingHistoryHtml(rows:TrainingSession[],complete=true){
- if(!rows.length)return '<div class="training-history-empty"><h2>Your practice starts here</h2><p>Save a completed drill to start your training history.</p></div>'
+ if(!rows.length)return `<div class="training-history-empty"><h2>Your practice starts here</h2><p>Save a completed drill to start your training history.</p>${trainingHistoryActionHtml()}</div>`
  const progress=trainingProgress(rows)
  const hours=Math.floor(progress.seconds/3600)
  const timedWork=hours?`${hours}h ${trainingTime(progress.seconds%3600)}`:trainingTime(progress.seconds)
+ const lastCardId=rows[0].cardId||rows[0].focusId
+ const lastCard=LEVEL_UP_CARDS.find(card=>card.id===lastCardId)
  return `<div class="training-history-overview">
   <dl aria-label="Practice totals">
    <div><dt>Saved sessions</dt><dd>${progress.count}</dd></div>
@@ -75,6 +78,7 @@ export function trainingHistoryHtml(rows:TrainingSession[],complete=true){
    <p class="training-history-context">${html(historyContextLabels[row.context]??row.context)} · Felt ${html(row.feeling)}${row.sharedWithCoach?' · Shared with coach':''}</p>
    ${row.identitySlug?`<p class="training-history-context">${html(trainingIdentity(row.identitySlug)?.title||row.identitySlug)}</p>`:''}
    ${row.note?`<div class="training-history-note"><strong>Your note</strong><p class="training-note">${html(row.note)}</p></div>`:''}
+   ${index===0?trainingHistoryActionHtml(lastCard):''}
   </li>`).join('')}
  </ol>`
 }
@@ -88,7 +92,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const coachStart=typeof initial==='object'&&initial.view==='coach'?initial:undefined
  let requestedAssignmentId=coachStart?.assignmentId
  let disposed=false,version=0,historyVersion=0,phase:'inbox'|'plan'|'catalog'|'modules'|'module'|'card'|'session'|'progress'=typeof initial==='object'?'inbox':initial,practiceModule:LevelUpModule|null=null,selected:LevelUpCard|null=null,allowed:boolean|null=null,accessError=false,history:TrainingSession[]|null=null,historyError=false,historyComplete=false,historyBusy=false,accessBusy=false,saving=false,checking=false,confirming=false,notice='',query='',setting='',instructionsOpen=false,sessionScroll=0,rating='',note='',context='alone',feeling='ready',payload:Readonly<TrainingSave>|null=null
- let choices=(()=>{try{return loadTrainingChoices(owner,window.localStorage)}catch{return emptyTrainingChoices()}})(),choiceStored=true,cardFromPlan=false
+ let choices=(()=>{try{return loadTrainingChoices(owner,window.localStorage)}catch{return emptyTrainingChoices()}})(),choiceStored=true,cardFromPlan=false,cardFromProgress=false
  if(initial==='catalog'&&choices.active)phase='plan'
  let plans:WeeklyLevelUpPlan[]|null=null,coachWork:TrainingCoachWork|null|undefined,plansBusy=false,coachBusy=false,plansError=false,coachError=false,inboxLoaded=false,cardFromInbox=false,sessionDirection=choices.active,sessionOrigin=''
  let inboxSection:'coach'|'weeks'=typeof initial==='object'?initial.view:'coach'
@@ -116,7 +120,13 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const requestClose=()=>{if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(practiceCalendar?.isOpen()){practiceCalendar.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}dispose()}
  const accessCopy=()=>allowed===true?'Self-guided training saves privately to your account.':allowed===false?`${MEMBERSHIP_TIERS.player_plus.name} access is required to save self-guided training. You can still read the cards and your account history.`:accessError?'Account access could not be checked.':'Checking your player access…'
  const catalogue=()=>{const matches=trainingSelection(LEVEL_UP_CARDS,query,setting);return `<p>${matches.length} training cards match. Showing ${Math.min(24,matches.length)}; narrow your search for more.</p><ul class="matches">${matches.slice(0,24).map(c=>`<li><h3>${html(c.title)}</h3><p>${c.durationMinutes} min · ${html(c.pack)} · ${html(c.intensity)} intensity</p><p>${html(c.tennisGoal)}</p><button type="button" class="secondary" data-card="${html(c.id)}">Open training<span class="sr-only"> ${html(c.title)}</span></button></li>`).join('')}</ul>`}
- const bindCards=()=>dialog.querySelectorAll<HTMLButtonElement>('[data-card]').forEach(b=>{b.onclick=()=>{selected=LEVEL_UP_CARDS.find(c=>c.id===b.dataset.card)||null;if(!selected)return;cardFromPlan=phase==='plan';cardFromInbox=false;sessionDirection=choices.active;sessionOrigin='';phase='card';notice='';render();focus()}})
+ const bindCards=()=>dialog.querySelectorAll<HTMLButtonElement>('[data-card]').forEach(button=>{button.onclick=()=>{
+  const card=LEVEL_UP_CARDS.find(item=>item.id===button.dataset.card)
+  if(!card)return
+  selected=card;cardFromPlan=phase==='plan';cardFromInbox=false;cardFromProgress=phase==='progress'
+  if(cardFromProgress)practiceModule=null
+  sessionDirection=choices.active;sessionOrigin='';phase='card';notice='';render();focus()
+ }})
  const focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus()
  const findInboxCard=(key:string)=>Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-inbox-card]'))
   .find(button=>button.dataset.inboxCard===key&&button.getClientRects().length>0)
@@ -158,7 +168,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   <button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>
  </details>`
  const drillScreenHtml=(card:LevelUpCard)=>{
-  const back=cardFromInbox?['inbox','Back to training inbox']:cardFromPlan?['plan','Back to your direction']:practiceModule?['module-back','Back to practice module']:['catalog','Back to training cards']
+  const back=cardFromInbox?['inbox','Back to training inbox']:cardFromPlan?['plan','Back to your direction']:cardFromProgress?['progress-back','Back to training progress']:practiceModule?['module-back','Back to practice module']:['catalog','Back to training cards']
   return `<header class="training-drill-header"><h1 tabindex="-1">Practice drill</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button></header>
    <div class="training-drill-body" data-training-drill-body>
     <button type="button" class="secondary" data-${back[0]}>${back[1]}</button>
@@ -294,6 +304,12 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.querySelector<HTMLButtonElement>('[data-access]')?.addEventListener('click',()=>{void readAccess()})
   dialog.querySelectorAll<HTMLButtonElement>('[data-catalog]').forEach(b=>{b.onclick=()=>{phase='catalog';practiceModule=null;notice='';render();focus()}})
   dialog.querySelector<HTMLButtonElement>('[data-progress]')?.addEventListener('click',()=>{phase='progress';notice='';render();focus()})
+  dialog.querySelector<HTMLButtonElement>('[data-progress-back]')?.addEventListener('click',()=>{
+   phase='progress';notice='';render()
+   const action=dialog.querySelector<HTMLButtonElement>('.training-history-action')
+   if(!action){focus();return}
+   action.scrollIntoView({block:'nearest'});action.focus({preventScroll:true})
+  })
   dialog.querySelector<HTMLButtonElement>('[data-history]')?.addEventListener('click',()=>{void readHistory()})
   dialog.querySelector<HTMLButtonElement>('[data-modules]')?.addEventListener('click',()=>{phase='modules';practiceModule=null;notice='';render();focus()})
   dialog.querySelector<HTMLButtonElement>('[data-module-back]')?.addEventListener('click',()=>{phase='module';notice='';render();focus()})
@@ -326,7 +342,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    if(!launch)return
    selected=LEVEL_UP_CARDS.find(card=>card.id===launch.cardId)||null
    if(!selected)return
-   inboxReturnCard=launch.key;practiceModule=null;cardFromPlan=false;cardFromInbox=true
+   inboxReturnCard=launch.key;practiceModule=null;cardFromPlan=false;cardFromInbox=true;cardFromProgress=false
    sessionDirection=trainingIdentity(launch.identitySlug)?launch.identitySlug:choices.active
    sessionOrigin=launch.label;phase='card';notice='This is private self-guided practice. Your plan and assignment status stay unchanged.';render();focus()
   }})

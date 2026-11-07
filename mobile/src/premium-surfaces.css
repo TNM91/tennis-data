@@ -746,6 +746,10 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .training-history-note { margin-block-start:8px;padding:8px 10px;border-radius:8px;background:var(--premium-inset); }
 .training-history-note strong { color:var(--premium-white);font-size:.75rem; }
 .training-progress-screen .training-history-note p { margin:3px 0 0; }
+.training-progress-screen button.training-history-action.secondary {
+ min-block-size:44px;margin:12px 0 0;padding:8px 10px;border:1px solid transparent;
+ border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);font-size:.8125rem;
+}
 .training-inbox-screen .training-inbox-tabs {
  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:0 0 12px;
  background:var(--premium-inset);border-color:var(--premium-line);
