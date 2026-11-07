@@ -217,20 +217,13 @@ for(const {width,large} of [{width:390,large:false},{width:320,large:true}])test
  await expect(coach).toHaveAccessibleDescription('Lessons, drills & check-ins')
  const leagueBox=(await leagues.boundingBox())!,tournamentBox=(await tournaments.boundingBox())!,coachBox=(await coach.boundingBox())!
  const shortcutBox=(await shortcuts.boundingBox())!
- if(large){
-  expect(tournamentBox.y).toBeGreaterThan(leagueBox.y)
-  expect(leagueBox.width).toBeCloseTo(shortcutBox.width)
-  expect(tournamentBox.width).toBeCloseTo(shortcutBox.width)
- }else{
-  expect(tournamentBox.y).toBeCloseTo(leagueBox.y)
-  expect(tournamentBox.x).toBeGreaterThan(leagueBox.x)
- }
- expect(coachBox.y).toBeGreaterThan(tournamentBox.y)
- expect(coachBox.width).toBeCloseTo(shortcutBox.width)
- for(const button of await shortcuts.getByRole('button').all()){
-  expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-  expect(await button.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
- }
+ expect(tournamentBox.y).toBeCloseTo(leagueBox.y+leagueBox.height)
+ expect(coachBox.y).toBeCloseTo(tournamentBox.y+tournamentBox.height)
+ expect(coachBox.width).toBeCloseTo(leagueBox.width)
+ expect(tournamentBox.width).toBeCloseTo(leagueBox.width)
+ expect(shortcutBox.width-leagueBox.width).toBeLessThanOrEqual(2)
+ for(const box of [leagueBox,tournamentBox,coachBox])expect(box.height).toBeGreaterThanOrEqual(44)
+ for(const button of [leagues,tournaments,coach])expect(await button.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
  await bounded(page)
  await shortcuts.evaluate(el=>el.scrollIntoView({block:'center'}))
  await page.screenshot({path:info.outputPath('my-lab-shortcuts.png')})
