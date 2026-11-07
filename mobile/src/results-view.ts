@@ -35,10 +35,49 @@ export function recentStatsHtml(rows:RecentMatchRow[],playerId:string,filter:Mat
  const formats=`<h3>Singles &amp; doubles</h3><div class="lab-format-grid">${(['Singles','Doubles'] as const).map(mode=>{const matches=filteredMatches(rows,mode),r=record(matches);return `<div><h4>${mode}</h4><div class="lab-format-read">${statDonutHtml(r.winRate,mode+' decided win rate in loaded results')}<div><strong>${r.wins}W · ${r.losses}L</strong><span>Decided win rate</span></div></div>${r.winRate===null?'':`<meter class="sr-only" aria-hidden="true" min="0" max="100" value="${r.winRate}" aria-label="${mode} decided win percentage in loaded recent results">${r.winRate}%</meter>`}<p>${r.wins} ${r.wins===1?'win':'wins'} \u00b7 ${r.losses} ${r.losses===1?'loss':'losses'} \u00b7 ${r.pending} pending</p><small>${matches.length?'From your loaded recent results.':'No '+mode.toLowerCase()+' results in this sample.'}</small>${matches.length?`<button type="button" class="secondary lab-format-open" data-format-matches="${mode}" aria-label="View ${mode.toLowerCase()} match sample">View ${matches.length} ${matches.length===1?'match':'matches'} <span aria-hidden="true">→</span></button>`:''}</div>`}).join('')}</div><p class="rating-context">Format comparison always uses the same loaded sample. Use the match-type filter for your form, streaks, league/year records and match list.</p>`
  return `<section class="lab-recent-stats" aria-label="Recent result insights">${view!=='formats'?streak:''}${view!=='form'?formats:''}</section>`
 }
+
+function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolean) {
+  if (!rows.length) return ''
+  const entries = rows.map((row, index) => {
+    const result = matchResult(row, playerId)
+    const tone = result === 'Won' ? 'won' : result === 'Lost' ? 'lost' : 'pending'
+    const date = html(matchDate(row.match_date))
+    const format = html(row.match_type || 'Match')
+    const league = html(row.league_name || 'League unavailable')
+    const score = html(row.score || 'Score unavailable')
+    if (!compact) return `<li>
+      <div class="match-heading"><strong class="result-${tone}">${result}</strong><span>${date}</span></div>
+      <p>${format} · ${league}</p><p class="score">${score}</p>
+      <button type="button" class="secondary match-open" data-index="${index}" aria-label="View match details, ${date}, ${html(row.match_type || 'match')}">View match</button>
+    </li>`
+    return `<li><button type="button" class="secondary match-open recent-scorecard" data-index="${index}">
+      <span class="app-tool-copy">
+        <span class="recent-scorecard-meta"><b class="result-${tone}">${result}</b><span class="recent-scorecard-date">${format} · ${date}</span></span>
+        <strong>${score}</strong>
+        <span>${league}</span>
+      </span>
+      <span class="app-tool-arrow" aria-hidden="true">›</span>
+    </button></li>`
+  }).join('')
+  const list = `<ol class="matches">${entries}</ol><small>Scores are shown as recorded, in the source’s court order.</small>`
+  if (!compact) return list
+  return `<details class="recent-match-list">
+    <summary><span class="app-tool-copy"><strong>Match scorecards</strong><span>${rows.length} ${rows.length === 1 ? 'match' : 'matches'}</span></span><span class="app-tool-arrow" aria-hidden="true">›</span></summary>
+    ${list}
+  </details>`
+}
+
 export function resultsHtml(rows: RecentMatchRow[], playerId: string, filter: MatchFilter, owner = 'your', compact=false,breakdown:BreakdownView='leagues',view:ResultView=breakdown==='seasons'?'years':'form') {
   const shown = filteredMatches(rows, filter)
   const form = recentForm(shown, playerId)
-  return `<div class="match-filters" role="group" aria-label="Match type">${filters.map(value => `<button type="button" class="secondary" data-match-filter="${value}" aria-pressed="${value === filter}">${value}</button>`).join('')}</div>${compact?resultViewControls(view):''}<div role="status" class="form-status"><p>${shown.length} ${filter === 'All' ? 'match' : filter.toLowerCase() + ' match'}${shown.length === 1 ? '' : 'es'} in ${html(owner)} latest ${rows.length} connected results.</p>${shown.length&&(!compact||view==='form') ? `${recentPulseHtml(shown,playerId)}<dl class="recent-form" aria-label="Recent form"><div><dt>Wins</dt><dd>${form.wins}</dd></div><div><dt>Losses</dt><dd>${form.losses}</dd></div><div><dt>Pending</dt><dd>${form.pending}</dd></div></dl>` : !shown.length?`<p>No matches of this type in ${html(owner)} latest results. Try All.</p>`:''}</div>${compact?`<div id="lab-result-panel" role="region" aria-label="${view[0].toUpperCase()+view.slice(1)} result insights">${view==='form'||view==='formats'?recentStatsHtml(rows,playerId,filter,view):labResultBreakdownHtml(shown,playerId,view==='years'?'seasons':'leagues',rows.length,filter==='All'?'All formats':filter,false)}</div>`:''}${shown.length ? `${compact?'<details class="recent-match-list"><summary>View recent match list</summary>':''}<ol class="matches">${shown.map((row, index) => `<li><div class="match-heading"><strong class="result-${matchResult(row, playerId) === 'Won' ? 'won' : matchResult(row, playerId) === 'Lost' ? 'lost' : 'pending'}">${html(matchResult(row, playerId))}</strong><span>${html(matchDate(row.match_date))}</span></div><p>${html(row.match_type || 'Match')} · ${html(row.league_name || 'League unavailable')}</p><p class="score">${html(row.score || 'Score unavailable')}</p><button type="button" class="secondary match-open" data-index="${index}" aria-label="View match details, ${html(matchDate(row.match_date))}, ${html(row.match_type || 'match')}">View match</button></li>`).join('')}</ol><small>Scores are shown as recorded, in the source’s court order.</small>${compact?'</details>':''}` : ''}`
+  const list = matchListHtml(shown, playerId, compact)
+  return `<div class="match-filters" role="group" aria-label="Match type">${filters.map(value => `<button type="button" class="secondary" data-match-filter="${value}" aria-pressed="${value === filter}">${value}</button>`).join('')}</div>
+    ${compact ? list + resultViewControls(view) : ''}
+    <div role="status" class="form-status">
+      <p>${shown.length} ${filter === 'All' ? 'match' : filter.toLowerCase() + ' match'}${shown.length === 1 ? '' : 'es'} in ${html(owner)} latest ${rows.length} connected results.</p>
+      ${shown.length && (!compact || view === 'form') ? `${recentPulseHtml(shown,playerId)}<dl class="recent-form" aria-label="Recent form"><div><dt>Wins</dt><dd>${form.wins}</dd></div><div><dt>Losses</dt><dd>${form.losses}</dd></div><div><dt>Pending</dt><dd>${form.pending}</dd></div></dl>` : !shown.length ? `<p>No matches of this type in ${html(owner)} latest results. Try All.</p>` : ''}
+    </div>
+    ${compact ? `<div id="lab-result-panel" role="region" aria-label="${view[0].toUpperCase()+view.slice(1)} result insights">${view==='form'||view==='formats'?recentStatsHtml(rows,playerId,filter,view):labResultBreakdownHtml(shown,playerId,view==='years'?'seasons':'leagues',rows.length,filter==='All'?'All formats':filter,false)}</div>` : list}`
 }
 export type RecentHistoryLoader={current:()=>boolean;load:(rows:RecentMatchRow[])=>Promise<{rows:RecentMatchRow[];hasMore:boolean}>}
 export function showRecentResults(content: HTMLElement, initialRows: RecentMatchRow[], playerId: string, open: (row: RecentMatchRow) => void, owner = 'your', compact=false,history?:RecentHistoryLoader) {
@@ -64,7 +103,12 @@ export function showRecentResults(content: HTMLElement, initialRows: RecentMatch
     }})
     const shown = filteredMatches(rows, filter)
     content.querySelectorAll<HTMLButtonElement>('.match-open').forEach(button => {
-      button.onclick = () => {const row=shown[Number(button.dataset.index)];if(valid()&&row)open(row)}
+      button.onclick = () => {
+        const row = shown[Number(button.dataset.index)]
+        if (!valid() || !row) return
+        if (compact) button.focus({preventScroll:true})
+        open(row)
+      }
     })
     const older=content.querySelector<HTMLButtonElement>('[data-older-results]')
     if(older&&history)older.onclick=async()=>{

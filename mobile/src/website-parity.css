@@ -236,8 +236,6 @@ body[data-screen="lab"] #recent-results .recent-form dd { font-size:25px; }
 @media(max-width:350px) { .lab-rating-chart { gap:6px; } .lab-rating-chart>div { padding:12px 6px; } .lab-rating-chart dd { font-size:26px; } .match-pulse { gap:10px; } }
 
 .rating-scale-caption { color:var(--native-blue); font-size:11px; margin:12px 0 0; }
-.recent-match-list { margin-top:18px; border-top:1px solid var(--shell-panel-border); }
-.recent-match-list>summary { cursor:pointer; padding:16px 0; min-height:44px; font-size:14px; color:var(--native-blue); font-weight:650; }
 
 .lab-rating-trends .native-player-journey>h2 { font-size:24px; margin-bottom:18px; }
 .lab-rating-trends .native-player-journey section { padding:16px; border-radius:16px; background:var(--native-inset); }
