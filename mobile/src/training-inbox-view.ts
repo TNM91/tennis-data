@@ -46,23 +46,27 @@ function weeklyRepHtml(plan:WeeklyLevelUpPlan,rep:WeeklyLevelUpPlanRep,canChange
 
 function weeklyPlanCard(plan:WeeklyLevelUpPlan,canChange:boolean,currentWeek:string,featured=false){
  const progress=getWeeklyLevelUpPlanProgress(plan),response=plan.coachResponse
+ const reps=getWeeklyLevelUpPlanReps(plan)
  const next=featured?progress.nextRep:null
- const otherReps=getWeeklyLevelUpPlanReps(plan).filter(rep=>rep.id!==next?.id)
+ const otherReps=reps.filter(rep=>rep.id!==next?.id)
  const weekDate=formatWeekdayDate(plan.weekStart)
  return `<section class="training-week">
   <h2>${plan.weekStart===currentWeek?'This week':`Week of ${html(weekDate)}`}</h2>
   <p class="training-week-meta">${html(direction(plan.identitySlug))}${plan.sharedWithCoach?' · Shared with coach':''}</p>
-  <p class="training-week-meta"><strong>${progress.completed}/${progress.total} recorded complete</strong></p>
-  <p>${html(plan.summary)}</p>
-  ${plan.strongestFocus?`<p><strong>Strongest focus:</strong> ${html(plan.strongestFocus)}</p>`:''}
+  <div class="training-week-progress"${progress.complete?' data-week-complete':''}>
+   <p class="training-week-meta"><strong>${progress.completed} of ${progress.total} ${progress.total===1?'rep':'reps'} complete</strong></p>
+   <div class="training-week-progress-track" aria-hidden="true">${reps.map(rep=>`<span${rep.completedAt?' data-rep-complete':''}></span>`).join('')}</div>
+  </div>
   ${response?`<aside class="training-week-rep">
    <h3>${html(buildWeeklyLevelUpCoachNotification(plan,response).title)}</h3><p>${html(response.note)}</p>
    ${response.playerReply?`<p>Your reply: ${response.playerReply.action==='acknowledged'?'Seen':'Question'}${response.playerReply.message?' · '+html(response.playerReply.message):''}</p>`:''}
    ${!response.playerReply&&plan.sharedWithCoach&&plan.studentLinkId&&plan.coachUserId?`<button type="button" class="secondary" data-week-reply="${html(plan.id)}">Reply to coach<span class="sr-only"> Week of ${html(weekDate)}</span></button>`:''}
   </aside>`:''}
   ${next?weeklyRepHtml(plan,next,canChange,true):''}
+  <p>${html(plan.summary)}</p>
+  ${plan.strongestFocus?`<p><strong>Strongest focus</strong> · ${html(plan.strongestFocus)}</p>`:''}
   ${featured&&otherReps.length?`<details class="training-inbox-fold" data-inbox-fold="${html(JSON.stringify(['week-reps',plan.id]))}">
-   <summary>${next?'Other reps':'Week’s reps'} (${otherReps.length})</summary>
+   <summary>${next?'Other reps':'Completed reps'} (${otherReps.length})</summary>
    ${otherReps.map(rep=>weeklyRepHtml(plan,rep,canChange)).join('')}
   </details>`:otherReps.map(rep=>weeklyRepHtml(plan,rep,canChange)).join('')}
  </section>`
