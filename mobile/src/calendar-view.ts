@@ -50,30 +50,47 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const visible=(events=matchingEvents())=>day?events.filter(event=>event.date===day):events
  const selectedMatch=()=>selected?.source==='competition'?calendar?.competitions.find(match=>match.id===selected?.id):undefined
- const canConfirmReply=(match:MatchAvailability)=>!busy&&!pending&&match.status!=='Completed'&&Boolean(reply)&&reply!==savedReply(match)
+ const replyChanged=(match:MatchAvailability)=>Boolean(reply)&&reply!==savedReply(match)
+ const hasReplyChanges=()=>{
+  const match=selectedMatch()
+  return Boolean(match&&replyChanged(match))
+ }
+ const canConfirmReply=(match:MatchAvailability)=>!busy&&!pending&&match.status!=='Completed'&&replyChanged(match)
  const focus=()=>{
   const step=schedulingRep?dialog.querySelector<HTMLElement>('.cal-body h2[tabindex]'):null
   const heading=step??dialog.querySelector<HTMLElement>('h2, h1')
   heading?.focus({preventScroll:true})
  }
  const dispose=()=>{if(disposed)return;disposed=true;practiceView?.dispose();practiceView=null;void cancelCoachFile(owner).catch(()=>{});calendar=null;finder=null;finderSource=null;query='';draft=null;draftStart=null;pending=null;dialog.close();dialog.remove();if(current()){if(typeof initial==='object')initial.onClose();else if(trigger?.isConnected)trigger.focus({preventScroll:true})}}
- const dirty=()=>!!draft&&panel!=='agenda'||Boolean(practiceView?.isOpen())
+ const dirty=()=>!!draft&&panel!=='agenda'||Boolean(pending)||hasReplyChanges()||Boolean(practiceView?.isOpen())
  const confirmDiscard=(destination:'agenda'|'close')=>{
   discardDestination=destination
   returnPanel=panel
   panel='leave'
-  render();focus()
+  render()
+  dialog.querySelector<HTMLElement>('.cal-panel h2')?.focus()
  }
  const cancelEditor=()=>{
   if(schedulingRep||!calendar){back();return}
   if(draft&&draftStart&&sameCalendarDraft(draft,draftStart))returnAgenda()
   else confirmDiscard('agenda')
  }
+ const keepChange=()=>{
+  panel=returnPanel
+  render()
+  if(panel==='respond'&&selectedMatch())dialog.querySelector<HTMLSelectElement>('[data-cal-reply]')?.focus()
+  else if(discardDestination==='agenda')dialog.querySelector<HTMLElement>('.cal-form h2')?.focus()
+  else if(schedulingRep)focus()
+ }
+ const returnFromDetails=()=>{
+  if(hasReplyChanges())confirmDiscard('agenda')
+  else returnAgenda()
+ }
  const back=()=>{
   if(practiceView?.isOpen()){practiceView.back();return true}
   if(busy){notice='Finishing this calendar check…';status();return true}
-  if(panel==='leave'){panel=returnPanel;render();return true}
-  if(pending||panel==='editor'||panel==='review'){confirmDiscard('close');return true}
+  if(panel==='leave'){keepChange();return true}
+  if(pending||panel==='editor'||panel==='review'||hasReplyChanges()){confirmDiscard('close');return true}
   if(panel!=='agenda'){returnAgenda();return true}
   dispose();return true
  }
@@ -237,6 +254,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const content=()=>{
   if(panel==='agenda')return agenda()
+  if(panel==='leave'&&returnPanel==='respond'&&selected?.source==='competition'&&!pending)return `<section class="cal-panel"><h2 tabindex="-1">Leave this availability reply?</h2><p>Your unsaved choice will be discarded.</p><button data-cal-stay>Keep reply</button><button class="secondary" data-cal-discard>${discardDestination==='agenda'?'Discard reply':'Discard and close'}</button></section>`
   if(panel==='leave'&&discardDestination==='agenda')return '<section class="cal-panel"><h2 tabindex="-1">Discard changes?</h2><p>Your changes to this personal event will be discarded.</p><button data-cal-stay>Keep editing</button><button class="secondary" data-cal-discard>Discard changes</button></section>'
   if(panel==='leave')return `<section class="cal-panel"><h2 tabindex="-1">Leave this calendar change?</h2><p>${pending?'The saved result is still unconfirmed. Your calendar will need a fresh check when you return.':'Your unsaved changes will be discarded.'}</p><button data-cal-stay>Keep reviewing</button><button class="secondary" data-cal-discard>Discard and close</button></section>`
   if(panel==='recovery')return '<section class="cal-panel"><h2 tabindex="-1">Check the saved result</h2><p>The connection ended before we could confirm your change. Check your saved calendar before trying again.</p><button data-cal-recover '+(busy?'disabled':'')+'>Check saved entry</button></section>'
@@ -375,11 +393,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const on=(selector:string,fn:(button:HTMLButtonElement)=>void)=>dialog.querySelectorAll<HTMLButtonElement>(selector).forEach(button=>button.onclick=()=>{if(active()&&!busy)fn(button)})
   dialog.querySelector('[data-cal-close]')!.addEventListener('click',back)
   on('[data-cal-cancel]',cancelEditor)
-  on('[data-cal-stay]',()=>{
-   panel=returnPanel;render()
-   if(discardDestination==='agenda')dialog.querySelector<HTMLElement>('.cal-form h2')?.focus()
-   else if(schedulingRep)focus()
-  })
+  on('[data-cal-stay]',keepChange)
   on('[data-cal-discard]',()=>{if(discardDestination==='agenda')returnAgenda();else dispose()})
   on('[data-cal-refresh]',()=>void refresh(failedRefresh??{focusControl:'[data-cal-refresh]'}));on('[data-cal-new]',()=>{rememberAgenda({kind:'new'});setDraft()});on('[data-cal-recover]',()=>void recover())
   on('[data-cal-today]',()=>{anchor=localCalendarDate();day=anchor;void refresh({focusControl:'[data-cal-today]'})})
@@ -404,7 +418,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const context=focusFromEvent('team-practice:'+p.id)
    practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh(context)},'','Back to calendar',p.id)
   })
-  on('[data-cal-agenda]',returnAgenda)
+  on('[data-cal-agenda]',returnFromDetails)
   const form=dialog.querySelector<HTMLFormElement>('form')
   if(form&&draft){
    const sync=()=>{
