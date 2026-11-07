@@ -4,7 +4,7 @@ import {getCoachAssignmentSummary,getCoachAssignmentPack,getCoachAssignmentRevie
 import {formatWeekdayDate} from '../../lib/captain-formatters'
 import {html} from './match-details'
 import {trainingIdentity} from './training-identity'
-import {trainingAssignmentQueue,type TrainingCoachWork} from './training-inbox-data'
+import {SAVED_WEEK_LIST_LIMIT,trainingAssignmentQueue,type TrainingCoachWork} from './training-inbox-data'
 export type TrainingInboxLaunch={key:string;cardId:string;identitySlug:string;label:string}
 const packDrillLimit=30
 const hasDrillCard=(cardId:string)=>LEVEL_UP_CARDS.some(card=>card.id===cardId)
@@ -81,7 +81,7 @@ export function trainingPlansHtml(plans:WeeklyLevelUpPlan[],canChange=false,requ
  const otherWeeks=plans.filter(plan=>plan.id!==featured.id)
  return `${unavailable}${weeklyPlanCard(featured,canChange,currentWeek,true)}
   ${otherWeeks.length?`<details class="training-inbox-fold" data-inbox-fold="saved-weeks"><summary>More saved weeks (${otherWeeks.length})</summary>${otherWeeks.map(plan=>weeklyPlanCard(plan,canChange,currentWeek)).join('')}</details>`:''}
-  <p class="training-inbox-note">Mark a rep done after you finish the work.${plans.length===12?' Showing the latest 12 saved plans.':''}</p>`
+  <p class="training-inbox-note">Mark a rep done after you finish the work.${plans.length===SAVED_WEEK_LIST_LIMIT?` Showing up to ${SAVED_WEEK_LIST_LIMIT} saved plans.`:''}</p>`
 }
 const packDrillStatus={assigned:'Assigned',started:'Started',completed:'Completed',skipped:'Skipped'}
 function assignmentPackHtml(assignment:CoachAssignment,pack:CoachAssignmentPack,done:boolean){

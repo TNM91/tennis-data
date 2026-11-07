@@ -17,4 +17,14 @@ export class WeeklyChangeError extends Error{constructor(public conflict=false){
 async function own(client:SupabaseClient,owner:string,current:()=>boolean){const {data,error}=await client.auth.getSession();if(error||!owner||data.session?.user.id!==owner||!current())throw Error('Sign in again to update this week.');return data.session}
 async function request(client:SupabaseClient,owner:string,current:()=>boolean,change:WeeklyChange,lookup:boolean,send:WeeklyChangeSend){const session=await own(client,owner,current),url='https://www.tenaceiq.com/api/player/level-up-weekly-plan'+(lookup?'?'+new URLSearchParams({identitySlug:change.plan.identitySlug,weekStart:change.plan.weekStart}):''),r=await send(lookup?'GET':change.kind==='create'?'POST':'PATCH',{url,headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json','Cache-Control':'no-store'},webFetchExtra:{cache:'no-store'},...(!lookup?{data:weeklyChangeBody(change)}:{}),responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:20000});await own(client,owner,current);if(r.status!==200)throw new WeeklyChangeError(r.status===409);return r.data as {ok?:boolean;plan?:unknown;plans?:unknown[]}}
 export async function saveWeeklyChange(client:SupabaseClient,owner:string,current:()=>boolean,change:WeeklyChange,send:WeeklyChangeSend=transport){const r=await request(client,owner,current,change,false,send),plan=parseTrainingPlans({ok:r.ok,plans:[r.plan]},owner)[0];if(!weeklyChangeMatches(change,plan))throw new WeeklyChangeError();return plan}
-export async function checkWeeklyChange(client:SupabaseClient,owner:string,current:()=>boolean,change:WeeklyChange,send:WeeklyChangeSend=transport){const r=await request(client,owner,current,change,true,send),plans=parseTrainingPlans(r,owner);return plans.find(p=>weeklyChangeMatches(change,p))||null}
+async function readSavedWeeks(client:SupabaseClient,owner:string,current:()=>boolean,change:WeeklyChange,send:WeeklyChangeSend){
+ return parseTrainingPlans(await request(client,owner,current,change,true,send),owner)
+}
+export async function findSavedWeeklyPlan(client:SupabaseClient,owner:string,current:()=>boolean,change:WeeklyChange,send:WeeklyChangeSend=transport){
+ const plans=await readSavedWeeks(client,owner,current,change,send)
+ return plans.find(plan=>plan.identitySlug===change.plan.identitySlug&&plan.weekStart===change.plan.weekStart)??null
+}
+export async function checkWeeklyChange(client:SupabaseClient,owner:string,current:()=>boolean,change:WeeklyChange,send:WeeklyChangeSend=transport){
+ const plans=await readSavedWeeks(client,owner,current,change,send)
+ return plans.find(plan=>weeklyChangeMatches(change,plan))??null
+}

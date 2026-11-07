@@ -29,7 +29,8 @@ export function trainingPlanHtml(choices:TrainingChoices,persisted=true,canCreat
   <h2>${html(recommended.title)}</h2>
   <button type="button" class="secondary" data-card="${html(recommended.id)}">Preview drill<span class="sr-only"> ${html(recommended.title)}</span></button>
  </div>`:''}
- <button type="button" class="secondary training-direction-week" data-week-create ${canCreate?'':'hidden'}>Create this week’s plan</button>`
+ <button type="button" class="secondary training-direction-week" data-direction-week ${canCreate?'':'hidden'}>This week’s plan</button>
+ <p role="alert" data-week-lookup-error></p>`
  :'<div class="training-direction-hero"><h2>Pick a direction</h2><p>Choose how you like to build points or a skill to sharpen next.</p></div>'}
  <details class="training-inbox-fold" ${identity?'':'open'}>
   <summary>${identity?'Change style or focus':'Choose your playing style or focus'}</summary>

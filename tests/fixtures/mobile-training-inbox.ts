@@ -1,5 +1,6 @@
 import {buildPlayerAssignmentCompletion,type CoachAssignment} from '../../lib/coach-storage'
 import {LEVEL_UP_CARDS} from '../../lib/level-up/level-up-cards'
+import {PLAYER_DEVELOPMENT_IDENTITIES} from '../../lib/player-development'
 import {getWeeklyLevelUpPlanWeekStart,toggleWeeklyLevelUpPlanRep,type WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
 import {localCalendarDate,shiftCalendarDay} from '../../mobile/src/calendar-data'
 import type {TrainingSave} from '../../mobile/src/level-up-data'
@@ -68,7 +69,23 @@ export function trainingInboxPreview(url:URL,method:string,body?:BodyInit|null){
   return Response.json({ok:true,session})
  }
  if(url.pathname==='/api/player/level-up-weekly-plan'){
-  if(method==='GET')return Response.json({ok:true,plans})
+  if(method==='GET'){
+   const slug=url.searchParams.get('identitySlug'),start=url.searchParams.get('weekStart')
+   if(!slug&&!start&&new URL(location.href).searchParams.has('training-week-list-full')){
+    const otherWeeks=PLAYER_DEVELOPMENT_IDENTITIES.filter(identity=>identity.slug!==identitySlug).map(identity=>({
+     ...currentPlan,id:`other-${identity.slug}`,identitySlug:identity.slug,
+    }))
+    return Response.json({ok:true,plans:otherWeeks})
+   }
+   return Response.json({ok:true,plans:plans.filter(plan=>(!slug||plan.identitySlug===slug)&&(!start||plan.weekStart===start))})
+  }
+  if(method==='POST'){
+   const {plan,createOnly}=JSON.parse(String(body)) as {plan:WeeklyLevelUpPlan;createOnly:boolean}
+   if(createOnly&&plans.some(row=>row.identitySlug===plan.identitySlug&&row.weekStart===plan.weekStart))return Response.json({ok:false},{status:409})
+   plans.unshift(plan)
+   if(new URL(location.href).searchParams.has('training-week-lost-response'))return Response.json({ok:false},{status:503})
+   return Response.json({ok:true,plan})
+  }
   if(method!=='PATCH')return Response.json({ok:false},{status:405})
   const input=JSON.parse(String(body)),index=plans.findIndex(plan=>plan.id===input.planId)
   const plan=plans[index],rep=plan?.reps.find(rep=>rep.id===input.repId)

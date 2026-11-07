@@ -660,6 +660,8 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 :is(.coach-check-in-screen,.training-week-change-screen) p { margin:8px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.5; }
 :is(.coach-check-in-screen,.training-week-change-screen) :is(.coach-check-in-assignment,.week-change-summary) p { margin:5px 0 0; }
 .week-change-summary strong { color:var(--premium-white); }
+.week-change-summary ol { margin:8px 0 0;padding-inline-start:1.45em;color:var(--premium-white);font-size:.8125rem; }
+.week-change-summary li::marker { color:var(--premium-lime);font-weight:700; }
 .coach-check-in-screen [data-form] label { margin:14px 0 0;color:var(--premium-white);font-size:.875rem;font-weight:650; }
 .coach-check-in-screen [data-form] textarea {
  min-block-size:0;margin:6px 0 0;padding:10px 12px;border-color:var(--premium-line);
@@ -848,7 +850,8 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
  border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);
 }
 .training-direction-screen .training-direction-week { margin:0 0 4px;padding:8px 10px; }
-.training-direction-screen .training-direction-week[hidden],.training-direction-screen [data-identity-feedback]:empty { display:none; }
+.training-direction-screen .training-direction-week[hidden],.training-direction-screen [role="alert"]:empty { display:none; }
+.training-direction-screen .training-direction-week[aria-disabled="true"] { opacity:.72; }
 .training-direction-screen :is([data-notice]:not(:empty),[role="alert"]:not(:empty)) {
  margin-block:0 8px;padding:6px 8px;border-inline-start:2px solid var(--premium-royal-line);border-radius:8px;background:var(--premium-inset);
 }

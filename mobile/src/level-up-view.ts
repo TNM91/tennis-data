@@ -1,8 +1,8 @@
 import {openWeeklyCoachReply} from './weekly-coach-reply-view'
 import {openCoachCheckIn} from './coach-check-in-view'
-import {newWeeklyChange,completionWeeklyChange,saveWeeklyChange,checkWeeklyChange,WeeklyChangeError,type WeeklyChange} from './weekly-plan-actions'
+import {newWeeklyChange,completionWeeklyChange,saveWeeklyChange,checkWeeklyChange,findSavedWeeklyPlan,weeklyChangeMatches,WeeklyChangeError,type WeeklyChange} from './weekly-plan-actions'
 import {Browser} from './native-browser'
-import {loadTrainingPlans,loadTrainingCoachWork,type TrainingCoachWork} from './training-inbox-data'
+import {SAVED_WEEK_LIST_LIMIT,loadTrainingPlans,loadTrainingCoachWork,type TrainingCoachWork} from './training-inbox-data'
 import {trainingPlansHtml,trainingCoachWorkHtml,trainingInboxLaunches} from './training-inbox-view'
 import type {WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
 import {formatWeekdayDate} from '../../lib/captain-formatters'
@@ -139,7 +139,7 @@ type TrainingStart='catalog'|'progress'|'inbox'
 
 export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boolean,initial:TrainingStart='catalog',launch?:{cardId:string;identitySlug:string}){
  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog training-dialog';dialog.setAttribute('aria-label','Level Up training')
- const requestedPlanId=typeof initial==='object'&&initial.view==='weeks'?initial.planId:undefined
+ let requestedPlanId=typeof initial==='object'&&initial.view==='weeks'?initial.planId:undefined
  const coachStart=typeof initial==='object'&&initial.view==='coach'?initial:undefined
  let requestedAssignmentId=coachStart?.assignmentId
  let disposed=false,version=0,historyVersion=0,phase:'inbox'|'plan'|'catalog'|'modules'|'module'|'card'|'session'|'progress'=typeof initial==='object'?'inbox':initial,practiceModule:LevelUpModule|null=null,selected:LevelUpCard|null=null,allowed:boolean|null=null,accessError=false,history:TrainingSession[]|null=null,historyError=false,historyComplete=false,historyBusy=false,accessBusy=false,saving=false,checking=false,confirming=false,notice='',instructionsOpen=false,sessionScroll=0,rating='',note='',context='alone',feeling='ready',payload:Readonly<TrainingSave>|null=null
@@ -495,7 +495,8 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    regions.forEach(region=>region.hidden=region.dataset.inboxRegion!==inboxSection)
    button.focus({preventScroll:true})
   }})
-  dialog.querySelector<HTMLButtonElement>('[data-week-create]')?.addEventListener('click',()=>{if(!active()||allowed!==true)return;try{weekPending=newWeeklyChange(choices.active);weekAttempted=false;weekConflict=false;weekNotice='';render();focus()}catch{notice='Choose a training direction before creating your week.';render()}})
+  const directionWeek=dialog.querySelector<HTMLButtonElement>('[data-direction-week]')
+  if(directionWeek)directionWeek.onclick=()=>{void openDirectionWeek(directionWeek)}
   dialog.querySelectorAll<HTMLButtonElement>('[data-week-reply]').forEach(b=>{b.onclick=()=>{if(!active()||replyEditor?.isOpen())return;const plan=plans?.find(p=>p.id===b.dataset.weekReply);if(!plan)return;replyEditor=openWeeklyCoachReply(client,owner,active,plan,saved=>{notice=saved?'Your reply is saved with this week.':'Review your latest coach update below.';plansVersion++;plansBusy=false;void readPlans().then(()=>{if(active()){const region=dialog.querySelector<HTMLElement>('[data-inbox-region=weeks]');region?.scrollIntoView({block:'start'});region?.focus({preventScroll:true})}})})}})
   dialog.querySelectorAll<HTMLButtonElement>('[data-coach-checkin]').forEach(button=>{button.onclick=()=>{
    if(!active()||coachEditor?.isOpen())return
@@ -634,7 +635,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
      access.innerHTML=trainingAccessHtml()
      access.querySelector<HTMLButtonElement>('[data-access]')?.addEventListener('click',()=>{void readAccess()})
     }
-    const create=dialog.querySelector<HTMLButtonElement>('[data-week-create]')
+    const create=dialog.querySelector<HTMLButtonElement>('[data-direction-week]')
     if(create)create.hidden=allowed!==true
    }else if(phase!=='catalog'&&phase!=='modules'&&phase!=='module')render()
   }
@@ -670,20 +671,43 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  }
  const readPlans=async()=>{if(plansBusy||!active())return;const request=++plansVersion;plansBusy=true;plansError=false;if(phase==='inbox')render();try{const rows=await loadTrainingPlans(client,owner,active);if(active()&&request===plansVersion)plans=rows}catch{if(active()&&request===plansVersion){plans=null;plansError=true}}finally{if(active()&&request===plansVersion){plansBusy=false;if(phase==='inbox')render()}}}
  const readCoach=async()=>{if(coachBusy||!active())return;const request=++coachVersion;coachBusy=true;coachError=false;if(phase==='inbox')render();try{const rows=await loadTrainingCoachWork(client,owner,active);if(active()&&request===coachVersion)coachWork=rows}catch{if(active()&&request===coachVersion){coachWork=null;coachError=true}}finally{if(active()&&request===coachVersion){coachBusy=false;if(phase==='inbox')render()}}}
- const finishWeekChange=(saved:WeeklyLevelUpPlan)=>{
-  const change=weekPending
-  if(!change)return
-  const updatedPlans=change.kind==='completion'&&plans?.some(plan=>plan.id===saved.id)
-   ?plans.map(plan=>plan.id===saved.id?saved:plan)
-   :null
-  if(updatedPlans)plans=updatedPlans
-  notice=change.kind==='create'?'Your private weekly plan is saved.':change.completed?'Rep marked done.':'Rep reopened.'
+ const showSavedWeek=(saved:WeeklyLevelUpPlan,message='')=>{
+  const otherWeeks=(plans??[]).filter(plan=>plan.id!==saved.id&&(plan.identitySlug!==saved.identitySlug||plan.weekStart!==saved.weekStart))
+  plans=[saved,...otherWeeks].slice(0,SAVED_WEEK_LIST_LIMIT)
+  requestedPlanId=saved.id;plansError=false;notice=message
   weekPending=null;weekBusy=false;weekAttempted=false;weekConflict=false;weekLeaving=false;weekNotice=''
   plansVersion++;plansBusy=false;phase='inbox';inboxSection='weeks';inboxLoaded=true
   render()
-  if(updatedPlans)focusSavedWeek(saved.id)
-  else {focus();void readPlans()}
+  focusSavedWeek(saved.id)
   if(!coachWork&&!coachBusy)void readCoach()
+ }
+ const openDirectionWeek=async(button:HTMLButtonElement)=>{
+  if(!active()||allowed!==true||!choices.active||button.getAttribute('aria-disabled')==='true')return
+  const slug=choices.active
+  const current=()=>active()&&button.isConnected&&phase==='plan'&&choices.active===slug
+  const feedback=dialog.querySelector<HTMLElement>('[data-week-lookup-error]')!
+  const idleLabel=button.textContent
+  feedback.textContent='';button.textContent='Checking this week…';button.setAttribute('aria-disabled','true')
+  try{
+   const change=newWeeklyChange(slug)
+   const rows=await loadTrainingPlans(client,owner,current)
+   let saved=rows.find(plan=>plan.identitySlug===slug&&plan.weekStart===change.plan.weekStart)
+   if(!saved&&rows.length===SAVED_WEEK_LIST_LIMIT)saved=await findSavedWeeklyPlan(client,owner,current,change)??undefined
+   if(!current())return
+   plans=rows
+   if(saved){showSavedWeek(saved);return}
+   plansVersion++;plansBusy=false;plansError=false
+   weekPending=change;weekAttempted=false;weekConflict=false;weekNotice='';render();focus()
+  }catch{
+   if(current())feedback.textContent='Couldn’t check this week. Try again.'
+  }finally{
+   if(button.isConnected){button.textContent=idleLabel;button.removeAttribute('aria-disabled')}
+  }
+ }
+ const finishWeekChange=(saved:WeeklyLevelUpPlan)=>{
+  const change=weekPending
+  if(!change)return
+  showSavedWeek(saved,change.kind==='create'?'Your private weekly plan is saved.':change.completed?'Rep marked done.':'Rep reopened.')
  }
  const showWeekStatus=()=>{
   render()
@@ -708,9 +732,13 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const frozen=weekPending
   weekBusy=true;weekNotice='Checking the current saved week…';showWeekStatus()
   try{
-   const found=await checkWeeklyChange(client,owner,active,frozen)
+   const found=frozen.kind==='create'?await findSavedWeeklyPlan(client,owner,active,frozen):await checkWeeklyChange(client,owner,active,frozen)
    if(!active())return
-   if(found){finishWeekChange(found);return}
+   if(found){
+    if(frozen.kind==='create'&&!weeklyChangeMatches(frozen,found))showSavedWeek(found,'Opened the plan already saved for this week.')
+    else finishWeekChange(found)
+    return
+   }
    weekNotice='Discard and refresh to review the latest saved week before trying again.'
   }catch{
    if(!active())return
@@ -722,7 +750,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   if(!weekPending||!active())return
   const change=weekPending
   const creating=change.kind==='create'
-  const title=creating?'Create this week’s plan?':change.completed?'Mark this rep done?':'Reopen this rep?'
+  const title=creating?'Review this week’s plan':change.completed?'Mark this rep done?':'Reopen this rep?'
   const action=creating?'Save this week':change.completed?'Mark rep done':'Reopen rep'
   const week=`<time datetime="${html(change.plan.weekStart)}">${html(formatWeekdayDate(change.plan.weekStart))}</time>`
   dialog.innerHTML=`<header class="training-inbox-header week-change-header">
@@ -734,10 +762,10 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    <div class="week-change-actions"><button type="button" data-week-keep>Keep this change</button><button type="button" class="secondary" data-week-leave>Discard and close</button></div>`:`
    <div class="week-change-summary">
     <small class="stat-eyebrow">Week of ${week}</small>
-    <h2>${creating?'Your private plan':html(change.title)}</h2>
-    ${creating?`<ol>${change.plan.reps.map(rep=>`<li>${html(rep.title)}</li>`).join('')}</ol>`:`<p>Status after saving <strong>${change.completed?'Complete':'Open'}</strong></p>`}
+    <h2>${creating?html(trainingIdentity(change.plan.identitySlug)?.title.replace(/^The /,'')??'Your practice plan'):html(change.title)}</h2>
+    ${creating?`<p>Private plan · ${change.plan.reps.length} reps</p><ol>${change.plan.reps.map(rep=>`<li>${html(rep.title)}</li>`).join('')}</ol>`:`<p>Status after saving <strong>${change.completed?'Complete':'Open'}</strong></p>`}
    </div>
-   <p>${creating?'Save three recommended reps for this training direction.':change.plan.sharedWithCoach?'Your coach can see this rep’s updated status in the shared week.':'This updates your progress for the saved week.'}</p>
+   ${creating?'':`<p>${change.plan.sharedWithCoach?'Your coach can see this rep’s updated status in the shared week.':'This updates your progress for the saved week.'}</p>`}
    <p class="week-change-status" data-week-status tabindex="-1" role="status">${html(weekNotice)}</p>
    <div class="week-change-actions">
     ${weekAttempted?`<button type="button" data-week-check ${weekBusy?'disabled':''}>Check current saved week</button>`:''}
@@ -759,7 +787,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    }else{
     render()
     if(change.kind==='completion')focusSavedWeek(change.plan.id,JSON.stringify([change.plan.id,change.repId]))
-    else focus()
+    else dialog.querySelector<HTMLButtonElement>('[data-direction-week]')?.focus()
    }
   })
  }
