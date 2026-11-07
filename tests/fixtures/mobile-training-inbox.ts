@@ -48,6 +48,7 @@ export function trainingInboxPreview(url:URL,method:string,body?:BodyInit|null){
   const saved:TrainingSave=JSON.parse(String(body)).session
   const session={...saved,playerUserId:navigationOwner,sessionJson:{cardId:saved.cardId}}
   sessions.push(session)
+  if(new URL(location.href).searchParams.has('training-session-lost-response'))return Response.json({ok:false},{status:503})
   return Response.json({ok:true,session})
  }
  if(url.pathname==='/api/player/level-up-weekly-plan'){

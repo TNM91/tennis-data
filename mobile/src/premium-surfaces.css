@@ -599,7 +599,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .comparison-fold-body { padding:0 12px 12px; }
 .comparison-fold-body>section { margin:12px 0;padding:14px;background:var(--premium-inset);border-color:var(--premium-line);box-shadow:none; }
 .comparison-fold-body>h2 { margin:18px 0 0; }
-.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen) {
+.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen,.training-session-screen) {
  padding:16px;border-color:var(--premium-line);background:var(--premium-page);overflow-wrap:anywhere;
 }
 .training-dialog.training-drill-screen[open] { display:flex;flex-direction:column;overflow:hidden; }
@@ -683,6 +683,41 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 }
 .coach-check-in-screen :is([type="submit"],[data-send],[data-check],[data-keep]):not(.secondary) { background:var(--premium-action);color:var(--premium-page); }
 .training-week-change-screen :is([data-week-save],[data-week-check],[data-week-keep]):not(.secondary) { background:var(--premium-action);color:var(--premium-page); }
+.training-session-screen { scroll-padding-block:76px 12px;overscroll-behavior:contain; }
+.training-session-screen :is(.training-session-clock,.training-session-log) {
+ margin:12px 0 0;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-surface);box-shadow:none;
+}
+.training-session-screen .training-session-clock {
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card);
+ box-shadow:inset 0 1px #b2c8ff22;
+}
+.training-session-clock-head { display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px; }
+.training-session-clock-head small { color:var(--premium-ice);font-size:.6875rem; }
+.training-session-clock-head [data-clock-state] {
+ padding:3px 8px;border:1px solid var(--premium-line);border-radius:999px;background:var(--premium-inset);
+ color:var(--premium-copy);font-size:.6875rem;font-weight:650;
+}
+.training-session-clock-head [data-clock-running] { color:var(--premium-lime); }
+.training-session-screen :is(.training-session-clock,.training-session-log) h2 { margin:8px 0 4px;font-size:1.0625rem;line-height:1.25; }
+.training-session-screen p { color:var(--premium-copy);font-size:.875rem;line-height:1.45; }
+.training-session-screen [data-clock] {
+ margin:6px 0 12px;color:var(--premium-white);font-size:clamp(2.15rem,11vw,3rem);font-weight:750;
+ line-height:1;letter-spacing:-.045em;
+}
+.training-session-screen [data-timer-hint] { margin:8px 0 0;color:var(--premium-ice);font-size:.75rem; }
+.training-session-screen .training-session-track { margin:8px 0 14px; }
+.training-session-track strong { color:var(--premium-white); }
+.training-session-screen [data-instructions]>*+* { margin-block-start:8px; }
+.training-session-log p { margin:6px 0; }
+.training-session-log [data-proof] label { margin:12px 0 0;color:var(--premium-white);font-size:.875rem;font-weight:650; }
+.training-session-log [data-proof] :is(select,textarea) {
+ margin:6px 0 0;min-block-size:48px;border-color:var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-inset);color:var(--premium-white);font-size:max(16px,.875rem);font-weight:400;
+}
+.training-session-log [data-notice]:not(:empty) { margin-block:12px 0;padding:8px 10px;border-inline-start:2px solid var(--premium-royal-line);background:var(--premium-inset);border-radius:8px; }
+.training-session-screen :is([data-timer],[data-proof] button) { min-block-size:44px;margin:6px 0 0;padding:8px 10px;font-size:.875rem; }
+.training-session-screen [data-proof] button:not(.secondary) { background:var(--premium-action);color:var(--premium-page); }
 .training-inbox-screen .training-inbox-tabs {
  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:0 0 12px;
  background:var(--premium-inset);border-color:var(--premium-line);

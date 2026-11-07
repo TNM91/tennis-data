@@ -16,6 +16,7 @@ import {html} from './match-details'
 import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingSave,type TrainingSession,type TrainingSave} from './level-up-data'
 import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave} from './level-up-model'
 const trainingCueHtml=(card:LevelUpCard)=>`<p class="training-drill-cue"><strong>On-court cue</strong> ${html(card.cue)}</p>`
+const trainingClockText=(seconds:number)=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`
 const trainingSafetyHtml=(card:LevelUpCard)=>card.safetyNote
  ?`<p class="training-safety"><strong>Safety</strong> ${html(card.safetyNote)}</p>`:''
 function trainingDrillOverviewHtml(card:LevelUpCard){
@@ -68,6 +69,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  let coachEditor:ReturnType<typeof openCoachCheckIn>|null=null
  let practiceCalendar:ReturnType<typeof openCalendar>|null=null
  let weekPending:WeeklyChange|null=null,weekBusy=false,weekAttempted=false,weekConflict=false,weekLeaving=false,weekNotice='',plansVersion=0,coachVersion=0
+ let pausedInBackground=false
  const completed=new Set<string>(),clock=new TrainingClock(),active=()=>!disposed&&current()
  const dispose=()=>{
   if(disposed)return
@@ -130,6 +132,69 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     <button type="button" data-start ${allowed!==true?'disabled':''}>Start training</button>
    </footer>`
  }
+ const timerHint=()=>pausedInBackground?'Paused while the app was in the background.':'The timer pauses in the background. Up to two hours per session.'
+ const timerAction=()=>clock.running()?'Pause timer':'Resume timer'
+ const paintSessionClock=()=>{
+  const elapsed=dialog.querySelector<HTMLElement>('[data-clock]')
+  if(!elapsed)return
+  const time=trainingClockText(clock.seconds())
+  if(elapsed.textContent!==time)elapsed.textContent=time
+ }
+ const paintTimerControls=()=>{
+  paintSessionClock()
+  const state=dialog.querySelector<HTMLElement>('[data-clock-state]')
+  if(state){
+   state.textContent=clock.running()?'Running':'Paused'
+   state.toggleAttribute('data-clock-running',clock.running())
+  }
+  const control=dialog.querySelector<HTMLButtonElement>('[data-timer]')
+  if(control)control.textContent=timerAction()
+  const hint=dialog.querySelector<HTMLElement>('[data-timer-hint]')
+  if(hint)hint.textContent=timerHint()
+ }
+ const sessionScreenHtml=(card:LevelUpCard,locked:boolean)=>`
+  <header class="training-inbox-header">
+   <h1 tabindex="-1">Training session</h1>
+   <button type="button" class="secondary" data-close aria-label="Close Level Up" ${saving||checking?'disabled':''}>Close</button>
+  </header>
+  <section class="training-session-clock" aria-label="Training timer">
+   <div class="training-session-clock-head">
+    <small class="stat-eyebrow">Elapsed time</small>
+    <span data-clock-state aria-live="polite" ${clock.running()?'data-clock-running':''}>${clock.running()?'Running':'Paused'}</span>
+   </div>
+   <h2>${html(card.title)}</h2>
+   <p role="timer" data-clock>${trainingClockText(clock.seconds())}</p>
+   <button type="button" class="secondary" data-timer ${locked?'disabled':''}>${timerAction()}</button>
+   <p data-timer-hint>${timerHint()}</p>
+  </section>
+  ${trainingCueHtml(card)}
+  ${trainingSafetyHtml(card)}
+  <p class="training-session-track"><strong>Track</strong> ${html(card.proof)}</p>
+  <details class="training-inbox-fold" data-instructions ${instructionsOpen?'open':''}>
+   <summary>Review training instructions</summary>
+   ${trainingCardHtml(card)}
+  </details>
+  <section class="training-session-log">
+   <h2>Log your session</h2>
+   <p>${sessionOrigin?`Private practice from ${html(sessionOrigin)}.`:'Save your proof to your private training history.'}</p>
+   ${sessionDirection?`<p>Training direction · ${html(trainingIdentity(sessionDirection)?.title||'')}</p>`:''}
+   <form data-proof>
+    <label>Self-rated proof (0–5)<select name="rating" required ${locked?'disabled':''}>
+     <option value="">Choose a proof rating</option>
+     ${[0,1,2,3,4,5].map(value=>`<option value="${value}" ${String(value)===rating?'selected':''}>${value} / 5</option>`).join('')}
+    </select></label>
+    <label>Training context<select name="context" ${locked?'disabled':''}>
+     ${trainingContexts(card).map(value=>`<option value="${value}" ${value===context?'selected':''}>${value}</option>`).join('')}
+    </select></label>
+    <label>How did you feel?<select name="feeling" ${locked?'disabled':''}>
+     ${['ready','tight','tired','nervous'].map(value=>`<option value="${value}" ${value===feeling?'selected':''}>${value}</option>`).join('')}
+    </select></label>
+    <label>Your training note<textarea name="note" maxlength="700" rows="3" ${locked?'disabled':''}></textarea></label>
+    <p role="status" tabindex="-1" data-notice>${html(notice)}</p>
+    ${payload?`<button type="button" data-check ${saving||checking?'disabled':''}>Check whether this session saved</button>`:''}
+    <button type="submit" ${payload?'class="secondary"':''} ${saving||checking?'disabled':''}>${saving?'Saving…':payload?'Retry same session':'Save completed session'}</button>
+   </form>
+  </section>`
  const inboxHtml=()=>`
   <header class="training-inbox-header"><h1 tabindex="-1">Training inbox</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button></header>
   <div class="match-filters training-inbox-tabs" role="group" aria-label="Training inbox sections">
@@ -152,6 +217,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.classList.toggle('training-inbox-screen',phase==='inbox'&&!weekPending)
   dialog.classList.toggle('training-week-change-screen',Boolean(weekPending))
   dialog.classList.toggle('training-drill-screen',phase==='card'&&Boolean(selected))
+  dialog.classList.toggle('training-session-screen',phase==='session'&&!confirming&&Boolean(selected))
   if(weekPending){renderWeekChange();return}
   if(confirming){dialog.innerHTML=`<h1 tabindex="-1">Leave this session?</h1><p>${payload?'The save may already be recorded. Check account progress before starting it again.':'Your timer and unsaved training notes will be discarded.'}</p><button type="button" class="secondary" data-keep>Keep training</button><button type="button" data-discard>Discard and close</button>`;dialog.querySelector<HTMLButtonElement>('[data-keep]')!.onclick=()=>{confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})};dialog.querySelector<HTMLButtonElement>('[data-discard]')!.onclick=dispose;return}
   const frozen=Boolean(payload),locked=frozen||saving||checking
@@ -162,7 +228,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const previousDrill=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   const drillScroll=previousDrill?.scrollTop??0
   const openDrillFolds=Array.from(previousDrill?.querySelectorAll<HTMLDetailsElement>('[data-drill-fold][open]')??[],fold=>fold.dataset.drillFold)
-  dialog.innerHTML=phase==='inbox'?inboxHtml():phase==='card'&&selected?drillScreenHtml(selected):`<h1 tabindex="-1">Level Up</h1>${trainingAccessHtml()}${phase!=='session'?trainingViews():''}${phase!=='session'?'<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>':''}${phase==='plan'?`${trainingPlanHtml(choices,choiceStored,allowed===true)}${!choiceStored?'<p role="alert">This choice is available for this visit only. Device storage is unavailable.</p>':''}`:phase==='modules'?`<h2>Build a complete practice block</h2><p>Choose a focused block for your serve, movement or match readiness.</p><ul class="matches">${LEVEL_UP_MODULES.map(m=>`<li><h3>${html(m.title)}</h3><p>${html(m.durationLabel)} · ${html(m.subtitle)}</p><p>${html(m.description)}</p><button type="button" class="secondary" data-module="${html(m.id)}">Open module<span class="sr-only"> ${html(m.title)}</span></button></li>`).join('')}</ul>`:phase==='module'&&practiceModule?trainingModuleHtml(practiceModule,completed):phase==='catalog'?`<label>Find a training focus<input type="search" maxlength="80" data-search value="${html(query)}" placeholder="Serve, doubles, movement…"></label><label>Where are you training?<select data-setting><option value="">Any setting</option>${['home','driveway','garage','court','wall','gym','match-day'].map(s=>`<option value="${s}" ${s===setting?'selected':''}>${s}</option>`).join('')}</select></label><div data-cards>${catalogue()}</div>`:phase==='progress'?`${historyBusy?'<p role="status">Loading account progress…</p>':historyError?'<p role="alert">Account progress could not be loaded. This does not mean your history is empty.</p>':history?trainingHistoryHtml(history,historyComplete):''}<button type="button" class="secondary" data-history ${historyBusy?'disabled':''}>Refresh account progress</button>`:phase==='session'&&selected?`<h2>${html(selected.title)}</h2>${sessionDirection?`<p>Training direction: ${html(trainingIdentity(sessionDirection)?.title||'')}</p>`:''}${sessionOrigin?`<p>Private practice from ${html(sessionOrigin)}. This does not complete a weekly rep or assignment, or send a coach check-in.</p>`:''}${trainingCueHtml(selected)}<details data-instructions ${instructionsOpen?'open':''}><summary>Review training instructions</summary>${trainingCardHtml(selected)}</details><section aria-label="Training timer"><h3>Session timer</h3><p data-clock>${trainingTime(clock.seconds())} · ${clock.running()?'Running':'Paused'}</p><p>The timer pauses when you leave the app. Resume it when you are ready. Timed sessions are capped at two hours.</p><button type="button" class="secondary" data-timer ${locked?'disabled':''}>${clock.running()?'Pause timer':'Resume timer'}</button></section><form data-proof><label>Self-rated proof (0–5)<select name="rating" required ${locked?'disabled':''}><option value="">Choose a proof rating</option>${[0,1,2,3,4,5].map(r=>`<option value="${r}" ${String(r)===rating?'selected':''}>${r} / 5</option>`).join('')}</select></label><p>Rate the proof described on this card. This does not change your tennis rating.</p><label>Training context<select name="context" ${locked?'disabled':''}>${trainingContexts(selected).map(v=>`<option value="${v}" ${v===context?'selected':''}>${v}</option>`).join('')}</select></label><label>How did you feel?<select name="feeling" ${locked?'disabled':''}>${['ready','tight','tired','nervous'].map(v=>`<option value="${v}" ${v===feeling?'selected':''}>${v}</option>`).join('')}</select></label><label>Your training note<textarea name="note" maxlength="700" ${locked?'disabled':''}>${html(note)}</textarea></label><p>No coach assignment or team message is changed by this self-guided save.</p><button type="submit" ${saving||checking?'disabled':''}>${saving?'Saving…':payload?'Retry same session':'Save completed session'}</button></form>${payload?`<button type="button" class="secondary" data-check ${saving||checking?'disabled':''}>Check whether this session saved</button>`:''}`:''}<p role="status" data-notice>${html(notice)}</p><button type="button" class="secondary" data-close ${saving||checking?'disabled':''}>Close Level Up</button>`
+  dialog.innerHTML=phase==='inbox'?inboxHtml():phase==='card'&&selected?drillScreenHtml(selected):phase==='session'&&selected?sessionScreenHtml(selected,locked):`<h1 tabindex="-1">Level Up</h1>${trainingAccessHtml()}${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>${phase==='plan'?`${trainingPlanHtml(choices,choiceStored,allowed===true)}${!choiceStored?'<p role="alert">This choice is available for this visit only. Device storage is unavailable.</p>':''}`:phase==='modules'?`<h2>Build a complete practice block</h2><p>Choose a focused block for your serve, movement or match readiness.</p><ul class="matches">${LEVEL_UP_MODULES.map(m=>`<li><h3>${html(m.title)}</h3><p>${html(m.durationLabel)} · ${html(m.subtitle)}</p><p>${html(m.description)}</p><button type="button" class="secondary" data-module="${html(m.id)}">Open module<span class="sr-only"> ${html(m.title)}</span></button></li>`).join('')}</ul>`:phase==='module'&&practiceModule?trainingModuleHtml(practiceModule,completed):phase==='catalog'?`<label>Find a training focus<input type="search" maxlength="80" data-search value="${html(query)}" placeholder="Serve, doubles, movement…"></label><label>Where are you training?<select data-setting><option value="">Any setting</option>${['home','driveway','garage','court','wall','gym','match-day'].map(s=>`<option value="${s}" ${s===setting?'selected':''}>${s}</option>`).join('')}</select></label><div data-cards>${catalogue()}</div>`:phase==='progress'?`${historyBusy?'<p role="status">Loading account progress…</p>':historyError?'<p role="alert">Account progress could not be loaded. This does not mean your history is empty.</p>':history?trainingHistoryHtml(history,historyComplete):''}<button type="button" class="secondary" data-history ${historyBusy?'disabled':''}>Refresh account progress</button>`:''}<p role="status" data-notice>${html(notice)}</p><button type="button" class="secondary" data-close ${saving||checking?'disabled':''}>Close Level Up</button>`
   const drillBody=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   if(drillBody&&previousDrill){
    drillBody.querySelectorAll<HTMLDetailsElement>('[data-drill-fold]').forEach(fold=>{fold.open=openDrillFolds.includes(fold.dataset.drillFold)})
@@ -240,15 +306,76 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   }})
   dialog.querySelectorAll<HTMLButtonElement>('[data-week-mark]').forEach(b=>{b.onclick=()=>{if(!active())return;try{const [planId,repId]=JSON.parse(b.dataset.weekMark||'[]') as string[],plan=plans?.find(p=>p.id===planId);if(!plan)return;weekPending=completionWeeklyChange(plan,repId,b.dataset.weekCompleted==='true');weekAttempted=false;weekConflict=false;weekNotice='';render();focus()}catch{notice='Refresh saved weeks before changing a rep.';render()}}})
   const search=dialog.querySelector<HTMLInputElement>('[data-search]'),settingSelect=dialog.querySelector<HTMLSelectElement>('[data-setting]');const filter=()=>{dialog.querySelector<HTMLElement>('[data-cards]')!.innerHTML=catalogue();bindCards()};if(search)search.oninput=()=>{query=search.value;filter()};if(settingSelect)settingSelect.onchange=()=>{setting=settingSelect.value;filter()};bindCards()
-  dialog.querySelector<HTMLButtonElement>('[data-start]')?.addEventListener('click',()=>{if(allowed!==true||!selected)return;phase='session';instructionsOpen=false;context=initialTrainingContext(selected);rating='';note='';feeling='ready';clock.reset();clock.start();notice='';render();focus()})
-  dialog.querySelector<HTMLButtonElement>('[data-timer]')?.addEventListener('click',()=>{if(clock.running())clock.pause();else clock.start();render();dialog.querySelector<HTMLElement>('[data-timer]')?.focus({preventScroll:true})})
+  dialog.querySelector<HTMLButtonElement>('[data-start]')?.addEventListener('click',()=>{
+   if(allowed!==true||!selected)return
+   phase='session';instructionsOpen=false;pausedInBackground=false
+   context=initialTrainingContext(selected);rating='';note='';feeling='ready'
+   clock.reset();clock.start();notice='';render();focus()
+  })
+  const timerButton=dialog.querySelector<HTMLButtonElement>('[data-timer]')
+  timerButton?.addEventListener('click',()=>{
+   if(clock.running())clock.pause()
+   else clock.start()
+   pausedInBackground=false;paintTimerControls()
+   timerButton.focus({preventScroll:true})
+  })
   const instructions=dialog.querySelector<HTMLDetailsElement>('[data-instructions]');if(instructions)instructions.ontoggle=()=>{instructionsOpen=instructions.open}
-  const form=dialog.querySelector<HTMLFormElement>('[data-proof]');if(form){form.oninput=()=>{if(payload)return;const fields=new FormData(form);rating=String(fields.get('rating')||'');note=String(fields.get('note')||'');context=String(fields.get('context')||'alone');feeling=String(fields.get('feeling')||'ready')};form.onsubmit=e=>{e.preventDefault();void save()}}
+  const form=dialog.querySelector<HTMLFormElement>('[data-proof]')
+  if(form){
+   form.querySelector<HTMLTextAreaElement>('[name=note]')!.value=note
+   form.oninput=()=>{
+    if(payload)return
+    const fields=new FormData(form)
+    rating=String(fields.get('rating')||'');note=String(fields.get('note')||'')
+    context=String(fields.get('context')||'alone');feeling=String(fields.get('feeling')||'ready')
+   }
+   form.onsubmit=event=>{event.preventDefault();void save()}
+  }
   dialog.querySelector<HTMLButtonElement>('[data-check]')?.addEventListener('click',()=>{void checkSaved()})
  }
  const accepted=(row:TrainingSession)=>{if(practiceModule&&selected&&practiceModule.cardIds.includes(selected.id))completed.add(selected.id);historyVersion++;historyBusy=false;historyError=false;history=[row,...(history||[]).filter(r=>r.id!==row.id)].sort((a,b)=>Date.parse(b.completedAt)-Date.parse(a.completedAt)).slice(0,80);payload=null;selected=null;phase=practiceModule?'module':cardFromInbox?'inbox':cardFromPlan?'plan':'progress';notice='Session saved to your account. Your self-rated training proof is separate from your TIQ rating.';render();if(cardFromInbox)focusInboxReturn();else focus()}
- const save=async()=>{if(!active()||saving||checking||!selected||allowed!==true)return;try{if(!payload){clock.pause();payload=freezeTrainingSave(selected,Number(rating),note,context,feeling,clock.seconds(),'level-up-'+crypto.randomUUID(),new Date().toISOString(),sessionDirection);if(rating==='')throw Error('Choose a proof rating.')}}catch{payload=null;notice='Choose a proof rating from 0 to 5 before saving.';render();return}const frozen=payload;saving=true;notice='Saving this completed session…';render();const request=version;try{const row=await saveTrainingSession(client,owner,()=>active()&&version===request,frozen);if(active()&&version===request){saving=false;accepted(row)}}catch{if(active()&&version===request){saving=false;notice='Save not confirmed. Your session is frozen for an exact retry. Check whether it saved before starting another session.';render()}}}
- const checkSaved=async()=>{if(!payload||saving||checking||!active())return;const frozen=payload;checking=true;notice='Checking account progress…';render();try{const rows=await loadTrainingHistory(client,owner,active);if(!active())return;history=rows;historyComplete=true;historyError=false;const row=rows.find(r=>r.id===frozen.id);checking=false;if(row&&confirmsTrainingSave(row,frozen))accepted(row);else{notice='This exact session was not confirmed in your latest 80 records. Retry the same session when your connection is ready.';render()}}catch{if(active()){checking=false;notice='Account progress could not be checked. Keep this session and retry when ready.';render()}}}
+ const showSessionStatus=()=>{
+  render()
+  dialog.querySelector<HTMLElement>('.training-session-log [data-notice]')?.focus()
+ }
+ const save=async()=>{
+  if(!active()||saving||checking||!selected||allowed!==true)return
+  try{
+   if(!payload){
+    if(rating==='')throw Error('Choose a proof rating.')
+    clock.pause()
+    payload=freezeTrainingSave(selected,Number(rating),note,context,feeling,clock.seconds(),'level-up-'+crypto.randomUUID(),new Date().toISOString(),sessionDirection)
+   }
+  }catch{
+   payload=null;notice='Choose a proof rating from 0 to 5 before saving.';showSessionStatus();return
+  }
+  const frozen=payload,request=version
+  saving=true;notice='Saving this completed session…';showSessionStatus()
+  try{
+   const row=await saveTrainingSession(client,owner,()=>active()&&version===request,frozen)
+   if(active()&&version===request){saving=false;accepted(row)}
+  }catch{
+   if(!active()||version!==request)return
+   saving=false;notice='Check whether this session saved before retrying.';showSessionStatus()
+  }
+ }
+ const checkSaved=async()=>{
+  if(!payload||saving||checking||!active())return
+  const frozen=payload
+  checking=true;notice='Checking account progress…';showSessionStatus()
+  try{
+   const rows=await loadTrainingHistory(client,owner,active)
+   if(!active())return
+   history=rows;historyComplete=true;historyError=false;checking=false
+   const row=rows.find(item=>item.id===frozen.id)
+   if(row&&confirmsTrainingSave(row,frozen)){accepted(row);return}
+   notice='Retry the same session when your connection is ready.'
+  }catch{
+   if(!active())return
+   checking=false;notice='Keep this session and check your progress when you’re connected.'
+  }
+  showSessionStatus()
+ }
  const readAccess=async()=>{if(accessBusy||!active())return;accessBusy=true;accessError=false;render();try{const value=await trainingAccess(client,owner,active);if(active())allowed=value}catch{if(active()){allowed=null;accessError=true}}finally{if(active()){accessBusy=false;render()}}}
  const readHistory=async()=>{if(historyBusy||!active())return;const request=++historyVersion;historyBusy=true;historyError=false;if(phase==='progress')render();try{const rows=await loadTrainingHistory(client,owner,active);if(active()&&request===historyVersion){history=rows;historyComplete=true}}catch{if(active()&&request===historyVersion){history=null;historyError=true;historyComplete=false}}finally{if(active()&&request===historyVersion){historyBusy=false;if(phase==='progress')render()}}}
  const readPlans=async()=>{if(plansBusy||!active())return;const request=++plansVersion;plansBusy=true;plansError=false;if(phase==='inbox')render();try{const rows=await loadTrainingPlans(client,owner,active);if(active()&&request===plansVersion)plans=rows}catch{if(active()&&request===plansVersion){plans=null;plansError=true}}finally{if(active()&&request===plansVersion){plansBusy=false;if(phase==='inbox')render()}}}
@@ -346,7 +473,11 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    }
   })
  }
- const visibility=()=>{if(document.visibilityState==='hidden'&&clock.running()){clock.pause();if(active()){notice='Timer paused while the app is in the background.';render()}}}
- const tick=setInterval(()=>{if(!active()){dispose();return}const host=dialog.querySelector('[data-clock]');if(host)host.textContent=`${trainingTime(clock.seconds())} · ${clock.running()?'Running':'Paused'}`},1000)
+ const visibility=()=>{
+  if(document.visibilityState!=='hidden'||!clock.running())return
+  clock.pause()
+  if(active()){pausedInBackground=true;paintTimerControls()}
+ }
+ const tick=setInterval(()=>{if(!active()){dispose();return}paintSessionClock()},1000)
  document.addEventListener('visibilitychange',visibility);dialog.oncancel=e=>{e.preventDefault();if(confirming){confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})}else requestClose()};document.body.append(dialog);render();dialog.showModal();focus();void readAccess();void readHistory();if(phase==='inbox'){inboxLoaded=true;void readPlans();void readCoach()}return {dispose,isOpen:()=>!disposed,back:requestClose}
 }
