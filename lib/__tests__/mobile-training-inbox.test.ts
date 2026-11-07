@@ -58,6 +58,24 @@ describe('native training inbox',()=>{
   expect(view).not.toContain('Split step 31')
  })
  it('does not mark historical weekly reps complete or expose arbitrary navigation links',()=>{const plans=parseTrainingPlans({ok:true,plans:[{...plan(),reps:[{...rep(),title:'<img src=x>',href:'/level-up/unknown?redirect=https://example.com'}]}]});const view=trainingPlansHtml(plans);expect(view).toContain('0 of 1 rep complete');expect(view).toContain('&lt;img');expect(view).not.toContain('href=');expect(view).not.toContain('https://example.com');expect(plans[0].reps[0].completedAt).toBeNull()})
+ it('shows confirmed practice on the exact rep even when two reps use the same drill',()=>{
+  const first={...rep('r1'),title:'First split'},second={...rep('r2'),title:'Second split'}
+  const plans=parseTrainingPlans({ok:true,plans:[{...plan(),reps:[first,second]}]})
+  const receipt={key:JSON.stringify(['plan','week','r2']),cardId:second.focusId,rating:4,elapsedSeconds:75}
+  const view=trainingPlansHtml(plans,true,undefined,receipt)
+  expect(view).toContain('0 of 2 reps complete')
+  const [,firstCard,secondCard]=view.split('<article class="training-week-rep')
+  expect(firstCard).toContain('First split')
+  expect(firstCard).not.toContain('Practice saved')
+  expect(secondCard).toContain('Practice saved')
+  expect(secondCard).toContain('Self-rated proof 4 / 5 · 1m 15s timed')
+  expect(secondCard.indexOf('Mark rep done')).toBeLessThan(secondCard.indexOf('Practice privately'))
+  const readOnly=trainingPlansHtml(plans,false,undefined,receipt)
+  expect(readOnly).toContain('Practice saved')
+  expect(readOnly).not.toContain('data-week-mark')
+  const changed=parseTrainingPlans({ok:true,plans:[{...plan(),reps:[first,{...second,focusId:'double-fault-reset'}]}]})
+  expect(trainingPlansHtml(changed,true,undefined,receipt)).not.toContain('Practice saved')
+ })
  it('shows a fully completed week with its reps still available to review',()=>{
   const plans=parseTrainingPlans({ok:true,plans:[{...plan(),reps:[{...rep(),completedAt:date}]}]})
   const view=trainingPlansHtml(plans,true)

@@ -3,7 +3,7 @@ import {openCoachCheckIn} from './coach-check-in-view'
 import {newWeeklyChange,completionWeeklyChange,saveWeeklyChange,checkWeeklyChange,findSavedWeeklyPlan,weeklyChangeMatches,WeeklyChangeError,type WeeklyChange} from './weekly-plan-actions'
 import {Browser} from './native-browser'
 import {SAVED_WEEK_LIST_LIMIT,loadTrainingPlans,loadTrainingCoachWork,type TrainingCoachWork} from './training-inbox-data'
-import {trainingPlansHtml,trainingCoachWorkHtml,trainingInboxLaunches} from './training-inbox-view'
+import {trainingPlansHtml,trainingCoachWorkHtml,trainingInboxLaunches,type SavedWeekPractice} from './training-inbox-view'
 import type {WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
 import {formatWeekdayDate} from '../../lib/captain-formatters'
 import {openCalendar} from './calendar-view'
@@ -149,6 +149,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  let plans:WeeklyLevelUpPlan[]|null=null,coachWork:TrainingCoachWork|null|undefined,plansBusy=false,coachBusy=false,plansError=false,coachError=false,inboxLoaded=false,cardFromInbox=false,sessionDirection=choices.active,sessionOrigin=''
  let inboxSection:'coach'|'weeks'=typeof initial==='object'?initial.view:'coach'
  let inboxReturnCard=''
+ let savedWeekPractice:SavedWeekPractice|undefined
  const openInboxFolds=new Set<string>()
  if(initial==='catalog'&&launch){selected=LEVEL_UP_CARDS.find(c=>c.id===launch.cardId)||null;phase=selected?'card':'catalog';if(selected)sessionDirection=trainingIdentity(launch.identitySlug)?launch.identitySlug:choices.active}
  let replyEditor:ReturnType<typeof openWeeklyCoachReply>|null=null
@@ -162,7 +163,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;practiceCalendar?.dispose();practiceCalendar=null
   version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;practiceModule=null;choices=emptyTrainingChoices()
   const lastCoachWork=coachWork
-  plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note=''
+  plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';savedWeekPractice=undefined
   clearInterval(tick);document.removeEventListener('visibilitychange',visibility);dialog.remove()
   if(current()){
    if(previous?.isConnected)previous.focus({preventScroll:true})
@@ -182,12 +183,16 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus()
  const findInboxCard=(key:string)=>Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-inbox-card]'))
   .find(button=>button.dataset.inboxCard===key&&button.getClientRects().length>0)
- const focusInboxReturn=()=>{
+ const focusInboxReturn=(practiceSaved=false)=>{
   const button=inboxReturnCard?findInboxCard(inboxReturnCard):undefined
   inboxReturnCard=''
-  if(!button){focus();return}
-  button.scrollIntoView({block:'nearest'})
-  button.focus({preventScroll:true})
+  const rep=practiceSaved?button?.closest('.training-week-rep-ready'):undefined
+  const mark=rep?.querySelector<HTMLButtonElement>('[data-week-mark]')
+  const target=mark??button
+  if(!target){focus();return}
+  if(mark)rep?.scrollIntoView({block:'start'})
+  target.scrollIntoView({block:'nearest'})
+  target.focus({preventScroll:true})
  }
  const weekFocusTarget=(id:string,markKey?:string)=>{
   const week=Array.from(dialog.querySelectorAll<HTMLElement>('[data-week-plan]')).find(section=>section.dataset.weekPlan===id)
@@ -358,7 +363,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    <button type="button" class="secondary" data-training-web="coach">Coach check-ins on website</button>
   </div>
   <div role="region" aria-label="Saved weekly plans" tabindex="-1" id="training-inbox-weeks" data-inbox-region="weeks" ${inboxSection==='weeks'?'':'hidden'}>
-   ${plansBusy?'<p role="status">Loading saved weekly plans…</p>':plansError?'<p role="alert">Saved weeks couldn’t load. Try refreshing.</p>':plans?trainingPlansHtml(plans,allowed===true||Boolean(coachWork?.links.some(l=>l.status!=='paused')),requestedPlanId):''}
+   ${plansBusy?'<p role="status">Loading saved weekly plans…</p>':plansError?'<p role="alert">Saved weeks couldn’t load. Try refreshing.</p>':plans?trainingPlansHtml(plans,allowed===true||Boolean(coachWork?.links.some(l=>l.status!=='paused')),requestedPlanId,savedWeekPractice):''}
    <button type="button" class="secondary" data-plan-refresh ${plansBusy?'disabled':''}>Refresh saved weeks</button>
    <button type="button" class="secondary" data-training-web="weekly">Manage saved weeks on website</button>
   </div>
@@ -575,11 +580,14 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   if(practiceModule&&selected&&practiceModule.cardIds.includes(selected.id))completed.add(selected.id)
   historyVersion++;historyBusy=false;historyError=false
   history=[row,...(history||[]).filter(r=>r.id!==row.id)].sort((a,b)=>Date.parse(b.completedAt)-Date.parse(a.completedAt)).slice(0,80)
+  const practicedRep=cardFromInbox&&inboxSection==='weeks'
+   ?trainingInboxLaunches(plans??[],null).find(launch=>launch.key===inboxReturnCard&&launch.cardId===row.cardId):undefined
+  if(practicedRep)savedWeekPractice={key:practicedRep.key,cardId:row.cardId,rating:row.rating,elapsedSeconds:row.elapsedSeconds}
   payload=null;selected=null
   phase=practiceModule?'module':cardFromInbox?'inbox':cardFromPlan?'plan':'progress'
-  notice=practiceModule?'Drill saved to your account.':'Session saved to your account. Your self-rated training proof is separate from your TIQ rating.'
+  notice=practicedRep?'':practiceModule?'Drill saved to your account.':'Session saved to your account. Your self-rated training proof is separate from your TIQ rating.'
   render()
-  if(cardFromInbox){focusInboxReturn();return}
+  if(cardFromInbox){focusInboxReturn(Boolean(practicedRep));return}
   const next=dialog.querySelector<HTMLElement>('[data-module-next],[data-module-complete]')
   if(next)next.focus();else focus()
  }

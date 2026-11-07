@@ -936,10 +936,18 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .training-week-rep-next small { color:var(--premium-lime); }
 .training-week-rep-next .training-week-actions { display:flex;flex-wrap:wrap; }
 .training-week-rep-next .training-week-actions button { flex:1 0 auto;inline-size:auto;max-inline-size:100%;overflow-wrap:anywhere; }
-.training-inbox-screen .training-week-rep-next button[data-inbox-card] {
+.training-inbox-screen .training-week-rep-next:not(.training-week-rep-ready) button[data-inbox-card] {
  flex-basis:100%;border-color:transparent;background:var(--premium-action);color:var(--premium-page);
 }
-.training-inbox-screen :is([data-inbox-card],[data-week-mark],.training-week h2,.training-week-rep-next h3) { scroll-margin-block:72px 12px; }
+.training-inbox-screen .training-week-rep-ready button[data-week-mark] {
+ flex-basis:100%;border:1px solid transparent;border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);
+}
+.training-inbox-screen .training-week-practice-receipt {
+ margin-block:8px;padding:8px 10px;border-inline-start:2px solid var(--premium-lime);border-radius:8px;background:var(--premium-inset);white-space:normal;
+}
+.training-week-practice-receipt strong { color:var(--premium-lime);font-size:.8125rem; }
+.training-inbox-screen .training-week-practice-receipt p { margin:3px 0 0;font-size:.75rem; }
+.training-inbox-screen :is([data-inbox-card],[data-week-mark],.training-week h2,.training-week-rep-next h3,.training-week-rep-ready) { scroll-margin-block:72px 12px; }
 .training-inbox-fold {
  margin-block:8px;padding:0 12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface);
 }
