@@ -106,6 +106,7 @@ let accountSettings:ReturnType<typeof openAccountSettings>|null=null
 let guest:ReturnType<typeof showGuestExplore>|null=null
 let storageUnavailable=false
 let session: Session | null = null
+let linkedLabOwner:string|undefined
 const calendarHighlights=createCalendarHighlights(client,()=>session?.user.id)
 const coachNextAssignment=createCoachNextAssignment(client,()=>session?.user.id)
 let revision = 0
@@ -518,13 +519,16 @@ async function lab() {
   const version = ++revision
   details = createMatchDetails(app, client, () => version === revision && current.user.id === session?.user.id)
   app.dataset.state = 'loading'
-  app.innerHTML = '<header class="tab-hero tab-hero-court"><small class="stat-eyebrow">Your game</small><h1>My Lab</h1><p role="status">Loading your player profile…</p></header>'
+  app.innerHTML = linkedLabOwner===current.user.id
+    ?labScoreboardHtml(null)
+    :'<header class="tab-hero tab-hero-court"><small class="stat-eyebrow">Your game</small><h1>My Lab</h1><p role="status">Loading your player profile…</p></header>'
   const { data, error } = await client.from('profiles')
     .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
     .eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
   if (version !== revision || current.user.id !== session?.user.id) return
   app.dataset.state = error ? 'unavailable' : 'ready'
   const playerId=typeof data?.linked_player_id==='string'?data.linked_player_id:''
+  if(!error)linkedLabOwner=playerId?current.user.id:undefined
   const hasIdentity=Boolean(playerId&&data?.linked_player_name)
   const tools=error?'':labActionsHtml()+
     '<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section>'+
@@ -643,7 +647,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if(next?.user.id!==session?.user.id){calendarHighlights.clear();coachNextAssignment.clear()}
+  if(next?.user.id!==session?.user.id){calendarHighlights.clear();coachNextAssignment.clear();linkedLabOwner=undefined}
   const resumeLink=(!session&&Boolean(next))||_event==='INITIAL_SESSION'
   appLinks.setOwner(next?.user.id||null)
   // A late signed-out event must not reset an active public visit.

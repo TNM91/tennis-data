@@ -3,6 +3,7 @@ import {html} from './match-details'
 import websiteUi from '../generated/website-ui.json'
 import {nativeActionIcon} from './native-action-icons'
 import type {LabTrainingOverview} from './lab-training-overview'
+import {labRatingLoadingHtml} from './player-ratings-view'
 export type LabProfile={linked_player_id?:string|null;linked_player_name?:string|null;linked_team_name?:string|null;linked_league_name?:string|null}
 
 export function labTrainingActionsHtml(){
@@ -17,11 +18,14 @@ export function labTrainingActionsHtml(){
  </section>`
 }
 
-export function labScoreboardHtml(profile:LabProfile){
- const name=profile.linked_player_name
+export function labScoreboardHtml(profile:LabProfile|null){
+ const name=profile?.linked_player_name
  return `<section class="tab-hero lab-stat-panel lab-scoreboard" aria-labelledby="lab-ratings-title">
-  ${name?`<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">My Lab</small><h1 tabindex="-1">${html(name)}</h1><p>${html(profile.linked_team_name||'Your tennis, in focus')}</p></div><button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">${nativeActionIcon('profile')}</button></header>`:''}
-  <h2 id="lab-ratings-title" class="sr-only">Your scoreboard</h2><div data-lab-ratings aria-live="polite"></div>
+  ${name||!profile?`<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">${name?'My Lab':'Your game'}</small>
+   <h1 tabindex="-1">${html(name||'My Lab')}</h1>${name?`<p>${html(profile?.linked_team_name||'Your tennis, in focus')}</p>`:'<span class="lab-profile-loading-line" aria-hidden="true"></span>'}</div>
+   ${name?`<button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">${nativeActionIcon('profile')}</button>`:''}</header>`:''}
+  <h2 id="lab-ratings-title" class="sr-only">Your scoreboard</h2>
+  <div data-lab-ratings aria-live="polite">${profile?'':labRatingLoadingHtml('profile')}</div>
  </section>`
 }
 export function labIdentityHtml(profile:LabProfile|null,overview?:LabTrainingOverview,focus?:LabGoal){

@@ -332,10 +332,11 @@ body[data-screen="lab"] section.lab-scoreboard::before {
 .lab-scoreboard .rating-context-info p { font-size:.8125rem; }
 
 /* Loading reserves the scoreboard's space and never invents a rating. */
-.lab-rating-loading { padding:8px 0;min-block-size:236px; }
+.lab-profile-loading-line { display:block;block-size:1.355rem;margin-block-start:8px; }
+.lab-rating-loading { padding:8px 16px;min-block-size:236px; }
 .lab-rating-loading p { margin:0 0 22px;font-size:.875rem; }
 .lab-rating-loading-shapes { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
-.lab-rating-loading-shapes span { min-block-size:64px;border-radius:12px;background:#17384e; }
+.lab-rating-loading-shapes span { min-block-size:64px;border-radius:12px;background:var(--premium-raised); }
 .lab-rating-loading-shapes span:first-child { grid-column:1/-1;inline-size:52%;min-block-size:110px; }
 .lab-rating-loading-shapes span { animation:premium-loading 1.6s ease-in-out infinite alternate; }
 @keyframes premium-loading { to { opacity:.45; } }

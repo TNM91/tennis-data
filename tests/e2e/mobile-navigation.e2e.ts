@@ -689,10 +689,15 @@ for(const width of [320,390])test('Saved weeks highlights the next rep and resto
  await expect(next.getByRole('heading',{name:'Serve to a target',exact:true})).toBeVisible()
  await expect(weeks).toHaveAttribute('aria-pressed','true')
 })
-type LabProfilePreviewWindow=Window&{labProfileFixture:typeof import('../fixtures/mobile-navigation-client').labProfileFixture}
-test('Explore to My Lab keeps the Night Session canvas while the profile loads',async({page})=>{
- await page.goto(origin)
- await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
+type LabProfilePreviewWindow=Window&{labProfileFixture:typeof import('../fixtures/mobile-navigation-client').labProfileFixture;switchNavigationOwner:()=>void}
+test('Explore to My Lab keeps the Night Session scoreboard through both loading steps',async({page},info)=>{
+ await page.setViewportSize({width:390,height:844})
+ await page.goto(origin+'/?large=1')
+ const scoreboard=page.locator('.lab-scoreboard')
+ const court=scoreboard.locator('.rating-court-scene')
+ await expect(scoreboard).toContainText('4.42')
+ await page.locator('.preview-controls').evaluate(el=>{(el as HTMLElement).hidden=true})
+ const loadedCourt=await court.boundingBox()
  const canvas=()=>page.evaluate(()=>getComputedStyle(document.body).background)
  const loadedCanvas=await canvas()
  const tabs=page.locator('.app-navigation')
@@ -705,16 +710,40 @@ test('Explore to My Lab keeps the Night Session canvas while the profile loads',
  await expect(directory).toContainText('Northside Night League')
  await directory.getByRole('button',{name:'Close',exact:true}).click()
  await expect(competitions).toBeFocused()
- await page.evaluate(()=>(window as unknown as LabProfilePreviewWindow).labProfileFixture.defer())
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as LabProfilePreviewWindow).labProfileFixture
+  fixture.defer();fixture.deferRatings()
+ })
  await tabs.getByRole('button',{name:'My Lab',exact:true}).click()
- await expect(page.getByText('Loading your player profile…')).toBeVisible()
+ await expect(scoreboard.getByText('Loading your player profile…')).toBeVisible()
+ await expect(scoreboard.getByRole('heading',{name:'My Lab',exact:true})).toBeVisible()
+ await expect(scoreboard).not.toContainText('Jordan Lee')
+ await expect(scoreboard.locator('meter')).toHaveCount(0)
+ await expect(court).toBeVisible()
+ const profileCourt=await court.boundingBox()
+ expect(profileCourt!.x).toBeCloseTo(loadedCourt!.x,0)
+ expect(profileCourt!.y).toBeCloseTo(loadedCourt!.y,0)
+ await page.screenshot({path:info.outputPath('my-lab-loading.png')})
  await expect(page.locator('.app-court-backdrop')).toBeHidden()
  await expect(page.locator('.app-brand-watermark')).toBeHidden()
  expect(await canvas()).toBe(loadedCanvas)
  await page.evaluate(()=>(window as unknown as LabProfilePreviewWindow).labProfileFixture.release())
- await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
- await expect(page.locator('.lab-scoreboard').getByRole('heading',{name:'Jordan Lee'})).toBeVisible()
- await expect(page.locator('.rating-court-scene')).toBeVisible()
+ await expect(scoreboard.getByRole('heading',{name:'Jordan Lee',exact:true})).toBeVisible()
+ await expect(scoreboard.getByText('Loading recorded TIQ ratings…')).toBeVisible()
+ await expect(scoreboard.locator('meter')).toHaveCount(0)
+ expect((await court.boundingBox())!.y).toBeCloseTo(loadedCourt!.y,0)
+ await page.evaluate(()=>(window as unknown as LabProfilePreviewWindow).labProfileFixture.releaseRatings())
+ await expect(scoreboard).toContainText('4.42')
+ await expect(court).toBeVisible()
+
+ await page.evaluate(()=>{
+  const fixture=window as unknown as LabProfilePreviewWindow
+  fixture.labProfileFixture.defer();fixture.switchNavigationOwner()
+ })
+ await expect(page.getByText('Loading your player profile…')).toBeVisible()
+ await expect(scoreboard).toHaveCount(0)
+ await page.evaluate(()=>(window as unknown as LabProfilePreviewWindow).labProfileFixture.release())
+ await expect(scoreboard).toContainText('4.42')
 })
 test('the complete approved court stays proportional inside the scoreboard at wider phone/tablet sizes',async({page})=>{
  for(const width of [600,844]){
