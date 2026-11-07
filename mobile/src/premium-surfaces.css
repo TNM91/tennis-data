@@ -599,9 +599,48 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .comparison-fold-body { padding:0 12px 12px; }
 .comparison-fold-body>section { margin:12px 0;padding:14px;background:var(--premium-inset);border-color:var(--premium-line);box-shadow:none; }
 .comparison-fold-body>h2 { margin:18px 0 0; }
-.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen) {
+.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen) {
  padding:16px;border-color:var(--premium-line);background:var(--premium-page);overflow-wrap:anywhere;
 }
+.training-dialog.training-drill-screen[open] { display:flex;flex-direction:column;overflow:hidden; }
+.training-drill-header {
+ display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none;max-inline-size:none;
+ margin:-16px -16px 0;padding:12px 16px;border-block-end:1px solid var(--premium-line);
+}
+.training-drill-header h1 { margin:0;font-size:1.2rem;line-height:1.2; }
+.training-drill-header button.secondary,.training-drill-body>button.secondary {
+ inline-size:auto;max-inline-size:100%;min-block-size:44px;margin:0;padding:8px 12px;font-size:.8125rem;
+}
+.training-drill-header button.secondary { flex:none; }
+.training-drill-body { flex:1 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;margin-inline:-16px;padding:10px 16px 14px; }
+.training-drill-body p,.training-drill-body li { color:var(--premium-copy);font-size:.875rem;line-height:1.45; }
+.training-drill-body [data-drill-fold]>*+* { margin-block-start:8px; }
+.training-drill-body .training-safety { margin-block:10px;border-color:var(--premium-lime); }
+.training-drill-overview {
+ margin:10px 0;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card);
+ box-shadow:inset 0 1px #b2c8ff22;
+}
+.training-drill-overview .stat-eyebrow { color:var(--premium-lime);font-size:.6875rem; }
+.training-dialog .training-drill-overview h2 { margin:4px 0 8px;font-size:1.2rem;line-height:1.25; }
+.training-drill-facts { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0; }
+.training-drill-facts>div:last-child { grid-column:1/-1; }
+.training-drill-facts dt,.training-drill-proof dt { margin:0;color:var(--premium-ice);font-size:.75rem; }
+.training-drill-facts dd,.training-drill-proof dd { margin:3px 0;color:var(--premium-white);font-size:.875rem;line-height:1.4; }
+.training-drill-cue { margin:10px 0;padding:9px 10px;border-inline-start:2px solid var(--premium-lime);border-radius:8px;background:var(--premium-inset); }
+.training-drill-overview .training-drill-cue { margin-block-end:0; }
+.training-drill-cue strong,.training-drill-body .training-safety strong { display:block;color:var(--premium-white); }
+.training-drill-routine { margin:10px 0;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.training-dialog .training-drill-routine h3 { margin:0 0 6px;font-size:.9375rem; }
+.training-drill-routine ol { margin:0;padding-inline-start:1.45em; }
+.training-drill-routine li+li { margin-block-start:6px; }
+.training-drill-routine li::marker { color:var(--premium-lime);font-weight:700; }
+.training-drill-footer {
+ display:grid;gap:6px;flex:none;margin:0 -16px -16px;padding:10px 16px 12px;border-block-start:1px solid var(--premium-line);
+}
+.training-drill-footer p { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.4; }
+.training-drill-footer button { min-block-size:44px;margin:0;padding:8px 10px;font-size:.875rem; }
+.training-drill-footer [data-start] { background:var(--premium-action);color:var(--premium-page); }
 .training-inbox-header {
  position:sticky;inset-block-start:-16px;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;
  margin:-16px -16px 12px;padding:12px 16px;background:var(--premium-page);border-block-end:1px solid var(--premium-line);
