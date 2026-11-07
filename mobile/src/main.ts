@@ -35,6 +35,7 @@ import {mountLabRatingTrends} from './lab-rating-trends'
 import {openDataImports} from './data-imports-view'
 import {openLeagueOffice} from './league-office-view'
 import {createCalendarHighlights} from './lab-calendar'
+import {createCoachNextAssignment} from './coach-next-assignment'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
 import {loadTrainingHistory} from './level-up-data'
@@ -106,6 +107,7 @@ let guest:ReturnType<typeof showGuestExplore>|null=null
 let storageUnavailable=false
 let session: Session | null = null
 const calendarHighlights=createCalendarHighlights(client,()=>session?.user.id)
+const coachNextAssignment=createCoachNextAssignment(client,()=>session?.user.id)
 let revision = 0
 let profileOpen=false
 let connection: ReturnType<typeof showPlayerConnection> | null = null
@@ -439,13 +441,26 @@ function showHub(next:AppHub){
  explore?.dispose();explore=null;profileOpen=false;connection?.dispose();connection=null
  recovery?.dispose();recovery=null;details?.dispose();details=null
  ++revision;selectNavigation(next);app.dataset.state='ready';app.innerHTML=appHubHtml(next)
- bindAppDestinations(app,openDestination);app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
+ const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  const nextMatch=app.querySelector<HTMLElement>('[data-compete-next-match]')
  if(nextMatch){
-  const owner=session.user.id,visit=revision
-  calendarHighlights.mount(nextMatch,owner,()=>visit===revision&&owner===session?.user.id,true,
+  calendarHighlights.mount(nextMatch,owner,current,true,
    (button,event,onClose)=>launchCalendar(button,{event,onClose}),'match')
  }
+ const nextAssignment=app.querySelector<HTMLElement>('[data-coach-next-assignment]')
+ if(nextAssignment){
+  const refresh=coachNextAssignment.mount(nextAssignment,owner,current,openCoachInbox)
+  function openCoachInbox(trigger:HTMLButtonElement,assignmentId?:string){
+   if(!current()||!trigger.isConnected||connection?.isSaving()||document.querySelector('dialog[open]'))return
+   trigger.focus({preventScroll:true})
+   training=openLevelUp(client,owner,current,{view:'coach',assignmentId,onClose:refresh})
+  }
+  bindAppDestinations(app,(destination,trigger)=>{
+   if(destination==='training-inbox')openCoachInbox(trigger)
+   else openDestination(destination,trigger)
+  })
+ }else bindAppDestinations(app,openDestination)
+ app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
 }
 const coachIncoming=document.createElement('aside');coachIncoming.hidden=true;app.before(coachIncoming)
 const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(student,owner)=>{if(session?.user.id!==owner)return;showHub('coach');const visit=revision;coachWorkspace=openCoachMessages(client,owner,()=>visit===revision&&owner===session?.user.id,undefined,undefined,student,undefined,()=>{void chatUnread.refresh()})},undefined,undefined,()=>authReady&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&document.visibilityState==='visible')
@@ -605,7 +620,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if(next?.user.id!==session?.user.id)calendarHighlights.clear()
+  if(next?.user.id!==session?.user.id){calendarHighlights.clear();coachNextAssignment.clear()}
   const resumeLink=(!session&&Boolean(next))||_event==='INITIAL_SESSION'
   appLinks.setOwner(next?.user.id||null)
   // A late signed-out event must not reset an active public visit.

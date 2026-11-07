@@ -64,7 +64,7 @@ export function appHubHtml(hub:AppHub){
   </div>`:''
  const groupHtml=groups.map(group=>{
   const lane=group.lane?` id="coach-${group.lane}-tools" data-coach-lane${group.lane==='studio'?' hidden':''}`:''
-  return `<section class="app-hub-group"${lane}><h2>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],false,key==='tactics')).join('')}</div></section>`
+  return `<section class="app-hub-group"${lane}>${group.lane==='player'?'<div class="coach-next-assignment" data-coach-next-assignment hidden></div>':''}<h2>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],false,key==='tactics')).join('')}</div></section>`
  }).join('')
  const toolFinder=hub==='more'?`<div class="app-tool-finder" role="search" aria-label="Tools">
   <label for="app-tool-query" class="sr-only">Find a tool</label>

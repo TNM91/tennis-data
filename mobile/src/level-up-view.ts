@@ -17,13 +17,19 @@ import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,
 export function trainingCardHtml(c:LevelUpCard){return `<small>${html(c.pack)} · ${c.durationMinutes} min · ${html(c.intensity)} intensity</small><h2>${html(c.title)}</h2><p>${html(c.useWhen)}</p><h3>Tennis goal</h3><p>${html(c.tennisGoal)}</p><p><strong>Cue:</strong> ${html(c.cue)}</p><h3>Your routine</h3><ol>${c.routine.map(s=>`<li>${html(s)}</li>`).join('')}</ol><p>${html(c.reward)}</p><h3>What to notice</h3><p>${html(c.proof)}</p>${c.qualityChecks?.length?`<ul>${c.qualityChecks.map(s=>`<li>${html(s)}</li>`).join('')}</ul>`:''}${c.commonMiss?`<p><strong>Watch for:</strong> ${html(c.commonMiss.miss)}<br><strong>Try:</strong> ${html(c.commonMiss.fix)}</p>`:''}${c.proofAnchors?`<p>Low: ${html(c.proofAnchors.low)}<br>Middle: ${html(c.proofAnchors.mid)}<br>High: ${html(c.proofAnchors.high)}</p>`:''}${c.regression?`<p><strong>Make it easier:</strong> ${html(c.regression)}</p>`:''}${c.progression?`<p><strong>Build on it:</strong> ${html(c.progression)}</p>`:''}<p><strong>Equipment:</strong> ${html(c.equipment.join(', '))}</p>${c.safetyNote?`<p class="training-safety">${html(c.safetyNote)}</p>`:''}`}
 export function trainingModuleHtml(practiceModule:LevelUpModule,completed:ReadonlySet<string>=new Set()){const cards=practiceModule.cardIds.map(id=>LEVEL_UP_CARDS.find(c=>c.id===id));return `<h2>${html(practiceModule.title)}</h2><p>${html(practiceModule.subtitle)}</p><p>${html(practiceModule.durationLabel)} · ${html(practiceModule.level)}</p><p>${html(practiceModule.description)}</p>${practiceModule.useWhen?`<p>${html(practiceModule.useWhen)}</p>`:''}${practiceModule.sessionPlan?.length?`<h3>Your practice plan</h3><ol>${practiceModule.sessionPlan.map(step=>`<li>${html(step)}</li>`).join('')}</ol>`:''}<h3>What to notice</h3><p>${html(practiceModule.proof)}</p>${practiceModule.successCriteria?`<p>${html(practiceModule.successCriteria)}</p>`:''}<h3>Train in this order</h3><p>${practiceModule.cardIds.filter(id=>completed.has(id)).length} of ${practiceModule.cardIds.length} cards saved during this visit.</p><ol>${cards.map(c=>c?`<li><h3>${html(c.title)}</h3>${completed.has(c.id)?'<p>Saved during this visit</p>':''}<p>${c.durationMinutes} min · ${html(c.tennisGoal)}</p><button type="button" class="secondary" data-card="${html(c.id)}">Open training<span class="sr-only"> ${html(c.title)}</span></button></li>`:'<li>This training card is unavailable.</li>').join('')}</ol><p>Save each completed card to your account. These checkmarks reset when you close Level Up. Saved sessions stay in Your progress; module completion is not stored.</p>`}
 export function trainingHistoryHtml(rows:TrainingSession[],complete=true){const p=trainingProgress(rows);return `<h2>Your saved progress</h2><p>${p.count} saved session${p.count===1?'':'s'} · ${trainingTime(p.seconds)} timed work ${complete?`in your latest ${rows.length} account records (up to 80).`:'shown from the confirmed save. Refresh account progress to load your other records.'} This is training proof, not your TIQ rating.</p><ul class="matches">${rows.map(r=>`<li><h3>${html(r.focusTitle)}</h3><p>${html(new Date(r.completedAt).toLocaleString())} · ${html(r.context)} · ${html(r.feeling)}</p>${r.identitySlug?`<p>Training direction: ${html(trainingIdentity(r.identitySlug)?.title||r.identitySlug)}</p>`:''}<p>Self-rated proof: ${r.rating}/5 · ${trainingTime(r.elapsedSeconds)} timed work${r.sharedWithCoach?' · Shared with coach':''}</p>${r.note?`<p class="training-note">${html(r.note)}</p>`:''}</li>`).join('')||'<li>No sessions are saved to your account yet. Choose a training card to get started.</li>'}</ul>`}
-export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boolean,initial:'catalog'|'progress'|'inbox'|{view:'weeks';planId?:string}='catalog',launch?:{cardId:string;identitySlug:string}){
+type TrainingStart='catalog'|'progress'|'inbox'
+ |{view:'weeks';planId?:string}
+ |{view:'coach';assignmentId?:string;onClose:(work:TrainingCoachWork|null)=>void}
+
+export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boolean,initial:TrainingStart='catalog',launch?:{cardId:string;identitySlug:string}){
  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog training-dialog';dialog.setAttribute('aria-label','Level Up training')
- const requestedPlanId=typeof initial==='object'?initial.planId:undefined
+ const requestedPlanId=typeof initial==='object'&&initial.view==='weeks'?initial.planId:undefined
+ const coachStart=typeof initial==='object'&&initial.view==='coach'?initial:undefined
+ let requestedAssignmentId=coachStart?.assignmentId
  let disposed=false,version=0,historyVersion=0,phase:'inbox'|'plan'|'catalog'|'modules'|'module'|'card'|'session'|'progress'=typeof initial==='object'?'inbox':initial,practiceModule:LevelUpModule|null=null,selected:LevelUpCard|null=null,allowed:boolean|null=null,accessError=false,history:TrainingSession[]|null=null,historyError=false,historyComplete=false,historyBusy=false,accessBusy=false,saving=false,checking=false,confirming=false,notice='',query='',setting='',instructionsOpen=false,sessionScroll=0,rating='',note='',context='alone',feeling='ready',payload:Readonly<TrainingSave>|null=null
  let choices=(()=>{try{return loadTrainingChoices(owner,window.localStorage)}catch{return emptyTrainingChoices()}})(),choiceStored=true,cardFromPlan=false
  if(initial==='catalog'&&choices.active)phase='plan'
- let plans:WeeklyLevelUpPlan[]|null=null,coachWork:TrainingCoachWork|null=null,plansBusy=false,coachBusy=false,plansError=false,coachError=false,inboxLoaded=false,cardFromInbox=false,sessionDirection=choices.active,sessionOrigin=''
+ let plans:WeeklyLevelUpPlan[]|null=null,coachWork:TrainingCoachWork|null|undefined,plansBusy=false,coachBusy=false,plansError=false,coachError=false,inboxLoaded=false,cardFromInbox=false,sessionDirection=choices.active,sessionOrigin=''
  let inboxSection:'coach'|'weeks'=typeof initial==='object'?initial.view:'coach'
  let inboxReturnCard=''
  const openInboxFolds=new Set<string>()
@@ -33,7 +39,18 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  let practiceCalendar:ReturnType<typeof openCalendar>|null=null
  let weekPending:WeeklyChange|null=null,weekBusy=false,weekAttempted=false,weekConflict=false,weekLeaving=false,weekNotice='',plansVersion=0,coachVersion=0
  const completed=new Set<string>(),clock=new TrainingClock(),active=()=>!disposed&&current()
- const dispose=()=>{if(disposed)return;disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;practiceCalendar?.dispose();practiceCalendar=null;version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;practiceModule=null;choices=emptyTrainingChoices();plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';clearInterval(tick);document.removeEventListener('visibilitychange',visibility);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
+ const dispose=()=>{
+  if(disposed)return
+  disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;practiceCalendar?.dispose();practiceCalendar=null
+  version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;practiceModule=null;choices=emptyTrainingChoices()
+  const lastCoachWork=coachWork
+  plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note=''
+  clearInterval(tick);document.removeEventListener('visibilitychange',visibility);dialog.remove()
+  if(current()){
+   if(previous?.isConnected)previous.focus({preventScroll:true})
+   if(lastCoachWork!==undefined)coachStart?.onClose(lastCoachWork)
+  }
+ }
  const requestClose=()=>{if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(practiceCalendar?.isOpen()){practiceCalendar.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}dispose()}
  const accessCopy=()=>allowed===true?'Self-guided training saves privately to your account.':allowed===false?`${MEMBERSHIP_TIERS.player_plus.name} access is required to save self-guided training. You can still read the cards and your account history.`:accessError?'Account access could not be checked.':'Checking your player access…'
  const catalogue=()=>{const matches=trainingSelection(LEVEL_UP_CARDS,query,setting);return `<p>${matches.length} training cards match. Showing ${Math.min(24,matches.length)}; narrow your search for more.</p><ul class="matches">${matches.slice(0,24).map(c=>`<li><h3>${html(c.title)}</h3><p>${c.durationMinutes} min · ${html(c.pack)} · ${html(c.intensity)} intensity</p><p>${html(c.tennisGoal)}</p><button type="button" class="secondary" data-card="${html(c.id)}">Open training<span class="sr-only"> ${html(c.title)}</span></button></li>`).join('')}</ul>`}
@@ -58,7 +75,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   </div>
   <p role="status" data-notice>${html(notice)}</p>
   <div role="region" aria-label="Coach assignments" tabindex="-1" id="training-inbox-coach" data-inbox-region="coach" ${inboxSection==='coach'?'':'hidden'}>
-   ${coachBusy?'<p role="status">Loading coach assignments…</p>':coachError?'<p role="alert">Coach assignments couldn’t load. Try refreshing.</p>':coachWork?trainingCoachWorkHtml(coachWork):''}
+   ${coachBusy?'<p role="status">Loading coach assignments…</p>':coachError?'<p role="alert">Coach assignments couldn’t load. Try refreshing.</p>':coachWork?trainingCoachWorkHtml(coachWork,new Date(),requestedAssignmentId):''}
    <button type="button" class="secondary" data-coach-refresh ${coachBusy?'disabled':''}>Refresh coach work</button>
    <button type="button" class="secondary" data-training-web="coach">Coach check-ins on website</button>
   </div>
@@ -115,7 +132,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   }
   dialog.querySelectorAll<HTMLButtonElement>('[data-inbox-card]').forEach(button=>{button.onclick=()=>{
    if(!active())return
-   const launch=trainingInboxLaunches(plans||[],coachWork).find(item=>item.key===button.dataset.inboxCard)
+   const launch=trainingInboxLaunches(plans||[],coachWork??null).find(item=>item.key===button.dataset.inboxCard)
    if(!launch)return
    selected=LEVEL_UP_CARDS.find(card=>card.id===launch.cardId)||null
    if(!selected)return
@@ -140,7 +157,8 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    if(!assignment||!link)return
    button.focus({preventScroll:true})
    coachEditor=openCoachCheckIn(client,owner,active,assignment,link,()=>{
-    notice='Review your latest coach assignments.';coachVersion++;coachBusy=false
+    if(requestedAssignmentId===assignment.id)requestedAssignmentId=undefined
+    notice='Review your latest coach assignments.';coachVersion++;coachBusy=false;coachWork=null
     void readCoach().then(()=>{if(active()&&phase==='inbox'&&inboxSection==='coach')dialog.querySelector<HTMLElement>('[data-inbox-region="coach"]')?.focus()})
    })
   }})

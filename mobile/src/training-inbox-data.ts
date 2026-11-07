@@ -1,10 +1,18 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {CapacitorHttp,type HttpOptions,type HttpResponse} from '@capacitor/core'
 import {parseWeeklyLevelUpPlan,type WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
-import type {CoachAssignment} from '../../lib/coach-storage'
+import {getPlayerAssignmentCheckIn,sortPlayerAssignmentsForAction,type CoachAssignment} from '../../lib/coach-storage'
 export type TrainingCoachLink={id:string;identitySlug:string;status:string}
 export type TrainingCoachWork={links:TrainingCoachLink[];assignments:CoachAssignment[]}
 export type TrainingInboxSend=(options:HttpOptions)=>Promise<HttpResponse>
+export function trainingAssignmentQueue(work:TrainingCoachWork,now:Date){
+ const active:CoachAssignment[]=[],recorded:CoachAssignment[]=[]
+ for(const assignment of sortPlayerAssignmentsForAction(work.assignments,now)){
+  const group=assignment.status==='assigned'&&!getPlayerAssignmentCheckIn(assignment.assignment)?active:recorded
+  group.push(assignment)
+ }
+ return {active,recorded}
+}
 const record=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{}
 const text=(v:unknown,max:number,required=false)=>{if(typeof v!=='string'||v.length>max||(required&&!v.trim()))throw Error('Training work unavailable.');return v}
 const date=(v:unknown)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v

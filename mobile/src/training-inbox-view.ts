@@ -1,10 +1,10 @@
 import {LEVEL_UP_CARDS} from '../../lib/level-up/level-up-cards'
 import {buildWeeklyLevelUpCoachNotification,getWeeklyLevelUpPlanProgress,getWeeklyLevelUpPlanReps,getWeeklyLevelUpPlanWeekStart,selectWeeklyLevelUpPlanForMyQuest,type WeeklyLevelUpPlan,type WeeklyLevelUpPlanRep} from '../../lib/level-up/weekly-plan'
-import {getCoachAssignmentSummary,getCoachAssignmentPack,getCoachAssignmentReview,getPlayerAssignmentCheckIn,getCoachAssignmentDueState,sortPlayerAssignmentsForAction,type CoachAssignment} from '../../lib/coach-storage'
+import {getCoachAssignmentSummary,getCoachAssignmentPack,getCoachAssignmentReview,getPlayerAssignmentCheckIn,getCoachAssignmentDueState,type CoachAssignment} from '../../lib/coach-storage'
 import {formatWeekdayDate} from '../../lib/captain-formatters'
 import {html} from './match-details'
 import {trainingIdentity} from './training-identity'
-import type {TrainingCoachWork} from './training-inbox-data'
+import {trainingAssignmentQueue,type TrainingCoachWork} from './training-inbox-data'
 export type TrainingInboxLaunch={key:string;cardId:string;identitySlug:string;label:string}
 export function trainingInboxLaunches(plans:WeeklyLevelUpPlan[],work:TrainingCoachWork|null){const launches:TrainingInboxLaunch[]=[];for(const p of plans)for(const rep of getWeeklyLevelUpPlanReps(p))if(LEVEL_UP_CARDS.some(c=>c.id===rep.focusId))launches.push({key:JSON.stringify(['plan',p.id,rep.id]),cardId:rep.focusId,identitySlug:rep.identitySlug,label:rep.title});for(const a of work?.assignments||[]){const pack=getCoachAssignmentPack(a.assignment),ids=pack?pack.items.slice(0,30).map(i=>i.cardId):typeof a.assignment.cardId==='string'?[a.assignment.cardId]:[];for(const id of new Set(ids))if(LEVEL_UP_CARDS.some(c=>c.id===id))launches.push({key:JSON.stringify(['coach',a.id,id]),cardId:id,identitySlug:work?.links.find(l=>l.id===a.studentLinkId)?.identitySlug||'',label:a.title})}return launches}
 const direction=(slug:string)=>trainingIdentity(slug)?.title.replace(/^The /,'')||slug
@@ -81,16 +81,14 @@ function assignmentCard(a:CoachAssignment,work:TrainingCoachWork,now:Date,featur
  </section>`
 }
 
-export function trainingCoachWorkHtml(work:TrainingCoachWork,now=new Date()){
- if(!work.links.length)return '<p>No coach connection is linked to this account.</p>'
- if(!work.assignments.length)return '<p>Coach assignments will appear here when they’re shared with you.</p>'
- const active:CoachAssignment[]=[],recorded:CoachAssignment[]=[]
- for(const assignment of sortPlayerAssignmentsForAction(work.assignments,now)){
-  const target=assignment.status==='assigned'&&!getPlayerAssignmentCheckIn(assignment.assignment)?active:recorded
-  target.push(assignment)
- }
- const [next,...remaining]=active
- return `${next?assignmentCard(next,work,now,true):'<p>You’re caught up on the assignments shown here.</p>'}
+export function trainingCoachWorkHtml(work:TrainingCoachWork,now=new Date(),requestedId?:string){
+ const {active,recorded}=trainingAssignmentQueue(work,now)
+ const requested=requestedId?active.find(a=>a.id===requestedId):undefined
+ const unavailable=requestedId&&!requested?'<p role="status">That assignment is no longer open. Here’s your latest coach work.</p>':''
+ if(!work.links.length)return unavailable+'<p>No coach connection is linked to this account.</p>'
+ if(!work.assignments.length)return unavailable+'<p>Coach assignments will appear here when they’re shared with you.</p>'
+ const next=requested??active[0],remaining=active.filter(a=>a!==next)
+ return `${unavailable}${next?assignmentCard(next,work,now,true):'<p>You’re caught up on the assignments shown here.</p>'}
   ${remaining.length?`<details class="training-inbox-fold" data-inbox-fold="more"><summary>More assigned work (${remaining.length})</summary>${remaining.map(a=>assignmentCard(a,work,now)).join('')}</details>`:''}
   ${recorded.length?`<details class="training-inbox-fold" data-inbox-fold="completed"><summary>Completed work and check-ins (${recorded.length})</summary>${recorded.map(a=>assignmentCard(a,work,now)).join('')}</details>`:''}
   <p class="training-inbox-note">Private practice does not complete an assignment or send a check-in.${work.assignments.length===100?' Showing the latest 100 assignments.':''}</p>`
