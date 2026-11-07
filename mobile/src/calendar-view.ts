@@ -29,15 +29,16 @@ type RefreshContext={message?:string;focusKey?:string;focusControl?:string;prefe
 type MatchAvailability=NativeCalendar['competitions'][number]
 type AvailabilityChoice=NonNullable<MatchAvailability['responseStatus']>
 const savedReply=(match?:MatchAvailability):AvailabilityChoice=>match?.responseIsStale?'':match?.responseStatus??''
-export type CalendarStart='all'|'coach'|{practiceTitle:string;onClose:()=>void}|{event?:CalendarOccurrence;onClose:(changed:boolean)=>void}
+export type CalendarStart='all'|'coach'|{practiceTitle:string;onClose:()=>void}|{event?:CalendarOccurrence;filter?:'coach';onClose:(changed:boolean)=>void}
 export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all'){
  const practice=typeof initial==='object'&&'practiceTitle' in initial?initial:null
- let initialEvent=typeof initial==='object'&&!('practiceTitle' in initial)?initial.event:undefined
+ const highlight=typeof initial==='object'&&!('practiceTitle' in initial)?initial:undefined
+ let initialEvent=highlight?.event
  let changed=false
  const dialog=document.createElement('dialog');dialog.className='native-calendar-screen';dialog.setAttribute('aria-label','Your calendar')
  let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'='week',anchor=initialEvent?.date??localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
  let failedRefresh:RefreshContext|null=null
- let filter:string=typeof initial==='string'?initial:'all'
+ let filter:string=typeof initial==='string'?initial:highlight?.filter??'all'
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago'
  let reply:AvailabilityChoice=''

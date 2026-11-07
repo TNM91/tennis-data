@@ -453,6 +453,12 @@ body[data-screen="compete"] .app-hub-group:not(:first-of-type) .app-tool-copy st
 .coach-hub-lanes button.secondary[aria-pressed="false"] { background:transparent;border-color:transparent;color:var(--premium-copy); }
 .app-tools-hub [data-coach-lane] { margin-block-start:18px; }
 #coach-player-tools .app-hub-tools button.app-tool { min-block-size:68px;padding:12px 14px; }
+#coach-player-tools .app-hub-tools button[data-next-lesson] {
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card);
+ box-shadow:inset 0 1px #b2c8ff22;
+}
+#coach-player-tools button[data-next-lesson] :is(small,.app-tool-arrow) { color:var(--premium-lime); }
+#coach-player-tools button[data-next-lesson] small { font-size:.6875rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase; }
 #coach-studio-tools .app-hub-tools { overflow:visible;border:0;background:transparent; }
 #coach-studio-tools button.app-tool-featured {
  position:relative;isolation:isolate;display:block;

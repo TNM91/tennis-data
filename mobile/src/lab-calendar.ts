@@ -43,6 +43,12 @@ export function courtCalendarHtml(calendar:CourtCalendar,now=new Date()){
  const card=next?'<div class="website-ui website-lab">'+websiteUi.nextCourt.replace(/TIQ_EVENT_[A-Z]+/g,key=>html(values[key]||''))+'</div>':''
  return card+(calendar.competitionUnavailable?'<p role="alert">Competition dates are unavailable. These personal dates may not include your next match. Refresh to try again.</p>':'')+'<details id="lab-calendar-dates"><summary>Saved calendar dates</summary><p>Account calendar entries and league or tournament dates. Team-room practices and dates saved only in a browser are not included. Availability replies and calendar edits are available on the website.</p>'+(upcoming.length?upcoming.slice(0,100).map(e=>'<article><h3>'+html(e.title)+'</h3><p>'+html(dateLabel(e))+'</p><p>'+html([e.kind,e.location,e.detail,e.readiness].filter(Boolean).join(' · '))+'</p>'+(e.recurrence?'<p>Repeats '+html(e.recurrence.replace('FREQ=','').toLowerCase())+' from the saved date. Future occurrences are not expanded here.</p>':'')+'</article>').join('')+(upcoming.length>100?'<p>Showing the next 100 saved entries.</p>':''):'<p>No upcoming saved dates in the calendars loaded.</p>')+'</details>'
 }
+function highlightDateDetails(event:CalendarOccurrence,now:Date){
+ const date=event.date===localCalendarDate(now)?'Today':new Date(event.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})
+ const time=formatCaptainPracticeTimeRange(event.time.slice(0,5),event.endTime)
+ return [date,time,event.location].filter(Boolean).join(' · ')
+}
+type OpenCalendarHighlight=(button:HTMLButtonElement,event:CalendarOccurrence|undefined,onClose:(changed:boolean)=>void)=>void
 export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>string|undefined){
  let version=0
  let cached:{owner:string;date:string;expires:number;read:Promise<NativeCalendar|null>}|null=null
@@ -58,7 +64,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   return read
  }
  const mount=(host:HTMLElement,owner:string,current:()=>boolean,linked:boolean,
-  open:(button:HTMLButtonElement,event:CalendarOccurrence|undefined,onClose:(changed:boolean)=>void)=>void,kind:'up-next'|'match'='up-next')=>{
+  open:OpenCalendarHighlight,kind:'up-next'|'match'='up-next')=>{
   const matchOnly=kind==='match'
   host.innerHTML=`<button type="button" class="secondary app-tool">
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.calendar}</span>
@@ -98,9 +104,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    action.hidden=!event
    if(!event){details.textContent=incomplete?'Check your tennis dates.':'No events in the next 7 days.';return}
    action.textContent=matchOnly?'View match · '+event.readiness:event.source==='team'?'View practice':'View event'
-   const date=event.date===localCalendarDate(now)?'Today':new Date(event.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})
-   const time=formatCaptainPracticeTimeRange(event.time.slice(0,5),event.endTime)
-   details.textContent=[match?.opponent?match.competitionName:'',date,time,event.location].filter(Boolean).join(' · ')
+   details.textContent=[match?.opponent?match.competitionName:'',highlightDateDetails(event,now)].filter(Boolean).join(' · ')
   }
   button.onclick=()=>{
    if(!active())return
@@ -113,5 +117,41 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   }
   if(linked)void readWeek(owner).then(paint)
  }
- return {mount,clear}
+ const mountLesson=(button:HTMLButtonElement,owner:string,current:()=>boolean,open:OpenCalendarHighlight)=>{
+  const title=button.querySelector('strong')!
+  const details=button.querySelector('.app-tool-copy > span')!
+  const defaultTitle=title.textContent
+  const defaultDetails=details.textContent
+  const kicker=document.createElement('small')
+  kicker.textContent='Next lesson'
+  kicker.hidden=true
+  title.before(kicker)
+  const active=()=>button.isConnected&&current()
+  let lesson:CalendarOccurrence|undefined
+  const paint=(calendar:NativeCalendar|null)=>{
+   if(!active())return
+   const now=new Date()
+   lesson=calendar?calendarOccurrences(calendar).find(event=>
+    event.source==='coach'&&event.kind==='lesson'&&isCurrentCalendarOccurrence(event,calendar,now)):undefined
+   title.textContent=lesson?.title??defaultTitle
+   details.textContent=lesson?highlightDateDetails(lesson,now):defaultDetails
+   kicker.hidden=!lesson
+   button.toggleAttribute('data-next-lesson',Boolean(lesson))
+  }
+  const refresh=()=>{
+   const read=readWeek(owner)
+   void read.then(calendar=>{if(cached?.read===read)paint(calendar)})
+  }
+  refresh()
+  return ()=>{
+   if(!active())return
+   button.focus({preventScroll:true})
+   open(button,lesson,changed=>{
+    if(!changed)return
+    clear()
+    if(active())refresh()
+   })
+  }
+ }
+ return {mount,mountLesson,clear}
 }

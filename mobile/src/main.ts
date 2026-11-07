@@ -472,6 +472,9 @@ function showHub(next:AppHub){
  }
  const nextAssignment=app.querySelector<HTMLElement>('[data-coach-next-assignment]')
  if(nextAssignment){
+  const lessonDates=app.querySelector<HTMLButtonElement>('[data-app-destination="coach-dates"]')!
+  const openLesson=calendarHighlights.mountLesson(lessonDates,owner,current,
+   (button,event,onClose)=>launchCalendar(button,{event,filter:'coach',onClose}))
   const refresh=coachNextAssignment.mount(nextAssignment,owner,current,openCoachInbox)
   function openCoachInbox(trigger:HTMLButtonElement,assignmentId?:string){
    if(!current()||!trigger.isConnected||connection?.isSaving()||document.querySelector('dialog[open]'))return
@@ -480,6 +483,7 @@ function showHub(next:AppHub){
   }
   bindAppDestinations(app,(destination,trigger)=>{
    if(destination==='training-inbox')openCoachInbox(trigger)
+   else if(destination==='coach-dates')openLesson()
    else openDestination(destination,trigger)
   })
  }else bindAppDestinations(app,openDestination)
