@@ -133,10 +133,15 @@ const appLinks=createAppLinkHandoff((link,cold)=>{
  })
  if(cold&&authReady&&session&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&!document.querySelector('dialog[open]')&&!connection&&!details?.isOpen())resumeAppLink()
 })
-function launchTeamInvite(initialLink=''){
+function launchTeamInvite(initialLink='',trigger?:HTMLButtonElement){
  if(!session||teamInvite?.isOpen())return
  const owner=session.user.id,visit=revision
- teamInvite=openTeamInvite(client,owner,()=>visit===revision&&owner===session?.user.id,scope=>{teamInvite=null;openTeamRoom(scope)},()=>{teamInvite=null},initialLink)
+ const active=()=>visit===revision&&owner===session?.user.id
+ trigger?.focus({preventScroll:true})
+ teamInvite=openTeamInvite(client,owner,active,scope=>{teamInvite=null;openTeamRoom(scope)},()=>{
+  teamInvite=null
+  if(active()&&trigger?.isConnected)trigger.focus({preventScroll:true})
+ },initialLink)
 }
 document.addEventListener('tenaceiq:open-shared-link',event=>{
  const e=event as CustomEvent<{href?:unknown}>
@@ -519,15 +524,27 @@ async function lab() {
     .eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
   if (version !== revision || current.user.id !== session?.user.id) return
   app.dataset.state = error ? 'unavailable' : 'ready'
-  app.innerHTML = `${error
+  const playerId=typeof data?.linked_player_id==='string'?data.linked_player_id:''
+  const hasIdentity=Boolean(playerId&&data?.linked_player_name)
+  const tools=error?'':labActionsHtml()+
+    '<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section>'+
+    '<section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>'
+  const controls=`<button id="refresh">${error?'Try again':'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
+  const identity=error
     ? '<header class="tab-hero tab-hero-court"><h1 tabindex="-1">My Lab</h1><p role="alert">Can’t load your profile. Check your connection, then try again.</p></header>'
-    : `${data?.linked_player_id?labScoreboardHtml(data):''}<div id="lab-identity">${data?.linked_player_id&&data.linked_player_name?labIdentityHtml(data):playerSetupHtml()}</div>${data?.linked_player_id&&data.linked_player_name?labTrainingActionsHtml():''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
+    : `${playerId&&data?labScoreboardHtml(data):''}<div id="lab-identity">${hasIdentity?labIdentityHtml(data):playerSetupHtml()}</div>`
+  const trainingContent=!error&&hasIdentity?labTrainingActionsHtml()+
+    '<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''
+  const matches=!error&&playerId?'<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>':''
+  app.innerHTML=identity+trainingContent+(!error&&!playerId
+    ?`<details class="lab-setup-utilities"><summary>More My Lab tools</summary>${tools}${controls}</details>`
+    :tools+matches+controls)
 
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
-  app.querySelector('[data-setup-team]')?.addEventListener('click',()=>launchTeamInvite())
-  app.querySelector('[data-setup-explore]')?.addEventListener('click',()=>navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')?.click())
+  const invite=app.querySelector<HTMLButtonElement>('[data-setup-team]')
+  if(invite)invite.onclick=()=>launchTeamInvite('',invite)
   bindAppDestinations(app,openDestination)
   app.querySelectorAll<HTMLButtonElement>('[data-lab-goals]').forEach(button=>{button.onclick=()=>{
     if(goals?.isOpen()||training?.isOpen()||!data?.linked_player_id)return
@@ -593,41 +610,35 @@ async function lab() {
     try {await signOut(current.user.id)}
     catch {if(version!==revision||!button.isConnected)return;app.querySelector('#notice')!.textContent='Couldn’t log out. Check your connection and try again.';button.disabled=false}
   }
-  if (!error) {
-    const playerId = typeof data?.linked_player_id === 'string' ? data.linked_player_id : ''
+  if (!error&&playerId) {
     const content = app.querySelector<HTMLElement>('#results-content')!
-    if (!playerId) {
-      content.dataset.state = 'unlinked'
-      content.innerHTML = '<p>Find your player record above to bring your results here.</p>'
-    } else {
-      const ratingsSection=app.querySelector<HTMLElement>('.lab-scoreboard')!
-      app.querySelector('#lab-identity')!.before(app.querySelector('#recent-results')!)
-      const trendSection=document.createElement('section')
-      const formSection=document.createElement('div');formSection.className='lab-form-host'
-      const shortcuts=document.createElement('div');shortcuts.innerHTML=homeShortcutsHtml()
-      calendar.after(formSection,shortcuts,trendSection)
-      labRatingTrends=mountLabRatingTrends(trendSection,client,playerId,()=>version===revision&&current.user.id===session?.user.id)
-      bindLabActions()
-      const pathSection=document.createElement('div');pathSection.className='lab-next-band';app.querySelector('#recent-results')!.after(pathSection)
-      showPlayerRatings(ratingsSection.querySelector<HTMLElement>('[data-lab-ratings]')!,client,playerId,()=>version===revision && current.user.id===session?.user.id,true,{showcase:true,onReady:player=>{pathSection.innerHTML=labLevelPathHtml(player);bindLabActions()}})
-      const refreshResults = async () => {
-        content.dataset.state = 'loading'
-        content.innerHTML = '<p role="status">Loading your latest matches…</p>'
-        const result = await loadRecentResults(client, playerId)
-        if (version !== revision || current.user.id !== session?.user.id || !content.isConnected) return
-        if (result.error) {
-          content.dataset.state = 'unavailable'
-          content.innerHTML = '<p role="alert">Can’t load your matches. Check your connection and try again.</p><button class="secondary" id="retry-results">Retry matches</button>'
-          content.querySelector<HTMLButtonElement>('#retry-results')!.onclick = () => { void refreshResults() }
-          return
-        }
-        const rows = (result.data || []) as RecentMatchRow[]
-        mountLabRecentForm(formSection,rows,playerId,()=>version===revision&&current.user.id===session?.user.id,row=>details?.open(row,playerId))
-        content.dataset.state = rows.length ? 'ready' : 'empty'
-        showRecentResults(content, rows, playerId, row => details?.open(row, playerId),'your',true,{current:()=>version===revision&&current.user.id===session?.user.id,load:loaded=>loadOlderResults(client,playerId,loaded)})
+    const ratingsSection=app.querySelector<HTMLElement>('.lab-scoreboard')!
+    app.querySelector('#lab-identity')!.before(app.querySelector('#recent-results')!)
+    const trendSection=document.createElement('section')
+    const formSection=document.createElement('div');formSection.className='lab-form-host'
+    const shortcuts=document.createElement('div');shortcuts.innerHTML=homeShortcutsHtml()
+    calendar.after(formSection,shortcuts,trendSection)
+    labRatingTrends=mountLabRatingTrends(trendSection,client,playerId,()=>version===revision&&current.user.id===session?.user.id)
+    bindLabActions()
+    const pathSection=document.createElement('div');pathSection.className='lab-next-band';app.querySelector('#recent-results')!.after(pathSection)
+    showPlayerRatings(ratingsSection.querySelector<HTMLElement>('[data-lab-ratings]')!,client,playerId,()=>version===revision && current.user.id===session?.user.id,true,{showcase:true,onReady:player=>{pathSection.innerHTML=labLevelPathHtml(player);bindLabActions()}})
+    const refreshResults = async () => {
+      content.dataset.state = 'loading'
+      content.innerHTML = '<p role="status">Loading your latest matches…</p>'
+      const result = await loadRecentResults(client, playerId)
+      if (version !== revision || current.user.id !== session?.user.id || !content.isConnected) return
+      if (result.error) {
+        content.dataset.state = 'unavailable'
+        content.innerHTML = '<p role="alert">Can’t load your matches. Check your connection and try again.</p><button class="secondary" id="retry-results">Retry matches</button>'
+        content.querySelector<HTMLButtonElement>('#retry-results')!.onclick = () => { void refreshResults() }
+        return
       }
-      void refreshResults()
+      const rows = (result.data || []) as RecentMatchRow[]
+      mountLabRecentForm(formSection,rows,playerId,()=>version===revision&&current.user.id===session?.user.id,row=>details?.open(row,playerId))
+      content.dataset.state = rows.length ? 'ready' : 'empty'
+      showRecentResults(content, rows, playerId, row => details?.open(row, playerId),'your',true,{current:()=>version===revision&&current.user.id===session?.user.id,load:loaded=>loadOlderResults(client,playerId,loaded)})
     }
+    void refreshResults()
   }
 }
 

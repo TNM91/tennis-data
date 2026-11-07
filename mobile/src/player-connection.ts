@@ -1,5 +1,6 @@
 import { CapacitorHttp } from '@capacitor/core'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { nativeActionIcon } from './native-action-icons'
 import { html } from './match-details'
 
 export type PlayerChoice = {id: string; name: string; location: string | null; flight: string | null}
@@ -40,7 +41,18 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
   let selected: PlayerChoice | null = null
   const valid = () => !disposed && isCurrent()
   app.dataset.state = 'connect-player'
-  app.innerHTML = '<div id="player-search-panel"><h1 tabindex="-1">Find your tennis record</h1><p>Search your name and check the location and flight.</p><form id="player-search"><label>Your tennis name<input name="player-name" type="search" autocomplete="name" minlength="2" maxlength="80" required></label><button>Search players</button></form></div><p role="status" id="player-search-status"></p><p role="alert" id="player-link-error"></p><div id="player-choices"></div><section id="player-confirm" aria-labelledby="player-confirm-title" hidden></section><button type="button" class="secondary" id="back-lab">Back to My Lab</button>'
+  app.innerHTML = `<button type="button" class="secondary native-entry-back" id="back-lab"><span aria-hidden="true">‹</span> Back to My Lab</button>
+    <div id="player-search-panel" class="tab-hero">
+      <h1 tabindex="-1">Find your tennis record</h1>
+      <p>Search the name you use in league or tournament results.</p>
+      <form id="player-search">
+        <label>Your tennis name<input name="player-name" type="search" autocomplete="name" minlength="2" maxlength="80" required></label>
+        <button type="submit">Search players</button>
+      </form>
+      <p role="status" id="player-search-status"></p><p role="alert" id="player-link-error"></p>
+    </div>
+    <div id="player-choices"></div>
+    <section id="player-confirm" aria-labelledby="player-confirm-title" hidden></section>`
   app.querySelector<HTMLElement>('h1')!.focus()
   const form = app.querySelector<HTMLFormElement>('#player-search')!
   const searchPanel = app.querySelector<HTMLElement>('#player-search-panel')!
@@ -76,7 +88,12 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
       if (!valid() || version !== request) return
       const summary = rows.length ? `${rows.length} record${rows.length === 1 ? '' : 's'} found.${rows.length === 12 ? ' Add more of your name to narrow the results.' : ''}` : 'No records found. Try the name used in your league results.'
       status.textContent = summary
-      choices.innerHTML = `<ul class="player-choices">${rows.map((row,index) => `<li><h2>${html(row.name)}</h2><p>${html(row.location || 'Location unavailable')} · ${html(row.flight || 'Flight unavailable')}</p><button type="button" class="secondary" data-player-choice="${index}">Review this record<span class="sr-only"> for ${html(row.name)}</span></button></li>`).join('')}</ul>`
+      choices.innerHTML = rows.length?`<ul class="player-connect-results native-entry-list">${rows.map((row,index) => `
+        <li><button type="button" class="secondary app-tool" data-player-choice="${index}" aria-label="Review this record for ${html(row.name)}" aria-describedby="player-choice-${index}">
+          <span class="app-tool-icon" aria-hidden="true">${nativeActionIcon('profile')}</span>
+          <span class="app-tool-copy"><strong>${html(row.name)}</strong><span id="player-choice-${index}">${html(row.location || 'Location not listed')} · ${row.flight?'Flight '+html(row.flight):'Flight not listed'}</span></span>
+          <span aria-hidden="true">›</span>
+        </button></li>`).join('')}</ul>`:''
       choices.querySelectorAll<HTMLButtonElement>('[data-player-choice]').forEach(button => {
         button.onclick = () => {
           if (saving || !valid()) return
@@ -84,7 +101,16 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
           searchPanel.hidden = choices.hidden = true
           status.textContent = ''
           confirmation.hidden = false
-          confirmation.innerHTML = `<h1 id="player-confirm-title" tabindex="-1">Is this your record?</h1><p><strong>${html(selected.name)}</strong><br>${html(selected.location || 'Location unavailable')} · ${html(selected.flight || 'Flight unavailable')}</p><p>Connect your own record to see your TiQ scoreboard and recent matches in My Lab.</p><button type="button" id="confirm-player">Connect my player</button><button type="button" class="secondary" id="change-player">Back to search results</button>`
+          confirmation.innerHTML = `<h1 id="player-confirm-title" tabindex="-1">Is this your record?</h1>
+            <div class="player-record-summary">
+              <h2>${html(selected.name)}</h2>
+              <dl><div><dt>Location</dt><dd>${html(selected.location || 'Not listed')}</dd></div>
+              <div><dt>Flight</dt><dd>${html(selected.flight || 'Not listed')}</dd></div></dl>
+            </div>
+            <p>Connect your own record to see your TIQ scoreboard and recent matches.</p>
+            <button type="button" id="confirm-player">Connect my player</button>
+            <p role="status"></p><p role="alert" tabindex="-1"></p>
+            <button type="button" class="secondary" id="change-player">Back to search results</button>`
           confirmation.querySelector<HTMLElement>('h1')!.focus()
           confirmation.querySelector<HTMLButtonElement>('#change-player')!.onclick = () => {
             clearSelection()
@@ -96,17 +122,20 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
           confirmation.querySelector<HTMLButtonElement>('#confirm-player')!.onclick = async () => {
             if (saving || !selected || !valid()) return
             saving = true
-            error.textContent = ''
+            const feedback=confirmation.querySelector<HTMLElement>('[role="alert"]')!
+            const progress=confirmation.querySelector<HTMLElement>('[role="status"]')!
+            feedback.textContent = ''
             app.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button,input').forEach(control => {control.disabled = true})
-            status.textContent = 'Connecting your player…'
+            progress.textContent = 'Connecting your player…'
             try {
               await actions.connect(selected.id)
               if (valid()) back()
             } catch (failure) {
               if (!valid()) return
-              error.textContent = failure instanceof Error ? failure.message : 'Couldn’t confirm the connection. Return to My Lab and refresh.'
-              status.textContent = ''
+              feedback.textContent = failure instanceof Error ? failure.message : 'Couldn’t confirm the connection. Return to My Lab and refresh.'
+              progress.textContent = ''
               app.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button,input').forEach(control => {control.disabled = false})
+              feedback.focus()
             } finally { saving = false }
           }
         }

@@ -455,14 +455,6 @@ mark[data-chat-highlight] { padding:0;border-radius:2px;background:#bae86a;color
 .app-link-handoff strong,.app-link-handoff span{display:block;overflow-wrap:anywhere}
 .app-link-handoff span{color:#bad0e1;margin-top:.2rem}
 .app-link-handoff button{flex:none;width:auto;min-height:44px;padding:.6rem .8rem;font-size:.875rem;white-space:nowrap}
-.player-setup{padding:0;background:none;border:0}
-.player-setup ol{list-style:none;padding:0;margin:1.5rem 0;display:grid;gap:1.5rem}
-.player-setup li{display:flex;gap:.8rem;align-items:flex-start;min-width:0}
-.player-setup li>span{color:#72c6ff;font-size:.8rem;font-weight:700;letter-spacing:.1em;padding-top:.3rem}
-.player-setup li>div{min-width:0;flex:1}
-.player-setup h2{font-size:1.15rem;margin:0 0 .5rem}
-.player-setup p{color:#bbcfdd;line-height:1.6;overflow-wrap:anywhere}
-.player-setup button{min-height:48px;width:100%;white-space:normal;overflow-wrap:normal;word-break:normal}
 @media(max-width:360px){.app-link-handoff{flex-wrap:wrap}.app-link-handoff p{flex-basis:100%}}
 .native-header-actions:not([hidden]) { display:flex; align-items:center; gap:6px; flex:none; }
 body:not(.native-chat-conversation) .app-header:has(.native-header-actions:not([hidden])) { display:flex; align-items:center; justify-content:space-between; gap:8px; }

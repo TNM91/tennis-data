@@ -1,3 +1,24 @@
+import websiteUi from '../generated/website-ui.json'
+import {nativeActionIcon} from './native-action-icons'
+
+const setupActions=[
+ {key:'player',attribute:'data-connect-player',title:'Find my player',detail:'Bring your TIQ ratings and match history into My Lab.',icon:nativeActionIcon('profile')},
+ {key:'team',attribute:'data-setup-team',title:'Use a team invite',detail:'Join your team with a link from your captain.',icon:websiteUi.icons.teams},
+ {key:'explore',attribute:'data-app-destination="explore"',title:'Explore tennis',detail:'Browse players, teams and rankings.',icon:websiteUi.icons.explore},
+] as const
+
 export function playerSetupHtml(){
- return `<section class="player-setup" aria-labelledby="player-setup-title"><header class="tab-hero tab-hero-court"><small class="stat-eyebrow">Make it your game</small><h1 id="player-setup-title" tabindex="-1">Your tennis starts here.</h1><p>Bring your results and your team into one place.</p></header><ol><li><span aria-hidden="true">01</span><div><h2>Find your tennis record</h2><p>Check your name, location and flight. Your recorded matches and TIQ ratings will come together in My Lab.</p><button type="button" class="tab-primary-action" data-connect-player>Find my player</button></div></li><li><span aria-hidden="true">02</span><div><h2>Join your team</h2><p>Have a captain’s invite? Review it here to join the conversation and match week.</p><button type="button" class="secondary" data-setup-team>Use a team invite</button></div></li></ol><p class="rating-context">No record yet? You can still explore tennis, join a team or connect with your coach.</p><button type="button" class="secondary" data-setup-explore>Explore tennis</button></section>`
+ return `<section class="player-setup" aria-labelledby="player-setup-title">
+  <header class="native-entry-hero tab-hero tab-hero-court">
+   <small class="stat-eyebrow">My Lab</small>
+   <h1 id="player-setup-title" tabindex="-1">Your tennis starts here.</h1>
+   <p>Find your record or jump into your team.</p>
+  </header>
+  <div class="native-entry-list">${setupActions.map(action=>`
+   <button type="button" class="secondary app-tool${action.key==='player'?' native-entry-featured':''}" ${action.attribute} aria-labelledby="setup-${action.key}-title" aria-describedby="setup-${action.key}-detail">
+    <span class="app-tool-icon" aria-hidden="true">${action.icon}</span>
+    <span class="app-tool-copy"><strong id="setup-${action.key}-title">${action.title}</strong><span id="setup-${action.key}-detail">${action.detail}</span></span>
+    <span aria-hidden="true">›</span>
+   </button>`).join('')}</div>
+ </section>`
 }

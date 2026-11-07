@@ -61,29 +61,30 @@ body:is([data-screen="lab"],[data-screen="explore"],[data-screen="teams"],[data-
   radial-gradient(ellipse 94% 49% at 100% 72%,#10264a,transparent);
 }
 .native-welcome { max-inline-size:560px;margin-inline:auto;min-inline-size:0; }
-body[data-screen="welcome"] .welcome-hero.tab-hero-court {
+body[data-screen] .native-entry-hero.tab-hero-court {
  padding:22px 18px;background:var(--premium-surface);
 }
-.welcome-hero.tab-hero-court::before {
+.native-entry-hero.tab-hero-court::before {
  background:linear-gradient(90deg,var(--premium-surface),#0d203eee 30%,#0d203e66 76%,transparent),
   var(--night-session-scene) right center / contain no-repeat;
 }
-.welcome-hero h1 { max-inline-size:11ch;text-wrap:balance; }
-.welcome-hero.tab-hero-court p { max-inline-size:19ch;text-wrap:balance; }
-.welcome-entries { display:grid;gap:10px; }
-.welcome-entries button.app-tool {
+.native-entry-hero h1 { max-inline-size:11ch;text-wrap:balance; }
+.native-entry-hero.tab-hero-court p { max-inline-size:19ch;text-wrap:balance; }
+.native-entry-list { display:grid;gap:10px; }
+.native-entry-list button.app-tool.secondary {
  min-block-size:76px;padding:12px 14px;border-color:var(--premium-line);
  border-radius:var(--premium-control-radius);background:var(--premium-card);
 }
-.welcome-entries #browse-public {
+.native-entry-list button.native-entry-featured.secondary {
  border-color:transparent;background:var(--premium-court-inlay);color:var(--premium-white);
 }
-.welcome-entries .app-tool-copy { min-inline-size:0;overflow-wrap:anywhere; }
-.welcome-entries .app-tool-copy strong { font-size:.9375rem;line-height:1.25; }
-.welcome-entries .app-tool-copy>span { font-size:.75rem;line-height:1.4; }
+.native-entry-list .app-tool-copy { min-inline-size:0;overflow-wrap:anywhere; }
+.native-entry-list .app-tool-copy strong { font-size:.9375rem;line-height:1.25; }
+.native-entry-list .app-tool-copy>span { font-size:.75rem;line-height:1.4; }
+.native-entry-list .app-tool-icon>svg { inline-size:26px;block-size:26px; }
 .native-welcome .biometric-login:empty,.native-welcome [data-biometric-login-error]:empty { display:none; }
 .native-welcome .biometric-login button { margin:0; }
-.native-welcome .welcome-back { inline-size:auto;min-block-size:44px;margin:0 0 12px;padding:8px 12px;font-size:.8125rem; }
+button.native-entry-back { inline-size:auto;min-block-size:44px;margin:0 0 12px;padding:8px 12px;font-size:.8125rem; }
 .native-welcome .welcome-account {
  padding:18px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-card);
 }
@@ -100,6 +101,27 @@ body[data-screen="welcome"] .welcome-hero.tab-hero-court {
 .welcome-account input { min-block-size:48px;margin-block-start:4px; }
 .welcome-account button[type="submit"] { min-block-size:48px;margin-block-start:14px; }
 .welcome-account #forgot-password { min-block-size:44px;margin-block-start:8px;font-size:.8125rem; }
+#lab-identity:has(>.player-setup) { margin-block-start:0; }
+#lab-identity .player-setup { margin:0;padding:0;border:0;background:transparent; }
+body[data-screen="lab"] .player-setup .native-entry-hero h1 { max-inline-size:14ch;font-size:clamp(1.625rem,7vw,2.375rem); }
+.lab-setup-utilities { margin-block-start:14px;padding-inline:14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface); }
+.lab-setup-utilities>summary { min-block-size:44px;padding-block:12px;color:var(--premium-copy);font-size:.8125rem;font-weight:650; }
+.lab-setup-utilities[open] { padding-block-end:14px; }
+.lab-setup-utilities>section { background:var(--premium-inset);border-color:var(--premium-line); }
+.player-connect-results { margin:12px 0;padding:0;list-style:none; }
+#player-search-panel label { font-size:.8125rem;color:var(--premium-copy); }
+#player-search-panel :is(input,button),#player-confirm button { min-block-size:48px; }
+#player-confirm { margin-block-start:0;padding:16px;border-color:var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-surface); }
+#player-confirm h1 { margin:0 0 14px;font-size:1.5rem;overflow-wrap:anywhere; }
+.player-record-summary { padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-card); }
+.player-record-summary h2 { margin:0 0 12px;font-size:1.125rem;overflow-wrap:anywhere; }
+.player-record-summary dl { display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px;margin:0; }
+.player-record-summary dt { margin:0;color:var(--premium-copy);font-size:.6875rem;font-weight:650; }
+.player-record-summary dd { margin:4px 0 0;font-size:.875rem;overflow-wrap:anywhere; }
+#player-confirm p { font-size:.8125rem;line-height:1.55; }
+#player-confirm button { margin-block-start:8px; }
+#player-confirm :is([role="alert"],[role="status"]):empty,
+#player-search-panel :is([role="alert"],[role="status"]):empty { display:none; }
 /* Account controls remain reachable while membership and sign-in sections scroll. */
 .account-settings-dialog[open] {
  display:flex;flex-direction:column;max-block-size:calc(100dvh - 32px);padding:0;overflow:hidden;
