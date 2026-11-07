@@ -3,7 +3,9 @@ const origin='http://127.0.0.1:4283'
 type Fixture=Window&{updatesFixture:{failList:boolean;loseWrite:boolean;deferList:boolean;release:()=>void;queries:{method:string;ids:string[]}[];rows:{id:string;title:string;body:string;created_at:string;read_at:string|null}[]};refreshNavigationSession:()=>void;switchNavigationOwner:()=>void}
 async function open(page:Page,width=390){
  await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1');await expect(page.locator('.native-updates-entry')).toHaveAttribute('aria-label','Updates, 23 unread');await page.locator('.native-updates-entry').click()
- const dialog=page.getByRole('dialog',{name:'Updates',exact:true});await expect(dialog.locator('.updates-item')).toHaveCount(25);return dialog
+ const dialog=page.getByRole('dialog',{name:'Updates',exact:true});await expect(dialog.locator('.updates-item')).toHaveCount(25)
+ await dialog.locator('[data-updates-tools-toggle]').click()
+ return dialog
 }
 const calls=(page:Page)=>page.evaluate(()=>(window as unknown as Fixture).updatesFixture.queries.length)
 for(const width of [320,390])test('Updates finder: local literal search retains its input and fits at '+width+'px',async({page},info)=>{
@@ -13,6 +15,9 @@ for(const width of [320,390])test('Updates finder: local literal search retains 
  await input.fill('.*');await expect(dialog.locator('.updates-item')).toHaveCount(0);await expect(dialog).toContainText('No matching updates loaded.');await expect(dialog.getByRole('button',{name:'Load older updates',exact:true})).toBeVisible();await expect(dialog.getByRole('button',{name:'Mark shown read',exact:true})).toBeHidden()
  await input.fill('<img');await expect(dialog.locator('.updates-item')).toHaveCount(1);await expect(dialog.locator('img[src=x]')).toHaveCount(0)
  await input.fill('review your next');await expect(dialog.locator('.updates-item')).toHaveCount(24);expect(await calls(page)).toBe(before)
+ const tools=dialog.locator('[data-updates-tools-toggle]')
+ await tools.click();await expect(tools.getByText('Filters active',{exact:true})).toBeVisible();await expect(dialog.locator('.updates-item')).toHaveCount(24)
+ await tools.click();await expect(input).toHaveValue('review your next')
  expect(await original!.evaluate(el=>el===document.querySelector('[data-updates-query]'))).toBe(true)
  await input.press('Escape');await expect(input).toHaveValue('');await expect(input).toBeFocused();await expect(dialog).toBeVisible();await expect(count).toHaveText('25 loaded updates')
  await input.fill('league');await dialog.getByRole('button',{name:'Clear',exact:true}).click();await expect(input).toBeFocused();await expect(input).toHaveValue('')
@@ -66,5 +71,5 @@ test('Updates finder: failed refresh, interrupted read status and account change
  await page.evaluate(()=>{(window as unknown as Fixture).updatesFixture.loseWrite=true});await dialog.getByRole('button',{name:'Mark read',exact:true}).click();await expect(dialog.getByRole('alert')).toBeVisible();await expect(dialog.getByRole('button',{name:'Mark shown read',exact:true})).toBeDisabled();await input.fill('Taylor');await expect(dialog.getByRole('button',{name:'Mark read',exact:true})).toBeDisabled()
  await dialog.getByRole('button',{name:'Refresh',exact:true}).click();await expect(input).toHaveValue('Taylor');await expect(dialog.getByRole('button',{name:'Mark read',exact:true})).toBeEnabled();expect(await page.evaluate(()=>(window as unknown as Fixture).updatesFixture.queries.filter(q=>q.method==='PATCH').length)).toBe(1)
  await page.evaluate(()=>(window as unknown as Fixture).refreshNavigationSession());await expect(input).toHaveValue('Taylor');await page.evaluate(()=>(window as unknown as Fixture).switchNavigationOwner());await expect(dialog).toHaveCount(0)
- await page.locator('.native-updates-entry').click();const next=page.getByRole('dialog',{name:'Updates',exact:true});await expect(next.getByRole('searchbox')).toHaveValue('');await expect(next).toContainText('No updates in this view.')
+ await page.locator('.native-updates-entry').click();const next=page.getByRole('dialog',{name:'Updates',exact:true});await next.locator('[data-updates-tools-toggle]').click();await expect(next.getByRole('searchbox')).toHaveValue('');await expect(next).toContainText('No updates in this view.')
 })

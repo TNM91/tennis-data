@@ -12,17 +12,19 @@ export function openUpdates(client:SupabaseClient,owner:string,current:()=>boole
   let rows:InternalNotification[]=[],cursor:UpdateCursor|null=null,more=false,review:string[]|null=null,child:UpdatesChild|null=null
   let filter:UpdateFilter={unread:false,category:'all'}
   let query='',queryRevision=0,indexedRows:InternalNotification[]|null=null,finder:ReturnType<typeof createUpdatesFinder>|null=null
+  const toolsActive=()=>Boolean(query.trim())||filter.category!=='all'
   const shown=()=>{if(indexedRows!==rows){indexedRows=rows;finder=createUpdatesFinder(rows)}return finder!.find(query)}
   const active=()=>!disposed&&current()
   const focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
   const focusKey=(element:Element|null=document.activeElement)=>{
     if(!(element instanceof HTMLElement)||!dialog.contains(element))return ''
-    for(const key of ['data-updates-query','data-updates-clear','data-updates-refresh','data-updates-older','data-updates-status','data-updates-category','data-updates-review','data-read-update','data-open-update'])if(element.hasAttribute(key))return '['+key+'="'+CSS.escape(element.getAttribute(key)||'')+'"]'
+    for(const key of ['data-updates-tools-toggle','data-updates-query','data-updates-clear','data-updates-refresh','data-updates-older','data-updates-status','data-updates-category','data-updates-review','data-read-update','data-open-update'])if(element.hasAttribute(key))return '['+key+'="'+CSS.escape(element.getAttribute(key)||'')+'"]'
     return ''
   }
   const restoreFocus=(key:string,fallback?:string)=>{
     const element=(key?dialog.querySelector<HTMLElement>(key):null)|| (fallback?dialog.querySelector<HTMLElement>(fallback):null)||dialog.querySelector<HTMLElement>('[data-updates-query]')
-    if(element&&!element.matches(':disabled,[hidden]'))element.focus({preventScroll:true})
+    const target=element?.closest('details:not([open])')?.querySelector<HTMLElement>('summary')??element
+    if(target&&!target.matches(':disabled,[hidden]'))target.focus({preventScroll:true})
   }
   const dispose=()=>{if(disposed)return;disposed=true;child?.dispose();child=null;rows=[];review=null;query='';finder=null;indexedRows=null;dialog.close();dialog.remove();if(current()&&trigger?.isConnected)trigger.focus({preventScroll:true})}
   const back=()=>{if(child?.isOpen()){if(child.back)child.back();else child.dispose();return true}if(review&&!busy){review=null;render();restoreFocus("[data-updates-review]");return true}dispose();return true}
@@ -98,6 +100,7 @@ export function openUpdates(client:SupabaseClient,owner:string,current:()=>boole
     dialog.querySelector('.updates-list')!.innerHTML=results()
     dialog.querySelector('[data-updates-matches]')!.textContent=resultCount()
     dialog.querySelector<HTMLButtonElement>('[data-updates-clear]')!.hidden=!query
+    dialog.querySelector<HTMLElement>('[data-updates-tools-active]')!.hidden=!toolsActive()
     const bulk=dialog.querySelector<HTMLButtonElement>('[data-updates-review]')!
     bulk.hidden=!shown().some(row=>!row.readAt);bulk.disabled=busy||uncertain
     bindRows()
@@ -107,7 +110,41 @@ export function openUpdates(client:SupabaseClient,owner:string,current:()=>boole
     const scrollTop=resetScroll?0:dialog.querySelector('.updates-body')?.scrollTop||0
     const unread=shown().filter(row=>!row.readAt)
     const retainedSearch=dialog.querySelector<HTMLElement>('.updates-search'),key=focusKey(),prior=dialog.querySelector<HTMLInputElement>('[data-updates-query]'),selection=prior?[prior.selectionStart,prior.selectionEnd]:null
-    dialog.innerHTML=`<header class="updates-heading"><div><small class="stat-eyebrow">Your tennis</small><h1 tabindex="-1">Updates</h1></div><button type="button" class="secondary" data-updates-close>Close</button></header><div class="updates-body"><div class="updates-summary"><span class="updates-summary-icon" aria-hidden="true">${websiteUi.icons.alerts}</span><div><strong>${total===null?'Your latest updates':total===0?'No unread updates':total+' unread '+(total===1?'update':'updates')}</strong><p>Messages, schedule changes and account news.</p></div></div><div class="updates-filters"><div role="group" aria-label="Read status"><button type="button" data-updates-status="all" aria-pressed="${!filter.unread}" ${busy?'disabled':''}>All</button><button type="button" data-updates-status="unread" aria-pressed="${filter.unread}" ${busy?'disabled':''}>Unread</button></div><label>Type<select data-updates-category ${busy?'disabled':''}><option value="all" ${filter.category==='all'?'selected':''}>All types</option><option value="message" ${filter.category==='message'?'selected':''}>Messages</option><option value="schedule" ${filter.category==='schedule'?'selected':''}>Schedule</option><option value="other" ${filter.category==='other'?'selected':''}>Account & support</option></select></label></div><div class="updates-search"><label for="updates-query">Find an update</label><div class="updates-search-field"><input id="updates-query" data-updates-query type="search" maxlength="160" autocomplete="off" placeholder="Search titles and previews" aria-describedby="updates-search-help" value="${html(query)}"><button type="button" class="secondary" data-updates-clear ${query?'':'hidden'}>Clear</button></div><p id="updates-search-help">Search loaded updates. Load older updates to include more.</p><p data-updates-matches role="status" aria-live="polite" aria-atomic="true">${resultCount()}</p></div><div class="updates-toolbar"><button type="button" class="secondary" data-updates-refresh ${busy?'disabled':''}>${failed?'Retry updates':'Refresh'}</button><button type="button" class="secondary" data-updates-review ${unread.length?'':'hidden'} ${busy||uncertain||review?'disabled':''}>Mark shown read</button></div>${review?'<section class="updates-review"><h2 tabindex="-1">Mark '+review.length+' '+(review.length===1?'update':'updates')+' read?</h2><p>Only these loaded updates will change. Older updates keep their current status.</p><ul>'+rows.filter(row=>review!.includes(row.id)).map(row=>'<li>'+html(row.title||'Tennis update')+'</li>').join('')+'</ul><button type="button" data-updates-confirm '+(busy?'disabled':'')+'>Mark '+review.length+' read</button><button type="button" class="secondary" data-updates-cancel '+(busy?'disabled':'')+'>Keep unread</button></section>':''}<p class="updates-notice" role="${failed||uncertain?'alert':'status'}">${html(notice)}</p><div class="updates-list" aria-label="Your updates">${results()}</div>${more?rows.length<UPDATE_LOADED_LIMIT?'<button type="button" class="secondary updates-older" data-updates-older '+(busy||uncertain?'disabled':'')+'>Load older updates</button>':'<p class="updates-limit">100 updates loaded. Choose a type or refresh to see a different view.</p>':''}</div>`
+    const controlsOpen=dialog.querySelector<HTMLDetailsElement>('[data-updates-tools]')?.open
+    const summary=total===null?'Your latest updates':total===0?'No unread updates':total+' unread '+(total===1?'update':'updates')
+    dialog.innerHTML=`<header class="updates-heading"><h1 tabindex="-1">Updates</h1><button type="button" class="secondary" data-updates-close>Close</button></header>
+    <div class="updates-body">
+      <div class="updates-summary"><span class="updates-summary-icon" aria-hidden="true">${websiteUi.icons.alerts}</span><strong>${summary}</strong></div>
+      <div class="updates-filters">
+        <div role="group" aria-label="Read status">
+          <button type="button" data-updates-status="all" aria-pressed="${!filter.unread}" ${busy?'disabled':''}>All</button>
+          <button type="button" data-updates-status="unread" aria-pressed="${filter.unread}" ${busy?'disabled':''}>Unread</button>
+        </div>
+        <button type="button" class="secondary" data-updates-refresh ${busy?'disabled':''} ${failed?'aria-label="Retry updates"':''}>${failed?'Retry':'Refresh'}</button>
+      </div>
+      <details class="updates-tools" data-updates-tools ${controlsOpen?'open':''}>
+        <summary data-updates-tools-toggle>Search &amp; filter <span data-updates-tools-active ${toolsActive()?'':'hidden'}>Filters active</span></summary>
+        <div class="updates-tool-options">
+          <label>Type<select data-updates-category ${busy?'disabled':''}>
+            <option value="all" ${filter.category==='all'?'selected':''}>All types</option>
+            <option value="message" ${filter.category==='message'?'selected':''}>Messages</option>
+            <option value="schedule" ${filter.category==='schedule'?'selected':''}>Schedule</option>
+            <option value="other" ${filter.category==='other'?'selected':''}>Account &amp; support</option>
+          </select></label>
+          <div class="updates-search">
+            <label for="updates-query">Find an update</label>
+            <div class="updates-search-field"><input id="updates-query" data-updates-query type="search" maxlength="160" autocomplete="off" placeholder="Search titles and previews" aria-describedby="updates-search-help" value="${html(query)}"><button type="button" class="secondary" data-updates-clear ${query?'':'hidden'}>Clear</button></div>
+            <p id="updates-search-help">Search loaded updates. Load older updates to include more.</p>
+            <p data-updates-matches role="status" aria-live="polite" aria-atomic="true">${resultCount()}</p>
+          </div>
+          <button type="button" class="secondary" data-updates-review ${unread.length?'':'hidden'} ${busy||uncertain||review?'disabled':''}>Mark shown read</button>
+        </div>
+      </details>
+      ${review?'<section class="updates-review"><h2 tabindex="-1">Mark '+review.length+' '+(review.length===1?'update':'updates')+' read?</h2><p>Only these loaded updates will change. Older updates keep their current status.</p><ul>'+rows.filter(row=>review!.includes(row.id)).map(row=>'<li>'+html(row.title||'Tennis update')+'</li>').join('')+'</ul><button type="button" data-updates-confirm '+(busy?'disabled':'')+'>Mark '+review.length+' read</button><button type="button" class="secondary" data-updates-cancel '+(busy?'disabled':'')+'>Keep unread</button></section>':''}
+      <p class="updates-notice" role="${failed||uncertain?'alert':'status'}">${html(notice)}</p>
+      <div class="updates-list" aria-label="Your updates">${results()}</div>
+      ${more?rows.length<UPDATE_LOADED_LIMIT?'<button type="button" class="secondary updates-older" data-updates-older '+(busy||uncertain?'disabled':'')+'>Load older updates</button>':'<p class="updates-limit">100 updates loaded. Choose a type or refresh to see a different view.</p>':''}
+    </div>`
     if(retainedSearch)dialog.querySelector('.updates-search')!.replaceWith(retainedSearch)
     const input=dialog.querySelector<HTMLInputElement>('[data-updates-query]')!,clear=dialog.querySelector<HTMLButtonElement>('[data-updates-clear]')!
     if(input.value!==query)input.value=query
