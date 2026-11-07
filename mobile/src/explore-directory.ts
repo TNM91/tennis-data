@@ -4,30 +4,28 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { showExplore as showPlayers } from './explore'
 import { showDirectory } from './directory-view'
 import { showRankings } from './rankings-view'
-import {nativeActionIcon} from './native-action-icons'
 
-export type ExploreCategory='Players'|'Teams'|'Leagues'|'Rankings'
+const searchModes={
+ Players:{label:'Player name',placeholder:'Search by tennis name',required:true},
+ Teams:{label:'Team name',placeholder:'Search by team name',required:true},
+ Leagues:{label:'League or area (optional)',placeholder:'All leagues',required:false},
+ Rankings:{label:'City or area (optional)',placeholder:'All areas',required:false},
+} as const
+type ExploreCategory=keyof typeof searchModes
 type Category=ExploreCategory|'Overview'
-export const exploreTools=[
- {category:'Players',title:'Find a player',detail:'Open ratings and recent matches.'},
- {category:'Teams',title:'Browse teams',detail:'Check rosters and team results.'},
- {category:'Leagues',title:'Find a league',detail:'Browse teams and league context.'},
- {category:'Rankings',title:'Check rankings',detail:'Compare the field by recorded TIQ rating.'},
-] as const
-export function exploreHomeHtml(competitions=false){
+function exploreHomeHtml(competitions:boolean){
  return `<div class="native-explore-hero">
-  <header class="tab-hero tab-hero-court explore-spotlight"><small class="stat-eyebrow">Your tennis, connected</small><h1 tabindex="-1">Find players, teams, leagues.</h1></header>
-  <form id="native-search">
-   <label class="sr-only" for="native-search-term">Search tennis</label>
-   <input id="native-search-term" name="term" type="search" minlength="2" maxlength="80" required placeholder="Search a player, team, league or area">
-   <label class="sr-only" for="native-search-kind">Search category</label>
-   <div class="explore-search-category">
-    <select id="native-search-kind" name="category"><option value="Players">Players</option><option value="Teams">Teams</option><option value="Leagues">Leagues</option><option value="Rankings">Rankings by location</option></select>
-    <span aria-hidden="true">${nativeActionIcon('down')}</span>
+  <header class="tab-hero tab-hero-court explore-spotlight"><small class="stat-eyebrow">Explore</small><h1 tabindex="-1">Find players, teams, leagues.</h1></header>
+  <div class="explore-search-panel">
+   <div class="explore-categories" role="group" aria-label="Explore categories">
+    ${Object.keys(searchModes).map(category=>`<button type="button" data-category="${category}">${category}</button>`).join('')}
    </div>
-   <button class="tab-primary-action" type="submit">Search</button>
-  </form>
-  <div class="website-ui website-explore">${websiteUi.explore}</div>
+   <form id="native-search" role="search" aria-label="Explore tennis">
+    <label for="native-search-term"></label>
+    <input id="native-search-term" type="search" autocomplete="off" minlength="2" maxlength="80">
+    <button class="tab-primary-action" type="submit">Search</button>
+   </form>
+  </div>
   ${competitions?`<button type="button" class="secondary app-tool explore-competitions" data-open-competitions>
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.compete}</span>
    <span class="app-tool-copy"><strong>Competitions</strong><span>TiQ leagues · schedules · standings</span></span>
@@ -37,56 +35,72 @@ export function exploreHomeHtml(competitions=false){
 }
 export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initial:Category='Overview',access?:PublicBrowseAccess,onCompetitions?:(trigger:HTMLElement)=>void) {
   let disposed=false
-  let currentCategory:Category|null=null
+  let category:ExploreCategory=initial==='Overview'?'Players':initial
   let active:ReturnType<typeof showPlayers>|ReturnType<typeof showDirectory>|ReturnType<typeof showRankings>|null=null
-  let overviewReturn:{trigger:HTMLElement;scroll:number}|null=null
+  let overviewScroll=0
   app.dataset.state='explore'
-  app.innerHTML='<div class="explore-categories" role="group" aria-label="Explore categories"><button type="button" data-category="Overview">Explore</button><button type="button" data-category="Players">Players</button><button type="button" data-category="Teams">Teams</button><button type="button" data-category="Leagues">Leagues</button><button type="button" data-category="Rankings">Rankings</button></div><div id="explore-content"></div>'
+  app.innerHTML='<button type="button" class="secondary explore-back" hidden>Back to Explore</button><div id="explore-content"></div>'
+  const backButton=app.querySelector<HTMLButtonElement>('.explore-back')!
   const content=app.querySelector<HTMLElement>('#explore-content')!
   const template=document.createElement('template')
   template.innerHTML=exploreHomeHtml(Boolean(onCompetitions))
   const overview=template.content.firstElementChild as HTMLElement
+  const categoryButtons=overview.querySelectorAll<HTMLButtonElement>('[data-category]')
+  const form=overview.querySelector<HTMLFormElement>('#native-search')!
+  const input=form.querySelector<HTMLInputElement>('input')!
+  const label=form.querySelector<HTMLLabelElement>('label')!
+  const submit=form.querySelector<HTMLButtonElement>('button')!
   const valid=()=>!disposed && isCurrent()
-  const overviewActive=()=>valid()&&currentCategory==='Overview'&&overview.isConnected
-  const select=(category:Category,term='',trigger?:HTMLElement)=>{
-    if(!valid() || currentCategory===category)return
-    if(currentCategory==='Overview'&&trigger)overviewReturn={trigger,scroll:window.scrollY}
-    currentCategory=category
+  const overviewActive=()=>valid()&&overview.isConnected
+  const showOverview=(restore=false)=>{
+    if(!valid())return
     active?.dispose();active=null
-    app.querySelectorAll<HTMLButtonElement>('[data-category]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.category===category)))
-    if(category==='Overview'){
-      content.replaceChildren(overview)
-      const previous=overviewReturn
-      overviewReturn=null
-      window.scrollTo(0,previous?.scroll??0)
-      const opener=previous?.trigger.isConnected?previous.trigger:overview.querySelector<HTMLElement>('h1')
-      opener?.focus({preventScroll:true})
-      return
-    }
+    backButton.hidden=true
+    content.replaceChildren(overview)
+    window.scrollTo(0,restore?overviewScroll:0)
+    const target=restore?submit:overview.querySelector<HTMLElement>('h1')
+    target?.focus({preventScroll:true})
+  }
+  const openResults=(term:string)=>{
+    backButton.hidden=false
+    window.scrollTo(0,0)
     active=category==='Players'?showPlayers(content,client,valid,undefined,term,access):category==='Rankings'?showRankings(content,client,valid,term,access):showDirectory(content,category,client,valid,term,undefined,access)
   }
+  const selectMode=(mode:ExploreCategory)=>{
+    category=mode
+    const spec=searchModes[mode]
+    label.textContent=spec.label
+    input.placeholder=spec.placeholder
+    input.required=spec.required
+    input.setCustomValidity('')
+    submit.textContent=mode==='Rankings'?'View':mode==='Leagues'?'Find':'Search'
+    submit.setAttribute('aria-label',`${submit.textContent} ${mode.toLowerCase()}`)
+    categoryButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.category===mode)))
+  }
+  categoryButtons.forEach(button=>{button.onclick=()=>{if(overviewActive())selectMode(button.dataset.category as ExploreCategory)}})
   overview.querySelector<HTMLButtonElement>('[data-open-competitions]')?.addEventListener('click',e=>{
     if(overviewActive())onCompetitions?.(e.currentTarget as HTMLElement)
   })
-  overview.querySelectorAll<HTMLButtonElement>('[data-native-ui-action]').forEach(button=>{
-    button.onclick=()=>{
-      if(!overviewActive())return
-      const action=button.dataset.nativeUiAction||''
-      if(action==='search'){overview.querySelector<HTMLInputElement>('#native-search-term')?.focus();return}
-      if(action.startsWith('explore:'))select(action.slice(8) as ExploreCategory,'',button)
-    }
-  })
-  const form=overview.querySelector<HTMLFormElement>('#native-search')!
+  backButton.onclick=()=>showOverview(true)
+  input.oninput=()=>input.setCustomValidity('')
   form.onsubmit=event=>{
     event.preventDefault()
     if(!overviewActive())return
-    const fields=new FormData(form),term=String(fields.get('term')||'').trim()
-    if(term.length<2||term.length>80)return
-    const category=String(fields.get('category')) as ExploreCategory
-    if(!['Players','Teams','Leagues','Rankings'].includes(category))return
-    select(category,term,form.querySelector<HTMLButtonElement>('button[type="submit"]')!)
+    const term=input.value.trim()
+    if(((term||input.required)&&term.length<2)||term.length>80){
+      input.setCustomValidity('Enter between 2 and 80 characters.')
+      input.reportValidity()
+      return
+    }
+    overviewScroll=window.scrollY
+    openResults(term)
   }
-  app.querySelectorAll<HTMLButtonElement>('[data-category]').forEach(button=>{button.onclick=()=>select(button.dataset.category as Category,'',button)})
-  select(initial)
-  return {dispose:()=>{disposed=true;active?.dispose()},back:()=>{if(active?.back())return true;if(currentCategory!=='Overview'){select('Overview');return true}return false}}
+  selectMode(category)
+  if(initial==='Overview')showOverview()
+  else openResults('')
+  return {dispose:()=>{disposed=true;active?.dispose()},back:()=>{
+    if(!valid()||overview.isConnected)return false
+    if(!active?.back())showOverview(true)
+    return true
+  }}
 }

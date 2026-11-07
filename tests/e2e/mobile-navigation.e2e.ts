@@ -233,14 +233,17 @@ for(const width of [320,390])test('Explore keeps its search and returns focus to
  await page.goto(origin+'/?large=1&explore-return=1')
  await page.locator('.app-navigation [data-screen="explore"]').click()
  const categories=page.getByRole('group',{name:'Explore categories'})
- const overview=categories.getByRole('button',{name:'Explore',exact:true})
- const search=page.getByRole('searchbox',{name:'Search tennis'})
- const category=page.getByRole('combobox',{name:'Search category'})
- const submit=page.locator('#native-search').getByRole('button',{name:'Search',exact:true})
+ const overview=page.getByRole('button',{name:'Back to Explore',exact:true})
+ const search=page.locator('#native-search-term')
+ const category=(name:string)=>categories.getByRole('button',{name,exact:true})
+ const submit=page.locator('#native-search button[type="submit"]')
+ await expect(category('Players')).toHaveAttribute('aria-pressed','true')
+ await expect(page.getByRole('searchbox')).toHaveCount(1)
+ await expect(page.getByRole('combobox',{name:'Search category'})).toHaveCount(0)
  const checkReturn=async(term:string,kind:string)=>{
   await overview.click()
   await expect(search).toHaveValue(term)
-  await expect(category).toHaveValue(kind)
+  await expect(category(kind)).toHaveAttribute('aria-pressed','true')
   await expect(submit).toBeFocused()
  }
  const openAndBack=async(action:string,back:string,field:string)=>{
@@ -256,21 +259,23 @@ for(const width of [320,390])test('Explore keeps its search and returns focus to
   expect(Math.abs(await page.evaluate(()=>window.scrollY)-scroll)).toBeLessThanOrEqual(2)
  }
 
- await search.fill('Jordan');await submit.click()
+ await search.fill('Jordan');await search.press('Enter')
  await openAndBack('View player Jordan Lee 6','Back to search','Player name')
  await expect(page.getByRole('searchbox',{name:'Player name',exact:true})).toHaveValue('Jordan')
  await page.screenshot({path:info.outputPath('explore-restored-player.png')})
  await checkReturn('Jordan','Players')
 
- await search.fill('Baseline');await category.selectOption('Teams');await submit.click()
+ await category('Teams').click()
+ await expect(page.getByRole('searchbox',{name:'Team name',exact:true})).toBeVisible()
+ await search.fill('Baseline');await submit.click()
  await openAndBack('View team Baseline Aces','Back to teams','Team name')
  await checkReturn('Baseline','Teams')
 
- await search.fill('Northside');await category.selectOption('Leagues');await submit.click()
+ await category('Leagues').click();await search.fill('Northside');await submit.click()
  await openAndBack('View league Northside League 2026 Fall 4.0','Back to leagues','League or area')
  await checkReturn('Northside','Leagues')
 
- await category.selectOption('Rankings');await submit.click()
+ await category('Rankings').click();await submit.click()
  const singles=page.getByRole('group',{name:'Ranking view'}).getByRole('button',{name:'Singles',exact:true})
  await singles.click()
  await openAndBack('View player Jordan Lee 6','Back to rankings','Location (optional)')
@@ -278,6 +283,7 @@ for(const width of [320,390])test('Explore keeps its search and returns focus to
  await expect(page.getByRole('searchbox',{name:'Location (optional)'})).toHaveValue('Northside')
  await checkReturn('Northside','Rankings')
  await bounded(page)
+ await page.screenshot({path:info.outputPath('explore-unified-search.png')})
 })
 for(const width of [320,390])test('Matchup keeps format picks and lets players cancel a replacement at '+width+'px',async({page},info)=>{
  await page.setViewportSize({width,height:844})
@@ -684,6 +690,13 @@ for(const width of [320,390])test('first player setup stays usable at '+width+'p
  await page.setViewportSize({width,height:844});await page.goto(origin+'/?signedOut=1&unlinked=1&large=1')
  const browse=page.getByRole('button',{name:'Explore without signing in',exact:true})
  await browse.click()
+ if(width===390){
+  await page.getByRole('group',{name:'Explore categories'}).getByRole('button',{name:'Rankings',exact:true}).click()
+  await page.getByRole('button',{name:'View rankings',exact:true}).click()
+  await expect(page.getByRole('heading',{name:'Rankings',exact:true})).toBeFocused()
+  await page.getByRole('button',{name:'Back',exact:true}).click()
+  await expect(page.getByRole('button',{name:'View rankings',exact:true})).toBeFocused()
+ }
  await page.getByRole('button',{name:'Back',exact:true}).click()
  await expect(page.getByRole('heading',{name:'More Tennis. One App.',exact:true})).toBeFocused()
  await browse.click()
