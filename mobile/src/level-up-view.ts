@@ -204,6 +204,15 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  }
  const trainingViews=()=>`<div class="match-filters training-views" role="group" aria-label="Training views"><button type="button" class="secondary" data-plan aria-pressed="${phase==='plan'}">Your direction</button><button type="button" class="secondary" data-catalog aria-pressed="${phase==='catalog'||phase==='card'}">Training cards</button><button type="button" class="secondary" data-modules aria-pressed="${phase==='modules'||phase==='module'}">Practice modules</button><button type="button" class="secondary" data-progress aria-pressed="${phase==='progress'}">Your progress</button></div>`
  const trainingAccessHtml=()=>`<p>${html(accessCopy())}</p>${accessError?`<button type="button" class="secondary" data-access ${accessBusy?'disabled':''}>Retry player access</button>`:''}`
+ const planScreenHtml=()=>`<header class="training-inbox-header">
+  <h1 tabindex="-1">Your training direction</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button>
+ </header>
+ <p role="status" data-notice>${html(notice)}</p>
+ ${trainingPlanHtml(choices,choiceStored,allowed===true)}
+ <details class="training-inbox-fold" data-inbox-fold="direction-tools"><summary>More training tools</summary>
+  ${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>
+  <div data-direction-access>${trainingAccessHtml()}</div>
+ </details>`
  const catalogScreenHtml=()=>`<header class="training-inbox-header">
   <h1 tabindex="-1">Training cards</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button>
  </header>
@@ -254,7 +263,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    ${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>
   </details>`}`
  const drillScreenHtml=(card:LevelUpCard)=>{
-  const back=cardFromInbox?['inbox','Back to training inbox']:cardFromPlan?['plan','Back to your direction']:cardFromProgress?['progress-back','Back to training progress']:practiceModule?['module-back','Back to practice module']:['catalog-back','Back to training cards']
+  const back=cardFromInbox?['inbox','Back to training inbox']:cardFromPlan?['plan-back','Back to your direction']:cardFromProgress?['progress-back','Back to training progress']:practiceModule?['module-back','Back to practice module']:['catalog-back','Back to training cards']
   return `<header class="training-drill-header"><h1 tabindex="-1">Practice drill</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button></header>
    <div class="training-drill-body" data-training-drill-body>
     <button type="button" class="secondary" data-${back[0]}>${back[1]}</button>
@@ -362,6 +371,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.classList.toggle('training-progress-screen',phase==='progress')
   dialog.classList.toggle('training-catalog-screen',phase==='catalog')
   dialog.classList.toggle('training-modules-screen',phase==='modules'||phase==='module')
+  dialog.classList.toggle('training-direction-screen',phase==='plan'&&!weekPending)
   if(weekPending){renderWeekChange();return}
   if(confirming){dialog.innerHTML=`<h1 tabindex="-1">Leave this session?</h1><p>${payload?'The save may already be recorded. Check account progress before starting it again.':'Your timer and unsaved training notes will be discarded.'}</p><button type="button" class="secondary" data-keep>Keep training</button><button type="button" data-discard>Discard and close</button>`;dialog.querySelector<HTMLButtonElement>('[data-keep]')!.onclick=()=>{confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})};dialog.querySelector<HTMLButtonElement>('[data-discard]')!.onclick=dispose;return}
   const frozen=Boolean(payload),locked=frozen||saving||checking
@@ -373,7 +383,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const previousDrill=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   const drillScroll=previousDrill?.scrollTop??0
   const openDrillFolds=Array.from(previousDrill?.querySelectorAll<HTMLDetailsElement>('[data-drill-fold][open]')??[],fold=>fold.dataset.drillFold)
-  dialog.innerHTML=phase==='inbox'?inboxHtml():phase==='progress'?progressScreenHtml():phase==='catalog'?catalogScreenHtml():phase==='modules'||phase==='module'?modulesScreenHtml(phase==='module'?practiceModule:null):phase==='card'&&selected?drillScreenHtml(selected):phase==='session'&&selected?sessionScreenHtml(selected,locked):`<h1 tabindex="-1">Level Up</h1>${trainingAccessHtml()}${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>${phase==='plan'?`${trainingPlanHtml(choices,choiceStored,allowed===true)}${!choiceStored?'<p role="alert">This choice is available for this visit only. Device storage is unavailable.</p>':''}`:''}<p role="status" data-notice>${html(notice)}</p><button type="button" class="secondary" data-close ${saving||checking?'disabled':''}>Close Level Up</button>`
+  dialog.innerHTML=phase==='inbox'?inboxHtml():phase==='progress'?progressScreenHtml():phase==='catalog'?catalogScreenHtml():phase==='modules'||phase==='module'?modulesScreenHtml(phase==='module'?practiceModule:null):phase==='card'&&selected?drillScreenHtml(selected):phase==='session'&&selected?sessionScreenHtml(selected,locked):planScreenHtml()
   const drillBody=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   if(drillBody&&previousDrill){
    drillBody.querySelectorAll<HTMLDetailsElement>('[data-drill-fold]').forEach(fold=>{fold.open=openDrillFolds.includes(fold.dataset.drillFold)})
@@ -419,8 +429,34 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   })
   dialog.querySelectorAll<HTMLButtonElement>('[data-module]').forEach(b=>{b.onclick=()=>{practiceModule=LEVEL_UP_MODULES.find(m=>m.id===b.dataset.module)||null;if(!practiceModule)return;phase='module';notice='';render();focus()}})
   dialog.querySelectorAll<HTMLButtonElement>('[data-plan]').forEach(b=>{b.onclick=()=>{phase='plan';practiceModule=null;notice='';render();focus()}})
-  const identityForm=dialog.querySelector<HTMLFormElement>('[data-identity]');if(identityForm)identityForm.onsubmit=e=>{e.preventDefault();if(!active())return;const kind=(e.submitter as HTMLButtonElement|null)?.value;if(kind!=='style'&&kind!=='focus')return;try{choices=chooseTrainingIdentity(choices,String(new FormData(identityForm).get(kind)||''));try{choiceStored=saveTrainingChoices(owner,choices,window.localStorage)}catch{choiceStored=false}notice='Training direction updated. Your tennis rating is unchanged.'}catch{notice='Choose a '+kind+' before applying it.'}render();focus()}
-  dialog.querySelector<HTMLButtonElement>('[data-clear-identity]')?.addEventListener('click',()=>{if(!active())return;choices=emptyTrainingChoices();try{choiceStored=saveTrainingChoices(owner,choices,window.localStorage)}catch{choiceStored=false}notice='Training choices cleared for this visit. Saved sessions are unchanged.';render();focus()})
+  dialog.querySelector<HTMLButtonElement>('[data-plan-back]')?.addEventListener('click',()=>{
+   phase='plan';notice='';render()
+   const card=Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-card]')).find(button=>button.dataset.card===selected?.id&&button.getClientRects().length>0)
+   if(card)card.focus();else focus()
+  })
+  const identityForm=dialog.querySelector<HTMLFormElement>('[data-identity]')
+  if(identityForm){
+   const persistChoices=()=>{try{choiceStored=saveTrainingChoices(owner,choices,window.localStorage)}catch{choiceStored=false}}
+   const feedback=identityForm.querySelector<HTMLElement>('[data-identity-feedback]')!
+   identityForm.onchange=()=>{feedback.textContent=''}
+   identityForm.onsubmit=event=>{
+    event.preventDefault()
+    if(!active())return
+    const kind=(event.submitter as HTMLButtonElement|null)?.value
+    if(kind!=='style'&&kind!=='focus')return
+    try{choices=chooseTrainingIdentity(choices,String(new FormData(identityForm).get(kind)||''))}
+    catch{
+     feedback.textContent=kind==='style'?'Choose a playing style first.':'Choose a development focus first.'
+     feedback.focus();return
+    }
+    persistChoices();notice='Training direction updated.';render()
+    dialog.querySelector<HTMLElement>('[data-direction-title]')?.focus()
+   }
+   dialog.querySelector<HTMLButtonElement>('[data-clear-identity]')?.addEventListener('click',()=>{
+    if(!active())return
+    choices=emptyTrainingChoices();persistChoices();notice='Training choices cleared.';render();focus()
+   })
+  }
   dialog.querySelectorAll<HTMLButtonElement>('[data-inbox]').forEach(button=>{button.onclick=()=>{
    const returning=phase==='card'&&cardFromInbox
    phase='inbox';practiceModule=null;notice='';render()
@@ -591,7 +627,17 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const readAccess=async()=>{
   if(accessBusy||!active())return
   accessBusy=true;accessError=false
-  const paintAccess=()=>{if(phase!=='catalog'&&phase!=='modules'&&phase!=='module')render()}
+  const paintAccess=()=>{
+   if(phase==='plan'){
+    const access=dialog.querySelector<HTMLElement>('[data-direction-access]')
+    if(access){
+     access.innerHTML=trainingAccessHtml()
+     access.querySelector<HTMLButtonElement>('[data-access]')?.addEventListener('click',()=>{void readAccess()})
+    }
+    const create=dialog.querySelector<HTMLButtonElement>('[data-week-create]')
+    if(create)create.hidden=allowed!==true
+   }else if(phase!=='catalog'&&phase!=='modules'&&phase!=='module')render()
+  }
   paintAccess()
   try{
    const value=await trainingAccess(client,owner,active)

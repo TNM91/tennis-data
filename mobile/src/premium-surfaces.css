@@ -599,7 +599,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .comparison-fold-body { padding:0 12px 12px; }
 .comparison-fold-body>section { margin:12px 0;padding:14px;background:var(--premium-inset);border-color:var(--premium-line);box-shadow:none; }
 .comparison-fold-body>h2 { margin:18px 0 0; }
-.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen,.training-session-screen,.training-progress-screen,.training-catalog-screen,.training-modules-screen) {
+.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen,.training-session-screen,.training-progress-screen,.training-catalog-screen,.training-modules-screen,.training-direction-screen) {
  padding:16px;border-color:var(--premium-line);background:var(--premium-page);overflow-wrap:anywhere;
 }
 .training-dialog.training-drill-screen[open] { display:flex;flex-direction:column;overflow:hidden; }
@@ -750,23 +750,23 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
  min-block-size:44px;margin:12px 0 0;padding:8px 10px;border:1px solid transparent;
  border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);font-size:.8125rem;
 }
-:is(.training-catalog-screen,.training-modules-screen) { overscroll-behavior:contain;scroll-padding-block:76px 12px; }
-:is(.training-catalog-screen,.training-modules-screen) .training-inbox-header h1 { font-size:1.1rem;text-wrap:balance; }
+:is(.training-catalog-screen,.training-modules-screen,.training-direction-screen) { overscroll-behavior:contain;scroll-padding-block:76px 12px; }
+:is(.training-catalog-screen,.training-modules-screen,.training-direction-screen) .training-inbox-header h1 { font-size:1.1rem;text-wrap:balance; }
 .training-catalog-controls {
  display:grid;gap:9px;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
  background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 80%),var(--premium-card);
 }
 .training-catalog-controls .stat-eyebrow { color:var(--premium-lime);font-size:.6875rem; }
-.training-catalog-controls label { min-inline-size:0;gap:4px;margin:0;color:var(--premium-copy);font-size:.75rem;font-weight:650; }
-.training-catalog-controls :is(input,select) {
+:is(.training-catalog-controls,.training-direction-choice) label { min-inline-size:0;gap:4px;margin:0;color:var(--premium-copy);font-size:.75rem;font-weight:650; }
+:is(.training-catalog-controls,.training-direction-choice) :is(input,select) {
  min-block-size:44px;margin:0;padding:8px 10px;border:1px solid var(--premium-line);
  border-radius:10px;background:var(--premium-inset);color:var(--premium-white);font-size:max(16px,.8125rem);font-weight:500;
 }
-.training-catalog-controls select { appearance:none;padding-inline-end:30px; }
+:is(.training-catalog-controls,.training-direction-choice) select { appearance:none;padding-inline-end:30px; }
 .training-catalog-controls input::placeholder { color:var(--premium-placeholder); }
 .training-catalog-filter-row { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,7rem),1fr));gap:8px; }
-.training-catalog-filter-row label { position:relative; }
-.training-catalog-filter-row label::after {
+:is(.training-catalog-filter-row,.training-direction-choice) label { position:relative; }
+:is(.training-catalog-filter-row,.training-direction-choice) label::after {
  content:"";position:absolute;inset-inline-end:14px;inset-block-end:20px;inline-size:7px;block-size:7px;
  border-inline-end:2px solid var(--premium-ice);border-block-end:2px solid var(--premium-ice);transform:rotate(45deg);pointer-events:none;
 }
@@ -786,7 +786,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .training-catalog-time { padding:2px 7px;border:1px solid var(--premium-line);border-radius:999px;background:var(--premium-inset);color:var(--premium-lime); }
 .training-catalog-goal { color:var(--premium-copy);font-size:.75rem;font-weight:500;line-height:1.4; }
 .training-catalog-arrow { grid-column:2;grid-row:1/4;color:var(--premium-ice);font-size:1.3rem;line-height:1; }
-:is(.training-catalog-screen,.training-modules-screen) :is(button,input,select,summary):focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
+:is(.training-catalog-screen,.training-modules-screen,.training-direction-screen) :is(button,input,select,summary):focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 .training-catalog-empty { padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface); }
 .training-catalog-screen .training-catalog-empty h2 { margin:0;font-size:1rem; }
 .training-catalog-empty p { margin:5px 0 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
@@ -828,6 +828,43 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
  border:1px solid transparent;border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);
 }
 .training-modules-screen [data-notice]:not(:empty) { margin-block:0 8px;padding:6px 8px;border-inline-start:2px solid var(--premium-lime);background:var(--premium-inset); }
+.training-direction-screen p { margin:5px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
+.training-direction-hero,.training-direction-drill {
+ margin:0 0 8px;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-card);
+}
+.training-direction-hero { background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 76%),var(--premium-card); }
+.training-direction-screen .training-direction-hero h2 { margin:4px 0;font-size:1.2rem;line-height:1.22; }
+.training-direction-screen .training-direction-drill h2 { margin:4px 0;font-size:1rem;line-height:1.3; }
+.training-direction-hero .stat-eyebrow,.training-direction-drill .stat-eyebrow { color:var(--premium-lime);font-size:.6875rem; }
+.training-direction-drill-meta { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;font-size:.6875rem; }
+.training-direction-cue {
+ margin-block-start:8px;padding:7px 10px;border-inline-start:2px solid var(--premium-lime);border-radius:8px;background:var(--premium-inset);
+}
+.training-direction-screen .training-direction-cue p { margin:3px 0 0;color:var(--premium-white);font-weight:650; }
+.training-direction-screen button.secondary { min-block-size:44px;font-size:.8125rem; }
+.training-direction-screen .training-direction-drill button.secondary {
+ inline-size:auto;max-inline-size:100%;margin:5px 0 0;padding:8px 12px;border:1px solid transparent;
+ border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);
+}
+.training-direction-screen .training-direction-week { margin:0 0 4px;padding:8px 10px; }
+.training-direction-screen .training-direction-week[hidden],.training-direction-screen [data-identity-feedback]:empty { display:none; }
+.training-direction-screen :is([data-notice]:not(:empty),[role="alert"]:not(:empty)) {
+ margin-block:0 8px;padding:6px 8px;border-inline-start:2px solid var(--premium-royal-line);border-radius:8px;background:var(--premium-inset);
+}
+.training-direction-screen form[data-identity] { display:grid;gap:10px; }
+.training-direction-choice { display:grid;gap:5px; }
+.training-direction-choice+.training-direction-choice { padding-block-start:8px;border-block-start:1px solid var(--premium-line); }
+.training-direction-screen [data-identity] button { margin:0;padding:8px 10px; }
+.training-direction-screen [data-clear-identity] { margin:4px 0 10px;padding:8px 10px; }
+.training-direction-screen dl { margin:0 0 10px; }
+.training-direction-screen dt { margin:8px 0 0;color:var(--premium-ice);font-size:.75rem;font-weight:700; }
+.training-direction-screen dd { margin:3px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
+.training-direction-screen .training-inbox-fold h3 { margin:8px 0 4px;font-size:.875rem;line-height:1.3; }
+.training-direction-more { display:grid;gap:8px;list-style:none;margin:0 0 10px;padding:0; }
+.training-direction-more li,.training-direction-guide-week { padding:7px 9px;border-radius:8px;background:var(--premium-inset); }
+.training-direction-more button { margin:4px 0 0;padding:8px 10px; }
+.training-direction-guide-week { margin-block:6px; }
 .training-inbox-screen .training-inbox-tabs {
  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:0 0 12px;
  background:var(--premium-inset);border-color:var(--premium-line);
@@ -913,6 +950,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
     #comparison-result .match-filters,
     .coach-hub-lanes,
     .training-inbox-tabs,
+    .training-direction-screen .training-views,
     .explore-categories,
     body[data-screen="teams"] .chats-inbox-filters,
     .cal-switch,
