@@ -11,6 +11,14 @@ const overdue:CoachAssignment={
  dueDate:shiftCalendarDay(today,-1),status:'assigned',updatedAt,
  assignment:{cardId:'split-step-rhythm',detail:'Start with five crosscourt returns.',expectedEvidence:'Count the returns that land past the service line.'},
 }
+if(new URL(location.href).searchParams.has('training-practice-pack')){
+ overdue.assignment.levelUpPack={id:'return-pack',title:'Return and recover',focus:'Return depth',items:[
+  {cardId:'split-step-rhythm',title:'Warm up the split step',proof:'Land before the toss peaks.',status:'completed'},
+  {cardId:'split-step-rhythm',title:'Split before the return',proof:'Land as your opponent makes contact.',status:'started'},
+  {cardId:'double-fault-reset',title:'Reset under pressure',proof:'Pick a clear target.',status:'assigned'},
+  {cardId:'legacy-return-card',title:'Finish at the baseline',proof:'Hold your recovery position.',status:'assigned'},
+ ]}
+}
 const assignments:CoachAssignment[]=[
  {...overdue,id:'training-serve',title:'Second-serve targets',dueDate:shiftCalendarDay(today,1),assignment:{detail:'Hit five serves to each target.'}},
  {...overdue,id:'training-finished',title:'Baseline recovery drill',status:'completed',assignment:buildPlayerAssignmentCompletion({}, {recap:'Balanced on the first step.',evidence:'Four of five.'})},

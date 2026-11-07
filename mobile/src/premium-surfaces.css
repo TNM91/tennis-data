@@ -639,6 +639,23 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
  margin:12px 0;padding:10px 12px;background:var(--premium-inset);border-inline-start:2px solid var(--premium-royal-line);border-radius:8px;
 }
 .training-assignment-proof strong { display:block;color:var(--premium-white); }
+.training-pack-drills { display:grid;gap:8px;list-style:none;margin:8px 0;padding:0; }
+.training-assignment .training-pack-drill {
+ margin:0;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-inset);overflow-wrap:anywhere;
+}
+.training-assignment .training-pack-drill[data-pack-next] {
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-inset);
+}
+.training-pack-meta { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px; }
+.training-pack-meta small { color:var(--premium-ice);font-size:.6875rem;font-weight:750;letter-spacing:.06em;text-transform:uppercase; }
+[data-pack-next] .training-pack-meta small { color:var(--premium-lime); }
+.training-pack-meta [data-pack-status] { color:var(--premium-copy);font-size:.6875rem; }
+.training-pack-meta [data-pack-status="completed"] { color:var(--premium-lime); }
+.training-pack-drill-title { display:block;margin-block:5px 2px;color:var(--premium-white);font-size:.9375rem; }
+.training-pack-drill p>strong { display:block;color:var(--premium-white); }
+.training-inbox-screen .training-pack-drill button { min-block-size:44px;margin:6px 0 0;padding:8px 10px;font-size:.8125rem; }
+.training-inbox-fold.training-pack-fold { background:var(--premium-inset); }
 :is(.training-assignment-actions,.training-week-actions) { display:grid;gap:6px;margin-block-start:12px; }
 :is(.training-assignment-actions,.training-week-actions) button { min-block-size:44px;margin:0;padding:8px 10px;font-size:.8125rem; }
 .training-inbox-screen .training-week h2 { margin:0 0 6px;color:var(--premium-white);font-size:1.0625rem;line-height:1.25; }

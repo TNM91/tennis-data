@@ -37,7 +37,26 @@ describe('native training inbox',()=>{
   expect(latest).toContain('Completed work and check-ins (1)')
   expect(latest).not.toContain('data-coach-checkin="tomorrow"')
  })
- it('preserves pack card order and caps visible pack launches to thirty',()=>{const w=work();Object.assign(w.assignments[0].assignment,{levelUpPack:{id:'pack',title:'Movement block',focus:'Move',items:[{cardId:'double-fault-reset',title:'Reset',proof:'Clear cue',status:'completed'},{cardId:'split-step-rhythm',title:'Feet',proof:'Quiet feet',status:'assigned'}]}});const parsed=parseTrainingCoachWork(w,owner);expect(trainingInboxLaunches([],parsed).map(l=>l.cardId)).toEqual(['double-fault-reset','split-step-rhythm']);expect(trainingCoachWorkHtml(parsed)).toContain('Reset · completed')})
+ it('leads with the unfinished pack drill and keeps repeated cards separately launchable within the display limit',()=>{
+  const w=work(),items=Array.from({length:31},(_,slot)=>({
+   cardId:slot===2?'retired-drill':'split-step-rhythm',title:`Split step ${slot+1}`,proof:'Land quietly.',status:slot===0?'completed':'assigned',
+  }))
+  Object.assign(w.assignments[0].assignment,{tracker:['Record your balance.','Split step 2: Land quietly.'],levelUpPack:{id:'pack',title:'Movement block',focus:'Move',items}})
+  const parsed=parseTrainingCoachWork(w,owner)
+  const launches=trainingInboxLaunches([],parsed)
+  expect(launches).toHaveLength(29)
+  expect(launches.slice(0,2).map(launch=>JSON.parse(launch.key))).toEqual([
+   ['coach','assignment','split-step-rhythm',0],['coach','assignment','split-step-rhythm',1],
+  ])
+  const view=trainingCoachWorkHtml(parsed)
+  expect(view).toMatch(/data-pack-next[\s\S]*?Next drill · 2 of 31[\s\S]*?Split step 2</)
+  expect(view).toContain('Other drills (29)')
+  expect(view).toContain('Record your balance.')
+  expect(view).not.toContain('Split step 2: Land quietly.')
+  expect(view).toContain('Split step 3')
+  expect(view).not.toContain('Practice privately<span class="sr-only"> Split step 3</span>')
+  expect(view).not.toContain('Split step 31')
+ })
  it('does not mark historical weekly reps complete or expose arbitrary navigation links',()=>{const plans=parseTrainingPlans({ok:true,plans:[{...plan(),reps:[{...rep(),title:'<img src=x>',href:'/level-up/unknown?redirect=https://example.com'}]}]});const view=trainingPlansHtml(plans);expect(view).toContain('0/1 recorded complete');expect(view).toContain('&lt;img');expect(view).not.toContain('href=');expect(view).not.toContain('https://example.com');expect(plans[0].reps[0].completedAt).toBeNull()})
  it('makes bounded read-only, uncached, non-redirecting requests to the existing player APIs',async()=>{const send=vi.fn<TrainingInboxSend>(async()=>response({ok:true,plans:[]}));await loadTrainingPlans(client(),owner,()=>true,send);expect(send).toHaveBeenCalledTimes(1);expect(send.mock.calls[0][0]).toMatchObject({url:'https://www.tenaceiq.com/api/player/level-up-weekly-plan',disableRedirects:true,headers:{Authorization:'Bearer synthetic','Cache-Control':'no-store'},webFetchExtra:{cache:'no-store'}});expect(send.mock.calls[0][0]).not.toHaveProperty('data');const coachSend=vi.fn(async()=>response(work()));expect((await loadTrainingCoachWork(client(),owner,()=>true,coachSend)).assignments).toHaveLength(1)})
  it('sends no request after close or account change and rejects late responses',async()=>{const send=vi.fn<TrainingInboxSend>(async()=>response({ok:true,plans:[]}));await expect(loadTrainingPlans(client('other'),owner,()=>true,send)).rejects.toThrow();await expect(loadTrainingPlans(client(),owner,()=>false,send)).rejects.toThrow();expect(send).not.toHaveBeenCalled();let active=true;await expect(loadTrainingPlans(client(),owner,()=>active,async()=>{active=false;return response({ok:true,plans:[]})})).rejects.toThrow()})
