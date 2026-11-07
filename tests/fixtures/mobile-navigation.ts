@@ -16,14 +16,14 @@ import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coac
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
 import {trainingInboxPreview} from './mobile-training-inbox'
 const originalFetch=window.fetch.bind(window)
-const fixtureState={requests:0,leagueReads:0,teamInviteActions:[] as string[]}
+const fixtureState={requests:0,leagueReads:0,teamReads:0,teamInviteActions:[] as string[]}
 if(new URL(location.href).searchParams.has('team-practice-review')){
  calendarTeamFixture.enabled=true
  calendarTeamFixture.items[0].title='Return + first ball'
 }
-const chatUnreadFixture={total:7,reads:0,fail:false,detailed:false,secondTeam:false,denyRoom:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
+const chatUnreadFixture={total:7,reads:0,fail:false,detailed:false,secondTeam:false,empty:false,denyRoom:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
-const chatTeams=()=>[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
+const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 Object.assign(window,{chatUnreadFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture})
 window.fetch=async(input,init)=>{
@@ -45,6 +45,7 @@ window.fetch=async(input,init)=>{
  }
  if(url.pathname==='/api/mobile/coach/alerts'){if(init?.method==='POST'){nativeCoachAlertFixture.enabled=JSON.parse(String(init.body)).enabled;nativeCoachAlertFixture.writes.push(nativeCoachAlertFixture.enabled)}return Response.json({ok:true,owner:currentNavigationOwner(),enabled:nativeCoachAlertFixture.enabled,available:true})}
  if(url.pathname==='/api/team-rooms'){
+  fixtureState.teamReads++
   if(coachChatFixture.teamFail)return Response.json({ok:false},{status:503})
   const roomId=url.searchParams.get('chatRoom'),selected=url.searchParams.get('team')
   if(selected)chatUnreadFixture.opened.push(url.search)
@@ -65,7 +66,11 @@ window.fetch=async(input,init)=>{
  }
  if(url.pathname==='/api/mobile/coach')return coachPreviewRequest(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/invites')return coachPreviewInvitesRequest(init?.method||'GET',url,init?.body)
- if(url.pathname==='/api/mobile/coach/connection')return coachPreviewConnectionRequest(init?.body)
+ if(url.pathname==='/api/mobile/coach/connection'){
+  const response=coachPreviewConnectionRequest(init?.body)
+  if(coachChatFixture.empty&&response.ok&&(await response.clone().json()).state==='connected')coachChatFixture.empty=false
+  return response
+ }
  if(url.pathname==='/api/mobile/coach/tactics')return tacticsPreviewRequest(init?.method||'GET',url,init?.body)
  const trainingReply=trainingInboxPreview(url,init?.method||'GET',init?.body);if(trainingReply)return trainingReply
  let reply:unknown={ok:false,error:'Synthetic preview does not provide this service'}

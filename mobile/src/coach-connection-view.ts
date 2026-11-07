@@ -4,26 +4,28 @@ import type {CoachSend} from './coach-workspace-data'
 import {coachConnectionRequest,CoachConnectionError} from './coach-connection-data'
 import {coachInvitationToken,type CoachConnection} from '../../lib/native-coach-connection-contract'
 
-export function openCoachConnection(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,send?:CoachSend,initialLink=''){
+export function openCoachConnection(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,send?:CoachSend,initialLink='',options?:{connectedMessage:string;onClose:(connected:boolean)=>void}){
  const dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog coach-workspace-dialog';dialog.setAttribute('aria-label','Accept coach invitation')
  let disposed=false,busy=false,leaving=false,attempted=false,uncertain=false,link='',token='',notice='',data:CoachConnection|null=null,pendingLeave:(()=>void)|null=null
  const active=()=>!disposed&&current(),focus=()=>dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})
  const dispose=()=>{if(disposed)return;disposed=true;link=token=notice='';data=null;pendingLeave=null;dialog.close();dialog.remove();if(current()&&trigger?.isConnected)trigger.focus({preventScroll:true})}
- const exit=()=>{const next=pendingLeave;dispose();next?.()}
- const requestLeave=(next:()=>void)=>{if(busy)return;if(link&&data?.state!=='connected'){pendingLeave=next;leaving=true;render();focus()}else{dispose();next()}}
+ const connectedMessage=options?.connectedMessage??'Your account is connected. Open Your coach & weekly plans to see your assignments.'
+ const close=()=>{if(disposed)return;const connected=data?.state==='connected';dispose();options?.onClose(connected)}
+ const exit=()=>{const next=pendingLeave;close();next?.()}
+ const requestLeave=(next:()=>void)=>{if(busy)return;if(link&&data?.state!=='connected'){pendingLeave=next;leaving=true;render();focus()}else{close();next()}}
  const back=()=>{if(busy)return true;if(leaving){pendingLeave=null;leaving=false;render();focus()}else requestLeave(()=>{});return true}
  const read=async()=>{
   if(!active()||busy)return
   try{token=coachInvitationToken(link)}catch{notice='Paste the complete TenAceIQ invitation link from your coach.';render();focus();return}
   busy=true;notice=attempted?'Checking your connection…':'Loading invitation…';render()
-  try{const found=await coachConnectionRequest(client,owner,active,{action:'preview',token},send);if(!active())return;data=found;uncertain=false;notice=found.state==='connected'?'Your account is connected. Open Your coach & weekly plans to see your assignments.':found.state==='reserved'?'Your invitation was accepted, but the student connection still needs to finish. Review the details below before continuing.':attempted?'Your account is not connected yet. Review the current invitation before trying again.':'';attempted=false}
+  try{const found=await coachConnectionRequest(client,owner,active,{action:'preview',token},send);if(!active())return;data=found;uncertain=false;notice=found.state==='connected'?connectedMessage:found.state==='reserved'?'Your invitation was accepted, but the student connection still needs to finish. Review the details below before continuing.':attempted?'Your account is not connected yet. Review the current invitation before trying again.':'';attempted=false}
   catch(error){if(active()){data=null;notice=error instanceof CoachConnectionError?error.message:'The invitation could not be checked. Try again when connected.'}}
   finally{if(active()){busy=false;render();focus()}}
  }
  const accept=async()=>{
   if(!data||data.state==='connected'||busy||uncertain||!active())return
   const revision=data.revision;busy=attempted=uncertain=true;notice='Connecting your account…';render()
-  try{const found=await coachConnectionRequest(client,owner,active,{action:'accept',token,revision},send);if(!active())return;data=found;if(found.state==='connected'){uncertain=false;notice='Your account is connected. Open Your coach & weekly plans to see your assignments.'}else notice='The connection is not finished. Check its status before trying again.'}
+  try{const found=await coachConnectionRequest(client,owner,active,{action:'accept',token,revision},send);if(!active())return;data=found;if(found.state==='connected'){uncertain=false;notice=connectedMessage}else notice='The connection is not finished. Check its status before trying again.'}
   catch(error){if(active())notice=error instanceof CoachConnectionError?error.message:'Connection not confirmed. Check its status before trying again.'}
   finally{if(active()){busy=false;render();focus()}}
  }

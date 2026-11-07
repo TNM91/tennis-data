@@ -11,6 +11,22 @@ const inboxShortcuts=[
  {target:'chats-team-inbox',label:'Team chats',description:'Team rooms',icon:websiteUi.icons.teams},
  {target:'chats-coach-inbox',label:'Coach & player',description:'Private chats',icon:websiteUi.icons.coach},
 ] as const
+const chatStartActions={
+ team:{title:'Use a team invite',detail:'Use the link from your captain.',icon:websiteUi.icons.teams},
+ coach:{title:'Accept coach invitation',detail:'Start a private chat with your coach.',icon:websiteUi.icons.coach},
+} as const
+
+export function chatsStartActionHtml(kind:keyof typeof chatStartActions){
+ const action=chatStartActions[kind],id='chats-'+kind+'-start'
+ return `<div class="native-entry-list chats-start-action">
+  <button type="button" class="secondary app-tool${kind==='team'?' native-entry-featured':''}" ${kind==='team'?'id="join-team"':'data-chats-coach-invite'}
+   aria-labelledby="${id}-title" aria-describedby="${id}-detail">
+   <span class="app-tool-icon" aria-hidden="true">${action.icon}</span>
+   <span class="app-tool-copy"><strong id="${id}-title">${action.title}</strong><span id="${id}-detail">${action.detail}</span></span>
+   <span aria-hidden="true">›</span>
+  </button>
+ </div>`
+}
 
 export function chatsInboxHtml(data:NativeTeamData){
  return `<header class="chats-intro"><h1 tabindex="-1">Chats</h1></header>
@@ -19,7 +35,7 @@ export function chatsInboxHtml(data:NativeTeamData){
    <span class="chats-shortcut-icon" aria-hidden="true">${icon}</span>
    <span class="chats-shortcut-copy"><strong>${html(label)}</strong><small data-chats-jump-status>${description}</small></span>
   </button>`).join('')}</div>
- <section id="chats-team-inbox" aria-labelledby="chats-teams-title"><div class="chats-section-heading"><h2 id="chats-teams-title" tabindex="-1">Your teams</h2><button type="button" class="secondary" id="join-team">Join team</button></div>
+ <section id="chats-team-inbox" aria-labelledby="chats-teams-title"><div class="chats-section-heading"><h2 id="chats-teams-title" tabindex="-1">Your teams</h2>${data.teams.length?'<button type="button" class="secondary" id="join-team">Join team</button>':''}</div>
  <details class="chats-filter-drawer" data-team-chat-filters ${data.teams.length?'':'hidden'}>
   <summary>Search &amp; filter teams<span class="chats-filter-active" data-team-filter-active hidden>Active</span></summary>
   <div class="chats-inbox-tools">
@@ -27,7 +43,7 @@ export function chatsInboxHtml(data:NativeTeamData){
    <div class="chats-inbox-filters" role="group" aria-label="Show teams"><button type="button" class="secondary" data-chats-filter="all" aria-pressed="true">All</button><button type="button" class="secondary" data-chats-filter="unread" aria-pressed="false">Unread</button></div>
   </div>
  </details>
- ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}"><span class="chats-team-avatar" aria-hidden="true">${html(team.teamName.trim().slice(0,1).toUpperCase())}</span><span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(team.leagueName)}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:'<p>Join your team with an invite from your captain.</p>'}
+ ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}"><span class="chats-team-avatar" aria-hidden="true">${html(team.teamName.trim().slice(0,1).toUpperCase())}</span><span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(team.leagueName)}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:chatsStartActionHtml('team')}
  <p class="chats-inbox-status" role="status" data-chats-status></p>
  <button type="button" class="secondary" id="refresh-team">Refresh teams</button></section><div id="chats-coach-inbox" data-coach-chats></div><section class="chat-notification-settings" data-chat-notifications aria-label="Chat notifications"></section>`
 }
@@ -65,9 +81,10 @@ export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsIn
   }
   for(const {target,description,status} of shortcuts){
    const count=unreadCounts[target]
-   const label=count===undefined?description:count?(count===100?'99+':count)+' unread':'Caught up'
+   const noTeams=target==='chats-team-inbox'&&!teams.length
+   const label=noTeams?'No teams yet':count===undefined?description:count?(count===100?'99+':count)+' unread':'Caught up'
    if(status.textContent!==label)status.textContent=label
-   status.toggleAttribute('data-has-unread',Boolean(count))
+   status.toggleAttribute('data-has-unread',!noTeams&&Boolean(count))
   }
   const query=findText(filter.query);let visible=0,unknown=0
   filtersActive.hidden=!query&&!filter.unreadOnly

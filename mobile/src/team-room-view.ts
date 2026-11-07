@@ -388,10 +388,17 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   catch{if(valid()){safetyNotice='Couldn’t confirm this action. Try again.';render()}}
   finally{busy=false;if(valid()){render();if(needsLiveRefresh){needsLiveRefresh=false;void refreshLive().catch(()=>{})}}}
  }
- const openInvite=()=>{
-  if(inviteView?.isOpen())return
+ const openInvite=(event:MouseEvent)=>{
+  if(!valid()||inviteView?.isOpen())return
   if(busy || draft.pending || draft.sending || draft.text.trim() || draft.reply || draft.photo || photoChoosing || pendingReactions.size || postEditor?.isOpen() || matchActions.pending || matchActions.sending || muteSending || mutePending!==null || reactionSending || captainView){safetyNotice='Finish your current team action or clear your draft before opening an invite.';render();return}
-  inviteView=openTeamInvite(client,userId,valid,scope=>{inviteView=null;freshDraft();inbox=false;selected={teamName:scope.teamName,leagueName:scope.leagueName,flight:scope.flight};tab='Conversation';void load()},()=>{inviteView=null;void load(true)})
+  const trigger=event.currentTarget as HTMLButtonElement
+  trigger.focus({preventScroll:true})
+  inviteView=openTeamInvite(client,userId,valid,scope=>{inviteView=null;freshDraft();inbox=false;selected={teamName:scope.teamName,leagueName:scope.leagueName,flight:scope.flight};tab='Conversation';void load()},needsRefresh=>{
+   inviteView=null
+   if(!valid())return
+   if(needsRefresh)void load(true)
+   else if(trigger.isConnected)trigger.focus({preventScroll:true})
+  })
  }
  const openInbox=()=>{
   if(!valid()||inbox||roomPicker?.isOpen()||draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending||(availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen()||fixturesView?.isOpen()||historySearch?.isOpen()||matchReview?.isOpen()||matchShare?.isOpen()||inviteView?.isOpen()||messageView?.isOpen()||linkView?.isOpen()||announcementView?.isOpen()||postEditor?.isOpen()||photoDialog||mentionDialog)return

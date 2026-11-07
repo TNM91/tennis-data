@@ -1,7 +1,7 @@
 import {test,expect,type Page} from '@playwright/test'
 const origin='http://127.0.0.1:4283'
-type State={enabled:boolean;fail:boolean;removed:boolean;teamFail:boolean;loseSend:boolean;requests:{method:string;student:string;message:string}[];messages:{id:string;body:string}[]}
-type Preview=Window&{coachChatFixture:State;switchNavigationOwner:()=>void;oldCoachButton?:HTMLButtonElement}
+type State={enabled:boolean;fail:boolean;empty:boolean;removed:boolean;teamFail:boolean;loseSend:boolean;requests:{method:string;student:string;message:string}[];messages:{id:string;body:string}[]}
+type Preview=Window&{coachChatFixture:State;chatUnreadFixture:{empty:boolean;total:number};navigationFixture:{teamReads:number};switchNavigationOwner:()=>void;oldCoachButton?:HTMLButtonElement}
 async function inbox(page:Page,width=390){
  await page.routeWebSocket('**/*',ws=>ws.close())
  await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1')
@@ -44,6 +44,7 @@ for(const width of [320,390]){
 test('Coach Chats distinguishes an unavailable service and rejects disconnected conversation targets',async({page})=>{
  await inbox(page);await page.evaluate(()=>{const w=window as unknown as Preview;w.oldCoachButton=document.querySelector<HTMLButtonElement>('[data-coach-chat="student-one"]')!;w.coachChatFixture.fail=true})
  await page.getByRole('button',{name:'Refresh conversations',exact:true}).click();await expect(page.locator('[data-coach-chat-status]')).toContainText('unavailable');await expect(page.locator('[data-coach-chat]')).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'Accept coach invitation',exact:true})).toHaveCount(0)
  await page.evaluate(()=>(window as unknown as Preview).oldCoachButton!.click());await expect(page.getByRole('dialog',{name:'Coach messages',exact:true})).toHaveCount(0)
  await page.evaluate(()=>(window as unknown as Preview).coachChatFixture.fail=false);await page.getByRole('button',{name:'Refresh conversations',exact:true}).click();await expect(page.locator('[data-coach-chat]')).toHaveCount(2)
  await page.evaluate(()=>(window as unknown as Preview).coachChatFixture.removed=true);await page.locator('[data-coach-chat="student-one"]').click()
@@ -60,4 +61,56 @@ test('Coach Chats stays available when the team directory fails',async({page})=>
  await page.goto(origin);await page.evaluate(()=>{const f=(window as unknown as Preview).coachChatFixture;f.enabled=true;f.teamFail=true})
  await page.locator('.app-navigation [data-screen="teams"]').click();await expect(page.getByRole('alert')).toContainText('Can’t open this team.');await expect(page.locator('[data-coach-chat]')).toHaveCount(2)
  await page.locator('[data-coach-chat="student-two"]').click();await expect(page.getByRole('dialog',{name:'Coach messages',exact:true})).toContainText('Ready for our lesson.')
+})
+test('Empty Chats offers direct invites and refreshes coach conversations after connection',async({page},info)=>{
+ await page.setViewportSize({width:320,height:844})
+ await page.goto(origin+'/?large=1')
+ await page.evaluate(()=>{
+  const w=window as unknown as Preview
+  Object.assign(w.chatUnreadFixture,{empty:true,total:0})
+  Object.assign(w.coachChatFixture,{empty:true,enabled:true})
+ })
+ await page.locator('.app-navigation [data-screen="teams"]').click()
+ const team=page.getByRole('button',{name:'Use a team invite',exact:true})
+ const coach=page.getByRole('button',{name:'Accept coach invitation',exact:true})
+ await expect(page.locator('[data-chats-jump="chats-team-inbox"]')).toContainText('No teams yet')
+ for(const action of [team,coach]){
+  await expect(action).toBeInViewport({ratio:1})
+  expect(await action.evaluate(el=>el.getBoundingClientRect().bottom<=document.querySelector('.app-navigation')!.getBoundingClientRect().top)).toBe(true)
+ }
+ await expect(team).toHaveCSS('background-image',/linear-gradient.*linear-gradient.*linear-gradient/)
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.locator('.preview-controls').evaluate(el=>{(el as HTMLElement).hidden=true})
+ await page.screenshot({path:info.outputPath('chats-get-started.png')})
+ const reads=()=>page.evaluate(()=>{
+  const w=window as unknown as Preview
+  return {teams:w.navigationFixture.teamReads,coach:w.coachChatFixture.requests.length}
+ })
+ const before=await reads()
+ await team.click()
+ const teamInvite=page.getByRole('dialog',{name:'Join a team',exact:true})
+ await teamInvite.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(team).toBeFocused()
+ expect(await reads()).toEqual(before)
+
+ await coach.click()
+ const coachInvite=page.getByRole('dialog',{name:'Accept coach invitation',exact:true})
+ await coachInvite.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(coach).toBeFocused()
+ expect(await reads()).toEqual(before)
+ await coach.click()
+ await coachInvite.getByLabel('Invitation link',{exact:true}).fill('https://www.tenaceiq.com/coach/invite/fixture-token')
+ await coachInvite.getByRole('button',{name:'Review invitation',exact:true}).click()
+ await expect(coachInvite).toContainText('Alex Rivera')
+ await expect(page.locator('[data-coach-writes]')).toContainText('0')
+ await coachInvite.getByRole('button',{name:'Connect my account',exact:true}).click()
+ await expect(coachInvite.getByRole('heading',{name:'You’re connected',exact:true})).toBeVisible()
+ await expect(coachInvite).toContainText('Close this invitation to see your coach in Chats.')
+ await coachInvite.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(coach).toHaveCount(0)
+ const conversation=page.locator('[data-coach-chat="student-one"]')
+ await expect(conversation).toBeVisible()
+ expect(await reads()).toEqual({teams:before.teams,coach:before.coach+1})
+ await conversation.click()
+ await expect(page.getByRole('dialog',{name:'Coach messages',exact:true})).toContainText('Bring your return notes.')
 })

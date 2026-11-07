@@ -1,9 +1,9 @@
-export const coachChatFixture={enabled:false,fail:false,removed:false,teamFail:false,loseSend:false,requests:[] as {method:string;student:string;message:string}[],messages:[] as {id:string;mine:boolean;body:string;createdAt:string}[]}
+export const coachChatFixture={enabled:false,fail:false,empty:false,removed:false,teamFail:false,loseSend:false,requests:[] as {method:string;student:string;message:string}[],messages:[] as {id:string;mine:boolean;body:string;createdAt:string}[]}
 export function coachChatPreview(owner:string,method:string,url:URL,body:BodyInit|null|undefined){
  if(!coachChatFixture.enabled)return null
  const student=url.searchParams.get('student')||'',message=url.searchParams.get('message')||'';coachChatFixture.requests.push({method,student,message})
  if(coachChatFixture.fail)return Response.json({ok:false},{status:503})
- if(!student)return Response.json({ok:true,owner,connections:[...(!coachChatFixture.removed?[{id:'student-one',name:'Alex Rivera <img src=x>',role:'coach'}]:[]),{id:'student-two',name:'Jordan Lee',role:'player'}],more:false})
+ if(!student)return Response.json({ok:true,owner,connections:coachChatFixture.empty?[]:[...(!coachChatFixture.removed?[{id:'student-one',name:'Alex Rivera <img src=x>',role:'coach'}]:[]),{id:'student-two',name:'Jordan Lee',role:'player'}],more:false})
  if(coachChatFixture.removed&&student==='student-one')return Response.json({ok:false},{status:404})
  if(method==='PATCH'){const value=JSON.parse(String(body));return Response.json({ok:true,owner,student,through:value.message})}
  if(method==='POST'){

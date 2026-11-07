@@ -735,6 +735,15 @@ body[data-screen="teams"] button.secondary.chats-inbox-shortcut:focus-visible {
 .chats-shortcut-copy strong { color:var(--premium-white);font-size:.875rem;line-height:1.25; }
 .chats-shortcut-copy small { color:var(--premium-copy);font-size:.75rem;line-height:1.35; }
 .chats-shortcut-copy [data-has-unread] { color:var(--premium-lime); }
+body[data-screen="teams"] :is(#chats-team-inbox,.chats-coach-inbox):has(>.chats-start-action) {
+ margin-block:12px 16px;padding:0;border:0;background:transparent;box-shadow:none;
+}
+:is(#chats-team-inbox,.chats-coach-inbox):has(>.chats-start-action) .chats-section-heading h2 { margin:0 0 6px; }
+.chats-coach-inbox:has(>.chats-start-action) .chats-team-list:empty { display:none; }
+.chats-start-action { margin-block:4px 8px; }
+body[data-screen="teams"] #chats-team-inbox .chats-start-action #join-team {
+ inline-size:100%;min-block-size:76px;margin:0;padding:12px 14px;
+}
 :is(#chats-team-inbox,#chats-coach-inbox) h2 { scroll-margin-block-start:calc(env(safe-area-inset-top,0px) + 12px); }
 .chats-filter-drawer { margin-block:2px 4px;border:0;background:none; }
 .chats-filter-drawer > summary {

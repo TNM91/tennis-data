@@ -3,12 +3,12 @@ import {nativeInviteToken,type NativeInviteReview} from '../../lib/native-team-i
 import {inviteRequest,InviteError} from './team-invite-data'
 import {html} from './match-details'
 import type {TeamScope} from './team-room-data'
-export function openTeamInvite(client:SupabaseClient,owner:string,current:()=>boolean,joined:(scope:TeamScope)=>void,closed:()=>void,initialLink=''){
+export function openTeamInvite(client:SupabaseClient,owner:string,current:()=>boolean,joined:(scope:TeamScope)=>void,closed:(needsRefresh:boolean)=>void,initialLink=''){
  const dialog=document.createElement('dialog');dialog.className='team-invite-dialog';dialog.setAttribute('aria-label','Join a team');document.body.append(dialog)
  let disposed=false,busy=false,uncertain=false,token='',input=nativeInviteToken(initialLink)?initialLink:'',notice='',review:NativeInviteReview|null=null
  const valid=()=>!disposed && current()
  const dispose=()=>{disposed=true;dialog.remove()}
- const close=()=>{if(busy&&review)return;dispose();closed()}
+ const close=()=>{if(busy&&review)return;dispose();closed(uncertain)}
  const render=()=>{
   if(!valid())return
   dialog.innerHTML=`<header class="team-invite-heading"><h2 tabindex="-1">Join your team</h2>
