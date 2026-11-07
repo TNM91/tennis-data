@@ -408,8 +408,8 @@ body[data-screen="lab"] .lab-form-overview .stat-donut-track { stroke:#294b61;st
 .lab-shortcuts .app-tool-copy strong { font-size:.9375rem;line-height:1.25; }
 .lab-shortcuts .app-tool-copy>span { color:var(--premium-copy);font-size:.75rem;line-height:1.4; }
 .lab-shortcuts .app-tool-arrow {
- grid-area:arrow;display:grid;place-items:center;inline-size:24px;block-size:24px;border-radius:50%;
- background:var(--premium-inset);color:var(--premium-ice);font-size:1.125rem;
+ grid-area:arrow;display:grid;place-items:center;inline-size:24px;block-size:24px;
+ color:var(--premium-ice);font-size:1.125rem;
 }
 .lab-shortcuts button.app-tool.lab-shortcut-coach.secondary { border-block-start:1px solid transparent;background:var(--premium-court-inlay); }
 .lab-shortcuts .lab-shortcut-coach .app-tool-arrow { color:var(--premium-lime); }
