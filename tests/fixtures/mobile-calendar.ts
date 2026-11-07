@@ -9,7 +9,7 @@ export async function calendarPreview(method:string,url:URL,body:unknown){
  if(calendarFixture.fail){calendarFixture.fail=false;return Response.json({ok:false},{status:503})}
  if(method==='POST'){
   const action=calendarIntent(intent)
-  if(action.action==='respond'){const e=calendarFixture.competitions.find(e=>e.id===action.eventId)!;e.responseStatus=action.response;e.responseUpdatedAt=new Date().toISOString()}
+  if(action.action==='respond'){const e=calendarFixture.competitions.find(e=>e.id===action.eventId)!;e.responseStatus=action.response;e.responseIsStale=false;e.responseUpdatedAt=new Date().toISOString()}
   else if(action.action==='delete')calendarFixture.personal=calendarFixture.personal.filter(p=>p.id!==action.id)
   else{const p=calendarFixture.personal.find(p=>p.id===action.item.id);if(action.action==='update'&&!p)return Response.json({ok:false},{status:409});if(p&&p.updatedAt!==action.expectedUpdatedAt&&JSON.stringify(personalDraft(p))!==JSON.stringify(action.item))return Response.json({ok:false},{status:409});const value={...action.item,createdAt:p?.createdAt||updated,updatedAt:new Date().toISOString()};calendarFixture.personal=[...calendarFixture.personal.filter(p=>p.id!==action.item.id),value]}
   if(calendarFixture.loseWrite){calendarFixture.loseWrite=false;throw Error('Synthetic lost response')}

@@ -1,6 +1,7 @@
 import {test,expect,type Page} from '@playwright/test'
+import type {PlayerCompetitionScheduleEvent} from '../../lib/player-competition-schedule'
 const origin='http://127.0.0.1:4283'
-type CalendarWindow=Window&{calendarFixture:{loseWrite:boolean;fail:boolean;failAgendaReads:number;defer:boolean;release:()=>void;requests:{method:string;body:{action:string}}[];personal:{id:string;title:string;updatedAt:string}[]};refreshNavigationSession:()=>void;switchNavigationOwner:()=>void}
+type CalendarWindow=Window&{calendarFixture:{loseWrite:boolean;fail:boolean;failAgendaReads:number;defer:boolean;release:()=>void;requests:{method:string;body:{action:string}}[];personal:{id:string;title:string;updatedAt:string}[];competitions:PlayerCompetitionScheduleEvent[]};refreshNavigationSession:()=>void;switchNavigationOwner:()=>void}
 async function calendarScreen(page:Page,width=390){
  await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1');await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="calendar"]').click();const dialog=page.getByRole('dialog',{name:'Your calendar',exact:true});await expect(dialog.locator('.cal-event')).toHaveCount(3);return dialog
 }
@@ -144,10 +145,54 @@ test('Calendar: retry after a confirmed save restores the saved practice without
 })
 test('Calendar: recurring deletion reviews the whole series and availability sends only after confirmation',async({page})=>{
  const d=await calendarScreen(page);await d.locator('.cal-event').filter({hasText:'Serve + first ball'}).click();await d.getByRole('button',{name:'Delete repeating series',exact:true}).click();await expect(d).toContainText('Every occurrence');await d.getByRole('button',{name:'Keep event',exact:true}).click();await expect(d.locator('.cal-event')).toHaveCount(3)
- await d.locator('.cal-event.competition').click();await expect(d).toContainText('Northside Tennis Center · Court 3');await d.getByRole('combobox',{name:'Your reply',exact:true}).selectOption('unavailable');expect(await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.filter(r=>r.method==='POST').length)).toBe(0)
- await d.getByRole('button',{name:'Confirm availability reply',exact:true}).click()
- await expect(d.locator('.cal-event.competition')).toContainText('Can’t play')
- await expect(d.locator('.cal-event.competition')).toBeFocused()
+ const match=d.locator('.cal-event.competition')
+ const reply=d.getByRole('combobox',{name:'Your reply',exact:true})
+ const confirm=d.getByRole('button',{name:'Confirm availability reply',exact:true})
+ await match.click()
+ await expect(d).toContainText('Northside Tennis Center · Court 3')
+ await expect(reply).toHaveValue('')
+ await expect(confirm).toBeDisabled()
+ await reply.selectOption('unavailable')
+ await expect(confirm).toBeEnabled()
+ expect(await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.filter(r=>r.method==='POST').length)).toBe(0)
+ await confirm.click()
+ await expect(match).toContainText('Can’t play')
+ await expect(match).toBeFocused()
+ await match.click()
+ await expect(reply).toHaveValue('unavailable')
+ await expect(confirm).toBeDisabled()
+ await reply.selectOption('available')
+ await expect(confirm).toBeEnabled()
+ await reply.selectOption('unavailable')
+ await expect(confirm).toBeDisabled()
+ expect(await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.filter(r=>r.method==='POST'))).toHaveLength(1)
+})
+test('Calendar: a rescheduled match needs a fresh choice for the updated court',async({page})=>{
+ const d=await calendarScreen(page)
+ const match=d.locator('.cal-event.competition')
+ const reply=d.getByRole('combobox',{name:'Your reply',exact:true})
+ const confirm=d.getByRole('button',{name:'Confirm availability reply',exact:true})
+ const priorRevision='2026-10-31T10:00:00.123456+00:00'
+ const location='Riverside Tennis Center · Court 4'
+ await page.evaluate(({location,priorRevision})=>{
+  Object.assign((window as unknown as CalendarWindow).calendarFixture.competitions[0],{
+   location,responseStatus:'',responseIsStale:true,responseUpdatedAt:priorRevision,
+  })
+ },{location,priorRevision})
+ await d.getByRole('button',{name:'Refresh',exact:true}).click()
+ await expect(match).toContainText('Reply again')
+ await match.click()
+ await expect(d).toContainText(location)
+ await expect(d).toContainText('The schedule changed.')
+ await expect(reply).toHaveValue('')
+ await expect(confirm).toBeDisabled()
+ await reply.selectOption('available')
+ await expect(confirm).toBeEnabled()
+ await confirm.click()
+ await expect(match).toContainText('Available')
+ const writes=await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.filter(r=>r.method==='POST').map(r=>r.body))
+ expect(writes).toHaveLength(1)
+ expect(writes[0]).toMatchObject({action:'respond',response:'available',snapshot:{location},expectedResponseUpdatedAt:priorRevision})
 })
 test('Calendar: an acknowledged availability reply returns to the featured match after a failed reload',async({page})=>{
  const now=new Date()
