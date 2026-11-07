@@ -599,7 +599,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .comparison-fold-body { padding:0 12px 12px; }
 .comparison-fold-body>section { margin:12px 0;padding:14px;background:var(--premium-inset);border-color:var(--premium-line);box-shadow:none; }
 .comparison-fold-body>h2 { margin:18px 0 0; }
-.training-dialog:is(.training-inbox-screen,.coach-check-in-screen) {
+.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen) {
  padding:16px;border-color:var(--premium-line);background:var(--premium-page);overflow-wrap:anywhere;
 }
 .training-inbox-header {
@@ -608,18 +608,19 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 }
 .training-inbox-header h1 { margin:0;font-size:1.2rem;line-height:1.2; }
 .training-inbox-header button.secondary { inline-size:auto;flex:none;min-block-size:44px;margin:0;padding:8px 12px;font-size:.8125rem; }
-.coach-check-in-screen { scroll-padding-block:100px 12px;overscroll-behavior:contain; }
-.coach-check-in-header>div { min-inline-size:0; }
-.coach-check-in-header h1 { font-size:1.05rem;text-wrap:balance; }
-.coach-check-in-header small,.coach-check-in-assignment small { color:var(--premium-lime);font-size:.6875rem; }
-.coach-check-in-assignment {
+:is(.coach-check-in-screen,.training-week-change-screen) { scroll-padding-block:100px 12px;overscroll-behavior:contain; }
+:is(.coach-check-in-header,.week-change-header)>div { min-inline-size:0; }
+:is(.coach-check-in-header,.week-change-header) h1 { font-size:1.05rem;text-wrap:balance; }
+:is(.coach-check-in-header,.coach-check-in-assignment,.week-change-header,.week-change-summary) small { color:var(--premium-lime);font-size:.6875rem; }
+:is(.coach-check-in-assignment,.week-change-summary) {
  padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
  background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card);
  box-shadow:inset 0 1px #b2c8ff22;
 }
-.coach-check-in-screen .coach-check-in-assignment h2 { margin:4px 0 0;color:var(--premium-white);font-size:1.0625rem;line-height:1.25; }
-.coach-check-in-screen p { margin:8px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.5; }
-.coach-check-in-screen .coach-check-in-assignment p { margin:5px 0 0; }
+:is(.coach-check-in-screen,.training-week-change-screen) :is(.coach-check-in-assignment,.week-change-summary) h2 { margin:4px 0 0;color:var(--premium-white);font-size:1.0625rem;line-height:1.25; }
+:is(.coach-check-in-screen,.training-week-change-screen) p { margin:8px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.5; }
+:is(.coach-check-in-screen,.training-week-change-screen) :is(.coach-check-in-assignment,.week-change-summary) p { margin:5px 0 0; }
+.week-change-summary strong { color:var(--premium-white); }
 .coach-check-in-screen [data-form] label { margin:14px 0 0;color:var(--premium-white);font-size:.875rem;font-weight:650; }
 .coach-check-in-screen [data-form] textarea {
  min-block-size:0;margin:6px 0 0;padding:10px 12px;border-color:var(--premium-line);
@@ -634,14 +635,15 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .coach-check-in-preview>div+div { border-block-start:1px solid var(--premium-line); }
 .coach-check-in-preview dt { margin:0;color:var(--premium-ice);font-size:.75rem;font-weight:650; }
 .coach-check-in-preview dd { margin:4px 0 0;color:var(--premium-white);font-size:.875rem;line-height:1.5;white-space:pre-wrap; }
-.coach-check-in-screen .coach-check-in-status:not(:empty) {
+:is(.coach-check-in-screen,.training-week-change-screen) :is(.coach-check-in-status,.week-change-status):not(:empty) {
  padding:8px 10px;border-inline-start:2px solid var(--premium-royal-line);border-radius:8px;background:var(--premium-inset);
 }
-.coach-check-in-actions { display:grid;gap:6px;margin-block-start:12px; }
-.coach-check-in-screen :is([data-form],.coach-check-in-actions) button {
+:is(.coach-check-in-actions,.week-change-actions) { display:grid;gap:6px;margin-block-start:12px; }
+:is(.coach-check-in-screen,.training-week-change-screen) :is([data-form],.coach-check-in-actions,.week-change-actions) button {
  min-block-size:44px;margin:0;padding:8px 10px;font-size:.875rem;line-height:1.35;
 }
 .coach-check-in-screen :is([type="submit"],[data-send],[data-check],[data-keep]):not(.secondary) { background:var(--premium-action);color:var(--premium-page); }
+.training-week-change-screen :is([data-week-save],[data-week-check],[data-week-keep]):not(.secondary) { background:var(--premium-action);color:var(--premium-page); }
 .training-inbox-screen .training-inbox-tabs {
  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:0 0 12px;
  background:var(--premium-inset);border-color:var(--premium-line);
@@ -713,7 +715,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .training-inbox-screen .training-week-rep-next button[data-inbox-card] {
  flex-basis:100%;border-color:transparent;background:var(--premium-action);color:var(--premium-page);
 }
-.training-inbox-screen [data-inbox-card] { scroll-margin-block:72px 12px; }
+.training-inbox-screen :is([data-inbox-card],[data-week-mark],.training-week h2,.training-week-rep-next h3) { scroll-margin-block:72px 12px; }
 .training-inbox-fold {
  margin-block:8px;padding:0 12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface);
 }

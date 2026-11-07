@@ -34,7 +34,7 @@ function weeklyRepHtml(plan:WeeklyLevelUpPlan,rep:WeeklyLevelUpPlanRep,canChange
  const hasDrill=hasDrillCard(rep.focusId)
  return `<article class="training-week-rep${next?' training-week-rep-next':''}">
   <small>${next?'Next rep · ':rep.completedAt?'Recorded complete · ':''}${html(rep.label)}</small>
-  <h3>${html(rep.title)}</h3><p>${html(rep.detail)}</p>
+  <h3${next?' tabindex="-1"':''}>${html(rep.title)}</h3><p>${html(rep.detail)}</p>
   ${hasDrill||canChange||next?`<div class="training-week-actions">
    ${hasDrill?privateDrillButton(JSON.stringify(['plan',plan.id,rep.id]),rep.title):''}
    ${next?`<button type="button" class="secondary" data-week-schedule="${html(JSON.stringify([plan.id,rep.id]))}" data-schedule-title="${html(rep.title)}">Schedule this rep</button>`:''}
@@ -50,8 +50,8 @@ function weeklyPlanCard(plan:WeeklyLevelUpPlan,canChange:boolean,currentWeek:str
  const next=featured?progress.nextRep:null
  const otherReps=reps.filter(rep=>rep.id!==next?.id)
  const weekDate=formatWeekdayDate(plan.weekStart)
- return `<section class="training-week">
-  <h2>${plan.weekStart===currentWeek?'This week':`Week of ${html(weekDate)}`}</h2>
+ return `<section class="training-week" data-week-plan="${html(plan.id)}">
+  <h2 tabindex="-1">${plan.weekStart===currentWeek?'This week':`Week of ${html(weekDate)}`}</h2>
   <p class="training-week-meta">${html(direction(plan.identitySlug))}${plan.sharedWithCoach?' · Shared with coach':''}</p>
   <div class="training-week-progress"${progress.complete?' data-week-complete':''}>
    <p class="training-week-meta"><strong>${progress.completed} of ${progress.total} ${progress.total===1?'rep':'reps'} complete</strong></p>

@@ -5,6 +5,7 @@ import {Browser} from './native-browser'
 import {loadTrainingPlans,loadTrainingCoachWork,type TrainingCoachWork} from './training-inbox-data'
 import {trainingPlansHtml,trainingCoachWorkHtml,trainingInboxLaunches} from './training-inbox-view'
 import type {WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
+import {formatWeekdayDate} from '../../lib/captain-formatters'
 import {openCalendar} from './calendar-view'
 import {loadTrainingChoices,saveTrainingChoices,chooseTrainingIdentity,emptyTrainingChoices,trainingPlanHtml,trainingIdentity} from './training-identity'
 import type {SupabaseClient} from '@supabase/supabase-js'
@@ -65,6 +66,19 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   button.scrollIntoView({block:'nearest'})
   button.focus({preventScroll:true})
  }
+ const weekFocusTarget=(id:string,markKey?:string)=>{
+  const week=Array.from(dialog.querySelectorAll<HTMLElement>('[data-week-plan]')).find(section=>section.dataset.weekPlan===id)
+  const target=markKey
+   ?Array.from(week?.querySelectorAll<HTMLButtonElement>('[data-week-mark]')??[]).find(button=>button.dataset.weekMark===markKey)
+   :week?.querySelector<HTMLElement>('.training-week-rep-next h3')??week?.querySelector<HTMLElement>('h2')
+  return target?.getClientRects().length?target:undefined
+ }
+ const focusSavedWeek=(id:string,markKey?:string)=>{
+  const target=weekFocusTarget(id,markKey)
+  if(!target){focus();return}
+  target.scrollIntoView({block:'nearest'})
+  target.focus({preventScroll:true})
+ }
  const trainingViews=()=>`<div class="match-filters training-views" role="group" aria-label="Training views"><button type="button" class="secondary" data-plan aria-pressed="${phase==='plan'}">Your direction</button><button type="button" class="secondary" data-catalog aria-pressed="${phase==='catalog'||phase==='card'}">Training cards</button><button type="button" class="secondary" data-modules aria-pressed="${phase==='modules'||phase==='module'}">Practice modules</button><button type="button" class="secondary" data-progress aria-pressed="${phase==='progress'}">Your progress</button></div>`
  const trainingAccessHtml=()=>`<p>${html(accessCopy())}</p>${accessError?`<button type="button" class="secondary" data-access ${accessBusy?'disabled':''}>Retry player access</button>`:''}`
  const inboxHtml=()=>`
@@ -87,11 +101,14 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   <details class="training-inbox-fold" data-inbox-fold="tools"><summary>Training tools</summary>${trainingAccessHtml()}${trainingViews()}</details>`
  const render=()=>{if(!active())return
   dialog.classList.toggle('training-inbox-screen',phase==='inbox'&&!weekPending)
+  dialog.classList.toggle('training-week-change-screen',Boolean(weekPending))
   if(weekPending){renderWeekChange();return}
   if(confirming){dialog.innerHTML=`<h1 tabindex="-1">Leave this session?</h1><p>${payload?'The save may already be recorded. Check account progress before starting it again.':'Your timer and unsaved training notes will be discarded.'}</p><button type="button" class="secondary" data-keep>Keep training</button><button type="button" data-discard>Discard and close</button>`;dialog.querySelector<HTMLButtonElement>('[data-keep]')!.onclick=()=>{confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})};dialog.querySelector<HTMLButtonElement>('[data-discard]')!.onclick=dispose;return}
   const frozen=Boolean(payload),locked=frozen||saving||checking
   const focusedInboxSection=dialog.querySelector<HTMLElement>('[data-inbox-section]:focus')?.dataset.inboxSection
   const focusedInboxCard=dialog.querySelector<HTMLElement>('[data-inbox-card]:focus')?.dataset.inboxCard
+  const focusedWeekControl=dialog.querySelector<HTMLElement>('[data-week-plan] :is(h2,.training-week-rep-next h3,[data-week-mark]):focus')
+  const focusedWeekId=focusedWeekControl?.closest<HTMLElement>('[data-week-plan]')?.dataset.weekPlan
   dialog.innerHTML=phase==='inbox'?inboxHtml():`<h1 tabindex="-1">Level Up</h1>${trainingAccessHtml()}${phase!=='session'?trainingViews():''}${phase!=='session'?'<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>':''}${phase==='plan'?`${trainingPlanHtml(choices,choiceStored,allowed===true)}${!choiceStored?'<p role="alert">This choice is available for this visit only. Device storage is unavailable.</p>':''}`:phase==='modules'?`<h2>Build a complete practice block</h2><p>Choose a focused block for your serve, movement or match readiness.</p><ul class="matches">${LEVEL_UP_MODULES.map(m=>`<li><h3>${html(m.title)}</h3><p>${html(m.durationLabel)} · ${html(m.subtitle)}</p><p>${html(m.description)}</p><button type="button" class="secondary" data-module="${html(m.id)}">Open module<span class="sr-only"> ${html(m.title)}</span></button></li>`).join('')}</ul>`:phase==='module'&&practiceModule?trainingModuleHtml(practiceModule,completed):phase==='catalog'?`<label>Find a training focus<input type="search" maxlength="80" data-search value="${html(query)}" placeholder="Serve, doubles, movement…"></label><label>Where are you training?<select data-setting><option value="">Any setting</option>${['home','driveway','garage','court','wall','gym','match-day'].map(s=>`<option value="${s}" ${s===setting?'selected':''}>${s}</option>`).join('')}</select></label><div data-cards>${catalogue()}</div>`:phase==='progress'?`${historyBusy?'<p role="status">Loading account progress…</p>':historyError?'<p role="alert">Account progress could not be loaded. This does not mean your history is empty.</p>':history?trainingHistoryHtml(history,historyComplete):''}<button type="button" class="secondary" data-history ${historyBusy?'disabled':''}>Refresh account progress</button>`:selected?`${phase==='card'?`${cardFromInbox?'<button type="button" class="secondary" data-inbox>Back to training inbox</button>':''}${cardFromPlan?'<button type="button" class="secondary" data-plan>Back to your direction</button>':''}${practiceModule?'<button type="button" class="secondary" data-module-back>Back to practice module</button>':''}<button type="button" class="secondary" data-catalog>Back to training cards</button>`:''}${phase==='session'?`<h2>${html(selected.title)}</h2>${sessionDirection?`<p>Training direction: ${html(trainingIdentity(sessionDirection)?.title||'')}</p>`:''}${sessionOrigin?`<p>Private practice from ${html(sessionOrigin)}. This does not complete a weekly rep or assignment, or send a coach check-in.</p>`:''}<details data-instructions ${instructionsOpen?'open':''}><summary>Review training instructions</summary>${trainingCardHtml(selected)}</details>`:trainingCardHtml(selected)}${phase==='card'?`<button type="button" data-start ${allowed!==true?'disabled':''}>Start training</button>`:`<section aria-label="Training timer"><h3>Session timer</h3><p data-clock>${trainingTime(clock.seconds())} · ${clock.running()?'Running':'Paused'}</p><p>The timer pauses when you leave the app. Resume it when you are ready. Timed sessions are capped at two hours.</p><button type="button" class="secondary" data-timer ${locked?'disabled':''}>${clock.running()?'Pause timer':'Resume timer'}</button></section><form data-proof><label>Self-rated proof (0–5)<select name="rating" required ${locked?'disabled':''}><option value="">Choose a proof rating</option>${[0,1,2,3,4,5].map(r=>`<option value="${r}" ${String(r)===rating?'selected':''}>${r} / 5</option>`).join('')}</select></label><p>Rate the proof described on this card. This does not change your tennis rating.</p><label>Training context<select name="context" ${locked?'disabled':''}>${trainingContexts(selected).map(v=>`<option value="${v}" ${v===context?'selected':''}>${v}</option>`).join('')}</select></label><label>How did you feel?<select name="feeling" ${locked?'disabled':''}>${['ready','tight','tired','nervous'].map(v=>`<option value="${v}" ${v===feeling?'selected':''}>${v}</option>`).join('')}</select></label><label>Your training note<textarea name="note" maxlength="700" ${locked?'disabled':''}>${html(note)}</textarea></label><p>No coach assignment or team message is changed by this self-guided save.</p><button type="submit" ${saving||checking?'disabled':''}>${saving?'Saving…':payload?'Retry same session':'Save completed session'}</button></form>${payload?`<button type="button" class="secondary" data-check ${saving||checking?'disabled':''}>Check whether this session saved</button>`:''}`}`:''}<p role="status" data-notice>${html(notice)}</p><button type="button" class="secondary" data-close ${saving||checking?'disabled':''}>Close Level Up</button>`
   dialog.querySelector<HTMLButtonElement>('[data-close]')!.onclick=requestClose
   dialog.querySelectorAll<HTMLDetailsElement>('details[data-inbox-fold]').forEach(fold=>{
@@ -101,6 +118,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   })
   if(focusedInboxSection)dialog.querySelector<HTMLElement>(`[data-inbox-section="${focusedInboxSection}"]`)?.focus({preventScroll:true})
   if(focusedInboxCard)findInboxCard(focusedInboxCard)?.focus({preventScroll:true})
+  if(focusedWeekId)weekFocusTarget(focusedWeekId,focusedWeekControl?.dataset.weekMark)?.focus({preventScroll:true})
   dialog.querySelector<HTMLButtonElement>('[data-access]')?.addEventListener('click',()=>{void readAccess()})
   dialog.querySelectorAll<HTMLButtonElement>('[data-catalog]').forEach(b=>{b.onclick=()=>{phase='catalog';practiceModule=null;notice='';render();focus()}})
   dialog.querySelector<HTMLButtonElement>('[data-progress]')?.addEventListener('click',()=>{phase='progress';notice='';render();focus()})
@@ -177,11 +195,98 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const readHistory=async()=>{if(historyBusy||!active())return;const request=++historyVersion;historyBusy=true;historyError=false;if(phase==='progress')render();try{const rows=await loadTrainingHistory(client,owner,active);if(active()&&request===historyVersion){history=rows;historyComplete=true}}catch{if(active()&&request===historyVersion){history=null;historyError=true;historyComplete=false}}finally{if(active()&&request===historyVersion){historyBusy=false;if(phase==='progress')render()}}}
  const readPlans=async()=>{if(plansBusy||!active())return;const request=++plansVersion;plansBusy=true;plansError=false;if(phase==='inbox')render();try{const rows=await loadTrainingPlans(client,owner,active);if(active()&&request===plansVersion)plans=rows}catch{if(active()&&request===plansVersion){plans=null;plansError=true}}finally{if(active()&&request===plansVersion){plansBusy=false;if(phase==='inbox')render()}}}
  const readCoach=async()=>{if(coachBusy||!active())return;const request=++coachVersion;coachBusy=true;coachError=false;if(phase==='inbox')render();try{const rows=await loadTrainingCoachWork(client,owner,active);if(active()&&request===coachVersion)coachWork=rows}catch{if(active()&&request===coachVersion){coachWork=null;coachError=true}}finally{if(active()&&request===coachVersion){coachBusy=false;if(phase==='inbox')render()}}}
- const finishWeekChange=()=>{const success=weekPending?.kind==='create'?'Your private weekly plan is saved.':weekPending?.kind==='completion'&&weekPending.completed?'This rep is marked done in your saved week.':'This rep is open again in your saved week.';weekPending=null;weekBusy=false;weekAttempted=false;weekConflict=false;weekLeaving=false;plansVersion++;plansBusy=false;phase='inbox';inboxSection='weeks';notice=success+' Your individual training sessions are unchanged.';inboxLoaded=true;render();focus();void readPlans();if(!coachWork&&!coachBusy)void readCoach()}
- const sendWeekChange=async()=>{if(!weekPending||weekBusy||!active()||weekConflict)return;const frozen=weekPending;weekBusy=true;weekAttempted=true;weekNotice='Saving your week…';render();try{await saveWeeklyChange(client,owner,active,frozen);if(active())finishWeekChange()}catch(error){if(active()){weekBusy=false;weekConflict=error instanceof WeeklyChangeError&&error.conflict;weekNotice=weekConflict?'This week changed. Check the latest saved plan before doing anything else.':'Change not confirmed. Keep this exact change and check whether it saved before retrying.';render()}}}
- const checkWeekChange=async()=>{if(!weekPending||weekBusy||!active())return;const frozen=weekPending;weekBusy=true;weekNotice='Checking the current saved week…';render();try{const found=await checkWeeklyChange(client,owner,active,frozen);if(!active())return;if(found)finishWeekChange();else{weekBusy=false;weekNotice='The latest saved week does not confirm this exact change. Discard this change and refresh to review the current plan.';render()}}catch{if(active()){weekBusy=false;weekNotice='The current week could not be checked. Keep this change and try again when connected.';render()}}}
- const renderWeekChange=()=>{if(!weekPending||!active())return;const change=weekPending;dialog.innerHTML=weekLeaving?'<h1 tabindex="-1">Leave this plan change?</h1><p>The change may already be saved. Check your saved weeks before applying it again. Unsaved changes are kept only while this screen stays open.</p><button type="button" data-week-keep>Keep this change</button><button type="button" class="secondary" data-week-leave>Discard and close</button>':`<h1 tabindex="-1">${change.kind==='create'?'Create this week’s plan?':change.completed?'Mark this rep done?':'Reopen this rep?'}</h1><p>Week of ${html(change.plan.weekStart)}</p>${change.kind==='create'?`<p>A private plan with three recommended reps. An existing plan for this direction and week will not be replaced.</p><ol>${change.plan.reps.map(r=>`<li>${html(r.title)}</li>`).join('')}</ol>`:`<p>${html(change.title)}</p><p>${change.plan.sharedWithCoach?'This week is already shared. Your linked coach can see its updated completion. No message or alert will be sent.':'Only this rep’s completion changes. Your individual sessions and sharing settings stay unchanged.'}</p>`}<p role="status">${html(weekNotice)}</p><button type="button" data-week-save ${weekBusy||weekConflict?'disabled':''}>${weekBusy?'Working…':weekAttempted?'Retry same change':'Save plan change'}</button>${weekAttempted?`<button type="button" class="secondary" data-week-check ${weekBusy?'disabled':''}>Check current saved week</button>`:''}<button type="button" class="secondary" data-week-cancel ${weekBusy?'disabled':''}>${weekAttempted?'Discard change and refresh':'Cancel change'}</button><button type="button" class="secondary" data-week-close ${weekBusy?'disabled':''}>Close Level Up</button>`;
-  dialog.querySelector<HTMLButtonElement>('[data-week-save]')?.addEventListener('click',()=>{void sendWeekChange()});dialog.querySelector<HTMLButtonElement>('[data-week-check]')?.addEventListener('click',()=>{void checkWeekChange()});dialog.querySelector<HTMLButtonElement>('[data-week-close]')?.addEventListener('click',requestClose);dialog.querySelector<HTMLButtonElement>('[data-week-keep]')?.addEventListener('click',()=>{weekLeaving=false;render();focus()});dialog.querySelector<HTMLButtonElement>('[data-week-leave]')?.addEventListener('click',dispose);dialog.querySelector<HTMLButtonElement>('[data-week-cancel]')?.addEventListener('click',()=>{const refresh=weekAttempted;weekPending=null;weekAttempted=false;weekConflict=false;weekNotice='';if(refresh){phase='inbox';inboxSection='weeks';plansVersion++;plansBusy=false;render();void readPlans();if(!inboxLoaded){inboxLoaded=true;void readCoach()}}else render();focus()})
+ const finishWeekChange=(saved:WeeklyLevelUpPlan)=>{
+  const change=weekPending
+  if(!change)return
+  const updatedPlans=change.kind==='completion'&&plans?.some(plan=>plan.id===saved.id)
+   ?plans.map(plan=>plan.id===saved.id?saved:plan)
+   :null
+  if(updatedPlans)plans=updatedPlans
+  notice=change.kind==='create'?'Your private weekly plan is saved.':change.completed?'Rep marked done.':'Rep reopened.'
+  weekPending=null;weekBusy=false;weekAttempted=false;weekConflict=false;weekLeaving=false;weekNotice=''
+  plansVersion++;plansBusy=false;phase='inbox';inboxSection='weeks';inboxLoaded=true
+  render()
+  if(updatedPlans)focusSavedWeek(saved.id)
+  else {focus();void readPlans()}
+  if(!coachWork&&!coachBusy)void readCoach()
+ }
+ const showWeekStatus=()=>{
+  render()
+  dialog.querySelector<HTMLElement>('[data-week-status]')?.focus()
+ }
+ const sendWeekChange=async()=>{
+  if(!weekPending||weekBusy||!active()||weekConflict)return
+  const frozen=weekPending
+  weekBusy=true;weekAttempted=true;weekNotice='Saving your week…';showWeekStatus()
+  try{
+   const saved=await saveWeeklyChange(client,owner,active,frozen)
+   if(active())finishWeekChange(saved)
+  }catch(error){
+   if(!active())return
+   weekBusy=false;weekConflict=error instanceof WeeklyChangeError&&error.conflict
+   weekNotice=weekConflict?'This week changed. Check the saved week before applying the change.':'Check whether your change saved before trying again.'
+   showWeekStatus()
+  }
+ }
+ const checkWeekChange=async()=>{
+  if(!weekPending||weekBusy||!active())return
+  const frozen=weekPending
+  weekBusy=true;weekNotice='Checking the current saved week…';showWeekStatus()
+  try{
+   const found=await checkWeeklyChange(client,owner,active,frozen)
+   if(!active())return
+   if(found){finishWeekChange(found);return}
+   weekNotice='Discard and refresh to review the latest saved week before trying again.'
+  }catch{
+   if(!active())return
+   weekNotice='Keep this change and check the saved week when you’re connected.'
+  }
+  weekBusy=false;showWeekStatus()
+ }
+ const renderWeekChange=()=>{
+  if(!weekPending||!active())return
+  const change=weekPending
+  const creating=change.kind==='create'
+  const title=creating?'Create this week’s plan?':change.completed?'Mark this rep done?':'Reopen this rep?'
+  const action=creating?'Save this week':change.completed?'Mark rep done':'Reopen rep'
+  const week=`<time datetime="${html(change.plan.weekStart)}">${html(formatWeekdayDate(change.plan.weekStart))}</time>`
+  dialog.innerHTML=`<header class="training-inbox-header week-change-header">
+   <div><small class="stat-eyebrow">Saved weeks</small><h1 tabindex="-1">${weekLeaving?'Leave this plan change?':title}</h1></div>
+   ${weekLeaving?'':`<button type="button" class="secondary" data-week-close aria-label="Close Level Up" ${weekBusy?'disabled':''}>Close</button>`}
+  </header>
+  ${weekLeaving?`
+   <p>Your change may already be saved. Refresh your saved week to check before applying it again.</p>
+   <div class="week-change-actions"><button type="button" data-week-keep>Keep this change</button><button type="button" class="secondary" data-week-leave>Discard and close</button></div>`:`
+   <div class="week-change-summary">
+    <small class="stat-eyebrow">Week of ${week}</small>
+    <h2>${creating?'Your private plan':html(change.title)}</h2>
+    ${creating?`<ol>${change.plan.reps.map(rep=>`<li>${html(rep.title)}</li>`).join('')}</ol>`:`<p>Status after saving <strong>${change.completed?'Complete':'Open'}</strong></p>`}
+   </div>
+   <p>${creating?'Save three recommended reps for this training direction.':change.plan.sharedWithCoach?'Your coach can see this rep’s updated status in the shared week.':'This updates your progress for the saved week.'}</p>
+   <p class="week-change-status" data-week-status tabindex="-1" role="status">${html(weekNotice)}</p>
+   <div class="week-change-actions">
+    ${weekAttempted?`<button type="button" data-week-check ${weekBusy?'disabled':''}>Check current saved week</button>`:''}
+    <button type="button" data-week-save ${weekAttempted?'class="secondary"':''} ${weekBusy||weekConflict?'disabled':''}>${weekBusy?'Working…':weekAttempted?'Retry same change':action}</button>
+    <button type="button" class="secondary" data-week-cancel ${weekBusy?'disabled':''}>${weekAttempted?'Discard change and refresh':'Cancel change'}</button>
+   </div>`}`
+  dialog.querySelector('[data-week-save]')?.addEventListener('click',()=>{void sendWeekChange()})
+  dialog.querySelector('[data-week-check]')?.addEventListener('click',()=>{void checkWeekChange()})
+  dialog.querySelector('[data-week-close]')?.addEventListener('click',requestClose)
+  dialog.querySelector('[data-week-keep]')?.addEventListener('click',()=>{weekLeaving=false;render();focus()})
+  dialog.querySelector('[data-week-leave]')?.addEventListener('click',dispose)
+  dialog.querySelector('[data-week-cancel]')?.addEventListener('click',()=>{
+   const refresh=weekAttempted
+   weekPending=null;weekAttempted=false;weekConflict=false;weekNotice=''
+   if(refresh){
+    phase='inbox';inboxSection='weeks';plansVersion++;plansBusy=false;render();void readPlans()
+    if(!inboxLoaded){inboxLoaded=true;void readCoach()}
+    focus()
+   }else{
+    render()
+    if(change.kind==='completion')focusSavedWeek(change.plan.id,JSON.stringify([change.plan.id,change.repId]))
+    else focus()
+   }
+  })
  }
  const visibility=()=>{if(document.visibilityState==='hidden'&&clock.running()){clock.pause();if(active()){notice='Timer paused while the app is in the background.';render()}}}
  const tick=setInterval(()=>{if(!active()){dispose();return}const host=dialog.querySelector('[data-clock]');if(host)host.textContent=`${trainingTime(clock.seconds())} · ${clock.running()?'Running':'Paused'}`},1000)

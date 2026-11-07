@@ -57,6 +57,7 @@ export function trainingInboxPreview(url:URL,method:string,body?:BodyInit|null){
   const plan=plans[index],rep=plan?.reps.find(rep=>rep.id===input.repId)
   if(input.action!=='set_rep_completion'||typeof input.completed!=='boolean'||!rep||plan.updatedAt!==input.expectedUpdatedAt)return Response.json({ok:false},{status:409})
   if(Boolean(rep.completedAt)!==input.completed)plans[index]=toggleWeeklyLevelUpPlanRep(plan,rep.id)
+  if(new URL(location.href).searchParams.has('training-week-lost-response'))return Response.json({ok:false},{status:503})
   return Response.json({ok:true,plan:plans[index]})
  }
  if(url.pathname!=='/api/player/coach-assignments')return null
