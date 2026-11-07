@@ -46,7 +46,42 @@ function trainingDrillNotesHtml(card:LevelUpCard){
 export function trainingCardHtml(card:LevelUpCard){
  return trainingDrillOverviewHtml(card)+trainingSafetyHtml(card)+trainingRoutineHtml(card)+trainingDrillNotesHtml(card)
 }
-export function trainingModuleHtml(practiceModule:LevelUpModule,completed:ReadonlySet<string>=new Set()){const cards=practiceModule.cardIds.map(id=>LEVEL_UP_CARDS.find(c=>c.id===id));return `<h2>${html(practiceModule.title)}</h2><p>${html(practiceModule.subtitle)}</p><p>${html(practiceModule.durationLabel)} · ${html(practiceModule.level)}</p><p>${html(practiceModule.description)}</p>${practiceModule.useWhen?`<p>${html(practiceModule.useWhen)}</p>`:''}${practiceModule.sessionPlan?.length?`<h3>Your practice plan</h3><ol>${practiceModule.sessionPlan.map(step=>`<li>${html(step)}</li>`).join('')}</ol>`:''}<h3>What to notice</h3><p>${html(practiceModule.proof)}</p>${practiceModule.successCriteria?`<p>${html(practiceModule.successCriteria)}</p>`:''}<h3>Train in this order</h3><p>${practiceModule.cardIds.filter(id=>completed.has(id)).length} of ${practiceModule.cardIds.length} cards saved during this visit.</p><ol>${cards.map(c=>c?`<li><h3>${html(c.title)}</h3>${completed.has(c.id)?'<p>Saved during this visit</p>':''}<p>${c.durationMinutes} min · ${html(c.tennisGoal)}</p><button type="button" class="secondary" data-card="${html(c.id)}">Open training<span class="sr-only"> ${html(c.title)}</span></button></li>`:'<li>This training card is unavailable.</li>').join('')}</ol><p>Save each completed card to your account. These checkmarks reset when you close Level Up. Saved sessions stay in Your progress; module completion is not stored.</p>`}
+export function trainingModuleHtml(practiceModule:LevelUpModule,completed:ReadonlySet<string>=new Set()){
+ const cards=practiceModule.cardIds.map(id=>LEVEL_UP_CARDS.find(card=>card.id===id))
+ const saved=cards.filter(card=>card&&completed.has(card.id)).length
+ const next=cards.findIndex(card=>card&&!completed.has(card.id))
+ const complete=saved>0&&saved===cards.length
+ return `<div class="training-module-overview">
+  <small class="stat-eyebrow">${html(practiceModule.durationLabel)} · ${html(practiceModule.level)}</small>
+  <h2>${html(practiceModule.title)}</h2><p>${html(practiceModule.subtitle)}</p>
+  <div class="training-module-progress">
+   <strong${complete?' tabindex="-1" data-module-complete':''}>${complete?'Block complete':`${saved} of ${cards.length} drills saved`}</strong>
+   <progress aria-label="Drills saved this visit" value="${saved}" max="${Math.max(1,cards.length)}"></progress>
+   <p>Block progress resets on close. Sessions stay in Training Progress.</p>
+   ${complete?'<button type="button" class="secondary" data-progress>View training progress</button>':''}
+  </div>
+ </div>
+ <h2 class="training-module-order">Drill order</h2>
+ <ol class="training-module-steps" role="list">${cards.map((card,index)=>{
+  const isNext=index===next
+  const isSaved=Boolean(card&&completed.has(card.id))
+  return `<li${isNext?' class="training-module-next"':''}>
+   <span class="training-module-step-number" aria-hidden="true">${index+1}</span>
+   <div class="training-module-step-copy">${card?`
+    ${isNext||isSaved?`<small class="stat-eyebrow">${isNext?'Up next':'Saved this visit'}</small>`:''}
+    <h3>${html(card.title)}</h3>
+    <p>${card.durationMinutes} min · ${html(card.tennisGoal)}</p>
+    <button type="button" class="secondary" data-card="${html(card.id)}" ${isNext?'data-module-next':''}>${isNext?'Preview next drill':isSaved?'Preview again':'Preview drill'}<span class="sr-only"> ${html(card.title)}</span></button>`:'<p>This training card is unavailable.</p>'}</div>
+  </li>`
+ }).join('')}</ol>
+ <details class="training-inbox-fold" data-inbox-fold="module-notes-${html(practiceModule.id)}"><summary>Practice notes</summary>
+  <p>${html(practiceModule.description)}</p>
+  ${practiceModule.useWhen?`<p>${html(practiceModule.useWhen)}</p>`:''}
+  ${practiceModule.sessionPlan?.length?`<h3>Your practice plan</h3><ol>${practiceModule.sessionPlan.map(step=>`<li>${html(step)}</li>`).join('')}</ol>`:''}
+  <h3>What to notice</h3><p>${html(practiceModule.proof)}</p>
+  ${practiceModule.successCriteria?`<p>${html(practiceModule.successCriteria)}</p>`:''}
+ </details>`
+}
 const historyContextLabels:Record<string,string>={alone:'Solo',partner:'With a partner',singles:'Singles',doubles:'Doubles',coach:'With a coach'}
 const catalogSettings={home:'Home',driveway:'Driveway',garage:'Garage',court:'Court',wall:'Wall',gym:'Gym','match-day':'Match day'}
 const catalogPageSize=24
@@ -200,6 +235,24 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   ${trainingAccessHtml()}${trainingViews()}
   <button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>
  </details>`
+ const modulesScreenHtml=(module:LevelUpModule|null)=>`<header class="training-inbox-header">
+  <h1 tabindex="-1">${module?'Practice block':'Practice modules'}</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button>
+ </header>
+ ${module?`<button type="button" class="secondary" data-modules-back>Back to practice modules</button>
+  <p role="status" data-notice>${html(notice)}</p>${trainingModuleHtml(module,completed)}`:
+  `<p class="training-modules-intro">Pick a focused block for your serve, movement, or match readiness.</p>
+  <ul class="training-catalog-list" role="list">${LEVEL_UP_MODULES.map(item=>`<li>
+   <button type="button" class="secondary training-catalog-card" data-module="${html(item.id)}" aria-labelledby="module-title-${html(item.id)}" aria-describedby="module-summary-${html(item.id)}">
+    <span class="training-catalog-card-title" id="module-title-${html(item.id)}"><span class="sr-only">Open module </span>${html(item.title)}</span>
+    <span class="training-module-tile-summary" id="module-summary-${html(item.id)}">
+     <span class="training-catalog-card-facts"><span class="training-catalog-time">${html(item.durationLabel)}</span></span>
+     <span class="training-catalog-goal">${html(item.subtitle)}</span>
+    </span><span class="training-catalog-arrow" aria-hidden="true">›</span>
+   </button>
+  </li>`).join('')}</ul>
+  <details class="training-inbox-fold" data-inbox-fold="module-tools"><summary>More training tools</summary>
+   ${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>
+  </details>`}`
  const drillScreenHtml=(card:LevelUpCard)=>{
   const back=cardFromInbox?['inbox','Back to training inbox']:cardFromPlan?['plan','Back to your direction']:cardFromProgress?['progress-back','Back to training progress']:practiceModule?['module-back','Back to practice module']:['catalog-back','Back to training cards']
   return `<header class="training-drill-header"><h1 tabindex="-1">Practice drill</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button></header>
@@ -308,6 +361,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.classList.toggle('training-session-screen',phase==='session'&&!confirming&&Boolean(selected))
   dialog.classList.toggle('training-progress-screen',phase==='progress')
   dialog.classList.toggle('training-catalog-screen',phase==='catalog')
+  dialog.classList.toggle('training-modules-screen',phase==='modules'||phase==='module')
   if(weekPending){renderWeekChange();return}
   if(confirming){dialog.innerHTML=`<h1 tabindex="-1">Leave this session?</h1><p>${payload?'The save may already be recorded. Check account progress before starting it again.':'Your timer and unsaved training notes will be discarded.'}</p><button type="button" class="secondary" data-keep>Keep training</button><button type="button" data-discard>Discard and close</button>`;dialog.querySelector<HTMLButtonElement>('[data-keep]')!.onclick=()=>{confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})};dialog.querySelector<HTMLButtonElement>('[data-discard]')!.onclick=dispose;return}
   const frozen=Boolean(payload),locked=frozen||saving||checking
@@ -319,7 +373,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const previousDrill=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   const drillScroll=previousDrill?.scrollTop??0
   const openDrillFolds=Array.from(previousDrill?.querySelectorAll<HTMLDetailsElement>('[data-drill-fold][open]')??[],fold=>fold.dataset.drillFold)
-  dialog.innerHTML=phase==='inbox'?inboxHtml():phase==='progress'?progressScreenHtml():phase==='catalog'?catalogScreenHtml():phase==='card'&&selected?drillScreenHtml(selected):phase==='session'&&selected?sessionScreenHtml(selected,locked):`<h1 tabindex="-1">Level Up</h1>${trainingAccessHtml()}${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>${phase==='plan'?`${trainingPlanHtml(choices,choiceStored,allowed===true)}${!choiceStored?'<p role="alert">This choice is available for this visit only. Device storage is unavailable.</p>':''}`:phase==='modules'?`<h2>Build a complete practice block</h2><p>Choose a focused block for your serve, movement or match readiness.</p><ul class="matches">${LEVEL_UP_MODULES.map(m=>`<li><h3>${html(m.title)}</h3><p>${html(m.durationLabel)} · ${html(m.subtitle)}</p><p>${html(m.description)}</p><button type="button" class="secondary" data-module="${html(m.id)}">Open module<span class="sr-only"> ${html(m.title)}</span></button></li>`).join('')}</ul>`:phase==='module'&&practiceModule?trainingModuleHtml(practiceModule,completed):''}<p role="status" data-notice>${html(notice)}</p><button type="button" class="secondary" data-close ${saving||checking?'disabled':''}>Close Level Up</button>`
+  dialog.innerHTML=phase==='inbox'?inboxHtml():phase==='progress'?progressScreenHtml():phase==='catalog'?catalogScreenHtml():phase==='modules'||phase==='module'?modulesScreenHtml(phase==='module'?practiceModule:null):phase==='card'&&selected?drillScreenHtml(selected):phase==='session'&&selected?sessionScreenHtml(selected,locked):`<h1 tabindex="-1">Level Up</h1>${trainingAccessHtml()}${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>${phase==='plan'?`${trainingPlanHtml(choices,choiceStored,allowed===true)}${!choiceStored?'<p role="alert">This choice is available for this visit only. Device storage is unavailable.</p>':''}`:''}<p role="status" data-notice>${html(notice)}</p><button type="button" class="secondary" data-close ${saving||checking?'disabled':''}>Close Level Up</button>`
   const drillBody=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   if(drillBody&&previousDrill){
    drillBody.querySelectorAll<HTMLDetailsElement>('[data-drill-fold]').forEach(fold=>{fold.open=openDrillFolds.includes(fold.dataset.drillFold)})
@@ -352,7 +406,17 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   })
   dialog.querySelector<HTMLButtonElement>('[data-history]')?.addEventListener('click',()=>{void readHistory()})
   dialog.querySelector<HTMLButtonElement>('[data-modules]')?.addEventListener('click',()=>{phase='modules';practiceModule=null;notice='';render();focus()})
-  dialog.querySelector<HTMLButtonElement>('[data-module-back]')?.addEventListener('click',()=>{phase='module';notice='';render();focus()})
+  dialog.querySelector<HTMLButtonElement>('[data-modules-back]')?.addEventListener('click',()=>{
+   const moduleId=practiceModule?.id
+   phase='modules';practiceModule=null;notice='';render()
+   const entry=Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-module]')).find(button=>button.dataset.module===moduleId)
+   if(entry)entry.focus();else focus()
+  })
+  dialog.querySelector<HTMLButtonElement>('[data-module-back]')?.addEventListener('click',()=>{
+   phase='module';notice='';render()
+   const entry=Array.from(dialog.querySelectorAll<HTMLButtonElement>('.training-module-steps [data-card]')).find(button=>button.dataset.card===selected?.id)
+   if(entry)entry.focus();else focus()
+  })
   dialog.querySelectorAll<HTMLButtonElement>('[data-module]').forEach(b=>{b.onclick=()=>{practiceModule=LEVEL_UP_MODULES.find(m=>m.id===b.dataset.module)||null;if(!practiceModule)return;phase='module';notice='';render();focus()}})
   dialog.querySelectorAll<HTMLButtonElement>('[data-plan]').forEach(b=>{b.onclick=()=>{phase='plan';practiceModule=null;notice='';render();focus()}})
   const identityForm=dialog.querySelector<HTMLFormElement>('[data-identity]');if(identityForm)identityForm.onsubmit=e=>{e.preventDefault();if(!active())return;const kind=(e.submitter as HTMLButtonElement|null)?.value;if(kind!=='style'&&kind!=='focus')return;try{choices=chooseTrainingIdentity(choices,String(new FormData(identityForm).get(kind)||''));try{choiceStored=saveTrainingChoices(owner,choices,window.localStorage)}catch{choiceStored=false}notice='Training direction updated. Your tennis rating is unchanged.'}catch{notice='Choose a '+kind+' before applying it.'}render();focus()}
@@ -470,7 +534,18 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   }
   dialog.querySelector<HTMLButtonElement>('[data-check]')?.addEventListener('click',()=>{void checkSaved()})
  }
- const accepted=(row:TrainingSession)=>{if(practiceModule&&selected&&practiceModule.cardIds.includes(selected.id))completed.add(selected.id);historyVersion++;historyBusy=false;historyError=false;history=[row,...(history||[]).filter(r=>r.id!==row.id)].sort((a,b)=>Date.parse(b.completedAt)-Date.parse(a.completedAt)).slice(0,80);payload=null;selected=null;phase=practiceModule?'module':cardFromInbox?'inbox':cardFromPlan?'plan':'progress';notice='Session saved to your account. Your self-rated training proof is separate from your TIQ rating.';render();if(cardFromInbox)focusInboxReturn();else focus()}
+ const accepted=(row:TrainingSession)=>{
+  if(practiceModule&&selected&&practiceModule.cardIds.includes(selected.id))completed.add(selected.id)
+  historyVersion++;historyBusy=false;historyError=false
+  history=[row,...(history||[]).filter(r=>r.id!==row.id)].sort((a,b)=>Date.parse(b.completedAt)-Date.parse(a.completedAt)).slice(0,80)
+  payload=null;selected=null
+  phase=practiceModule?'module':cardFromInbox?'inbox':cardFromPlan?'plan':'progress'
+  notice=practiceModule?'Drill saved to your account.':'Session saved to your account. Your self-rated training proof is separate from your TIQ rating.'
+  render()
+  if(cardFromInbox){focusInboxReturn();return}
+  const next=dialog.querySelector<HTMLElement>('[data-module-next],[data-module-complete]')
+  if(next)next.focus();else focus()
+ }
  const showSessionStatus=()=>{
   render()
   dialog.querySelector<HTMLElement>('.training-session-log [data-notice]')?.focus()
@@ -516,7 +591,8 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const readAccess=async()=>{
   if(accessBusy||!active())return
   accessBusy=true;accessError=false
-  if(phase!=='catalog')render()
+  const paintAccess=()=>{if(phase!=='catalog'&&phase!=='modules'&&phase!=='module')render()}
+  paintAccess()
   try{
    const value=await trainingAccess(client,owner,active)
    if(active())allowed=value
@@ -525,7 +601,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   }finally{
    if(active()){
     accessBusy=false
-    if(phase!=='catalog')render()
+    paintAccess()
    }
   }
  }

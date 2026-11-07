@@ -599,7 +599,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .comparison-fold-body { padding:0 12px 12px; }
 .comparison-fold-body>section { margin:12px 0;padding:14px;background:var(--premium-inset);border-color:var(--premium-line);box-shadow:none; }
 .comparison-fold-body>h2 { margin:18px 0 0; }
-.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen,.training-session-screen,.training-progress-screen,.training-catalog-screen) {
+.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen,.training-session-screen,.training-progress-screen,.training-catalog-screen,.training-modules-screen) {
  padding:16px;border-color:var(--premium-line);background:var(--premium-page);overflow-wrap:anywhere;
 }
 .training-dialog.training-drill-screen[open] { display:flex;flex-direction:column;overflow:hidden; }
@@ -750,8 +750,8 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
  min-block-size:44px;margin:12px 0 0;padding:8px 10px;border:1px solid transparent;
  border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);font-size:.8125rem;
 }
-.training-catalog-screen { overscroll-behavior:contain;scroll-padding-block:76px 12px; }
-.training-catalog-screen .training-inbox-header h1 { font-size:1.1rem;text-wrap:balance; }
+:is(.training-catalog-screen,.training-modules-screen) { overscroll-behavior:contain;scroll-padding-block:76px 12px; }
+:is(.training-catalog-screen,.training-modules-screen) .training-inbox-header h1 { font-size:1.1rem;text-wrap:balance; }
 .training-catalog-controls {
  display:grid;gap:9px;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
  background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 80%),var(--premium-card);
@@ -775,7 +775,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .training-catalog-screen button[data-catalog-clear] { inline-size:auto;min-block-size:44px;margin:0;padding:8px 10px;font-size:.75rem; }
 .training-catalog-screen button[data-catalog-clear][hidden] { display:none; }
 .training-catalog-list { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
-.training-catalog-screen [data-cards] button.training-catalog-card.secondary {
+:is(.training-catalog-screen [data-cards],.training-modules-screen) button.training-catalog-card.secondary {
  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px 8px;
  inline-size:100%;margin:0;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
  background:var(--premium-card);color:var(--premium-white);text-align:start;
@@ -786,10 +786,48 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .training-catalog-time { padding:2px 7px;border:1px solid var(--premium-line);border-radius:999px;background:var(--premium-inset);color:var(--premium-lime); }
 .training-catalog-goal { color:var(--premium-copy);font-size:.75rem;font-weight:500;line-height:1.4; }
 .training-catalog-arrow { grid-column:2;grid-row:1/4;color:var(--premium-ice);font-size:1.3rem;line-height:1; }
-.training-catalog-screen :is(button,input,select):focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
+:is(.training-catalog-screen,.training-modules-screen) :is(button,input,select,summary):focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 .training-catalog-empty { padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface); }
 .training-catalog-screen .training-catalog-empty h2 { margin:0;font-size:1rem; }
 .training-catalog-empty p { margin:5px 0 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
+.training-modules-screen p { margin:5px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
+.training-modules-screen .training-modules-intro { margin-block:0 12px; }
+.training-module-tile-summary { display:grid;grid-column:1;gap:5px; }
+.training-modules-screen .training-catalog-arrow { grid-row:1/3; }
+.training-modules-screen button[data-modules-back] { inline-size:auto;min-block-size:44px;margin:0 0 10px;padding:8px 12px;font-size:.8125rem; }
+.training-module-overview {
+ padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 76%),var(--premium-card);
+}
+.training-module-overview .stat-eyebrow { color:var(--premium-lime);font-size:.6875rem; }
+.training-modules-screen .training-module-overview h2 { margin:4px 0;font-size:1.2rem;line-height:1.22; }
+.training-module-progress { margin-block-start:10px;padding:10px;border-radius:10px;background:var(--premium-inset); }
+.training-module-progress strong { color:var(--premium-white);font-size:.875rem; }
+.training-module-progress progress { display:block;appearance:none;inline-size:100%;block-size:6px;margin:8px 0;border:0;border-radius:999px;background:var(--premium-line); }
+.training-module-progress progress::-webkit-progress-bar { border-radius:999px;background:var(--premium-line); }
+.training-module-progress progress::-webkit-progress-value { border-radius:999px;background:var(--premium-lime); }
+.training-module-progress progress::-moz-progress-bar { border-radius:999px;background:var(--premium-lime); }
+.training-module-progress p { margin:4px 0 0;font-size:.6875rem; }
+.training-modules-screen .training-module-order { margin:12px 0 8px;font-size:.95rem; }
+.training-module-steps { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
+.training-module-steps li {
+ display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px;padding:10px;
+ border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface);
+}
+.training-module-steps .training-module-next { background:var(--premium-card); }
+.training-module-step-number {
+ display:grid;place-items:center;inline-size:27px;block-size:27px;border:1px solid var(--premium-line);border-radius:50%;
+ background:var(--premium-inset);color:var(--premium-ice);font-size:.6875rem;font-weight:700;
+}
+.training-module-step-copy .stat-eyebrow { color:var(--premium-lime);font-size:.6875rem; }
+.training-modules-screen .training-module-step-copy h3 { margin:3px 0;font-size:.95rem;line-height:1.3; }
+.training-modules-screen :is(.training-module-step-copy,.training-module-progress) button.secondary {
+ inline-size:auto;max-inline-size:100%;min-block-size:44px;margin:5px 0 0;padding:8px 10px;font-size:.8125rem;
+}
+.training-modules-screen button.secondary:is([data-module-next],[data-progress]) {
+ border:1px solid transparent;border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);
+}
+.training-modules-screen [data-notice]:not(:empty) { margin-block:0 8px;padding:6px 8px;border-inline-start:2px solid var(--premium-lime);background:var(--premium-inset); }
 .training-inbox-screen .training-inbox-tabs {
  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:0 0 12px;
  background:var(--premium-inset);border-color:var(--premium-line);

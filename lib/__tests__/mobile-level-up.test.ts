@@ -57,6 +57,23 @@ describe('native Level Up training',()=>{
 
 describe('website practice modules in native training',()=>{
  it('resolves every website module card in its prescribed order',()=>{for(const m of LEVEL_UP_MODULES){const rendered=trainingModuleHtml(m);let last=-1;for(const id of m.cardIds){expect(LEVEL_UP_CARDS.some(c=>c.id===id)).toBe(true);const at=rendered.indexOf('data-card="'+id+'"');expect(at).toBeGreaterThan(last);last=at}expect(rendered).toContain(m.proof);expect(rendered).toContain(m.durationLabel)}})
- it('only shows explicitly confirmed cards from this visit and explains the persistence boundary',()=>{const m=LEVEL_UP_MODULES[0];expect(trainingModuleHtml(m)).toContain('0 of '+m.cardIds.length);const rendered=trainingModuleHtml(m,new Set([m.cardIds[0],'unrelated']));expect(rendered).toContain('1 of '+m.cardIds.length);expect(rendered).toContain('Saved during this visit');expect(rendered).toContain('checkmarks reset');expect(rendered).toContain('module completion is not stored')})
- it('escapes module text and withholds controls for missing cards',()=>{const rendered=trainingModuleHtml({...LEVEL_UP_MODULES[0],title:'<img src=x>',cardIds:['missing']});expect(rendered).toContain('&lt;img');expect(rendered).not.toContain('<img');expect(rendered).not.toContain('data-card=');expect(rendered).toContain('unavailable')})
+ it('highlights the first unsaved drill and counts confirmed saves from this visit',()=>{
+  const block=LEVEL_UP_MODULES[0]
+  expect(trainingModuleHtml(block)).toContain(`0 of ${block.cardIds.length} drills saved`)
+  const rendered=trainingModuleHtml(block,new Set([block.cardIds[0],'unrelated']))
+  expect(rendered).toContain(`1 of ${block.cardIds.length} drills saved`)
+  expect(rendered).toContain(`data-card="${block.cardIds[1]}" data-module-next`)
+  expect(rendered).toContain('Saved this visit')
+  expect(rendered).toContain('Block progress resets on close. Sessions stay in Training Progress.')
+  const complete=trainingModuleHtml(block,new Set(block.cardIds))
+  expect(complete).toContain('Block complete')
+  expect(complete).toContain('View training progress')
+  expect(complete).not.toContain('data-module-next')
+ })
+ it('escapes module text and withholds controls and completion for missing cards',()=>{
+  const rendered=trainingModuleHtml({...LEVEL_UP_MODULES[0],title:'<img src=x>',cardIds:['missing']},new Set(['missing']))
+  expect(rendered).toContain('&lt;img');expect(rendered).not.toContain('<img')
+  expect(rendered).not.toContain('data-card=');expect(rendered).toContain('unavailable')
+  expect(rendered).not.toContain('Block complete')
+ })
 })
