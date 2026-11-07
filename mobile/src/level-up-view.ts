@@ -156,9 +156,9 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    const assignment=coachWork?.assignments.find(a=>a.id===button.dataset.coachCheckin),link=coachWork?.links.find(l=>l.id===assignment?.studentLinkId)
    if(!assignment||!link)return
    button.focus({preventScroll:true})
-   coachEditor=openCoachCheckIn(client,owner,active,assignment,link,()=>{
+   coachEditor=openCoachCheckIn(client,owner,active,assignment,link,saved=>{
     if(requestedAssignmentId===assignment.id)requestedAssignmentId=undefined
-    notice='Review your latest coach assignments.';coachVersion++;coachBusy=false;coachWork=null
+    notice=saved?'Check-in sent to your coach.':'Review your latest coach assignments.';coachVersion++;coachBusy=false;coachWork=null
     void readCoach().then(()=>{if(active()&&phase==='inbox'&&inboxSection==='coach')dialog.querySelector<HTMLElement>('[data-inbox-region="coach"]')?.focus()})
    })
   }})

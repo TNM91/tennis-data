@@ -1,14 +1,124 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {getCoachAssignmentPack,type CoachAssignment} from '../../lib/coach-storage'
+import {getCoachAssignmentPack,getCoachAssignmentSummary,type CoachAssignment} from '../../lib/coach-storage'
 import type {TrainingCoachLink} from './training-inbox-data'
 import {coachCheckInDraft,submitCoachCheckIn,CoachCheckInError,type CoachCheckIn} from './coach-check-in'
 import {html} from './match-details'
-export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>boolean,assignment:CoachAssignment,link:TrainingCoachLink,refresh:()=>void){const dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog training-dialog';dialog.setAttribute('aria-label','Coach assignment check-in');let disposed=false,busy=false,attempted=false,conflict=false,leaving=false,recap='',evidence='',notice='',draft:CoachCheckIn|null=null;const active=()=>!disposed&&current(),previous=document.activeElement as HTMLElement|null;
- const dispose=()=>{if(disposed)return;disposed=true;draft=null;recap='';evidence='';dialog.remove();if(current()&&previous?.isConnected)previous.focus()};
- const close=()=>{if(busy)return;if(recap||evidence||attempted){leaving=true;render()}else dispose()};
- const finish=()=>{dispose();if(current())refresh()};
- const request=async(lookup:boolean)=>{if(!draft||busy||!active()||(!lookup&&conflict))return;busy=true;attempted=true;notice=lookup?'Checking your saved check-in…':'Sending your check-in…';render();try{const found=await submitCoachCheckIn(client,owner,active,draft,lookup);if(!active())return;busy=false;if(found)finish();else{notice='The latest assignment does not confirm this exact check-in. Discard and refresh to review the current work.';render()}}catch(error){if(active()){busy=false;conflict=conflict||error instanceof CoachCheckInError&&error.conflict;notice=conflict?'This assignment changed. Check the saved check-in or discard and refresh.':'Check-in not confirmed. Check whether it saved before retrying the same check-in.';render()}}};
- const render=()=>{if(!active())return;const pack=getCoachAssignmentPack(assignment.assignment);dialog.innerHTML=leaving?`<h1 tabindex="-1">Leave this check-in?</h1><p>${attempted?'It may already be saved. Review your coach work before sending it again.':'Your unsent recap and proof will be discarded.'} Drafts stay only while this screen remains open.</p><button type="button" data-keep>Keep check-in</button><button type="button" class="secondary" data-discard>Discard and refresh</button>`:`<h1 tabindex="-1">${draft?'Send this check-in?':'Check in with your coach'}</h1><h2>${html(assignment.title)}</h2><p>${html(assignment.focus)}</p><p>This marks the assignment complete${pack?' and completes all '+pack.items.filter(i=>i.status!=='skipped').length+' non-skipped pack cards':''}. Your coach can read your recap and proof. Private practice sessions stay unchanged. No team message or push alert is sent.</p>${draft?`<h3>Your recap</h3><p>${html(draft.recap)}</p><h3>Your proof</h3><p>${html(draft.evidence||'No extra proof added.')}</p><button type="button" data-send ${busy||conflict?'disabled':''}>${busy?'Working…':attempted?'Retry same check-in':'Send check-in'}</button>${attempted?`<button type="button" class="secondary" data-check ${busy?'disabled':''}>Check saved check-in</button>`:'<button type="button" class="secondary" data-edit>Edit recap</button>'}`:`<form data-form><label>Your recap<textarea name="recap" maxlength="700" required>${html(recap)}</textarea></label><label>Proof or next-match cue<textarea name="evidence" maxlength="300">${html(evidence)}</textarea></label><button type="submit">Review check-in</button></form>`}<p role="status">${html(notice)}</p><button type="button" class="secondary" data-close ${busy?'disabled':''}>Close check-in</button>`;
- dialog.querySelector<HTMLTextAreaElement>('[name=recap]')?.addEventListener('input',e=>{recap=(e.target as HTMLTextAreaElement).value});dialog.querySelector<HTMLTextAreaElement>('[name=evidence]')?.addEventListener('input',e=>{evidence=(e.target as HTMLTextAreaElement).value});dialog.querySelector<HTMLFormElement>('[data-form]')?.addEventListener('submit',e=>{e.preventDefault();try{draft=coachCheckInDraft(assignment,link,recap,evidence);notice='';render();dialog.querySelector<HTMLElement>('h1')?.focus()}catch{notice='Add your recap, then review your check-in.';render()}});dialog.querySelector('[data-send]')?.addEventListener('click',()=>{void request(false)});dialog.querySelector('[data-check]')?.addEventListener('click',()=>{void request(true)});dialog.querySelector('[data-close]')?.addEventListener('click',close);dialog.querySelector('[data-edit]')?.addEventListener('click',()=>{draft=null;render()});dialog.querySelector('[data-keep]')?.addEventListener('click',()=>{leaving=false;render()});dialog.querySelector('[data-discard]')?.addEventListener('click',finish)};
- dialog.oncancel=e=>{e.preventDefault();close()};document.body.append(dialog);render();dialog.showModal();dialog.querySelector<HTMLElement>('h1')?.focus();return {dispose,back:close,isOpen:()=>!disposed}
+export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>boolean,assignment:CoachAssignment,link:TrainingCoachLink,refresh:(saved:boolean)=>void){
+ const dialog=document.createElement('dialog')
+ dialog.className='captain-lineup-dialog training-dialog coach-check-in-screen'
+ dialog.setAttribute('aria-label','Coach assignment check-in')
+ const previous=document.activeElement as HTMLElement|null
+ const proofTarget=getCoachAssignmentSummary(assignment.assignment).expectedEvidence
+ const packDrills=getCoachAssignmentPack(assignment.assignment)?.items.filter(item=>item.status!=='skipped').length??0
+ let disposed=false,busy=false,attempted=false,conflict=false,leaving=false
+ let recap='',evidence='',notice='',draft:CoachCheckIn|null=null
+ const active=()=>!disposed&&current()
+ const dispose=()=>{
+  if(disposed)return
+  disposed=true;draft=null;recap='';evidence=''
+  dialog.remove()
+  if(current()&&previous?.isConnected)previous.focus()
+ }
+ const close=()=>{
+  if(busy)return
+  if(recap||evidence||attempted){leaving=true;render()}
+  else dispose()
+ }
+ const finish=(saved:boolean)=>{dispose();if(current())refresh(saved)}
+ const request=async(lookup:boolean)=>{
+  if(!draft||busy||!active()||(!lookup&&conflict))return
+  busy=true;attempted=true
+  notice=lookup?'Checking your saved check-in…':'Sending your check-in…'
+  render('[data-check-in-status]')
+  try{
+   const found=await submitCoachCheckIn(client,owner,active,draft,lookup)
+   if(!active())return
+   busy=false
+   if(found){finish(true);return}
+   notice='Discard and refresh to review the latest assignment before sending again.'
+  }catch(error){
+   if(!active())return
+   busy=false
+   conflict=conflict||error instanceof CoachCheckInError&&error.conflict
+   notice=conflict?'This assignment changed. Check the saved check-in or discard and refresh.':'Check whether your check-in saved before trying again.'
+  }
+  render('[data-check-in-status]')
+ }
+ const statusHtml=()=>`<p class="coach-check-in-status" data-check-in-status tabindex="-1" role="status">${html(notice)}</p>`
+ const writeHtml=()=>`<form data-form>
+  <label>Your recap<textarea name="recap" rows="3" maxlength="700" required placeholder="What did you work on?"></textarea></label>
+  <label>Proof or next-match cue<textarea name="evidence" rows="2" maxlength="300" aria-describedby="coach-check-in-proof" placeholder="Add a result or cue"></textarea></label>
+  <p id="coach-check-in-proof">Optional.${proofTarget?` <strong>Coach’s proof target</strong> ${html(proofTarget)}`:''}</p>
+  ${statusHtml()}
+  <button type="submit">Review check-in</button>
+ </form>`
+ const reviewHtml=(review:CoachCheckIn)=>`
+  <dl class="coach-check-in-preview">
+   <div><dt>Your recap</dt><dd>${html(review.recap)}</dd></div>
+   <div><dt>Your proof</dt><dd>${html(review.evidence||'Optional proof left blank.')}</dd></div>
+  </dl>
+  <p class="coach-check-in-share">Sending shares this with your coach and marks the assignment complete.${packDrills?` It also records completion for ${packDrills} pack ${packDrills===1?'drill':'drills'}.`:''}</p>
+  ${statusHtml()}
+  <div class="coach-check-in-actions">
+   ${attempted?`<button type="button" data-check ${busy?'disabled':''}>Check saved check-in</button>`:''}
+   <button type="button" data-send ${attempted?'class="secondary"':''} ${busy||conflict?'disabled':''}>${busy?'Working…':attempted?'Retry same check-in':'Send check-in'}</button>
+   ${attempted?'':'<button type="button" class="secondary" data-edit>Edit recap</button>'}
+  </div>`
+ const render=(focusTarget='h1')=>{
+  if(!active())return
+  dialog.innerHTML=`<header class="training-inbox-header coach-check-in-header">
+   <div>
+    ${leaving?'':`<small class="stat-eyebrow">Step ${draft?'2':'1'} of 2</small>`}
+    <h1 tabindex="-1">${leaving?'Leave check-in?':draft?'Review check-in':'Write check-in'}</h1>
+   </div>
+   ${leaving?'':`<button type="button" class="secondary" data-close aria-label="Close check-in" ${busy?'disabled':''}>Close</button>`}
+  </header>
+  ${leaving?`
+   <p>${attempted?'Your check-in may already be saved. Refresh your coach assignments to check.':'Leaving will discard your unsent recap and proof.'}</p>
+   <div class="coach-check-in-actions"><button type="button" data-keep>Keep check-in</button><button type="button" class="secondary" data-discard>Discard and refresh</button></div>`:`
+   <div class="coach-check-in-assignment">
+    <small class="stat-eyebrow">Coach assignment</small>
+    <h2>${html(assignment.title)}</h2>
+    ${assignment.focus&&!draft?`<p>${html(assignment.focus)}</p>`:''}
+   </div>
+   ${draft?reviewHtml(draft):writeHtml()}`}`
+  const recapInput=dialog.querySelector<HTMLTextAreaElement>('[name=recap]')
+  const evidenceInput=dialog.querySelector<HTMLTextAreaElement>('[name=evidence]')
+  if(recapInput){
+   recapInput.value=recap
+   recapInput.oninput=()=>{recap=recapInput.value}
+  }
+  if(evidenceInput){
+   evidenceInput.value=evidence
+   evidenceInput.oninput=()=>{evidence=evidenceInput.value}
+  }
+  const form=dialog.querySelector<HTMLFormElement>('[data-form]')
+  if(form)form.onsubmit=event=>{
+   event.preventDefault()
+   try{draft=coachCheckInDraft(assignment,link,recap,evidence)}
+   catch{
+    notice=recap.trim()?'Refresh this assignment before sending a check-in.':'Add your recap, then review your check-in.'
+    dialog.querySelector<HTMLElement>('[data-check-in-status]')!.textContent=notice
+    recapInput?.focus()
+    return
+   }
+   notice='';render()
+  }
+  dialog.querySelector('[data-send]')?.addEventListener('click',()=>{void request(false)})
+  dialog.querySelector('[data-check]')?.addEventListener('click',()=>{void request(true)})
+  dialog.querySelector('[data-close]')?.addEventListener('click',close)
+  dialog.querySelector('[data-edit]')?.addEventListener('click',()=>{draft=null;render('[name=recap]')})
+  dialog.querySelector('[data-keep]')?.addEventListener('click',()=>{leaving=false;render(draft?'h1':'[name=recap]')})
+  dialog.querySelector('[data-discard]')?.addEventListener('click',()=>finish(false))
+  if(dialog.open){
+   if(focusTarget==='h1')dialog.scrollTop=0
+   dialog.querySelector<HTMLElement>(focusTarget)?.focus()
+  }
+ }
+ dialog.oncancel=event=>{event.preventDefault();close()}
+ document.body.append(dialog)
+ render()
+ dialog.showModal()
+ dialog.querySelector<HTMLElement>('h1')?.focus()
+ return {dispose,back:close,isOpen:()=>!disposed}
 }

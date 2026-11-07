@@ -67,5 +67,6 @@ export function trainingInboxPreview(url:URL,method:string,body?:BodyInit|null){
  if(!found)return Response.json({ok:false},{status:409})
  found.assignment=buildPlayerAssignmentCompletion(found.assignment,{recap:input.recap,evidence:input.evidence})
  found.status='completed';found.updatedAt=new Date().toISOString()
+ if(new URL(location.href).searchParams.has('training-check-in-lost-response'))return Response.json({ok:false},{status:503})
  return Response.json({ok:true,assignment:found})
 }
