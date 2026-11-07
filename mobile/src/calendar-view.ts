@@ -2,6 +2,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {html} from './match-details'
 import {calendarDraft,personalDraft,sameCalendarDraft,type CalendarDraft,type CalendarIntent,type NativeCalendar} from '../../lib/native-calendar-contract'
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
+import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
 import {calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,exportableCalendarOccurrences,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,type CalendarOccurrence} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
 import {createCalendarFinder} from './calendar-finder'
@@ -227,9 +228,21 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   else dialog.querySelector<HTMLInputElement>('[name="title"]')?.focus()
  }
  const field=(name:string,title:string,value:string,type='text',max=160)=>`<label>${title}<input name="${name}" type="${type}" value="${html(value)}" ${type==='date'?'min="1900-01-01" max="2199-12-31"':''} ${type==='text'?'maxlength="'+max+'"':''}></label>`
- const details=(e:{title:string;date:string;time:string;endTime?:string;location:string})=>`<h3>${html(e.title)}</h3><p>${html(label(e.date))} · ${html(e.time?e.time.slice(0,5)+(e.endTime?' – '+e.endTime:''):'All day / time not set')}</p>${e.location?'<p>'+html(e.location)+'</p>':''}`
+ const details=(event:CalendarOccurrence|CalendarDraft,missingTime:string)=>{
+  const time=formatCaptainPracticeTimeRange(event.time.slice(0,5),'endTime' in event?event.endTime?.slice(0,5):undefined)
+  return `<div class="cal-event-summary">
+   <h3>${html(event.title)}</h3>
+   ${'detail' in event&&event.detail?`<p>${html(event.detail)}</p>`:''}
+   <dl>
+    <div><dt>Date</dt><dd><time datetime="${html(event.date)}">${html(label(event.date))}</time></dd></div>
+    <div><dt>Time</dt><dd>${html(time||missingTime)}</dd></div>
+    <div><dt>Location</dt><dd>${html(event.location||'Location not set')}</dd></div>
+   </dl>
+  </div>`
+ }
  const availabilityControls=(match:MatchAvailability,readiness:string)=>{
-  const statusLine='<p>'+html(match.responseIsStale?'The schedule changed. Review this date before replying.':readiness)+'</p>'
+  const tone=match.responseIsStale?'changed':savedReply(match)==='available'?'available':'neutral'
+  const statusLine=`<p class="cal-event-readiness" data-tone="${tone}">${html(match.responseIsStale?'The schedule changed. Review this date before replying.':readiness)}</p>`
   if(match.status==='Completed')return statusLine+'<p>This match is completed.</p>'
   const instructions=savedReply(match)?'Choose a different reply if your plans change.':'Choose a reply for the date, time and location shown.'
   return statusLine+`<label>Your reply<select data-cal-reply aria-describedby="cal-reply-help" ${busy?'disabled':''}>
@@ -298,15 +311,15 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    ${baseline&&selected?'<button type="button" class="secondary" data-cal-delete-review>'+(selected.recurring?'Delete repeating series':'Delete event')+'</button>':''}
    <button type="button" class="secondary" data-cal-cancel>Cancel</button>
   </form>`
-  if(panel==='review'&&draft)return `<section class="cal-panel"><h2 tabindex="-1">${schedulingRep?'Review practice':'Review personal event'}</h2>${details(draft)}<p>${html(draft.kind)} · ${html(repeatNames[draft.recurrenceRule])}</p>${draft.kind==='availability'?'<p>Personal note: '+html(draft.availabilityStatus)+'. No competition reply is sent.</p>':''}${draft.recurrenceRule?'<p>This saves the whole repeating series.</p>':''}<button data-cal-save ${busy?'disabled':''}>${schedulingRep?'Save private practice':baseline?'Save changes':'Save personal event'}</button><button class="secondary" data-cal-edit ${busy?'disabled':''}>Keep editing</button></section>`
-  if(panel==='delete'&&selected)return `<section class="cal-panel"><h2 tabindex="-1">Delete ${selected.recurring?'repeating series':'personal event'}?</h2>${details(selected)}<p>${selected.recurring?'Every occurrence from this personal series will be removed.':'This removes this personal event from your saved calendar.'}</p><button data-cal-delete ${busy?'disabled':''}>Delete ${selected.recurring?'whole series':'event'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Keep event</button></section>`
+  if(panel==='review'&&draft)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">${schedulingRep?'Review practice':'Review personal event'}</h2>${details(draft,'All day')}<p>${html(draft.kind)} · ${html(repeatNames[draft.recurrenceRule])}</p>${draft.kind==='availability'?'<p>Personal note: '+html(draft.availabilityStatus)+'. No competition reply is sent.</p>':''}${draft.recurrenceRule?'<p>This saves the whole repeating series.</p>':''}<button data-cal-save ${busy?'disabled':''}>${schedulingRep?'Save private practice':baseline?'Save changes':'Save personal event'}</button><button class="secondary" data-cal-edit ${busy?'disabled':''}>Keep editing</button></section>`
+  if(panel==='delete'&&selected)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Delete ${selected.recurring?'repeating series':'personal event'}?</h2>${details(selected,'All day')}<p>${selected.recurring?'Every occurrence from this personal series will be removed.':'This removes this personal event from your saved calendar.'}</p><button data-cal-delete ${busy?'disabled':''}>Delete ${selected.recurring?'whole series':'event'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Keep event</button></section>`
   if(panel==='respond'&&selected?.source==='team'){
    const closed=selected.teamStatus==='cancelled'||selected.teamStatus==='completed'
-   return `<section class="cal-panel"><h2 tabindex="-1">Team practice</h2>${details(selected)}<p>${html(selected.detail)}</p><p>${html(selected.readiness)}</p><p>${closed?'See the saved practice details and your reply.':'Open the practice to check the latest details and your place, then review your RSVP.'}</p><button data-cal-practice ${busy?'disabled':''}>${closed?'View practice':'Open practice & RSVP'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
+   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Team practice</h2>${details(selected,'Time to be confirmed')}<p class="cal-event-readiness">${html(selected.readiness)}</p><p>${closed?'See the saved practice details and your reply.':'Open the practice to check the latest details and your place, then review your RSVP.'}</p><button data-cal-practice ${busy?'disabled':''}>${closed?'View practice':'Open practice & RSVP'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
   }
   if(panel==='respond'&&selected){
    const match=selectedMatch()
-   return `<section class="cal-panel"><h2 tabindex="-1">${selected.source==='competition'?'Your availability':'Shared Coach date'}</h2>${details(selected)}<p>${html(selected.detail)}</p>${match?availabilityControls(match,selected.readiness):'<p>Shared Coach dates are managed with your coach. Open Coach & training to review your plan.</p>'}<button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
+   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">${selected.source==='competition'?'Your availability':'Shared Coach date'}</h2>${details(selected,'Time to be confirmed')}${match?availabilityControls(match,selected.readiness):'<p>Shared Coach dates are managed with your coach. Open Coach & training to review your plan.</p>'}<button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
   }
   if(panel==='export'){const list=exportableCalendarOccurrences(visible());return `<section class="cal-panel"><h2 tabindex="-1">Export these dates</h2><p>${list.length} ${list.length===1?'date':'dates'} · ${day?html(label(day)):html(label(range().from)+' – '+label(range().to))} · ${html(filter==='all'?'All types':filter)}</p>${query.trim()?'<p>Search: '+html(query)+'</p>':''}<label>Times are in<select data-cal-zone>${[...new Set(['America/Chicago',Intl.DateTimeFormat().resolvedOptions().timeZone,'America/New_York','America/Denver','America/Los_Angeles','Pacific/Honolulu','America/Anchorage'])].map(z=>'<option '+(z===zone?'selected':'')+' value="'+html(z)+'">'+html(z.replaceAll('_',' '))+'</option>').join('')}</select></label><p>Saved times have no time zone. Choose the zone where these events take place. Team practices use their recorded end time when available. Other timed events use 90-minute slots; Coach lessons use 60 minutes. Dates without a time export as all day.</p><p>Cancelled team practices and invalid time ranges are excluded. This is a one-time calendar file for the dates, type and search shown. Repeating entries export only occurrences in this view. Later changes won’t sync.</p>${calendar?.warnings.length?'<p class="cal-warning">Some sources are unavailable. This file includes only the dates that loaded.</p>':''}<button data-cal-export ${busy||!list.length?'disabled':''}>Share calendar file</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`}
   return ''

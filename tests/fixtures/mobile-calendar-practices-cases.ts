@@ -5,7 +5,7 @@ async function calendar(page:Page,width=390){
  await page.setViewportSize({width,height:844});await page.goto(origin+'/?large=1');await page.evaluate(()=>(window as unknown as Preview).calendarTeamFixture.enabled=true)
  await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="calendar"]').click();const d=page.getByRole('dialog',{name:'Your calendar',exact:true});await expect(d.locator('.cal-event.team')).toHaveCount(2);return d
 }
-async function openRsvp(page:Page,d:ReturnType<Page['getByRole']>){await expect(d).toContainText('18:00 – 20:15');await d.getByRole('button',{name:'Open practice & RSVP',exact:true}).click();const child=page.getByRole('dialog',{name:'Team practices',exact:true});await expect(child).toContainText('Your RSVP · Jordan Lee');return child}
+async function openRsvp(page:Page,d:ReturnType<Page['getByRole']>){await expect(d.locator('.cal-event-summary')).toContainText('6:00 PM–8:15 PM');await d.getByRole('button',{name:'Open practice & RSVP',exact:true}).click();const child=page.getByRole('dialog',{name:'Team practices',exact:true});await expect(child).toContainText('Your RSVP · Jordan Lee');return child}
 async function practice(page:Page,d:ReturnType<Page['getByRole']>){await d.locator('[data-cal-event="team-practice:'+event+'"]').click();return openRsvp(page,d)}
 test('My Lab Up Next links to the exact team practice and its RSVP',async({page},info)=>{
  const now=new Date()

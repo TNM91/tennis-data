@@ -45,6 +45,8 @@ for(const width of [320,390])test('Calendar: week, month and event forms stay co
 })
 test('Calendar: review, save, edit and delete personal plans without changing competition availability',async({page})=>{
  const d=await calendarScreen(page);await d.getByRole('button',{name:'Add event',exact:false}).click();await d.getByRole('textbox',{name:'Title',exact:true}).fill('Footwork first');await d.getByRole('button',{name:'Review event',exact:true}).click();await expect(d).toContainText('Review personal event')
+ await expect(d.locator('.cal-event-summary')).toContainText('All day')
+ await expect(d.locator('.cal-event-summary')).toContainText('Location not set')
  expect(await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.filter(r=>r.method==='POST').length)).toBe(0)
  await d.getByRole('button',{name:'Save personal event',exact:true}).click();await expect(d.locator('.cal-event')).toHaveCount(4)
  const savedEvent=d.locator('.cal-event').filter({hasText:'Footwork first'})
