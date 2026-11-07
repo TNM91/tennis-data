@@ -25,7 +25,7 @@ describe('native recorded-result insights',()=>{
   expect(labBreakdownMatches(rows,'owner','leagues','City').map(x=>x.index)).toEqual([1])
   expect(labBreakdownMatches(rows,'owner','seasons','2026').map(x=>x.row.id)).toEqual(['new'])
   expect(labBreakdownMatches(rows,'owner','seasons','Connected').map(x=>x.index)).toEqual([3])
-  const markup=labResultBreakdownHtml(rows,'owner','leagues',4);expect(markup).toContain('data-index="1"');expect(markup).not.toContain('data-index="0"');expect(markup).toContain('View 1 decided result')
+  const markup=labResultBreakdownHtml(rows,'owner','leagues',4);expect(markup).toContain('data-index="1"');expect(markup).not.toContain('data-index="0"');expect(markup).toContain('View 1 scorecard')
  })
  it('keeps the website explorer default and labels native saved snapshots without presenting a snapshot count as matches',()=>{
   const points=[{id:'one',date:'2026-10-29',rating:4.42,delta:null,matchId:null}]

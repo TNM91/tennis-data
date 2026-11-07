@@ -86,7 +86,8 @@ for(const width of [320,390])test(`format and league views use the same loaded r
  await expect(comparison.getByRole('meter',{name:/^Doubles decided/})).toHaveAttribute('value','50')
  await page.locator(width===390?'#recent-results h2':'.result-view-controls').evaluate(el=>el.scrollIntoView({block:'start'}))
  await page.screenshot({path:info.outputPath('lab-scoreboard-format-insights.png'),fullPage:false})
- await results.locator('[data-result-view="leagues"]').click();await expect(results.locator('.lab-breakdown-list')).toContainText('City Tennis League');await expect(results.locator('.lab-breakdown-list')).toContainText('3W / 3L')
+ await results.locator('[data-result-view="leagues"]').click();await expect(results.locator('.lab-breakdown-list')).toContainText('City Tennis League');await expect(results.locator('.lab-breakdown-list')).toContainText('3W · 3L')
+ await expect(results.getByRole('meter',{name:'City Tennis League decided win percentage',exact:true})).toHaveAttribute('value','50')
  await results.locator('[data-result-view="years"]').click();await expect(results.locator('.lab-breakdown-list')).toContainText('2026');await bounded(page)
 })
 test('missing, fallback and extreme records stay honest and bounded',async({page},info)=>{

@@ -5,6 +5,7 @@ import {playerRecentRecord} from '../../lib/player-recent-record'
 import {filterMatchbookEntries} from '../../lib/player-matchbook'
 import { matchDate, matchResult, type RecentMatchRow } from './recent-results'
 import { html } from './match-details'
+import {recentScorecardRow} from './recent-scorecard-row'
 
 export type MatchFilter = 'All' | 'Singles' | 'Doubles'
 export type ResultView='form'|'formats'|'leagues'|'years'
@@ -103,24 +104,17 @@ function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolea
   if (!rows.length) return ''
   const entries = rows.map((row, index) => {
     const result = matchResult(row, playerId)
+    if (compact) return recentScorecardRow(row, index, result)
     const tone = result === 'Won' ? 'won' : result === 'Lost' ? 'lost' : 'pending'
     const date = html(matchDate(row.match_date))
     const format = html(row.match_type || 'Match')
     const league = html(row.league_name || 'League unavailable')
     const score = html(row.score || 'Score unavailable')
-    if (!compact) return `<li>
+    return `<li>
       <div class="match-heading"><strong class="result-${tone}">${result}</strong><span>${date}</span></div>
       <p>${format} · ${league}</p><p class="score">${score}</p>
       <button type="button" class="secondary match-open" data-index="${index}" aria-label="View match details, ${date}, ${html(row.match_type || 'match')}">View match</button>
     </li>`
-    return `<li><button type="button" class="secondary match-open recent-scorecard" data-index="${index}">
-      <span class="app-tool-copy">
-        <span class="recent-scorecard-meta"><b class="result-${tone}">${result}</b><span class="recent-scorecard-date">${format} · ${date}</span></span>
-        <strong>${score}</strong>
-        <span>${league}</span>
-      </span>
-      <span class="app-tool-arrow" aria-hidden="true">›</span>
-    </button></li>`
   }).join('')
   const list = `<ol class="matches">${entries}</ol><small>Scores are shown as recorded, in the source’s court order.</small>`
   if (!compact) return list
@@ -140,10 +134,11 @@ export function resultsHtml(rows: RecentMatchRow[], playerId: string, filter: Ma
   let sampleLabel = `${shownMatches} in ${html(owner)} latest ${rows.length} connected results.`
   if (compact && filter === 'All') sampleLabel = `Latest ${loadedSample}.`
   if (compact && view === 'formats') sampleLabel = `Both formats use the latest ${loadedSample}.`
+  const grouped = compact && (view === 'leagues' || view === 'years')
   return `<div class="match-filters" role="group" aria-label="Match type">${filters.map(value => `<button type="button" class="secondary" data-match-filter="${value}" aria-pressed="${value === filter}">${value}</button>`).join('')}</div>
     ${compact ? list + resultViewControls(view) : ''}
     <div role="status" class="form-status">
-      <p>${sampleLabel}</p>
+      ${grouped ? '' : `<p>${sampleLabel}</p>`}
       ${!shown.length ? `<p>No matches of this type in ${html(owner)} latest results. Try All.</p>` : form ? `${recentPulseHtml(shown,playerId)}<dl class="recent-form" aria-label="Recent form"><div><dt>Wins</dt><dd>${form.wins}</dd></div><div><dt>Losses</dt><dd>${form.losses}</dd></div><div><dt>Pending</dt><dd>${form.pending}</dd></div></dl>` : ''}
     </div>
     ${compact ? `<div id="lab-result-panel" role="region" aria-label="${view[0].toUpperCase()+view.slice(1)} result insights">${view==='form'||view==='formats'?recentStatsHtml(rows,playerId,filter,view):labResultBreakdownHtml(shown,playerId,view==='years'?'seasons':'leagues',rows.length,filter==='All'?'All formats':filter,false)}</div>` : list}`

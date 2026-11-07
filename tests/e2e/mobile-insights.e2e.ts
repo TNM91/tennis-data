@@ -85,7 +85,9 @@ for(const width of [320,390]){
   await expect(page.locator('.recent-match-list>summary')).toBeFocused()
   await page.locator('.recent-match-list .match-open').first().click();expect((await state(page)).opened).toBe('result-2')
   await page.locator('[data-result-view="years"]').click();const old=page.locator('.lab-breakdown-list>li').filter({has:page.getByRole('heading',{name:'2025',exact:true})});await old.locator('summary').click();await old.getByRole('button',{name:/^Open 2025 scorecard/}).click();expect((await state(page)).opened).toBe('result-5')
-  const current=page.locator('.lab-breakdown-list>li').filter({has:page.getByRole('heading',{name:String(new Date(Date.now()-86400000).getUTCFullYear()),exact:true})});await current.locator('summary').click();await bounded(page);await page.screenshot({path:info.outputPath('native-insights-year-scorecards.png'),fullPage:false})
+  const current=page.locator('.lab-breakdown-list>li').filter({has:page.getByRole('heading',{name:String(new Date(Date.now()-86400000).getUTCFullYear()),exact:true})});await current.locator('summary').click();await bounded(page)
+  await page.getByRole('heading',{name:'Results by year',exact:true}).evaluate(el=>el.scrollIntoView({block:'start'}))
+  await page.screenshot({path:info.outputPath('native-insights-year-scorecards.png'),fullPage:false})
   await page.evaluate(()=>(window as unknown as {insightsFixture:State}).insightsFixture.invalidate());await current.getByRole('button',{name:/^Open .* scorecard/}).first().click();expect((await state(page)).opened).toBe('result-5')
  })
 }

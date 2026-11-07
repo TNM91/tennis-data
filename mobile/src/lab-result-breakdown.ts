@@ -1,11 +1,51 @@
 import {playerResultBreakdown,resultBreakdownLabel} from '../../lib/player-result-breakdown'
-import {matchDate,matchResult,type RecentMatchRow} from './recent-results'
+import {matchResult,type RecentMatchRow} from './recent-results'
 import {html} from './match-details'
+import {recentScorecardRow} from './recent-scorecard-row'
+
 export type BreakdownView='leagues'|'seasons'
 export function labBreakdownMatches(rows:RecentMatchRow[],playerId:string,view:BreakdownView,label:string){
- return rows.flatMap((row,index)=>{const result=matchResult(row,playerId);return result!=='Result pending'&&resultBreakdownLabel({date:row.match_date,result,leagueName:row.league_name},view)===label?[{row,index,result}]:[]})
+  return rows.flatMap((row,index)=>{
+    const result=matchResult(row,playerId)
+    const group=resultBreakdownLabel({date:row.match_date,result,leagueName:row.league_name},view)
+    return result!=='Result pending'&&group===label?[{row,index,result}]:[]
+  })
 }
-export function labResultBreakdownHtml(rows:RecentMatchRow[],playerId:string,view:BreakdownView,loaded:number,format='All formats',controls=true){
- const groups=playerResultBreakdown(rows.map(row=>({date:row.match_date,leagueName:row.league_name,result:matchResult(row,playerId)==='Won'?'W':matchResult(row,playerId)==='Lost'?'L':'pending'})))[view]
- return `<section class="lab-result-breakdown" aria-labelledby="lab-breakdown-title"><h3 id="lab-breakdown-title">Where your results come from</h3>${controls?`<div class="match-filters" role="group" aria-label="Result breakdown"><button type="button" class="secondary" data-result-breakdown="leagues" aria-pressed="${view==='leagues'}">Leagues</button><button type="button" class="secondary" data-result-breakdown="seasons" aria-pressed="${view==='seasons'}">Years</button></div>`:''}<p class="rating-context">${html(format)}, from your latest ${loaded} connected results. Decided results only; these are not full league or season records.</p>${groups.length?`<ol class="lab-breakdown-list">${groups.map(group=>`<li><h4>${html(group.label==='Connected'&&view==='seasons'?'Year unavailable':group.label)}</h4><div class="lab-breakdown-record"><strong>${group.wins}W / ${group.losses}L</strong><span>${group.winRate}% wins</span></div><meter min="0" max="100" value="${group.winRate}" aria-label="${html(group.label)} decided win percentage">${group.winRate}%</meter><p>${group.total} decided ${group.total===1?'result':'results'} in this sample</p><details class="lab-breakdown-matches"><summary>View ${group.total} decided ${group.total===1?'result':'results'}</summary><ol class="lab-sample-matches">${labBreakdownMatches(rows,playerId,view,group.label).map(({row,index,result})=>`<li><div><strong>${result}</strong><span>${html(matchDate(row.match_date))} · ${html(row.match_type||'Match')}</span></div><p>${html(row.score||'Score unavailable')}</p><button type="button" class="secondary match-open" data-index="${index}" aria-label="Open ${html(view==='seasons'&&group.label==='Connected'?'unknown year':group.label)} scorecard, ${html(matchDate(row.match_date))}">Open scorecard</button></li>`).join('')}</ol></details></li>`).join('')}</ol><p class="rating-context">Ordered by win rate, then wins and decided results. Small samples can rank first.</p>`:'<p>No decided results for this format in the loaded sample.</p>'}</section>`
+
+export function labResultBreakdownHtml(rows: RecentMatchRow[], playerId: string, view: BreakdownView, loaded: number, format = 'All formats', controls = true) {
+  const groups = playerResultBreakdown(rows.map(row => {
+    const result = matchResult(row, playerId)
+    return {date:row.match_date, leagueName:row.league_name, result:result === 'Won' ? 'W' : result === 'Lost' ? 'L' : 'pending'}
+  }))[view]
+  const yearView = view === 'seasons'
+  if (yearView) {
+    const year = (label: string) => label === 'Connected' ? Number.MIN_SAFE_INTEGER : Number(label)
+    groups.sort((a, b) => year(b.label) - year(a.label))
+  }
+  const cards = groups.map(group => {
+    const unknownYear = yearView && group.label === 'Connected'
+    const title = html(unknownYear ? 'Year unavailable' : group.label)
+    const scorecards = labBreakdownMatches(rows, playerId, view, group.label).map(({row, index, result}) =>
+      recentScorecardRow(row, index, result, {label:unknownYear ? 'unknown year' : group.label, includeLeague:yearView}),
+    ).join('')
+    return `<li>
+      <div class="lab-breakdown-metrics">
+        <div class="lab-breakdown-record"><h4>${title}</h4><strong aria-hidden="true">${group.winRate}% wins</strong></div>
+        <meter min="0" max="100" value="${group.winRate}" aria-label="${title} decided win percentage">${group.winRate}%</meter>
+        <p>${group.wins}W · ${group.losses}L</p>
+      </div>
+      <details class="lab-breakdown-matches">
+        <summary><span>View ${group.total} ${group.total === 1 ? 'scorecard' : 'scorecards'}</span><span class="app-tool-arrow" aria-hidden="true">›</span></summary>
+        <ol class="matches lab-sample-matches">${scorecards}</ol>
+      </details>
+    </li>`
+  }).join('')
+  return `<section class="lab-result-breakdown" aria-labelledby="lab-breakdown-title">
+    <div class="lab-breakdown-heading">
+      <h3 id="lab-breakdown-title">Results by ${yearView ? 'year' : 'league'}</h3>
+      ${controls ? `<div class="match-filters" role="group" aria-label="Result breakdown"><button type="button" class="secondary" data-result-breakdown="leagues" aria-pressed="${!yearView}">Leagues</button><button type="button" class="secondary" data-result-breakdown="seasons" aria-pressed="${yearView}">Years</button></div>` : ''}
+      <p>${html(format)} · Decided matches from the latest ${loaded} connected ${loaded === 1 ? 'result' : 'results'}.</p>
+    </div>
+    ${cards ? `<ol class="lab-breakdown-list">${cards}</ol><p class="lab-breakdown-note">${yearView ? 'Newest years first.' : 'Sorted by win rate. Small samples can rank first.'}</p>` : '<p class="lab-breakdown-note">No decided results for this format in the loaded sample.</p>'}
+  </section>`
 }

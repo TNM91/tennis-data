@@ -26,8 +26,13 @@ describe('shared My Lab result breakdown',()=>{
   expect(output).toContain('&lt;img onerror=x&gt;')
   expect(output).not.toContain('<img')
   expect(output).toContain('latest 10 connected results')
-  expect(output).toContain('not full league or season records')
+  expect(output).toContain('Decided matches from the latest 10 connected results')
   expect(output).toContain('Small samples can rank first')
+ })
+ it('shows the latest year first in the app even when an older year has a higher win rate',()=>{
+  const rows=[{...match,winner_side:'B'},{...match,id:'old',match_date:'2025-12-31'},{...match,id:'unknown',match_date:null}]
+  const output=labResultBreakdownHtml(rows,'me','seasons',rows.length)
+  expect([...output.matchAll(/<h4>([^<]+)<\/h4>/g)].map(([,label])=>label)).toEqual(['2026','2025','Year unavailable'])
  })
  it('keeps unknown years, pending-only records and no-format views honest',()=>{
   expect(labResultBreakdownHtml([{...match,match_date:null}],'me','seasons',1)).toContain('Year unavailable')

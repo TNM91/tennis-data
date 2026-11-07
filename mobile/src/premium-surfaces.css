@@ -426,21 +426,21 @@ body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.0
  margin-block:12px 16px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
  background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;
 }
-.recent-match-list>summary,
-.recent-match-list .recent-scorecard.secondary {
+:is(.recent-match-list,.lab-breakdown-matches)>summary,
+:is(.recent-match-list,.lab-breakdown-matches) .recent-scorecard.secondary {
  display:grid;grid-template-columns:minmax(0,1fr) 24px;align-items:center;gap:8px;
  min-block-size:56px;padding:10px 12px;border:0;border-radius:0;color:var(--premium-white);text-align:start;
 }
-.recent-match-list>summary { cursor:pointer;list-style:none;border-radius:inherit; }
-.recent-match-list>summary::-webkit-details-marker { display:none; }
-.recent-match-list :is(summary,.recent-scorecard):focus-visible { outline-offset:-3px; }
-.recent-match-list .app-tool-copy { gap:3px; }
-.recent-match-list .app-tool-copy>span { font-size:.75rem;line-height:1.4; }
-.recent-match-list .app-tool-arrow { justify-self:center;color:var(--premium-ice);font-size:1.125rem; }
-.recent-match-list[open]>summary .app-tool-arrow { transform:rotate(90deg); }
-.recent-match-list .matches li { margin:0;padding:0;border-block-start:1px solid var(--premium-line); }
+:is(.recent-match-list,.lab-breakdown-matches)>summary { cursor:pointer;list-style:none;border-radius:inherit; }
+:is(.recent-match-list,.lab-breakdown-matches)>summary::-webkit-details-marker { display:none; }
+:is(.recent-match-list,.lab-breakdown-matches) :is(summary,.recent-scorecard):focus-visible { outline-offset:-3px; }
+:is(.recent-match-list,.lab-breakdown-matches) .app-tool-copy { gap:3px; }
+:is(.recent-match-list,.lab-breakdown-matches) .app-tool-copy>span { font-size:.75rem;line-height:1.4; }
+:is(.recent-match-list,.lab-breakdown-matches) .app-tool-arrow { justify-self:center;color:var(--premium-ice);font-size:1.125rem; }
+:is(.recent-match-list,.lab-breakdown-matches)[open]>summary .app-tool-arrow { transform:rotate(90deg); }
+:is(.recent-match-list,.lab-breakdown-matches) .matches li { margin:0;padding:0;border-block-start:1px solid var(--premium-line); }
 #results-content .recent-scorecard.secondary,
-.recent-match-list .recent-scorecard.secondary { inline-size:100%;margin:0;background:transparent; }
+:is(.recent-match-list,.lab-breakdown-matches) .recent-scorecard.secondary { inline-size:100%;margin:0;background:transparent; }
 .recent-scorecard .app-tool-copy>strong { font-variant-numeric:tabular-nums; }
 .recent-scorecard-meta { display:flex;flex-wrap:wrap;gap:2px 8px; }
 .recent-scorecard-date::first-letter { text-transform:uppercase; }
@@ -470,27 +470,32 @@ body[data-screen] .lab-match-form-record .stat-donut-fill { stroke:var(--premium
 .lab-match-streaks>div { display:grid;align-content:space-between;gap:4px;min-inline-size:0;padding:8px 10px;border-radius:10px;background:var(--premium-inset); }
 .lab-match-streaks dd { margin:0;color:var(--premium-white);font-size:1.25rem;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums; }
 .lab-match-form .lab-match-form-note { margin-block-start:8px;font-size:.6875rem; }
-:is(#lab-result-panel,.lab-recent-stats) .lab-format-grid {
+:is(#lab-result-panel,.lab-recent-stats) :is(.lab-format-grid,.lab-result-breakdown) {
  min-inline-size:0;margin:0;padding:0;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
  background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;
 }
-.lab-format-heading,.lab-format-row { padding:12px 14px; }
-.lab-format-heading h3 { margin:0 0 4px;color:var(--premium-white);font-size:1.0625rem; }
-.lab-format-grid p { margin:0;color:var(--premium-copy);font-size:.75rem;line-height:1.4;overflow-wrap:anywhere; }
-.lab-format-row { border-block-start:1px solid var(--premium-line); }
-.lab-format-row-heading { display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-block-end:6px; }
-.lab-format-row-heading h4 { margin:0;color:var(--premium-white);font-size:.9375rem; }
+.lab-format-heading,.lab-format-row,.lab-breakdown-heading,.lab-breakdown-metrics { padding:12px 14px; }
+:is(.lab-format-heading,.lab-breakdown-heading) h3 { margin:0 0 4px;color:var(--premium-white);font-size:1.0625rem; }
+:is(.lab-format-grid,.lab-result-breakdown) p { margin:0;color:var(--premium-copy);font-size:.75rem;line-height:1.4;overflow-wrap:anywhere; }
+.lab-format-row,.lab-breakdown-list>li { border-block-start:1px solid var(--premium-line); }
+.lab-format-row-heading,.lab-breakdown-record { display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-block-end:6px; }
+:is(.lab-format-row-heading,.lab-breakdown-record) h4 { min-inline-size:0;margin:0;color:var(--premium-white);font-size:.9375rem;overflow-wrap:anywhere; }
 .lab-format-row-heading strong { color:var(--premium-lime);font-size:1.25rem;line-height:1.2;font-variant-numeric:tabular-nums; }
-.lab-format-row meter { display:block;inline-size:100%;block-size:8px;margin-block:0 8px;appearance:none;border:0;border-radius:8px;background:var(--premium-inset); }
-.lab-format-row meter::-webkit-meter-bar { block-size:8px;border:0;border-radius:8px;background:var(--premium-inset); }
-.lab-format-row meter::-webkit-meter-optimum-value { border-radius:8px;background:var(--premium-lime); }
-.lab-format-row meter::-moz-meter-bar { border-radius:8px;background:var(--premium-lime); }
+:is(.lab-format-row,.lab-breakdown-metrics) meter { display:block;inline-size:100%;block-size:8px;margin-block:0 8px;appearance:none;border:0;border-radius:8px;background:var(--premium-inset); }
+:is(.lab-format-row,.lab-breakdown-metrics) meter::-webkit-meter-bar { block-size:8px;border:0;border-radius:8px;background:var(--premium-inset); }
+:is(.lab-format-row,.lab-breakdown-metrics) meter::-webkit-meter-optimum-value { border-radius:8px;background:var(--premium-lime); }
+:is(.lab-format-row,.lab-breakdown-metrics) meter::-moz-meter-bar { border-radius:8px;background:var(--premium-lime); }
 #lab-result-panel .lab-format-open.secondary {
  display:grid;grid-template-columns:minmax(0,1fr) 24px;align-items:center;gap:8px;min-block-size:44px;
  margin:8px 0 0;padding:8px 10px;border:1px solid var(--premium-line);border-radius:10px;
  background:var(--premium-inset);color:var(--premium-white);text-align:start;font-size:.8125rem;overflow-wrap:anywhere;
 }
 .lab-format-open .app-tool-arrow { justify-self:center;color:var(--premium-ice);font-size:1.125rem; }
+.lab-breakdown-list { margin:0;padding:0;list-style:none; }
+.lab-breakdown-record strong { color:var(--premium-lime);font-size:.875rem;line-height:1.3;font-variant-numeric:tabular-nums; }
+.lab-breakdown-matches { margin:0 14px 12px;border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset); }
+.lab-breakdown-matches>summary { min-block-size:44px;font-size:.8125rem;font-weight:700; }
+.lab-result-breakdown .lab-breakdown-note { padding:10px 14px;border-block-start:1px solid var(--premium-line); }
 
 /* Coach and competition doors share the same navy material and strong type. */
 .app-tools-hub .app-hub-group { margin-block-start:28px;background:transparent;border:0;border-radius:0; }
