@@ -72,23 +72,28 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   dispose();return true
  }
  const status=()=>{const p=dialog.querySelector<HTMLElement>('[data-cal-status]');if(p)p.textContent=notice}
+ const focusFromEvent=(focusKey:string)=>({
+  focusKey,
+  preferFeatured:agendaOpener?.kind==='featured'&&agendaOpener.key===focusKey,
+ })
+ const finishAgendaRead=({focusKey,focusControl,preferFeatured}:RefreshContext)=>{
+  busy=false
+  render()
+  if(focusKey&&focusAgendaEvent(focusKey,preferFeatured))return
+  const control=focusControl?dialog.querySelector<HTMLElement>(failedRefresh?'[data-cal-refresh]':focusControl):null
+  if(control)control.focus({preventScroll:true})
+  else focus()
+ }
  const refresh=async(context:RefreshContext={})=>{
   if(!active())return
-  const {message='',focusKey='',focusControl,preferFeatured}=context
+  const {message=''}=context
   busy=true;failedRefresh=null;calendar=null;notice=message||'Loading your tennis dates…';render()
   const expected=range()
   try{const value=await loadCalendarSources(client,owner,active,expected);if(!active())return;calendar=value;notice=message;shown=100;panel='agenda'}
   catch{if(active()){calendar=null;failedRefresh=context;notice=(message?message+' ':'')+'Your calendar couldn’t load. Check your connection and retry.'}}
-  finally{if(active()){
-   busy=false;render()
-   const control=focusControl?dialog.querySelector<HTMLElement>(failedRefresh?'[data-cal-refresh]':focusControl):null
-   if(!focusKey||!focusAgendaEvent(focusKey,preferFeatured)){
-    if(control)control.focus({preventScroll:true})
-    else focus()
-   }
-  }}
+  finally{if(active())finishAgendaRead(context)}
  }
- const confirmed=async(message:string,saved:PlayerCalendarItem|null=null)=>{
+ const confirmed=async(context:RefreshContext,{saved,loaded}:{saved?:PlayerCalendarItem|null;loaded?:NativeCalendar}={})=>{
   pending=null
   draft=null
   draftStart=null
@@ -102,18 +107,33 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    filter='all'
    query=''
   }
-  await refresh({message,focusKey:saved?personalOccurrenceKey(saved.id,saved.date):''})
+  if(loaded){
+   calendar=loaded
+   failedRefresh=null
+   notice=context.message??''
+   shown=100
+   finishAgendaRead(context)
+  }else{
+   await refresh(saved?{...context,focusKey:personalOccurrenceKey(saved.id,saved.date)}:context)
+  }
+ }
+ const availabilityContext=(intent:Extract<CalendarIntent,{action:'respond'}>,warning=''):RefreshContext=>{
+  const message=warning||(intent.response==='available'?'Saved your “I can play” reply.':'Saved your “I can’t play” reply.')
+  return {message,...focusFromEvent('competition:'+intent.eventId),focusControl:'[data-cal-refresh]'}
  }
  const perform=async(intent:CalendarIntent)=>{
   if(!active()||busy||pending)return
   busy=true;pending=intent;notice='Saving your calendar change…';render()
   try{
    const result=await calendarRequest(client,owner,active,{},intent);if(!active())return
-   if(intent.action==='respond'){if(result.eventId!==intent.eventId||result.response!==intent.response||typeof result.updatedAt!=='string')throw Error();await confirmed(typeof result.warning==='string'&&result.warning?result.warning:'Availability reply saved. Refresh if the organizer changes the date.')}
+   if(intent.action==='respond'){
+    if(result.eventId!==intent.eventId||result.response!==intent.response||typeof result.updatedAt!=='string')throw Error()
+    await confirmed(availabilityContext(intent,typeof result.warning==='string'?result.warning:''))
+   }
    else{
     const saved=readCalendarItem(result.item)
     if(intent.action==='delete'?saved!==null:!saved||!sameCalendarDraft(personalDraft(saved),intent.item))throw Error()
-    await confirmed(intent.action==='delete'?'Personal event deleted.':'Personal event saved.',saved)
+    await confirmed({message:intent.action==='delete'?'Personal event deleted.':'Personal event saved.'},{saved})
    }
   }catch{if(active()){panel='recovery';notice='We couldn’t confirm the result. Check the saved entry before trying again.'}}
   finally{if(active()&&busy){busy=false;render();focus()}}
@@ -125,12 +145,15 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    if(intent.action==='respond'){
     const expected=range(),value=await loadCalendarSources(client,owner,active,expected);if(!active())return;calendar=value
     const e=value.competitions.find(e=>e.id===intent.eventId)
-    if(e&&e.responseStatus===intent.response&&!e.responseIsStale&&Object.entries(intent.snapshot).every(([k,v])=>e[k as keyof typeof intent.snapshot]===v)){await confirmed('Your availability reply is saved.');return}
+    if(e&&e.responseStatus===intent.response&&!e.responseIsStale&&Object.entries(intent.snapshot).every(([k,v])=>e[k as keyof typeof intent.snapshot]===v)){
+     await confirmed(availabilityContext(intent),{loaded:value})
+     return
+    }
     pending=null;panel='agenda';selected=null;notice='The current reply differs or this date moved. Open the date to review its latest schedule.'
    }else{
     const id=intent.action==='delete'?intent.id:intent.item.id,result=await calendarRequest(client,owner,active,{item:id}),saved=readCalendarItem(result.item);if(!active())return
     if(intent.action==='delete'&&!saved||intent.action!=='delete'&&saved&&sameCalendarDraft(personalDraft(saved),intent.item)){
-     await confirmed(intent.action==='delete'?'Deletion confirmed.':'Your personal event is saved.',saved)
+     await confirmed({message:intent.action==='delete'?'Deletion confirmed.':'Your personal event is saved.'},{saved})
      return
     }
     pending=null
@@ -359,9 +382,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   bindAgenda()
   on('[data-cal-practice]',()=>{
    const p=calendar?.practices?.find(p=>p.id===selected?.id);if(!p||practiceView?.isOpen())return
-   const key='team-practice:'+p.id
-   const preferFeatured=agendaOpener?.kind==='featured'&&agendaOpener.key===key
-   practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh({focusKey:key,preferFeatured})},'','Back to calendar',p.id)
+   const context=focusFromEvent('team-practice:'+p.id)
+   practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh(context)},'','Back to calendar',p.id)
   })
   on('[data-cal-agenda]',returnAgenda)
   const form=dialog.querySelector<HTMLFormElement>('form')
