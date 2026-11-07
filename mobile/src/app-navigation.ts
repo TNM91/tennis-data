@@ -55,8 +55,8 @@ export function homeShortcutsHtml(){
  ] as const
  return `<nav class="lab-shortcuts" aria-label="Play and improve">${shortcuts.map(([tool,detail])=>{
   const id=`lab-shortcut-${tool.destination}`
-  return `<button type="button" class="secondary app-tool${tool.destination==='coach'?' lab-shortcut-coach':''}" data-app-destination="${tool.destination}" aria-labelledby="${id}-title" aria-describedby="${id}-detail">
-   <span class="lab-shortcut-icon" aria-hidden="true">${websiteUi.icons[tool.icon]}</span>
+  return `<button type="button" class="secondary app-tool lab-action-row${tool.destination==='coach'?' lab-shortcut-coach':''}" data-app-destination="${tool.destination}" aria-labelledby="${id}-title" aria-describedby="${id}-detail">
+   <span class="lab-action-icon" aria-hidden="true">${websiteUi.icons[tool.icon]}</span>
    <span class="app-tool-copy"><strong id="${id}-title">${html(tool.title)}</strong><span id="${id}-detail">${html(detail)}</span></span>
    <span class="app-tool-arrow" aria-hidden="true">›</span>
   </button>`
