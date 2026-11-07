@@ -1,5 +1,4 @@
 import websiteUi from '../generated/website-ui.json'
-import {PRODUCT_MOTTO} from '../../lib/product-story'
 import {nativeActionIcon} from './native-action-icons'
 import {html} from './match-details'
 
@@ -55,8 +54,8 @@ export function appHubHtml(hub:AppHub){
   :hub==='coach'
    ?[{title:'Your game plan',keys:['lessonDates','inbox','connection','training','progress'],lane:'player'},{title:'Coach studio',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video'],lane:'studio'}]
    :[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]
- const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'All your tennis'
- const note=hub==='compete'?'Find your competition. Arrive with a plan.':hub==='coach'?'Lessons, practice and conversations.':PRODUCT_MOTTO
+ const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'More'
+ const note=hub==='compete'?'Find your competition. Arrive with a plan.':'Lessons, practice and conversations.'
  const total=groups.reduce((count,group)=>count+group.keys.length,0)
  const coachControls=hub==='coach'?`<div class="coach-hub-messages">${toolHtml(tools.coachMessages)}</div>
   <div class="coach-hub-lanes" role="group" aria-label="Coach and training tools">
@@ -67,12 +66,19 @@ export function appHubHtml(hub:AppHub){
   const lane=group.lane?` id="coach-${group.lane}-tools" data-coach-lane${group.lane==='studio'?' hidden':''}`:''
   return `<section class="app-hub-group"${lane}><h2>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],false,key==='tactics')).join('')}</div></section>`
  }).join('')
- const toolFinder=hub==='more'?`<div class="app-tool-finder"><label for="app-tool-query">Find a tool</label><div class="app-tool-search"><span aria-hidden="true">${nativeActionIcon('search')}</span><input id="app-tool-query" type="search" maxlength="80" autocomplete="off" placeholder="Leagues, coach, account…" aria-controls="app-tool-results"><button type="button" class="secondary" data-clear-tool-search hidden>Clear</button></div><p role="status" data-tool-count>${total} tools</p></div>`:''
+ const toolFinder=hub==='more'?`<div class="app-tool-finder" role="search" aria-label="Tools">
+  <label for="app-tool-query" class="sr-only">Find a tool</label>
+  <div class="app-tool-search">
+   <span aria-hidden="true">${nativeActionIcon('search')}</span>
+   <input id="app-tool-query" type="search" maxlength="80" autocomplete="off" placeholder="Find a tool" aria-controls="app-tool-results">
+   <button type="button" class="secondary" data-clear-tool-search hidden>Clear</button>
+  </div>
+  <p role="status" class="sr-only" data-tool-count>${total} tools</p>
+ </div>`:''
  return `<div class="app-tools-hub" data-hub="${hub}">
-  <header class="tab-hero${hub==='compete'?' tab-hero-court':''} app-hub-heading">
-   ${hub==='more'?`<span class="tab-hero-icon" aria-hidden="true">${nativeActionIcon('more')}</span>`:''}
-   ${hub==='coach'?'':`<small class="stat-eyebrow">${hub==='more'?'More':'TenAceIQ'}</small>`}
-   <h1 tabindex="-1">${title}</h1><p>${note}</p>
+  <header class="app-hub-heading${hub==='more'?' app-hub-heading-compact':hub==='compete'?' tab-hero tab-hero-court':' tab-hero'}">
+   ${hub==='compete'?'<small class="stat-eyebrow">TenAceIQ</small>':''}
+   <h1 tabindex="-1">${title}</h1>${hub==='more'?'':'<p>'+note+'</p>'}
   </header>
   ${hub==='compete'?'<div class="compete-next-match" data-compete-next-match hidden></div>':''}
   ${coachControls}${toolFinder}<div id="app-tool-results">${groupHtml}</div>
@@ -92,6 +98,7 @@ function bindToolFinder(host:HTMLElement){
   for(const button of buttons){button.hidden=!words.every(word=>normalize(button.dataset.toolSearch||'').includes(word));if(!button.hidden)found++}
   for(const group of host.querySelectorAll<HTMLElement>('.app-hub-group'))group.hidden=!group.querySelector('.app-tool:not([hidden])')
   clear.hidden=!input.value;empty.hidden=found!==0
+  count.classList.toggle('sr-only',words.length===0)
   count.textContent=found+' '+(found===1?'tool':'tools')+(words.length?' found':'')
  }
  const reset=()=>{input.value='';render();input.focus({preventScroll:true})}
