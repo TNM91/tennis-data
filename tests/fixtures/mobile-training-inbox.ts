@@ -1,7 +1,9 @@
 import {buildPlayerAssignmentCompletion,type CoachAssignment} from '../../lib/coach-storage'
+import {LEVEL_UP_CARDS} from '../../lib/level-up/level-up-cards'
 import {getWeeklyLevelUpPlanWeekStart,toggleWeeklyLevelUpPlanRep,type WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
 import {localCalendarDate,shiftCalendarDay} from '../../mobile/src/calendar-data'
 import type {TrainingSave} from '../../mobile/src/level-up-data'
+import {freezeTrainingSave} from '../../mobile/src/level-up-model'
 import {navigationOwner} from './mobile-navigation-client'
 
 const today=localCalendarDate(),updatedAt=new Date().toISOString(),identitySlug='relentless-competitor-4-0'
@@ -40,10 +42,24 @@ if(new URL(location.href).searchParams.has('training-coach-update')){
  plans[1]={...previous,sharedWithCoach:true,coachUserId,studentLinkId:link.id,coachResponse:{action:'adjusted',note:'Recover toward the center after the return.',targetRepId:previous.reps[0].id,replacementRep:null,coachUserId,updatedAt,playerReply:{action:'acknowledged',message:'',playerUserId:navigationOwner,updatedAt}}}
 }
 const sessions:(TrainingSave&{playerUserId:string;sessionJson:{cardId:string}})[]=[]
+const historyPreview=new URL(location.href).searchParams.has('training-history-review')
+let historyReads=0
+if(historyPreview){
+ for(const [index,cardId] of ['split-step-rhythm','double-fault-reset'].entries()){
+  const card=LEVEL_UP_CARDS.find(item=>item.id===cardId)!
+  const date=new Date(Date.now()-index*86_400_000).toISOString()
+  const saved=freezeTrainingSave(card,4-index,index===0?'Landed the split before contact.':'Picked a clear target.','alone','ready',600-index*300,
+   'level-up-11111111-1111-4111-8111-00000000000'+index,date,identitySlug)
+  sessions.push({...saved,playerUserId:navigationOwner,sessionJson:{cardId}})
+ }
+}
 export function trainingInboxPreview(url:URL,method:string,body?:BodyInit|null){
  if(!new URL(location.href).searchParams.has('training-inbox-review'))return null
  if(url.pathname==='/api/player/level-up-sessions'){
-  if(method==='GET')return Response.json({ok:true,sessions})
+  if(method==='GET'){
+   if(historyPreview&&++historyReads===2)return Response.json({ok:false},{status:503})
+   return Response.json({ok:true,sessions})
+  }
   if(method!=='POST')return Response.json({ok:false},{status:405})
   const saved:TrainingSave=JSON.parse(String(body)).session
   const session={...saved,playerUserId:navigationOwner,sessionJson:{cardId:saved.cardId}}

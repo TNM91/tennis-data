@@ -47,7 +47,37 @@ export function trainingCardHtml(card:LevelUpCard){
  return trainingDrillOverviewHtml(card)+trainingSafetyHtml(card)+trainingRoutineHtml(card)+trainingDrillNotesHtml(card)
 }
 export function trainingModuleHtml(practiceModule:LevelUpModule,completed:ReadonlySet<string>=new Set()){const cards=practiceModule.cardIds.map(id=>LEVEL_UP_CARDS.find(c=>c.id===id));return `<h2>${html(practiceModule.title)}</h2><p>${html(practiceModule.subtitle)}</p><p>${html(practiceModule.durationLabel)} · ${html(practiceModule.level)}</p><p>${html(practiceModule.description)}</p>${practiceModule.useWhen?`<p>${html(practiceModule.useWhen)}</p>`:''}${practiceModule.sessionPlan?.length?`<h3>Your practice plan</h3><ol>${practiceModule.sessionPlan.map(step=>`<li>${html(step)}</li>`).join('')}</ol>`:''}<h3>What to notice</h3><p>${html(practiceModule.proof)}</p>${practiceModule.successCriteria?`<p>${html(practiceModule.successCriteria)}</p>`:''}<h3>Train in this order</h3><p>${practiceModule.cardIds.filter(id=>completed.has(id)).length} of ${practiceModule.cardIds.length} cards saved during this visit.</p><ol>${cards.map(c=>c?`<li><h3>${html(c.title)}</h3>${completed.has(c.id)?'<p>Saved during this visit</p>':''}<p>${c.durationMinutes} min · ${html(c.tennisGoal)}</p><button type="button" class="secondary" data-card="${html(c.id)}">Open training<span class="sr-only"> ${html(c.title)}</span></button></li>`:'<li>This training card is unavailable.</li>').join('')}</ol><p>Save each completed card to your account. These checkmarks reset when you close Level Up. Saved sessions stay in Your progress; module completion is not stored.</p>`}
-export function trainingHistoryHtml(rows:TrainingSession[],complete=true){const p=trainingProgress(rows);return `<h2>Your saved progress</h2><p>${p.count} saved session${p.count===1?'':'s'} · ${trainingTime(p.seconds)} timed work ${complete?`in your latest ${rows.length} account records (up to 80).`:'shown from the confirmed save. Refresh account progress to load your other records.'} This is training proof, not your TIQ rating.</p><ul class="matches">${rows.map(r=>`<li><h3>${html(r.focusTitle)}</h3><p>${html(new Date(r.completedAt).toLocaleString())} · ${html(r.context)} · ${html(r.feeling)}</p>${r.identitySlug?`<p>Training direction: ${html(trainingIdentity(r.identitySlug)?.title||r.identitySlug)}</p>`:''}<p>Self-rated proof: ${r.rating}/5 · ${trainingTime(r.elapsedSeconds)} timed work${r.sharedWithCoach?' · Shared with coach':''}</p>${r.note?`<p class="training-note">${html(r.note)}</p>`:''}</li>`).join('')||'<li>No sessions are saved to your account yet. Choose a training card to get started.</li>'}</ul>`}
+const historyContextLabels:Record<string,string>={alone:'Solo',partner:'With a partner',singles:'Singles',doubles:'Doubles',coach:'With a coach'}
+export function trainingHistoryHtml(rows:TrainingSession[],complete=true){
+ if(!rows.length)return '<div class="training-history-empty"><h2>Your practice starts here</h2><p>Save a completed drill to start your training history.</p></div>'
+ const progress=trainingProgress(rows)
+ const hours=Math.floor(progress.seconds/3600)
+ const timedWork=hours?`${hours}h ${trainingTime(progress.seconds%3600)}`:trainingTime(progress.seconds)
+ return `<div class="training-history-overview">
+  <dl aria-label="Practice totals">
+   <div><dt>Saved sessions</dt><dd>${progress.count}</dd></div>
+   <div><dt>Timed practice</dt><dd>${timedWork}</dd></div>
+  </dl>
+  ${!complete?'<p>Showing confirmed saves. Refresh account progress to load your other records.</p>':rows.length===80?'<p>Showing the latest 80 saved sessions.</p>':''}
+ </div>
+ <ol class="training-history-list" role="list">
+  ${rows.map((row,index)=>`<li class="training-history-item${index===0?' training-history-latest':''}">
+   <div class="training-history-meta">
+    ${index===0?`<small class="stat-eyebrow">${complete?'Latest session':'Confirmed session'}</small>`:''}
+    <time datetime="${html(row.completedAt)}">${html(new Date(row.completedAt).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}))}</time>
+   </div>
+   <h2>${html(row.drillTitle)}</h2>
+   ${row.focusTitle!==row.drillTitle?`<p>${html(row.focusTitle)}</p>`:''}
+   <dl class="training-history-results">
+    <div><dt>Self-rated proof</dt><dd>${row.rating} / 5</dd></div>
+    <div><dt>Time</dt><dd>${trainingTime(row.elapsedSeconds)}</dd></div>
+   </dl>
+   <p class="training-history-context">${html(historyContextLabels[row.context]??row.context)} · Felt ${html(row.feeling)}${row.sharedWithCoach?' · Shared with coach':''}</p>
+   ${row.identitySlug?`<p class="training-history-context">${html(trainingIdentity(row.identitySlug)?.title||row.identitySlug)}</p>`:''}
+   ${row.note?`<div class="training-history-note"><strong>Your note</strong><p class="training-note">${html(row.note)}</p></div>`:''}
+  </li>`).join('')}
+ </ol>`
+}
 type TrainingStart='catalog'|'progress'|'inbox'
  |{view:'weeks';planId?:string}
  |{view:'coach';assignmentId?:string;onClose:(work:TrainingCoachWork|null)=>void}
@@ -112,6 +142,21 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  }
  const trainingViews=()=>`<div class="match-filters training-views" role="group" aria-label="Training views"><button type="button" class="secondary" data-plan aria-pressed="${phase==='plan'}">Your direction</button><button type="button" class="secondary" data-catalog aria-pressed="${phase==='catalog'||phase==='card'}">Training cards</button><button type="button" class="secondary" data-modules aria-pressed="${phase==='modules'||phase==='module'}">Practice modules</button><button type="button" class="secondary" data-progress aria-pressed="${phase==='progress'}">Your progress</button></div>`
  const trainingAccessHtml=()=>`<p>${html(accessCopy())}</p>${accessError?`<button type="button" class="secondary" data-access ${accessBusy?'disabled':''}>Retry player access</button>`:''}`
+ const progressScreenHtml=()=>`<header class="training-inbox-header">
+  <h1 tabindex="-1" data-progress-control="title">Training progress</h1><button type="button" class="secondary" data-close data-progress-control="close" aria-label="Close Level Up">Close</button>
+ </header>
+ <div class="training-history-toolbar">
+  <small class="stat-eyebrow">Your practice log</small>
+  <button type="button" class="secondary" data-history data-progress-control="refresh" aria-label="Refresh account progress" aria-disabled="${historyBusy}">Refresh</button>
+ </div>
+ <p role="status" data-notice>${html(notice)}</p>
+ ${historyBusy?`<p role="status">${history?'Refreshing your practice log…':'Loading your practice log…'}</p>`:''}
+ ${historyError?`<p role="alert">${history?.length?'Showing your last loaded sessions. Refresh to try again.':'Training history is unavailable. Refresh to try again.'}</p>`:''}
+ ${history&&(!historyError||history.length)?trainingHistoryHtml(history,historyComplete):''}
+ <details class="training-inbox-fold" data-inbox-fold="progress-tools"><summary data-progress-control="tools">More training tools</summary>
+  ${trainingAccessHtml()}${trainingViews()}
+  <button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>
+ </details>`
  const drillScreenHtml=(card:LevelUpCard)=>{
   const back=cardFromInbox?['inbox','Back to training inbox']:cardFromPlan?['plan','Back to your direction']:practiceModule?['module-back','Back to practice module']:['catalog','Back to training cards']
   return `<header class="training-drill-header"><h1 tabindex="-1">Practice drill</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button></header>
@@ -218,6 +263,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.classList.toggle('training-week-change-screen',Boolean(weekPending))
   dialog.classList.toggle('training-drill-screen',phase==='card'&&Boolean(selected))
   dialog.classList.toggle('training-session-screen',phase==='session'&&!confirming&&Boolean(selected))
+  dialog.classList.toggle('training-progress-screen',phase==='progress')
   if(weekPending){renderWeekChange();return}
   if(confirming){dialog.innerHTML=`<h1 tabindex="-1">Leave this session?</h1><p>${payload?'The save may already be recorded. Check account progress before starting it again.':'Your timer and unsaved training notes will be discarded.'}</p><button type="button" class="secondary" data-keep>Keep training</button><button type="button" data-discard>Discard and close</button>`;dialog.querySelector<HTMLButtonElement>('[data-keep]')!.onclick=()=>{confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})};dialog.querySelector<HTMLButtonElement>('[data-discard]')!.onclick=dispose;return}
   const frozen=Boolean(payload),locked=frozen||saving||checking
@@ -225,10 +271,11 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const focusedInboxCard=dialog.querySelector<HTMLElement>('[data-inbox-card]:focus')?.dataset.inboxCard
   const focusedWeekControl=dialog.querySelector<HTMLElement>('[data-week-plan] :is(h2,.training-week-rep-next h3,[data-week-mark]):focus')
   const focusedWeekId=focusedWeekControl?.closest<HTMLElement>('[data-week-plan]')?.dataset.weekPlan
+  const focusedProgressControl=dialog.querySelector<HTMLElement>('[data-progress-control]:focus')?.dataset.progressControl
   const previousDrill=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   const drillScroll=previousDrill?.scrollTop??0
   const openDrillFolds=Array.from(previousDrill?.querySelectorAll<HTMLDetailsElement>('[data-drill-fold][open]')??[],fold=>fold.dataset.drillFold)
-  dialog.innerHTML=phase==='inbox'?inboxHtml():phase==='card'&&selected?drillScreenHtml(selected):phase==='session'&&selected?sessionScreenHtml(selected,locked):`<h1 tabindex="-1">Level Up</h1>${trainingAccessHtml()}${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>${phase==='plan'?`${trainingPlanHtml(choices,choiceStored,allowed===true)}${!choiceStored?'<p role="alert">This choice is available for this visit only. Device storage is unavailable.</p>':''}`:phase==='modules'?`<h2>Build a complete practice block</h2><p>Choose a focused block for your serve, movement or match readiness.</p><ul class="matches">${LEVEL_UP_MODULES.map(m=>`<li><h3>${html(m.title)}</h3><p>${html(m.durationLabel)} · ${html(m.subtitle)}</p><p>${html(m.description)}</p><button type="button" class="secondary" data-module="${html(m.id)}">Open module<span class="sr-only"> ${html(m.title)}</span></button></li>`).join('')}</ul>`:phase==='module'&&practiceModule?trainingModuleHtml(practiceModule,completed):phase==='catalog'?`<label>Find a training focus<input type="search" maxlength="80" data-search value="${html(query)}" placeholder="Serve, doubles, movement…"></label><label>Where are you training?<select data-setting><option value="">Any setting</option>${['home','driveway','garage','court','wall','gym','match-day'].map(s=>`<option value="${s}" ${s===setting?'selected':''}>${s}</option>`).join('')}</select></label><div data-cards>${catalogue()}</div>`:phase==='progress'?`${historyBusy?'<p role="status">Loading account progress…</p>':historyError?'<p role="alert">Account progress could not be loaded. This does not mean your history is empty.</p>':history?trainingHistoryHtml(history,historyComplete):''}<button type="button" class="secondary" data-history ${historyBusy?'disabled':''}>Refresh account progress</button>`:''}<p role="status" data-notice>${html(notice)}</p><button type="button" class="secondary" data-close ${saving||checking?'disabled':''}>Close Level Up</button>`
+  dialog.innerHTML=phase==='inbox'?inboxHtml():phase==='progress'?progressScreenHtml():phase==='card'&&selected?drillScreenHtml(selected):phase==='session'&&selected?sessionScreenHtml(selected,locked):`<h1 tabindex="-1">Level Up</h1>${trainingAccessHtml()}${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>${phase==='plan'?`${trainingPlanHtml(choices,choiceStored,allowed===true)}${!choiceStored?'<p role="alert">This choice is available for this visit only. Device storage is unavailable.</p>':''}`:phase==='modules'?`<h2>Build a complete practice block</h2><p>Choose a focused block for your serve, movement or match readiness.</p><ul class="matches">${LEVEL_UP_MODULES.map(m=>`<li><h3>${html(m.title)}</h3><p>${html(m.durationLabel)} · ${html(m.subtitle)}</p><p>${html(m.description)}</p><button type="button" class="secondary" data-module="${html(m.id)}">Open module<span class="sr-only"> ${html(m.title)}</span></button></li>`).join('')}</ul>`:phase==='module'&&practiceModule?trainingModuleHtml(practiceModule,completed):phase==='catalog'?`<label>Find a training focus<input type="search" maxlength="80" data-search value="${html(query)}" placeholder="Serve, doubles, movement…"></label><label>Where are you training?<select data-setting><option value="">Any setting</option>${['home','driveway','garage','court','wall','gym','match-day'].map(s=>`<option value="${s}" ${s===setting?'selected':''}>${s}</option>`).join('')}</select></label><div data-cards>${catalogue()}</div>`:''}<p role="status" data-notice>${html(notice)}</p><button type="button" class="secondary" data-close ${saving||checking?'disabled':''}>Close Level Up</button>`
   const drillBody=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   if(drillBody&&previousDrill){
    drillBody.querySelectorAll<HTMLDetailsElement>('[data-drill-fold]').forEach(fold=>{fold.open=openDrillFolds.includes(fold.dataset.drillFold)})
@@ -243,6 +290,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   if(focusedInboxSection)dialog.querySelector<HTMLElement>(`[data-inbox-section="${focusedInboxSection}"]`)?.focus({preventScroll:true})
   if(focusedInboxCard)findInboxCard(focusedInboxCard)?.focus({preventScroll:true})
   if(focusedWeekId)weekFocusTarget(focusedWeekId,focusedWeekControl?.dataset.weekMark)?.focus({preventScroll:true})
+  if(focusedProgressControl)dialog.querySelector<HTMLElement>(`[data-progress-control="${focusedProgressControl}"]`)?.focus({preventScroll:true})
   dialog.querySelector<HTMLButtonElement>('[data-access]')?.addEventListener('click',()=>{void readAccess()})
   dialog.querySelectorAll<HTMLButtonElement>('[data-catalog]').forEach(b=>{b.onclick=()=>{phase='catalog';practiceModule=null;notice='';render();focus()}})
   dialog.querySelector<HTMLButtonElement>('[data-progress]')?.addEventListener('click',()=>{phase='progress';notice='';render();focus()})
@@ -377,7 +425,23 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   showSessionStatus()
  }
  const readAccess=async()=>{if(accessBusy||!active())return;accessBusy=true;accessError=false;render();try{const value=await trainingAccess(client,owner,active);if(active())allowed=value}catch{if(active()){allowed=null;accessError=true}}finally{if(active()){accessBusy=false;render()}}}
- const readHistory=async()=>{if(historyBusy||!active())return;const request=++historyVersion;historyBusy=true;historyError=false;if(phase==='progress')render();try{const rows=await loadTrainingHistory(client,owner,active);if(active()&&request===historyVersion){history=rows;historyComplete=true}}catch{if(active()&&request===historyVersion){history=null;historyError=true;historyComplete=false}}finally{if(active()&&request===historyVersion){historyBusy=false;if(phase==='progress')render()}}}
+ const readHistory=async()=>{
+  if(historyBusy||!active())return
+  const request=++historyVersion
+  historyBusy=true;historyError=false
+  if(phase==='progress')render()
+  try{
+   const rows=await loadTrainingHistory(client,owner,active)
+   if(active()&&request===historyVersion){history=rows;historyComplete=true}
+  }catch{
+   if(active()&&request===historyVersion)historyError=true
+  }finally{
+   if(active()&&request===historyVersion){
+    historyBusy=false
+    if(phase==='progress')render()
+   }
+  }
+ }
  const readPlans=async()=>{if(plansBusy||!active())return;const request=++plansVersion;plansBusy=true;plansError=false;if(phase==='inbox')render();try{const rows=await loadTrainingPlans(client,owner,active);if(active()&&request===plansVersion)plans=rows}catch{if(active()&&request===plansVersion){plans=null;plansError=true}}finally{if(active()&&request===plansVersion){plansBusy=false;if(phase==='inbox')render()}}}
  const readCoach=async()=>{if(coachBusy||!active())return;const request=++coachVersion;coachBusy=true;coachError=false;if(phase==='inbox')render();try{const rows=await loadTrainingCoachWork(client,owner,active);if(active()&&request===coachVersion)coachWork=rows}catch{if(active()&&request===coachVersion){coachWork=null;coachError=true}}finally{if(active()&&request===coachVersion){coachBusy=false;if(phase==='inbox')render()}}}
  const finishWeekChange=(saved:WeeklyLevelUpPlan)=>{

@@ -599,7 +599,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .comparison-fold-body { padding:0 12px 12px; }
 .comparison-fold-body>section { margin:12px 0;padding:14px;background:var(--premium-inset);border-color:var(--premium-line);box-shadow:none; }
 .comparison-fold-body>h2 { margin:18px 0 0; }
-.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen,.training-session-screen) {
+.training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen,.training-session-screen,.training-progress-screen) {
  padding:16px;border-color:var(--premium-line);background:var(--premium-page);overflow-wrap:anywhere;
 }
 .training-dialog.training-drill-screen[open] { display:flex;flex-direction:column;overflow:hidden; }
@@ -718,6 +718,34 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .training-session-log [data-notice]:not(:empty) { margin-block:12px 0;padding:8px 10px;border-inline-start:2px solid var(--premium-royal-line);background:var(--premium-inset);border-radius:8px; }
 .training-session-screen :is([data-timer],[data-proof] button) { min-block-size:44px;margin:6px 0 0;padding:8px 10px;font-size:.875rem; }
 .training-session-screen [data-proof] button:not(.secondary) { background:var(--premium-action);color:var(--premium-page); }
+.training-progress-screen { overscroll-behavior:contain;scroll-padding-block:76px 12px; }
+.training-progress-screen .training-inbox-header h1 { font-size:1.1rem;text-wrap:balance; }
+.training-history-toolbar,.training-history-meta { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px; }
+.training-history-toolbar .stat-eyebrow { color:var(--premium-ice);font-size:.6875rem; }
+.training-history-toolbar [data-history] { inline-size:auto;min-block-size:44px;margin:0;padding:8px 12px;font-size:.8125rem; }
+.training-history-toolbar [aria-disabled="true"] { opacity:.72; }
+.training-progress-screen p { margin:7px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
+.training-progress-screen [role="alert"] { padding:8px 10px;border-inline-start:2px solid var(--premium-royal-line);border-radius:8px;background:var(--premium-inset); }
+:is(.training-history-overview,.training-history-empty,.training-history-item) {
+ margin:10px 0;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-surface);
+}
+.training-history-overview,.training-history-latest {
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card);
+ box-shadow:inset 0 1px #b2c8ff22;
+}
+.training-history-overview dl,.training-history-results { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0; }
+.training-history-results { margin-block:8px; }
+.training-progress-screen dt { margin:0;color:var(--premium-ice);font-size:.6875rem;line-height:1.35; }
+.training-progress-screen dd { margin:4px 0 0;color:var(--premium-white);font-size:.9375rem;font-weight:650;line-height:1.3; }
+.training-history-overview dd { font-size:1.15rem; }
+.training-history-list { list-style:none;margin:12px 0;padding:0; }
+.training-history-meta { color:var(--premium-ice);font-size:.6875rem; }
+.training-history-meta .stat-eyebrow { color:var(--premium-lime);font-size:.6875rem; }
+.training-progress-screen :is(.training-history-item h2,.training-history-empty h2) { margin:6px 0;font-size:1.0625rem;line-height:1.25; }
+.training-progress-screen .training-history-context { color:var(--premium-ice);font-size:.75rem; }
+.training-history-note { margin-block-start:8px;padding:8px 10px;border-radius:8px;background:var(--premium-inset); }
+.training-history-note strong { color:var(--premium-white);font-size:.75rem; }
+.training-progress-screen .training-history-note p { margin:3px 0 0; }
 .training-inbox-screen .training-inbox-tabs {
  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:0 0 12px;
  background:var(--premium-inset);border-color:var(--premium-line);

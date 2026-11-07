@@ -24,7 +24,17 @@ describe('native Level Up training',()=>{
  it('does not accept an altered save receipt or a late response',async()=>{expect(confirmsTrainingSave(row(),payload())).toBe(true);expect(confirmsTrainingSave({...row(),note:'changed'},payload())).toBe(false);await expect(saveTrainingSession(client(),owner,()=>true,payload(),async()=>response({ok:true,session:{...row(),rating:1}}))).rejects.toThrow();let active=true;await expect(loadTrainingHistory(client(),owner,()=>active,async()=>{active=false;return response({ok:true,sessions:[row()]})})).rejects.toThrow()})
  it('retries the exact payload and never converts a denial into a confirmed save',async()=>{const p=payload(),bodies:string[]=[];const send:TrainingSend=async(_method,options)=>{bodies.push(JSON.stringify(options.data));return bodies.length===1?response({ok:false},503):response({ok:true,session:row()})};await expect(saveTrainingSession(client(),owner,()=>true,p,send)).rejects.toThrow();await expect(saveTrainingSession(client(),owner,()=>true,p,send)).resolves.toMatchObject({id});expect(bodies[0]).toBe(bodies[1]);await expect(saveTrainingSession(client(),owner,()=>true,p,async()=>response({ok:false},403))).rejects.toThrow()})
  it('withholds a response if the signed-in account changes during the request',async()=>{let calls=0;const changed={auth:{getSession:async()=>({data:{session:{user:{id:++calls===1?owner:'other'},access_token:'synthetic'}},error:null})}} as unknown as SupabaseClient;await expect(loadTrainingHistory(changed,owner,()=>true,async()=>response({ok:true,sessions:[row()]}))).rejects.toThrow()})
- it('renders escaped card instructions, safety, notes and subjective proof',()=>{const s=trainingCardHtml({...card,title:'<img>',routine:['<script>'],safetyNote:'Stop & reset'});expect(s).toContain('&lt;img&gt;');expect(s).toContain('&lt;script&gt;');expect(s).toContain('Stop &amp; reset');const h=trainingHistoryHtml([{...row(),note:'<img>'}]);expect(h).toContain('&lt;img&gt;');expect(h).toContain('Self-rated proof: 4/5');expect(h).toContain('not your TIQ rating');expect(trainingHistoryHtml([row()],false)).toContain('Refresh account progress to load your other records')})
+ it('renders escaped card instructions, safety, notes and subjective proof',()=>{const s=trainingCardHtml({...card,title:'<img>',routine:['<script>'],safetyNote:'Stop & reset'});expect(s).toContain('&lt;img&gt;');expect(s).toContain('&lt;script&gt;');expect(s).toContain('Stop &amp; reset');const h=trainingHistoryHtml([{...row(),note:'<img>'}]);expect(h).toContain('&lt;img&gt;');expect(h).toContain('<dt>Self-rated proof</dt><dd>4 / 5</dd>');expect(trainingHistoryHtml([row()],false)).toContain('Refresh account progress to load your other records')})
+ it('labels totals from confirmed sessions and distinguishes an empty history',()=>{
+  const saved=[{...row(),elapsedSeconds:7200,drillTitle:'Shadow return drill',sharedWithCoach:true},row()]
+  const partial=trainingHistoryHtml(saved,false)
+  expect(partial).toContain('<dt>Saved sessions</dt><dd>2</dd>')
+  expect(partial).toContain('<dt>Timed practice</dt><dd>2h 1m 30s</dd>')
+  expect(partial).toContain('Confirmed session')
+  expect(partial).toContain('Shadow return drill')
+  expect(partial).toContain('Shared with coach')
+  expect(trainingHistoryHtml([])).toContain('Save a completed drill to start your training history.')
+ })
 })
 
 describe('website practice modules in native training',()=>{
