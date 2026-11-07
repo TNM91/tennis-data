@@ -60,7 +60,7 @@ import { loadRecentResults, type RecentMatchRow } from './recent-results'
 import { showRecentResults } from './results-view'
 import { connectPlayer, findPlayers, showPlayerConnection } from './player-connection'
 import { createMatchDetails, html as escape } from './match-details'
-import { showExplore } from './explore-directory'
+import {showExplore,type ExploreSearchState} from './explore-directory'
 import { accountLinksHtml, bindAccountLinks, showPasswordRecovery } from './account-actions'
 
 const client = createClient(supabaseUrl, supabaseKey, { auth: {
@@ -107,6 +107,7 @@ let guest:ReturnType<typeof showGuestExplore>|null=null
 let storageUnavailable=false
 let session: Session | null = null
 let linkedLabOwner:string|undefined
+let exploreSearch:ExploreSearchState|undefined
 const calendarHighlights=createCalendarHighlights(client,()=>session?.user.id)
 const coachNextAssignment=createCoachNextAssignment(client,()=>session?.user.id)
 let revision = 0
@@ -354,7 +355,11 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick 
     const userId = session.user.id
     const version = ++revision
     selectNavigation('explore')
-    explore = showExplore(app,client,()=>version === revision && userId === session?.user.id,'Overview',undefined,trigger=>launchCompetitions('discover',trigger))
+    explore = showExplore(app,client,()=>version === revision && userId === session?.user.id,{
+      search:exploreSearch,
+      onLeave:state=>{exploreSearch=state},
+      onCompetitions:trigger=>launchCompetitions('discover',trigger),
+    })
   })
 }
 
@@ -647,7 +652,9 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if(next?.user.id!==session?.user.id){calendarHighlights.clear();coachNextAssignment.clear();linkedLabOwner=undefined}
+  if(next?.user.id!==session?.user.id){
+    calendarHighlights.clear();coachNextAssignment.clear();linkedLabOwner=undefined;exploreSearch=undefined
+  }
   const resumeLink=(!session&&Boolean(next))||_event==='INITIAL_SESSION'
   appLinks.setOwner(next?.user.id||null)
   // A late signed-out event must not reset an active public visit.

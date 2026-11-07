@@ -12,7 +12,13 @@ const searchModes={
  Rankings:{label:'City or area (optional)',placeholder:'All areas',required:false},
 } as const
 type ExploreCategory=keyof typeof searchModes
-type Category=ExploreCategory|'Overview'
+export type ExploreSearchState={category:ExploreCategory;term:string}
+type ExploreOptions={
+ access?:PublicBrowseAccess
+ onCompetitions?:(trigger:HTMLElement)=>void
+ search?:ExploreSearchState
+ onLeave?:(state:ExploreSearchState)=>void
+}
 function exploreHomeHtml(competitions:boolean){
  return `<div class="native-explore-hero">
   <header class="tab-hero tab-hero-court explore-spotlight"><small class="stat-eyebrow">Explore</small><h1 tabindex="-1">Find players, teams, leagues.</h1></header>
@@ -33,9 +39,9 @@ function exploreHomeHtml(competitions:boolean){
   </button>`:''}
  </div>`
 }
-export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initial:Category='Overview',access?:PublicBrowseAccess,onCompetitions?:(trigger:HTMLElement)=>void) {
+export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,{access,onCompetitions,search,onLeave}:ExploreOptions={}) {
   let disposed=false
-  let category:ExploreCategory=initial==='Overview'?'Players':initial
+  let category:ExploreCategory=search?.category??'Players'
   let active:ReturnType<typeof showPlayers>|ReturnType<typeof showDirectory>|ReturnType<typeof showRankings>|null=null
   let overviewScroll=0
   app.dataset.state='explore'
@@ -54,6 +60,7 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
   const overviewActive=()=>valid()&&overview.isConnected
   const showOverview=(restore=false)=>{
     if(!valid())return
+    if(active)input.value=active.searchTerm()
     active?.dispose();active=null
     backButton.hidden=true
     content.replaceChildren(overview)
@@ -95,10 +102,13 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
     overviewScroll=window.scrollY
     openResults(term)
   }
+  input.value=search?.term??''
   selectMode(category)
-  if(initial==='Overview')showOverview()
-  else openResults('')
-  return {dispose:()=>{disposed=true;active?.dispose()},back:()=>{
+  showOverview()
+  return {dispose:()=>{
+    if(valid()&&onLeave)onLeave({category,term:(active?.searchTerm()??input.value).slice(0,80)})
+    disposed=true;active?.dispose()
+  },back:()=>{
     if(!valid()||overview.isConnected)return false
     if(!active?.back())showOverview(true)
     return true

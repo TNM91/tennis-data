@@ -90,5 +90,5 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
   form.onsubmit=event=>{event.preventDefault();void run()}
   if(initial?.team)openTeam(initial.team)
   else if(mode==='Leagues'||initialTerm)void run()
-  return {dispose:()=>{disposed=true;request++;clearRoster()},back:()=>{if(roster?.back())return true;if(selected){if(initial?.team)return false;back();return true}return false}}
+  return {searchTerm:()=>input.value,dispose:()=>{disposed=true;request++;clearRoster()},back:()=>{if(roster?.back())return true;if(selected){if(initial?.team)return false;back();return true}return false}}
 }

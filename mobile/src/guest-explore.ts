@@ -7,7 +7,7 @@ export function showGuestExplore(app:HTMLElement,current:()=>boolean,signIn:()=>
  const valid=()=>!disposed&&current(),access={signIn:()=>{if(valid())signIn()}}
  app.innerHTML='<div class="public-explore-toolbar"><button type="button" class="secondary" data-public-back>Back</button><span>Public Explore</span><button type="button" class="secondary" data-public-sign-in>Sign in</button></div><div data-public-explore></div>'
  const content=app.querySelector<HTMLElement>('[data-public-explore]')!
- const directory=showExplore(content,publicClient??=createPublicBrowseClient(),valid,'Overview',access)
+ const directory=showExplore(content,publicClient??=createPublicBrowseClient(),valid,{access})
  const back=()=>{if(!valid())return false;if(!directory.back())backToWelcome();return true}
  app.querySelector<HTMLButtonElement>('[data-public-back]')!.onclick=back
  app.querySelector<HTMLButtonElement>('[data-public-sign-in]')!.onclick=access.signIn

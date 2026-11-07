@@ -138,6 +138,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   const closeOverlay=()=>{if(roster?.closeTeam())return true;if(journey?.closeScorecard())return true;if(matchDetails?.back())return true;return false}
   return {
     closeOverlay,
+    searchTerm:()=>input.value,
     isMatchOpen:()=>journey?.isScorecardOpen()||matchDetails?.isOpen() || false,
     back:()=>{if(closeOverlay())return true;if(selected){back();return true}return false},
     dispose:()=>{disposed=true;request++;roster?.dispose();roster=null;header?.dispose();header=null;performance?.dispose();performance=null;journey?.dispose();journey=null;matchDetails?.dispose()},
