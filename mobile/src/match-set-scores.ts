@@ -11,5 +11,22 @@ const escape = (text: string) => text.replace(/[&<>"']/g, c => ({'&':'&amp;','<'
 export function renderMatchSetScores(row: RecentMatchRow, playerId: string, sideLabel = 'Your side') {
   const sets = matchSetScores(row, playerId)
   if (!sets) return ''
-  return `<section class="match-set-scores" aria-label="Set scores"><h2>Set by set</h2><table><caption>Scores for ${escape(sideLabel)} and the opposing side</caption><thead><tr><th scope="col">Side</th>${sets.map((set, i) => `<th scope="col">${set.kind === 'match_tiebreak' ? '<abbr title="Match tiebreak">TB</abbr>' : `Set ${i + 1}`}</th>`).join('')}</tr></thead><tbody>${[true, false].map(own => `<tr><th scope="row">${escape(own ? sideLabel : 'Opponent')}</th>${sets.map(set => {const value = own ? set.gamesFor : set.gamesAgainst;const won = value > (own ? set.gamesAgainst : set.gamesFor);return `<td>${won ? `<strong>${value}</strong>` : value}</td>`}).join('')}</tr>`).join('')}</tbody></table><p>TB means deciding match tiebreak. Bold scores mark each set winner. Parenthetical tiebreak points remain in the recorded score.</p></section>`
+  const headings = sets.map((set, i) => `<th scope="col">${set.kind === 'match_tiebreak' ? '<abbr title="Match tiebreak">TB</abbr>' : `<span class="sr-only">Set </span>${i + 1}`}</th>`).join('')
+  const rows = [true, false].map(own => {
+    const scores = sets.map(set => {
+      const value = own ? set.gamesFor : set.gamesAgainst
+      const won = value > (own ? set.gamesAgainst : set.gamesFor)
+      return `<td>${won ? `<strong>${value}</strong>` : value}</td>`
+    }).join('')
+    return `<tr><th scope="row">${escape(own ? sideLabel : 'Opponent')}</th>${scores}</tr>`
+  }).join('')
+  return `<section class="match-set-scores" aria-label="Set scores">
+    <h2>Set by set</h2>
+    <table>
+      <caption class="sr-only">Scores for ${escape(sideLabel)} and the opposing side</caption>
+      <thead><tr><th scope="col">Side</th>${headings}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${sets.some(set => set.kind === 'match_tiebreak') ? '<p>TB = deciding match tiebreak</p>' : ''}
+  </section>`
 }

@@ -55,7 +55,27 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
     detail.id = 'match-detail'
     detail.className = 'match-detail-view'
     const resultLabel = labels.neutral ? (['A','B'].includes(row.winner_side || '') ? 'Side ' + row.winner_side + ' won' : 'Result pending') : matchResult(row, playerId)
-    detail.innerHTML = `<button class="secondary" id="back-matches">${html(labels.backLabel || 'Back to My Lab')}</button><div class="match-scorecard-hero"><p class="scorecard-eyebrow">Match scorecard</p><h1 tabindex="-1">Match details</h1><p class="scorecard-meta">${html(matchDate(row.match_date))} · ${html(row.match_type || 'Match')}</p><dl class="match-result-summary"><div><dt>Result</dt><dd class="match-result-label" data-outcome="${resultLabel === 'Won' ? 'won' : resultLabel === 'Lost' ? 'lost' : 'recorded'}">${html(resultLabel)}</dd></div><div><dt>Recorded score</dt><dd class="match-recorded-score">${html(row.score || 'Score unavailable')}</dd></div><div class="match-league-context"><dt>League</dt><dd>${html(row.league_name || 'League unavailable')}</dd></div></dl></div>${renderMatchSetScores(row, playerId, labels.sideLabel || 'Your side')}<p class="scorecard-source-note">The recorded score follows the source’s court order.</p>${labels.publicBrowse||labels.neutral?'':'<button type="button" class="secondary" data-share-scorecard>Review scorecard sharing</button>'}<div id="match-players" aria-live="polite" data-state="loading"><p role="status">Loading the players…</p></div>`
+    const outcome = resultLabel === 'Won' ? 'won' : resultLabel === 'Lost' ? 'lost' : 'recorded'
+    detail.innerHTML = `
+      <button type="button" class="secondary" id="back-matches"><span aria-hidden="true">‹</span>${html(labels.backLabel || 'Back to My Lab')}</button>
+      <div class="match-scorecard-hero">
+        <div class="match-scorecard-heading">
+          <h1 tabindex="-1">Match scorecard</h1>
+          <p class="match-result-label" data-outcome="${outcome}">${html(resultLabel)}</p>
+        </div>
+        <p class="scorecard-meta">${html(matchDate(row.match_date))} · ${html(row.match_type || 'Match')}</p>
+        <p class="match-league-context">${html(row.league_name || 'League unavailable')}</p>
+        ${renderMatchSetScores(row, playerId, labels.sideLabel || 'Your side')}
+        <div class="scorecard-recorded">
+          <dl class="match-result-summary">
+            <dt>Recorded score</dt>
+            <dd class="match-recorded-score">${html(row.score || 'Score unavailable')}</dd>
+          </dl>
+          ${row.score ? '<p class="scorecard-source-note">Listed in the original court order.</p>' : ''}
+        </div>
+      </div>
+      ${labels.publicBrowse || labels.neutral ? '' : '<button type="button" class="secondary" data-share-scorecard>Review scorecard sharing</button>'}
+      <div id="match-players" aria-live="polite" data-state="loading"><p role="status">Loading the players…</p></div>`
     app.append(detail)
     const shareButton=detail.querySelector<HTMLButtonElement>('[data-share-scorecard]')
     if(shareButton)shareButton.onclick=()=>{if(!valid()||version!==request||!detail.isConnected)return;sharing?.dispose();sharing=openScorecardShare(client,row.id,playerId,()=>valid()&&version===request&&detail.isConnected)}

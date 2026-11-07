@@ -35,9 +35,10 @@ for(const width of [320,390]){
  test(`three-set scorecard stays readable with larger text and returns keyboard focus at ${width}px`,async({page},info)=>{
   await page.setViewportSize({width,height:844});await page.goto(origin+prefix+'?view=scorecard');await page.addStyleTag({content:':root{font-size:24px!important}'})
   const opener=page.getByRole('button',{name:'Open sample scorecard',exact:true});await opener.focus();await opener.press('Enter')
-  await expect(page.getByRole('heading',{name:'Match details',exact:true})).toBeFocused();await expect(page.locator('.match-result-label')).toHaveText('Lost')
+  await expect(page.getByRole('heading',{name:'Match scorecard',exact:true})).toBeFocused();await expect(page.locator('.match-result-label')).toHaveText('Lost')
   const table=page.getByRole('table');await expect(table.locator('tbody tr').first()).toContainText('Your side');await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['4','6','8']);await expect(table.locator('thead')).toContainText('TB')
   for(const target of await page.locator('.match-scorecard-hero,.match-set-scores,.match-set-scores table,.match-side-card').all())expect(await target.evaluate(e=>e.scrollWidth<=e.clientWidth+1)).toBe(true)
+  await expect(table).toBeInViewport({ratio:1});await expect(page.locator('.match-recorded-score')).toHaveText('6-4 3-6 10-8')
   await bounded(page);await page.screenshot({path:info.outputPath('match-scorecard-large-text.png')})
   await page.getByRole('button',{name:'Back to My Lab',exact:true}).click();await expect(page.locator('#match-detail')).toHaveCount(0);await expect(page.getByRole('button',{name:'Open sample scorecard',exact:true})).toBeFocused()
  })
