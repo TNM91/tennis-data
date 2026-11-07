@@ -10,13 +10,13 @@ export function currentTab(screen:AppScreen){return screen==='following'||screen
 export function navigationHtml(){return mainTabs.map(t=>'<button type="button" data-screen="'+t.screen+'"><span class="nav-tab-icon" aria-hidden="true">'+(t.icon==='more'?nativeActionIcon('more'):websiteUi.icons[t.icon])+(t.screen==='teams'?'<span class="chat-unread-badge" data-chat-badge hidden></span>':'')+'</span><span>'+t.label+'</span></button>').join('')}
 type Tool={destination:AppDestination;title:string;detail:string;icon:keyof typeof websiteUi.icons;web?:boolean;keywords?:string}
 const tools:Record<string,Tool>={
- personalCalendar:{destination:'calendar',title:'Calendar',detail:'Your personal plans, competition dates and shared Coach sessions.',icon:'calendar',keywords:'agenda schedule dates availability events'},
+ personalCalendar:{destination:'calendar',title:'Calendar',detail:'Matches, lessons and practice.',icon:'calendar',keywords:'agenda schedule dates availability events personal plans competition coach sessions'},
  updates:{destination:'updates',title:'Updates',detail:'Your unread messages, schedule changes and account news.',icon:'alerts',keywords:'notifications unread alerts'},
  leagues:{destination:'leagues',title:'Leagues',detail:'Your entries, schedules, results and standings.',icon:'leagues'},
  tournaments:{destination:'tournaments',title:'Tournaments',detail:'Find events, enter a division and follow the draw.',icon:'tournaments'},
- coach:{destination:'coach',title:'Coach & training',detail:'Coach check-ins, weekly plans and focused practice.',icon:'coach',keywords:'coaching drills students assignments accept invitation invite'},
- following:{destination:'following',title:'Following',detail:'Keep up with your players, teams and leagues.',icon:'following'},
- matchup:{destination:'matchup',title:'Matchup',detail:'Compare players and prepare for your next opponent.',icon:'matchup'},
+ coach:{destination:'coach',title:'Coach & training',detail:'Lessons, drills and check-ins.',icon:'coach',keywords:'coaching students assignments weekly plans practice accept invitation invite'},
+ following:{destination:'following',title:'Following',detail:'Players, teams and leagues you follow.',icon:'following',keywords:'saved favorites'},
+ matchup:{destination:'matchup',title:'Matchup',detail:'Compare players before you play.',icon:'matchup',keywords:'prepare opponent'},
  office:{destination:'league-office',title:'League Office',detail:'Manage your league seasons, entries and match desk.',icon:'leagues'},
  imports:{destination:'imports',title:'Uploads & imports',detail:'Review your scorecards, schedules and roster uploads.',icon:'imports'},
  account:{destination:'account',title:'Account',detail:'Membership, Face ID, sign-in and account settings.',icon:'account',keywords:'login log in logout log out subscription billing password'},

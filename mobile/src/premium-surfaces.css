@@ -769,6 +769,7 @@ body[data-screen="more"] .app-tools-hub .app-hub-group { margin-block-start:18px
 body[data-screen="more"] .app-tools-hub .app-hub-group h2 { margin-block-end:8px; }
 body[data-screen="more"] .app-hub-tools button.app-tool { min-block-size:64px;padding:10px 14px;gap:10px; }
 body[data-screen="more"] .app-tool-copy { gap:3px; }
+body[data-screen="more"] .app-tool-copy>span { line-height:1.4; }
 body[data-screen="more"] .app-hub-tools button.app-tool:not([hidden])~button.app-tool:not([hidden]) { border-block-start:1px solid var(--premium-line); }
 body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-card {
  border-radius:12px;

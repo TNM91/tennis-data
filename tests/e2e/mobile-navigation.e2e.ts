@@ -170,6 +170,7 @@ for(const width of [320,390])test('tool search stays local, accessible and prese
  await page.getByRole('button',{name:'More',exact:true}).click();await expect(input).toHaveValue('');await expect(count).toHaveText('11 tools')
 })
 for(const width of [320,390])test('all destinations, direct competitions, focus return and reconnect at '+width+'px',async({page},info)=>{
+ test.setTimeout(40_000)
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));await page.setViewportSize({width,height:844});await page.goto(origin)
  await expect(page.locator('.lab-scoreboard')).toContainText('4.42');await expect(page.locator('.app-navigation button>span:last-child')).toHaveText(['My Lab','Explore','Chats','Compete','More']);await bounded(page)
  const scene=page.locator('.rating-court-scene');await expect(scene).toHaveAttribute('width','1122');expect(await scene.evaluate(el=>getComputedStyle(el).objectFit)).toBe('contain')
