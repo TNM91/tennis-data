@@ -24,7 +24,7 @@ import {openAccountSettings} from './account-settings'
 import {createNativeSignOut} from './native-sign-out'
 import {mountBiometricSignIn} from './biometric-sign-in'
 import {showGuestExplore} from './guest-explore'
-import {PRODUCT_MOTTO,MEMBERSHIP_TIERS} from '../../lib/product-story'
+import {welcomeHtml,signInHtml} from './welcome-view'
 import type {TeamChatDestination} from './team-room-data'
 import {nativeActionIcon} from './native-action-icons'
 import websiteUi from '../generated/website-ui.json'
@@ -125,7 +125,12 @@ const appLinks=createAppLinkHandoff((link,cold)=>{
  if(!link){incoming.replaceChildren();return}
  incoming.innerHTML='<p role="status"><strong>'+appLinkTitle(link)+'</strong><span>'+(session?'Ready to open in TenAceIQ.':'Sign in to continue to your shared link.')+'</span></p><button type="button" data-link-open>'+(session?'Open link':'Sign in')+'</button><button type="button" class="secondary" data-link-dismiss aria-label="Dismiss shared link">×</button>'
  incoming.querySelector('[data-link-dismiss]')!.addEventListener('click',()=>appLinks.clear())
- incoming.querySelector('[data-link-open]')!.addEventListener('click',()=>{if(session)resumeAppLink();else if(guest)login()})
+ incoming.querySelector('[data-link-open]')!.addEventListener('click',()=>{
+  if(session){resumeAppLink();return}
+  const heading=app.querySelector<HTMLElement>('.welcome-account h1')
+  if(heading)heading.focus()
+  else login('account')
+ })
  if(cold&&authReady&&session&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&!document.querySelector('dialog[open]')&&!connection&&!details?.isOpen())resumeAppLink()
 })
 function launchTeamInvite(initialLink=''){
@@ -165,7 +170,7 @@ if (Capacitor.getPlatform() === 'android') {
     if(sharedMatch?.isOpen()){sharedMatch.dispose();sharedMatch=null;return}
   if(teamInvite?.isOpen()){teamInvite.dispose();teamInvite=null;return}
   if(accountSettings?.isOpen()){accountSettings.back()}
-    else if(emailAuth){login()}
+    else if(emailAuth){login('account')}
     else if(guest){guest.back()}
     else if(dataImports?.isOpen()){dataImports.back()}
     else if(competitions?.isOpen()){competitions.back()}
@@ -180,14 +185,15 @@ if (Capacitor.getPlatform() === 'android') {
     else if(following){if(!following.back())void lab()}
     else if (explore) { if (!explore.back()) void lab() }
     else if (connection) { if (!connection.isSaving()) void lab() }
-    else if (recovery) login()
+    else if (recovery) login('account')
+    else if (app.dataset.state==='sign-in') app.querySelector<HTMLButtonElement>('#welcome-back')?.click()
     else if (details?.isOpen()) history.back()
     else if(hub){if(hub==='coach')showHub('more');else void lab()}
     else void App.minimizeApp()
   })
 }
 
-function login(message = '',entry:'welcome'|'account'='welcome') {
+function login(entry:'welcome'|'account'='welcome',message='',email='') {
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
@@ -219,36 +225,42 @@ function login(message = '',entry:'welcome'|'account'='welcome') {
   recovery = null
   details?.dispose()
   details = null
-  app.dataset.state = 'signed-out'
-  app.innerHTML = `<div class="native-welcome"><small>Tennis intelligence</small><h1 tabindex="-1">${escape(PRODUCT_MOTTO)}</h1><p>Your game. Your team. Your next ace.</p><button type="button" id="browse-public">Explore without signing in <span aria-hidden="true">↗</span></button><p class="welcome-browse-note">Players, teams, leagues and TIQ rankings.</p><div class="welcome-account"><h2 tabindex="-1">Your tennis, connected.</h2>${storageUnavailable?'<p role="alert">Secure sign-in storage is unavailable. Close the app and try again to sign in. You can still explore public tennis.</p>':`<p>Sign in for My Lab and your team chats.</p><button type="button" class="secondary" id="email-sign-in">Create account or use an email code</button><p class="welcome-email-note">New accounts start ${escape(MEMBERSHIP_TIERS.free.name)}. Existing access stays the same.</p><form><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><p role="alert">${escape(message)}</p><button>Sign in</button></form><button type="button" class="secondary" id="forgot-password">Forgot password?</button>`}</div>${accountLinksHtml}</div>`
-  const biometricHost=document.createElement('div');biometricHost.className='biometric-login';app.querySelector('.welcome-account')!.querySelector('form')?.before(biometricHost)
-  if(!storageUnavailable)biometricLogin=mountBiometricSignIn(biometricHost,client,()=>visit===revision&&!session)
-  app.querySelector<HTMLButtonElement>('#browse-public')!.onclick=openGuest
+  app.dataset.state=entry==='account'?'sign-in':'signed-out'
+  app.innerHTML=entry==='account'?signInHtml(storageUnavailable,message,email):welcomeHtml(storageUnavailable)
+  const biometricHost=app.querySelector<HTMLElement>('.biometric-login')
+  if(biometricHost)biometricLogin=mountBiometricSignIn(biometricHost,client,()=>visit===revision&&!session)
+  app.querySelector('#browse-public')?.addEventListener('click',openGuest)
+  app.querySelector('#welcome-signin')?.addEventListener('click',()=>login('account'))
+  app.querySelector('#welcome-back')?.addEventListener('click',()=>login())
   bindAccountLinks(app)
-  const heading=app.querySelector<HTMLElement>(entry==='account'?'.welcome-account h2':'h1')!
-  if(entry==='account')heading.scrollIntoView({block:'start'})
-  heading.focus({preventScroll:true})
+  window.scrollTo(0,0)
+  const feedback=message?app.querySelector<HTMLElement>('.welcome-account form [role=alert]'):null
+  if(feedback)feedback.focus()
+  else app.querySelector<HTMLElement>('h1')!.focus({preventScroll:true})
   const emailEntry=app.querySelector<HTMLButtonElement>('#email-sign-in')
-  if(emailEntry)emailEntry.onclick=()=>{if(session)return;biometricLogin?.dispose();const visit=++revision;emailAuth?.dispose();emailAuth=showEmailAuth(app,client,()=>visit===revision&&!session,()=>login())}
+  if(emailEntry)emailEntry.onclick=()=>{if(session)return;biometricLogin?.dispose();const visit=++revision;emailAuth?.dispose();emailAuth=showEmailAuth(app,client,()=>visit===revision&&!session,()=>login('account'))}
   const forgot=app.querySelector<HTMLButtonElement>('#forgot-password')
   if(forgot)forgot.onclick = () => {
     biometricLogin?.dispose()
-    recovery = showPasswordRecovery(app, client, () => login())
+    recovery = showPasswordRecovery(app, client, () => login('account'))
   }
   const signInForm=app.querySelector<HTMLFormElement>('form')
   if(signInForm)signInForm.onsubmit = async event => {
     event.preventDefault()
     const form = event.currentTarget as HTMLFormElement
     if(visit!==revision||session||!form.isConnected)return
+    const button = form.querySelector('button')!
+    if(button.disabled)return
     biometricLogin?.dispose()
     const fields = new FormData(form)
-    const button = form.querySelector('button')!
+    const address=String(fields.get('email')).trim()
+    for(const control of app.querySelectorAll<HTMLButtonElement>('#welcome-back,#email-sign-in,#forgot-password,[data-biometric-signin]'))control.disabled=true
     button.disabled = true
     button.textContent = 'Signing in…'
     try {
-      const { error } = await client.auth.signInWithPassword({email: String(fields.get('email')).trim(), password: String(fields.get('password'))})
-      if (error&&visit===revision&&!session&&form.isConnected) login('Could not sign in. Check your email, password, and connection.','account')
-    } catch { if(visit===revision&&!session&&form.isConnected)login('Could not sign in. Check your connection and try again.','account') }
+      const { error } = await client.auth.signInWithPassword({email:address,password:String(fields.get('password'))})
+      if (error&&visit===revision&&!session&&form.isConnected) login('account','Could not sign in. Check your email, password, and connection.',address)
+    } catch { if(visit===revision&&!session&&form.isConnected)login('account','Could not sign in. Check your connection and try again.',address) }
   }
 }
 
@@ -263,7 +275,7 @@ function openGuest() {
   document.body.dataset.screen='explore'
   app.dataset.state='public-explore'
   window.scrollTo(0,0)
-  guest=showGuestExplore(app,()=>!session&&visit===revision,()=>login('','account'),()=>login())
+  guest=showGuestExplore(app,()=>!session&&visit===revision,()=>login('account'),()=>login())
 }
 
 function selectNavigation(screen:AppScreen) {
