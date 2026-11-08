@@ -66,7 +66,11 @@ for(const width of [320,390])test(`numbers lead the page and charted samples rem
  await bounded(page);expect((await fixture(page)).authReads).toBe(0)
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:info.outputPath('lab-scoreboard-opening.png'),fullPage:false})
  await page.locator('.lab-form-strip').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('lab-scoreboard-recent-form.png'),fullPage:false})
- await page.locator('.lab-level-path').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('lab-scoreboard-next-band.png'),fullPage:false})
+ const band=page.getByRole('region',{name:'Your next TIQ band',exact:true})
+ await expect(band.locator('.lab-band-target dd')).toHaveText(['4.42','4.5'])
+ await expect(band.getByRole('meter',{name:'TIQ band progress',exact:true})).toHaveAttribute('aria-valuetext','4.42 TIQ in the 4.0 to 4.5 band')
+ await band.evaluate(el=>el.scrollIntoView({block:'center'}))
+ await page.screenshot({path:info.outputPath('lab-scoreboard-next-band.png'),fullPage:false})
 })
 for(const width of [320,390])test(`format and league views use the same loaded results at ${width}px`,async({page},info)=>{
  await page.setViewportSize({width,height:width===320?568:844});await page.goto(origin+prefix)

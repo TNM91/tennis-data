@@ -1,12 +1,55 @@
+import websiteUi from '../generated/website-ui.json'
 import {playerLevelPath} from '../../lib/player-level-path'
 import {publishedUstaRating,publishedUstaLabel} from '../../lib/published-usta-rating'
 import {formatRatingValue} from '../../lib/player-rating-display'
 import type {RecordedRatings} from './player-ratings-data'
-export function labLevelPathHtml(player:RecordedRatings){
- const self=player.rating_source==='self',path=playerLevelPath(player.overall_dynamic_rating,publishedUstaRating(player),self)
- const context='TIQ estimates playing strength. USTA current is the verified published level on your record. TIQ bands do not predict a USTA promotion or drop.'
- const values=`<dl class="lab-level-values"><div><dt>Overall TIQ</dt><dd>${typeof player.overall_dynamic_rating==='number'&&Number.isFinite(player.overall_dynamic_rating)&&player.overall_dynamic_rating>=1.5&&player.overall_dynamic_rating<=7?formatRatingValue(player.overall_dynamic_rating):'—'}</dd></div><div><dt>USTA current</dt><dd>${publishedUstaLabel(player)}</dd></div></dl>`
- if(!path.hasLevelProgress)return `<section class="lab-level-path" aria-labelledby="lab-level-title"><small class="stat-eyebrow">Your next TIQ band</small><h3 id="lab-level-title">TIQ level-up meter</h3>${values}<p>${self?'Self-rated record: play and connect results to build your TIQ estimate.':path.tiqBase===7?'You are in the top TIQ display band.':'Connect rated results to see your TIQ band.'}</p><p class="rating-context">${context}</p></section>`
- const percent=Math.round(path.levelProgress)
- return `<section class="lab-level-path" aria-labelledby="lab-level-title"><small class="stat-eyebrow">Move your game forward</small><h3 id="lab-level-title">Your next TIQ band</h3><div class="lab-band-target"><strong>${path.nextTiqBand!.toFixed(1)}<span>TIQ</span></strong><div><p>${path.ratingToGo!.toFixed(2)} TIQ points to the next TIQ band.</p><span>${path.levelStatus}</span></div></div><label>Position within your current TIQ band <meter min="0" max="100" value="${percent}" aria-label="TIQ band progress">${percent}%</meter></label><div class="lab-level-scale"><span>${path.tiqBase!.toFixed(1)} TIQ</span><strong>${percent}%</strong><span>${path.nextTiqBand!.toFixed(1)} TIQ</span></div><button type="button" class="secondary lab-band-practice" data-training="catalog">Find your next practice drill <span aria-hidden="true">→</span></button><details class="lab-level-about"><summary>About your TIQ band</summary>${values}<p class="rating-context">Progress describes where your current TIQ estimate sits within its half-point band. It does not measure change over time or use an unpublished USTA dynamic rating.</p><p class="rating-context">${context}</p></details></section>`
+export function labLevelPathHtml(player: RecordedRatings) {
+  const self = player.rating_source === 'self'
+  const rating = player.overall_dynamic_rating
+  const path = playerLevelPath(rating, publishedUstaRating(player), self)
+  const current = typeof rating === 'number' && Number.isFinite(rating) && rating >= 1.5 && rating <= 7
+    ? formatRatingValue(rating)
+    : '—'
+  const published = `<div><dt>USTA current</dt><dd>${publishedUstaLabel(player)}</dd></div>`
+  const context = 'TIQ estimates playing strength. USTA current is the verified published level on your record. TIQ bands do not predict a USTA promotion or drop.'
+
+  if (path.tiqBase === null || path.nextTiqBand === null || path.ratingToGo === null) {
+    const status = self ? 'Self-rated record. Play and connect results to build your TIQ estimate.'
+      : path.tiqBase === 7 ? 'You are in the top TIQ band.' : 'Connect rated results to see your TIQ band.'
+    return `<section class="lab-level-path" aria-labelledby="lab-level-title">
+      <h3 id="lab-level-title">Your TIQ band</h3>
+      <dl class="lab-level-values"><div><dt>Overall TIQ</dt><dd>${current}</dd></div>${published}</dl>
+      <p>${status}</p><p class="rating-context">${context}</p>
+    </section>`
+  }
+
+  const start = path.tiqBase.toFixed(1)
+  const target = path.nextTiqBand.toFixed(1)
+  const roundedGap = path.ratingToGo.toFixed(2)
+  const gap = roundedGap === '0.00' ? 'Less than 0.01' : roundedGap
+  const percent = Math.min(99, Math.round(path.levelProgress))
+  return `<section class="lab-level-path" aria-labelledby="lab-level-title">
+    <h3 id="lab-level-title">Your next TIQ band</h3>
+    <dl class="lab-level-values lab-band-target">
+      <div><dt>Current TIQ</dt><dd>${current}</dd></div>
+      <div><dt>Next band</dt><dd>${target}</dd></div>
+    </dl>
+    <p class="lab-band-gap">${gap} TIQ points to the next band</p>
+    <div class="lab-band-range">
+      <p>Position in current band</p>
+      <meter min="0" max="100" value="${percent}" aria-label="TIQ band progress" aria-valuetext="${current} TIQ in the ${start} to ${target} band">${percent}%</meter>
+      <div class="lab-level-scale" aria-hidden="true"><span>${start}</span><span>${target}</span></div>
+    </div>
+    <button type="button" class="secondary app-tool lab-action-row lab-band-practice" data-training="catalog" aria-label="Practice &amp; drills" aria-describedby="lab-band-drill-detail">
+      <span class="lab-action-icon" aria-hidden="true">${websiteUi.icons.catalog}</span>
+      <span class="app-tool-copy"><strong>Practice &amp; drills</strong><span id="lab-band-drill-detail">Browse drills or follow your training plan</span></span>
+      <span class="app-tool-arrow" aria-hidden="true">›</span>
+    </button>
+    <details class="lab-level-about">
+      <summary><span>About your TIQ band</span><span class="app-tool-arrow" aria-hidden="true">›</span></summary>
+      <p class="rating-context">The meter shows your position within a half-point band. It does not measure change over time.</p>
+      <dl class="lab-level-values">${published}</dl>
+      <p class="rating-context">${context}</p>
+    </details>
+  </section>`
 }

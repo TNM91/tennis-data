@@ -481,10 +481,10 @@ body[data-screen] .lab-match-form-record .stat-donut-fill { stroke:var(--premium
 .lab-format-row-heading,.lab-breakdown-record { display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-block-end:6px; }
 :is(.lab-format-row-heading,.lab-breakdown-record) h4 { min-inline-size:0;margin:0;color:var(--premium-white);font-size:.9375rem;overflow-wrap:anywhere; }
 .lab-format-row-heading strong { color:var(--premium-lime);font-size:1.25rem;line-height:1.2;font-variant-numeric:tabular-nums; }
-:is(.lab-format-row,.lab-breakdown-metrics) meter { display:block;inline-size:100%;block-size:8px;margin-block:0 8px;appearance:none;border:0;border-radius:8px;background:var(--premium-inset); }
-:is(.lab-format-row,.lab-breakdown-metrics) meter::-webkit-meter-bar { block-size:8px;border:0;border-radius:8px;background:var(--premium-inset); }
-:is(.lab-format-row,.lab-breakdown-metrics) meter::-webkit-meter-optimum-value { border-radius:8px;background:var(--premium-lime); }
-:is(.lab-format-row,.lab-breakdown-metrics) meter::-moz-meter-bar { border-radius:8px;background:var(--premium-lime); }
+:is(.lab-format-row,.lab-breakdown-metrics,.lab-band-range) meter { display:block;inline-size:100%;block-size:8px;margin-block:0 8px;appearance:none;border:0;border-radius:8px;background:var(--premium-inset); }
+:is(.lab-format-row,.lab-breakdown-metrics,.lab-band-range) meter::-webkit-meter-bar { block-size:8px;border:0;border-radius:8px;background:var(--premium-inset); }
+:is(.lab-format-row,.lab-breakdown-metrics,.lab-band-range) meter::-webkit-meter-optimum-value { border-radius:8px;background:var(--premium-lime); }
+:is(.lab-format-row,.lab-breakdown-metrics,.lab-band-range) meter::-moz-meter-bar { border-radius:8px;background:var(--premium-lime); }
 #lab-result-panel .lab-format-open.secondary {
  display:grid;grid-template-columns:minmax(0,1fr) 24px;align-items:center;gap:8px;min-block-size:44px;
  margin:8px 0 0;padding:8px 10px;border:1px solid var(--premium-line);border-radius:10px;
@@ -1095,10 +1095,37 @@ button.secondary[data-cal-all][aria-pressed="true"] {
 .player-practice-note summary { color:var(--premium-ice);font-size:.875rem;line-height:1.35; }
 .player-practice-note textarea { margin-top:0; }
 .player-practice-dialog :is(button,summary,textarea):focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
-.lab-next-band .lab-level-path { background:var(--premium-card);border-color:#3f6b84;box-shadow:inset 0 1px #9edaff20; }
-.lab-level-path .lab-band-target>strong { color:#eefaff;text-shadow:0 4px 24px #79d0ff22; }
-.lab-level-path .lab-band-target>strong>span { color:#9bd7f6; }
-.lab-level-path .lab-band-practice { box-shadow:inset 0 1px #efffc090,0 5px 20px #a9e82c12; }
+body[data-screen] .lab-level-path {
+ min-inline-size:0;margin:16px 0 0;padding:16px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-panel-radius);background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;
+}
+.lab-level-path>h3 { margin:0 0 12px;color:var(--premium-white);font-size:1.25rem;line-height:1.25;letter-spacing:-.025em; }
+.lab-level-path .lab-level-values { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0; }
+.lab-level-values>div { min-inline-size:0;padding:10px 12px;border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset); }
+.lab-level-path .lab-level-values dt { margin:0;color:var(--premium-copy);font-size:.75rem;letter-spacing:normal;text-transform:none; }
+.lab-level-path .lab-level-values dd { margin:4px 0 0;color:var(--premium-white);font-size:1.625rem;font-weight:750;line-height:1.15;letter-spacing:-.03em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere; }
+.lab-level-path .lab-band-target>div:last-child dd { color:var(--premium-lime); }
+.lab-level-path p { margin:10px 0 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45;overflow-wrap:anywhere; }
+.lab-level-path .lab-band-gap { color:var(--premium-white);font-weight:650; }
+.lab-band-range { margin-block-start:14px; }
+.lab-band-range p { margin:0 0 6px;font-size:.75rem; }
+.lab-band-range meter { margin-block-end:4px; }
+.lab-level-scale { display:flex;justify-content:space-between;gap:8px;color:var(--premium-copy);font-size:.6875rem;font-variant-numeric:tabular-nums; }
+body[data-screen] button.lab-band-practice.secondary {
+ margin:14px 0 0;border:1px solid transparent;border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);
+}
+.lab-band-practice .app-tool-arrow { color:var(--premium-lime); }
+.lab-level-about { margin-block-start:12px;border-block-start:1px solid var(--premium-line); }
+.lab-level-about>summary {
+ display:grid;grid-template-columns:minmax(0,1fr) 24px;align-items:center;gap:8px;min-block-size:44px;padding:8px 0;
+ list-style:none;cursor:pointer;color:var(--premium-ice);font-size:.8125rem;font-weight:650;overflow-wrap:anywhere;
+}
+.lab-level-about>summary::-webkit-details-marker { display:none; }
+.lab-level-about>summary .app-tool-arrow { justify-self:center;color:inherit;font-size:1.125rem; }
+.lab-level-about[open]>summary .app-tool-arrow { transform:rotate(90deg); }
+.lab-level-path .rating-context { font-size:.75rem; }
+.lab-level-about .lab-level-values { grid-template-columns:minmax(0,1fr);margin-block-start:10px; }
+.lab-level-about .lab-level-values dd { font-size:1rem; }
 .website-lab [data-native-part="repCard"] { background:var(--premium-surface);border-color:var(--premium-line);box-shadow:none; }
 
 /* Depth and a clear focus state make touch controls feel consistent across the app. */
@@ -1445,7 +1472,7 @@ body[data-screen] .website-lab :is([data-native-part="matchCard"],[data-native-p
 body[data-screen]:not(.native-chat-conversation) .tennis-tool-grid button.tennis-tool {
  background:var(--premium-raised);border-color:var(--premium-line);
 }
-body[data-screen] :is(.website-lab [data-native-part="primaryAction"],.lab-level-path .lab-band-practice) {
+body[data-screen] .website-lab [data-native-part="primaryAction"] {
  min-block-size:48px;border-radius:var(--premium-control-radius);background:var(--premium-action);color:var(--premium-page);
 }
 

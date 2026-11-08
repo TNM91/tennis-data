@@ -29,4 +29,11 @@ describe('TIQ bands and published USTA current',()=>{
  it('keeps starting estimates distinct and only mounts guidance when requested',()=>{
   const self={...player,rating_source:'self'};expect(labLevelPathHtml(self)).not.toContain('<meter');expect(labLevelPathHtml(self)).toContain('Self-rated record');expect(labLevelPathHtml({...player,overall_dynamic_rating:NaN})).not.toContain('NaN');expect(ratingsHtml(player)).not.toContain('lab-level-path');expect(ratingsHtml(player,true)).toContain('lab-level-path')
  })
+ it('keeps a TIQ just below the threshold from displaying a completed band',()=>{
+  const output=labLevelPathHtml({...player,overall_dynamic_rating:4.499})
+  expect(output).toContain('<dt>Current TIQ</dt><dd>4.49</dd>')
+  expect(output).toContain('<dt>Next band</dt><dd>4.5</dd>')
+  expect(output).toContain('Less than 0.01 TIQ points')
+  expect(output).toContain('value="99"')
+ })
 })
