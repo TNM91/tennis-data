@@ -606,15 +606,19 @@ async function lab() {
   const overviewButton=app.querySelector<HTMLButtonElement>('#lab-training-refresh'),overviewStatus=app.querySelector<HTMLElement>('#lab-training-status'),identityHost=app.querySelector<HTMLElement>('#lab-identity')
   if(overviewButton&&overviewStatus&&identityHost)overviewButton.onclick=async()=>{
     if(overviewButton.disabled||version!==revision||current.user.id!==session?.user.id)return
-    overviewButton.disabled=true;overviewStatus.textContent='Loading account training…';identityHost.innerHTML=labIdentityHtml(data);bindLabActions()
+    overviewButton.disabled=true;overviewStatus.textContent='Loading saved practice…'
     const active=()=>version===revision&&current.user.id===session?.user.id&&identityHost.isConnected
     try{
       const rows=await loadTrainingHistory(client,current.user.id,active)
       if(!active())return
-      if(training?.isOpen()||goals?.isOpen()){overviewStatus.textContent='Close training or notes, then refresh this overview to see your latest proof.';return}
+      if(training?.isOpen()||goals?.isOpen()){overviewStatus.textContent='Close training or notes, then refresh saved practice.';return}
       identityHost.innerHTML=labIdentityHtml(data,labTrainingOverview(rows));bindLabActions()
-      overviewButton.textContent='Refresh training overview';overviewStatus.textContent='Training overview loaded. Weekly progress uses your latest 40 sessions.'
-    }catch{if(active())overviewStatus.textContent='Training overview unavailable. Your saved sessions have not changed. Try again when connected.'}
+      overviewButton.textContent='Refresh saved practice';overviewStatus.textContent='Saved practice loaded. Weekly progress uses your latest 40 sessions.'
+      const repHeading=identityHost.querySelector<HTMLElement>('[data-native-part="postRepProof"] h2, [data-native-part="repContent"] h2')
+      if(repHeading&&(document.activeElement===overviewButton||document.activeElement===document.body)){
+        repHeading.tabIndex=-1;repHeading.focus({preventScroll:true});repHeading.scrollIntoView({block:'center'})
+      }
+    }catch{if(active())overviewStatus.textContent='Couldn’t load saved practice. Try again when connected.'}
     finally{if(active())overviewButton.disabled=false}
   }
   app.querySelector<HTMLButtonElement>('#refresh')!.onclick = () => { void lab() }

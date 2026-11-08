@@ -1126,7 +1126,46 @@ body[data-screen] button.lab-band-practice.secondary {
 .lab-level-path .rating-context { font-size:.75rem; }
 .lab-level-about .lab-level-values { grid-template-columns:minmax(0,1fr);margin-block-start:10px; }
 .lab-level-about .lab-level-values dd { font-size:1rem; }
-.website-lab [data-native-part="repCard"] { background:var(--premium-surface);border-color:var(--premium-line);box-shadow:none; }
+.website-lab :is([data-native-part="repCard"],[data-native-part="postRepReturn"]) {
+ min-inline-size:0;min-block-size:0;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;
+}
+.website-lab [data-native-part="repCard"]::after { content:none; }
+.website-lab [data-native-part="repContent"] { min-block-size:0;padding:16px;gap:8px; }
+.website-lab :is([data-native-part="repContent"],[data-native-part="postRepProof"]) h2 {
+ margin:0;padding:0;color:var(--premium-white);font-size:1.25rem;line-height:1.25;letter-spacing:-.025em;overflow-wrap:anywhere;
+}
+.website-lab [data-native-part="repNote"] { margin:0 0 4px;padding:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.5;overflow-wrap:anywhere; }
+.website-lab :is([data-native-part="repContent"],[data-native-part="postRepReturn"]) [data-native-part="cardEyebrow"] {
+ margin:0;color:var(--premium-ice);font-size:.6875rem;line-height:1.4;
+}
+.website-lab :is([data-native-part="primaryAction"],[data-native-part="postRepNext"]>button) {
+ display:grid;grid-template-columns:minmax(0,1fr) 24px;align-items:center;gap:8px;min-block-size:48px;
+ margin:0;padding:10px 12px;border:1px solid transparent;border-radius:var(--premium-control-radius);
+ background:var(--premium-court-inlay);box-shadow:none;color:var(--premium-white);font-size:.875rem;font-weight:700;
+ line-height:1.4;text-align:start;overflow-wrap:anywhere;transform:none;
+}
+.website-lab :is([data-native-part="primaryAction"],[data-native-part="postRepNext"]>button)>span[aria-hidden="true"] { justify-self:center;color:var(--premium-lime);font-size:1.125rem;line-height:1; }
+.website-lab [data-native-part="postRepReturn"] { grid-template-columns:minmax(0,1fr);gap:0;margin:0 0 12px;padding:0; }
+.website-lab :is([data-native-part="postRepProof"],[data-native-part="postRepNext"],[data-native-part="postRepProgress"]) { min-inline-size:0;padding:14px;border:0;border-radius:0;background:transparent; }
+.website-lab :is([data-native-part="postRepNext"],[data-native-part="postRepProgress"]) { gap:8px;border-block-start:1px solid var(--premium-line); }
+.website-lab [data-native-part="postRepProof"] { grid-template-columns:28px minmax(0,1fr);gap:10px; }
+.website-lab [data-native-part="postRepProof"] h2 { margin-block:6px; }
+.website-lab [data-native-part="postRepIcon"] {
+ inline-size:28px;block-size:28px;border:1px solid var(--premium-line);border-radius:8px;
+ background:var(--premium-inset);box-shadow:none;color:var(--premium-lime);
+}
+.website-lab [data-native-part="postRepSync"] { min-block-size:0;border-color:var(--premium-line);background:var(--premium-inset);color:var(--premium-copy); }
+.website-lab [data-native-part="postRepProofLine"] { align-items:start; }
+.website-lab [data-native-part="postRepProofLine"] span { color:var(--premium-copy);font-size:.75rem; }
+.website-lab [data-native-part="postRepNext"]>strong { font-size:.9375rem;overflow-wrap:anywhere; }
+.website-lab [data-native-part="postRepWhy"] { margin:0;color:var(--premium-copy);font-size:.75rem; }
+.website-lab [data-native-part="postRepPlanMeta"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.website-lab [data-native-part="postRepPlanMeta"]>span { border-color:var(--premium-line);background:var(--premium-inset);color:var(--premium-copy); }
+.website-lab [data-native-part="postRepProgress"]>button {
+ min-block-size:44px;margin:0;padding:8px 10px;border:1px solid var(--premium-line);border-radius:10px;
+ background:var(--premium-inset);color:var(--premium-white);font-size:.8125rem;overflow-wrap:anywhere;
+}
 
 /* Depth and a clear focus state make touch controls feel consistent across the app. */
 body[data-screen] :is(.app-tool,.lab-trend-entry,.lab-band-practice,.chats-team-card):focus-visible { outline:3px solid #bde8ff;outline-offset:3px; }
@@ -1471,9 +1510,6 @@ body[data-screen] .website-lab :is([data-native-part="matchCard"],[data-native-p
 }
 body[data-screen]:not(.native-chat-conversation) .tennis-tool-grid button.tennis-tool {
  background:var(--premium-raised);border-color:var(--premium-line);
-}
-body[data-screen] .website-lab [data-native-part="primaryAction"] {
- min-block-size:48px;border-radius:var(--premium-control-radius);background:var(--premium-action);color:var(--premium-page);
 }
 
 body[data-screen] :is(.app-tool-icon,.tool-icon) {

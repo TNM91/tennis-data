@@ -115,13 +115,8 @@ input:not(.website-ui input),select:not(.website-ui select),textarea:not(.websit
 .website-lab [data-native-part="labSignature"] strong { font-size:12px; font-weight:700; letter-spacing:.12em; color:var(--native-blue); }
 .website-lab [data-native-part="playerLink"] { background:#061a37; border-color:var(--shell-panel-border); border-radius:999px; }
 .website-lab [data-native-part="playerLink"] strong { color:#e9f1ff; font-weight:650; }
-.website-lab [data-native-part="repCard"] { min-height:0; border-radius:22px; border-color:rgba(7,137,255,.42); background:#041632; box-shadow:0 12px 32px rgba(0,4,15,.26); }
-.website-lab [data-native-part="repContent"] { min-height:290px; padding:22px; }
-.website-lab [data-native-part="repContent"] h2 { margin:26px 0 12px; padding-right:38px; font-size:34px; font-weight:750; line-height:1.06; letter-spacing:-.045em; max-width:560px; }
-.website-lab [data-native-part="repNote"] { font-size:14px; line-height:1.55; padding-right:88px; margin-bottom:22px; color:var(--shell-copy-muted); }
 .website-lab [data-native-part="ballImage"] { width:78px; right:14px; bottom:82px; }
 .website-lab [data-native-part="cardEyebrow"],.website-lab [data-native-part="supportEyebrow"] { font-size:10px; font-weight:700; letter-spacing:.13em; }
-.website-lab [data-native-part="primaryAction"] { min-height:50px; padding:0 18px; border-radius:13px; font-size:15px; font-weight:750; box-shadow:0 5px 16px rgba(155,225,29,.12); }
 .website-lab [data-native-part="matchCard"],.website-lab [data-native-part="momentumCard"] { background:var(--portal-tool-surface-bg); border-color:var(--shell-panel-border); border-radius:20px; padding:20px; min-height:0; gap:12px; }
 .website-lab [data-native-part="emptyMatchTitle"] { font-size:23px; font-weight:700; line-height:1.15; letter-spacing:-.035em; }
 .website-lab [data-native-part="matchCopy"] p { color:var(--shell-copy-muted); }
@@ -163,14 +158,9 @@ input:not(.website-ui input),select:not(.website-ui select),textarea:not(.websit
 .team-hub { background:var(--native-inset); border-color:var(--shell-panel-border); }
 dialog[open] { background:var(--portal-tool-surface-bg); border-color:rgba(7,137,255,.32); border-radius:22px; box-shadow:0 24px 64px rgba(0,4,15,.58); }
 @media(min-width:700px) {
-  .website-lab [data-native-part="repContent"] { min-height:320px; padding:30px; }
-  .website-lab [data-native-part="repContent"] h2 { font-size:44px; }
   .website-lab [data-native-part="ballImage"] { width:130px; bottom:90px; }
 }
 @media(max-width:340px) {
-  .website-lab [data-native-part="repContent"] { padding:18px; }
-  .website-lab [data-native-part="repContent"] h2 { font-size:30px; padding-right:20px; }
-  .website-lab [data-native-part="repNote"] { padding-right:70px; }
 }
 
 .data-imports-dialog { width:min(680px,calc(100vw - 24px)); }

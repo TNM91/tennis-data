@@ -1,13 +1,6 @@
 /* Native court atmosphere. Artwork is bundled from public/brand without modification. */
 /* The opening stadium already supplies the court scene. Training uses a quiet action card. */
 #lab-identity { margin-top:20px; }
-.website-lab [data-native-part="repCard"] { border-radius:18px; background:#0b2439; border-color:#31516b; box-shadow:none; }
-.website-lab [data-native-part="repCard"]::after { content:none; }
-.website-lab [data-native-part="repContent"] { min-height:0; padding:22px; gap:0; }
-.website-lab [data-native-part="repContent"] h2 { margin:12px 0 10px; padding:0; max-width:none; font-size:26px; line-height:1.14; letter-spacing:-.035em; text-wrap:pretty; }
-.website-lab [data-native-part="repNote"] { padding:0; margin:0 0 20px; font-size:14px; line-height:1.55; max-width:none; }
-.website-lab [data-native-part="repContent"] [data-native-part="cardEyebrow"] { color:#8ed2ff; }
-.website-lab [data-native-part="repContent"] [data-native-part="primaryAction"] { margin-top:0; min-height:48px; border-radius:12px; box-shadow:none; }
 body[data-screen="lab"] #recent-results { padding:22px 16px; }
 body[data-screen="lab"] #recent-results>.match-filters,body[data-screen="lab"] #recent-results #results-content>.match-filters { margin:0 0 12px; padding:3px; border:1px solid #2b4a64; border-radius:13px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; background:#06192b; }
 body[data-screen="lab"] #recent-results .match-filters button.secondary { margin:0; min-width:0; min-height:44px; padding:9px 4px; border:0; border-radius:10px; background:transparent; box-shadow:none; color:#a9c4d9; font-size:14px; line-height:1.25; }
