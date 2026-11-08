@@ -11,7 +11,7 @@ describe('individual league entry match evidence',()=>{
   expect(leaguePlayerRecords(d,'Alex Server').results.map(r=>r.id)).toEqual(['player-unrecorded','player-result']);expect(leaguePlayerRecords(d,'Alex').results).toEqual([])
  })
  it('shows stored score and unknown outcomes without inventing standings or rating metrics',()=>{
-  const rendered=leaguePlayerDetailHtml(competitionPlayerDetail(),'Alex Server');expect(rendered).toContain('6-4, 6-3');expect(rendered).toContain('Winner not recorded');expect(rendered).toContain('Recorded winner: Alex Server');expect(rendered).toContain('Recorded player results · 2');expect(rendered).not.toContain('Team winner');expect(rendered).not.toContain('Saved team standings');expect(rendered).not.toContain('Win rate');expect(rendered).not.toContain('Points')
+  const rendered=leaguePlayerDetailHtml(competitionPlayerDetail(),'Alex Server');expect(rendered).toContain('6-4, 6-3');expect(rendered).toContain('<dt>Winner</dt><dd>Not recorded</dd>');expect(rendered).toContain('<dt>Winner</dt><dd data-recorded-winner>Alex Server</dd>');expect(rendered).toContain('Recorded player results · 2');expect(rendered).not.toContain('Team winner');expect(rendered).not.toContain('Saved team standings');expect(rendered).not.toContain('Win rate');expect(rendered).not.toContain('Points')
  })
  it('sorts calendar evidence without mutating the loaded league data',()=>{
   const d=competitionPlayerDetail();d.fixtures.reverse();const before=JSON.stringify(d),r=leaguePlayerRecords(d,'Alex Server');expect(r.fixtures.map(f=>f.id)).toEqual(['fixture-one','fixture-cancelled']);expect(r.results.map(f=>f.id)).toEqual(['player-unrecorded','player-result']);expect(JSON.stringify(d)).toBe(before)

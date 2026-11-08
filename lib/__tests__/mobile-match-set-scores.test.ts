@@ -20,4 +20,24 @@ describe('match set score display',()=>{
   const view=renderMatchSetScores(row,'player','<Captain>')
   expect(view).toContain('&lt;Captain&gt;');expect(view).not.toContain('<Captain>');expect(view).toContain('scope="row"');expect(view).toContain('scope="col"');expect(view).toContain('Opponent')
  })
+ it('marks only the recorded winner, regardless of which side is listed first',()=>{
+  const lost=renderMatchSetScores(row,'player')
+  expect(lost).toMatch(/<tr data-match-winner>\s*<th scope="row"><span data-scorecard-side="A">Opponent<\/span> <span class="match-winner-marker">Winner<\/span>/)
+  expect(lost.match(/data-match-winner/g)).toHaveLength(1)
+  const won=renderMatchSetScores({...row,winner_side:'B'},'player')
+  expect(won).toMatch(/<tr data-match-winner>\s*<th scope="row"><span data-scorecard-side="B">Your side<\/span> <span class="match-winner-marker">Winner<\/span>/)
+  expect(won.match(/data-match-winner/g)).toHaveLength(1)
+ })
+ it('orients shared sets by the recorded winner in either source column order',()=>{
+  for(const score of ['6-4 3-6 10-8','4-6 6-3 8-10']){
+   const view=renderMatchSetScores({...row,score,winner_side:'B',match_players:[]},null)
+   expect(view).toContain('Scores for Side A and Side B')
+   expect(view).toMatch(/data-scorecard-side="A">Side A<\/span><\/th>\s*<td>4<\/td><td><strong>6<\/strong><\/td><td>8<\/td>/)
+   expect(view).toMatch(/data-scorecard-side="B">Side B<\/span> <span class="match-winner-marker">Winner<\/span><\/th>\s*<td><strong>6<\/strong><\/td><td>3<\/td><td><strong>10<\/strong><\/td>/)
+  }
+ })
+ it('shows no shared breakdown when the recorded result is missing or incomplete',()=>{
+  expect(renderMatchSetScores({...row,winner_side:null,match_players:[]},null)).toBe('')
+  expect(renderMatchSetScores({...row,score:'RET',match_players:[]},null)).toBe('')
+ })
 })

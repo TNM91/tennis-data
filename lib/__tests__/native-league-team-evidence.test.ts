@@ -15,7 +15,7 @@ describe('exact team league match evidence',()=>{
  })
  it('uses saved standings values without recalculating wins from loaded results or courts',()=>{
   const d=competitionDetail();Object.assign(d.standings[0],{wins:9,losses:3,ties:2,lineWins:22,lineLosses:11,points:146.75});const rendered=leagueTeamDetailHtml(d,selection)
-  expect(rendered).toContain('9–3–2');expect(rendered).toContain('22–11');expect(rendered).toContain('146.75');expect(rendered).toContain('Recorded team results · 1');expect(rendered).toContain('Court winner: Alex &amp; Jordan')
+  expect(rendered).toContain('9–3–2');expect(rendered).toContain('22–11');expect(rendered).toContain('146.75');expect(rendered).toContain('Recorded team results · 1');expect(rendered).toContain('<dt>Court winner</dt><dd data-recorded-winner>Alex &amp; Jordan</dd>')
  })
  it('keeps cancellations and proposals visible and sorts both lists without mutating records',()=>{
   const d=competitionDetail();d.fixtures.reverse();d.fixtures.push({...d.fixtures[0],id:'proposal',status:'proposed',date:'2026-11-05'});d.results.push({...d.results[0],id:'newer',date:'2026-10-24'});const before=JSON.stringify(d)

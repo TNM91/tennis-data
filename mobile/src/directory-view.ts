@@ -7,12 +7,43 @@ import {showTeamRoster} from './team-roster-view'
 import type { LeagueCard } from '../../lib/league-summary'
 import { html } from './match-details'
 import { matchDate } from './recent-results'
-import { searchTeams, loadTeamRecords, loadLeagues, filterLeagues, type TeamChoice } from './directory-data'
+import { searchTeams, loadTeamRecords, loadLeagues, filterLeagues, type TeamChoice, type TeamRecord } from './directory-data'
+import {showExploreSearchEmpty} from './explore-search-empty'
+import {exploreResultCard} from './explore-result-card'
+import {competitionOpponentsHtml} from './competition-match-card'
 
 export type DirectoryMode = 'Teams'|'Leagues'
 const count=(value:unknown)=>typeof value==='number' && Number.isFinite(value) && value>=0 ? String(Math.floor(value)) : 'Unavailable'
+function directoryProfileHeader(label:string,title:string,context:string) {
+  return `<header class="tab-hero directory-profile-header"><small class="stat-eyebrow">${html(label)}</small>
+    <h1 tabindex="-1">${html(title)}</h1><p>${html(context)}</p></header>`
+}
 export function leagueDetails(row:LeagueCard) {
-  return `<h1 tabindex="-1">${html(row.leagueName)}</h1><p>${[row.flight,row.ustaSection,row.districtArea].filter(Boolean).map(html).join(' · ') || 'Area unavailable'}</p><dl><dt>Season</dt><dd>${html([row.year,row.season].filter(Boolean).join(' ') || 'Unavailable')}</dd><dt>Teams in directory</dt><dd>${count(row.teamCount)}</dd><dt>Matches in summary</dt><dd>${count(row.matchCount)}</dd><dt>Latest recorded match</dt><dd>${html(matchDate(row.latestMatchDate))}</dd></dl><p>Counts reflect the available directory summary, not a complete season record.</p>`
+  const season=[row.season,row.year].filter(Boolean).join(' ')
+  const context=[season,row.flight,row.districtArea,row.ustaSection].filter(Boolean).join(' · ')
+  return `${directoryProfileHeader('League',row.leagueName,context || 'Season and area unavailable')}
+    <section class="directory-profile-section" aria-labelledby="directory-season-title">
+      <h2 id="directory-season-title">Season snapshot</h2>
+      <dl class="directory-season-stats">
+        <div><dt>Teams in directory</dt><dd>${count(row.teamCount)}</dd></div>
+        <div><dt>Matches in summary</dt><dd>${count(row.matchCount)}</dd></div>
+        <div><dt>Latest recorded match</dt><dd>${html(matchDate(row.latestMatchDate))}</dd></div>
+      </dl>
+      <p class="directory-profile-note">Counts cover the records available in the directory.</p>
+    </section>`
+}
+function teamFixtures(rows:TeamRecord[]) {
+  if(!rows.length)return '<p>No recorded fixtures are available for this team in this league and flight yet.</p>'
+  return `<p class="directory-profile-note">${rows.length} ${rows.length===1?'fixture':'fixtures'} shown · newest first</p>
+    <ol class="directory-fixtures" role="list">${rows.map(row=>{
+    const score=row.score?.trim()
+    return `<li class="competition-fixture">
+      <div class="fixture-heading"><p>${html(matchDate(row.match_date))}</p><span class="competition-status">${html(row.status?.trim() || 'Status unavailable')}</span></div>
+      ${competitionOpponentsHtml(row.home_team || 'Home team unavailable',row.away_team || 'Away team unavailable','h3')}
+      ${score?`<dl class="competition-outcome"><div><dt>Recorded score</dt><dd>${html(score)}</dd></div></dl>`:'<p class="directory-score-note">Score not recorded</p>'}
+    </li>`
+  }).join('')}</ol>
+    <p class="directory-profile-note">Scores follow the source’s court order. Records may include scheduled fixtures.</p>`
 }
 export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',initial?:{team?:TeamChoice;league?:FollowedLeagueScope;back?:()=>void;backLabel?:string},access?:PublicBrowseAccess) {
   let disposed=false,request=0,selected=false,scroll=0
@@ -42,7 +73,12 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
   }
   const openTeam=(team:TeamChoice,trigger?:HTMLElement)=>{
     if(!valid())return
-    open(`<h1 tabindex="-1">${html(team.name)}</h1><p>${html(team.league || 'League unavailable')} · ${html(team.flight || 'Flight unavailable')}</p><p>${team.source==='observation'?'Public source observation':'Recorded team context'}</p><div id="team-follow-control"></div><h2>Recorded fixtures</h2><div id="team-records" aria-live="polite"></div><div id="team-roster-details"></div>`,trigger)
+    const context=`${team.league || 'League unavailable'} · ${team.flight || 'Flight unavailable'}`
+    open(`${directoryProfileHeader(team.source==='observation'?'Public team listing':'Team',team.name,context)}
+      <div id="team-follow-control"></div>
+      <section class="directory-profile-section" aria-labelledby="directory-fixtures-title">
+        <h2 id="directory-fixtures-title">Recorded fixtures</h2><div id="team-records" aria-live="polite"></div>
+      </section><div id="team-roster-details"></div>`,trigger)
     const version=request,content=detail.querySelector<HTMLElement>('#team-records')!
     if(access)showPublicSignIn(detail.querySelector<HTMLElement>('#team-follow-control')!,access,()=>valid()&&selected&&request===version)
     const follow=directoryFollowItem(team);if(!access&&follow){const host=detail.querySelector<HTMLElement>('#team-follow-control')!;showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}
@@ -53,7 +89,7 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
         const loaded=await loadTeamRecords(client,team)
         const rows=initial?.team?loaded.filter(row=>!/\btiq\b/i.test([row.source,row.league_name].join(' '))):loaded
         if(!valid() || request!==version || !content.isConnected)return
-        content.innerHTML=rows.length?`<p>Showing up to 10 records for this team, league, and flight.</p><ol class="matches">${rows.map(row=>`<li><div class="match-heading"><strong>${html(row.home_team || 'Home team unavailable')}</strong><span>${html(matchDate(row.match_date))}</span></div><p>vs ${html(row.away_team || 'Away team unavailable')}</p><p class="score">${html(row.score || 'Score not recorded')}</p><p>${html(row.status || 'Status unavailable')}</p></li>`).join('')}</ol><small>Scores follow the source’s court order. Records may include scheduled fixtures.</small>`:'<p>No recorded fixtures are available for this team in this league and flight yet.</p>'
+        content.innerHTML=teamFixtures(rows)
       } catch {
         if(!valid() || request!==version || !content.isConnected)return
         content.innerHTML='<p role="alert">Can’t load team records. Check your connection and try again.</p><button type="button" class="secondary">Retry records</button>'
@@ -71,15 +107,34 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
         const result=await searchTeams(client,text)
         if(!valid() || version!==request)return
         status.textContent=`${result.teams.length} team record${result.teams.length===1?'':'s'} found.${result.limited?' Showing a limited sample; add more of the name to narrow it.':''}${result.partial?' Some sources are unavailable; results may be incomplete.':''}`
-        choices.innerHTML=result.teams.length?`<ul class="player-choices">${result.teams.map((team,index)=>`<li><h2>${html(team.name)}</h2><p>${html(team.league || 'League unavailable')} · ${html(team.flight || 'Flight unavailable')}</p><button type="button" class="secondary" data-choice="${index}">View team<span class="sr-only"> ${html(team.name)}</span></button></li>`).join('')}</ul>`:'<p>No teams found. Try the team name used in your league schedule.</p>'
-        choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>openTeam(result.teams[Number(control.dataset.choice)],control)})
+        if(!result.teams.length){
+          showExploreSearchEmpty(choices,input,status,{title:result.partial?'No teams in the available records':'No teams found',detail:'Try part of the team name used in the league schedule.'})
+          return
+        }
+        choices.innerHTML=`<ul class="explore-result-list" role="list">${result.teams.map((team,index)=>exploreResultCard('team',index,{
+          title:team.name,
+          context:`${team.league || 'League unavailable'} · ${team.flight || 'Flight unavailable'}`,
+        })).join('')}</ul>`
+        choices.querySelectorAll<HTMLButtonElement>('[data-explore-result]').forEach(control=>{control.onclick=()=>openTeam(result.teams[Number(control.dataset.exploreResult)],control)})
       } else {
         const result=await loadLeagues()
         if(!valid() || version!==request)return
         const filtered=filterLeagues(initial?.league?followedLeagueRows(result.rows,initial.league):result.rows,text),rows=filtered.slice(0,12)
         status.textContent=`${filtered.length} league record${filtered.length===1?'':'s'} found. Showing ${rows.length}.${filtered.length>12?' Search a name, flight, or area to narrow the list.':''}${result.notice?' '+result.notice:''}`
-        choices.innerHTML=rows.length?`<ul class="player-choices">${rows.map((league,index)=>`<li><h2>${html(league.leagueName)}</h2><p>${[league.year,league.season,league.flight,league.ustaSection,league.districtArea].filter(Boolean).map(html).join(' · ') || 'Area unavailable'}</p><button type="button" class="secondary" data-choice="${index}">View league<span class="sr-only"> ${html(league.leagueName)} ${html([league.year,league.season,league.flight].filter(Boolean).join(' '))}</span></button></li>`).join('')}</ul>`:initial?.league?'<p>No matching seasons in the available league summary. Return to Following or check again later.</p>':'<p>No leagues found. Try another name or area.</p>'
-        choices.querySelectorAll<HTMLButtonElement>('[data-choice]').forEach(control=>{control.onclick=()=>{if(valid()){const row=rows[Number(control.dataset.choice)];open(leagueDetails(row),control);const follow=directoryFollowItem(row),version=request;if(access){const host=document.createElement('div');detail.append(host);showPublicSignIn(host,access,()=>valid()&&selected&&request===version)}else if(follow){const host=document.createElement('div');detail.append(host);showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}}}})
+        if(!rows.length){
+          showExploreSearchEmpty(choices,input,status,{
+            title:initial?.league?'No matching seasons':'No leagues found',
+            detail:initial?.league?'Try another season or flight for this league.':'Try part of a league name, flight, or area.',
+            reset:text?{label:initial?.league?'Show all seasons':'Show all leagues',search:()=>{void run()}}:undefined,
+          })
+          return
+        }
+        choices.innerHTML=`<ul class="explore-result-list" role="list">${rows.map((league,index)=>exploreResultCard('league',index,{
+          title:league.leagueName,
+          actionName:[league.leagueName,league.year,league.season,league.flight].filter(Boolean).join(' '),
+          context:[league.year,league.season,league.flight,league.ustaSection,league.districtArea].filter(Boolean).join(' · ') || 'Area unavailable',
+        })).join('')}</ul>`
+        choices.querySelectorAll<HTMLButtonElement>('[data-explore-result]').forEach(control=>{control.onclick=()=>{if(valid()){const row=rows[Number(control.dataset.exploreResult)];open(leagueDetails(row),control);const follow=directoryFollowItem(row),version=request;if(access){const host=document.createElement('div');detail.append(host);showPublicSignIn(host,access,()=>valid()&&selected&&request===version)}else if(follow){const host=document.createElement('div');detail.append(host);showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}}}})
       }
     } catch {
       if(!valid() || version!==request)return

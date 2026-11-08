@@ -1,12 +1,23 @@
 import type {PublicBrowseAccess} from './public-browse-access'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getRatingViewLabel, type RatingView } from '../../lib/player-rating-display'
-import { html } from './match-details'
 import { showExplore as showPlayer } from './explore'
 import { createRankingLoader, type RankingRow } from './rankings-data'
+import {showExploreSearchEmpty} from './explore-search-empty'
+import {exploreResultCard} from './explore-result-card'
 
 export function rankingCards(rows:RankingRow[]) {
-  return `<ol class="player-choices rankings-list">${rows.map((row,index)=>`<li><div class="ranking-heading"><h2>${index+1}. ${html(row.player.name)}</h2><strong class="ranking-value">${html(row.display)}</strong></div><p>${html(row.player.location || 'Location unavailable')}</p><p class="ranking-note">${row.fallback?'Overall TIQ rating used; no separate rating recorded for this view.':'Recorded TIQ rating.'}${row.player.rating_source==='self'?' Self-rated record.':row.player.rating_source==null?' Rating source unavailable.':''}</p><button type="button" class="secondary" data-ranking-player="${index}">View player<span class="sr-only"> ${html(row.player.name)}</span></button></li>`).join('')}</ol>`
+  return `<ol class="explore-result-list" role="list">${rows.map((row,index)=>{
+    const ratingNote=row.fallback?'Overall TIQ rating used; no separate rating recorded for this view.':'Recorded TIQ rating.'
+    const sourceNote=row.player.rating_source==='self'?' Self-rated record.':row.player.rating_source==null?' Rating source unavailable.':''
+    return exploreResultCard('ranking',index,{
+      title:`${index+1}. ${row.player.name}`,
+      actionName:row.player.name,
+      context:row.player.location || 'Location unavailable',
+      rating:row.display,
+      note:ratingNote+sourceNote,
+    })
+  }).join('')}</ol>`
 }
 export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',access?:PublicBrowseAccess) {
   let disposed=false,request=0,view:RatingView='overall',selected=false,scroll=0
@@ -34,12 +45,21 @@ export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=
     try {
       const rows=await fetchRankings(currentView,area)
       if(!valid() || version!==request)return
-      status.textContent=`${getRatingViewLabel(currentView)} · ${area || 'All areas'} · ${rows.length} record${rows.length===1?'':'s'} shown. Ordered by recorded TIQ rating, up to 24 records. This is not an official USTA ranking.`
-      content.innerHTML=rows.length?rankingCards(rows):'<p>No recorded TIQ ratings matched this view. Try another view or clear the location.</p>'
-      content.querySelectorAll<HTMLButtonElement>('[data-ranking-player]').forEach(button=>{button.onclick=()=>{
+      const summary=`${getRatingViewLabel(currentView)} · ${area || 'All areas'} · ${rows.length} record${rows.length===1?'':'s'} shown.`
+      status.textContent=rows.length?`${summary} Ordered by recorded TIQ rating, up to 24 records. This is not an official USTA ranking.`:summary
+      if(!rows.length){
+        showExploreSearchEmpty(content,input,status,{
+          title:'No ratings found',
+          detail:area?'Try a different city or area, or switch the rating view.':'Try another rating view.',
+          reset:area?{label:'Show all areas',search:()=>{void load()}}:undefined,
+        })
+        return
+      }
+      content.innerHTML=rankingCards(rows)
+    content.querySelectorAll<HTMLButtonElement>('[data-explore-result]').forEach(button=>{button.onclick=()=>{
         if(!valid())return
         selected=true;scroll=window.scrollY;previousFocus=button;list.hidden=true;detail.hidden=false
-        player=showPlayer(detail,client,valid,{player:rows[Number(button.dataset.rankingPlayer)].player,back},'',access)
+        player=showPlayer(detail,client,valid,{player:rows[Number(button.dataset.exploreResult)].player,back},'',access)
       }})
     } catch {
       if(!valid() || version!==request)return

@@ -10,7 +10,11 @@ function fixture(deferred=false,publicBrowse?:{signIn:()=>void}){
  const content={dataset:{},innerHTML:'',querySelectorAll:()=>[profileButton]},history={pushState:vi.fn(),replaceState:vi.fn(),back:vi.fn()}
  const app={dataset:{} as Record<string,string>,querySelector:()=>detail,append:(value:Record<string,unknown>)=>{detail=value}}
  vi.stubGlobal('history',history);vi.stubGlobal('location',{hash:'#match'});vi.stubGlobal('window',{addEventListener:vi.fn(),removeEventListener:vi.fn(),scrollY:0,scrollTo:vi.fn()})
- vi.stubGlobal('document',{activeElement:null,createElement:()=>({innerHTML:'',isConnected:true,remove:()=>{detail=null},querySelector:(selector:string)=>selector==='#back-matches'?backButton:selector==='h1'?{focus:vi.fn()}:content})})
+ vi.stubGlobal('document',{activeElement:null,createElement:()=>({
+  innerHTML:'',isConnected:true,remove:()=>{detail=null},
+  querySelectorAll:()=>[],
+  querySelector:(selector:string)=>selector==='#back-matches'?backButton:selector==='h1'?{focus:vi.fn()}:selector==='#match-players'?content:null,
+ })})
  const response={data:[{player_id:'canonical',side:'B',seat:1,players:{name:'Opponent'}}],error:null}
  const q={select:vi.fn(),eq:vi.fn(),order:vi.fn(),limit:vi.fn(),abortSignal:vi.fn(()=>deferred?new Promise(r=>{resolve=r}):Promise.resolve(response))}
  for(const method of [q.select,q.eq,q.order,q.limit])method.mockReturnValue(q)

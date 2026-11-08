@@ -2,7 +2,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {loadCoachChatConnections,type CoachChatConnection} from './coach-chats-data'
 import {openCoachMessages} from './coach-messages-view'
 import {openCoachConnection} from './coach-connection-view'
-import {chatsStartActionHtml} from './chats-inbox'
+import {chatsFilterFeedbackHtml,chatsFilterStatus,chatsStartActionHtml} from './chats-inbox'
 import type {ChatUnread} from './chat-unread'
 
 /** One connection read on first mount, then explicit refresh; no message prefetch or polling. */
@@ -22,8 +22,10 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
  }
  const paintRows=()=>{
   const rows=element.querySelector<HTMLElement>('[data-coach-chat-rows]');if(!rows)return
-  const unknown=connections.some(c=>unread(c.id)===undefined)
-  const visible=connections.filter(c=>find(c.name+' '+(c.role==='coach'?'Your player':'Your coach')).includes(find(query))&&(!unreadOnly||Boolean(unread(c.id))))
+  const term=find(query)
+  const matching=connections.filter(c=>find(c.name+' '+(c.role==='coach'?'Your player':'Your coach')).includes(term))
+  const unknown=matching.some(c=>unread(c.id)===undefined)
+  const visible=unreadOnly?matching.filter(c=>Boolean(unread(c.id))):matching
   const keep=new Set(visible.map(c=>c.id));let lostFocus=false
   for(const row of rows.querySelectorAll<HTMLElement>('[data-coach-chat-row]'))if(!keep.has(row.dataset.coachChatRow!)){lostFocus||=row.contains(document.activeElement);row.remove()}
   for(const [index,connection] of visible.entries()){
@@ -48,8 +50,13 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
    button.setAttribute('aria-label',connection.name+', '+role+(count===undefined?', unread count unavailable':', '+(count===100?'99+':count)+' unread messages'))
   }
   element.querySelectorAll<HTMLButtonElement>('[data-coach-filter]').forEach(button=>button.setAttribute('aria-pressed',String((button.dataset.coachFilter==='unread')===unreadOnly)))
-  element.querySelector<HTMLElement>('[data-coach-filter-active]')!.hidden=!query.trim()&&!unreadOnly
-  element.querySelector('[data-coach-chat-status]')!.textContent=notice||(!connections.length?'':unknown?'Unread counts unavailable for some conversations. Refresh to try again.':!visible.length?(query?'No conversations match your search.':unreadOnly?'You’re all caught up.':'No conversations to show.'):more?'Showing your latest 100 connections.':'')
+  const hideClear=!connections.length||(!term&&!unreadOnly)
+  element.querySelector<HTMLElement>('[data-coach-filter-active]')!.hidden=hideClear
+  element.querySelector<HTMLButtonElement>('[data-clear-chat-filters]')!.hidden=hideClear
+  const filtered=connections.length?chatsFilterStatus('coach',term,unreadOnly,matching.length,visible.length,unknown):''
+  const message=notice||filtered||(unknown?'Unread counts unavailable for some conversations. Refresh to try again.':more?'Showing your latest 100 connections.':'')
+  const status=element.querySelector('[data-coach-chat-status]')!
+  if(status.textContent!==message)status.textContent=message
   if(lostFocus&&element.isConnected)filterTarget()?.focus({preventScroll:true})
  }
  const render=()=>{
@@ -61,8 +68,9 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
      <div class="chats-inbox-filters" role="group" aria-label="Show coach conversations"><button type="button" class="secondary" data-coach-filter="all" aria-pressed="true">All</button><button type="button" class="secondary" data-coach-filter="unread" aria-pressed="false">Unread</button></div>
     </div>
    </details>
+   ${chatsFilterFeedbackHtml('coach')}
    <ul class="chats-team-list" data-coach-chat-rows></ul>
-   ${!busy&&!notice&&!connections.length?chatsStartActionHtml('coach'):''}<p role="status" data-coach-chat-status></p>`
+   ${!busy&&!notice&&!connections.length?chatsStartActionHtml('coach'):''}`
   element.querySelector<HTMLButtonElement>('[data-coach-chat-refresh]')!.disabled=busy
   const filters=element.querySelector<HTMLDetailsElement>('[data-coach-chat-filters]')!
   filters.hidden=!connections.length
@@ -82,6 +90,13 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
    })
   }
   const input=element.querySelector<HTMLInputElement>('[data-coach-chat-search]')!;input.value=query;input.addEventListener('input',()=>{query=input.value.slice(0,160);paintRows()})
+  element.querySelector<HTMLButtonElement>('[data-clear-chat-filters]')!.onclick=()=>{
+   if(!active()||busy||!element.isConnected)return
+   query=input.value=''
+   unreadOnly=false
+   paintRows()
+   filterTarget()?.focus()
+  }
   element.querySelectorAll<HTMLButtonElement>('[data-coach-filter]').forEach(button=>button.addEventListener('click',()=>{unreadOnly=button.dataset.coachFilter==='unread';paintRows()}))
   paintRows()
  }

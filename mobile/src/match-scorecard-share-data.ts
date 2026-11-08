@@ -2,7 +2,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {isValidCalendarDate} from '../../lib/calendar-date'
 import {matchDate} from './recent-results'
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-export type PublicScorecardShare={title:string;text:string;url:string;key:string}
+export type PublicScorecardShare={title:string;text:string;url:string;key:string;date:string;format:string;league:string;score:string}
 export function publicScorecardShare(value:unknown,matchId:string,playerId:string,owner:string,today:string):PublicScorecardShare{
  if(!uuid.test(matchId)||!uuid.test(playerId)||!uuid.test(owner)||!value||typeof value!=='object'||Array.isArray(value))throw Error('Public scorecard unavailable.')
  const row=value as Record<string,unknown>,own=Array.isArray(row.match_players)&&row.match_players.length===1?row.match_players[0]:null
@@ -11,8 +11,9 @@ export function publicScorecardShare(value:unknown,matchId:string,playerId:strin
  const format=text(row.match_type,80)||'Match',league=text(row.league_name,200)||'League unavailable',score=text(row.score,500)||'Score unavailable'
  if(![null,'A','B'].includes(row.winner_side as string|null))throw Error('Public scorecard unavailable.')
  const url='https://www.tenaceiq.com/matches/'+encodeURIComponent(matchId)+'?via=scorecard-share'
- const title='TenAceIQ tennis scorecard',body=['Recorded match: '+matchDate(row.match_date),'Format: '+format,'League: '+league,'Recorded score: '+score,'Scores follow the source court order. Open the scorecard for the latest public result.'].join('\n')
- return Object.freeze({title,text:body,url,key:JSON.stringify([owner,matchId,playerId,row.match_date,format,league,score,own.side,row.winner_side])})
+ const date=matchDate(row.match_date)
+ const title='TenAceIQ tennis scorecard',body=['Recorded match: '+date,'Format: '+format,'League: '+league,'Recorded score: '+score,'Scores follow the source court order. Open the scorecard for the latest public result.'].join('\n')
+ return Object.freeze({title,text:body,url,date,format,league,score,key:JSON.stringify([owner,matchId,playerId,row.match_date,format,league,score,own.side,row.winner_side])})
 }
 export async function readPublicScorecardShare(client:SupabaseClient,matchId:string,playerId:string,current:()=>boolean):Promise<PublicScorecardShare>{
  if(!current()||!uuid.test(matchId)||!uuid.test(playerId))throw Error('Match visit closed.')

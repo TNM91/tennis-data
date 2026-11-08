@@ -1,5 +1,7 @@
 import type {TournamentDetail,TournamentStanding} from '../../lib/native-tournaments-contract'
 import {html} from './match-details'
+import {competitionFiltersHtml} from './competition-filters'
+import {competitionStandingHtml} from './competition-standing'
 
 export type TournamentStandingFilters={query:string;group:string|null}
 export const emptyTournamentStandingFilters=():TournamentStandingFilters=>({query:'',group:null})
@@ -18,7 +20,14 @@ export function tournamentStandingsHtml(d:TournamentDetail,filters:TournamentSta
  if(!d.active||d.drawNotice)return heading+'<p>'+html(d.drawNotice||'Choose a published division to see standings.')+'</p>'
  if(!d.standings.length&&!normalized(filters.query)&&filters.group===null)return heading+'<p>No standings are available for this draw format.</p>'
  const rows=filterTournamentStandings(d.standings,filters)
- return heading+'<p>Recorded match wins and ordinary set games. Match-tiebreak points are excluded.</p>'+finderHtml(d.standings,filters)+'<p class="league-finder-summary" tabindex="-1" role="status" data-tournament-standings-status>Showing '+rows.length+' of '+d.standings.length+' published standings entries · selected division.</p>'+(rows.length?'<ol class="tournament-standings" role="list">'+rows.map(({standing:s,index})=>'<li value="'+(index+1)+'"><span class="standing-position"><span class="sr-only">List position </span>'+(index+1)+'</span><div class="standing-identity"><strong>'+html(s.name)+'</strong>'+(s.group?'<span>'+html(s.group)+'</span>':'')+'</div><p class="standing-stat-line">'+s.wins+' W · '+s.losses+' L · '+(s.played?s.winPct+'%':'—')+'<br>'+s.gamesWon+'–'+s.gamesLost+' games · '+(s.gameDiff>0?'+':'')+s.gameDiff+' differential</p><button type="button" class="secondary tournament-entrant-open" data-tournament-entrant="'+index+'">View matches<span class="sr-only"> for '+html(s.name)+(s.group?' · '+html(s.group):'')+'</span><span aria-hidden="true">↗</span></button></li>').join('')+'</ol>':'<div class="competition-empty"><h4>No entries fit these filters</h4><p>Try another name or group, or clear the entrant filters.</p></div>')
+ const activeCount=Number(Boolean(normalized(filters.query)))+Number(filters.group!==null)
+ const finder=competitionFiltersHtml('standings',finderHtml(d.standings,filters),activeCount)
+ const standings=rows.map(({standing:s,index})=>competitionStandingHtml({
+  kind:'tournament',position:index+1,name:s.name,group:s.group,record:`${s.wins} W · ${s.losses} L · ${s.played?s.winPct+'%':'—'}`,
+  stats:`${s.gamesWon}–${s.gamesLost} games · ${s.gameDiff>0?'+':''}${s.gameDiff} differential`,
+  actionAttributes:`data-tournament-entrant="${index}"`,
+ })).join('')
+ return heading+'<p class="league-finder-context">Tap an entry to see its matches. Set games exclude match-tiebreak points.</p>'+finder+'<p class="league-finder-summary" tabindex="-1" role="status" data-tournament-standings-status>Showing '+rows.length+' of '+d.standings.length+' published standings entries · selected division.</p>'+(standings?'<ol class="competition-standings tournament-standings" role="list">'+standings+'</ol>':'<div class="competition-empty"><h4>No entries fit these filters</h4><p>Try another name or group, or clear the entrant filters.</p></div>')
 }
 export function bindTournamentStandingsFinder(host:HTMLElement,active:()=>boolean,apply:(filters:TournamentStandingFilters)=>void){
  host.querySelector<HTMLFormElement>('[data-tournament-standings-finder]')?.addEventListener('submit',event=>{

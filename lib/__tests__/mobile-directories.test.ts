@@ -52,7 +52,7 @@ describe('native team and league discovery',()=>{
     const markup=leagueDetails({...league,leagueName:'<img src=x>',teamCount:Infinity})
     expect(markup).not.toContain('<img')
     expect(markup).toContain('Unavailable')
-    expect(markup).toContain('not a complete season record')
+    expect(markup).toContain('Counts cover the records available in the directory.')
   })
   it('uses one fixed public HTTPS endpoint, shares pending loads, and caches only success',async()=>{
     vi.resetModules()

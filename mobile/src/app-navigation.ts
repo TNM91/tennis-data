@@ -3,7 +3,7 @@ import {nativeActionIcon} from './native-action-icons'
 import {html} from './match-details'
 
 export type AppScreen='lab'|'explore'|'following'|'matchup'|'teams'|'compete'|'more'|'coach'
-export type AppDestination=AppScreen|'leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'|'coach-dates'|'updates'|'calendar'
+export type AppDestination=AppScreen|'leagues'|'browse-leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'|'coach-dates'|'updates'|'calendar'
 export type AppHub='compete'|'more'|'coach'
 export const mainTabs=[{screen:'lab',label:'My Lab',icon:'lab'},{screen:'explore',label:'Explore',icon:'explore'},{screen:'teams',label:'Chats',icon:'teams'},{screen:'compete',label:'Compete',icon:'compete'},{screen:'more',label:'More',icon:'more'}] as const
 export function currentTab(screen:AppScreen){return screen==='following'||screen==='matchup'||screen==='coach'?'more':screen}
@@ -13,8 +13,10 @@ const tools:Record<string,Tool>={
  personalCalendar:{destination:'calendar',title:'Calendar',detail:'Matches, lessons and practice.',icon:'calendar',keywords:'agenda schedule dates availability events personal plans competition coach sessions'},
  updates:{destination:'updates',title:'Updates',detail:'Your unread messages, schedule changes and account news.',icon:'alerts',keywords:'notifications unread alerts'},
  leagues:{destination:'leagues',title:'Leagues',detail:'Your entries, schedules, results and standings.',icon:'leagues'},
- leagueDiscovery:{destination:'leagues',title:'Leagues',detail:'Public TiQ seasons and your entries.',icon:'leagues'},
+ leagueDiscovery:{destination:'browse-leagues',title:'Browse leagues',detail:'Find public TiQ seasons.',icon:'leagues'},
+ leagueEntries:{destination:'leagues',title:'Your league entries',detail:'Check entry status, schedules and results.',icon:'inbox'},
  tournaments:{destination:'tournaments',title:'Tournaments',detail:'Events, entries and draws.',icon:'tournaments',keywords:'enter a division'},
+ tournamentDiscovery:{destination:'tournaments',title:'Browse tournaments',detail:'Find events, divisions and draws.',icon:'tournaments'},
  coach:{destination:'coach',title:'Coach & training',detail:'Lessons, drills and check-ins.',icon:'coach',keywords:'coaching students assignments weekly plans practice accept invitation invite'},
  following:{destination:'following',title:'Following',detail:'Players, teams and leagues you follow.',icon:'following',keywords:'saved favorites'},
  matchup:{destination:'matchup',title:'Matchup',detail:'Compare players before you play.',icon:'matchup',keywords:'prepare opponent'},
@@ -60,7 +62,7 @@ export function homeShortcutsHtml(){
 }
 export function appHubHtml(hub:AppHub,fromLab=false){
  const groups:{title:string;keys:string[];lane?:'player'|'studio'}[]=hub==='compete'
-  ?[{title:'Browse competitions',keys:['leagueDiscovery','tournaments']},{title:'Run your season',keys:['office','teams']}]
+  ?[{title:'Browse competitions',keys:['leagueDiscovery','tournamentDiscovery']},{title:'Your season',keys:['leagueEntries','teams','office']}]
   :hub==='coach'
    ?[{title:'Your game plan',keys:['lessonDates','inbox','connection','training','progress'],lane:'player'},{title:'Coach studio',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video'],lane:'studio'}]
    :[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]

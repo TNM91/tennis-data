@@ -1,8 +1,9 @@
-import type {RecentMatchRow} from './recent-results'
 import {RecordBars} from './record-graphics'
 import {PlayerRecordGraphics} from './player-record-graphics'
 import {NativePlayerSetScores} from './player-set-score-view'
-import {PlayerMatchTape} from './player-match-tape'
+import {PlayerMatchTape,type MatchTapeRivalry,type OpenMatchTapeScorecard} from './player-match-tape'
+import {createRef,useImperativeHandle,useState,type Ref} from 'react'
+import {flushSync} from 'react-dom'
 import {NativePlayerSeasonReview} from './player-season-review-view'
 import {PlayerMatchQuality} from '../../app/components/player-profile-overview'
 import {playerMatchQuality} from '../../lib/player-profile-overview'
@@ -18,8 +19,25 @@ import {getRatingViewLabel} from '../../lib/player-rating-display'
 import {journeyViews} from './player-journey-data'
 import {loadPlayerPerformance,playerPerformanceSummary,playerInsightSummary,type PlayerPerformanceData} from './player-performance-data'
 import {FollowAccessError} from './follows-data'
-export function PlayerPerformance({data,onRefresh,onOpenPlayer,format,playerName,playerId,onOpenScorecard}:{onOpenScorecard?:(row:RecentMatchRow)=>void;playerName?:string;playerId?:string;data:PlayerPerformanceData;format?:PlayerProfileFormat;onRefresh?:()=>void;onOpenPlayer?:(player:PlayerChoice)=>void}) {
+type OpenOpponentProfile=(player:PlayerChoice,trigger:HTMLButtonElement)=>void
+type MatchHistoryHandle={showMatchHistory:()=>void}
+type PlayerPerformanceProps={
+  data:PlayerPerformanceData
+  format?:PlayerProfileFormat
+  playerName?:string
+  playerId?:string
+  onRefresh?:()=>void
+  onOpenPlayer?:OpenOpponentProfile
+  onOpenScorecard?:OpenMatchTapeScorecard
+  matchHistoryRef?:Ref<MatchHistoryHandle>
+}
+export function PlayerPerformance({data,onRefresh,onOpenPlayer,format,playerName,playerId,onOpenScorecard,matchHistoryRef}:PlayerPerformanceProps) {
   const [view,setView]=usePlayerProfileFormat(format)
+  const [rivalry,setRivalry]=useState<MatchTapeRivalry|null>(null)
+  useImperativeHandle(matchHistoryRef,()=>({showMatchHistory:()=>{
+    // The native section button scrolls and focuses the restored heading immediately.
+    if(rivalry)flushSync(()=>setRivalry(null))
+  }}),[rivalry])
   const summary=playerPerformanceSummary(data,view),insight=playerInsightSummary(data,view),opponentBands=insight?.bands
   return <div className="website-ui"><h2>Performance</h2>
     {!summary?<p role="status">The loaded public match history is incomplete. Personal records and season totals are withheld until the complete record is available.</p>:<>
@@ -33,19 +51,65 @@ export function PlayerPerformance({data,onRefresh,onOpenPlayer,format,playerName
       {summary.careerHighs.peakRating!==null||summary.careerHighs.bestSeason?<PlayerCareerRecords careerHighs={summary.careerHighs} coverage="Best marks in this player’s recorded public history. Best season means most wins; ties keep the latest year."/>:null}
       {insight?<><p>{getRatingViewLabel(view)} comparisons use selected-format results and snapshots. Career streaks and the detailed year-by-year totals below use all formats.</p>{onRefresh&&(!data.insight?.player||!insight.reference)?<button type="button" className={styles.button} onClick={onRefresh}>Retry comparison data</button>:null}<PlayerBenchmarkPanel benchmark={insight.benchmark} reference={insight.reference} ratingNote={insight.usedOverall?'Missing split TIQ; the recorded Overall estimate is used.':undefined}/>
         {data.ratingsLimited?<p>Opponent breakdown is unavailable while rating history is incomplete.</p>:!data.insight?.player?<p>Player baseline details could not be loaded. Retry comparison data to check again.</p>:insight.baseline===null?<p>A verified published USTA baseline is needed for the opponent-strength breakdown.</p>:opponentBands?<PlayerOpponentQualityPanel bands={opponentBands} baseline={insight.baseline} matchCount={insight.matchCount} recordChart={<RecordBars label="Win rates by rated opponent strength" emptyLabel="No rated opponents in this band" rows={(['weaker','similar','stronger'] as const).map(key=>({key,label:key[0].toUpperCase()+key.slice(1)+' opponents',wins:opponentBands[key].w,losses:opponentBands[key].l}))}/>}/>:<p>No usable opponent ratings are recorded for this format yet.</p>}</>:null}
-      {data.repeatOpponents!==undefined?<section className={cards.panel} aria-label="Repeat opponents"><small className={cards.kicker}>Rivalry records</small><h2>Repeat opponents</h2><p>Players or doubles pairs faced at least twice. Records use all public decided matches, across formats.</p>{data.repeatOpponents===null?<><p role="status">Complete opponent records could not be confirmed. Head-to-head totals are withheld.</p>{onRefresh?<button type="button" className={styles.button} onClick={onRefresh}>Retry opponent records</button>:null}</>:data.repeatOpponents.length?<div className={cards.list}>{data.repeatOpponents.map(opponent=><article className={cards.season} key={opponent.key}><div className={cards.top}>{opponent.id&&onOpenPlayer?<button type="button" className={cards.opponent} onClick={()=>onOpenPlayer({id:opponent.id!,name:opponent.name.split(' / ')[0],location:null,flight:null})}>{opponent.name}<span className={cards.linkHint}>View {opponent.name.includes(' / ')?'first player’s':'player'} profile</span></button>:<strong>{opponent.name}</strong>}<span className={opponent.wins/opponent.total>=.7?cards.strong:opponent.wins/opponent.total<=.3?cards.struggling:cards.balanced}>{Math.round(opponent.wins/opponent.total*100)}% wins</span></div><p>{opponent.wins}W-{opponent.losses}L · {opponent.total} matches · Last played {opponent.lastDate.slice(0,10)}</p></article>)}</div>:<p>No repeat opponents in this player’s public decided history yet.</p>}</section>:null}
+      {data.repeatOpponents!==undefined?<section className={cards.panel} aria-label="Repeat opponents">
+        <small className={cards.kicker}>Rivalry records</small>
+        <h2 data-repeat-opponents-title>Repeat opponents</h2>
+        <p>Players or doubles pairs faced at least twice. Records use all public decided matches, across formats.</p>
+        {data.repeatOpponents===null?<><p role="status">Complete opponent records could not be confirmed. Head-to-head totals are withheld.</p>
+          {onRefresh?<button type="button" className={styles.button} onClick={onRefresh}>Retry opponent records</button>:null}</>
+        :data.repeatOpponents.length?<div className={cards.list}>{data.repeatOpponents.map(opponent=>{
+          const rate=opponent.wins/opponent.total
+          return <article className={cards.season} key={opponent.key}>
+            <div className={cards.top}>
+              {opponent.id&&onOpenPlayer?<button type="button" className={cards.opponent} onClick={event=>onOpenPlayer({
+                id:opponent.id!,name:opponent.name.split(' / ')[0],location:null,flight:null,
+              },event.currentTarget)}>{opponent.name}<span className={cards.linkHint}>View {opponent.name.includes(' / ')?'first player’s':'player'} profile</span></button>:<strong>{opponent.name}</strong>}
+              <span className={rate>=.7?cards.strong:rate<=.3?cards.struggling:cards.balanced}>{Math.round(rate*100)}% wins</span>
+            </div>
+            <p>{opponent.wins}W-{opponent.losses}L · {opponent.total} matches · Last played {opponent.lastDate.slice(0,10)}</p>
+            {data.opponentHistory?.length?<button type="button" className={cards.rivalryMeetings} aria-label={`View ${opponent.total} meetings with ${opponent.name}`} onClick={event=>{
+              const trigger=event.currentTarget
+              const scrollHost=trigger.closest('dialog[open]')
+              const scrollTop=scrollHost?.scrollTop??window.scrollY
+              setRivalry({opponent,onBack:()=>{
+                setRivalry(null)
+                if(trigger.isConnected){
+                  if(scrollHost)scrollHost.scrollTop=scrollTop
+                  else window.scrollTo(0,scrollTop)
+                  trigger.focus({preventScroll:true})
+                }
+              }})
+            }}><span>View {opponent.total} meetings</span><span aria-hidden="true">›</span></button>:null}
+          </article>
+        })}</div>:<p>No repeat opponents in this player’s public decided history yet.</p>}
+      </section>:null}
       {summary.seasons.length?<section className={cards.panel} aria-label="Year-by-year performance"><small className={cards.kicker}>Season history</small><h2>Year-by-year totals · all formats</h2><p>All-format match record, Singles/Doubles split and recorded rating movement by calendar year.</p><div className={cards.list}>{summary.seasons.map(season=><article className={cards.season} key={season.year}><div className={cards.top}><strong>{season.year}</strong><span>{season.winRate}% wins</span></div><dl className={cards.grid}><div><dt>Record</dt><dd>{season.wins}W-{season.losses}L</dd></div><div><dt>Singles</dt><dd>{season.singles}</dd></div><div><dt>Doubles</dt><dd>{season.doubles}</dd></div><div><dt>Recorded movement</dt><dd>{season.netDelta===null?'—':`${season.netDelta>0?'+':''}${season.netDelta.toFixed(3)}`}</dd></div></dl><p>{data.ratingsLimited?'Rating movement is unavailable while history is incomplete.':`${season.movementCount} of ${season.total} match movements recorded. Missing changes are not zero.`}</p></article>)}</div></section>:<p>No public decided matches are recorded yet. Season records appear after reviewed results connect to this player.</p>}
     </>}
-    <PlayerMatchTape data={data} view={view} onView={setView} onRefresh={onRefresh} playerId={playerId} onOpenScorecard={onOpenScorecard}/>
+    <PlayerMatchTape data={data} view={view} onView={setView} onRefresh={onRefresh} playerId={playerId} onOpenScorecard={onOpenScorecard} rivalry={rivalry}/>
     <p>TIQ is an estimate, not an official USTA rating. These are recorded results, not a forecast.</p>
   </div>
 }
-export function showPlayerPerformance(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean,onOpenPlayer?:(player:PlayerChoice)=>void,onSummary?:(data:PlayerPerformanceData|null,state:'loading'|'ready'|'denied'|'unavailable')=>void,format?:PlayerProfileFormat,playerName='Selected player',onOpenScorecard?:(row:RecentMatchRow)=>void) {
+export function showPlayerPerformance(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean,onOpenPlayer?:OpenOpponentProfile,onSummary?:(data:PlayerPerformanceData|null,state:'loading'|'ready'|'denied'|'unavailable')=>void,format?:PlayerProfileFormat,playerName='Selected player',onOpenScorecard?:OpenMatchTapeScorecard) {
   let disposed=false,request=0,root:ReturnType<typeof createRoot>|null=null
+  const matchHistoryRef=createRef<MatchHistoryHandle>()
   const valid=()=>!disposed&&current()&&host.isConnected
   const load=async()=>{if(!valid())return;const version=++request;onSummary?.(null,'loading');root?.unmount();root=null;host.innerHTML='<h2>Performance</h2><p role="status">Loading player performance…</p>'
-    try{const data=await loadPlayerPerformance(client,playerId,valid);if(!valid()||version!==request)return;onSummary?.(data,'ready');host.innerHTML='';root=createRoot(host);root.render(<PlayerPerformance data={data} format={format} playerName={playerName} playerId={playerId} onOpenScorecard={onOpenScorecard?row=>{if(valid()&&version===request)onOpenScorecard(row)}:undefined} onOpenPlayer={onOpenPlayer} onRefresh={()=>{void load()}}/>)}
+    try {
+      const data=await loadPlayerPerformance(client,playerId,valid)
+      if(!valid()||version!==request)return
+      onSummary?.(data,'ready')
+      host.innerHTML=''
+      root=createRoot(host)
+      root.render(<PlayerPerformance
+        data={data} format={format} playerName={playerName} playerId={playerId}
+        onOpenScorecard={onOpenScorecard?(row,source)=>{if(valid()&&version===request)onOpenScorecard(row,source)}:undefined}
+        onOpenPlayer={onOpenPlayer} onRefresh={()=>{void load()}} matchHistoryRef={matchHistoryRef}
+      />)
+    }
     catch(error){if(!valid()||version!==request)return;if(error instanceof FollowAccessError){onSummary?.(null,'denied');host.innerHTML='<h2>Performance</h2><p>Personal records and season analysis are included with Player access.</p>';return}onSummary?.(null,'unavailable');host.innerHTML='<h2>Performance</h2><p role="alert">Can’t load player performance. Check your connection and try again.</p><button type="button" class="secondary">Retry performance</button>';host.querySelector<HTMLButtonElement>('button')!.onclick=()=>{void load()}}
   };void load()
-  return {dispose:()=>{disposed=true;request++;root?.unmount();root=null;host.replaceChildren()}}
+  return {
+    showMatchHistory:()=>{if(valid())matchHistoryRef.current?.showMatchHistory()},
+    dispose:()=>{disposed=true;request++;root?.unmount();root=null;host.replaceChildren()},
+  }
 }

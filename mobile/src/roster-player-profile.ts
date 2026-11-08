@@ -10,13 +10,42 @@ export function rosterPlayerChoice(row:TeamRosterPlayer):PlayerChoice|null {
  return {id:player.id,name:player.name,location:player.location,flight:player.flight}
 }
 export function openRosterPlayerProfile(client:SupabaseClient,choice:PlayerChoice,current:()=>boolean,backLabel='Back to team roster',access?:PublicBrowseAccess):RosterPlayerProfile {
- const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,scroll={x:window.scrollX,y:window.scrollY},dialog=document.createElement('dialog'),host=document.createElement('div'),backButton=document.createElement('button')
- dialog.className='captain-lineup-dialog roster-player-dialog';dialog.setAttribute('aria-label',`${choice.name} player profile`);host.className='roster-player-content';host.setAttribute('data-roster-player','');backButton.type='button';backButton.className='secondary roster-profile-back';backButton.textContent=backLabel;dialog.append(backButton,host)
+ const previous=document.activeElement instanceof HTMLElement?document.activeElement:null
+ const previousDialog=previous?.closest('dialog[open]')
+ const scroll={x:previousDialog?.scrollLeft??window.scrollX,y:previousDialog?.scrollTop??window.scrollY}
+ const dialog=document.createElement('dialog'),host=document.createElement('div'),backButton=document.createElement('button')
+ const backArrow=document.createElement('span'),backText=document.createElement('span')
+ backArrow.textContent='‹';backArrow.setAttribute('aria-hidden','true');backText.textContent=backLabel
+ backButton.type='button';backButton.className='secondary roster-profile-back';backButton.append(backArrow,backText)
+ dialog.className='captain-lineup-dialog roster-player-dialog';dialog.setAttribute('aria-label',`${choice.name} player profile`)
+ host.className='roster-player-content';host.setAttribute('data-roster-player','');dialog.append(backButton,host)
  let disposed=false,profile:ReturnType<typeof import('./explore').showExplore>|null=null
  const valid=()=>!disposed&&current()&&dialog.isConnected
- const dispose=()=>{if(disposed)return;disposed=true;profile?.dispose();profile=null;dialog.remove();if(current()){window.scrollTo(scroll.x,scroll.y);if(previous?.isConnected)previous.focus({preventScroll:true})}}
+ const dispose=()=>{
+  if(disposed)return
+  disposed=true;profile?.dispose();profile=null;dialog.remove()
+  if(!current())return
+  if(previousDialog){if(previousDialog.isConnected)previousDialog.scrollTo(scroll.x,scroll.y)}
+  else window.scrollTo(scroll.x,scroll.y)
+  if(previous?.isConnected)previous.focus({preventScroll:true})
+ }
  const back=()=>{if(disposed)return false;if(profile?.back())return true;dispose();return true}
- backButton.onclick=dispose;dialog.oncancel=e=>{e.preventDefault();back()};host.innerHTML='<p role="status">Loading player profile...</p>';document.body.append(dialog);dialog.showModal();backButton.focus()
- const load=async()=>{try{let owner:string|undefined;if(!access){const {data,error}=await client.auth.getSession();if(error||!data.session||!valid())throw Error('Visit closed.');owner=data.session.user.id}if(!valid())return;const playerView=await import('./explore');if(!access){const next=await client.auth.getSession();if(next.error||next.data.session?.user.id!==owner)throw Error('Visit closed.')}if(!valid())return;profile=playerView.showExplore(host,client,valid,{player:choice,back:dispose,backLabel,localMatches:true,scrollHost:dialog,hideRootBack:true,onPlayerChange:nextPlayer=>dialog.setAttribute('aria-label',`${nextPlayer.name} player profile`)},'',access)}catch{if(valid()){host.innerHTML='<p role="alert">The player profile could not be opened. Return and try again.</p>';backButton.focus()}}}
+ backButton.onclick=back;dialog.oncancel=e=>{e.preventDefault();back()};host.innerHTML='<p role="status">Loading player profile...</p>';document.body.append(dialog);dialog.showModal();backButton.focus()
+ const load=async()=>{
+  try{
+   let owner:string|undefined
+   if(!access){const {data,error}=await client.auth.getSession();if(error||!data.session||!valid())throw Error('Visit closed.');owner=data.session.user.id}
+   if(!valid())return
+   const playerView=await import('./explore')
+   if(!access){const next=await client.auth.getSession();if(next.error||next.data.session?.user.id!==owner)throw Error('Visit closed.')}
+   if(!valid())return
+   profile=playerView.showExplore(host,client,valid,{
+    player:choice,back:dispose,backLabel,localMatches:true,scrollHost:dialog,
+    setBackLabel:label=>{backText.textContent=label},
+   },'',access)
+  }catch{
+   if(valid()){host.innerHTML='<p role="alert">The player profile could not be opened. Return and try again.</p>';backButton.focus()}
+  }
+ }
  void load();return {dispose,back,isOpen:()=>!disposed}
 }

@@ -3,6 +3,7 @@ import {renderToStaticMarkup} from 'react-dom/server'
 import {parsePlayerPerformance,type PlayerPerformanceData} from '../../mobile/src/player-performance-data'
 import {matchTapeScorecard} from '../../mobile/src/player-match-tape-scorecard'
 import {PlayerMatchTape} from '../../mobile/src/player-match-tape'
+import {parseOpponentHistory} from '../../mobile/src/player-repeat-opponents'
 const raw={id:'match',match_date:'2025-10-20',match_type:'doubles',score:'6-4 3-6 10-8',league_name:'City League',winner_side:'A',public_history_eligible:true,match_players:[{player_id:'selected',side:'B'}]}
 const parse=()=>parsePlayerPerformance([raw],[],'selected','2026-10-27')
 describe('full scorecards from filtered public history',()=>{
@@ -22,8 +23,18 @@ describe('full scorecards from filtered public history',()=>{
   const data=parsePlayerPerformance([{...raw,score:null,league_name:'x'.repeat(201)}],[],'selected','2026-10-27');expect(matchTapeScorecard(data,'match','selected')).toMatchObject({score:null,league_name:null})
  })
  it('renders full scorecard actions only when both selected identity and navigation exist',()=>{
-  const data=parse(),render=(props:Partial<Parameters<typeof PlayerMatchTape>[0]>={})=>renderToStaticMarkup(<PlayerMatchTape data={data} view="overall" onView={()=>{}} {...props}/> )
-  expect(render()).not.toContain('Open full scorecard');expect(render({playerId:'selected'})).not.toContain('Open full scorecard');expect(render({playerId:'selected',onOpenScorecard:()=>{}})).toContain('Open full scorecard, Oct 20, 2025, doubles');expect(render({playerId:'other',onOpenScorecard:()=>{}})).not.toContain('Open full scorecard')
+  const source=parse()
+  const participants=[['selected','Jordan','B',1],['partner','Casey','B',2],['opponent-1','Drew','A',1],['opponent-2','Alex','A',2]] as const
+  const rows=participants.map(([player_id,name,side,seat])=>({match_id:raw.id,player_id,side,seat,players:{id:player_id,name}}))
+  const data={...source,opponentHistory:parseOpponentHistory(rows,rows.length,source.matches,'selected')}
+  const render=(props:Partial<Parameters<typeof PlayerMatchTape>[0]>={})=>renderToStaticMarkup(<PlayerMatchTape data={data} view="overall" onView={()=>{}} {...props}/> )
+  expect(render()).not.toContain('Open full scorecard')
+  expect(render({playerId:'selected'})).not.toContain('Open full scorecard')
+  const scorecard=render({playerId:'selected',onOpenScorecard:()=>{}})
+  expect(scorecard).toContain('Open full scorecard. Lost. Doubles · Oct 20, 2025. vs Drew / Alex. 6-4 3-6 10-8. With Casey')
+  expect(scorecard).not.toContain('<details')
+  expect(render({playerId:'other',onOpenScorecard:()=>{}})).toContain('View recorded result')
+  expect(render({playerId:'other',onOpenScorecard:()=>{}})).not.toContain('Open full scorecard')
  })
  it('summarizes every filtered result even when only twenty rows are rendered',()=>{
   const source=parse(),data:PlayerPerformanceData={...source,matches:Array.from({length:45},(_,i)=>({...source.matches[0],id:'m'+i,result:i<30?'W':'L'}))}

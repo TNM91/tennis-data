@@ -16,6 +16,26 @@ const chatStartActions={
  coach:{title:'Accept coach invitation',detail:'Start a private chat with your coach.',icon:websiteUi.icons.coach},
 } as const
 
+export function chatsFilterFeedbackHtml(kind:'team'|'coach'){
+ const status=kind==='team'?'data-chats-status':'data-coach-chat-status'
+ return `<div class="chats-filter-feedback">
+  <p class="chats-inbox-status" role="status" ${status}></p>
+  <button type="button" class="secondary" data-clear-chat-filters hidden>Clear filters</button>
+ </div>`
+}
+
+export function chatsFilterStatus(kind:'team'|'coach',query:string,unreadOnly:boolean,matched:number,visible:number,unknown:boolean){
+ if(!query&&!unreadOnly)return ''
+ const noun=kind==='team'?'team':'conversation'
+ if(!matched)return `No ${noun}s match your search.`
+ if(!visible){
+  if(unknown)return kind==='team'?'Unread counts unavailable. Refresh teams to try again.':'Unread counts unavailable for some conversations. Refresh to try again.'
+  return query?`No unread messages in matching ${noun}s.`:'You’re all caught up.'
+ }
+ const count=`${visible} ${noun}${visible===1?'':'s'}`
+ return unreadOnly?count+' with unread messages'+(unknown?' · Some unread counts are unavailable.':''):count+' found'
+}
+
 export function chatsStartActionHtml(kind:keyof typeof chatStartActions){
  const action=chatStartActions[kind],id='chats-'+kind+'-start'
  return `<div class="native-entry-list chats-start-action">
@@ -43,8 +63,8 @@ export function chatsInboxHtml(data:NativeTeamData){
    <div class="chats-inbox-filters" role="group" aria-label="Show teams"><button type="button" class="secondary" data-chats-filter="all" aria-pressed="true">All</button><button type="button" class="secondary" data-chats-filter="unread" aria-pressed="false">Unread</button></div>
   </div>
  </details>
+ ${chatsFilterFeedbackHtml('team')}
  ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}"><span class="chats-team-avatar" aria-hidden="true">${html(team.teamName.trim().slice(0,1).toUpperCase())}</span><span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(team.leagueName)}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:chatsStartActionHtml('team')}
- <p class="chats-inbox-status" role="status" data-chats-status></p>
  <button type="button" class="secondary" id="refresh-team">Refresh teams</button></section><div id="chats-coach-inbox" data-coach-chats></div><section class="chat-notification-settings" data-chat-notifications aria-label="Chat notifications"></section>`
 }
 
@@ -55,6 +75,8 @@ export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsIn
  const filters=host.querySelector<HTMLDetailsElement>('[data-team-chat-filters]')!
  const filtersSummary=filters.querySelector<HTMLElement>('summary')!
  const filtersActive=filters.querySelector<HTMLElement>('[data-team-filter-active]')!
+ const clear=host.querySelector<HTMLButtonElement>('#chats-team-inbox [data-clear-chat-filters]')!
+ const status=host.querySelector<HTMLElement>('[data-chats-status]')!
  filters.open=filter.filtersOpen
  filters.addEventListener('toggle',()=>{if(filters.isConnected)filter.filtersOpen=filters.open},{signal:events.signal})
  search.value=filter.query
@@ -86,13 +108,14 @@ export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsIn
    if(status.textContent!==label)status.textContent=label
    status.toggleAttribute('data-has-unread',!noTeams&&Boolean(count))
   }
-  const query=findText(filter.query);let visible=0,unknown=0
-  filtersActive.hidden=!query&&!filter.unreadOnly
+  const query=findText(filter.query);let matched=0,visible=0,unknown=false
+  filtersActive.hidden=clear.hidden=!teams.length||(!query&&!filter.unreadOnly)
   for(const button of host.querySelectorAll<HTMLButtonElement>('[data-chats-filter]'))button.setAttribute('aria-pressed',String((button.dataset.chatsFilter==='unread')===filter.unreadOnly))
   for(const row of host.querySelectorAll<HTMLElement>('[data-chat-team-row]')){
    const team=teams[Number(row.dataset.chatTeamRow)],teamCounts=counts(team),card=row.querySelector<HTMLButtonElement>('[data-open-team-chat]')!,rooms=row.querySelector<HTMLUListElement>('[data-unread-rooms]')!
-   if(!teamCounts)unknown++
-   const shown=findText([team.teamName,team.leagueName,team.flight].join(' ')).includes(query)&&(!filter.unreadOnly||Boolean(teamCounts?.unread))
+   const matches=findText([team.teamName,team.leagueName,team.flight].join(' ')).includes(query)
+   if(matches){matched++;unknown||=!teamCounts}
+   const shown=matches&&(!filter.unreadOnly||Boolean(teamCounts?.unread))
    const wasFocused=row.contains(document.activeElement);row.hidden=!shown;if(shown)visible++
    const destinations=[...(teamCounts?.generalUnread?[{id:'',name:'General',unread:teamCounts.generalUnread}]:[]),...(teamCounts?.rooms||[]).filter(room=>room.unread>0)]
    const remaining=new Set(destinations.map(room=>room.id));let removedFocus=false
@@ -112,9 +135,17 @@ export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsIn
    }
    else if(removedFocus)card.focus({preventScroll:true})
   }
-  const status=host.querySelector<HTMLElement>('[data-chats-status]')!
-  status.textContent=!teams.length||!query&&!filter.unreadOnly?'':!visible?(filter.unreadOnly&&unknown?'Unread counts unavailable. Refresh teams to try again.':query?'No teams match your search.':filter.unreadOnly?'You’re all caught up.':'No teams to show.'):`${visible} ${visible===1?'team':'teams'}${filter.unreadOnly?' with unread messages':''}${filter.unreadOnly&&unknown?' · Some unread counts are unavailable.':''}`
+  const message=teams.length?chatsFilterStatus('team',query,filter.unreadOnly,matched,visible,unknown):''
+  if(status.textContent!==message)status.textContent=message
  }
+ clear.addEventListener('click',()=>{
+  if(!active())return
+  filter.query=search.value=''
+  filter.unreadOnly=false
+  paint()
+  const target=filters.open?filters.querySelector<HTMLButtonElement>('[data-chats-filter="all"]'):filtersSummary
+  target?.focus()
+ },{signal:events.signal})
  search.addEventListener('input',()=>{filter.query=search.value.slice(0,160);paint()},{signal:events.signal})
  host.querySelectorAll<HTMLButtonElement>('[data-chats-filter]').forEach(button=>button.addEventListener('click',()=>{filter.unreadOnly=button.dataset.chatsFilter==='unread';paint()},{signal:events.signal}))
  host.querySelectorAll<HTMLButtonElement>('[data-open-team-chat]').forEach(button=>button.addEventListener('click',()=>{const team=teams[Number(button.dataset.openTeamChat)];if(team)open(team)},{signal:events.signal}))

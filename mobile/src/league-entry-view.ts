@@ -21,14 +21,16 @@ export function entryReviewHtml(r:EntryReview,d:EntryDraft,busy=false){
   '</fieldset><button type="submit" data-entry-submit '+(busy||!d.name.trim()||!entryCanSubmit(r,d)?'disabled':'')+'>'+(busy?'Sending request…':'Request entry')+'</button></form>')
 }
 const canAnswer=(r:EntryReview,d:EntryDraft)=>r.format==='individual'&&!!r.receipts.find(e=>e.information)&&(!r.requirement.ageDivision||d.ageAttested)&&(r.requirement.mixedPairRole==='unknown'||d.divisionAttested)
-export function openLeagueEntry(client:SupabaseClient,owner:string,current:()=>boolean,leagueId:string,onClose:()=>void,send?:ScenarioSend){
+export function openLeagueEntry(client:SupabaseClient,owner:string,current:()=>boolean,leagueId:string,onClose:()=>void,send?:ScenarioSend,origin:'league'|'entries'='league'){
  const dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog competitions-dialog league-entry-dialog';dialog.setAttribute('aria-label','League entry')
  let disposed=false,version=0,busy=false,uncertain=false,review:EntryReview|null=null,draft:EntryDraft={name:'',rating:null,ageAttested:false,divisionAttested:false},notice='',saved:EntryReceipt|null=null,reviewedDigest=''
  const active=()=>!disposed&&current(),dispose=()=>{if(disposed)return;disposed=true;version++;review=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();onClose()},hidden=()=>{if(document.visibilityState==='hidden')dispose()}
  const focus=()=>dialog.querySelector<HTMLElement>('[data-entry-notice]')?.focus({preventScroll:true})
  const render=()=>{
   if(!active())return
-  dialog.innerHTML='<header class="competition-header"><button type="button" class="secondary" data-entry-close>← League</button><button type="button" class="secondary" data-entry-check '+(busy?'disabled':'')+'>Check entry status</button></header><div class="competition-hero entry-hero"><small>League registration</small><h2 tabindex="-1">'+(saved?'Your entry':'Join the season')+'</h2></div>'+(saved?'<section class="entry-receipts" aria-label="Your saved entry">'+receiptHtml(saved)+'</section>':review?entryReviewHtml(review,draft,busy):'')+'<p role="'+(notice&&!busy&&(!saved||uncertain)?'alert':'status')+'" tabindex="-1" data-entry-notice>'+html(notice)+'</p>'+(uncertain?'<p class="entry-note">Check entry status before sending another request. A lost connection does not mean it was not saved.</p>':'')
+  const backLabel=origin==='entries'?'← Your entries':'← League'
+  const title=saved||review?.receipts.length||(!review&&origin==='entries')?'Your entry':'Join the season'
+  dialog.innerHTML='<header class="competition-header"><button type="button" class="secondary" data-entry-close>'+backLabel+'</button><button type="button" class="secondary" data-entry-check '+(busy?'disabled':'')+'>Check entry status</button></header><div class="competition-hero entry-hero"><small>League registration</small><h2 tabindex="-1">'+title+'</h2></div>'+(saved?'<section class="entry-receipts" aria-label="Your saved entry">'+receiptHtml(saved)+'</section>':review?entryReviewHtml(review,draft,busy):'')+'<p role="'+(notice&&!busy&&(!saved||uncertain)?'alert':'status')+'" tabindex="-1" data-entry-notice>'+html(notice)+'</p>'+(uncertain?'<p class="entry-note">Check entry status before sending another request. A lost connection does not mean it was not saved.</p>':'')
   if(uncertain)dialog.querySelector<HTMLButtonElement>('[data-entry-submit]')?.setAttribute('disabled','')
   dialog.querySelector('[data-entry-close]')?.addEventListener('click',dispose)
   dialog.querySelector('[data-entry-check]')?.addEventListener('click',()=>{void load()})

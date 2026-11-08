@@ -1,8 +1,10 @@
 import type {OfficeDetail,OfficeParticipant} from '../../lib/native-league-office-contract'
 import type {TiqTeamStandingRow} from '../../lib/tiq-team-standings'
 import {html} from './match-details'
-import {leagueTeamOpenHtml} from './league-team-evidence'
+import {leagueTeamActionAttributes,leagueTeamOpenHtml} from './league-team-evidence'
 import {leaguePlayerOpenHtml} from './league-player-evidence'
+import {competitionFiltersHtml} from './competition-filters'
+import {competitionStandingHtml} from './competition-standing'
 
 export type LeagueListFilters={query:string;status:string}
 export const emptyLeagueListFilters=():LeagueListFilters=>({query:'',status:''})
@@ -28,7 +30,13 @@ export function leagueStandingsViewHtml(d:OfficeDetail,filters:LeagueListFilters
  if(d.league.format==='individual')return heading+'<p>This is an individual league. Open Results to review recorded player matches.</p>'
  if(!d.standingsAvailable||d.moreResults)return heading+'<p>Standings are withheld because this loaded result sample is incomplete. A partial sample cannot establish season standings.</p>'
  const rows=filterLeagueStandings(d.standings,filters)
- return heading+'<p class="league-finder-context">Recorded court results use this league’s website scoring and standings rules. Unplayed events do not count as wins, losses or ties.</p>'+finderHtml(true,filters,false)+summaryHtml(rows.length,d.standings.length,'teams',false)+(rows.length?'<ol class="team-members league-standings" role="list">'+rows.map(({row:p,position})=>'<li value="'+position+'"><span class="standing-position"><span class="sr-only">List position </span>'+position+'</span><div class="standing-identity"><strong>'+html(p.teamName)+'</strong><span>'+p.wins+' W · '+p.losses+' L · '+p.ties+' T</span></div><p class="standing-stat-line">'+p.lineWins+' courts won · '+p.lineLosses+' lost · '+Number(p.points.toFixed(2))+' points</p>'+leagueTeamOpenHtml(d,p.teamName,'standings')+'</li>').join('')+'</ol>':emptyHtml(d.standings.length,'teams'))
+ const finder=competitionFiltersHtml('standings',finderHtml(true,filters,false),Number(Boolean(normalized(filters.query))))
+ const standings=rows.map(({row:p,position})=>competitionStandingHtml({
+  kind:'league',position,name:p.teamName,record:`${p.wins} W · ${p.losses} L · ${p.ties} T`,
+  stats:`Courts ${p.lineWins}–${p.lineLosses} · ${Number(p.points.toFixed(2))} points`,
+  actionAttributes:leagueTeamActionAttributes(d,p.teamName,'standings'),
+ })).join('')
+ return heading+'<p class="league-finder-context">League scoring applies to played matches. Tap a team to see its matches.</p>'+finder+summaryHtml(rows.length,d.standings.length,'teams',false)+(standings?'<ol class="competition-standings league-standings" role="list">'+standings+'</ol>':emptyHtml(d.standings.length,'teams'))
 }
 export function bindLeagueListFinder(host:HTMLElement,active:()=>boolean,apply:(filters:LeagueListFilters)=>void){
  host.querySelector<HTMLFormElement>('[data-league-list-finder]')?.addEventListener('submit',event=>{event.preventDefault();if(!active())return;const form=new FormData(event.currentTarget as HTMLFormElement),status=String(form.get('status')||'');apply({query:String(form.get('query')||'').slice(0,160).trim(),status:Object.hasOwn(statuses,status)?status:''})})

@@ -1,4 +1,5 @@
 import type { TiqTournamentRecord } from './tiq-tournament-registry'
+import { formatCalendarDay, isValidCalendarDate } from './calendar-date'
 
 export type TournamentEventDetails = {
   subtitle?: string
@@ -23,12 +24,6 @@ function text(value: unknown, max = 500) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-function isDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
-  const date = new Date(`${value}T12:00:00Z`)
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
-}
-
 export function normalizeTournamentEventDetails(value: unknown): TournamentEventDetails {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   const input = value as Record<string, unknown>
@@ -42,7 +37,7 @@ export function normalizeTournamentEventDetails(value: unknown): TournamentEvent
   const startsAt = text(input.startsAt)
   if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(startsAt)) details.startsAt = startsAt
   const deadline = text(input.registrationClosesOn)
-  if (isDate(deadline)) details.registrationClosesOn = deadline
+  if (isValidCalendarDate(deadline)) details.registrationClosesOn = deadline
   const zone = text(input.timeZone, 100)
   if (zone) {
     try { new Intl.DateTimeFormat('en-US', { timeZone: zone }); details.timeZone = zone } catch { /* Leave an invalid zone unset. */ }
@@ -60,9 +55,7 @@ export function normalizeTournamentEventDetails(value: unknown): TournamentEvent
 }
 
 export function formatTournamentEventDate(value: string, short = false) {
-  return isDate(value) ? new Intl.DateTimeFormat('en-US', {
-    timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric', ...(short ? {} : { year: 'numeric' as const }),
-  }).format(new Date(`${value}T12:00:00Z`)) : 'Date to be confirmed'
+  return formatCalendarDay(value, !short)
 }
 
 export function formatTournamentEventTime(value?: string) {
@@ -83,7 +76,7 @@ export function isTournamentEventRegistrationClosed(event: Pick<TiqTournamentRec
     timeZone: details.timeZone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(now)
   const cutoff = details.registrationClosesOn || event.startsOn
-  return isDate(cutoff) && cutoff < today
+  return isValidCalendarDate(cutoff) && cutoff < today
 }
 
 export function buildTournamentEventSignupHref(event: TiqTournamentRecord, division?: TiqTournamentRecord) {

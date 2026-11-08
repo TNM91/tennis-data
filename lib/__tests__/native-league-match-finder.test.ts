@@ -20,12 +20,34 @@ describe('league match discovery keeps team and court evidence separate',()=>{
   expect(filterLeagueFixtures(d.fixtures,{...emptyLeagueMatchFilters(),query:'[Crew]'}).map(r=>r.id)).toEqual(['other'])
   expect(filterLeagueFixtures(d.fixtures,{...filters,status:'confirmed'})).toEqual([])
  })
+ it('shares a date heading across match statuses and keeps undated fixtures last',()=>{
+  const d=competitionDetail(),[confirmed,cancelled]=d.fixtures
+  const proposed={...confirmed,id:'proposal',date:'2026-11-06T00:00:00Z',time:'9:30',status:'proposed'}
+  const unknown={...cancelled,id:'unknown',date:'',time:'',facility:''}
+  d.fixtures=[unknown,cancelled,confirmed,proposed]
+  const filters=emptyLeagueMatchFilters()
+  expect(filterLeagueFixtures(d.fixtures,filters).map(f=>f.id)).toEqual(['proposal','fixture-one','fixture-cancelled','unknown'])
+  expect(filterLeagueFixtures(d.fixtures,{...filters,day:'2026-11-06'})).toEqual([proposed,confirmed])
+  const markup=leagueMatchViewHtml(d,'fixtures')
+  expect(markup).toContain('<h4>Friday, November 6, 2026</h4><small>2 matches</small>')
+  expect(markup.indexOf('9:30 AM')).toBeLessThan(markup.indexOf('6:30 PM'))
+  expect(markup).toContain('data-fixture-state="proposed">Proposed')
+  expect(markup).toContain('data-fixture-state="cancelled">Cancelled')
+  expect(markup).toContain('<h4>Date to be confirmed</h4><small>1 match</small>')
+  expect(markup).toContain('Time to be confirmed')
+  expect(markup).toContain('Venue to be confirmed')
+  expect(markup).not.toContain('fixture-schedule-date')
+  expect(leagueFixtureHtml(confirmed)).toContain('fixture-schedule-date')
+ })
  it('searches recorded court players without treating the team winner as a player win',()=>{
   const d=competitionDetail();d.results.push({...d.results[0],id:'other',a:'Other team',b:'Another team',courts:[]})
   const filters={query:'jordan',day:'',status:''},rows=filterLeagueResults(d.results,filters)
   expect(rows.map(r=>r.id)).toEqual(['event-one']);expect(rows[0].winner).toBe('Baseline Aces')
   const rendered=leagueMatchViewHtml(d,'results',filters)
-  expect(rendered).toContain('Team winner: Baseline Aces');expect(rendered).toContain('Court winner: Alex &amp; Jordan');expect(rendered).toContain('<details open>');expect(rendered).toContain('1 of 2 loaded team results')
+  expect(rendered).toContain('<dt>Team winner</dt><dd data-recorded-winner>Baseline Aces</dd>')
+  expect(rendered).toContain('<dt>Court winner</dt><dd data-recorded-winner>Alex &amp; Jordan</dd>')
+  expect(rendered).toContain('<dt>Score</dt><dd>6-4, 6-3</dd>')
+  expect(rendered).toContain('<details open>');expect(rendered).toContain('1 of 2 loaded team results')
   expect(rendered).not.toContain('14 points');expect(d.standings[0].wins).toBe(1)
  })
  it('keeps schedule and result filters independent between visits',()=>{
@@ -59,7 +81,7 @@ describe('league match discovery keeps team and court evidence separate',()=>{
  it('keeps missing individual winners unrecorded without adding team claims',()=>{
   const d=competitionDetail();d.league.format='individual';d.results=[{id:'single',date:'2026-10-23',a:'Alex',b:'Casey',winner:'',score:'6-4',courts:[]}]
   const rendered=leagueMatchViewHtml(d,'results')
-  expect(rendered).toContain('Winner not recorded');expect(rendered).toContain('1 of 1 loaded player results');expect(rendered).not.toContain('Team winner');expect(rendered).not.toContain('individual player win')
+  expect(rendered).toContain('<dt>Winner</dt><dd>Not recorded</dd>');expect(rendered).toContain('<dt>Score</dt><dd>6-4</dd>');expect(rendered).toContain('1 of 1 loaded player results');expect(rendered).not.toContain('Team winner');expect(rendered).not.toContain('individual player win')
  })
  it('escapes search controls and saved names, including literal HTML-like player queries',()=>{
   const d=competitionDetail();d.results[0].courts[0].a='<Alex>';d.results[0].a='<Aces>'

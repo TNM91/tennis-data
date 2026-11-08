@@ -35,5 +35,17 @@ describe('public TiQ competitions through caller RLS',()=>{
 describe('native competition boundary and copy',()=>{
  it('rejects wrong owners, stale selections, bad zones and unapproved public rosters',()=>{const base=competitionSnapshot();for(const data of [{...base,owner:'other'},{...base,scope:'discover'},{...base,leagues:[{...base.leagues[0],timeZone:'invalid/zone'}]},{...base,connections:[{leagueId:'foreign',kind:'team',status:'active'}]}])expect(()=>readCompetitionSnapshot({ok:true,...data},owner,'mine','','')).toThrow();const detail=competitionDetail();detail.participants[0].status='pending';expect(()=>readCompetitionSnapshot({ok:true,...base,detail},owner,'mine','','league-one')).toThrow()})
  it('escapes records, keeps pending approval visible and separates canceled dates',()=>{const s=competitionSnapshot();s.leagues[0].name='<League>';expect(competitionCardsHtml(s)).toContain('&lt;League&gt;');expect(competitionCardsHtml(s)).toContain('Awaiting approval');const d=competitionDetail();expect(competitionSeasonHtml(d,'home','2026-11-01')).not.toContain('Cancelled');expect(competitionSeasonHtml(d,'fixtures')).toContain('Cancelled');expect(competitionSeasonHtml({...d,moreResults:true,standingsAvailable:false,standings:[]},'standings')).toContain('withheld')})
+ it('shows separate entry statuses and only offers direct receipt access for a personal entry',()=>{
+  const s=competitionSnapshot()
+  const organizer={leagueId:s.leagues[0].id,kind:'organizer',status:'active'} as const
+  s.connections.push({...organizer,kind:'team'},organizer)
+  const markup=competitionCardsHtml(s)
+  expect(markup).toContain('data-entry-status="pending">Awaiting approval')
+  expect(markup).toContain('data-entry-status="active">Approved')
+  expect(markup).toContain('Season you created')
+  expect(markup.match(/data-competition-league-entry=/g)).toHaveLength(1)
+  expect(competitionCardsHtml({...s,scope:'discover'})).not.toContain('data-competition-league-entry')
+  expect(competitionCardsHtml({...s,connections:[organizer]})).not.toContain('data-competition-league-entry')
+ })
  it('checks owner before and after native transport and keeps the URL/cache policy exact',async()=>{let current=true;const client={auth:{getSession:async()=>({data:{session:{user:{id:owner},access_token:'synthetic'}}})}} as unknown as SupabaseClient;const s=competitionSnapshot();const send=async(o:{url:string;headers?:Record<string,string>;disableRedirects?:boolean})=>{expect(o.url).toBe('https://www.tenaceiq.com/api/mobile/competitions?scope=mine&q=');expect(o.disableRedirects).toBe(true);expect(o.headers?.['Cache-Control']).toBe('no-store');return {status:200,data:{ok:true,...s},headers:{},url:o.url}};expect(await loadCompetitions(client,owner,()=>current,'mine','','',send)).toEqual(s);await expect(loadCompetitions(client,owner,()=>current,'mine','','',async o=>{current=false;return {status:200,data:{ok:true,...s},headers:{},url:o.url}})).rejects.toThrow();await expect(loadCompetitions(client,'other',()=>true,'mine','','',send)).rejects.toThrow()})
 })

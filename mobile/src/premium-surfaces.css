@@ -427,20 +427,20 @@ body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.0
  background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;
 }
 :is(.recent-match-list,.lab-breakdown-matches)>summary,
-:is(.recent-match-list,.lab-breakdown-matches) .recent-scorecard.secondary {
+:is(.recent-match-list,.lab-breakdown-matches,.player-scorecard-list) .recent-scorecard.secondary {
  display:grid;grid-template-columns:minmax(0,1fr) 24px;align-items:center;gap:8px;
  min-block-size:56px;padding:10px 12px;border:0;border-radius:0;color:var(--premium-white);text-align:start;
 }
 :is(.recent-match-list,.lab-breakdown-matches)>summary { cursor:pointer;list-style:none;border-radius:inherit; }
 :is(.recent-match-list,.lab-breakdown-matches)>summary::-webkit-details-marker { display:none; }
 :is(.recent-match-list,.lab-breakdown-matches) :is(summary,.recent-scorecard):focus-visible { outline-offset:-3px; }
-:is(.recent-match-list,.lab-breakdown-matches) .app-tool-copy { gap:3px; }
-:is(.recent-match-list,.lab-breakdown-matches) .app-tool-copy>span { font-size:.75rem;line-height:1.4; }
-:is(.recent-match-list,.lab-breakdown-matches) .app-tool-arrow { justify-self:center;color:var(--premium-ice);font-size:1.125rem; }
+:is(.recent-match-list,.lab-breakdown-matches,.player-scorecard-list) .app-tool-copy { gap:3px; }
+:is(.recent-match-list,.lab-breakdown-matches,.player-scorecard-list) .app-tool-copy>span { font-size:.75rem;line-height:1.4; }
+:is(.recent-match-list,.lab-breakdown-matches,.player-scorecard-list) .app-tool-arrow { justify-self:center;color:var(--premium-ice);font-size:1.125rem; }
 :is(.recent-match-list,.lab-breakdown-matches)[open]>summary .app-tool-arrow { transform:rotate(90deg); }
-:is(.recent-match-list,.lab-breakdown-matches) .matches li { margin:0;padding:0;border-block-start:1px solid var(--premium-line); }
+:is(.recent-match-list,.lab-breakdown-matches) .matches li,.player-scorecard-list.matches li { margin:0;padding:0;border-block-start:1px solid var(--premium-line); }
 #results-content .recent-scorecard.secondary,
-:is(.recent-match-list,.lab-breakdown-matches) .recent-scorecard.secondary { inline-size:100%;margin:0;background:transparent; }
+:is(.recent-match-list,.lab-breakdown-matches,.player-scorecard-list) .recent-scorecard.secondary { inline-size:100%;margin:0;background:transparent; }
 .recent-scorecard .app-tool-copy>strong { font-variant-numeric:tabular-nums; }
 .recent-scorecard-meta { display:flex;flex-wrap:wrap;gap:2px 8px; }
 .recent-scorecard-date::first-letter { text-transform:uppercase; }
@@ -510,13 +510,13 @@ body[data-screen] .lab-match-form-record .stat-donut-fill { stroke:var(--premium
 .app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-hub-tools {
  border-color:transparent;background:var(--premium-court-inlay);
 }
-.app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-tool-icon {
+.app-tools-hub[data-hub="compete"] .app-hub-tools .app-tool-icon {
  display:grid;place-items:center;flex:0 0 40px;block-size:40px;
  border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset);
 }
 .app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-tool-copy strong { font-size:1.125rem; }
 .app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-tool-copy>span { color:var(--premium-copy); }
-.app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-tool-arrow { color:var(--premium-lime); }
+.app-tools-hub[data-hub="compete"] :is(.app-hub-group:first-of-type,[data-app-destination="leagues"]) .app-tool-arrow { color:var(--premium-lime); }
 .app-tools-hub[data-hub="coach"] .app-hub-heading { padding:14px 16px; }
 .app-tools-hub[data-hub="coach"] .app-hub-heading h1 { margin:0 0 6px;font-size:1.625rem; }
 #app button.coach-hub-back.secondary {
@@ -607,23 +607,93 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
  .explore-search-panel .explore-categories { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 #app button.explore-back.secondary { inline-size:auto;min-block-size:44px;margin:0 0 12px;padding:8px 14px; }
-.explore-back[hidden] { display:none!important; }
-#explore-content .player-choices { display:grid;gap:8px;margin-block:12px; }
-#explore-content .player-choices>li {
- display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 10px;
- min-inline-size:0;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
- background:var(--premium-surface);overflow-wrap:anywhere;
+.explore-back[hidden],
+.explore-back:has(+ #explore-content :is(#directory-detail,#explore-player):not([hidden])) { display:none!important; }
+:is(#explore-status,#directory-status,#rankings-status) { overflow-wrap:anywhere; }
+:is(#explore-choices,#directory-choices,#rankings-rows) .explore-search-empty {
+ display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start;
+ margin:12px 0;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-card);box-shadow:inset 0 1px #b1e4ff20;overflow-wrap:anywhere;
 }
-#explore-content .player-choices>li:focus-within {
+.explore-search-empty-icon {
+ display:grid;place-items:center;inline-size:36px;block-size:36px;border:1px solid var(--premium-line);
+ border-radius:10px;background:var(--premium-inset);color:var(--premium-ice);
+}
+.explore-search-empty-icon svg { inline-size:18px;block-size:18px; }
+.explore-search-empty h2 { margin:0 0 4px;color:var(--premium-white);font-size:1rem;line-height:1.3; }
+.explore-search-empty p { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.5; }
+.explore-search-empty-actions { grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px; }
+.explore-search-empty .explore-search-empty-actions button.secondary {
+ flex:1 1 auto;inline-size:auto;max-inline-size:100%;min-block-size:44px;margin:0;padding:8px 12px;
+ border-color:var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);
+ color:var(--premium-white);font-size:.8125rem;white-space:normal;overflow-wrap:anywhere;
+}
+.explore-search-empty .explore-search-empty-actions button[data-explore-reset-search] { border-color:var(--premium-royal-line);color:var(--premium-lime); }
+.explore-result-list { display:grid;gap:8px;margin:12px 0;padding:0;list-style:none; }
+.explore-result-list>li { min-inline-size:0; }
+.explore-result-list button.explore-result-card.secondary {
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;
+ inline-size:100%;min-block-size:64px;margin:0;padding:12px 14px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-surface);color:var(--premium-white);
+ text-align:start;white-space:normal;overflow-wrap:anywhere;
+}
+.explore-result-list button.explore-result-card.secondary:is(:focus,:active) {
  border-color:var(--premium-royal-line);background:var(--premium-card);
 }
-#explore-content .player-choices :is(h2,.ranking-heading,.ranking-note) { grid-column:1 / -1; }
-#explore-content .player-choices h2 { margin:0;font-size:1rem;line-height:1.3; }
-#explore-content .player-choices p { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
-#explore-content .player-choices button.secondary {
- grid-column:2;grid-row:2;inline-size:auto;min-block-size:44px;margin:0;padding:8px 10px;
- border-color:var(--premium-line);background:var(--premium-inset);font-size:.8125rem;
+.explore-result-card:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
+.explore-result-main { display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:4px 8px; }
+.explore-result-main>strong { font-size:1rem;line-height:1.3; }
+.explore-result-context { grid-column:1/-1;color:var(--premium-copy);font-size:.8125rem;font-weight:400;line-height:1.45; }
+.explore-result-note { display:block;margin-block-start:3px;font-size:.75rem; }
+.explore-result-rating { color:var(--premium-lime);font-size:1.125rem;font-weight:750;font-variant-numeric:tabular-nums; }
+.explore-result-card .app-tool-arrow { color:var(--premium-ice);font-size:1.25rem;line-height:1; }
+#directory-detail { margin:0;padding:0;border:0;background:none;box-shadow:none;overflow-wrap:anywhere; }
+:is(#directory-detail>#directory-back,#explore-player>#back-explore) { inline-size:auto;max-inline-size:100%;min-block-size:44px;margin:0 0 12px;padding:8px 14px;font-size:.875rem;white-space:normal; }
+#directory-detail .directory-profile-header h1 { font-size:clamp(1.375rem,7.5vw,2rem); }
+#directory-detail .directory-profile-header p { max-inline-size:none; }
+#directory-detail .directory-profile-section {
+ margin-block:12px;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-surface);box-shadow:none;
 }
+.directory-profile-section h2 { margin:0 0 10px;font-size:1.0625rem; }
+.directory-season-stats { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+.directory-season-stats>div { padding:10px;border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset); }
+.directory-season-stats>div:last-child { grid-column:1/-1; }
+.directory-season-stats dt { color:var(--premium-copy);font-size:.75rem;line-height:1.4;text-transform:none;letter-spacing:normal; }
+.directory-season-stats dd { margin:4px 0 0;color:var(--premium-white);font-size:1.125rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.3; }
+.directory-season-stats>div:last-child dd { font-size:.9375rem; }
+.directory-profile-section .directory-profile-note { margin:10px 0 0;color:var(--premium-copy);font-size:.75rem;line-height:1.5; }
+.directory-fixtures { display:grid;gap:8px;margin:10px 0 0;padding:0;list-style:none; }
+.directory-fixtures .fixture-heading { color:var(--premium-ice);font-size:.75rem;font-weight:650; }
+.directory-fixtures .fixture-heading p { color:inherit; }
+.directory-fixtures .competition-status { padding:3px 8px;border-radius:12px;font-weight:600; }
+.directory-fixtures .competition-outcome { margin-block-end:0; }
+.directory-fixtures .directory-score-note { margin:0;color:var(--premium-copy);font-size:.75rem; }
+.native-profile-scoreboard [aria-label="Profile rating format"] button {
+ border:1px solid transparent;min-block-size:44px;white-space:normal;overflow-wrap:anywhere;
+}
+.native-profile-shortcuts { display:grid;gap:8px;margin-block:12px; }
+.native-profile-shortcuts button {
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;
+ inline-size:100%;min-block-size:44px;margin:0;padding:8px 12px;
+ border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-card);
+ color:var(--premium-white);font-size:.8125rem;font-weight:700;text-align:start;overflow-wrap:anywhere;cursor:pointer;
+}
+.native-profile-shortcuts .app-tool-arrow { color:var(--premium-ice);font-size:1.25rem; }
+.native-profile-shortcuts button:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
+#explore-results .player-scorecard-note { margin:10px 0;color:var(--premium-copy);font-size:.75rem;line-height:1.5; }
+#explore-results .player-scorecard-list { border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-surface);overflow:hidden; }
+.player-scorecard-list.matches>li:first-child { border-block-start:0; }
+.player-scorecard-list .recent-scorecard:focus-visible { outline-offset:-3px; }
+dialog.roster-player-dialog:has(>[data-roster-player]) {
+ padding:14px;border-color:var(--premium-line);background:var(--premium-page);
+}
+.roster-player-dialog>button.roster-profile-back:has(+ [data-roster-player]) {
+ display:inline-flex;align-items:center;gap:8px;inline-size:auto;max-inline-size:100%;min-block-size:44px;
+ margin:0 0 12px;padding:8px 12px;border-color:var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-inset);color:var(--premium-ice);font-size:.8125rem;text-align:start;white-space:normal;overflow-wrap:anywhere;
+}
+.roster-player-dialog>button.roster-profile-back>[aria-hidden] { font-size:1.25rem;line-height:1; }
 #following-list .following-tools,#following-list .following-card-actions {
  display:flex;flex-wrap:wrap;gap:8px;
 }
@@ -1047,6 +1117,9 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 :is(body[data-screen="lab"] #recent-results .match-filters,
     body[data-screen="lab"] .lab-form-filters,
     #following-list .match-filters,
+    #rankings-list .match-filters,
+    .native-profile-scoreboard [aria-label="Profile rating format"],
+    #explore-results .match-filters,
     #comparison-list>[role="group"],
     #comparison-result .match-filters,
     .coach-hub-lanes,
@@ -1217,7 +1290,16 @@ body[data-screen="teams"] #chats-team-inbox .chats-start-action #join-team {
 .chats-filter-drawer > summary::-webkit-details-marker { display:none; }
 .chats-filter-drawer > summary:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 .chats-filter-active { color:var(--premium-lime);font-size:.75rem; }
-.chats-filter-drawer[hidden],.chats-filter-active[hidden],.chats-inbox-status:empty { display:none!important; }
+.chats-filter-drawer[hidden],.chats-filter-active[hidden] { display:none!important; }
+.chats-filter-feedback { display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px; }
+.chats-filter-feedback .chats-inbox-status { flex:1 1 10rem;margin:0;color:var(--premium-copy);font-size:.75rem; }
+.chats-filter-feedback .chats-inbox-status:empty { position:absolute; }
+body[data-screen="teams"] .chats-filter-feedback button.secondary {
+ inline-size:auto;min-block-size:44px;margin:0;padding:6px 10px;border-color:var(--premium-line);
+ background:var(--premium-inset);color:var(--premium-ice);font-size:.75rem;
+}
+.chats-filter-feedback button:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
+.chats-filter-feedback button[hidden] { display:none; }
 body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-list { margin-block:4px 10px;gap:4px; }
 body[data-screen="teams"]:not(.native-chat-conversation) :is(#chats-team-inbox,#chats-coach-inbox) button.secondary:is(#refresh-team,[data-coach-chat-refresh]) {
  inline-size:auto;min-block-size:44px;margin:0;padding:6px 9px;
@@ -1270,8 +1352,17 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
  display:inline-flex;align-items:center;gap:8px;inline-size:auto;max-inline-size:100%;min-block-size:44px;
  margin:0 0 12px;padding:8px 10px;border:0;background:transparent;color:var(--premium-ice);font-size:.875rem;text-align:start;
 }
-#match-detail>#back-matches span { font-size:1.25rem;line-height:1; }
-.match-scorecard-hero { position:relative;isolation:isolate;overflow:hidden;padding:18px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22; }
+#match-detail>#back-matches [aria-hidden] { font-size:1.25rem;line-height:1; }
+#app #match-detail>#back-matches {
+ position:sticky;inset-block-start:calc(env(safe-area-inset-top,0px) + 6px);z-index:2;
+ border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-surface);box-shadow:0 4px 12px #02091399;
+}
+.match-scorecard-hero {
+ position:relative;isolation:isolate;overflow:hidden;padding:18px 14px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-panel-radius);box-shadow:inset 0 1px #b2c8ff22;
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card);
+}
 .match-scorecard-hero::after { content:"";position:absolute;z-index:-1;inset:0;pointer-events:none;background:linear-gradient(135deg,transparent 68%,#9cdaff0c 68%,#9cdaff0c calc(68% + 1px),transparent calc(68% + 1px)); }
 .match-scorecard-heading { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px; }
 #match-detail .match-scorecard-hero h1 { margin:0;font-size:clamp(1.375rem,6vw,1.875rem);line-height:1.15;letter-spacing:-.035em;overflow-wrap:anywhere; }
@@ -1286,22 +1377,43 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 #match-detail .match-recorded-score { margin:3px 0 0;color:var(--premium-white);font-size:1.375rem;font-weight:700;line-height:1.35;font-variant-numeric:tabular-nums;overflow-wrap:anywhere; }
 #match-detail .match-set-scores + .scorecard-recorded .match-recorded-score { font-size:.9375rem; }
 #match-detail .match-set-scores { margin:16px 0 0;padding:10px 8px 6px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);box-shadow:none; }
-#match-detail .match-set-scores h2 { margin:0 0 4px;padding-inline:4px;color:var(--premium-white);font-size:.875rem; }
+#match-detail .match-set-scores h2 { margin:0;color:var(--premium-white);font-size:.875rem; }
+#match-detail .match-section-heading {
+ display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+}
+#match-detail .match-set-scores .match-section-heading { padding:0 4px 4px; }
+#match-detail .match-court-players .match-section-heading { padding:12px 14px; }
+#match-detail [data-match-jump].secondary {
+ display:inline-flex;align-items:center;gap:6px;inline-size:auto;max-inline-size:100%;min-block-size:44px;
+ margin:0;padding:6px 9px;border:1px solid var(--premium-line);border-radius:10px;
+ background:var(--premium-surface);color:var(--premium-ice);font-size:.6875rem;text-align:start;
+}
+#match-detail [data-match-section] { scroll-margin-block-start:72px; }
+#app #match-detail [data-match-section] { scroll-margin-block-start:calc(env(safe-area-inset-top,0px) + 72px); }
+#match-detail [data-match-section]:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 #match-detail .match-set-scores th,#match-detail .match-set-scores td { border-block-end-color:var(--premium-line);padding:8px 4px; }
 #match-detail .match-set-scores th:first-child { inline-size:45%;font-size:.8125rem; }
+#match-detail .match-scorecard-name { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+#match-detail .match-scorecard-name + .match-scorecard-name { margin-block-start:2px; }
 #match-detail .match-set-scores thead { color:var(--premium-copy); }
 #match-detail .match-set-scores tbody tr:first-child { background:var(--premium-surface); }
+#match-detail .match-set-scores tbody tr[data-match-winner] { background:linear-gradient(90deg,#18352b,var(--premium-surface) 80%); }
+#match-detail .match-set-scores tr[data-match-winner]>th { box-shadow:inset 2px 0 var(--premium-lime);padding-inline-start:8px; }
 #match-detail .match-set-scores tbody tr:last-child>* { border-block-end:0; }
 #match-detail .match-set-scores td { font-size:1.25rem;line-height:1.3; }
-#match-detail .match-set-scores strong { display:inline-block;min-inline-size:1.3em;border-radius:6px;background:var(--premium-raised);color:var(--premium-ice);text-decoration:none; }
-#match-detail .match-set-scores tbody tr:first-child strong { color:var(--premium-lime); }
+#match-detail .match-set-scores strong { display:inline-block;min-inline-size:1.3em;border-radius:6px;background:#18352b;color:var(--premium-lime);text-decoration:none; }
+#match-detail .match-winner-marker {
+ display:inline-block;max-inline-size:100%;padding:2px 6px;border:1px solid #678b4c;border-radius:6px;
+ background:#18352b;color:var(--premium-lime);font-size:.625rem;font-weight:700;line-height:1.2;
+}
+#match-detail .match-set-scores .match-winner-marker { display:block;inline-size:fit-content;margin-block-start:4px; }
 #match-detail :is(.match-set-scores p,.scorecard-source-note) { margin:4px 0 0;color:var(--premium-copy);font-size:.6875rem;line-height:1.4; }
 #match-detail .match-set-scores p { padding-inline:4px;padding-block-end:4px; }
 #match-detail .match-court-players {
  min-inline-size:0;margin:16px 0 0;padding:0;border:1px solid var(--premium-line);
  border-radius:var(--premium-panel-radius);background:var(--premium-surface);box-shadow:none;
 }
-.match-court-players>h2 { margin:0;padding:14px;color:var(--premium-white);font-size:1.125rem; }
+.match-court-players h2 { margin:0;color:var(--premium-white);font-size:1.125rem; }
 #match-detail #match-players { min-inline-size:0; }
 #match-detail #match-players:not([data-state="ready"]) { padding:0 14px 14px; }
 #match-detail #match-players p { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.5;overflow-wrap:anywhere; }
@@ -1314,7 +1426,8 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
  display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0;padding:8px 14px;
  background:var(--premium-inset);color:var(--premium-copy);font-size:.75rem;line-height:1.4;
 }
-.match-side-card[data-own-side]>h3>span { color:var(--premium-lime);overflow-wrap:anywhere; }
+.match-side-card[data-own-side]>h3>.match-side-label { color:var(--premium-ice);overflow-wrap:anywhere; }
+.match-side-card>h3>.match-winner-marker { margin-inline-start:auto; }
 .match-participants { margin:0;padding:0;list-style:none; }
 .match-participants>li+li { border-block-start:1px solid var(--premium-line); }
 .match-side-card p { padding:12px 14px; }
@@ -1331,6 +1444,66 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 #match-detail :is(.match-participants,[data-share-scorecard]) .app-tool-arrow { justify-self:center;color:var(--premium-ice);font-size:1.125rem; }
 #match-detail .match-participants [data-match-player]:focus-visible { outline-offset:-3px; }
 
+dialog.shared-match-dialog[open] {
+ display:flex;flex-direction:column;min-inline-size:0;overflow:clip;padding:0;
+ max-block-size:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+ border-color:var(--premium-line);background:var(--premium-page);color:var(--premium-white);
+}
+.shared-match-toolbar {
+ display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;
+ flex:none;padding:8px 14px;border-block-end:1px solid var(--premium-line);
+ background:var(--premium-surface);color:var(--premium-ice);font-size:.8125rem;font-weight:700;
+}
+.shared-match-toolbar button.secondary {
+ inline-size:auto;min-block-size:44px;margin:0;padding:8px 12px;border-color:var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-inset);color:var(--premium-white);font-size:.8125rem;
+}
+.shared-match-toolbar button:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
+.shared-match-body {
+ min-block-size:0;min-inline-size:0;overflow-y:auto;overscroll-behavior:contain;
+ padding:14px;scroll-padding-block:12px;overflow-wrap:anywhere;
+}
+.shared-match-dialog #match-detail [data-match-section] { scroll-margin-block-start:0; }
+
+.scorecard-share-dialog {
+ min-inline-size:0;overflow-wrap:anywhere;overscroll-behavior:contain;
+ border-color:var(--premium-line);background:var(--premium-page);color:var(--premium-white);
+}
+.scorecard-share-dialog>h2 { margin:0 0 14px;font-size:1.2rem;line-height:1.25; }
+.scorecard-share-dialog>[role="status"]:not(:empty) {
+ margin:0 0 12px;padding:10px 12px;border-inline-start:2px solid var(--premium-royal-line);
+ border-radius:8px;background:var(--premium-inset);color:var(--premium-copy);font-size:.8125rem;
+}
+.scorecard-share-dialog .scorecard-share-card {
+ padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 75%),var(--premium-card);
+ box-shadow:inset 0 1px #b2c8ff22;
+}
+.scorecard-share-card .scorecard-share-context { margin:0;color:var(--premium-ice);font-size:.75rem; }
+.scorecard-share-card h3 { margin:4px 0 12px;font-size:1rem; }
+.scorecard-share-card dl { margin:0;padding-block-start:10px;border-block-start:1px solid var(--premium-line); }
+.scorecard-share-card dt { color:var(--premium-copy);font-size:.75rem; }
+.scorecard-share-card dd { margin:2px 0 0;font-size:1.25rem;font-weight:750;font-variant-numeric:tabular-nums; }
+.scorecard-share-message { margin:12px 0 0;padding:0 12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.scorecard-share-message summary {
+ display:flex;align-items:center;justify-content:space-between;gap:8px;min-block-size:44px;padding:8px 0;
+ color:var(--premium-ice);font-size:.8125rem;font-weight:650;cursor:pointer;list-style:none;
+}
+.scorecard-share-message summary::-webkit-details-marker { display:none; }
+.scorecard-share-message[open] summary>[aria-hidden] { transform:rotate(90deg); }
+.scorecard-share-message :is(.match-share-preview,.scorecard-share-url) {
+ margin:0 0 10px;font:inherit;font-size:.75rem;white-space:pre-wrap;color:var(--premium-copy);
+}
+.scorecard-share-message .scorecard-share-url { color:var(--premium-ice); }
+.scorecard-share-actions { display:flex;flex-wrap:wrap;gap:8px;margin-block-start:12px; }
+.scorecard-share-dialog :is(.scorecard-share-actions,.scorecard-share-message) button {
+ flex:1 1 10rem;min-inline-size:0;min-block-size:44px;margin:0;padding:8px 12px;font-size:.8125rem;white-space:normal;
+}
+.scorecard-share-dialog .scorecard-share-message button { margin-block-end:10px; }
+.scorecard-share-actions button:not(.secondary) { background:var(--premium-action);color:var(--premium-page); }
+.scorecard-share-dialog [data-close].secondary { background:transparent;border-color:var(--premium-line); }
+.scorecard-share-dialog :is(summary,button,[role="status"]):focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
+
 /* Competition detail sheets use the same restrained lighting as the main cards. */
 .competitions-dialog { --competition-accent:var(--premium-ice);--competition-edge:var(--premium-line); }
 .tournaments-dialog { --competition-accent:var(--premium-ice);--competition-edge:var(--premium-line); }
@@ -1342,6 +1515,21 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 .competitions-dialog .competition-card-meta>span:last-child { padding:4px 9px;border:1px solid #56778a70;border-radius:100px;background:#143247; }
 .competitions-dialog .competition-hero:has(+.competition-tabs) { padding:16px;margin-block-end:12px; }
 .competitions-dialog .competition-hero:has(+.competition-tabs) h2 { margin:8px 0!important;font-size:clamp(1.5rem,6.4vw,2rem)!important; }
+.competitions-dialog .competition-header-compact {
+ gap:6px;align-items:stretch;margin-block-end:10px!important;
+}
+.competitions-dialog .competition-header-compact button.secondary {
+ padding:8px 10px!important;border-color:var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-inset);font-size:.8125rem;line-height:1.3;
+}
+.competitions-dialog .competition-header-compact button.competition-entry-compact {
+ margin-inline-start:auto!important;border-color:var(--premium-royal-line);color:var(--premium-lime);
+}
+.competitions-dialog .competition-hero-compact:has(+.competition-tabs) { padding:12px 14px; }
+.competitions-dialog .competition-hero-compact:has(+.competition-tabs) h2 {
+ margin:4px 0!important;font-size:1.25rem!important;line-height:1.25!important;
+}
+.competitions-dialog .competition-hero-compact p { margin-block-start:3px!important;font-size:.8125rem;line-height:1.45; }
 .competitions-dialog .competition-tabs {
  margin-block:12px;padding:4px;gap:4px;row-gap:4px!important;
  border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);
@@ -1382,7 +1570,23 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 .competitions-dialog .competition-metrics strong { font-size:1.75rem;letter-spacing:-.04em; }
 .competitions-dialog .competition-metrics span { color:var(--premium-copy);line-height:1.5; }
 .competitions-dialog .league-match-finder,.competitions-dialog .tournament-match-filters { padding:16px;border-color:#304e65;background:var(--premium-surface);border-radius:18px; }
-.competitions-dialog .competition-fixture,.competitions-dialog .league-result-card { border:1px solid #355970;border-radius:20px;background:var(--premium-card);box-shadow:inset 0 1px #a5ddff12;padding:18px 16px;min-inline-size:0; }
+.competition-filter-disclosure { margin-block:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-card); }
+:is(.competition-filter-disclosure,.league-result-card>details)>summary {
+ display:flex;align-items:center;gap:8px;min-block-size:44px;padding:8px 12px;border-radius:inherit;
+ color:var(--premium-white);font-size:.875rem;font-weight:700;list-style:none;cursor:pointer;overflow-wrap:anywhere;
+}
+:is(.competition-filter-disclosure,.league-result-card>details)>summary::-webkit-details-marker { display:none; }
+:is(.competition-filter-disclosure,.league-result-card>details)>summary::after {
+ content:"";flex:none;inline-size:7px;block-size:7px;margin-inline-start:auto;margin-inline-end:3px;
+ border-inline-end:1px solid var(--premium-ice);border-block-end:1px solid var(--premium-ice);transform:rotate(-45deg);
+}
+:is(.competition-filter-disclosure,.league-result-card>details)[open]>summary::after { transform:rotate(45deg); }
+.competition-filter-disclosure>summary small { color:var(--premium-lime);font-size:.6875rem; }
+:is(.competition-filter-disclosure,.league-result-card>details)>summary:focus-visible { outline:2px solid var(--premium-ice);outline-offset:-2px; }
+dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match-filters) {
+ margin:0;padding:12px;border:0;border-block-start:1px solid var(--premium-line);border-radius:0;background:transparent;
+}
+.competitions-dialog .competition-fixture,.competitions-dialog .league-result-card,.competition-match-group .competition-fixture,.directory-fixtures .competition-fixture { border:1px solid #355970;border-radius:20px;background:var(--premium-card);box-shadow:inset 0 1px #a5ddff12;padding:18px 16px;min-inline-size:0; }
 .competitions-dialog .competition-date { color:var(--competition-accent)!important;font-weight:650; }
 .competitions-dialog .competition-fixture h4,.competitions-dialog .league-result-card h4 { font-size:1.125rem!important;letter-spacing:-.015em; }
 .competitions-dialog .competition-status { background:#193b4e;color:#d4e7f3;border:1px solid #4a6c8066;line-height:1.5; }
@@ -1399,22 +1603,97 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 .competition-fixture .fixture-schedule p { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.4;overflow-wrap:anywhere; }
 .competition-fixture .fixture-schedule .fixture-schedule-time { color:var(--premium-white);font-weight:700;font-variant-numeric:tabular-nums; }
 .competition-fixture .fixture-location { flex-basis:100%; }
-.competition-fixture .competition-opponents { display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-block:12px!important; }
-.competition-fixture .competition-opponents .competition-contender { color:var(--premium-white);font-size:1.0625rem;font-weight:650;line-height:1.35;min-inline-size:0;overflow-wrap:anywhere; }
-.competition-fixture .competition-opponents .fixture-versus { display:flex;align-items:center;gap:8px;font-size:.6875rem;line-height:1.4;color:var(--premium-copy);font-weight:400; }
+.competition-match-groups { display:grid;gap:18px;margin-block:16px; }
+.competition-match-groups .competition-match-group { margin:0;padding:0;border:0;background:none;box-shadow:none; }
+.competition-match-group-heading {
+ display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;
+ margin:0 0 8px;padding-inline-start:10px;border-inline-start:2px solid var(--premium-royal-line);
+ color:var(--premium-white);font-size:1rem;line-height:1.4;overflow-wrap:anywhere;
+}
+.competition-match-group-heading h4 { margin:0;font-size:inherit; }
+.competition-match-group-heading small { color:var(--premium-copy);font-size:.6875rem;font-weight:600; }
+.competition-match-group .competition-fixture,.directory-fixtures .competition-fixture { margin:0;padding:12px 14px; }
+.competition-match-group .competition-fixture+.competition-fixture { margin-block-start:8px; }
+.tournament-draw-match.competition-fixture .competition-opponents { margin:0 0 8px!important; }
+.tournament-draw-match.competition-fixture .fixture-schedule {
+ margin:0;padding:8px 0 0;border:0;border-block-start:1px solid var(--premium-line);border-radius:0;background:none;
+}
+.competition-match-group .competition-fixture .fixture-location { flex-basis:auto; }
+.competition-match-group .competition-outcome { margin-block-end:0; }
+.competition-schedule-match.competition-fixture .fixture-schedule { margin-block:0 8px; }
+.competition-schedule-match.competition-fixture .fixture-schedule-time { font-size:.9375rem; }
+.competition-schedule-match .fixture-heading .competition-date { font-size:.75rem; }
+.tournament-match-card.competition-schedule-match .fixture-heading .competition-status { padding:0;border:0;background:none;font-size:.6875rem; }
+.competition-schedule-match.competition-fixture .competition-opponents { margin:6px 0 0!important; }
+:is(.competition-fixture,.league-result-card) .competition-opponents { display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-block:12px!important; }
+:is(.competition-fixture,.league-result-card) .competition-opponents .competition-contender { color:var(--premium-white);font-size:1.0625rem;font-weight:650;line-height:1.35;min-inline-size:0;overflow-wrap:anywhere; }
+:is(.competition-fixture,.league-result-card) .competition-opponents .fixture-versus { display:flex;align-items:center;gap:8px;font-size:.6875rem;line-height:1.4;color:var(--premium-copy);font-weight:400; }
 .fixture-versus::before,.fixture-versus::after { content:"";block-size:1px;background:var(--premium-line);inline-size:18px; }
-.competitions-dialog .fixture-result { padding-block-start:14px;border-block-start:1px solid #36566b; }
-.competitions-dialog .fixture-result strong { color:#d0ecb0;font-weight:600; }
-.competitions-dialog .fixture-recorded-score { font-variant-numeric:tabular-nums;color:#edf8ff; }
-.competitions-dialog .tournament-standings,.competitions-dialog .league-standings,.league-office-dialog .league-standings { display:grid;gap:12px;list-style:none;padding:0;margin-block:20px; }
-.competitions-dialog .tournament-standings>li,.competitions-dialog .league-standings>li,.league-office-dialog .league-standings>li { display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;border:1px solid #34576e;border-radius:20px;background:var(--premium-card);padding:18px 14px;min-inline-size:0; }
-.competitions-dialog .tournament-standings .standing-position,.league-standings .standing-position { display:grid;place-items:center;align-self:start;min-inline-size:2.25em;min-block-size:2.25em;padding:4px;border:1px solid #50758a;border-radius:12px;background:#1a3f53;color:#d8f0ff;font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums; }
-.competitions-dialog .tournament-standings .standing-identity,.league-standings .standing-identity { display:grid;align-content:start;gap:6px;min-inline-size:0; }
-.standing-identity>strong { color:#f0f8fd;font-size:1rem;line-height:1.5;overflow-wrap:anywhere; }
-.standing-identity>span { color:#bfd8e8;font-size:.8125rem;line-height:1.5; }
-.competitions-dialog .tournament-standings .standing-stat-line,.league-standings .standing-stat-line { grid-column:1/-1;padding-block-start:12px;border-block-start:1px solid #33536a;margin:0!important;font-size:.8125rem!important;line-height:1.65!important;color:#bad3e3;overflow-wrap:anywhere; }
-.competitions-dialog .tournament-standings>li>button,.league-standings>li>button { grid-column:1/-1;margin:0!important; }
-.league-standings>li:has(.league-team-open)>.standing-position { display:grid;margin-block-start:0; }
+.competition-outcome {
+ display:flex;flex-wrap:wrap;align-items:start;gap:8px 16px;margin-block:10px;padding:10px 12px;
+ border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset);overflow-wrap:anywhere;
+}
+.competition-outcome>div:first-child { flex:1 1 7em;min-inline-size:0; }
+.competition-outcome dt { margin:0 0 3px;color:var(--premium-copy);font-size:.6875rem;font-weight:650;line-height:1.4; }
+.competition-outcome dd { margin:0;color:var(--premium-white);font-size:.9375rem;font-weight:700;line-height:1.4; }
+.competition-outcome [data-recorded-winner] { color:#d4edb2; }
+.competition-outcome-score { min-inline-size:0;max-inline-size:100%;font-variant-numeric:tabular-nums; }
+.league-result-card>details { margin-block-start:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.league-court-result { margin:0 8px;padding:10px;border-block-start:1px solid var(--premium-line);overflow-wrap:anywhere; }
+.league-court-match { background:var(--premium-surface);box-shadow:inset 2px 0 var(--premium-royal-line); }
+.league-court-result h5 { margin:0;color:var(--premium-ice);font-size:.8125rem; }
+.league-court-result .competition-outcome { margin-block-end:0;padding:0;border:0;background:none; }
+.competition-standings {
+ margin:12px 0 20px;padding:0;list-style:none;
+ border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-card);
+}
+.competition-standings>li+li { border-block-start:1px solid var(--premium-line); }
+.competition-standings :is(div.standing-row,button.standing-row.secondary) {
+ display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;
+ inline-size:100%;min-block-size:54px;margin:0;padding:14px 12px;border:0;border-radius:0;
+ background:transparent;color:var(--premium-white);font-size:1rem;line-height:1.4;text-align:start;white-space:normal;
+}
+.competition-standings>li:first-child>.standing-row { border-start-start-radius:var(--premium-panel-radius);border-start-end-radius:var(--premium-panel-radius); }
+.competition-standings>li:last-child>.standing-row { border-end-start-radius:var(--premium-panel-radius);border-end-end-radius:var(--premium-panel-radius); }
+.competition-standings button.standing-row:focus-visible { outline:2px solid var(--premium-ice);outline-offset:-3px; }
+.competition-standings button.standing-row:active { background:var(--premium-raised);opacity:1; }
+.standing-position {
+ display:grid;place-items:center;align-self:start;min-inline-size:2.35em;min-block-size:2.35em;padding:3px;
+ border:1px solid var(--premium-royal-line);border-radius:10px;background:var(--premium-inset);
+ color:var(--premium-ice);font-size:.75rem;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.standing-copy { display:grid;gap:3px;min-inline-size:0;overflow-wrap:anywhere; }
+.standing-name { display:flex;align-items:baseline;flex-wrap:wrap;gap:3px 8px; }
+.standing-name strong { font-size:.9375rem;line-height:1.35; }
+.standing-group { color:var(--premium-ice);font-size:.6875rem; }
+.standing-record,.standing-stats { font-size:.75rem;font-variant-numeric:tabular-nums; }
+.standing-record { color:var(--premium-white); }
+.standing-stats { color:var(--premium-copy);font-weight:500; }
+.standing-arrow { inline-size:8px;block-size:8px;margin-inline-end:3px;border-inline-end:2px solid var(--premium-lime);border-block-end:2px solid var(--premium-lime);transform:rotate(-45deg); }
+.competitions-dialog :is(.league-team-heading,.tournament-entrant-heading) {
+ border-color:var(--premium-line);background:var(--premium-card);box-shadow:inset 0 1px #b1e4ff20;
+}
+.competitions-dialog :is(.league-team-heading,.tournament-entrant-heading)>small { color:var(--premium-ice); }
+.competition-history-jumps {
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8.75em),1fr));gap:8px;margin-block:16px;font-size:.8125rem;
+}
+.competitions-dialog .competition-history-jumps button.secondary {
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;
+ min-block-size:48px;margin:0;padding:8px 10px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-card);color:var(--premium-white);font-size:.8125rem;text-align:start;white-space:normal;overflow-wrap:anywhere;
+}
+.competition-history-jumps button span {
+ display:grid;place-items:center;min-inline-size:1.8em;min-block-size:1.8em;padding:2px 4px;border-radius:8px;
+ background:var(--premium-inset);color:var(--premium-ice);font-size:.75rem;font-variant-numeric:tabular-nums;
+}
+.competitions-dialog .competition-history-section {
+ margin-block:24px;padding:0;border:0;background:none;box-shadow:none;overflow-wrap:anywhere;
+}
+.competition-history-section>h4 { margin:0 0 12px;color:var(--premium-white);font-size:1.05rem;line-height:1.5; }
+.competitions-dialog button.competition-history-summary.secondary {
+ inline-size:auto;max-inline-size:100%;min-block-size:44px;margin:4px 0 0;padding:8px 10px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-inset);color:var(--premium-ice);font-size:.8125rem;white-space:normal;overflow-wrap:anywhere;
+}
 .competitions-dialog .competition-empty { border-style:solid;border-color:#34546c;background:var(--premium-surface); }
 .competitions-dialog .competition-checked { font-size:.75rem;color:#a9c6d9; }
 
@@ -1428,8 +1707,20 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 .competitions-dialog .competition-card-details { display:grid;gap:7px;margin-block:12px 18px;padding-inline-start:12px;border-inline-start:2px solid var(--competition-edge); }
 .competitions-dialog .competition-card-details p { margin:0;font-size:.8125rem;line-height:1.6; }
 .competitions-dialog .competition-card-detail { font-size:.8125rem;line-height:1.6; }
-.competitions-dialog .competition-entry { padding-block-start:12px;border-block-start:1px solid #36566b;color:#c9dfed;font-size:.8125rem;line-height:1.7; }
 .competitions-dialog .competition-card button.secondary { background:var(--premium-raised);border-color:var(--premium-line);border-radius:14px; }
+.competition-entry-list {
+ margin:14px 0 0;padding:0;list-style:none;border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-inset);color:var(--premium-copy);font-size:.8125rem;line-height:1.4;
+}
+.competition-entry-list>li { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;padding:8px 10px; }
+.competition-entry-list>li+li { border-block-start:1px solid var(--premium-line); }
+.competition-entry-status { max-inline-size:100%;padding:3px 7px;border:1px solid var(--premium-line);border-radius:12px;font-size:.6875rem;font-weight:650; }
+.competition-entry-status[data-entry-status="active"] { border-color:#52694a;background:#213b32;color:#d4edb2; }
+.competition-entry-status[data-entry-status="pending"] { border-color:#725b3c;background:#392d20;color:#f6d6a6; }
+.competition-card-actions { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,6.5em),1fr));gap:8px;margin-block-start:14px; }
+.competitions-dialog .competition-card-actions button.secondary { min-block-size:48px;margin:0;padding:8px 10px!important;font-size:.8125rem!important;text-align:start;overflow-wrap:anywhere; }
+.competitions-dialog .competition-card-actions button[data-competition-league-entry] { background:var(--premium-inset); }
+.competition-card-actions [data-competition-league-entry] .app-tool-arrow { color:var(--premium-lime); }
 .competition-directory {
  display:grid;gap:12px;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
  background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;

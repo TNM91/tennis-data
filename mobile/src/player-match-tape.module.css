@@ -9,6 +9,26 @@
 .filters :is(input,select) { box-sizing:border-box; width:100%; min-width:0; min-height:44px; padding:10px; border:1px solid rgba(116,190,255,.35); border-radius:12px; background:var(--native-inset,#10203a); color:var(--foreground-strong); font:inherit; font-size:16px; }
 .panel button { min-height:44px; padding:10px; margin:8px 0; border:1px solid rgba(116,190,255,.35); border-radius:12px; color:var(--foreground-strong); background:var(--native-inset,#10203a); font:inherit; font-size:13px; cursor:pointer; }
 .panel button[aria-pressed=true] { background:var(--brand-green); color:#071121; }
+.resultsToolbar { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:12px 0; }
+.panel .resultsToolbar p { flex:1 1 7em;margin:0;font-size:.75rem; }
+.panel .resultsToolbar button { max-width:100%;margin:0;padding:8px 10px;color:var(--premium-ice,#b2c8ff);font-weight:700; }
+.panel .showMore { width:100%;margin:0 0 8px;color:var(--premium-ice,#b2c8ff);font-weight:700; }
+.panel .rivalryBack { color:var(--premium-ice,#b2c8ff);font-weight:700; }
+.rivalryBack [aria-hidden] { margin-inline-end:4px;font-size:1.125rem;line-height:1; }
+.panel .scorecardRow {
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;
+ width:100%;min-height:56px;margin:0;padding:10px 12px;border-color:var(--premium-line,#365785);
+ border-radius:var(--premium-control-radius,14px);background:var(--premium-surface,#0d203e);
+ text-align:start;white-space:normal;overflow-wrap:anywhere;
+}
+.scorecardRead { display:grid;gap:3px;min-width:0; }
+.scorecardMeta { display:flex;flex-wrap:wrap;gap:3px 8px;color:var(--premium-copy,#c4d3ec);font-size:.75rem; }
+.scorecardMeta [data-outcome="W"] { color:var(--premium-lime,#b5eb46); }
+.scorecardMeta [data-outcome="L"] { color:#ffbdc8; }
+.scorecardOpponent { font-size:.8125rem;font-weight:700; }
+.scorecardPartner { color:var(--premium-copy,#c4d3ec);font-size:.75rem; }
+.scorecardRead strong { font-size:.9375rem;font-variant-numeric:tabular-nums; }
+.scorecardArrow { color:var(--premium-ice,#b2c8ff);font-size:1.25rem; }
 .panel :is(input,select,button,summary):focus-visible { outline:2px solid var(--brand-green); outline-offset:3px; }
 .list { display:grid; gap:10px; margin:16px 0; padding:0; list-style:none; min-width:0; }
 .card { min-width:0; border:1px solid rgba(116,190,255,.2); border-radius:16px; background:#071121; }

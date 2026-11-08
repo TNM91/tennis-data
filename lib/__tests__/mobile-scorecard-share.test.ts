@@ -10,6 +10,7 @@ describe('reviewed public scorecard sharing',()=>{
  it('builds only the public fixed-origin link and recorded fields, without contact/private fields',()=>{
   const result=parse({...raw,contacts:['private@example.com'],review_notes:'secret',league_name:'City\n League'})
   expect(result.url).toBe('https://www.tenaceiq.com/matches/'+id+'?via=scorecard-share')
+  expect(result).toMatchObject({date:'Oct 25, 2026',format:'Doubles',league:'City League',score:'6-4 6-3'})
   expect(result.text).toContain('League: City League');expect(result.text).toContain('Recorded score: 6-4 6-3');expect(result.text).not.toContain('secret');expect(result.text).not.toContain('@');expect(result.text+result.url).not.toContain(owner);expect(Object.isFrozen(result)).toBe(true)
  })
  it('withholds private, future, invalid-date, cross-linked and ambiguous scorecards',()=>{

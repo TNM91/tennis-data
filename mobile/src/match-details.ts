@@ -1,7 +1,7 @@
 import type {PublicBrowseAccess} from './public-browse-access'
 import {openRosterPlayerProfile} from './roster-player-profile'
 import type {PlayerChoice} from './player-connection'
-import {renderMatchSetScores} from './match-set-scores'
+import {matchScorecardSide,renderMatchSetScores} from './match-set-scores'
 import {openScorecardShare} from './match-scorecard-share'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { matchDate, matchResult, type RecentMatchRow } from './recent-results'
@@ -24,8 +24,8 @@ export function matchParticipantChoice(rows: Participant[], index: number): Play
   return {id:row.player_id, name:player.name.trim(), location:null, flight:null}
 }
 
-export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, labels: {backLabel?: string; sideLabel?: string;local?: boolean;scrollHost?: HTMLElement;publicBrowse?:PublicBrowseAccess;neutral?:boolean;onClose?:()=>void} = {}) {
-  let selected: { row: RecentMatchRow; playerId: string } | null = null
+export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, labels: {backLabel?: string; sideLabel?: string;local?: boolean;scrollHost?: HTMLElement;publicBrowse?:PublicBrowseAccess;neutral?:boolean;onClose?:()=>void;externalBack?:boolean} = {}) {
+  let selected: { row: RecentMatchRow; playerId: string; backLabel:string } | null = null
   let request = 0
   let previousFocus: HTMLElement | null = null
   let scroll = 0
@@ -44,7 +44,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
   }
   async function show(push: boolean) {
     if (!selected || !valid()) return
-    const { row, playerId } = selected
+    const { row, playerId, backLabel } = selected
     profile?.dispose();profile=null
     sharing?.dispose();sharing=null
     const version = ++request
@@ -56,8 +56,9 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
     detail.className = 'match-detail-view'
     const resultLabel = labels.neutral ? (['A','B'].includes(row.winner_side || '') ? 'Side ' + row.winner_side + ' won' : 'Result pending') : matchResult(row, playerId)
     const outcome = resultLabel === 'Won' ? 'won' : resultLabel === 'Lost' ? 'lost' : 'recorded'
+    const setScores = renderMatchSetScores(row, labels.neutral ? null : playerId, labels.sideLabel || 'Your side')
     detail.innerHTML = `
-      <button type="button" class="secondary" id="back-matches"><span aria-hidden="true">‹</span>${html(labels.backLabel || 'Back to My Lab')}</button>
+      ${labels.externalBack?'':`<button type="button" class="secondary" id="back-matches"><span aria-hidden="true">‹</span><span>${html(backLabel)}</span></button>`}
       <div class="match-scorecard-hero">
         <div class="match-scorecard-heading">
           <h1 tabindex="-1">Match scorecard</h1>
@@ -65,7 +66,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
         </div>
         <p class="scorecard-meta">${html(matchDate(row.match_date))} · ${html(row.match_type || 'Match')}</p>
         <p class="match-league-context">${html(row.league_name || 'League unavailable')}</p>
-        ${renderMatchSetScores(row, playerId, labels.sideLabel || 'Your side')}
+        ${setScores}
         <div class="scorecard-recorded">
           <dl class="match-result-summary">
             <dt>Recorded score</dt>
@@ -75,7 +76,10 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
         </div>
       </div>
       <section class="match-court-players" aria-labelledby="match-court-players-title">
-        <h2 id="match-court-players-title">Players on court</h2>
+        <div class="match-section-heading">
+          <h2 id="match-court-players-title" data-match-section="lineup">Players on court</h2>
+          ${setScores ? '<button type="button" class="secondary" data-match-jump="sets">Set scores <span aria-hidden="true">↑</span></button>' : ''}
+        </div>
         <div id="match-players" aria-live="polite" data-state="loading"><p>Loading players…</p></div>
       </section>
       ${labels.publicBrowse || labels.neutral ? '' : `<button type="button" class="secondary" data-share-scorecard aria-labelledby="match-share-title" aria-describedby="match-share-detail">
@@ -83,6 +87,16 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
         <span class="app-tool-arrow" aria-hidden="true">›</span>
       </button>`}`
     app.append(detail)
+    detail.querySelectorAll<HTMLButtonElement>('[data-match-jump]').forEach(button => {
+      button.onclick = () => {
+        if (!valid() || version !== request || !detail.isConnected) return
+        const target = detail.querySelector<HTMLElement>(`[data-match-section="${button.dataset.matchJump}"]`)
+        if (!target) return
+        target.tabIndex = -1
+        target.scrollIntoView({block:'start'})
+        target.focus({preventScroll:true})
+      }
+    })
     const shareButton=detail.querySelector<HTMLButtonElement>('[data-share-scorecard]')
     if (shareButton) shareButton.onclick = () => {
       if (!valid() || version !== request || !detail.isConnected) return
@@ -90,7 +104,8 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
       shareButton.focus({preventScroll:true})
       sharing = openScorecardShare(client, row.id, playerId, () => valid() && version === request && detail.isConnected)
     }
-    detail.querySelector<HTMLButtonElement>('#back-matches')!.onclick = () => {if(labels.local){close();labels.onClose?.()}else history.back()}
+    const backButton=detail.querySelector<HTMLButtonElement>('#back-matches')
+    if(backButton)backButton.onclick = () => {if(labels.local){close();labels.onClose?.()}else history.back()}
     if(labels.scrollHost)labels.scrollHost.scrollTop=0;else window.scrollTo(0, 0)
     detail.querySelector<HTMLElement>('h1')!.focus({preventScroll: true})
     const result = await client.from('match_players').select('player_id,side,seat,players(name)')
@@ -110,21 +125,38 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
       return
     }
     content.dataset.state = 'ready'
-    const yourSide = labels.neutral ? null : row.match_players.find(player => player.player_id === playerId)?.side
+    const yourSide = labels.neutral ? null : matchScorecardSide(row,playerId)
+    const selectedIndex = rows.findIndex(player => player.player_id === playerId)
+    const selectedPlayerConfirmed = yourSide && rows[selectedIndex]?.side === yourSide && matchParticipantChoice(rows,selectedIndex) !== null
+    const canShowScorecardNames = labels.neutral || selectedPlayerConfirmed
+    const format = row.match_type?.trim().toLowerCase()
+    const sideSize = format === 'singles' ? 1 : format === 'doubles' ? 2 : 0
     const sides = yourSide === 'B' ? ['B', 'A'] as const : ['A', 'B'] as const
     content.innerHTML = sides.map(side => {
       const entries = rows.map((player, index) => ({player, index}))
         .filter(({player}) => player.side === side)
         .sort((a, b) => (a.player.seat ?? 99) - (b.player.seat ?? 99))
-      const players = entries.map(({player, index}) => {
+      const choices = entries.map(({index}) => matchParticipantChoice(rows,index))
+      const scoreLabel = detail.querySelector<HTMLElement>(`[data-scorecard-side="${side}"]`)
+      if (scoreLabel && canShowScorecardNames && sideSize && choices.length === sideSize && choices.every(choice => choice !== null)) {
+        scoreLabel.replaceChildren(...choices.map(choice => {
+          const name = document.createElement('span')
+          name.className = 'match-scorecard-name'
+          name.textContent = choice.name
+          return name
+        }))
+      }
+      const players = entries.map(({player, index}, position) => {
         const name = html(participantNames([player], side)[0])
-        if (!matchParticipantChoice(rows, index)) return `<li><p>${name}</p></li>`
+        if (!choices[position]) return `<li><p>${name}</p></li>`
         return `<li><button type="button" class="secondary" data-match-player="${index}">
           <span class="sr-only">View player profile for </span><span>${name}</span><span class="app-tool-arrow" aria-hidden="true">›</span>
         </button></li>`
       }).join('')
       return `<section class="match-side-card"${yourSide === side ? ' data-own-side' : ''}>
-        <h3>Side ${side}${yourSide === side ? ` <span>${html(labels.sideLabel || 'Your side')}</span>` : ''}</h3>
+        <h3>Side ${side}${yourSide === side ? ` <span class="match-side-label">${html(labels.sideLabel || 'Your side')}</span>` : ''}
+          ${row.winner_side === side ? '<span class="match-winner-marker">Winner</span>' : ''}
+        </h3>
         ${players ? `<ul class="match-participants">${players}</ul>` : '<p>Players unavailable</p>'}
       </section>`
     }).join('')
@@ -144,10 +176,10 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
   return {
     isOpen: () => app.dataset.view === 'match',
     back:()=>{if(profile?.isOpen()){profile.back();return true}if(sharing?.isOpen()){sharing.dispose();sharing=null;return true}if(app.dataset.view!=='match')return false;if(labels.local){close();labels.onClose?.()}else history.back();return true},
-    open(row: RecentMatchRow, playerId: string) {
+    open(row: RecentMatchRow, playerId: string, backLabel=labels.backLabel || 'Back to My Lab') {
       previousFocus = document.activeElement as HTMLElement | null
       scroll = labels.scrollHost?.scrollTop??window.scrollY
-      selected = {row, playerId}
+      selected = {row, playerId, backLabel}
       void show(true)
     },
     dispose() {

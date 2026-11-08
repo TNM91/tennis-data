@@ -7,7 +7,7 @@ import {openCompetitions} from '../../mobile/src/competitions-view'
 import {labActionsHtml} from '../../mobile/src/lab-home'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail,competitionPlayerDetail} from './competitions-data'
 const mode=new URLSearchParams(location.search).get('view')||'team'
-const state={cardOrder:'original',playerWithdrawn:false,playerReordered:false,teamWithdrawn:false,teamReordered:false,finderChanged:false,calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
+const state={cardOrder:'original',playerWithdrawn:false,playerReordered:false,teamWithdrawn:false,teamReordered:false,finderChanged:false,calls:0,offline:false,delay:false,active:true,owner,decisionPosts:0,decisionSaved:false,decisionInformation:false,decisionLostReply:false,decisionConflict:false,entryInformation:false,entryQuestionChanged:false,entryPosts:0,entrySaved:false,entryApproved:false,entryLostReply:false,entryClosed:false,entryAllowed:true,entryChanged:false,release:null as null|(()=>void)}
 function detailForFinder(){
  const d=mode.includes('player')?competitionPlayerDetail():competitionDetail();if(mode.includes('player')){
   if(mode.includes('long')){const name='Alex '+('Championship'.repeat(18));d.participants[0].name=name;for(const row of [...d.fixtures,...d.results]){if(row.a==='Alex Server')row.a=name;if(row.b==='Alex Server')row.b=name;if('winner' in row&&row.winner==='Alex Server')row.winner=name}}
@@ -23,7 +23,7 @@ function detailForFinder(){
   if(state.teamWithdrawn){d.standings=d.standings.filter(s=>s.teamName!=='Baseline Aces');d.participants=d.participants.filter(p=>p.name!=='Baseline Aces')}
   if(mode.includes('partial')){d.moreFixtures=true;d.moreResults=true;d.standingsAvailable=false;d.standings=[]}
  }if(mode.includes('list')){d.participants.push({name:mode.includes('player')?'Alex Alternate':'Valley Aces',status:'active'},{name:'Net Runners',status:'active'});if(mode.startsWith('office'))d.participants.push({name:'Waiting Aces',status:'pending'},{name:'Retired Aces',status:'removed'},{name:'Declined Aces',status:'rejected'})}if(mode.includes('empty')){d.fixtures=[];d.results=[]}if(!mode.includes('finder'))return d
- d.fixtures.push({...d.fixtures[0],id:'fixture-other',date:'2026-11-08',a:'Spin Masters',b:'Court Kings',status:'proposed'})
+ d.fixtures.push({...d.fixtures[0],id:'fixture-other',date:'2026-11-07',a:'Spin Masters',b:'Court Kings',status:'proposed'})
  d.results.push({...d.results[0],id:'event-later',date:'2026-10-24',a:'Spin Masters',b:'Court Kings',winner:'Court Kings',courts:[{label:'Line 1 · Singles',a:'Morgan',b:'Taylor',winner:'Side B',score:'7-5, 6-4'}]},{...d.results[0],id:'event-unrecorded',date:'2026-10-25',winner:'',courts:[]})
  if(mode.includes('long')){d.fixtures[0].a='Baseline '+('Championship'.repeat(18));d.results[0].courts[0].a='Alex '+('Server'.repeat(35))}
  if(state.finderChanged){d.fixtures[0].date='2026-11-09';d.results[0].date='2026-10-26'}
@@ -43,7 +43,8 @@ const send:ScenarioSend=async options=>{
  }
  if(new URL(options.url).pathname.endsWith('/entry')){
   const review=entryReviewFixture();review.owner=owner;if(mode==='entry-information')state.entryInformation=true;review.open=!state.entryClosed;review.allowed=state.entryAllowed;if(state.entryChanged){review.review='b'.repeat(64);review.requirement.ageDivision='55 & Over'}
-  if(mode==='entry-team'){review.format='team';review.player={...review.player,id:'',name:'',rating:null};review.blockedReason='Team entry requires active League access.'}
+  if(mode==='entry-team'||mode==='entry-list'){review.format='team';review.player={...review.player,id:'',name:'',rating:null};review.blockedReason='Team entry requires active League access.'}
+  if(mode==='entry-list'){review.leagueName=competitionSnapshot().leagues[0].name;review.receipts=[{id:'saved-entry',name:'North Aces',status:state.entryApproved?'active':'pending'}]}
   if(mode==='entry-long'){review.leagueName='Northside '+('Championship '.repeat(14));review.player.name='Alex '+('Server '.repeat(20))}
   if(options.method==='POST'){state.entryPosts++;state.entrySaved=true;if(state.entryLostReply)throw Error('Lost reply')}
   if(state.entryInformation)review.receipts=[{id:'11111111-1111-4111-8111-111111111111',name:review.player.name,status:'pending',information:{updatedAt:state.entryQuestionChanged?'2026-10-30T05:41:00Z':'2026-10-30T05:40:00Z',note:state.entryQuestionChanged?'Please reconfirm your rating and age division.':'Please confirm your age division.'}}]
@@ -57,10 +58,14 @@ const send:ScenarioSend=async options=>{
  if(snapshot.scope==='discover')snapshot.connections=[]
  if(snapshot.query==='nothing')snapshot.leagues=[]
  if(mode.includes('finder'))snapshot.leagues.push({...snapshot.leagues[0],id:'league-two',name:'Second season'})
- if(mode==='browse-return'&&!p.get('league')){
+ if((mode==='browse-return'||mode==='entry-list')&&!p.get('league')){
   const [league]=snapshot.leagues
   const others=Array.from({length:6},(_,index)=>({...league,id:'league-extra-'+index,name:'Night League '+(index+1)}))
   snapshot.leagues=state.cardOrder==='removed'?others:state.cardOrder==='reordered'?[...others,league]:[...others.slice(0,5),league,others[5]]
+  if(mode==='entry-list'&&snapshot.scope==='mine'){
+   snapshot.connections=state.cardOrder==='removed'?[]:[{leagueId:league.id,kind:'team',status:state.entryApproved?'active':'pending'}]
+   snapshot.connections.push(...others.map(row=>({leagueId:row.id,kind:'organizer' as const,status:'active' as const})))
+  }
  }
  if(p.get('league')){snapshot.detail=detailForFinder();if(p.get('league')==='league-two')snapshot.detail.league={...snapshot.leagues[1]}}
  if(mode==='long'){snapshot.leagues[0].name='Northside'+('Championship'.repeat(15));if(snapshot.detail)snapshot.detail.league.name=snapshot.leagues[0].name}

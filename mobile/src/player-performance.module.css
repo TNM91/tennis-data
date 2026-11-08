@@ -17,3 +17,11 @@
 .strong { color:#d9f84a; }
 .struggling { color:#fca5a5; }
 .balanced { color:#93c5fd; }
+.rivalryMeetings {
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;
+ min-height:44px;padding:8px 12px;border:1px solid var(--premium-line,#365785);border-radius:12px;
+ background:var(--premium-card,#0d203e);color:var(--foreground-strong);font:inherit;font-size:.8125rem;font-weight:700;
+ text-align:start;white-space:normal;overflow-wrap:anywhere;cursor:pointer;
+}
+.rivalryMeetings [aria-hidden] { color:var(--premium-ice,#b2c8ff);font-size:1.125rem; }
+.rivalryMeetings:focus-visible { outline:2px solid var(--premium-ice,#b2c8ff);outline-offset:2px; }

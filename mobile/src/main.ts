@@ -414,7 +414,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='updates'){launchUpdates(trigger);return}
  if(destination==='calendar'||destination==='coach-dates'){launchCalendar(trigger,destination==='coach-dates'?'coach':'all');return}
  if(!session||!trigger.isConnected||connection?.isSaving())return
- if(destination==='leagues'){launchCompetitions(hub==='compete'?'discover':'mine',trigger);return}
+ if(destination==='leagues'||destination==='browse-leagues'){launchCompetitions(destination==='browse-leagues'?'discover':'mine',trigger);return}
  if(destination==='tournaments'){
   if(tournaments?.isOpen()||competitions?.isOpen()||accountSettings?.isOpen())return
   const owner=session.user.id,visit=revision

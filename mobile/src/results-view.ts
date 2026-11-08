@@ -6,12 +6,17 @@ import {filterMatchbookEntries} from '../../lib/player-matchbook'
 import { matchDate, matchResult, type RecentMatchRow } from './recent-results'
 import { html } from './match-details'
 import {recentScorecardRow} from './recent-scorecard-row'
+import type {PlayerProfileFormat} from './player-profile-format'
 
 export type MatchFilter = 'All' | 'Singles' | 'Doubles'
 export type ResultView='form'|'formats'|'leagues'|'years'
 const resultViews:ResultView[]=['form','formats','leagues','years']
 export function resultViewControls(view:ResultView){return `<div class="match-filters result-view-controls" role="group" aria-label="Result insights">${resultViews.map(value=>`<button type="button" class="secondary" data-result-view="${value}" aria-pressed="${view===value}" aria-controls="lab-result-panel">${value[0].toUpperCase()+value.slice(1)}</button>`).join('')}</div>`}
 const filters: MatchFilter[] = ['All', 'Singles', 'Doubles']
+const profileViews = {All:'overall',Singles:'singles',Doubles:'doubles'} as const
+function matchFilterControls(filter:MatchFilter) {
+  return `<div class="match-filters" role="group" aria-label="Match type">${filters.map(value=>`<button type="button" class="secondary" data-match-filter="${value}" aria-pressed="${value===filter}">${value}</button>`).join('')}</div>`
+}
 export function filteredMatches(rows: RecentMatchRow[], filter: MatchFilter) {
   return filterMatchbookEntries(rows.map(row=>({row,matchType:row.match_type})),filter.toLowerCase() as 'all'|'singles'|'doubles').map(entry=>entry.row)
 }
@@ -135,7 +140,7 @@ export function resultsHtml(rows: RecentMatchRow[], playerId: string, filter: Ma
   if (compact && filter === 'All') sampleLabel = `Latest ${loadedSample}.`
   if (compact && view === 'formats') sampleLabel = `Both formats use the latest ${loadedSample}.`
   const grouped = compact && (view === 'leagues' || view === 'years')
-  return `<div class="match-filters" role="group" aria-label="Match type">${filters.map(value => `<button type="button" class="secondary" data-match-filter="${value}" aria-pressed="${value === filter}">${value}</button>`).join('')}</div>
+  return `${matchFilterControls(filter)}
     ${compact ? list + resultViewControls(view) : ''}
     <div role="status" class="form-status">
       ${grouped ? '' : `<p>${sampleLabel}</p>`}
@@ -143,34 +148,48 @@ export function resultsHtml(rows: RecentMatchRow[], playerId: string, filter: Ma
     </div>
     ${compact ? `<div id="lab-result-panel" role="region" aria-label="${view[0].toUpperCase()+view.slice(1)} result insights">${view==='form'||view==='formats'?recentStatsHtml(rows,playerId,filter,view):labResultBreakdownHtml(shown,playerId,view==='years'?'seasons':'leagues',rows.length,filter==='All'?'All formats':filter,false)}</div>` : list}`
 }
+function profileScorecardsHtml(shown:RecentMatchRow[],total:number,playerId:string,filter:MatchFilter) {
+  const format=filter==='All'?'':`${filter.toLowerCase()} `
+  const count=shown.length?`${shown.length} ${format}${shown.length===1?'scorecard':'scorecards'}`:`No ${format}scorecards`
+  return `${matchFilterControls(filter)}<p class="player-scorecard-note">${count} in the latest ${total} ${total===1?'result':'results'}.</p>
+    ${shown.length?`<ol class="matches player-scorecard-list" role="list">${shown.map((row,index)=>recentScorecardRow(row,index,matchResult(row,playerId))).join('')}</ol>
+    <p class="player-scorecard-note">Scores follow the source’s court order.</p>`:''}`
+}
 export type RecentHistoryLoader={current:()=>boolean;load:(rows:RecentMatchRow[])=>Promise<{rows:RecentMatchRow[];hasMore:boolean}>}
-export function showRecentResults(content: HTMLElement, initialRows: RecentMatchRow[], playerId: string, open: (row: RecentMatchRow) => void, owner = 'your', compact=false,history?:RecentHistoryLoader) {
+export function showRecentResults(content: HTMLElement, initialRows: RecentMatchRow[], playerId: string, open: (row: RecentMatchRow) => void, owner = 'your', compact=false,history?:RecentHistoryLoader,profileFormat?:PlayerProfileFormat) {
   if (!initialRows.length) {
     content.innerHTML = '<p>No matches are connected to this player record yet. Results will appear here as scores are added.</p>'
     return
   }
   let rows=initialRows,activeView:ResultView='form',activeFilter:MatchFilter='All',busy=false,hasMore=rows.length===10,notice=''
   const valid=()=>content.isConnected&&(!history||history.current())
+  const profileFilter=()=>filters.find(filter=>profileViews[filter]===profileFormat?.get())??'All'
   const render = (filter: MatchFilter, restoreFocus = false,viewFocus=false,historyFocus=false) => {
     activeFilter=filter
+    const shown=filteredMatches(rows,filter)
     const expanded=content.querySelector<HTMLDetailsElement>('.recent-match-list')?.open??false
-    content.innerHTML = resultsHtml(rows, playerId, filter, owner,compact,activeView==='years'?'seasons':'leagues',activeView)+(history?`<div class="recent-history-actions"><p>${rows.length} connected results loaded. Up to ${RECENT_HISTORY_LIMIT} per visit; this is not a full-history total.</p><p role="status">${html(notice)}</p>${hasMore&&rows.length<RECENT_HISTORY_LIMIT?`<button type="button" class="secondary" data-older-results ${busy?'disabled':''}>${busy?'Loading older matches...':'Load older matches'}</button>`:`<p>${rows.length>=RECENT_HISTORY_LIMIT?'Sample limit reached. Refresh profile to return to the latest ten.':'No more older matches were found in this loaded history.'}</p>`}</div>`:'')
+    const results=profileFormat?profileScorecardsHtml(shown,rows.length,playerId,filter):resultsHtml(rows,playerId,filter,owner,compact,activeView==='years'?'seasons':'leagues',activeView)
+    content.innerHTML = results+(history?`<div class="recent-history-actions"><p>${rows.length} connected results loaded. Up to ${RECENT_HISTORY_LIMIT} per visit; this is not a full-history total.</p><p role="status">${html(notice)}</p>${hasMore&&rows.length<RECENT_HISTORY_LIMIT?`<button type="button" class="secondary" data-older-results ${busy?'disabled':''}>${busy?'Loading older matches...':'Load older matches'}</button>`:`<p>${rows.length>=RECENT_HISTORY_LIMIT?'Sample limit reached. Refresh profile to return to the latest ten.':'No more older matches were found in this loaded history.'}</p>`}</div>`:'')
     const list=content.querySelector<HTMLDetailsElement>('.recent-match-list');if(list)list.open=expanded
     content.querySelectorAll<HTMLButtonElement>('[data-result-view]').forEach(button=>{button.onclick=()=>{activeView=button.dataset.resultView as ResultView;render(activeFilter,false,true)}})
     content.querySelectorAll<HTMLButtonElement>('[data-match-filter]').forEach(button => {
-      button.onclick = () => render(button.dataset.matchFilter as MatchFilter, true)
+      button.onclick = () => {
+        const next=button.dataset.matchFilter as MatchFilter
+        if(!profileFormat){render(next,true);return}
+        profileFormat.set(profileViews[next])
+        content.querySelector<HTMLButtonElement>('[data-match-filter][aria-pressed="true"]')?.focus({preventScroll:true})
+      }
     })
     content.querySelectorAll<HTMLButtonElement>('[data-format-matches]').forEach(button=>{button.onclick=()=>{
       if(!valid())return
       render(button.dataset.formatMatches as MatchFilter)
       const list=content.querySelector<HTMLDetailsElement>('.recent-match-list');if(list){list.open=true;list.querySelector<HTMLElement>('summary')?.focus({preventScroll:true});list.scrollIntoView({block:'start'})}
     }})
-    const shown = filteredMatches(rows, filter)
     content.querySelectorAll<HTMLButtonElement>('.match-open').forEach(button => {
       button.onclick = () => {
         const row = shown[Number(button.dataset.index)]
         if (!valid() || !row) return
-        if (compact) button.focus({preventScroll:true})
+        if (compact||profileFormat) button.focus({preventScroll:true})
         open(row)
       }
     })
@@ -186,5 +205,9 @@ export function showRecentResults(content: HTMLElement, initialRows: RecentMatch
     if (viewFocus) content.querySelector<HTMLButtonElement>('[data-result-view][aria-pressed="true"]')?.focus({preventScroll:true})
     if (historyFocus) (content.querySelector<HTMLButtonElement>('[data-older-results]')||content.querySelector<HTMLButtonElement>('[data-match-filter][aria-pressed="true"]'))?.focus({preventScroll:true})
   }
-  render('All')
+  render(profileFilter())
+  return profileFormat?.subscribe(()=>{
+    const next=profileFilter()
+    if(valid()&&next!==activeFilter)render(next)
+  })
 }
