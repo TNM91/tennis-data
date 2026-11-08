@@ -6,6 +6,20 @@ import type {TournamentMatch} from '../native-tournaments-contract'
 const detail=()=>tournamentSnapshot('event-one','division-one').detail!
 const filters=(query='',day='',court='')=>({query,day,court})
 describe('published tournament match finder',()=>{
+ it('groups numbered court labels while preserving named courts and their schedules',()=>{
+  const d=detail()
+  d.matches[0].court='Court 2'
+  d.matches[1].court='2'
+  d.matches.push({...d.matches[1],id:'stadium',court:'Stadium Court'})
+  expect(filterTournamentMatches(d.matches,'schedule',filters('','','2')).map(m=>m.id)).toEqual(['r1-m2','r2-m1'])
+  const choices=tournamentMatchFiltersHtml(d.matches,'schedule',filters('','','2'))
+  expect(choices.match(/>Court 2<\/option>/g)).toHaveLength(1)
+  expect(choices).toContain('<option value="2" selected>Court 2</option>')
+  expect(choices).toContain('>Stadium Court</option>')
+  const markup=tournamentDetailHtml(d,'schedule',filters('','','Court 2'))
+  expect(markup).not.toContain('Court Court 2')
+  expect(markup.indexOf('6:00 PM')).toBeLessThan(markup.indexOf('Alex Ace'))
+ })
  it('finds either side literally with normalized case, spacing and full-width text',()=>{const rows=detail().matches;expect(filterTournamentMatches(rows,'draw',filters('  JORDAN   SERVE  ')).map(m=>m.id)).toEqual(['r2-m1']);expect(filterTournamentMatches(rows,'draw',filters('Ａｌｅｘ'))).toHaveLength(2);expect(filterTournamentMatches(rows,'draw',filters('.*'))).toHaveLength(0)})
  it('combines name, exact day and exact court only for schedule',()=>{const rows=detail().matches;expect(filterTournamentMatches(rows,'schedule',filters('Alex','2026-11-14','2')).map(m=>m.id)).toEqual(['r1-m2']);expect(filterTournamentMatches(rows,'schedule',filters('Alex','2026-11-14','1'))).toEqual([]);expect(filterTournamentMatches(rows,'draw',filters('Alex','2026-11-14','1'))).toHaveLength(2);expect(filterTournamentMatches(rows,'results',filters('Alex','2026-11-15','1'))).toHaveLength(1)})
  it('keeps unpublished court assignments out of schedule and unrecorded matches out of results without mutating the source',()=>{const rows=detail().matches;rows.push({...rows[1],id:'unscheduled',date:'',time:'',court:''});const original=structuredClone(rows);expect(tournamentViewMatches(rows,'schedule').map(m=>m.id)).toEqual(['r1-m2','r2-m1']);expect(tournamentViewMatches(rows,'results').map(m=>m.id)).toEqual(['r1-m2']);expect(rows).toEqual(original)})

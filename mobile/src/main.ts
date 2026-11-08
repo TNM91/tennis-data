@@ -195,7 +195,11 @@ if (Capacitor.getPlatform() === 'android') {
     else if (recovery) login('account')
     else if (app.dataset.state==='sign-in') app.querySelector<HTMLButtonElement>('#welcome-back')?.click()
     else if (details?.isOpen()) history.back()
-    else if(hub){if(hub==='coach')showHub('more');else void lab()}
+    else if(hub==='coach'){
+      const back=app.querySelector<HTMLButtonElement>('[data-coach-back]')
+      if(back)back.click();else showHub('more')
+    }
+    else if(hub)void lab()
     else void App.minimizeApp()
   })
 }
@@ -285,7 +289,7 @@ function openGuest() {
   guest=showGuestExplore(app,()=>!session&&visit===revision,()=>login('account'),()=>login())
 }
 
-function selectNavigation(screen:AppScreen) {
+function selectNavigation(screen:AppScreen,activeTab=currentTab(screen)) {
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
@@ -301,7 +305,7 @@ function selectNavigation(screen:AppScreen) {
   document.body.dataset.screen=screen
   window.scrollTo(0,0)
   navigation.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
-    if (button.dataset.screen === currentTab(screen)) button.setAttribute('aria-current','page')
+    if (button.dataset.screen === activeTab) button.setAttribute('aria-current','page')
     else button.removeAttribute('aria-current')
   })
 }
@@ -410,7 +414,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='updates'){launchUpdates(trigger);return}
  if(destination==='calendar'||destination==='coach-dates'){launchCalendar(trigger,destination==='coach-dates'?'coach':'all');return}
  if(!session||!trigger.isConnected||connection?.isSaving())return
- if(destination==='leagues'){launchCompetitions('mine',trigger);return}
+ if(destination==='leagues'){launchCompetitions(hub==='compete'?'discover':'mine',trigger);return}
  if(destination==='tournaments'){
   if(tournaments?.isOpen()||competitions?.isOpen()||accountSettings?.isOpen())return
   const owner=session.user.id,visit=revision
@@ -418,7 +422,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  }
  if(destination==='following'){openFollowing();return}
  if(destination==='matchup'){openMatchup();return}
- if(destination==='coach'){guardNavigation(()=>showHub('coach'));return}
+ if(destination==='coach'){guardNavigation(()=>showHub('coach',Boolean(trigger.closest('.lab-shortcuts'))));return}
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  if(destination==='coach-workspace'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachWorkspace(client,owner,current,undefined,trigger);return}
  if(destination==='coach-connection'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachConnection(client,owner,current,trigger);return}
@@ -456,14 +460,16 @@ function openCoachHref(href:string){
  return true
 }
 document.addEventListener('tenaceiq:navigate',event=>{const e=event as CustomEvent<{href?:unknown}>;if(typeof e.detail?.href==='string'&&openCoachHref(e.detail.href))event.preventDefault()})
-function showHub(next:AppHub){
+function showHub(next:AppHub,fromLab=false){
  if(!session)return
  accountSettings?.dispose();accountSettings=null
  emailAuth?.dispose();emailAuth=null;goals?.dispose();goals=null;training?.dispose();training=null
  teamRoom?.dispose();teamRoom=null;comparison?.dispose();comparison=null;following?.dispose();following=null
  explore?.dispose();explore=null;profileOpen=false;connection?.dispose();connection=null
  recovery?.dispose();recovery=null;details?.dispose();details=null
- ++revision;selectNavigation(next);app.dataset.state='ready';app.innerHTML=appHubHtml(next)
+ ++revision;selectNavigation(next,fromLab?'lab':undefined);app.dataset.state='ready';app.innerHTML=appHubHtml(next,fromLab)
+ const back=app.querySelector<HTMLButtonElement>('[data-coach-back]')
+ if(back)back.onclick=()=>{void lab('coach')}
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  const nextMatch=app.querySelector<HTMLElement>('[data-compete-next-match]')
  if(nextMatch){
@@ -503,7 +509,7 @@ const nativePurchases=applePurchases(client)
 const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
 function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
-async function lab() {
+async function lab(returnTo?:'coach') {
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
@@ -553,7 +559,8 @@ async function lab() {
     ?`<details class="lab-setup-utilities"><summary>More My Lab tools</summary>${tools}${controls}</details>`
     :tools+matches+controls)
 
-  const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
+  const labHeading=app.querySelector<HTMLElement>('h1')
+  if(labHeading){labHeading.tabIndex=-1;if(!returnTo||!playerId)labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
   const invite=app.querySelector<HTMLButtonElement>('[data-setup-team]')
@@ -635,6 +642,20 @@ async function lab() {
     const formSection=document.createElement('div');formSection.className='lab-form-host'
     const shortcuts=document.createElement('div');shortcuts.innerHTML=homeShortcutsHtml()
     calendar.after(formSection,shortcuts,trendSection)
+    if(returnTo==='coach'){
+      const shortcut=shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')!
+      shortcut.focus({preventScroll:true})
+      shortcut.scrollIntoView({block:'center'})
+      let scrollY=window.scrollY
+      // Ratings and recent form can expand above the shortcut after My Lab returns.
+      const layout=new ResizeObserver(()=>{
+        if(!shortcut.isConnected||document.activeElement!==shortcut||Math.abs(window.scrollY-scrollY)>1){layout.disconnect();return}
+        shortcut.scrollIntoView({block:'center'})
+        scrollY=window.scrollY
+      })
+      for(const section of [ratingsSection,calendar,formSection])layout.observe(section)
+      shortcut.addEventListener('blur',()=>layout.disconnect(),{once:true})
+    }
     labRatingTrends=mountLabRatingTrends(trendSection,client,playerId,()=>version===revision&&current.user.id===session?.user.id)
     bindLabActions()
     const pathSection=document.createElement('div');pathSection.className='lab-next-band';app.querySelector('#recent-results')!.after(pathSection)

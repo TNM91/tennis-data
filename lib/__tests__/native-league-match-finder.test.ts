@@ -1,8 +1,18 @@
 import {describe,it,expect} from 'vitest'
-import {emptyLeagueMatchFilters,filterLeagueFixtures,filterLeagueResults,leagueMatchViewHtml} from '../../mobile/src/league-match-finder'
+import {emptyLeagueMatchFilters,filterLeagueFixtures,filterLeagueResults,leagueFixtureHtml,leagueMatchViewHtml} from '../../mobile/src/league-match-finder'
 import {competitionDetail} from '../../tests/fixtures/competitions-data'
 
 describe('league match discovery keeps team and court evidence separate',()=>{
+ it('shows the saved local match time and venue before the matchup',()=>{
+  const fixture=competitionDetail().fixtures[0]
+  const markup=leagueFixtureHtml({...fixture,time:'18:30:00',facility:'Northside <Courts>'})
+  expect(markup).toContain('6:30 PM')
+  expect(markup).toContain('Northside &lt;Courts&gt;')
+  expect(markup.indexOf('6:30 PM')).toBeLessThan(markup.indexOf('Baseline Aces'))
+  expect(leagueFixtureHtml({...fixture,time:'',facility:''})).toContain('Time to be confirmed')
+  expect(leagueFixtureHtml({...fixture,time:'After warmup'})).toContain('After warmup')
+  expect(leagueFixtureHtml({...fixture,time:'18:99'})).toContain('18:99')
+ })
  it('combines literal team search, exact calendar day and recorded schedule status',()=>{
   const d=competitionDetail();d.fixtures.push({...d.fixtures[0],id:'other',a:'Rally [Crew]',status:'proposed',date:'2026-11-08'})
   const filters={query:'  ＢＡＳＥＬＩＮＥ   aces ',day:'2026-11-07',status:'cancelled'}

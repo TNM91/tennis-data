@@ -504,24 +504,28 @@ body[data-screen] .lab-match-form-record .stat-donut-fill { stroke:var(--premium
 .app-tools-hub .app-hub-tools button.app-tool { padding:18px 16px; }
 .app-tool-copy>span { font-size:.8125rem;line-height:1.55;color:var(--premium-copy); }
 .app-tool-copy strong { font-size:1rem;font-weight:650;letter-spacing:-.015em; }
-.competition-category,.competition-action { display:none; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-hub-tools { gap:12px;overflow:visible;border:0;border-radius:0;background:transparent; }
-body[data-screen="compete"] .app-hub-group:first-of-type button.app-tool {
- display:grid;grid-template-columns:32px minmax(0,1fr);align-items:start;column-gap:14px;row-gap:12px;
- min-block-size:0;padding:18px 16px 0;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-surface);box-shadow:none;
+.app-tools-hub[data-hub="compete"] .app-hub-heading>p { max-inline-size:18ch; }
+.app-tools-hub[data-hub="compete"] .app-hub-tools button.app-tool { padding:14px 12px; }
+.app-tools-hub[data-hub="compete"] .app-hub-tools button.app-tool+button.app-tool { border-block-start:1px solid var(--premium-line); }
+.app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-hub-tools {
+ border-color:transparent;background:var(--premium-court-inlay);
 }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-icon { margin-block-start:4px; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy { grid-column:2;grid-row:1;gap:8px; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy strong { font-size:1.5625rem;font-weight:650;line-height:1.15;letter-spacing:-.035em; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy>span { color:var(--premium-copy);font-size:.8125rem;line-height:1.6; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-copy .competition-category { display:block;color:#bedb96;font-size:.625rem;font-weight:650;letter-spacing:.12em;line-height:1.5;text-transform:uppercase; }
-body[data-screen="compete"] .app-hub-group:first-of-type .app-tool-arrow { display:none; }
-body[data-screen="compete"] .app-hub-group:first-of-type .competition-action { display:flex;grid-column:1/-1;align-items:center;justify-content:space-between;gap:12px;min-block-size:44px;border-block-start:1px solid #ffffff10;color:#d8e7dd;font-size:.75rem;font-weight:600; }
-body[data-screen="compete"] .competition-action>span { color:var(--premium-lime);font-size:18px; }
-body[data-screen="compete"] .app-hub-group:not(:first-of-type) button.app-tool { padding:18px 16px; }
-body[data-screen="compete"] .app-hub-group:not(:first-of-type) .app-tool-copy strong { font-weight:600;font-size:.9375rem; }
+.app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-tool-icon {
+ display:grid;place-items:center;flex:0 0 40px;block-size:40px;
+ border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset);
+}
+.app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-tool-copy strong { font-size:1.125rem; }
+.app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-tool-copy>span { color:var(--premium-copy); }
+.app-tools-hub[data-hub="compete"] .app-hub-group:first-of-type .app-tool-arrow { color:var(--premium-lime); }
 .app-tools-hub[data-hub="coach"] .app-hub-heading { padding:14px 16px; }
 .app-tools-hub[data-hub="coach"] .app-hub-heading h1 { margin:0 0 6px;font-size:1.625rem; }
+#app button.coach-hub-back.secondary {
+ display:inline-flex;align-items:center;gap:8px;inline-size:auto;max-inline-size:100%;min-block-size:44px;
+ margin:0 0 10px;padding:8px 12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-inset);color:var(--premium-white);font-size:.8125rem;text-align:start;
+}
+.coach-hub-back span { display:grid;color:var(--premium-ice); }
+.coach-hub-back svg { inline-size:16px;block-size:16px; }
 .coach-hub-messages { margin-block:12px; }
 .coach-hub-messages button.app-tool.secondary {
  min-block-size:72px;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
@@ -1336,8 +1340,13 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 .competitions-dialog .competition-card:focus-within { border-color:var(--premium-royal-line); }
 .competitions-dialog .competition-card-meta { letter-spacing:.035em;text-transform:none;color:var(--competition-accent); }
 .competitions-dialog .competition-card-meta>span:last-child { padding:4px 9px;border:1px solid #56778a70;border-radius:100px;background:#143247; }
-.competitions-dialog .competition-tabs { padding:6px;gap:4px;border:1px solid var(--premium-line);border-radius:18px;background:var(--premium-inset); }
-.competitions-dialog .competition-tabs button.secondary { margin:0;border:0;border-radius:12px;background:transparent;font-size:.8125rem!important;min-block-size:44px; }
+.competitions-dialog .competition-hero:has(+.competition-tabs) { padding:16px;margin-block-end:12px; }
+.competitions-dialog .competition-hero:has(+.competition-tabs) h2 { margin:8px 0!important;font-size:clamp(1.5rem,6.4vw,2rem)!important; }
+.competitions-dialog .competition-tabs {
+ margin-block:12px;padding:4px;gap:4px;row-gap:4px!important;
+ border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);
+}
+.competitions-dialog .competition-tabs button.secondary { margin:0;padding:8px!important;border:0;border-radius:10px;background:transparent;font-size:.8125rem!important;min-block-size:44px; }
 .competitions-dialog :is(.competition-tabs,.competition-switch) button[aria-pressed="true"] {
  position:relative;
  isolation:isolate;
@@ -1356,23 +1365,47 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
  box-shadow:inset 0 1px #f7faff14;
  pointer-events:none;
 }
-.competitions-dialog .competition-metrics { gap:1px;border:1px solid #35596f;border-radius:20px;overflow:hidden;background:#35596f; }
-.competitions-dialog .competition-metrics>div { border:0;border-radius:0;padding:18px 6px;background:linear-gradient(160deg,#13384c,#0d283b); }
+.competitions-dialog button.competition-entry-action.secondary {
+ display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:10px;
+ min-block-size:62px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-card);color:var(--premium-white);text-align:start;
+}
+.competition-entry-icon { display:grid;place-items:center;inline-size:36px;block-size:36px;border-radius:10px;background:var(--premium-inset); }
+.competition-entry-action .app-tool-copy { gap:2px; }
+.competition-entry-action .app-tool-copy strong { font-size:.9375rem; }
+.competition-entry-action .app-tool-copy>span { font-size:.75rem;line-height:1.4; }
+.competition-entry-action .app-tool-arrow { color:var(--premium-lime); }
+.competitions-dialog .competition-metrics {
+ gap:1px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);overflow:hidden;background:var(--premium-line);
+}
+.competitions-dialog .competition-metrics>div { border:0;border-radius:0;padding:14px 6px;background:var(--premium-card); }
 .competitions-dialog .competition-metrics strong { font-size:1.75rem;letter-spacing:-.04em; }
-.competitions-dialog .competition-metrics span { line-height:1.5; }
+.competitions-dialog .competition-metrics span { color:var(--premium-copy);line-height:1.5; }
 .competitions-dialog .league-match-finder,.competitions-dialog .tournament-match-filters { padding:16px;border-color:#304e65;background:var(--premium-surface);border-radius:18px; }
 .competitions-dialog .competition-fixture,.competitions-dialog .league-result-card { border:1px solid #355970;border-radius:20px;background:var(--premium-card);box-shadow:inset 0 1px #a5ddff12;padding:18px 16px;min-inline-size:0; }
 .competitions-dialog .competition-date { color:var(--competition-accent)!important;font-weight:650; }
 .competitions-dialog .competition-fixture h4,.competitions-dialog .league-result-card h4 { font-size:1.125rem!important;letter-spacing:-.015em; }
 .competitions-dialog .competition-status { background:#193b4e;color:#d4e7f3;border:1px solid #4a6c8066;line-height:1.5; }
-.competitions-dialog .competition-opponents { display:grid;grid-template-columns:minmax(0,1fr);gap:7px;margin-block:16px!important; }
-.competitions-dialog .competition-opponents .competition-contender { color:#eef7fc;font-size:1.125rem;font-weight:650;line-height:1.45;min-inline-size:0;overflow-wrap:anywhere; }
-.competitions-dialog .competition-opponents .fixture-versus { display:flex;align-items:center;gap:10px;font-size:.6875rem;line-height:1.5;color:#a3bed0;font-weight:400; }
-.fixture-versus::before,.fixture-versus::after { content:"";block-size:1px;background:#3b596e;inline-size:24px; }
+.competition-fixture .fixture-heading { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px; }
+.competition-fixture .fixture-heading p { margin:0; }
+.competition-fixture .competition-status { background:var(--premium-inset);border:1px solid var(--premium-line);color:var(--premium-copy);overflow-wrap:anywhere; }
+.competition-fixture .competition-status:is([data-fixture-state="confirmed"],[data-fixture-state="coordinator_set"]) { background:#213b32;border-color:#52694a;color:#d4edb2; }
+.competition-fixture .competition-status[data-fixture-state="proposed"] { background:#392d20;border-color:#725b3c;color:#f6d6a6; }
+.competition-fixture .competition-status[data-fixture-state="cancelled"] { background:#39262f;border-color:#75505e;color:#ffcbd0; }
+.competition-fixture .fixture-schedule {
+ display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-block:10px;padding:9px 11px;
+ border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset);
+}
+.competition-fixture .fixture-schedule p { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.4;overflow-wrap:anywhere; }
+.competition-fixture .fixture-schedule .fixture-schedule-time { color:var(--premium-white);font-weight:700;font-variant-numeric:tabular-nums; }
+.competition-fixture .fixture-location { flex-basis:100%; }
+.competition-fixture .competition-opponents { display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-block:12px!important; }
+.competition-fixture .competition-opponents .competition-contender { color:var(--premium-white);font-size:1.0625rem;font-weight:650;line-height:1.35;min-inline-size:0;overflow-wrap:anywhere; }
+.competition-fixture .competition-opponents .fixture-versus { display:flex;align-items:center;gap:8px;font-size:.6875rem;line-height:1.4;color:var(--premium-copy);font-weight:400; }
+.fixture-versus::before,.fixture-versus::after { content:"";block-size:1px;background:var(--premium-line);inline-size:18px; }
 .competitions-dialog .fixture-result { padding-block-start:14px;border-block-start:1px solid #36566b; }
 .competitions-dialog .fixture-result strong { color:#d0ecb0;font-weight:600; }
 .competitions-dialog .fixture-recorded-score { font-variant-numeric:tabular-nums;color:#edf8ff; }
-.competitions-dialog .fixture-location { font-size:.8125rem; }
 .competitions-dialog .tournament-standings,.competitions-dialog .league-standings,.league-office-dialog .league-standings { display:grid;gap:12px;list-style:none;padding:0;margin-block:20px; }
 .competitions-dialog .tournament-standings>li,.competitions-dialog .league-standings>li,.league-office-dialog .league-standings>li { display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;border:1px solid #34576e;border-radius:20px;background:var(--premium-card);padding:18px 14px;min-inline-size:0; }
 .competitions-dialog .tournament-standings .standing-position,.league-standings .standing-position { display:grid;place-items:center;align-self:start;min-inline-size:2.25em;min-block-size:2.25em;padding:4px;border:1px solid #50758a;border-radius:12px;background:#1a3f53;color:#d8f0ff;font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums; }
@@ -1397,11 +1430,26 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 .competitions-dialog .competition-card-detail { font-size:.8125rem;line-height:1.6; }
 .competitions-dialog .competition-entry { padding-block-start:12px;border-block-start:1px solid #36566b;color:#c9dfed;font-size:.8125rem;line-height:1.7; }
 .competitions-dialog .competition-card button.secondary { background:var(--premium-raised);border-color:var(--premium-line);border-radius:14px; }
-.competitions-dialog .competition-search { padding:16px;border:1px solid #34556c;border-radius:18px;background:var(--premium-surface); }
-.competitions-dialog .competition-search label { font-size:.8125rem;line-height:1.5; }
-.competitions-dialog .competition-search>div { display:flex;flex-wrap:wrap;gap:10px; }
-.competitions-dialog .competition-search input { flex:1 1 11rem;min-inline-size:0; }
-.competitions-dialog .competition-search button { flex:1 0 auto; }
+.competition-directory {
+ display:grid;gap:12px;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;
+}
+.competition-directory-heading { display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;gap:12px; }
+.competition-directory-heading>span {
+ display:grid;place-items:center;inline-size:40px;block-size:40px;
+ border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset);
+}
+.competitions-dialog .competition-directory-heading h2 { margin:0;font-size:1.5rem;line-height:1.15;letter-spacing:-.035em;overflow-wrap:anywhere; }
+.competition-directory .competition-switch { margin:0; }
+.competition-directory .competition-switch button.secondary { padding:8px 4px!important; }
+.competition-search label { display:block;margin:0 0 6px;color:var(--premium-copy);font-size:.8125rem;font-weight:650;line-height:1.4; }
+.competition-search-fields { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px; }
+.competitions-dialog .competition-search :is(input,button) { min-block-size:48px;margin:0;border-radius:var(--premium-control-radius); }
+.competitions-dialog .competition-search input { background:var(--premium-inset);border-color:var(--premium-line);font-size:max(16px,.875rem); }
+.competitions-dialog .competition-search button[type="submit"] { padding:8px 12px;background:var(--premium-action);color:var(--premium-page);font-size:.8125rem; }
+.competitions-dialog .competition-search button.competition-search-clear.secondary {
+ inline-size:auto;min-block-size:44px;margin-block-start:6px;padding:6px 8px;border:0;background:transparent;color:var(--premium-ice);font-size:.8125rem;
+}
 .competitions-dialog .competition-switch { gap:6px;padding:6px;border-radius:18px;border:1px solid var(--premium-line);background:var(--premium-inset); }
 .competitions-dialog .competition-switch button.secondary { border:0;background:transparent;border-radius:12px;font-size:.8125rem!important; }
 .league-entry-dialog .entry-hero { margin-block:18px 22px;padding:22px 18px; }

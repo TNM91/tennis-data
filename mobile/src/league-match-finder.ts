@@ -1,4 +1,6 @@
 import type {OfficeDetail,OfficeFixture,OfficeResult} from '../../lib/native-league-office-contract'
+import {formatCaptainPracticeTime} from '../../lib/captain-practice-invite'
+import {competitionOpponentsHtml,competitionScheduleHtml} from './competition-match-card'
 import {html} from './match-details'
 import {matchDate} from './recent-results'
 
@@ -17,7 +19,16 @@ export function filterLeagueResults(rows:OfficeResult[],filters:LeagueMatchFilte
  const query=normalized(filters.query)
  return rows.filter(r=>(!filters.day||r.date===filters.day)&&(!query||matchesName(query,r.a,r.b)||r.courts.some(c=>matchesName(query,c.a,c.b)))).sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id))
 }
-export function leagueFixtureHtml(f:OfficeFixture){return '<article class="competition-fixture"><p class="competition-date">'+html(matchDate(f.date))+' · '+html(f.time||'Time to be confirmed')+'</p><h4>'+html(f.a)+' <span>vs</span> '+html(f.b)+'</h4><p>'+html(f.facility||'Venue to be confirmed')+'</p><span class="competition-status">'+html(statuses[f.status]||f.status)+'</span></article>'}
+export function leagueFixtureHtml(f:OfficeFixture) {
+ const savedTime=f.time.trim()
+ const clock=/^((?:[01]?\d|2[0-3]):[0-5]\d)(?::00(?:\.0+)?)?$/.exec(savedTime)
+ const time=clock?formatCaptainPracticeTime(clock[1]):savedTime
+ return `<article class="competition-fixture">
+  <span class="competition-status" data-fixture-state="${html(f.status)}">${html(statuses[f.status]||f.status)}</span>
+  ${competitionScheduleHtml(matchDate(f.date),time||'Time to be confirmed',f.facility||'Venue to be confirmed')}
+  ${competitionOpponentsHtml(f.a,f.b)}
+ </article>`
+}
 function finderHtml(d:OfficeDetail,view:LeagueMatchView,filters:LeagueMatchFilters){
  const days=[...new Set((view==='fixtures'?d.fixtures:d.results).map(r=>r.date).filter(Boolean))].sort()
  const dayOptions='<option value="">All days</option>'+[...days,...(filters.day&&!days.includes(filters.day)?[filters.day]:[])].map(day=>'<option value="'+html(day)+'"'+(day===filters.day?' selected':'')+'>'+html(matchDate(day))+(days.includes(day)?'':' — no longer loaded')+'</option>').join('')

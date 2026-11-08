@@ -13,7 +13,8 @@ const tools:Record<string,Tool>={
  personalCalendar:{destination:'calendar',title:'Calendar',detail:'Matches, lessons and practice.',icon:'calendar',keywords:'agenda schedule dates availability events personal plans competition coach sessions'},
  updates:{destination:'updates',title:'Updates',detail:'Your unread messages, schedule changes and account news.',icon:'alerts',keywords:'notifications unread alerts'},
  leagues:{destination:'leagues',title:'Leagues',detail:'Your entries, schedules, results and standings.',icon:'leagues'},
- tournaments:{destination:'tournaments',title:'Tournaments',detail:'Find events, enter a division and follow the draw.',icon:'tournaments'},
+ leagueDiscovery:{destination:'leagues',title:'Leagues',detail:'Public TiQ seasons and your entries.',icon:'leagues'},
+ tournaments:{destination:'tournaments',title:'Tournaments',detail:'Events, entries and draws.',icon:'tournaments',keywords:'enter a division'},
  coach:{destination:'coach',title:'Coach & training',detail:'Lessons, drills and check-ins.',icon:'coach',keywords:'coaching students assignments weekly plans practice accept invitation invite'},
  following:{destination:'following',title:'Following',detail:'Players, teams and leagues you follow.',icon:'following',keywords:'saved favorites'},
  matchup:{destination:'matchup',title:'Matchup',detail:'Compare players before you play.',icon:'matchup',keywords:'prepare opponent'},
@@ -36,16 +37,11 @@ const tools:Record<string,Tool>={
  coachMessages:{destination:'coach-messages',title:'Coach messages',detail:'Private chats with your coach or players.',icon:'teams'},
 }
 function toolHtml(t:Tool,featured=false){
- const competition=t.destination==='leagues'||t.destination==='tournaments'
- const category=t.destination==='leagues'?'Season play':'Event play'
- const action=t.destination==='leagues'?'Find your league':'Explore events'
- return '<button type="button" class="secondary app-tool'+(competition?' app-tool-competition':'')+(featured?' app-tool-featured':'')+'" data-app-destination="'+t.destination+'" data-tool-search="'+html([t.title,t.detail,t.keywords||''].join(' '))+'">'
+ return '<button type="button" class="secondary app-tool'+(featured?' app-tool-featured':'')+'" data-app-destination="'+t.destination+'" data-tool-search="'+html([t.title,t.detail,t.keywords||''].join(' '))+'">'
   +(featured?'<span class="app-tool-court-atmosphere" aria-hidden="true"><img class="app-tool-court" src="./brand/courts/tiq-native-ace-deuce-refined-20261031-v3.png" alt="" width="1727" height="911"></span>':'')
   +'<span class="app-tool-icon" aria-hidden="true">'+websiteUi.icons[t.icon]+'</span><span class="app-tool-copy">'
-  +(competition?'<small class="competition-category">'+category+'</small>':'')
   +'<strong>'+t.title+'</strong><span>'+t.detail+'</span>'+(t.web?'<small>Opens website</small>':'')+'</span>'
-  +'<span class="app-tool-arrow" aria-hidden="true">'+(t.web?'↗':'›')+'</span>'
-  +(competition?'<span class="competition-action" aria-hidden="true">'+action+'<span>→</span></span>':'')+'</button>'
+  +'<span class="app-tool-arrow" aria-hidden="true">'+(t.web?'↗':'›')+'</span></button>'
 }
 export function homeShortcutsHtml(){
  const shortcuts=[
@@ -62,14 +58,14 @@ export function homeShortcutsHtml(){
   </button>`
  }).join('')}</nav>`
 }
-export function appHubHtml(hub:AppHub){
+export function appHubHtml(hub:AppHub,fromLab=false){
  const groups:{title:string;keys:string[];lane?:'player'|'studio'}[]=hub==='compete'
-  ?[{title:'Browse competitions',keys:['leagues','tournaments']},{title:'Run your season',keys:['office','teams']}]
+  ?[{title:'Browse competitions',keys:['leagueDiscovery','tournaments']},{title:'Run your season',keys:['office','teams']}]
   :hub==='coach'
    ?[{title:'Your game plan',keys:['lessonDates','inbox','connection','training','progress'],lane:'player'},{title:'Coach studio',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video'],lane:'studio'}]
    :[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]
  const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'More'
- const note=hub==='compete'?'Find your competition. Arrive with a plan.':'Lessons, practice and conversations.'
+ const note=hub==='compete'?'Find events and follow your season.':'Lessons, practice and conversations.'
  const total=groups.reduce((count,group)=>count+group.keys.length,0)
  const coachControls=hub==='coach'?`<div class="coach-hub-messages">${toolHtml(tools.coachMessages)}</div>
   <div class="coach-hub-lanes" role="group" aria-label="Coach and training tools">
@@ -91,7 +87,7 @@ export function appHubHtml(hub:AppHub){
  </div>`:''
  return `<div class="app-tools-hub" data-hub="${hub}">
   <header class="app-hub-heading${hub==='more'?' app-hub-heading-compact':hub==='compete'?' tab-hero tab-hero-court':' tab-hero'}">
-   ${hub==='compete'?'<small class="stat-eyebrow">TenAceIQ</small>':''}
+   ${hub==='coach'&&fromLab?`<button type="button" class="secondary coach-hub-back" data-coach-back><span aria-hidden="true">${nativeActionIcon('back')}</span>Back to My Lab</button>`:''}
    <h1 tabindex="-1">${title}</h1>${hub==='more'?'':'<p>'+note+'</p>'}
   </header>
   ${hub==='compete'?'<div class="compete-next-match" data-compete-next-match hidden></div>':''}
