@@ -37,6 +37,7 @@ import {mountLabRatingTrends} from './lab-rating-trends'
 import {openDataImports} from './data-imports-view'
 import {openLeagueOffice} from './league-office-view'
 import {createCalendarHighlights} from './lab-calendar'
+import {CALENDAR_WEEKLY_REP_CHANGED,type CalendarWeeklyRep,type CalendarWeeklyRepChange} from './calendar-weekly-reps'
 import {createCoachNextAssignment} from './coach-next-assignment'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
@@ -112,6 +113,10 @@ let linkedLabOwner:string|undefined
 let exploreSearch:ExploreSearchState|undefined
 let guestExploreResume:{visit:ExploreVisit;owner?:string}|undefined
 const calendarHighlights=createCalendarHighlights(client,()=>session?.user.id)
+window.addEventListener(CALENDAR_WEEKLY_REP_CHANGED,event=>{
+ const change=(event as CustomEvent<CalendarWeeklyRepChange>).detail
+ if(change&&change.owner===session?.user.id)calendarHighlights.refreshPractice(change.calendarChanged)
+})
 const coachNextAssignment=createCoachNextAssignment(client,()=>session?.user.id)
 let revision = 0
 let profileOpen=false
@@ -322,10 +327,17 @@ function launchCompetitions(scope:'mine'|'discover'='mine',trigger?:HTMLElement)
  const owner=session.user.id,visit=revision
  competitions=openCompetitions(client,owner,()=>visit===revision&&owner===session?.user.id,scope,()=>navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')?.click(),undefined,trigger)
 }
+function openScheduledRep(owner:string,current:()=>boolean,button:HTMLElement,calendarRep:CalendarWeeklyRep,options?:{reviewRep:boolean;fromCalendar:true}){
+ button.focus({preventScroll:true})
+ return openLevelUp(client,owner,current,{view:'weeks',calendarRep,...options})
+}
+function openPlayerCalendar(owner:string,current:()=>boolean,trigger:HTMLElement,initial?:CalendarStart){
+ return openCalendar(client,owner,current,trigger,initial,(rep,button,active,reviewRep)=>openScheduledRep(owner,active,button,rep,{reviewRep,fromCalendar:true}))
+}
 function launchCalendar(trigger:HTMLElement,initial:CalendarStart='all'){
  if(!session||agenda?.isOpen()||connection?.isSaving()||document.querySelector('dialog[open]'))return
  const owner=session.user.id,visit=revision
- agenda=openCalendar(client,owner,()=>visit===revision&&owner===session?.user.id,trigger,initial)
+ agenda=openPlayerCalendar(owner,()=>visit===revision&&owner===session?.user.id,trigger,initial)
 }
 function launchUpdates(trigger:HTMLElement){
  if(!session||updates?.isOpen()||connection?.isSaving()||document.querySelector('dialog[open]'))return
@@ -338,7 +350,7 @@ function launchUpdates(trigger:HTMLElement){
    return openLevelUp(client,owner,active,{view:'weeks',planId:action.planId})
   }
   if(action.kind==='tool'){
-   if(action.destination==='calendar')return openCalendar(client,owner,active,button)
+   if(action.destination==='calendar')return openPlayerCalendar(owner,active,button)
    if(action.destination==='training-inbox')return openLevelUp(client,owner,active,'inbox')
    leave();guardNavigation(()=>{if(!current())return;if(action.destination==='lab')void lab();else showHub('coach')});return null
   }
@@ -652,8 +664,14 @@ async function lab(entry?:'coach'|PlayerLink) {
     const scoreboard=app.querySelector('.lab-scoreboard')
     if(scoreboard)scoreboard.after(calendar)
     else app.querySelector('#refresh')!.before(calendar)
-    calendarHighlights.mount(calendar,current.user.id,()=>version===revision&&current.user.id===session?.user.id,Boolean(scoreboard),
-      (button,event,onClose)=>launchCalendar(button,{event,onClose}))
+    const active=()=>version===revision&&current.user.id===session?.user.id
+    calendarHighlights.mount(calendar,current.user.id,active,Boolean(scoreboard),
+      (button,event,onClose)=>launchCalendar(button,{event,onClose}),'up-next',{
+       practice:(button,rep)=>{
+        if(connection?.isSaving()||document.querySelector('dialog[open]'))return
+        training=openScheduledRep(current.user.id,active,button,rep)
+       },
+      })
   }
   const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
   app.insertAdjacentHTML('beforeend', accountLinksHtml)

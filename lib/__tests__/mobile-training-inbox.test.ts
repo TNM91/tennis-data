@@ -2,6 +2,7 @@ import {describe,it,expect,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {parseTrainingPlans,parseTrainingCoachWork,loadTrainingPlans,loadTrainingCoachWork,trainingCoachFeedback,type TrainingInboxSend} from '../../mobile/src/training-inbox-data'
 import {trainingInboxLaunches,trainingPlansHtml,trainingCoachWorkHtml} from '../../mobile/src/training-inbox-view'
+import {CALENDAR_WEEKLY_REP_CHANGED,clearCalendarWeeklyReps,readCalendarWeeklyReps,saveCalendarWeeklyRep,syncCalendarWeeklyRepProgress} from '../../mobile/src/calendar-weekly-reps'
 const owner='owner',date='2026-10-25T06:00:00Z',identity='relentless-competitor-4-0'
 const rep=(id='r1',focusId='split-step-rhythm')=>({id,kind:'repeat',focusId,identitySlug:identity,label:'Repeat',title:'Split-step rhythm',detail:'Recover after contact.',href:'/level-up/'+identity+'?focus='+focusId,completedAt:null})
 const plan=()=>({version:1,id:'week',identitySlug:identity,weekStart:'2026-10-19',summary:'Keep your feet active.',strongestFocus:'Recovery',reps:[rep()],sharedWithCoach:false,coachUserId:null,studentLinkId:null,coachResponse:null,createdAt:date,updatedAt:date})
@@ -9,6 +10,46 @@ const work=()=>({ok:true,coachLinks:[{id:'link',playerUserId:owner,identitySlug:
 const client=(id=owner)=>({auth:{getSession:async()=>({data:{session:{user:{id},access_token:'synthetic'}},error:null})}} as unknown as SupabaseClient)
 const response=(data:unknown,status=200)=>({data,status,headers:{},url:''})
 describe('native training inbox',()=>{
+ it('keeps calendar drill links and confirmed progress scoped to the exact rep and owner',()=>{
+  const values=new Map<string,string>()
+  const dispatchEvent=vi.fn()
+  vi.stubGlobal('window',{dispatchEvent,localStorage:{getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>values.set(key,value),removeItem:(key:string)=>values.delete(key)}})
+  try{
+   const id='player-calendar-11111111-1111-4111-8111-111111111111',target={planId:'week',repId:'r1',identitySlug:identity,weekStart:'2026-10-19'}
+   saveCalendarWeeklyRep(owner,id,target)
+   expect(readCalendarWeeklyReps(owner).get(id)).toEqual(target)
+   expect(readCalendarWeeklyReps('another-owner').size).toBe(0)
+   const otherEvent='player-calendar-22222222-2222-4222-8222-222222222222'
+   saveCalendarWeeklyRep(owner,otherEvent,{...target,repId:'r2'})
+   saveCalendarWeeklyRep('another-owner',id,target)
+   const doneAt='2026-10-25T07:00:00Z',reopenedAt='2026-10-25T08:00:00Z'
+   const openPlan=plan()
+   const donePlan={...openPlan,updatedAt:doneAt,reps:[{...rep(),completedAt:doneAt},rep('r2')]}
+   const sync=(...plans:unknown[])=>syncCalendarWeeklyRepProgress(owner,parseTrainingPlans({ok:true,plans},owner))
+   sync({...donePlan,weekStart:'2026-10-12'})
+   expect(readCalendarWeeklyReps(owner).get(id)).toEqual(target)
+   sync(donePlan)
+   expect(readCalendarWeeklyReps(owner).get(id)?.progress).toEqual({completed:true,version:Date.parse(doneAt)})
+   expect(readCalendarWeeklyReps(owner).get(otherEvent)?.progress?.completed).toBe(false)
+   expect(readCalendarWeeklyReps('another-owner').get(id)).toEqual(target)
+   sync(openPlan)
+   expect(readCalendarWeeklyReps(owner).get(id)?.progress?.completed).toBe(true)
+   sync({...openPlan,updatedAt:reopenedAt})
+   expect(readCalendarWeeklyReps(owner).get(id)?.progress?.completed).toBe(false)
+   saveCalendarWeeklyRep(owner,id,null)
+   expect([...readCalendarWeeklyReps(owner).keys()]).toEqual([otherEvent])
+   expect(dispatchEvent.mock.calls.map(([event])=>[event.type,event.detail])).toEqual([
+    [CALENDAR_WEEKLY_REP_CHANGED,{owner,calendarChanged:true}],
+    [CALENDAR_WEEKLY_REP_CHANGED,{owner,calendarChanged:true}],
+    [CALENDAR_WEEKLY_REP_CHANGED,{owner:'another-owner',calendarChanged:true}],
+    [CALENDAR_WEEKLY_REP_CHANGED,{owner,calendarChanged:false}],
+    [CALENDAR_WEEKLY_REP_CHANGED,{owner,calendarChanged:false}],
+   ])
+   clearCalendarWeeklyReps(owner)
+   clearCalendarWeeklyReps('another-owner')
+   expect(values.size).toBe(0)
+  }finally{vi.unstubAllGlobals()}
+ })
  it('distinguishes valid empty account results from malformed responses',()=>{expect(parseTrainingPlans({ok:true,plans:[]})).toEqual([]);expect(parseTrainingCoachWork({ok:true,coachLinks:[],assignments:[]},owner)).toEqual({links:[],assignments:[]});for(const r of [{ok:false,plans:[]},{ok:true},{ok:true,plans:[null]}])expect(()=>parseTrainingPlans(r)).toThrow()})
  it('rejects duplicate, oversized, malformed and partially valid weekly plans',()=>{const p=plan();for(const plans of [[p,p],Array(13).fill(p),[{...p,weekStart:'2026-02-30'}],[{...p,reps:[rep(),{...rep('r2'),kind:'invented'}]}],[{...p,reps:[rep(),rep()]}],[{...p,createdAt:'yesterday'}],[{...p,reps:[{...rep(),completedAt:'later'}]}]])expect(()=>parseTrainingPlans({ok:true,plans})).toThrow()})
  it('withholds a nested weekly reply belonging to another account',()=>{const p={...plan(),coachResponse:{action:'acknowledged',note:'Ready',coachUserId:'coach',updatedAt:date,playerReply:{action:'question',message:'Private reply',playerUserId:'other',updatedAt:date}}};expect(()=>parseTrainingPlans({ok:true,plans:[p]},owner)).toThrow()})

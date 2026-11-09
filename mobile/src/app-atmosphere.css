@@ -449,13 +449,23 @@ dialog.native-calendar-screen[open]{display:flex;flex-direction:column;gap:12px}
 .native-calendar-screen .cal-event.competition{border-inline-start-color:#77caff}.native-calendar-screen .cal-event.coach{border-inline-start-color:#d3b6ff}
 .native-calendar-screen .cal-event.team{border-inline-start-color:#e5f3ff}
 .cal-scheduled-rep { margin-block:9px; }
+.cal-featured-practice { display:grid;gap:8px;margin-block-start:12px; }
 .native-calendar-screen .cal-scheduled-rep .cal-event { margin-block:0 6px; }
 .native-calendar-screen button.cal-open-rep.secondary {
  display:flex;align-items:center;justify-content:space-between;gap:8px;inline-size:100%;text-align:start;
  border:1px solid transparent;border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);
 }
-.cal-open-rep span { color:var(--premium-lime); }
+.cal-open-rep > [aria-hidden] { color:var(--premium-lime); }
+.native-calendar-screen button.cal-open-rep[data-rep-done] {
+ border-color:var(--premium-line);background:var(--premium-inset);color:var(--premium-ice);
+}
 .cal-event-time{flex:0 0 3.6em;white-space:nowrap;font-size:.73rem;color:#c4d9e8}.cal-event-copy{flex:1;display:flex;flex-direction:column;gap:5px;overflow-wrap:anywhere}.cal-event-copy small{font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:#81bbd7}.cal-event-copy strong{font-size:.98rem;line-height:1.35}.cal-event-copy>span{font-size:.78rem;color:#aac7da;line-height:1.4}
+.native-calendar-screen .cal-rep-status:not([hidden]) {
+ display:inline-flex;align-items:center;align-self:flex-start;gap:5px;max-inline-size:100%;
+ padding:3px 8px;border:1px solid var(--premium-line);border-radius:999px;
+ background:var(--premium-inset);color:var(--premium-lime);font-size:.75rem;font-weight:700;line-height:1.3;
+}
+.cal-hero .cal-rep-status { margin-block-start:8px; }
 .cal-actions{display:flex;gap:7px;padding-block-start:12px;border-block-start:1px solid #22435b;flex:none}.cal-actions>button:first-child{flex:1}.cal-actions>button{font-size:.82rem;padding:10px}
 .cal-footnote{font-size:.76rem;line-height:1.6;color:#8cabc1;margin:24px 0 6px}.cal-warning{font-size:.85rem;padding:12px;border:1px solid #816335;border-radius:12px;color:#f0d4a1;background:#30291e;line-height:1.5}
 .cal-panel,.cal-form{margin:0;display:flex;flex-direction:column;gap:17px;border:1px solid #234a66;border-radius:22px;background:linear-gradient(150deg,#0b2941,#061c31);padding:22px 18px;overflow-wrap:anywhere}

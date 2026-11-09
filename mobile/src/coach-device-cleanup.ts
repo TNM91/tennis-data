@@ -1,7 +1,9 @@
 import {coachId} from '../../lib/native-coach-contract'
 import {cancelCoachFile} from './native-coach-files'
+import {clearCalendarWeeklyReps} from './calendar-weekly-reps'
 export async function clearCoachDeviceData(owner:string){
  coachId(owner)
+ clearCalendarWeeklyReps(owner)
  await cancelCoachFile(owner).catch(()=>{})
  const name='tenaceiq-native-video-v1-'+owner
  for(const key of ['notifications','practice','watched'])localStorage.removeItem(name+':'+key)

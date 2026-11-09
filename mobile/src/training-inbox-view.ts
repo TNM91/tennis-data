@@ -7,11 +7,12 @@ import {trainingIdentity} from './training-identity'
 import {SAVED_WEEK_LIST_LIMIT,trainingAssignmentQueue,trainingCoachFeedback,type TrainingCoachWork} from './training-inbox-data'
 import {trainingTime} from './level-up-model'
 import type {TrainingSession} from './level-up-data'
+import {calendarWeeklyRepKey,type ScheduledPracticeLinks} from './calendar-weekly-reps'
 export type TrainingInboxLaunch={key:string;cardId:string;identitySlug:string;label:string;checkInAssignmentId?:string;coachCue?:string}
 export type SavedWeekPractice=Pick<TrainingSession,'cardId'|'rating'|'elapsedSeconds'>&{key:string}
 const packDrillLimit=30
 const hasDrillCard=(cardId:string)=>LEVEL_UP_CARDS.some(card=>card.id===cardId)
-const weeklyDrillKey=(planId:string,repId:string)=>JSON.stringify(['plan',planId,repId])
+export const weeklyDrillKey=(planId:string,repId:string)=>JSON.stringify(['plan',planId,repId])
 const coachDrillKey=(assignmentId:string,cardId:string,slot?:number)=>
  JSON.stringify(slot===undefined?['coach',assignmentId,cardId]:['coach',assignmentId,cardId,slot])
 const feedbackDrillKey=(assignmentId:string,cardId:string,slot?:number)=>
@@ -60,29 +61,40 @@ export function trainingInboxLaunches(plans:WeeklyLevelUpPlan[],work:TrainingCoa
 }
 const direction=(slug:string)=>trainingIdentity(slug)?.title.replace(/^The /,'')||slug
 
-function weeklyRepHtml(plan:WeeklyLevelUpPlan,rep:WeeklyLevelUpPlanRep,canChange:boolean,next=false,savedPractice?:SavedWeekPractice){
+export function trainingWeekPracticeReceiptHtml(receipt:SavedWeekPractice){
+ return `<div class="training-week-practice-receipt" id="week-practice-receipt" role="status">
+  <strong>Practice saved</strong><p>Self-rated proof ${receipt.rating} / 5 · ${trainingTime(receipt.elapsedSeconds)} timed</p>
+ </div>`
+}
+
+type PracticeDates={links:ScheduledPracticeLinks;alreadyInCalendar:boolean}
+
+function weeklyRepHtml(plan:WeeklyLevelUpPlan,rep:WeeklyLevelUpPlanRep,canChange:boolean,next=false,savedPractice?:SavedWeekPractice,dates?:PracticeDates){
  const hasDrill=hasDrillCard(rep.focusId)
  const key=weeklyDrillKey(plan.id,rep.id)
  const receipt=hasDrill&&savedPractice?.key===key&&savedPractice.cardId===rep.focusId?savedPractice:undefined
  const ready=Boolean(receipt&&canChange&&!rep.completedAt)
  const mark=canChange?`<button type="button" class="secondary" data-week-mark="${html(JSON.stringify([plan.id,rep.id]))}" data-week-completed="${!rep.completedAt}"${ready?' aria-describedby="week-practice-receipt"':''}>${rep.completedAt?'Reopen rep':'Mark rep done'}<span class="sr-only"> ${html(rep.title)}</span></button>`:''
+ const linked=dates?.links.get(calendarWeeklyRepKey({planId:plan.id,repId:rep.id,identitySlug:plan.identitySlug,weekStart:plan.weekStart}))
+ const titleId='training-rep-'+encodeURIComponent(key)
+ const practiceDate=linked
+  ?dates?.alreadyInCalendar?'':`<button type="button" class="secondary" data-week-calendar="${html(rep.id)}" aria-describedby="${html(titleId)}">${linked.count>1?'View latest practice date':'View practice date'}</button>`
+  :next?`<button type="button" class="secondary" data-week-schedule="${html(rep.id)}" data-schedule-title="${html(rep.title)}">Schedule this rep</button>`:''
  return `<article class="training-week-rep${next?' training-week-rep-next':''}${ready?' training-week-rep-ready':''}">
   <small>${next?'Next rep · ':rep.completedAt?'Recorded complete · ':''}${html(rep.label)}${weeklyCoachCue(plan,rep.id)?' · Coach cue':''}</small>
-  <h3${next?' tabindex="-1"':''}>${html(rep.title)}</h3><p>${html(rep.detail)}</p>
-  ${receipt?`<div class="training-week-practice-receipt" id="week-practice-receipt" role="status">
-   <strong>Practice saved</strong><p>Self-rated proof ${receipt.rating} / 5 · ${trainingTime(receipt.elapsedSeconds)} timed</p>
-  </div>`:''}
-  ${hasDrill||canChange||next?`<div class="training-week-actions">
+  <h3 data-week-rep="${html(rep.id)}" tabindex="-1"${linked&&!dates?.alreadyInCalendar?` id="${html(titleId)}"`:''}>${html(rep.title)}</h3><p>${html(rep.detail)}</p>
+  ${receipt?trainingWeekPracticeReceiptHtml(receipt):''}
+  ${hasDrill||canChange||practiceDate?`<div class="training-week-actions">
    ${ready?mark:''}
    ${hasDrill?privateDrillButton(key,rep.title):''}
-   ${next?`<button type="button" class="secondary" data-week-schedule="${html(key)}" data-schedule-title="${html(rep.title)}">Schedule this rep</button>`:''}
+   ${practiceDate}
    ${ready?'':mark}
   </div>`:''}
   ${hasDrill?'':'<p>Follow the written rep. This focus has no exact matching drill card in the app yet.</p>'}
  </article>`
 }
 
-function weeklyPlanCard(plan:WeeklyLevelUpPlan,canChange:boolean,currentWeek:string,featured=false,savedPractice?:SavedWeekPractice){
+function weeklyPlanCard(plan:WeeklyLevelUpPlan,canChange:boolean,currentWeek:string,featured=false,savedPractice?:SavedWeekPractice,dates?:PracticeDates){
  const progress=getWeeklyLevelUpPlanProgress(plan),response=plan.coachResponse
  const reps=getWeeklyLevelUpPlanReps(plan)
  const coachedRep=reps.find(rep=>weeklyCoachCue(plan,rep.id))
@@ -103,25 +115,25 @@ function weeklyPlanCard(plan:WeeklyLevelUpPlan,canChange:boolean,currentWeek:str
    ${response.playerReply?`<p>Your reply: ${response.playerReply.action==='acknowledged'?'Seen':'Question'}${response.playerReply.message?' · '+html(response.playerReply.message):''}</p>`:''}
    ${!response.playerReply&&plan.sharedWithCoach&&plan.studentLinkId&&plan.coachUserId?`<button type="button" class="secondary" data-week-reply="${html(plan.id)}">Reply to coach<span class="sr-only"> Week of ${html(weekDate)}</span></button>`:''}
   </aside>`:''}
-  ${next?weeklyRepHtml(plan,next,canChange,true,savedPractice):''}
+  ${next?weeklyRepHtml(plan,next,canChange,true,savedPractice,dates):''}
   <p>${html(plan.summary)}</p>
   ${plan.strongestFocus?`<p><strong>Strongest focus</strong> · ${html(plan.strongestFocus)}</p>`:''}
   ${featured&&otherReps.length?`<details class="training-inbox-fold" data-inbox-fold="${html(JSON.stringify(['week-reps',plan.id]))}">
    <summary>${next?'Other reps':'Completed reps'} (${otherReps.length})</summary>
-   ${otherReps.map(rep=>weeklyRepHtml(plan,rep,canChange,false,savedPractice)).join('')}
-  </details>`:otherReps.map(rep=>weeklyRepHtml(plan,rep,canChange,false,savedPractice)).join('')}
+   ${otherReps.map(rep=>weeklyRepHtml(plan,rep,canChange,false,savedPractice,dates)).join('')}
+  </details>`:otherReps.map(rep=>weeklyRepHtml(plan,rep,canChange,false,savedPractice,dates)).join('')}
  </section>`
 }
 
-export function trainingPlansHtml(plans:WeeklyLevelUpPlan[],canChange=false,requestedPlanId?:string,savedPractice?:SavedWeekPractice){
+export function trainingPlansHtml(plans:WeeklyLevelUpPlan[],canChange=false,requestedPlanId?:string,savedPractice?:SavedWeekPractice,dates?:PracticeDates){
  const currentWeek=getWeeklyLevelUpPlanWeekStart()
  const requested=requestedPlanId?plans.find(plan=>plan.id===requestedPlanId):undefined
  const unavailable=requestedPlanId&&!requested?'<p role="status">This saved week is unavailable.</p>':''
  const featured=requested??selectWeeklyLevelUpPlanForMyQuest(plans,currentWeek)
  if(!featured)return unavailable+'<p>No weekly plans are saved to your account yet.</p>'
  const otherWeeks=plans.filter(plan=>plan.id!==featured.id)
- return `${unavailable}${weeklyPlanCard(featured,canChange,currentWeek,true,savedPractice)}
-  ${otherWeeks.length?`<details class="training-inbox-fold" data-inbox-fold="saved-weeks"><summary>More saved weeks (${otherWeeks.length})</summary>${otherWeeks.map(plan=>weeklyPlanCard(plan,canChange,currentWeek,false,savedPractice)).join('')}</details>`:''}
+ return `${unavailable}${weeklyPlanCard(featured,canChange,currentWeek,true,savedPractice,dates)}
+  ${otherWeeks.length?`<details class="training-inbox-fold" data-inbox-fold="saved-weeks"><summary>More saved weeks (${otherWeeks.length})</summary>${otherWeeks.map(plan=>weeklyPlanCard(plan,canChange,currentWeek,false,savedPractice,dates)).join('')}</details>`:''}
   <p class="training-inbox-note">Mark a rep done after you finish the work.${plans.length===SAVED_WEEK_LIST_LIMIT?` Showing up to ${SAVED_WEEK_LIST_LIMIT} saved plans.`:''}</p>`
 }
 const packDrillStatus={assigned:'Assigned',started:'Started',completed:'Completed',skipped:'Skipped'}

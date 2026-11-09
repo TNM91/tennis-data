@@ -61,13 +61,18 @@ export function calendarTournamentEntry(event:NativeCalendar['competitions'][num
  return divisionId?{parent:id,division:divisionId}:{parent:'',division:id}
 }
 export const personalOccurrenceKey=(id:string,day:string)=>`personal:${id}:${day}`
+export function personalCalendarOccurrence(p:PlayerCalendarItem,day=p.date):CalendarOccurrence{
+ return {key:personalOccurrenceKey(p.id,day),id:p.id,source:'personal',title:p.title,date:day,time:p.time,location:p.location,
+  detail:p.kind==='availability'?(p.availabilityStatus==='available'?'Personal note · Available':'Personal note · Unavailable'):'Personal '+p.kind,
+  kind:p.kind,recurring:!!p.recurrenceRule,readiness:''}
+}
 export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[]{
  const entries:CalendarOccurrence[]=[]
  for(const p of calendar.personal){
   for(let day=calendar.range.from;day<=calendar.range.to;day=shiftCalendarDay(day,1)){
    const offset=(Date.parse(day+'T12:00:00Z')-Date.parse(p.date+'T12:00:00Z'))/86400000
    const matches=offset>=0&&(day===p.date||p.recurrenceRule==='FREQ=DAILY'||p.recurrenceRule==='FREQ=WEEKLY'&&offset%7===0||p.recurrenceRule==='FREQ=MONTHLY'&&day.slice(8)===p.date.slice(8))
-   if(matches)entries.push({key:personalOccurrenceKey(p.id,day),id:p.id,source:'personal',title:p.title,date:day,time:p.time,location:p.location,detail:p.kind==='availability'?(p.availabilityStatus==='available'?'Personal note · Available':'Personal note · Unavailable'):'Personal '+p.kind,kind:p.kind,recurring:!!p.recurrenceRule,readiness:''})
+   if(matches)entries.push(personalCalendarOccurrence(p,day))
   }
  }
  for(const c of calendar.competitions){

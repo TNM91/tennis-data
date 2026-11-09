@@ -50,6 +50,7 @@ const currentPlan:WeeklyLevelUpPlan={
  ],
 }
 const plans=[currentPlan,{...currentPlan,id:'training-previous-week',weekStart:shiftCalendarDay(weekStart,-7),summary:'Hold depth on the move',reps:[{...currentPlan.reps[1],title:'Move through the return'}]}]
+const calendarWeekFixture={cue:'',missing:false,fail:false,lookups:[] as string[]}
 if(new URL(location.href).searchParams.has('training-week-coach-cue')){
  const coachUserId='synthetic-coach'
  const coachResponse=buildWeeklyLevelUpCoachResponse(currentPlan,{
@@ -57,6 +58,7 @@ if(new URL(location.href).searchParams.has('training-week-coach-cue')){
   replacementRep:{...currentPlan.reps[2],id:'coach-selected-serve',title:'Reset before the second serve'},
  },coachUserId)
  plans[0]={...currentPlan,sharedWithCoach:true,coachUserId,studentLinkId:link.id,coachResponse}
+ Object.assign(window,{calendarWeekFixture})
 }
 if(new URL(location.href).searchParams.has('training-coach-update')){
  const coachUserId='synthetic-coach',previous=plans[1]
@@ -98,7 +100,14 @@ export function trainingInboxPreview(url:URL,method:string,body?:BodyInit|null){
     }))
     return Response.json({ok:true,plans:otherWeeks})
    }
-   return Response.json({ok:true,plans:plans.filter(plan=>(!slug||plan.identitySlug===slug)&&(!start||plan.weekStart===start))})
+   const matching=plans.filter(plan=>(!slug||plan.identitySlug===slug)&&(!start||plan.weekStart===start))
+   if(slug&&start){
+    calendarWeekFixture.lookups.push(url.search)
+    if(calendarWeekFixture.fail)return Response.json({ok:false},{status:503})
+    if(calendarWeekFixture.missing)return Response.json({ok:true,plans:matching.map(plan=>({...plan,id:'another-week'}))})
+    if(calendarWeekFixture.cue)return Response.json({ok:true,plans:matching.map(plan=>plan.coachResponse?{...plan,coachResponse:{...plan.coachResponse,note:calendarWeekFixture.cue}}:plan)})
+   }
+   return Response.json({ok:true,plans:matching})
   }
   if(method==='POST'){
    const {plan,createOnly}=JSON.parse(String(body)) as {plan:WeeklyLevelUpPlan;createOnly:boolean}

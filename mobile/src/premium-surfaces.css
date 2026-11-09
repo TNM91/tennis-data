@@ -363,6 +363,11 @@ body[data-screen="lab"] section.lab-scoreboard::before {
 :is(.lab-up-next,.compete-next-match,.coach-next-assignment) .app-tool-copy .lab-next-action { color:var(--premium-lime);font-weight:700; }
 :is(.compete-next-match,.coach-next-assignment) .app-tool-copy .lab-next-action { font-size:.75rem; }
 .lab-up-next [hidden],.compete-next-match[hidden],.coach-next-assignment[hidden] { display:none!important; }
+.lab-up-next button.lab-next-calendar.secondary {
+ inline-size:100%;min-block-size:44px;margin:6px 0 0;padding:6px 10px;
+ border-color:var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-inset);color:var(--premium-ice);font-size:.8125rem;
+}
 .compete-replies:not([hidden]) {
  display:flex;align-items:center;justify-content:space-between;gap:12px;min-block-size:44px;
  margin:8px 0 0;padding:10px 14px;text-align:start;line-height:1.35;
@@ -1191,12 +1196,12 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 .training-inbox-screen .training-week-rep-ready button[data-week-mark] {
  flex-basis:100%;border:1px solid transparent;border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);
 }
-.training-inbox-screen .training-week-practice-receipt {
+.training-dialog .training-week-practice-receipt {
  margin-block:8px;padding:8px 10px;border-inline-start:2px solid var(--premium-lime);border-radius:8px;background:var(--premium-inset);white-space:normal;
 }
 .training-week-practice-receipt strong { color:var(--premium-lime);font-size:.8125rem; }
-.training-inbox-screen .training-week-practice-receipt p { margin:3px 0 0;font-size:.75rem; }
-.training-inbox-screen :is([data-inbox-card],[data-week-mark],.training-week h2,.training-week-rep-next h3,.training-week-rep-ready) { scroll-margin-block:72px 12px; }
+.training-dialog .training-week-practice-receipt p { margin:3px 0 0;font-size:.75rem; }
+.training-inbox-screen :is([data-inbox-card],[data-week-mark],[data-week-rep],.training-week h2,.training-week-rep-ready) { scroll-margin-block:72px 12px; }
 .training-inbox-fold {
  margin-block:8px;padding:0 12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface);
 }

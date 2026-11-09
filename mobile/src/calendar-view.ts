@@ -3,9 +3,10 @@ import {html} from './match-details'
 import {COMPETITION_DATES_UNAVAILABLE,calendarDraft,personalDraft,sameCalendarDraft,type CalendarDraft,type CalendarIntent,type NativeCalendar} from '../../lib/native-calendar-contract'
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
-import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,calendarTournamentEntry,exportableCalendarOccurrences,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence} from './calendar-data'
+import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,calendarTournamentEntry,exportableCalendarOccurrences,personalCalendarOccurrence,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
 import {createCalendarFinder} from './calendar-finder'
+import {CALENDAR_WEEKLY_REP_CHANGED,readCalendarWeeklyReps,saveCalendarWeeklyRep,type CalendarWeeklyRep,type CalendarWeeklyRepChange} from './calendar-weekly-reps'
 import {openPlayerPractices} from './player-practices-view'
 import {openCompetitions} from './competitions-view'
 import {openTournaments} from './tournaments-view'
@@ -38,30 +39,35 @@ const groupByDate=(events:CalendarOccurrence[])=>{
  return dates
 }
 const dateDots=(events:CalendarOccurrence[])=>calendarSources.filter(source=>events.some(event=>event.source===source)).map(source=>`<i class="${source}"></i>`).join('')
-type Panel='agenda'|'editor'|'review'|'delete'|'respond'|'export'|'match-export'|'recovery'|'leave'
+type Panel='agenda'|'linked-practice'|'editor'|'review'|'delete'|'respond'|'export'|'match-export'|'recovery'|'leave'
 type AgendaOpener={kind:'row'|'featured';key:string}|{kind:'new'|'export'}
 type RefreshContext={message?:string;focusKey?:string;focusControl?:string;preferFeatured?:boolean;reviewReply?:CalendarOccurrence}
 type MatchAvailability=NativeCalendar['competitions'][number]
 type AvailabilityChoice=NonNullable<MatchAvailability['responseStatus']>
 const savedReply=(match?:MatchAvailability):AvailabilityChoice=>match?.responseIsStale?'':match?.responseStatus??''
 export type TournamentCalendarMatch=Pick<CalendarOccurrence,'id'|'date'|'time'>
-export type CalendarStart='all'|'coach'|{practiceTitle:string;openDrill?:()=>void;onClose:()=>void}
+export type CalendarStart='all'|'coach'|{practiceTitle:string;weeklyRep?:CalendarWeeklyRep;openDrill?:()=>void;onClose:()=>void}
+ |{practiceEventId:string;onPracticeClose:(changed:boolean,message:string)=>void}
  |{tournamentMatch:TournamentCalendarMatch;onClose:(changed:boolean)=>void}
  |{event?:CalendarOccurrence;filter?:'coach'|'competition'|'needs-reply';followMovedMatch?:boolean;onClose:(changed:boolean)=>void}
-export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all'){
+type OpenCalendarRep=(rep:CalendarWeeklyRep,button:HTMLButtonElement,current:()=>boolean,review:boolean)=>{isOpen:()=>boolean;dispose:()=>void;back:()=>void}
+export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all',openRep?:OpenCalendarRep){
  const practice=typeof initial==='object'&&'practiceTitle' in initial?initial:null
+ const linkedPractice=typeof initial==='object'&&'practiceEventId' in initial?initial:null
  const tournamentShortcut=typeof initial==='object'&&'tournamentMatch' in initial
  let initialTournamentMatch=tournamentShortcut?initial.tournamentMatch:undefined
- const highlight=typeof initial==='object'&&!('practiceTitle' in initial)&&!tournamentShortcut?initial:undefined
+ const highlight=typeof initial==='object'&&!('practiceTitle' in initial)&&!('practiceEventId' in initial)&&!tournamentShortcut?initial:undefined
  const replyShortcut=highlight?.filter==='needs-reply'?highlight.event:undefined
  let initialEvent=replyShortcut?undefined:highlight?.event
  let changed=false
  const dialog=document.createElement('dialog');dialog.className='native-calendar-screen';dialog.setAttribute('aria-label','Your calendar')
- let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'=tournamentShortcut||highlight?.filter==='competition'?'month':'week',anchor=initialTournamentMatch?.date??highlight?.event?.date??localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
+ let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'=tournamentShortcut||highlight?.filter==='competition'?'month':'week',anchor=initialTournamentMatch?.date??highlight?.event?.date??localCalendarDate(),day='',shown=100,panel:Panel=linkedPractice?'linked-practice':'agenda',returnPanel:Panel='agenda'
+ let practiceLookupFailed=false
  let failedRefresh:RefreshContext|null=null
  let filter:CalendarFilter=tournamentShortcut?'competition':typeof initial==='string'?initial:highlight?.filter??'all'
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
  let competitionView:ReturnType<typeof openCompetitions>|null=null
+ let weeklyRepView:ReturnType<OpenCalendarRep>|null=null
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago'
  let matchExportZone=''
  let earlierSchedule=''
@@ -69,7 +75,17 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  let draftStart:CalendarDraft|null=null
  let discardDestination:'agenda'|'close'='close'
  let schedulingRep=false
- let scheduledPracticeKey=''
+ let scheduledPracticeId=''
+ let weeklyReps=readCalendarWeeklyReps(owner)
+ const isPersonalPractice=(event:CalendarOccurrence)=>event.source==='personal'&&event.kind==='practice'&&!event.recurring
+ const canOpenPractice=(event:CalendarOccurrence)=>isPersonalPractice(event)&&(event.id===scheduledPracticeId||Boolean(openRep&&weeklyReps.has(event.id)))
+ const repDone=(id:string)=>weeklyReps.get(id)?.progress?.completed===true
+ const practiceAction=(done:boolean)=>done?'View saved rep':'Open practice drill'
+ const practiceStatus=(id:string)=>`<span class="cal-rep-status" data-cal-rep-status="${html(id)}"${repDone(id)?'':' hidden'}><span aria-hidden="true">✓</span><span>Rep done</span></span>`
+ const practiceButton=(event:CalendarOccurrence,titleId:string)=>{
+  const done=repDone(event.id)
+  return `<button type="button" class="secondary cal-open-rep" data-cal-open-rep="${html(event.key)}" data-cal-rep-id="${html(event.id)}" ${done?'data-rep-done':''} aria-describedby="${titleId}"><span data-cal-rep-label>${practiceAction(done)}</span><span aria-hidden="true">›</span></button>`
+ }
  let agendaOpener:AgendaOpener|null=null
  let query='',agendaScroll=0,finderSource:NativeCalendar|null=null,finder:ReturnType<typeof createCalendarFinder>|null=null
  const active=()=>!disposed&&current()
@@ -111,24 +127,28 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const canConfirmReply=(match:MatchAvailability)=>!busy&&!pending&&match.status!=='Completed'&&replyChanged(match)
  const focus=()=>{
-  const step=schedulingRep?dialog.querySelector<HTMLElement>('.cal-body h2[tabindex]'):null
+  const step=schedulingRep||linkedPractice?dialog.querySelector<HTMLElement>('.cal-body h2[tabindex]'):null
   const heading=step??dialog.querySelector<HTMLElement>('h2, h1')
   heading?.focus({preventScroll:true})
  }
  const dispose=()=>{
   if(disposed)return
   disposed=true
+  window.removeEventListener(CALENDAR_WEEKLY_REP_CHANGED,updatePracticeStatus)
   practiceView?.dispose()
   practiceView=null
   competitionView?.dispose()
   competitionView=null
+  weeklyRepView?.dispose()
+  weeklyRepView=null
   void cancelCoachFile(owner).catch(()=>{})
   calendar=null;finder=null;finderSource=null;query='';draft=null;draftStart=null;pending=null;initialEvent=undefined;initialTournamentMatch=undefined
   dialog.close()
   dialog.remove()
   if(!current())return
   if(!practice&&trigger?.isConnected)trigger.focus({preventScroll:true})
-  if(typeof initial==='object')initial.onClose(changed)
+  if(linkedPractice)linkedPractice.onPracticeClose(changed,notice)
+  else if(typeof initial==='object'&&!('practiceEventId' in initial))initial.onClose(changed)
  }
  const dirty=()=>!!draft&&panel!=='agenda'||Boolean(pending)||hasReplyChanges()||Boolean(practiceView?.isOpen())
  const confirmDiscard=(destination:'agenda'|'close')=>{
@@ -139,7 +159,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   dialog.querySelector<HTMLElement>('.cal-panel h2')?.focus()
  }
  const cancelEditor=()=>{
-  if(schedulingRep||!calendar){back();return}
+  if(linkedPractice||schedulingRep||!calendar){back();return}
   if(draft&&draftStart&&sameCalendarDraft(draft,draftStart))returnAgenda()
   else confirmDiscard('agenda')
  }
@@ -148,7 +168,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   render()
   if(panel==='respond'&&selectedMatch())dialog.querySelector<HTMLSelectElement>('[data-cal-reply]')?.focus()
   else if(discardDestination==='agenda')dialog.querySelector<HTMLElement>('.cal-form h2')?.focus()
-  else if(schedulingRep)focus()
+  else if(schedulingRep||linkedPractice)focus()
  }
  const returnFromDetails=()=>{
   if(hasReplyChanges())confirmDiscard('agenda')
@@ -159,13 +179,16 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   dialog.querySelector<HTMLElement>('[data-cal-match-export-review]')?.focus()
  }
  const back=()=>{
+  if(weeklyRepView?.isOpen()){weeklyRepView.back();return true}
   if(practiceView?.isOpen()){practiceView.back();return true}
   if(competitionView?.isOpen())return competitionView.back()
-  if(busy&&(initialTournamentMatch||initialEvent&&highlight?.followMovedMatch)){dispose();return true}
+  if(busy&&(panel==='linked-practice'||initialTournamentMatch||initialEvent&&highlight?.followMovedMatch)){dispose();return true}
   if(busy){notice='Finishing this calendar check…';status();return true}
   if(panel==='leave'){keepChange();return true}
   if(panel==='match-export'){returnToMatch();return true}
+  if(linkedPractice&&(panel==='linked-practice'||panel==='editor'&&draft&&draftStart&&sameCalendarDraft(draft,draftStart))){dispose();return true}
   if(pending||panel==='editor'||panel==='review'||hasReplyChanges()){confirmDiscard('close');return true}
+  if(linkedPractice&&panel==='delete'){panel='editor';render();focus();return true}
   if(tournamentShortcut){dispose();return true}
   if(panel!=='agenda'){returnAgenda();return true}
   dispose();return true
@@ -270,9 +293,45 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   catch{if(active()){calendar=null;failedRefresh=context;notice=(message?message+' ':'')+'Your calendar couldn’t load. Check your connection and retry.'}}
   finally{if(active())finishAgendaRead(context)}
  }
+ const unlinkPractice=(id:string)=>{
+  if(id===scheduledPracticeId)scheduledPracticeId=''
+  if(weeklyReps.delete(id))saveCalendarWeeklyRep(owner,id,null)
+ }
+ const missingLinkedPractice=(id:string)=>{
+  unlinkPractice(id)
+  changed=true;pending=null;draft=null;draftStart=null;selected=null;baseline='';panel='linked-practice'
+  notice='This practice is no longer linked to this rep.'
+ }
+ const readLinkedPractice=async()=>{
+  if(!linkedPractice||busy||!active())return
+  const id=linkedPractice.practiceEventId
+  busy=true;practiceLookupFailed=false;notice='Checking your saved practice…';render();focus()
+  try{
+   const result=await calendarRequest(client,owner,active,{item:id})
+   if(!active())return
+   const saved=readCalendarItem(result.item)
+   if(saved&&saved.id!==id)throw Error()
+   if(!saved||saved.kind!=='practice'||saved.recurrenceRule){missingLinkedPractice(id);return}
+   selected=personalCalendarOccurrence(saved)
+   busy=false;setDraft(personalDraft(saved),saved.updatedAt);focus()
+  }catch{
+   if(active()){practiceLookupFailed=true;notice='Couldn’t check this practice. Try again.'}
+  }finally{
+   if(active()&&busy){busy=false;render();focus()}
+  }
+ }
  const confirmed=async(context:RefreshContext,{saved,loaded}:{saved?:PlayerCalendarItem|null;loaded?:NativeCalendar}={})=>{
   changed=true
-  if(schedulingRep&&saved&&practice?.openDrill)scheduledPracticeKey=personalOccurrenceKey(saved.id,saved.date)
+  if(schedulingRep&&saved&&practice?.openDrill){
+   scheduledPracticeId=saved.id
+   if(practice.weeklyRep){
+    weeklyReps.set(saved.id,practice.weeklyRep)
+    saveCalendarWeeklyRep(owner,saved.id,practice.weeklyRep)
+   }
+  }
+  const unlinkedId=pending?.action==='delete'?pending.id:saved&&(saved.kind!=='practice'||saved.recurrenceRule)?saved.id:''
+  if(unlinkedId)unlinkPractice(unlinkedId)
+  if(linkedPractice){notice=context.message??'';dispose();return}
   pending=null
   draft=null
   draftStart=null
@@ -354,11 +413,14 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
     notice='The current reply differs or this date moved. Open the date to review its latest schedule.'
    }else{
     const id=intent.action==='delete'?intent.id:intent.item.id,result=await calendarRequest(client,owner,active,{item:id}),saved=readCalendarItem(result.item);if(!active())return
+   if(linkedPractice&&saved&&saved.id!==id)throw Error()
     if(intent.action==='delete'&&!saved||intent.action!=='delete'&&saved&&sameCalendarDraft(personalDraft(saved),intent.item)){
      await confirmed({message:intent.action==='delete'?'Deletion confirmed.':'Your personal event is saved.'},{saved})
      return
     }
     pending=null
+   if(linkedPractice&&(!saved||saved.kind!=='practice'||saved.recurrenceRule)){missingLinkedPractice(id);return}
+   if(linkedPractice&&saved)selected=personalCalendarOccurrence(saved)
     if(saved){draft=personalDraft(saved);draftStart=draft;baseline=saved.updatedAt;schedulingRep=false;panel='editor';notice='The saved entry differs. Review this latest version before making a change.'}
     else if(intent.action!=='delete'){draft=intent.action==='update'?{...intent.item,id:'player-calendar-'+crypto.randomUUID()}:intent.item;baseline='';panel='editor';notice=intent.action==='update'?'That event is no longer saved. Review a new personal copy.':'No saved entry was found. Review this event before saving it.'}
     else{panel='agenda';notice='Refresh to check your calendar.'}
@@ -418,7 +480,10 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const time=event.time?event.time.slice(0,5)+(event.endTime?' – '+event.endTime:''):''
   const dateAndTime=[event.date===today?'':label(event.date),time].filter(Boolean).join(' · ')
   const replyStatus=event.matchNeedsReply?`<p id="cal-highlight-reply" data-cal-reply-needed>${html(event.readiness)}</p>`:''
-  return top+`<h2 id="cal-highlight-title">${html(event.title)}</h2>${dateAndTime?'<p>'+html(dateAndTime)+'</p>':''}${event.location?'<p>'+html(event.location)+'</p>':''}${replyStatus}<button type="button" class="secondary" data-cal-open-event="${html(event.key)}" aria-describedby="cal-highlight-title${replyStatus?' cal-highlight-reply':''}">Open event</button>`
+  const details=`<button type="button" class="secondary" data-cal-open-event="${html(event.key)}" aria-describedby="cal-highlight-title${replyStatus?' cal-highlight-reply':''}">Open event</button>`
+  const scheduled=Boolean(openRep&&canOpenPractice(event))
+  const actions=scheduled?`<div class="cal-featured-practice">${practiceButton(event,'cal-highlight-title')}${details}</div>`:details
+  return top+`<h2 id="cal-highlight-title">${html(event.title)}</h2>${dateAndTime?'<p>'+html(dateAndTime)+'</p>':''}${event.location?'<p>'+html(event.location)+'</p>':''}${replyStatus}${scheduled?practiceStatus(event.id):''}${actions}`
  }
  const agendaRows=(list=visible())=>{
   if(!calendar)return '<p>'+(!busy?'Your dates are unavailable. Retry to check the calendar.':'Loading dates…')+'</p>'
@@ -434,11 +499,10 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const time=e.time?e.time.slice(0,5):e.source==='team'?'TBD':'All day'
    const type=e.source==='competition'?e.kind:e.source==='coach'?'Coach':e.source==='team'?'Team practice · '+(calendar?.practices?.find(p=>p.id===e.id)?.scope.teamName||''):'Personal'
    const readiness=e.readiness?`<span${needsMatchReply(e,now)?' data-cal-reply-needed':''}>${html(e.readiness)}</span>`:''
-   const scheduled=e.key===scheduledPracticeKey
-   const row=`<button type="button" class="cal-event ${e.source}" data-cal-event="${html(e.key)}"><span class="cal-event-time">${html(time)}</span><span class="cal-event-copy"><small>${html(type)}${e.recurring?' · Repeats':''}</small><strong${scheduled?' id="cal-scheduled-rep-title"':''}>${html(e.title)}</strong>${e.location?'<span>'+html(e.location)+'</span>':''}${readiness}</span><span aria-hidden="true">›</span></button>`
-   return heading+(scheduled?`<div class="cal-scheduled-rep">${row}
-    <button type="button" class="secondary cal-open-rep" data-cal-open-rep aria-describedby="cal-scheduled-rep-title">Open practice drill<span aria-hidden="true">›</span></button>
-   </div>`:row)
+   const scheduled=canOpenPractice(e)
+   const titleId='cal-scheduled-rep-'+html(e.id)
+   const row=`<button type="button" class="cal-event ${e.source}" data-cal-event="${html(e.key)}"><span class="cal-event-time">${html(time)}</span><span class="cal-event-copy"><small>${html(type)}${e.recurring?' · Repeats':''}</small><strong${scheduled?` id="${titleId}"`:''}>${html(e.title)}</strong>${e.location?'<span>'+html(e.location)+'</span>':''}${readiness}${scheduled?practiceStatus(e.id):''}</span><span aria-hidden="true">›</span></button>`
+   return heading+(scheduled?`<div class="cal-scheduled-rep">${row}${practiceButton(e,titleId)}</div>`:row)
   }).join('')+(list.length>shown?'<button class="secondary" data-cal-more>Show more dates</button>':'')
  }
  const dateLabel=(date:string,count:number)=>{
@@ -468,8 +532,9 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(panel==='leave'&&discardDestination==='agenda')return '<section class="cal-panel"><h2 tabindex="-1">Discard changes?</h2><p>Your changes to this personal event will be discarded.</p><button data-cal-stay>Keep editing</button><button class="secondary" data-cal-discard>Discard changes</button></section>'
   if(panel==='leave')return `<section class="cal-panel"><h2 tabindex="-1">Leave this calendar change?</h2><p>${pending?'The saved result is still unconfirmed. Your calendar will need a fresh check when you return.':'Your unsaved changes will be discarded.'}</p><button data-cal-stay>Keep reviewing</button><button class="secondary" data-cal-discard>Discard and close</button></section>`
   if(panel==='recovery')return '<section class="cal-panel"><h2 tabindex="-1">Check the saved result</h2><p>The connection ended before we could confirm your change. Check your saved calendar before trying again.</p><button data-cal-recover '+(busy?'disabled':'')+'>Check saved entry</button></section>'
+  if(panel==='linked-practice')return `<section class="cal-panel"><h2 tabindex="-1">Saved practice</h2>${practiceLookupFailed?'<button type="button" data-cal-practice-retry>Retry practice lookup</button>':''}</section>`
   if(panel==='editor'&&draft)return `<form class="cal-form">
-   <h2 tabindex="-1">${schedulingRep?'Schedule practice':baseline?'Edit personal event':'Add personal event'}</h2>
+   <h2 tabindex="-1">${schedulingRep?'Schedule practice':linkedPractice?'Edit practice date':baseline?'Edit personal event':'Add personal event'}</h2>
    ${field('title','Title',draft.title)}
    <div class="cal-form-pair">${field('date','Date',draft.date,'date')}${field('time',schedulingRep?'Time':'Time (optional)',draft.time,'time')}</div>
    ${schedulingRep?'<p>Save a private practice on your calendar. Leave the time blank for an all-day entry.</p>':`
@@ -590,14 +655,37 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   rememberAgenda({kind,key})
   openEvent(event)
  }
+ const openPracticeDrill=(button:HTMLButtonElement)=>{
+  if(weeklyRepView?.isOpen())return
+  const saved=visible().find(e=>e.key===button.dataset.calOpenRep)
+  if(!saved||!canOpenPractice(saved))return
+  if(saved.id===scheduledPracticeId&&practice?.openDrill){dispose();if(current())practice.openDrill();return}
+  const rep=weeklyReps.get(saved.id)
+  if(rep&&openRep)weeklyRepView=openRep(rep,button,()=>active()&&button.isConnected,repDone(saved.id))
+ }
+ const updatePracticeStatus=(event:Event)=>{
+  const change=(event as CustomEvent<CalendarWeeklyRepChange>).detail
+  if(!change||change.owner!==owner||change.calendarChanged||!active())return
+  weeklyReps=readCalendarWeeklyReps(owner)
+  // Keep the launch button mounted while the saved week is open above Calendar.
+  dialog.querySelectorAll<HTMLElement>('[data-cal-rep-status]').forEach(badge=>{
+   badge.hidden=!repDone(badge.dataset.calRepStatus!)
+  })
+  dialog.querySelectorAll<HTMLButtonElement>('[data-cal-rep-id]').forEach(button=>{
+   const done=repDone(button.dataset.calRepId!)
+   button.toggleAttribute('data-rep-done',done)
+   button.querySelector<HTMLElement>('[data-cal-rep-label]')!.textContent=practiceAction(done)
+  })
+ }
  const bindAgenda=()=>{
   const input=dialog.querySelector<HTMLInputElement>('[data-cal-query]'),rows=dialog.querySelector<HTMLElement>('[data-cal-results]'),clear=dialog.querySelector<HTMLButtonElement>('[data-cal-clear]')
   if(!input||!rows)return
   const highlight=dialog.querySelector<HTMLElement>('[data-cal-highlight]')
   if(highlight)highlight.onclick=event=>{
    if(!active()||busy||panel!=='agenda')return
-   const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-cal-open-event]'):null
-   if(button?.dataset.calOpenEvent)openAgendaEvent(button.dataset.calOpenEvent,'featured')
+   const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-cal-open-event],[data-cal-open-rep]'):null
+   if(button?.dataset.calOpenRep)openPracticeDrill(button)
+   else if(button?.dataset.calOpenEvent)openAgendaEvent(button.dataset.calOpenEvent,'featured')
   }
   const reset=()=>{if(!active()||busy||panel!=='agenda'||!input.isConnected)return;query='';input.value='';shown=100;paintAgenda();input.focus({preventScroll:true})}
   input.oninput=()=>{if(!active()||busy||panel!=='agenda'||!input.isConnected)return;query=input.value.slice(0,160);if(input.value!==query)input.value=query;shown=100;paintAgenda()}
@@ -607,7 +695,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    if(!active()||busy||panel!=='agenda')return
    const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-cal-event],[data-cal-more],[data-cal-open-rep]'):null
    if(!button||!rows.contains(button))return
-   if(button.hasAttribute('data-cal-open-rep')&&practice?.openDrill){dispose();if(current())practice.openDrill();return}
+   if(button.dataset.calOpenRep){openPracticeDrill(button);return}
    if(button.hasAttribute('data-cal-more')){const first=visible()[shown];if(first)focusAgendaEvent(first.key);return}
    if(button.dataset.calEvent)openAgendaEvent(button.dataset.calEvent,'row')
   }
@@ -632,6 +720,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   on('[data-cal-stay]',keepChange)
   on('[data-cal-discard]',()=>{if(discardDestination==='agenda')returnAgenda();else dispose()})
   on('[data-cal-refresh]',()=>void refresh(failedRefresh??{focusControl:'[data-cal-refresh]'}));on('[data-cal-new]',()=>{rememberAgenda({kind:'new'});setDraft()});on('[data-cal-recover]',()=>void recover())
+  on('[data-cal-practice-retry]',()=>void readLinkedPractice())
   on('[data-cal-today]',()=>{anchor=localCalendarDate();day=anchor;void refresh({focusControl:'[data-cal-today]'})})
   on('[data-cal-mode]',b=>{
    const next=b.dataset.calMode as typeof mode
@@ -654,7 +743,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const context=focusFromEvent('team-practice:'+p.id)
    practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh(context)},'','Back to calendar',p.id)
   })
-  on('[data-cal-agenda]',returnFromDetails)
+  on('[data-cal-agenda]',()=>{if(linkedPractice&&panel==='delete')back();else returnFromDetails()})
   on('[data-cal-my-event]',button=>{
    const entry=calendarTournamentEntry(selectedMatch())
    if(!entry||tournamentShortcut||competitionView?.isOpen())return
@@ -681,7 +770,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    }
    form.oninput=sync;form.onchange=sync;form.onsubmit=e=>{e.preventDefault();sync();try{draft=calendarDraft(draft);panel='review';notice='';render();focus()}catch(error){notice=error instanceof Error?error.message:'Review this event.';status()}}
   }
-  on('[data-cal-edit]',()=>{panel='editor';render();if(schedulingRep)focus()});on('[data-cal-delete-review]',()=>{panel='delete';render();focus()})
+  on('[data-cal-edit]',()=>{panel='editor';render();if(schedulingRep||linkedPractice)focus()});on('[data-cal-delete-review]',()=>{panel='delete';render();focus()})
   on('[data-cal-save]',()=>{if(draft)void perform({action:baseline?'update':'create',item:draft,expectedUpdatedAt:baseline})})
   on('[data-cal-delete]',()=>{if(selected)void perform({action:'delete',id:selected.id,expectedUpdatedAt:baseline})})
   const replySelect=dialog.querySelector<HTMLSelectElement>('[data-cal-reply]')
@@ -742,8 +831,10 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    })()
   })
  }
+ window.addEventListener(CALENDAR_WEEKLY_REP_CHANGED,updatePracticeStatus)
  dialog.addEventListener('cancel',e=>{e.preventDefault();back()});document.body.append(dialog);dialog.showModal()
  if(practice)setDraft(undefined,'',practice.practiceTitle)
+ else if(linkedPractice)void readLinkedPractice()
  else void refresh()
  return {dispose,isOpen:()=>!disposed&&dialog.open,back,hasDraft:dirty}
 }

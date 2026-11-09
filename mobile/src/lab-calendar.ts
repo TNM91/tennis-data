@@ -4,6 +4,7 @@ import {isValidCalendarDate} from '../../lib/calendar-date'
 import {html} from './match-details'
 import {calendarOccurrences,calendarTournamentEntry,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,localCalendarDate,shiftCalendarDay,type CalendarOccurrence,type CalendarTournamentEntry} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
+import {readCalendarWeeklyReps,type CalendarWeeklyRep} from './calendar-weekly-reps'
 import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
 import type {NativeCalendar} from '../../lib/native-calendar-contract'
 import websiteUi from '../generated/website-ui.json'
@@ -49,14 +50,16 @@ function highlightDateDetails(event:CalendarOccurrence,now:Date){
  return [date,time,event.location].filter(Boolean).join(' · ')
 }
 type OpenCalendarHighlight=(button:HTMLButtonElement,event:CalendarOccurrence|undefined,onClose:(changed:boolean)=>void)=>void
-type CompeteCalendarShortcuts={
- replies:{button:HTMLButtonElement;open:OpenCalendarHighlight}
- tournament:{button:HTMLButtonElement;open:(button:HTMLButtonElement,entry:CalendarTournamentEntry,onClose:(changed:boolean)=>void)=>void}
+type CalendarHighlightShortcuts={
+ replies?:{button:HTMLButtonElement;open:OpenCalendarHighlight}
+ tournament?:{button:HTMLButtonElement;open:(button:HTMLButtonElement,entry:CalendarTournamentEntry,onClose:(changed:boolean)=>void)=>void}
+ practice?:(button:HTMLButtonElement,rep:CalendarWeeklyRep)=>void
 }
 export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>string|undefined){
  let version=0
  let cached:{owner:string;date:string;expires:number;read:Promise<NativeCalendar|null>}|null=null
  const clear=()=>{version++;cached=null}
+ let refreshPractice=(calendarChanged:boolean)=>{if(calendarChanged)clear()}
  const readWeek=(owner:string)=>{
   const today=localCalendarDate()
   if(cached?.owner===owner&&cached.date===today&&Date.now()<cached.expires)return cached.read
@@ -69,8 +72,8 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
  }
  const mount=(host:HTMLElement,owner:string,current:()=>boolean,linked:boolean,
   open:OpenCalendarHighlight,kind:'up-next'|'match'='up-next',
-  shortcuts?:CompeteCalendarShortcuts)=>{
-  const {replies,tournament}=shortcuts??{}
+  shortcuts?:CalendarHighlightShortcuts)=>{
+  const {replies,tournament,practice}=shortcuts??{}
   const matchOnly=kind==='match'
   host.innerHTML=`<button type="button" class="secondary app-tool">
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.calendar}</span>
@@ -86,20 +89,35 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   const title=button.querySelector<HTMLElement>('[data-next-title]')!
   const details=button.querySelector<HTMLElement>('[data-next-details]')!
   const action=button.querySelector<HTMLElement>('[data-next-action]')!
+  const calendarButton=document.createElement('button')
+  calendarButton.type='button'
+  calendarButton.className='secondary lab-next-calendar'
+  calendarButton.textContent='View in Calendar'
   const active=()=>host.isConnected&&current()
   let event:CalendarOccurrence|undefined
+  let rep:CalendarWeeklyRep|undefined
+  let lastCalendar:NativeCalendar|null=null
   let replyEvent:CalendarOccurrence|undefined
   let tournamentEntry:CalendarTournamentEntry|undefined
   const paint=(calendar:NativeCalendar|null)=>{
    if(!active())return
+   lastCalendar=calendar
    const now=new Date()
    const incomplete=!calendar||calendar.warnings.length>0
    const matches=matchOnly&&calendar
     ?new Map(calendar.competitions.filter(item=>item.eventType==='match').map(item=>[item.id,item]))
     :null
    const events=calendar?calendarOccurrences(calendar):[]
-   event=calendar?events.find(item=>
-    (!matches||item.source==='competition'&&matches.has(item.id))&&isCurrentCalendarOccurrence(item,calendar,now)):undefined
+   const links=practice?readCalendarWeeklyReps(owner):undefined
+   const linkedRep=(item:CalendarOccurrence)=>item.source==='personal'&&item.kind==='practice'&&!item.recurring?links?.get(item.id):undefined
+   let skippedDone=false
+   event=calendar?events.find(item=>{
+    if((matches&&(item.source!=='competition'||!matches.has(item.id)))||!isCurrentCalendarOccurrence(item,calendar,now))return false
+    if(!linkedRep(item)?.progress?.completed)return true
+    skippedDone=true
+    return false
+   }):undefined
+   rep=event?linkedRep(event):undefined
    if(tournament){
     const next=calendar?events.find(item=>{
      const match=item.source==='competition'?matches?.get(item.id):undefined
@@ -131,21 +149,43 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    }
    kicker.textContent=matchOnly?'Your next match':event&&isPracticeInProgress(event,now)?'Scheduled now':event&&incomplete?'Next loaded date':'Up next'
    const match=event?matches?.get(event.id):undefined
+   if(rep){if(!calendarButton.isConnected)host.append(calendarButton)}
+   else if(calendarButton.isConnected){
+    if(document.activeElement===calendarButton)button.focus({preventScroll:true})
+    calendarButton.remove()
+   }
    title.textContent=match?.opponent?'vs '+match.opponent:event?.title??'Open Calendar'
    action.hidden=!event
-   if(!event){details.textContent=incomplete?'Check your tennis dates.':'No events in the next 7 days.';return}
-   action.textContent=matchOnly?'View match · '+event.readiness:event.source==='team'?'View practice':'View event'
+   if(!event){details.textContent=incomplete?'Check your tennis dates.':skippedDone?'No other dates in the next 7 days.':'No events in the next 7 days.';return}
+   action.textContent=rep?'Open practice drill':matchOnly?'View match · '+event.readiness:event.source==='team'?'View practice':'View event'
    details.textContent=[match?.opponent?match.competitionName:'',highlightDateDetails(event,now)].filter(Boolean).join(' · ')
+  }
+  const refresh=()=>{
+   const read=readWeek(owner)
+   void read.then(calendar=>{if(cached?.read===read)paint(calendar)})
   }
   const afterClose=(changed:boolean)=>{
    if(!changed)return
    clear()
-   if(linked&&active())void readWeek(owner).then(paint)
+   if(linked&&active())refresh()
+  }
+  if(!matchOnly)refreshPractice=calendarChanged=>{
+   if(calendarChanged)afterClose(true)
+   else if(lastCalendar)paint(lastCalendar)
   }
   button.onclick=()=>{
    if(!active())return
    button.focus({preventScroll:true})
-   open(button,event,afterClose)
+   if(rep&&practice)practice(button,rep)
+   else open(button,event,afterClose)
+  }
+  calendarButton.onclick=()=>{
+   if(!active()||!event)return
+   calendarButton.focus({preventScroll:true})
+   open(calendarButton,event,changed=>{
+    if(active()&&!calendarButton.isConnected)button.focus({preventScroll:true})
+    afterClose(changed)
+   })
   }
   if(replies)replies.button.onclick=()=>{
    if(!active()||!replyEvent)return
@@ -157,7 +197,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    tournament.button.focus({preventScroll:true})
    tournament.open(tournament.button,tournamentEntry,afterClose)
   }
-  if(linked)void readWeek(owner).then(paint)
+  if(linked)refresh()
   return afterClose
  }
  const mountLesson=(button:HTMLButtonElement,owner:string,current:()=>boolean,open:OpenCalendarHighlight)=>{
@@ -196,5 +236,5 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    })
   }
  }
- return {mount,mountLesson,clear}
+ return {mount,mountLesson,clear,refreshPractice:(calendarChanged:boolean)=>refreshPractice(calendarChanged)}
 }
