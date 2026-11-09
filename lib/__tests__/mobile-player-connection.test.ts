@@ -24,8 +24,13 @@ describe('native player connection', () => {
   })
   it('sends only the chosen ID to the fixed HTTPS endpoint without redirects', async () => {
     post.mockResolvedValue({status:200,data:{ok:true,profile:{linked_player_id:'player'}},headers:{},url:'https://www.tenaceiq.com/api/profile/link'})
-    await connectPlayer(clientFor(),'player','me',()=>true,post)
+    await expect(connectPlayer(clientFor(),'player','me',()=>true,post)).resolves.toEqual({id:'player',profile:null})
     expect(post).toHaveBeenCalledWith(expect.objectContaining({url:'https://www.tenaceiq.com/api/profile/link',disableRedirects:true,data:{linkedPlayerId:'player'},headers:{Authorization:'Bearer test-token','Content-Type':'application/json'}}))
+  })
+  it('returns only the confirmed profile fields needed to open My Lab', async () => {
+    const profile={linked_player_id:'player',linked_player_name:'Ana Martín',linked_team_name:null,linked_league_name:'City League'}
+    post.mockResolvedValue({status:200,data:{ok:true,profile:{...profile,linked_flight:'4.0'}},headers:{},url:''})
+    await expect(connectPlayer(clientFor(),'player','me',()=>true,post)).resolves.toEqual({id:'player',profile})
   })
   it('does not save after an account change or a disposed screen', async () => {
     await expect(connectPlayer(clientFor('other'),'player','me',()=>true,post)).rejects.toThrow('Sign in again')

@@ -5,9 +5,9 @@ import {matchScorecardSide,renderMatchSetScores} from './match-set-scores'
 import {openScorecardShare} from './match-scorecard-share'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { matchDate, matchResult, type RecentMatchRow } from './recent-results'
+import type {PlayerMatchParticipant as Participant} from '../../lib/player-match-history'
 
 export const html = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
-type Participant = { player_id: string; side: string | null; seat: number | null; players: { name: string | null } | { name: string | null }[] | null }
 
 export function participantNames(rows: Participant[], side: 'A' | 'B') {
   return rows.filter(row => row.side === side).sort((a, b) => (a.seat ?? 99) - (b.seat ?? 99)).map(row => {

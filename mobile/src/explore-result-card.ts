@@ -1,5 +1,14 @@
 import {html} from './match-details'
 
+export function bindExploreResults<T>(host:HTMLElement,rows:T[],keyOf:(row:T)=>string,open:(row:T,trigger:HTMLButtonElement)=>void,resumeKey?:string) {
+ const controls=Array.from(host.querySelectorAll<HTMLButtonElement>('[data-explore-result]'))
+ const rowFor=(control:HTMLButtonElement)=>rows[Number(control.dataset.exploreResult)]
+ controls.forEach(control=>{control.onclick=()=>open(rowFor(control),control)})
+ if(!resumeKey)return
+ const matches=controls.filter(control=>keyOf(rowFor(control))===resumeKey)
+ if(matches.length===1)open(rowFor(matches[0]),matches[0])
+}
+
 export function exploreResultCard(kind:'player'|'team'|'league'|'ranking',index:number,{
  title,context,actionName=title,rating,note,
 }:{title:string;context:string;actionName?:string;rating?:string;note?:string}){

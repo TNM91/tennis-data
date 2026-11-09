@@ -18,6 +18,7 @@ import {openCoachWorkspace} from './coach-workspace-view'
 import {openCoachConnection} from './coach-connection-view'
 import {openNativeTactics} from './coach-tactics-view'
 import {navigationHtml,currentTab,appHubHtml,homeShortcutsHtml,bindAppDestinations,type AppScreen,type AppHub,type AppDestination} from './app-navigation'
+import {mountCompeteTeams,type CompeteTeamDestination} from './compete-teams'
 import {applePurchases} from './apple-purchases'
 import {showEmailAuth} from './email-auth'
 import {openAccountSettings} from './account-settings'
@@ -58,9 +59,9 @@ import { supabaseUrl, supabaseKey } from '../../lib/supabase-public-config'
 import { getNativeAuthStorage } from '../../lib/native-auth-storage'
 import { loadRecentResults, type RecentMatchRow } from './recent-results'
 import { showRecentResults } from './results-view'
-import { connectPlayer, findPlayers, showPlayerConnection } from './player-connection'
+import { connectPlayer, findPlayers, showPlayerConnection, type PlayerLink } from './player-connection'
 import { createMatchDetails, html as escape } from './match-details'
-import {showExplore,type ExploreSearchState} from './explore-directory'
+import {showExplore,type ExploreSearchState,type ExploreVisit} from './explore-directory'
 import { accountLinksHtml, bindAccountLinks, showPasswordRecovery } from './account-actions'
 
 const client = createClient(supabaseUrl, supabaseKey, { auth: {
@@ -100,7 +101,7 @@ let training:ReturnType<typeof openLevelUp>|null=null
 let teamRoom:ReturnType<typeof showTeamRoom>|null=null
 let comparison:ReturnType<typeof showComparison>|null=null
 let following:ReturnType<typeof showFollowing>|null=null
-let explore: ReturnType<typeof showExplore> | null = null
+let explore: ReturnType<typeof showExplore> | ReturnType<typeof showPlayerDetail> | null = null
 let emailAuth:ReturnType<typeof showEmailAuth>|null=null
 let accountSettings:ReturnType<typeof openAccountSettings>|null=null
 let guest:ReturnType<typeof showGuestExplore>|null=null
@@ -108,6 +109,7 @@ let storageUnavailable=false
 let session: Session | null = null
 let linkedLabOwner:string|undefined
 let exploreSearch:ExploreSearchState|undefined
+let guestExploreResume:{visit:ExploreVisit;owner?:string}|undefined
 const calendarHighlights=createCalendarHighlights(client,()=>session?.user.id)
 const coachNextAssignment=createCoachNextAssignment(client,()=>session?.user.id)
 let revision = 0
@@ -205,6 +207,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(entry:'welcome'|'account'='welcome',message='',email='') {
+  if(entry==='welcome')guestExploreResume=undefined
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
@@ -278,6 +281,7 @@ function login(entry:'welcome'|'account'='welcome',message='',email='') {
 function openGuest() {
   biometricLogin?.dispose();biometricLogin=null
   if(session)return
+  guestExploreResume=undefined
   recovery?.dispose();recovery=null
   emailAuth?.dispose();emailAuth=null
   guest?.dispose();guest=null
@@ -286,7 +290,10 @@ function openGuest() {
   document.body.dataset.screen='explore'
   app.dataset.state='public-explore'
   window.scrollTo(0,0)
-  guest=showGuestExplore(app,()=>!session&&visit===revision,()=>login('account'),()=>login())
+  guest=showGuestExplore(app,()=>!session&&visit===revision,location=>{
+    guestExploreResume={visit:location}
+    login('account')
+  },()=>login())
 }
 
 function selectNavigation(screen:AppScreen,activeTab=currentTab(screen)) {
@@ -345,10 +352,12 @@ function launchUpdates(trigger:HTMLElement){
 }
 const guardNavigation=createTeamNavigationGuard(()=>Boolean(teamRoom?.hasDraft()),()=>revision)
 navigation.querySelector<HTMLButtonElement>('[data-screen="lab"]')!.onclick = () => {if (!connection?.isSaving()) guardNavigation(()=>{void lab()})}
-navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick = () => {
+navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick = () => openExplore()
+function openExplore(resume?:ExploreVisit) {
   if (!session || connection?.isSaving() || explore&&!profileOpen) return
   guardNavigation(()=>{
     if(!session)return
+    emailAuth?.dispose();emailAuth=null
     explore?.dispose();explore=null;profileOpen=false
     teamRoom?.dispose();teamRoom=null
     comparison?.dispose();comparison=null
@@ -361,6 +370,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick 
     selectNavigation('explore')
     explore = showExplore(app,client,()=>version === revision && userId === session?.user.id,{
       search:exploreSearch,
+      resume,
       onLeave:state=>{exploreSearch=state},
       onCompetitions:trigger=>launchCompetitions('discover',trigger),
     })
@@ -392,18 +402,22 @@ function openMatchup(){
   })
 }
 
-function openTeamRoom(initialScope?:TeamChatDestination){
-  if(coachWorkspace?.isOpen()){coachWorkspace.requestLeave(()=>{coachWorkspace=null;openTeamRoom(initialScope)});return}
+function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeamDestination){
+  if(coachWorkspace?.isOpen()){coachWorkspace.requestLeave(()=>{coachWorkspace=null;openTeamRoom(initialScope,fromCompete)});return}
   if(comparison?.isNotebookOpen()){comparison.back();return}
   if(goals?.isOpen()){goals.back();return}
   if(!session || connection?.isSaving())return
-  if(teamRoom && !initialScope){teamRoom.openInbox();return}
+  if(teamRoom && !initialScope && navigation.querySelector('[data-screen="teams"][aria-current="page"]')){teamRoom.openInbox();return}
   if(teamRoom?.hasDraft() && !window.confirm('Open this team alert? Your unfinished message will be discarded.'))return
   teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null;following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
   const userId=session.user.id,version=++revision
-  selectNavigation('teams')
-  teamRoom=showTeamRoom(app,client,userId,()=>version===revision && userId===session?.user.id,initialScope,{unread:()=>chatUnread.snapshot(),refresh:()=>{void chatUnread.refresh()},mountNotifications:host=>nativePush.mount(host)})
+  selectNavigation('teams',fromCompete?'compete':'teams')
+  const current=()=>version===revision&&userId===session?.user.id
+  teamRoom=showTeamRoom(app,client,userId,current,initialScope,{unread:()=>chatUnread.snapshot(),refresh:()=>{void chatUnread.refresh()},mountNotifications:host=>nativePush.mount(host)},fromCompete?{
+   view:fromCompete.action,
+   back:()=>{if(current())showHub('compete',false,fromCompete)},
+  }:undefined)
   void chatUnread.refresh()
 }
 
@@ -460,7 +474,7 @@ function openCoachHref(href:string){
  return true
 }
 document.addEventListener('tenaceiq:navigate',event=>{const e=event as CustomEvent<{href?:unknown}>;if(typeof e.detail?.href==='string'&&openCoachHref(e.detail.href))event.preventDefault()})
-function showHub(next:AppHub,fromLab=false){
+function showHub(next:AppHub,fromLab=false,returnTeam?:CompeteTeamDestination){
  if(!session)return
  accountSettings?.dispose();accountSettings=null
  emailAuth?.dispose();emailAuth=null;goals?.dispose();goals=null;training?.dispose();training=null
@@ -472,9 +486,12 @@ function showHub(next:AppHub,fromLab=false){
  if(back)back.onclick=()=>{void lab('coach')}
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  const nextMatch=app.querySelector<HTMLElement>('[data-compete-next-match]')
+ let refreshCompeteCalendar:((changed:boolean)=>void)|undefined
  if(nextMatch){
-  calendarHighlights.mount(nextMatch,owner,current,true,
-   (button,event,onClose)=>launchCalendar(button,{event,onClose}),'match')
+  const replies=app.querySelector<HTMLButtonElement>('[data-compete-replies]')!
+  refreshCompeteCalendar=calendarHighlights.mount(nextMatch,owner,current,true,
+   (button,event,onClose)=>launchCalendar(button,{event,onClose,followMovedMatch:true}),'match',
+   {button:replies,open:(button,event,onClose)=>launchCalendar(button,{event,filter:'needs-reply',onClose})})
  }
  const nextAssignment=app.querySelector<HTMLElement>('[data-coach-next-assignment]')
  if(nextAssignment){
@@ -492,8 +509,16 @@ function showHub(next:AppHub,fromLab=false){
    else if(destination==='coach-dates')openLesson()
    else openDestination(destination,trigger)
   })
- }else bindAppDestinations(app,openDestination)
+ }else bindAppDestinations(app,(destination,trigger)=>{
+  if(destination==='competition-calendar'&&refreshCompeteCalendar){
+   launchCalendar(trigger,{filter:'competition',onClose:refreshCompeteCalendar})
+  }else openDestination(destination,trigger)
+ })
  app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
+ const teams=app.querySelector<HTMLElement>('[data-compete-teams]')
+ if(teams)mountCompeteTeams(teams,client,owner,current,destination=>{
+  if(current()&&!document.querySelector('dialog[open]'))openTeamRoom(destination.team,destination)
+ },trigger=>launchTeamInvite('',trigger),returnTeam)
 }
 const coachIncoming=document.createElement('aside');coachIncoming.hidden=true;app.before(coachIncoming)
 const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(student,owner)=>{if(session?.user.id!==owner)return;showHub('coach');const visit=revision;coachWorkspace=openCoachMessages(client,owner,()=>visit===revision&&owner===session?.user.id,undefined,undefined,student,undefined,()=>{void chatUnread.refresh()})},undefined,undefined,()=>authReady&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&document.visibilityState==='visible')
@@ -509,7 +534,7 @@ const nativePurchases=applePurchases(client)
 const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
 function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
-async function lab(returnTo?:'coach') {
+async function lab(entry?:'coach'|PlayerLink) {
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
@@ -533,11 +558,14 @@ async function lab(returnTo?:'coach') {
   details?.dispose()
   const version = ++revision
   details = createMatchDetails(app, client, () => version === revision && current.user.id === session?.user.id)
-  app.dataset.state = 'loading'
-  app.innerHTML = linkedLabOwner===current.user.id
-    ?labScoreboardHtml(null)
-    :'<header class="tab-hero tab-hero-court"><small class="stat-eyebrow">Your game</small><h1>My Lab</h1><p role="status">Loading your player profile…</p></header>'
-  const { data, error } = await client.from('profiles')
+  const link=typeof entry==='object'?entry:undefined
+  if(!link?.profile){
+    app.dataset.state = 'loading'
+    app.innerHTML = linkedLabOwner===current.user.id
+      ?labScoreboardHtml(null)
+      :'<header class="tab-hero tab-hero-court"><small class="stat-eyebrow">Your game</small><h1>My Lab</h1><p role="status">Loading your player profile…</p></header>'
+  }
+  const { data, error } = link?.profile?{data:link.profile,error:null}:await client.from('profiles')
     .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
     .eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
   if (version !== revision || current.user.id !== session?.user.id) return
@@ -545,22 +573,29 @@ async function lab(returnTo?:'coach') {
   const playerId=typeof data?.linked_player_id==='string'?data.linked_player_id:''
   if(!error)linkedLabOwner=playerId?current.user.id:undefined
   const hasIdentity=Boolean(playerId&&data?.linked_player_name)
+  const justConnected=hasIdentity&&link?.id===playerId
   const tools=error?'':labActionsHtml()+
     '<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section>'+
     '<section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>'
   const controls=`<button id="refresh">${error?'Try again':'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
   const identity=error
-    ? '<header class="tab-hero tab-hero-court"><h1 tabindex="-1">My Lab</h1><p role="alert">Can’t load your profile. Check your connection, then try again.</p></header>'
-    : `${playerId&&data?labScoreboardHtml(data):''}<div id="lab-identity">${hasIdentity?labIdentityHtml(data):playerSetupHtml()}</div>`
+    ? `<header class="tab-hero tab-hero-court"><h1 tabindex="-1">My Lab</h1><p role="alert">${link?'Your player record was connected. Try again to load My Lab.':'Can’t load your profile. Check your connection, then try again.'}</p></header>`
+    : `${playerId&&data?labScoreboardHtml(data,justConnected):''}<div id="lab-identity">${hasIdentity?labIdentityHtml(data):playerSetupHtml()}</div>`
   const trainingContent=!error&&hasIdentity?labTrainingActionsHtml()+
     '<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''
-  const matches=!error&&playerId?'<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>':''
+  const matches=!error&&playerId?`<section id="recent-results" aria-labelledby="results-title">
+    <div class="lab-recent-heading">
+      <h2 id="results-title" tabindex="-1">Recent matches</h2>
+      <button type="button" class="secondary" data-lab-scorecard-return hidden><span aria-hidden="true">↑</span> Back to scoreboard</button>
+    </div>
+    <div id="results-content" aria-live="polite"></div>
+  </section>`:''
   app.innerHTML=identity+trainingContent+(!error&&!playerId
     ?`<details class="lab-setup-utilities"><summary>More My Lab tools</summary>${tools}${controls}</details>`
     :tools+matches+controls)
 
   const labHeading=app.querySelector<HTMLElement>('h1')
-  if(labHeading){labHeading.tabIndex=-1;if(!returnTo||!playerId)labHeading.focus({preventScroll:true})}
+  if(labHeading){labHeading.tabIndex=-1;if(entry!=='coach'||!playerId)labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
   const invite=app.querySelector<HTMLButtonElement>('[data-setup-team]')
@@ -592,6 +627,8 @@ async function lab(returnTo?:'coach') {
     connection = showPlayerConnection(app, {
       search: term => findPlayers(client, term),
       connect: playerId => connectPlayer(client, playerId, current.user.id, isCurrent),
+      onConnected: link => { void lab(link) },
+      teamInvite:hasIdentity?undefined:trigger=>launchTeamInvite('',trigger),
     }, () => { void lab() }, isCurrent)
   }})
   }
@@ -628,7 +665,7 @@ async function lab(returnTo?:'coach') {
     }catch{if(active())overviewStatus.textContent='Couldn’t load saved practice. Try again when connected.'}
     finally{if(active())overviewButton.disabled=false}
   }
-  app.querySelector<HTMLButtonElement>('#refresh')!.onclick = () => { void lab() }
+  app.querySelector<HTMLButtonElement>('#refresh')!.onclick = () => { void lab(error?link:undefined) }
   app.querySelector<HTMLButtonElement>('#logout')!.onclick = async event => {
     const button=event.currentTarget as HTMLButtonElement;button.disabled=true
     try {await signOut(current.user.id)}
@@ -637,12 +674,33 @@ async function lab(returnTo?:'coach') {
   if (!error&&playerId) {
     const content = app.querySelector<HTMLElement>('#results-content')!
     const ratingsSection=app.querySelector<HTMLElement>('.lab-scoreboard')!
-    app.querySelector('#lab-identity')!.before(app.querySelector('#recent-results')!)
+    const recent=app.querySelector<HTMLElement>('#recent-results')!
+    const recentHeading=recent.querySelector<HTMLElement>('#results-title')!
+    const jump=ratingsSection.querySelector<HTMLButtonElement>('[data-lab-scorecard-jump]')
+    const backToScoreboard=recent.querySelector<HTMLButtonElement>('[data-lab-scorecard-return]')!
+    const revealScorecards=()=>{
+      const list=content.querySelector<HTMLDetailsElement>('.recent-match-list')
+      if(list)list.open=true
+    }
+    if(jump&&labHeading){
+      jump.onclick=()=>{
+        backToScoreboard.hidden=false
+        revealScorecards()
+        recentHeading.focus({preventScroll:true})
+        recent.scrollIntoView({block:'start'})
+      }
+      backToScoreboard.onclick=()=>{
+        backToScoreboard.hidden=true
+        labHeading.focus({preventScroll:true})
+        ratingsSection.scrollIntoView({block:'start'})
+      }
+    }
+    app.querySelector('#lab-identity')!.before(recent)
     const trendSection=document.createElement('section')
     const formSection=document.createElement('div');formSection.className='lab-form-host'
     const shortcuts=document.createElement('div');shortcuts.innerHTML=homeShortcutsHtml()
     calendar.after(formSection,shortcuts,trendSection)
-    if(returnTo==='coach'){
+    if(entry==='coach'){
       const shortcut=shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')!
       shortcut.focus({preventScroll:true})
       shortcut.scrollIntoView({block:'center'})
@@ -663,7 +721,7 @@ async function lab(returnTo?:'coach') {
     const refreshResults = async () => {
       content.dataset.state = 'loading'
       content.innerHTML = '<p role="status">Loading your latest matches…</p>'
-      const result = await loadRecentResults(client, playerId)
+      const result = await loadRecentResults(client, playerId, true)
       if (version !== revision || current.user.id !== session?.user.id || !content.isConnected) return
       if (result.error) {
         content.dataset.state = 'unavailable'
@@ -675,6 +733,7 @@ async function lab(returnTo?:'coach') {
       mountLabRecentForm(formSection,rows,playerId,()=>version===revision&&current.user.id===session?.user.id,row=>details?.open(row,playerId))
       content.dataset.state = rows.length ? 'ready' : 'empty'
       showRecentResults(content, rows, playerId, row => details?.open(row, playerId),'your',true,{current:()=>version===revision&&current.user.id===session?.user.id,load:loaded=>loadOlderResults(client,playerId,loaded)})
+      if(!backToScoreboard.hidden)revealScorecards()
     }
     void refreshResults()
   }
@@ -683,11 +742,13 @@ async function lab(returnTo?:'coach') {
 client.auth.onAuthStateChange((_event, next) => {
   if(next?.user.id!==session?.user.id){
     calendarHighlights.clear();coachNextAssignment.clear();linkedLabOwner=undefined;exploreSearch=undefined
+    if(!session&&next&&_event==='SIGNED_IN'&&guestExploreResume)guestExploreResume.owner=next.user.id
+    else guestExploreResume=undefined
   }
   const resumeLink=(!session&&Boolean(next))||_event==='INITIAL_SESSION'
   appLinks.setOwner(next?.user.id||null)
-  // A late signed-out event must not reset an active public visit.
-  if(!next&&!session&&(guest||emailAuth)){setTimeout(()=>setNativeSession(null),0);return}
+  // Keep the public visit and its sign-in handoff through late signed-out events.
+  if(!next&&!session&&(guest||emailAuth||guestExploreResume)){setTimeout(()=>setNativeSession(null),0);return}
   if(next){guest?.dispose();guest=null}
   if (next?.user.id === session?.user.id && (agenda?.isOpen() || updates?.isOpen() || sharedMatch?.isOpen() || teamInvite?.isOpen() || accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
   session = next
@@ -695,7 +756,15 @@ client.auth.onAuthStateChange((_event, next) => {
   // Schedule outside the auth callback's lock before making another SDK call.
   setTimeout(() => {
     if(next?.user.id!==session?.user.id||authRevision!==revision)return
-    void (async()=>{if(session)await lab();else login();if(next?.user.id===session?.user.id){setNativeSession(session);authReady=true;if(session&&resumeLink)resumeAppLink();coachHandoff.resume()}})()
+    void (async()=>{
+      const resume=guestExploreResume?.owner===next?.user.id?guestExploreResume?.visit:undefined
+      guestExploreResume=undefined
+      if(session){
+        if(resume&&!appLinks.peek())openExplore(resume)
+        else await lab()
+      }else login()
+      if(next?.user.id===session?.user.id){setNativeSession(session);authReady=true;if(session&&(resume||resumeLink))resumeAppLink();coachHandoff.resume()}
+    })()
   }, 0)
 })
 client.auth.getSession().catch(() => {

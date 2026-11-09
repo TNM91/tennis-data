@@ -17,7 +17,7 @@ export function appendRecentHistory(loaded:RecentMatchRow[],page:unknown,playerI
 export async function loadOlderResults(client:SupabaseClient,playerId:string,loaded:RecentMatchRow[]){
  if(!uuid.test(playerId)||!loaded.length||loaded.length>=RECENT_HISTORY_LIMIT)throw Error('Refresh your profile before loading older matches.')
  const count=Math.min(20,RECENT_HISTORY_LIMIT-loaded.length)
- const {data,error}=await playerMatchHistoryQuery(client,playerId).range(loaded.length,loaded.length+count).abortSignal(AbortSignal.timeout(12000))
+ const {data,error}=await playerMatchHistoryQuery(client,playerId,true).range(loaded.length,loaded.length+count).abortSignal(AbortSignal.timeout(12000))
  if(error)throw Error('Older matches unavailable.')
  return appendRecentHistory(loaded,data,playerId,count)
 }

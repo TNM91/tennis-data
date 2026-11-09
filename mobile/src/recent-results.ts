@@ -19,8 +19,8 @@ export function matchDate(value: string | null): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
-export async function loadRecentResults(client: SupabaseClient, playerId: string) {
-  return playerMatchHistoryQuery(client, playerId)
+export async function loadRecentResults(client: SupabaseClient, playerId: string, includeParticipants = false) {
+  return playerMatchHistoryQuery(client, playerId, includeParticipants)
     .limit(PLAYER_RECENT_MATCH_LIMIT)
     .abortSignal(AbortSignal.timeout(12000))
 }

@@ -3,7 +3,7 @@ import {nativeActionIcon} from './native-action-icons'
 import {html} from './match-details'
 
 export type AppScreen='lab'|'explore'|'following'|'matchup'|'teams'|'compete'|'more'|'coach'
-export type AppDestination=AppScreen|'leagues'|'browse-leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'|'coach-dates'|'updates'|'calendar'
+export type AppDestination=AppScreen|'leagues'|'browse-leagues'|'tournaments'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'|'coach-dates'|'updates'|'calendar'|'competition-calendar'
 export type AppHub='compete'|'more'|'coach'
 export const mainTabs=[{screen:'lab',label:'My Lab',icon:'lab'},{screen:'explore',label:'Explore',icon:'explore'},{screen:'teams',label:'Chats',icon:'teams'},{screen:'compete',label:'Compete',icon:'compete'},{screen:'more',label:'More',icon:'more'}] as const
 export function currentTab(screen:AppScreen){return screen==='following'||screen==='matchup'||screen==='coach'?'more':screen}
@@ -11,6 +11,7 @@ export function navigationHtml(){return mainTabs.map(t=>'<button type="button" d
 type Tool={destination:AppDestination;title:string;detail:string;icon:keyof typeof websiteUi.icons;web?:boolean;keywords?:string}
 const tools:Record<string,Tool>={
  personalCalendar:{destination:'calendar',title:'Calendar',detail:'Matches, lessons and practice.',icon:'calendar',keywords:'agenda schedule dates availability events personal plans competition coach sessions'},
+ competitionCalendar:{destination:'competition-calendar',title:'Competition calendar',detail:'Review league and tournament dates and update availability.',icon:'calendar'},
  updates:{destination:'updates',title:'Updates',detail:'Your unread messages, schedule changes and account news.',icon:'alerts',keywords:'notifications unread alerts'},
  leagues:{destination:'leagues',title:'Leagues',detail:'Your entries, schedules, results and standings.',icon:'leagues'},
  leagueDiscovery:{destination:'browse-leagues',title:'Browse leagues',detail:'Find public TiQ seasons.',icon:'leagues'},
@@ -62,7 +63,7 @@ export function homeShortcutsHtml(){
 }
 export function appHubHtml(hub:AppHub,fromLab=false){
  const groups:{title:string;keys:string[];lane?:'player'|'studio'}[]=hub==='compete'
-  ?[{title:'Browse competitions',keys:['leagueDiscovery','tournamentDiscovery']},{title:'Your season',keys:['leagueEntries','teams','office']}]
+  ?[{title:'Browse competitions',keys:['leagueDiscovery','tournamentDiscovery']},{title:'Your season',keys:['competitionCalendar','leagueEntries','office']}]
   :hub==='coach'
    ?[{title:'Your game plan',keys:['lessonDates','inbox','connection','training','progress'],lane:'player'},{title:'Coach studio',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video'],lane:'studio'}]
    :[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]
@@ -92,7 +93,7 @@ export function appHubHtml(hub:AppHub,fromLab=false){
    ${hub==='coach'&&fromLab?`<button type="button" class="secondary coach-hub-back" data-coach-back><span aria-hidden="true">${nativeActionIcon('back')}</span>Back to My Lab</button>`:''}
    <h1 tabindex="-1">${title}</h1>${hub==='more'?'':'<p>'+note+'</p>'}
   </header>
-  ${hub==='compete'?'<div class="compete-next-match" data-compete-next-match hidden></div>':''}
+  ${hub==='compete'?'<div class="compete-next-match" data-compete-next-match hidden></div><button type="button" class="secondary compete-replies" data-compete-replies hidden>Matches that need a reply <span aria-hidden="true">›</span></button><section class="compete-teams" data-compete-teams aria-labelledby="compete-teams-title"><h2 id="compete-teams-title">My Teams</h2><div data-compete-team-list></div></section>':''}
   ${coachControls}${toolFinder}<div id="app-tool-results">${groupHtml}</div>
   ${hub==='more'?'<p class="app-tools-empty" data-tools-empty hidden>No tools found. Try coach, leagues or account.</p>':''}
   <p role="alert" class="app-hub-notice"></p>

@@ -1,9 +1,11 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {CapacitorHttp,type HttpOptions,type HttpResponse} from '@capacitor/core'
-import {calendarObject as obj,calendarText as text,calendarId as id,calendarDate as date,calendarRevision as revision,calendarRange,calendarDraft,type CalendarRange,type NativeCalendar,type CalendarIntent} from '../../lib/native-calendar-contract'
+import {calendarObject as obj,calendarText as text,calendarId as id,calendarDate as date,calendarRevision as revision,calendarRange,calendarDraft,readCalendarCompetitionView,type CalendarRange,type NativeCalendar,type CalendarIntent} from '../../lib/native-calendar-contract'
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 import type {PlayerCompetitionScheduleEvent} from '../../lib/player-competition-schedule'
 import {buildTennisCalendarFeed} from '../../lib/tiq-league-schedule-calendar'
+import {eventCalendarStart} from '../../lib/calendar-date'
+import {resolveCalendarLocation} from '../../lib/calendar-location'
 import {buildPracticeCalendarRange} from '../../lib/captain-practice-rsvp'
 import type {CalendarTeamPractice} from '../../lib/native-calendar-practices-contract'
 
@@ -21,7 +23,8 @@ export function readCalendar(value:unknown,owner:string,range:CalendarRange):Nat
  const competitions=unique(r.competitions.map(raw=>{
   const e=obj(raw)
   if(!['league','tournament'].includes(String(e.kind))||!['match','competition'].includes(String(e.eventType))||!['','available','unavailable'].includes(String(e.responseStatus??''))||typeof e.responseIsStale!=='boolean')throw Error('Competition dates unavailable.')
-  return {id:id(e.id),kind:e.kind,eventType:e.eventType,competitionId:id(e.competitionId),competitionName:text(e.competitionName,2000),title:text(e.title,2000),date:date(e.date),time:time(e.time),location:text(e.location,2000),opponent:text(e.opponent,2000),detail:text(e.detail,8000),href:'',status:text(e.status,80),responseStatus:e.responseStatus||'',responseUpdatedAt:e.responseUpdatedAt?revision(e.responseUpdatedAt):'',responseIsStale:e.responseIsStale} as PlayerCompetitionScheduleEvent
+  const event={id:id(e.id),kind:e.kind,eventType:e.eventType,competitionId:id(e.competitionId),competitionName:text(e.competitionName,2000),title:text(e.title,2000),date:date(e.date),time:time(e.time),location:text(e.location,2000),opponent:text(e.opponent,2000),detail:text(e.detail,8000),href:'',status:text(e.status,80),responseStatus:e.responseStatus||'',responseUpdatedAt:e.responseUpdatedAt?revision(e.responseUpdatedAt):'',responseIsStale:e.responseIsStale} as PlayerCompetitionScheduleEvent
+  return {...event,publishedView:readCalendarCompetitionView(event,e.publishedView)}
  }))
  const coach=unique(r.coach.map(raw=>{const e=obj(raw);if(!['lesson','reminder'].includes(String(e.kind)))throw Error();return {id:id(e.id),title:text(e.title,2000),date:date(e.date),time:time(e.time),location:text(e.location,2000),detail:text(e.detail,8000),kind:e.kind as 'lesson'|'reminder'}}))
  if([...competitions,...coach].some(e=>e.date<range.from||e.date>range.to))throw Error('Calendar range changed.')
@@ -49,7 +52,8 @@ export function shiftCalendarPeriod(day:string,mode:'week'|'month',direction:num
  if(mode==='week')return shiftCalendarDay(day,direction*7)
  const d=new Date(day.slice(0,7)+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+direction);return d.toISOString().slice(0,10)
 }
-export type CalendarOccurrence={key:string;id:string;source:'personal'|'competition'|'coach'|'team';endTime?:string;teamStatus?:CalendarTeamPractice['status'];title:string;date:string;time:string;location:string;detail:string;kind:string;recurring:boolean;readiness:string}
+export type CalendarOccurrence={key:string;id:string;source:'personal'|'competition'|'coach'|'team';endTime?:string;teamStatus?:CalendarTeamPractice['status'];title:string;date:string;time:string;location:string;detail:string;kind:string;recurring:boolean;readiness:string;matchNeedsReply?:boolean}
+export const isScheduledCompetitionMatch=(event:PlayerCompetitionScheduleEvent)=>event.eventType==='match'&&(event.status==='Confirmed'||event.status==='Scheduled')
 export const personalOccurrenceKey=(id:string,day:string)=>`personal:${id}:${day}`
 export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[]{
  const entries:CalendarOccurrence[]=[]
@@ -60,7 +64,14 @@ export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[
    if(matches)entries.push({key:personalOccurrenceKey(p.id,day),id:p.id,source:'personal',title:p.title,date:day,time:p.time,location:p.location,detail:p.kind==='availability'?(p.availabilityStatus==='available'?'Personal note · Available':'Personal note · Unavailable'):'Personal '+p.kind,kind:p.kind,recurring:!!p.recurrenceRule,readiness:''})
   }
  }
- for(const c of calendar.competitions)entries.push({key:'competition:'+c.id,id:c.id,source:'competition',title:c.title,date:c.date,time:c.time,location:c.location,detail:[c.competitionName,c.detail,c.status].filter(Boolean).join(' · '),kind:c.kind,recurring:false,readiness:c.responseIsStale?'Date changed · Reply again':c.responseStatus==='available'?'Available':c.responseStatus==='unavailable'?'Can’t play':'No reply yet'})
+ for(const c of calendar.competitions){
+  const readiness=c.status==='Completed'?'Completed':c.responseIsStale?'Schedule changed · Reply again':c.responseStatus==='available'?'Available':c.responseStatus==='unavailable'?'Can’t play':'No reply yet'
+  entries.push({
+   key:'competition:'+c.id,id:c.id,source:'competition',title:c.title,date:c.date,time:c.time,location:c.location,
+   detail:[c.competitionName,c.detail,c.status].filter(Boolean).join(' · '),kind:c.kind,recurring:false,readiness,
+   matchNeedsReply:isScheduledCompetitionMatch(c)&&(!c.responseStatus||Boolean(c.responseIsStale)),
+  })
+ }
  for(const c of calendar.coach)entries.push({...c,key:'coach:'+c.id,source:'coach',recurring:false,readiness:'Shared by your coach'})
  for(const p of calendar.practices||[])entries.push({key:'team-practice:'+p.id,id:p.id,source:'team',title:p.title,date:p.date,time:p.time,endTime:p.endTime,teamStatus:p.status,location:p.location,detail:[p.scope.teamName,p.scope.leagueName,p.scope.flight,p.status==='confirmed'?'Scheduled':p.status[0].toUpperCase()+p.status.slice(1)].filter(Boolean).join(' · '),kind:'practice',recurring:false,readiness:p.status==='cancelled'?'Cancelled':p.status==='completed'?'Completed':({in:'In',out:'Out',maybe:'Maybe',unanswered:'No reply yet',waitlist:'Waitlist'}[p.response])+(p.captainConfirmed?' · Captain-confirmed':'')})
  return entries.sort((a,b)=>(a.date+'T'+(a.time||'00:00')+a.title).localeCompare(b.date+'T'+(b.time||'00:00')+b.title))
@@ -83,4 +94,23 @@ export function calendarExport(entries:CalendarOccurrence[],zone:string){
  if(entries.length>10000||!zone||zone.length>80)throw Error('Choose a smaller calendar export.')
  try{new Intl.DateTimeFormat('en-US',{timeZone:zone}).format()}catch{throw Error('Choose a valid time zone.')}
  return buildTennisCalendarFeed(exportableCalendarOccurrences(entries).map(e=>{const range=e.source==='team'?buildPracticeCalendarRange(e.date,e.time,e.endTime):null,duration=range?(Number(range.end.slice(9,11))*60+Number(range.end.slice(11,13)))-(Number(range.start.slice(9,11))*60+Number(range.start.slice(11,13))):e.source==='coach'&&e.kind==='lesson'?60:90;return {id:e.key,title:e.title,date:e.date,time:e.time,location:e.location,description:[e.detail,e.readiness,e.recurring?'One occurrence from a repeating personal entry.':''].filter(Boolean).join('\n'),durationMinutes:duration}}),{calendarName:'TenAceIQ · Your tennis',timeZone:zone,includeEventUrls:false})
+}
+
+export function calendarMatchExport(event:CalendarOccurrence,zone:string){
+ const startsAt=eventCalendarStart(event.date,event.time.slice(0,5),zone)
+ if(!startsAt)return null
+ const {key:id,title,date,location}=event
+ return buildTennisCalendarFeed([{id,title,date,location,startsAt}],{calendarName:'TenAceIQ · Your tennis',timeZone:zone,includeEventUrls:false})
+}
+
+export function calendarMatchVenueHref(match:PlayerCompetitionScheduleEvent){
+ const parts=match.location.trim().split(' · ')
+ const last=parts.at(-1)||''
+ // Tournament schedules repeat the assigned court in the match detail.
+ const assignedCourt=match.kind==='tournament'&&last.startsWith('Court ')&&match.detail.endsWith(' · '+last)
+ if(assignedCourt||/^Courts?\s+#?(?:\d+[a-z]?|[a-z])$/i.test(last))parts.pop()
+ const venue=parts.join(' · ').trim()
+ if(!venue||/^(?:location |venue )?(?:tbd|tba|to be confirmed|to be determined|not set)$/i.test(venue))return ''
+ const query=new URLSearchParams({q:resolveCalendarLocation(venue)})
+ return `https://maps.apple.com/?${query}`
 }

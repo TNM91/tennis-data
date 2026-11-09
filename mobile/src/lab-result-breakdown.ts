@@ -26,7 +26,7 @@ export function labResultBreakdownHtml(rows: RecentMatchRow[], playerId: string,
     const unknownYear = yearView && group.label === 'Connected'
     const title = html(unknownYear ? 'Year unavailable' : group.label)
     const scorecards = labBreakdownMatches(rows, playerId, view, group.label).map(({row, index, result}) =>
-      recentScorecardRow(row, index, result, {label:unknownYear ? 'unknown year' : group.label, includeLeague:yearView}),
+      recentScorecardRow(row, index, result, playerId, {label:unknownYear ? 'unknown year' : group.label, includeLeague:yearView}),
     ).join('')
     return `<li>
       <div class="lab-breakdown-metrics">

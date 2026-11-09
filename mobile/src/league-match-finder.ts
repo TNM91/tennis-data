@@ -1,8 +1,8 @@
 import type {OfficeDetail,OfficeFixture,OfficeResult} from '../../lib/native-league-office-contract'
 import {formatCalendarDay,isValidCalendarDate} from '../../lib/calendar-date'
 import {formatCaptainPracticeTime} from '../../lib/captain-practice-invite'
-import {competitionMatchGroupsHtml,competitionOpponentsHtml,competitionOutcomeHtml,competitionScheduleHtml} from './competition-match-card'
-import {competitionFiltersHtml} from './competition-filters'
+import {competitionMatchGroupsHtml,competitionOpponentsHtml,competitionOutcomeHtml,competitionScheduleHtml,competitionScheduleJumpHtml} from './competition-match-card'
+import {competitionFiltersHtml,competitionMatchFilterEmptyHtml} from './competition-filters'
 import {html} from './match-details'
 import {matchDate} from './recent-results'
 
@@ -13,7 +13,7 @@ export const emptyLeagueFinder=()=>({fixtures:emptyLeagueMatchFilters(),results:
 const normalized=(value:string)=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase()
 const statuses:Record<string,string>={confirmed:'Confirmed',coordinator_set:'Set by coordinator',proposed:'Proposed',completed:'Completed',cancelled:'Cancelled'}
 const matchesName=(query:string,a:string,b:string)=>normalized(a).includes(query)||normalized(b).includes(query)
-function leagueFixtureDay(fixture:OfficeFixture){
+export function leagueFixtureDay(fixture:OfficeFixture){
  const date=fixture.date.slice(0,10)
  return (fixture.date.length===10||fixture.date[10]==='T')&&isValidCalendarDate(date)?date:''
 }
@@ -29,28 +29,29 @@ export function filterLeagueResults(rows:OfficeResult[],filters:LeagueMatchFilte
  const query=normalized(filters.query)
  return rows.filter(r=>(!filters.day||r.date===filters.day)&&(!query||matchesName(query,r.a,r.b)||r.courts.some(c=>matchesName(query,c.a,c.b)))).sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id))
 }
-export function leagueFixtureHtml(f:OfficeFixture,view:'standalone'|'day-group'='standalone') {
+export function leagueFixtureHtml(f:OfficeFixture,view:'standalone'|'day-group'|'preview'='standalone') {
  const savedTime=f.time.trim()
  const clock=/^((?:[01]?\d|2[0-3]):[0-5]\d)(?::00(?:\.0+)?)?$/.exec(savedTime)
  const time=clock?formatCaptainPracticeTime(clock[1]):savedTime
  const status=`<span class="competition-status" data-fixture-state="${html(f.status)}">${html(statuses[f.status]||f.status)}</span>`
  const grouped=view==='day-group'
  const schedule=competitionScheduleHtml(grouped?'':matchDate(f.date),time||'Time to be confirmed',f.facility||'Venue to be confirmed')
- if(grouped)return `<article class="competition-fixture competition-schedule-match">
+ if(grouped)return `<article class="competition-fixture competition-schedule-match" data-competition-schedule-match="${html(f.id)}">
   ${schedule}<div class="fixture-heading">${status}</div>
   ${competitionOpponentsHtml(f.a,f.b,'h5')}
  </article>`
  return `<article class="competition-fixture">
   ${status}${schedule}
   ${competitionOpponentsHtml(f.a,f.b)}
+  ${view==='preview'?competitionScheduleJumpHtml(f.id,`${f.a} vs ${f.b}, ${matchDate(f.date)}`):''}
  </article>`
 }
-function finderHtml(d:OfficeDetail,view:LeagueMatchView,filters:LeagueMatchFilters){
+function finderHtml(d:OfficeDetail,view:LeagueMatchView,filters:LeagueMatchFilters,showClear:boolean){
  const days=[...new Set((view==='fixtures'?d.fixtures.map(leagueFixtureDay):d.results.map(r=>r.date)).filter(Boolean))].sort()
  const dayOptions='<option value="">All days</option>'+[...days,...(filters.day&&!days.includes(filters.day)?[filters.day]:[])].map(day=>'<option value="'+html(day)+'"'+(day===filters.day?' selected':'')+'>'+html(matchDate(day))+(days.includes(day)?'':' — no longer loaded')+'</option>').join('')
  const queryLabel=view==='results'?'Team or player name':d.league.format==='team'?'Team name':'Player name'
  const activeCount=[normalized(filters.query),filters.day,view==='fixtures'?filters.status:''].filter(Boolean).length
- const form='<form class="league-match-finder" data-league-match-finder aria-label="Find league matches"><label>'+queryLabel+'<input name="query" type="search" maxlength="160" value="'+html(filters.query)+'" placeholder="'+(view==='results'?'Team or player':'Find a '+(d.league.format==='team'?'team':'player'))+'"></label><div class="league-finder-selects"><label>Match day<select name="day">'+dayOptions+'</select></label>'+(view==='fixtures'?'<label>Schedule status<select name="status"><option value="">All statuses</option>'+Object.entries(statuses).map(([value,label])=>'<option value="'+value+'"'+(value===filters.status?' selected':'')+'>'+label+'</option>').join('')+'</select></label>':'')+'</div><div class="league-finder-actions"><button type="submit">Find matches</button>'+(activeCount?'<button type="button" class="secondary" data-league-clear-filters>Clear filters</button>':'')+'</div></form>'
+ const form='<form class="league-match-finder" data-league-match-finder aria-label="Find league matches"><label>'+queryLabel+'<input name="query" type="search" maxlength="160" value="'+html(filters.query)+'" placeholder="'+(view==='results'?'Team or player':'Find a '+(d.league.format==='team'?'team':'player'))+'"></label><div class="league-finder-selects"><label>Match day<select name="day">'+dayOptions+'</select></label>'+(view==='fixtures'?'<label>Schedule status<select name="status"><option value="">All statuses</option>'+Object.entries(statuses).map(([value,label])=>'<option value="'+value+'"'+(value===filters.status?' selected':'')+'>'+label+'</option>').join('')+'</select></label>':'')+'</div><div class="league-finder-actions"><button type="submit">Find matches</button>'+(activeCount&&showClear?'<button type="button" class="secondary" data-competition-clear-match-filters>Clear filters</button>':'')+'</div></form>'
  return competitionFiltersHtml(view==='fixtures'?'schedule':'results',form,activeCount)
 }
 const courtWinner=(c:OfficeResult['courts'][number])=>c.winner==='Side A'?(c.a||c.winner):c.winner==='Side B'?(c.b||c.winner):c.winner
@@ -77,7 +78,10 @@ export function leagueMatchViewHtml(d:OfficeDetail,view:LeagueMatchView,filters:
  const count=fixtures.length+results.length
  const cards=schedule?competitionMatchGroupsHtml(fixtures,leagueFixtureDay,formatCalendarDay,f=>leagueFixtureHtml(f,'day-group')):results.map(r=>leagueResultHtml(r,d.league.format==='team',filters.query)).join('')
  const noun=schedule?'matches':d.league.format==='team'?'team results':'player results'
- return '<h3 tabindex="-1">'+(schedule?'Schedule':'Results')+'</h3><p class="league-finder-context">'+(schedule?'Times use '+html(d.league.timeZone)+'.'+(limited?' Latest 100 schedule entries. Earlier matches may be missing.':''):(limited?'Limited result/court sample; more records exist.':'Loaded recorded results, newest first.'))+'</p>'+finderHtml(d,view,filters)+'<p class="league-finder-summary" tabindex="-1" role="status" data-league-filter-summary>Showing '+count+' of '+total+' loaded '+noun+'.'+(limited?' Filters search this sample only.':'')+'</p>'+(count?cards:'<div class="competition-empty"><h4>'+(total?'No matches fit these filters':schedule?'No matches scheduled yet':'No results saved yet')+'</h4><p>'+(total?'Try another name, day or status, or clear the filters.':'Refresh to check for new season records.')+'</p></div>')
+ const empty=total
+  ? competitionMatchFilterEmptyHtml(schedule?'schedule':'results')
+  : `<div class="competition-empty"><h4>${schedule?'No matches scheduled yet':'No results saved yet'}</h4><p>Refresh to check for new season records.</p></div>`
+ return '<h3 tabindex="-1">'+(schedule?'Schedule':'Results')+'</h3><p class="league-finder-context">'+(schedule?'Times use '+html(d.league.timeZone)+'.'+(limited?' Latest 100 schedule entries. Earlier matches may be missing.':''):(limited?'Limited result/court sample; more records exist.':'Loaded recorded results, newest first.'))+'</p>'+finderHtml(d,view,filters,count>0||total===0)+'<p class="league-finder-summary" tabindex="-1" role="status" data-league-filter-summary>Showing '+count+' of '+total+' loaded '+noun+'.'+(limited?' Filters search this sample only.':'')+'</p>'+(count?cards:empty)
 }
 export function bindLeagueMatchFinder(host:HTMLElement,active:()=>boolean,apply:(filters:LeagueMatchFilters)=>void){
  host.querySelector<HTMLFormElement>('[data-league-match-finder]')?.addEventListener('submit',event=>{
@@ -85,5 +89,5 @@ export function bindLeagueMatchFinder(host:HTMLElement,active:()=>boolean,apply:
   const form=new FormData(event.currentTarget as HTMLFormElement),status=String(form.get('status')||'')
   apply({query:String(form.get('query')||'').slice(0,160).trim(),day:String(form.get('day')||''),status:Object.hasOwn(statuses,status)?status:''})
  })
- host.querySelector('[data-league-clear-filters]')?.addEventListener('click',()=>{if(active())apply(emptyLeagueMatchFilters())})
+ host.querySelector('[data-competition-clear-match-filters]')?.addEventListener('click',()=>{if(active())apply(emptyLeagueMatchFilters())})
 }

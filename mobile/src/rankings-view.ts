@@ -4,7 +4,8 @@ import { getRatingViewLabel, type RatingView } from '../../lib/player-rating-dis
 import { showExplore as showPlayer } from './explore'
 import { createRankingLoader, type RankingRow } from './rankings-data'
 import {showExploreSearchEmpty} from './explore-search-empty'
-import {exploreResultCard} from './explore-result-card'
+import {bindExploreResults,exploreResultCard} from './explore-result-card'
+import type {ExploreResultPosition} from './explore-directory'
 
 export function rankingCards(rows:RankingRow[]) {
   return `<ol class="explore-result-list" role="list">${rows.map((row,index)=>{
@@ -19,8 +20,9 @@ export function rankingCards(rows:RankingRow[]) {
     })
   }).join('')}</ol>`
 }
-export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',access?:PublicBrowseAccess) {
-  let disposed=false,request=0,view:RatingView='overall',selected=false,scroll=0
+export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',access?:PublicBrowseAccess,position?:ExploreResultPosition) {
+  let disposed=false,request=0,view:RatingView=position?.view??'overall',scroll=0
+  let resumeKey=position?.key
   let player:ReturnType<typeof showPlayer>|null=null
   let previousFocus:HTMLElement|null=null
   const valid=()=>!disposed && isCurrent()
@@ -35,9 +37,16 @@ export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=
   const status=list.querySelector<HTMLElement>('#rankings-status')!
   const error=list.querySelector<HTMLElement>('#rankings-error')!
   const content=list.querySelector<HTMLElement>('#rankings-rows')!
-  const back=()=>{player?.dispose();player=null;selected=false;detail.hidden=true;detail.innerHTML='';list.hidden=false;window.scrollTo(0,scroll);previousFocus?.focus({preventScroll:true})}
+  const back=()=>{player?.dispose();player=null;detail.hidden=true;detail.innerHTML='';list.hidden=false;window.scrollTo(0,scroll);previousFocus?.focus({preventScroll:true})}
+  const open=(row:RankingRow,button:HTMLButtonElement)=>{
+    if(!valid())return
+    scroll=window.scrollY;previousFocus=button;list.hidden=true;detail.hidden=false
+    player=showPlayer(detail,client,valid,{player:row.player,back},'',access)
+  }
   const load=async()=>{
     if(!valid())return
+    const pendingKey=resumeKey
+    resumeKey=undefined
     const area=input.value.trim().replace(/\s+/g,' ')
     if(area && (area.length<2 || area.length>80)){error.textContent='Enter at least two characters of a location, or clear it for all areas.';return}
     const version=++request,currentView=view
@@ -56,26 +65,25 @@ export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=
         return
       }
       content.innerHTML=rankingCards(rows)
-    content.querySelectorAll<HTMLButtonElement>('[data-explore-result]').forEach(button=>{button.onclick=()=>{
-        if(!valid())return
-        selected=true;scroll=window.scrollY;previousFocus=button;list.hidden=true;detail.hidden=false
-        player=showPlayer(detail,client,valid,{player:rows[Number(button.dataset.exploreResult)].player,back},'',access)
-      }})
+      bindExploreResults(content,rows,row=>row.player.id,open,pendingKey)
     } catch {
       if(!valid() || version!==request)return
       status.textContent='';error.textContent='Can’t load rankings. Check your connection and apply the location to try again.'
     } finally {if(valid() && version===request)submit.disabled=false}
   }
-  list.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach(button=>{button.onclick=()=>{
+  const ratingButtons=list.querySelectorAll<HTMLButtonElement>('[data-rating]')
+  const updateRatingButtons=()=>ratingButtons.forEach(control=>control.setAttribute('aria-pressed',String(control.dataset.rating===view)))
+  ratingButtons.forEach(button=>{button.onclick=()=>{
     const next=button.dataset.rating as RatingView
     if(view===next)return
     view=next
-    list.querySelectorAll<HTMLButtonElement>('[data-rating]').forEach(control=>control.setAttribute('aria-pressed',String(control===button)))
+    updateRatingButtons()
     void load()
   }})
   input.oninput=()=>{request++;submit.disabled=false;content.innerHTML='';status.textContent='Apply the location to update rankings.';error.textContent=''}
   form.onsubmit=event=>{event.preventDefault();if(!submit.disabled)void load()}
   input.value=initialTerm
+  updateRatingButtons()
   void load()
-  return {searchTerm:()=>input.value,dispose:()=>{disposed=true;request++;player?.dispose()},back:()=>{if(!selected)return false;if(player?.closeOverlay())return true;back();return true}}
+  return {searchTerm:()=>input.value,resultPosition:()=>({key:player?.resultPosition().key,view}),dispose:()=>{disposed=true;request++;player?.dispose()},back:()=>{if(!player)return false;if(player.closeOverlay())return true;back();return true}}
 }

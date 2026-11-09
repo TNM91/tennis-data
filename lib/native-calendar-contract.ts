@@ -5,7 +5,18 @@ import type {CalendarTeamPractice} from './native-calendar-practices-contract'
 
 export type CalendarRange={from:string;to:string}
 export type CalendarSharedDate={id:string;title:string;date:string;time:string;location:string;detail:string;kind:'lesson'|'reminder'}
-export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:PlayerCompetitionScheduleEvent[];coach:CalendarSharedDate[];practices?:CalendarTeamPractice[];practicesUnavailable?:boolean;warnings:string[]}
+export type CalendarCompetitionView={id:string;divisionId?:string}
+export type NativeCalendarCompetition=PlayerCompetitionScheduleEvent&{publishedView?:CalendarCompetitionView}
+export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:NativeCalendarCompetition[];coach:CalendarSharedDate[];practices?:CalendarTeamPractice[];practicesUnavailable?:boolean;warnings:string[]}
+export const COMPETITION_DATES_UNAVAILABLE='League and tournament dates couldn’t load. Refresh to check them.'
+export function readCalendarCompetitionView(event:PlayerCompetitionScheduleEvent,value:unknown):CalendarCompetitionView|undefined{
+ if(!value||typeof value!=='object')return
+ const {id,divisionId}=value as Record<string,unknown>
+ const validId=/^[a-zA-Z0-9_-]{1,80}$/
+ if(typeof id!=='string'||!validId.test(id))return
+ if(divisionId===undefined)return id===event.competitionId?{id}:undefined
+ if(event.kind==='tournament'&&typeof divisionId==='string'&&validId.test(divisionId)&&divisionId===event.competitionId&&id!==divisionId)return {id,divisionId}
+}
 export type CalendarDraft={id:string;title:string;date:string;time:string;location:string;kind:PlayerCalendarItem['kind'];recurrenceRule:PlayerCalendarItem['recurrenceRule'];availabilityStatus:PlayerCalendarItem['availabilityStatus'];venueDirectoryId:string;venuePreferenceId:string}
 export type CalendarIntent=
  |{action:'create'|'update';item:CalendarDraft;expectedUpdatedAt:string}

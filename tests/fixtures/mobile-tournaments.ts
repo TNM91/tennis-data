@@ -43,7 +43,7 @@ const send:ScenarioSend=async o=>{
   }
   if(s.detail?.active){if(state.removeEntrant)s.detail.standings=[];else if(state.prependStanding&&!mode.includes('history'))s.detail.standings.unshift({...s.detail.standings[0],name:'Casey Court',wins:0,losses:1,winPct:0,gamesWon:7,gamesLost:12,gameDiff:-5})}
   if((mode==='limited'||state.withholdDraw)&&s.detail?.active){s.detail.drawNotice='This draw exceeds the app’s current display limit. No partial standings are shown.';s.detail.matches=[];s.detail.standings=[];s.detail.entrants=0}
-  if(mode==='empty')s.tournaments=[]
+  if(mode==='empty'||!s.selected&&s.query==='nothing')s.tournaments=[]
   data={ok:true,...s}
  }else{const s=competitionSnapshot();s.owner=owner;data={ok:true,...s}}
  return {status:200,data,headers:{},url:o.url}

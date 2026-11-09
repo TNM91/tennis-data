@@ -11,7 +11,7 @@ import { createMatchDetails, html } from './match-details'
 import { loadRecentResults, type RecentMatchRow } from './recent-results'
 import { showRecentResults } from './results-view'
 import {showExploreSearchEmpty} from './explore-search-empty'
-import {exploreResultCard} from './explore-result-card'
+import {bindExploreResults,exploreResultCard} from './explore-result-card'
 import {openRosterPlayerProfile,type RosterPlayerProfile} from './roster-player-profile'
 
 export function playerSummary(player: PlayerChoice) {
@@ -26,7 +26,7 @@ const profileTargets:Record<PlayerProfileSection,string>={
   opponents:'#explore-performance [data-repeat-opponents-title]',
 }
 
-export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string;localMatches?:boolean;scrollHost?:HTMLElement;setBackLabel?:(label:string)=>void},initialTerm='',access?:PublicBrowseAccess) {
+export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string;localMatches?:boolean;scrollHost?:HTMLElement;setBackLabel?:(label:string)=>void},initialTerm='',access?:PublicBrowseAccess,resumeKey?:string) {
   let roster:ReturnType<typeof showPlayerRosterTeams>|null=null
   let header:ReturnType<typeof showPlayerProfileHeader>|null=null
   let performance: ReturnType<typeof showPlayerPerformance> | null = null
@@ -107,7 +107,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     if(!access)showFollowControl(playerPanel.querySelector<HTMLElement>('#player-follow')!,client,player,()=>valid() && version===request)
     const rosterDisclosure=playerPanel.querySelector<HTMLDetailsElement>('#explore-roster')!
     rosterDisclosure.hidden=Boolean(access)
-    if(access)showPublicSignIn(playerPanel.querySelector<HTMLElement>('#player-follow')!,access,()=>valid()&&version===request)
+    if(access)showPublicSignIn(playerPanel.querySelector<HTMLElement>('#player-follow')!,access,()=>valid()&&version===request,player)
     rosterDisclosure.ontoggle=()=>{if(!access&&rosterDisclosure.open&&!roster&&valid()&&version===request)roster=showPlayerRosterTeams(playerPanel.querySelector<HTMLElement>('#explore-roster-content')!,client,player.id,()=>valid()&&version===request)}
     if(access)for(const selector of ['#explore-journey','#explore-performance'])playerPanel.querySelector<HTMLElement>(selector)!.hidden=true
     const format=createPlayerProfileFormat()
@@ -153,6 +153,8 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   form.onsubmit = async event => {
     event.preventDefault()
     if (!valid() || button.disabled) return
+    const pendingKey=resumeKey
+    resumeKey=undefined
     const term = input.value.trim().replace(/\s+/g,' ')
     if (term.length < 2 || term.length > 80) {error.textContent='Enter between 2 and 80 characters of a player name.';return}
     const version = ++request
@@ -172,7 +174,8 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
         title:player.name,
         context:`${player.location || 'Location unavailable'} · ${player.flight || 'Flight unavailable'}`,
       })).join('')}</ul>`
-      choices.querySelectorAll<HTMLButtonElement>('[data-explore-result]').forEach(control=>{control.onclick=()=>open(rows[Number(control.dataset.exploreResult)],control)})
+      button.disabled=false
+      bindExploreResults(choices,rows,player=>player.id,open,pendingKey)
     } catch {
       if (!valid() || version !== request) return
       status.textContent = ''
@@ -185,6 +188,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   return {
     closeOverlay,
     searchTerm:()=>input.value,
+    resultPosition:()=>({key:selected?.id}),
     isMatchOpen:()=>journey?.isScorecardOpen()||matchDetails?.isOpen() || false,
     back:()=>{if(closeOverlay())return true;if(selected){back();return true}return false},
     dispose:()=>{disposed=true;request++;clearProfile()},

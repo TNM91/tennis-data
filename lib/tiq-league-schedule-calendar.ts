@@ -21,6 +21,7 @@ export type TennisCalendarEvent = {
   title: string
   date: string
   time?: string
+  startsAt?: Date
   location?: string
   description?: string
   url?: string
@@ -95,6 +96,10 @@ export function foldIcsLine(value: string) {
 
 function formatIcsDate(value: string) {
   return value.replace(/-/g, '')
+}
+
+function formatIcsUtc(value: Date) {
+  return value.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
 }
 
 function parseTimeParts(value: string) {
@@ -190,7 +195,7 @@ export function buildTennisCalendarFeed(
   const productUrl = options.productUrl || 'https://www.tenaceiq.com'
   const timeZone = options.timeZone || 'America/Chicago'
   const durationMinutes = options.durationMinutes ?? 90
-  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const stamp = formatIcsUtc(new Date())
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -204,6 +209,10 @@ export function buildTennisCalendarFeed(
   for (const event of events) {
     if (!event.id || !event.date) continue
     const recurrenceRule = sanitizeIcsRule(event.recurrenceRule)
+    const duration = event.durationMinutes ?? durationMinutes
+    const dateLines = event.startsAt
+      ? [`DTSTART:${formatIcsUtc(event.startsAt)}`, `DTEND:${formatIcsUtc(new Date(event.startsAt.getTime() + duration * 60_000))}`]
+      : buildIcsDateLines(event.date, event.time || '', timeZone, duration)
 
     lines.push(
       'BEGIN:VEVENT',
@@ -213,7 +222,7 @@ export function buildTennisCalendarFeed(
       `DESCRIPTION:${escapeIcsText(event.description || '')}`,
       `LOCATION:${escapeIcsText(resolveCalendarLocation(event.location))}`,
       ...(options.includeEventUrls === false ? [] : [`URL:${escapeIcsText(event.url || productUrl)}`]),
-      ...buildIcsDateLines(event.date, event.time || '', timeZone, event.durationMinutes ?? durationMinutes),
+      ...dateLines,
       ...(recurrenceRule ? [`RRULE:${recurrenceRule}`] : []),
       'END:VEVENT',
     )

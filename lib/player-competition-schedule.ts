@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TennisCalendarEvent } from '@/lib/tiq-league-schedule-calendar'
+import type { TiqTournamentMatchResult } from './tiq-tournament-registry'
+import { buildTournamentGroupChampionship } from './tournament-draw'
 
 export type PlayerCompetitionScheduleEvent = {
   id: string
@@ -49,6 +51,9 @@ type TournamentSchedule = {
 
 type TournamentResult = {
   winner?: string | null
+  score?: string | null
+  sideA?: string | null
+  sideB?: string | null
 }
 
 type TournamentRow = {
@@ -91,6 +96,7 @@ type TournamentMatch = {
   sideA: string
   sideB: string
   schedule?: TournamentSchedule
+  completed: boolean
 }
 
 export type TournamentScheduleMatch = TournamentMatch
@@ -111,10 +117,18 @@ function buildMatchId(round: number, court: number) {
   return `r${round}-m${court}`
 }
 
+function recordedTournamentWinner(result: TournamentResult | undefined, sideA: string, sideB: string) {
+  if (!result || sideA === 'Bye' || sideB === 'Bye') return ''
+  if ((result.sideA !== undefined || result.sideB !== undefined) && (result.sideA !== sideA || result.sideB !== sideB)) return ''
+  const winner = cleanText(result.winner)
+  return winner === sideA || winner === sideB ? winner : ''
+}
+
 function buildSingleEliminationMatches(row: TournamentRow): TournamentMatch[] {
   const field = normalizeEntrants(row.entrants)
   if (field.length < 2) return []
 
+  const entrants = new Set(field)
   const bracketSize = Math.pow(2, Math.ceil(Math.log2(field.length)))
   const seeded = [...field, ...Array.from({ length: bracketSize - field.length }, () => 'Bye')]
   const winners = new Map<string, string>()
@@ -127,9 +141,10 @@ function buildSingleEliminationMatches(row: TournamentRow): TournamentMatch[] {
     const sideA = seeded[index]
     const sideB = seeded[bracketSize - 1 - index]
     const byeWinner = sideA === 'Bye' ? sideB : sideB === 'Bye' ? sideA : ''
-    const winner = byeWinner || cleanText(results[id]?.winner)
+    const recordedWinner = recordedTournamentWinner(results[id], sideA, sideB)
+    const winner = byeWinner || recordedWinner
     if (winner) winners.set(id, winner)
-    matches.push({ id, label: 'Round 1', sideA, sideB, schedule: schedule[id] })
+    matches.push({ id, label: 'Round 1', sideA, sideB, schedule: schedule[id], completed: Boolean(recordedWinner) })
   }
 
   let remaining = bracketSize / 4
@@ -141,14 +156,15 @@ function buildSingleEliminationMatches(row: TournamentRow): TournamentMatch[] {
       const previousRight = buildMatchId(round - 1, index * 2 + 2)
       const sideA = winners.get(previousLeft) || `Winner R${round - 1}.${index * 2 + 1}`
       const sideB = winners.get(previousRight) || `Winner R${round - 1}.${index * 2 + 2}`
-      const winner = cleanText(results[id]?.winner)
-      if (winner === sideA || winner === sideB) winners.set(id, winner)
+      const winner = entrants.has(sideA) && entrants.has(sideB) ? recordedTournamentWinner(results[id], sideA, sideB) : ''
+      if (winner) winners.set(id, winner)
       matches.push({
         id,
         label: remaining === 1 ? 'Final' : `Round ${round}`,
         sideA,
         sideB,
         schedule: schedule[id],
+        completed: Boolean(winner),
       })
     }
     remaining /= 2
@@ -174,7 +190,10 @@ function buildRoundRobinMatches(row: TournamentRow): TournamentMatch[] {
       const sideB = rotating[rotating.length - 1 - index]
       if (sideA !== 'Bye' && sideB !== 'Bye') {
         const id = buildMatchId(round, index + 1)
-        matches.push({ id, label: `Round ${round}`, sideA, sideB, schedule: schedule[id] })
+        matches.push({
+          id, label: `Round ${round}`, sideA, sideB, schedule: schedule[id],
+          completed: Boolean(recordedTournamentWinner(row.results?.[id], sideA, sideB)),
+        })
       }
     }
     rotating.splice(1, 0, rotating.pop() || '')
@@ -183,7 +202,24 @@ function buildRoundRobinMatches(row: TournamentRow): TournamentMatch[] {
   return matches
 }
 
+function buildGroupPlayoffMatches(row: TournamentRow): TournamentMatch[] {
+  const entrants = Array.isArray(row.entrants) ? row.entrants.filter((name) => typeof name === 'string') : []
+  const results = Object.fromEntries<TiqTournamentMatchResult>(Object.entries(row.results ?? {}).flatMap(([id, result]) => {
+    if (typeof result?.winner !== 'string' || typeof result.sideA !== 'string' || typeof result.sideB !== 'string') return []
+    const score = typeof result.score === 'string' ? result.score.trim() : ''
+    if (score.length > 500) return []
+    return [[id, { winner: result.winner.trim(), score, updatedAt: '', sideA: result.sideA, sideB: result.sideB }]]
+  }))
+  const { matches } = buildTournamentGroupChampionship({ entrants, results })
+  return matches
+    .filter((match) => match.ready)
+    .map(({ id, label, sideA, sideB, result }) => ({
+      id, label, sideA, sideB, schedule: row.schedule?.[id], completed: Boolean(result?.winner),
+    }))
+}
+
 function buildTournamentMatches(row: TournamentRow) {
+  if (row.format === 'group_playoffs') return buildGroupPlayoffMatches(row)
   return row.format === 'round_robin' ? buildRoundRobinMatches(row) : buildSingleEliminationMatches(row)
 }
 
@@ -252,7 +288,7 @@ export function mapApprovedCompetitionSchedule(input: {
         opponent: cleanText(opponent),
         detail: [match.label, court ? `Court ${court}` : ''].filter(Boolean).join(' · '),
         href: `/tournaments/${encodeURIComponent(competitionId)}`,
-        status: 'Scheduled',
+        status: match.completed ? 'Completed' : 'Scheduled',
       })
     }
 

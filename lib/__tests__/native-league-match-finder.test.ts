@@ -71,7 +71,7 @@ describe('league match discovery keeps team and court evidence separate',()=>{
   const d=competitionDetail(),filters={query:'',day:'2026-09-01',status:''}
   expect(filterLeagueFixtures(d.fixtures,filters)).toEqual([])
   const rendered=leagueMatchViewHtml(d,'fixtures',filters)
-  expect(rendered).toContain('value="2026-09-01" selected');expect(rendered).toContain('no longer loaded');expect(rendered).toContain('No matches fit these filters');expect(rendered).toContain('Clear filters')
+  expect(rendered).toContain('value="2026-09-01" selected');expect(rendered).toContain('no longer loaded');expect(rendered).toContain('No matches fit these filters');expect(rendered).toContain('Show all matches')
  })
  it('discloses bounded result and court samples without manufacturing full standings',()=>{
   const d=competitionDetail();d.moreResults=true;d.standingsAvailable=false;d.standings=[]

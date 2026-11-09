@@ -8,8 +8,10 @@ const session=()=>signedIn?{user,access_token:'synthetic-local-token'}:null
 const player={overall_rating:4,overall_dynamic_rating:4.42,singles_dynamic_rating:4.37,doubles_dynamic_rating:4.49,rating_source:'verified'}
 const exploreReturn=new URL(location.href).searchParams.has('explore-return')
 const exploreEmpty=new URL(location.href).searchParams.has('explore-empty')
+const replaceGuestResult=new URL(location.href).searchParams.has('replace-guest-result')
 const repeatOpponents=new URL(location.href).searchParams.has('repeat-opponents')
 const longMatchHistory=new URL(location.href).searchParams.has('long-match-history')
+const labSearchHistory=new URL(location.href).searchParams.has('lab-search-history')
 const explorePlayers=Array.from({length:6},(_,index)=>({...player,id:'explore-player-'+index,name:'Jordan Lee '+(index+1),location:'Northside',flight:'4.0'}))
 const exploreParticipants=[
  {player_id:'explore-player-0',side:'B',seat:1,players:{name:'Jordan Lee 1'}},
@@ -25,11 +27,15 @@ let pendingLabProfile:Promise<void>|null=null
 let releaseLabProfile:(()=>void)|null=null
 let pendingLabRatings:Promise<void>|null=null
 let releaseLabRatings:(()=>void)|null=null
+let pendingLabMatches:Promise<void>|null=null
+let releaseLabMatches:(()=>void)|null=null
 export const labProfileFixture={
  defer(){pendingLabProfile=new Promise<void>(resolve=>{releaseLabProfile=resolve})},
  release(){releaseLabProfile?.();releaseLabProfile=null;pendingLabProfile=null},
  deferRatings(){pendingLabRatings=new Promise<void>(resolve=>{releaseLabRatings=resolve})},
  releaseRatings(){releaseLabRatings?.();releaseLabRatings=null;pendingLabRatings=null},
+ deferMatches(){pendingLabMatches=new Promise<void>(resolve=>{releaseLabMatches=resolve})},
+ releaseMatches(){releaseLabMatches?.();releaseLabMatches=null;pendingLabMatches=null},
 }
 function matchRows(length:number,singlesOnly=false){
  return Array.from({length},(_,i)=>({
@@ -42,6 +48,15 @@ function matchRows(length:number,singlesOnly=false){
   winner_side:i%3===2?'A':'B',
   match_players:[{player_id:navigationOwner,side:'B'}],
  }))
+}
+function labSearchMatches(){
+ return matchRows(14).map((row,index)=>{
+  const id='55555555-5555-4555-8555-'+String(100-index).padStart(12,'0')
+  if(index!==12)return {...row,id}
+  const own={player_id:navigationOwner,side:'B',seat:1,players:{name:'Jordan Lee'}}
+  const opponent={player_id:'alex',side:'A',seat:1,players:{name:'Álex Rowan'}}
+  return {...row,id,participants:[own,opponent]}
+ })
 }
 function data(table:string){
  if(table==='profiles'&&!linked)return {linked_player_id:null,linked_player_name:null,linked_team_name:null,linked_league_name:null}
@@ -63,10 +78,34 @@ function data(table:string){
 export function createClient(){return {
  channel:()=>{const callbacks:(()=>void)[]=[];const channel={on:(_type:string,_filter:unknown,callback:()=>void)=>{callbacks.push(callback);return channel},subscribe:(status:(value:string)=>void)=>{queueMicrotask(()=>status('SUBSCRIBED'));chatSignals.add(callbacks);return channel}};return channel},removeChannel:async()=> 'ok',
  auth:{signInWithPassword:async({password}:{password:string})=>{if(password==='synthetic-wrong')return {error:{code:'invalid_credentials'}};signedIn=true;listener?.('SIGNED_IN',session());return {error:null}},getSession:async()=>({data:{session:session()},error:null}),onAuthStateChange:(fn:typeof listener)=>{listener=fn;queueMicrotask(()=>listener?.('INITIAL_SESSION',session()));return {data:{subscription:{unsubscribe(){}}}}},startAutoRefresh(){},stopAutoRefresh(){},signOut:async()=>{signedIn=false;listener?.('SIGNED_OUT',null);return {error:null}}},
- from:(table:string)=>{if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:null;count?:number}={data:data(table),error:null};let select='',emptySearch=false,counted=false;const chain:Record<string,unknown>={then:async(resolve:(value:unknown)=>void)=>{if(table==='profiles'&&select.includes('linked_league_name'))await pendingLabProfile;if(table==='players'&&select.endsWith('doubles_dynamic_rating,rating_source'))await pendingLabRatings;if(counted&&Array.isArray(result.data))result.count=result.data.length;return resolve(result)}};for(const method of ['eq','in','order','limit','abortSignal','maybeSingle','single','ilike','or','is','not','range','gte','lte','lt','neq'])chain[method]=()=>chain;chain.select=(fields:string,options?:{count?:string})=>{
+ from:(table:string)=>{if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:null;count?:number}={data:data(table),error:null};let select='',emptySearch=false,counted=false;const chain:Record<string,unknown>={then:async(resolve:(value:unknown)=>void)=>{
+  if(table==='profiles'&&select.includes('linked_league_name'))await pendingLabProfile
+  if(table==='players'&&select.endsWith('doubles_dynamic_rating,rating_source'))await pendingLabRatings
+  if(table==='matches')await pendingLabMatches
+  if(counted&&Array.isArray(result.data))result.count=result.data.length
+  return resolve(result)
+ }};for(const method of ['eq','in','order','limit','abortSignal','maybeSingle','single','ilike','or','is','not','range','gte','lte','lt','neq'])chain[method]=()=>chain;chain.select=(fields:string,options?:{count?:string})=>{
   select=fields
   counted=repeatOpponents&&options?.count==='exact'
+  if(table==='matches'&&labSearchHistory&&fields.includes('participants:match_players'))result.data=labSearchMatches()
+  if(table==='matches'&&fields.includes('participants:match_players')&&new URL(location.href).searchParams.has('lab-opponents')){
+   result.data=matchRows(10).map(row=>{
+    if(row.id!=='court-0'&&row.id!=='court-2')return row
+    const own={player_id:navigationOwner,side:'B',seat:1,players:{name:'Jordan Lee'}}
+    const first={player_id:'casey',side:'A',seat:1,players:{name:'Casey Rivera'}}
+    const second={player_id:'morgan',side:'A',seat:2,players:{name:'Morgan Wells'}}
+    return {...row,participants:row.match_type==='singles'?[own,first]:[own,second,first]}
+   })
+  }
   if(longMatchHistory&&counted&&table==='matches')result.data=matchRows(41,true)
+  return chain
+ }
+ chain.limit=(size:number)=>{
+  if(table==='matches'&&labSearchHistory&&Array.isArray(result.data))result.data=result.data.slice(0,size)
+  return chain
+ }
+ chain.range=(start:number,end:number)=>{
+  if(table==='matches'&&labSearchHistory&&Array.isArray(result.data))result.data=result.data.slice(start,end+1)
   return chain
  }
  chain.in=(field:string,ids:string[])=>{
@@ -74,7 +113,12 @@ export function createClient(){return {
    result.data=ids.flatMap(match_id=>exploreParticipants.map(row=>({...row,match_id,players:{...row.players,id:row.player_id}})))
   }
   return chain
- };chain.ilike=(_field:string,value:string)=>{if(exploreEmpty&&value==='%Missingville%'){emptySearch=true;result.data=[]}return chain};chain.order=()=>{if(exploreReturn&&table==='players'&&select.startsWith('id,name,location,flight'))result.data=emptySearch?[]:explorePlayers;return chain};chain.eq=(field:string,value:string)=>{
+ };chain.ilike=(_field:string,value:string)=>{if(exploreEmpty&&value==='%Missingville%'){emptySearch=true;result.data=[]}return chain};chain.order=()=>{
+  if(exploreReturn&&table==='players'&&select.startsWith('id,name,location,flight')){
+   result.data=emptySearch?[]:replaceGuestResult&&signedIn?explorePlayers.map((row,index)=>index===1?{...row,id:'replacement-player'}:row):explorePlayers
+  }
+  return chain
+ };chain.eq=(field:string,value:string)=>{
   if(exploreReturn&&table==='players'&&field==='id'&&select.includes('tiq_rating_status')){
    const choice=explorePlayers.find(row=>row.id===value)
    if(choice)result.data={...choice,tiq_rating_status:'current',tiq_rating_model:'fixture',tiq_rating_season:new Date().getUTCFullYear(),tiq_singles_matches:4,tiq_doubles_matches:6}

@@ -77,8 +77,54 @@ describe('calendar transport and owned writes',()=>{
  it('keeps personal dates usable and labels failed competition/Coach sources',async()=>{
   const h=db(c=>c.url.pathname.endsWith('player_calendar_items')?json([row()]):json({message:'unavailable'},400));const result=await loadNativeCalendar(h.client,owner,snapshot().range);expect(result.personal).toHaveLength(1);expect(result.warnings).toHaveLength(2);expect(h.calls[0].url.searchParams.get('limit')).toBe('501');expect(h.calls[0].url.searchParams.get('or')).toContain('FREQ=WEEKLY')
  })
+ it('includes published league and division destinations without linking private seasons',async()=>{
+  const h=db(call=>{
+   const table=call.url.pathname.split('/').at(-1)
+   if(table==='tiq_player_league_entries')return json(['public-league','private-league'].map(league_id=>({league_id,player_name:'Jordan',created_by_user_id:owner})))
+   if(table==='tiq_leagues')return json([
+    {id:'public-league',league_name:'Public League',starts_on:'2026-10-31',is_public:true,season_status:'active'},
+    {id:'private-league',league_name:'Private League',starts_on:'2026-10-31',is_public:false,season_status:'active'},
+   ])
+   if(table==='tiq_tournament_entries')return json([{tournament_id:'division-one',player_name:'Jordan',submitted_by_user_id:owner}])
+   if(table==='tiq_tournaments')return json([{id:'division-one',event_id:'event-one',is_public:true,status:'scheduled',name:'4.0 Doubles',starts_on:'2026-10-31',entrants:[]}])
+   return json([])
+  })
+  const result=await loadNativeCalendar(h.client,owner,snapshot().range)
+  const parsed=readCalendar({ok:true,...result},owner,result.range)
+  const byId=new Map(parsed.competitions.map(event=>[event.competitionId,event]))
+  expect(parsed.competitions).toHaveLength(3)
+  expect(byId.get('public-league')?.publishedView).toEqual({id:'public-league'})
+  expect(byId.get('private-league')?.publishedView).toBeUndefined()
+  expect(byId.get('division-one')?.publishedView).toEqual({id:'event-one',divisionId:'division-one'})
+ })
  it('refuses availability for an absent/unapproved event before writing any reply',async()=>{
   const h=db(()=>json([]));await expect(respondNativeCalendar(h.client,owner,{action:'respond',eventId:'league:x:y',response:'available',snapshot:{title:'Match',date:'2026-10-31',time:'18:00',location:'Court'},expectedResponseUpdatedAt:'',requestId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'})).rejects.toMatchObject({status:409});expect(h.calls.every(c=>c.method==='GET')).toBe(true)
+ })
+ it.each(['round_robin','single_elimination','group_playoffs'])('closes calendar replies after a valid %s result is posted',async(format)=>{
+  const date='2026-10-31',time='18:00',eventId='tournament:cup:r1-m1'
+  let results:Record<string,{winner:string;sideA?:string;sideB?:string}>={'r1-m1':{winner:'Jordan',sideA:'Jordan',sideB:'Former opponent'}}
+  const h=db(({url})=>{
+   if(url.pathname.endsWith('tiq_tournament_entries'))return json([{tournament_id:'cup',player_name:'Jordan',submitted_by_user_id:owner}])
+   if(url.pathname.endsWith('tiq_tournaments'))return json([{
+    id:'cup',is_public:true,status:'scheduled',format,name:'Club Cup',entrants:['Jordan','Riley'],results,
+    schedule:{'r1-m1':{date,time,court:'2'}},
+   }])
+   return json([])
+  })
+  const range=snapshot().range
+  const before=await loadNativeCalendar(h.client,owner,range)
+  expect(before.competitions).toEqual([expect.objectContaining({id:eventId,status:'Scheduled'})])
+
+  const result={winner:'Jordan'}
+  results={'r1-m1':format==='group_playoffs'?{...result,sideA:'Jordan',sideB:'Riley'}:result}
+  const after=await loadNativeCalendar(h.client,owner,range)
+  expect(after.competitions).toEqual([expect.objectContaining({id:eventId,status:'Completed',publishedView:{id:'cup'}})])
+  expect(calendarOccurrences(after)).toContainEqual(expect.objectContaining({id:eventId,readiness:'Completed',matchNeedsReply:false}))
+  await expect(respondNativeCalendar(h.client,owner,{
+   action:'respond',eventId,response:'available',snapshot:{title:'Club Cup: vs Riley',date,time,location:'Court 2'},
+   expectedResponseUpdatedAt:'',requestId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  })).rejects.toMatchObject({status:409})
+  expect(h.calls.every(call=>call.method==='GET')).toBe(true)
  })
  it('checks the reviewed schedule, saves one owned reply, and sends at most one organizer alert on replay',async()=>{
   let saved:Record<string,unknown>|null=null

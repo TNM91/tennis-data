@@ -15,13 +15,18 @@ export function tournamentCourtLabel(court:string) {
 }
 export const tournamentScheduleDay=(match:TournamentMatch)=>isValidCalendarDate(match.date)?match.date:''
 const publishedFirst=(a:string,b:string)=>Number(!a)-Number(!b)
+export function tournamentScheduleTime(time:string) {
+ const clock=/^([01]?\d|2[0-3]):([0-5]\d)$/.exec(time.trim())
+ return clock?`${clock[1].padStart(2,'0')}:${clock[2]}`:''
+}
 export function tournamentViewMatches(matches:TournamentMatch[],view:TournamentMatchView){
  const rows=matches.filter(m=>view==='results'?!!m.winner:view==='schedule'?!!(m.time||m.court||tournamentScheduleDay(m)):true)
  if(view!=='schedule')return rows
  return rows.sort((a,b)=>{
   const dayA=tournamentScheduleDay(a),dayB=tournamentScheduleDay(b)
+  const timeA=tournamentScheduleTime(a.time),timeB=tournamentScheduleTime(b.time)
   return publishedFirst(dayA,dayB)||dayA.localeCompare(dayB)
-   ||publishedFirst(a.time,b.time)||a.time.localeCompare(b.time)
+   ||publishedFirst(timeA,timeB)||timeA.localeCompare(timeB)
    ||publishedFirst(a.court,b.court)||tournamentCourtLabel(a.court).localeCompare(tournamentCourtLabel(b.court),'en-US',{numeric:true})
  })
 }
@@ -53,14 +58,14 @@ function drawRoundField(matches:TournamentMatch[],selected:string){
  if(selected&&!rounds.includes(selected))options.push(`<option value="${html(selected)}" selected>${html(selected)} — no longer published</option>`)
  return `<label for="tournament-draw-round">Round</label><select id="tournament-draw-round" name="round"><option value="">All rounds</option>${options.join('')}</select>`
 }
-export function tournamentMatchFiltersHtml(matches:TournamentMatch[],view:TournamentMatchView,filters:TournamentMatchFilters){
+export function tournamentMatchFiltersHtml(matches:TournamentMatch[],view:TournamentMatchView,filters:TournamentMatchFilters,showClear=true){
  const scheduleView=view==='schedule'
  const activeCount=[normalized(filters.query),scheduleView?filters.day:'',scheduleView?filters.court:'',view==='draw'?filters.round:''].filter(Boolean).length
  const form=`<form class="tournament-match-filters" aria-label="Find matches">
   <label for="tournament-player-filter">Player or team name</label>
   <input id="tournament-player-filter" type="search" name="player" maxlength="160" value="${html(filters.query)}" placeholder="Find a player or team">
   ${scheduleView?scheduleFields(matches,filters):view==='draw'?drawRoundField(matches,filters.round):''}
-  <div class="tournament-filter-actions"><button type="submit">Apply filters</button>${activeCount?'<button type="button" class="secondary" data-tournament-clear-filters>Clear filters</button>':''}</div>
+  <div class="tournament-filter-actions"><button type="submit">Apply filters</button>${activeCount&&showClear?'<button type="button" class="secondary" data-competition-clear-match-filters>Clear filters</button>':''}</div>
  </form>`
  const summary=(filters.day||filters.court)&&scheduleView?'<p class="tournament-filter-summary">'+html([filters.day?'Day: '+shortDay(filters.day):'',tournamentCourtLabel(filters.court)].filter(Boolean).join(' · '))+'</p>':''
  return competitionFiltersHtml(view,form,activeCount)+summary

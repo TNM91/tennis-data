@@ -1,28 +1,9 @@
 import type { TiqTournamentRecord } from './tiq-tournament-registry'
 import { buildTournamentEventPass } from './tournament-event-pass'
 import { escapeIcsText, foldIcsLine } from './tiq-league-schedule-calendar'
+import { eventCalendarStart } from './calendar-date'
 
-// Resolve the event's wall time using its configured zone, never the player's device zone.
-// Matching candidate offsets also handles DST transitions and rejects nonexistent times.
-export function eventCalendarStart(date: string, time: string, zone: string): Date | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time) || !zone) return null
-  const wall = new Date(`${date}T${time}:00Z`)
-  if (!Number.isFinite(wall.getTime()) || wall.toISOString().slice(0, 10) !== date) return null
-  try {
-    const formatter = new Intl.DateTimeFormat('en-US', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
-    const partsAt = (stamp: number) => {
-      const parts = Object.fromEntries(formatter.formatToParts(new Date(stamp)).map(part => [part.type, part.value]))
-      return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`
-    }
-    const offsets = new Set([-36, 0, 36].map(hours => {
-      const sample = wall.getTime() + hours * 3600000
-      return Date.parse(`${partsAt(sample)}Z`) - sample
-    }))
-    const candidates = [...offsets].map(offset => wall.getTime() - offset)
-      .filter(stamp => partsAt(stamp) === `${date}T${time}:00`).sort((a, b) => a - b)
-    return candidates.length ? new Date(candidates[0]) : null
-  } catch { return null }
-}
+export { eventCalendarStart } from './calendar-date'
 
 function stamp(date: Date) { return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') }
 

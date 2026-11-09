@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { showExplore as showPlayers } from './explore'
 import { showDirectory } from './directory-view'
 import { showRankings } from './rankings-view'
+import type {RatingView} from '../../lib/player-rating-display'
 
 const searchModes={
  Players:{label:'Player name',placeholder:'Search by tennis name',required:true},
@@ -13,10 +14,13 @@ const searchModes={
 } as const
 type ExploreCategory=keyof typeof searchModes
 export type ExploreSearchState={category:ExploreCategory;term:string}
+export type ExploreResultPosition={key?:string;view?:RatingView}
+export type ExploreVisit=ExploreSearchState & {results?:ExploreResultPosition}
 type ExploreOptions={
  access?:PublicBrowseAccess
  onCompetitions?:(trigger:HTMLElement)=>void
  search?:ExploreSearchState
+ resume?:ExploreVisit
  onLeave?:(state:ExploreSearchState)=>void
 }
 function exploreHomeHtml(competitions:boolean){
@@ -39,9 +43,9 @@ function exploreHomeHtml(competitions:boolean){
   </button>`:''}
  </div>`
 }
-export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,{access,onCompetitions,search,onLeave}:ExploreOptions={}) {
+export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,{access,onCompetitions,search,resume,onLeave}:ExploreOptions={}) {
   let disposed=false
-  let category:ExploreCategory=search?.category??'Players'
+  let category:ExploreCategory=(resume??search)?.category??'Players'
   let active:ReturnType<typeof showPlayers>|ReturnType<typeof showDirectory>|ReturnType<typeof showRankings>|null=null
   let overviewScroll=0
   app.dataset.state='explore'
@@ -68,10 +72,12 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
     const target=restore?submit:overview.querySelector<HTMLElement>('h1')
     target?.focus({preventScroll:true})
   }
-  const openResults=(term:string)=>{
+  const openResults=(term:string,position?:ExploreResultPosition)=>{
     backButton.hidden=false
     window.scrollTo(0,0)
-    active=category==='Players'?showPlayers(content,client,valid,undefined,term,access):category==='Rankings'?showRankings(content,client,valid,term,access):showDirectory(content,category,client,valid,term,undefined,access)
+    if(category==='Players')active=showPlayers(content,client,valid,undefined,term,access,position?.key)
+    else if(category==='Rankings')active=showRankings(content,client,valid,term,access,position)
+    else active=showDirectory(content,category,client,valid,term,undefined,access,position?.key)
   }
   const selectMode=(mode:ExploreCategory)=>{
     category=mode
@@ -102,11 +108,13 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
     overviewScroll=window.scrollY
     openResults(term)
   }
-  input.value=search?.term??''
+  const visit=():ExploreVisit=>({category,term:(active?.searchTerm()??input.value).slice(0,80),results:active?.resultPosition()})
+  input.value=(resume??search)?.term??''
   selectMode(category)
-  showOverview()
-  return {dispose:()=>{
-    if(valid()&&onLeave)onLeave({category,term:(active?.searchTerm()??input.value).slice(0,80)})
+  if(resume?.results)openResults(resume.term,resume.results)
+  else showOverview()
+  return {visit,dispose:()=>{
+    if(valid()&&onLeave){const {category,term}=visit();onLeave({category,term})}
     disposed=true;active?.dispose()
   },back:()=>{
     if(!valid()||overview.isConnected)return false

@@ -30,6 +30,7 @@ describe('bounded older My Lab matches',()=>{
   q.select.mockReturnValue(q);q.eq.mockReturnValue(q);q.in.mockReturnValue(q);q.order.mockReturnValue(q);q.range.mockReturnValue(q)
   const client={from:vi.fn().mockReturnValue(q)} as unknown as SupabaseClient
   expect((await loadOlderResults(client,player,rows(0,10))).rows).toHaveLength(30)
+  expect(q.select).toHaveBeenCalledWith(expect.stringContaining('participants:match_players(player_id,side,seat,players(name))'))
   expect(client.from).toHaveBeenCalledWith('matches');expect(q.eq).toHaveBeenCalledWith('match_players.player_id',player);expect(q.range).toHaveBeenCalledWith(10,30);expect(q.order).toHaveBeenCalledWith('match_date',{ascending:false,nullsFirst:false});expect(q.order).toHaveBeenCalledWith('id',{ascending:false});expect(q.abortSignal).toHaveBeenCalledWith(expect.any(AbortSignal))
   q.abortSignal.mockResolvedValue({data:null,error:{message:'private error'}})
   await expect(loadOlderResults(client,player,rows(0,10))).rejects.toThrow('Older matches unavailable')

@@ -2,8 +2,11 @@ import { CapacitorHttp } from '@capacitor/core'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { nativeActionIcon } from './native-action-icons'
 import { html } from './match-details'
+import {showExploreSearchEmpty} from './explore-search-empty'
+import type {LabProfile} from './lab-home'
 
 export type PlayerChoice = {id: string; name: string; location: string | null; flight: string | null}
+export type PlayerLink = {id:string;profile:LabProfile|null}
 export function playerSearchTerm(value: string) {
   const term = value.trim().replace(/\s+/g, ' ')
   if (term.length < 2 || term.length > 80) throw new Error('Enter between 2 and 80 characters of your name.')
@@ -17,7 +20,7 @@ export async function findPlayers(client: SupabaseClient, value: string): Promis
   if (error) throw new Error('Can’t search players. Check your connection and try again.')
   return (data || []) as PlayerChoice[]
 }
-export async function connectPlayer(client: SupabaseClient, playerId: string, userId: string, isCurrent: () => boolean, request: typeof CapacitorHttp.post = options => CapacitorHttp.post(options)) {
+export async function connectPlayer(client: SupabaseClient, playerId: string, userId: string, isCurrent: () => boolean, request: typeof CapacitorHttp.post = options => CapacitorHttp.post(options)):Promise<PlayerLink> {
   if (!playerId.trim()) throw new Error('Choose a player record first.')
   const {data, error} = await client.auth.getSession()
   if (error || !data.session || data.session.user.id !== userId || !isCurrent()) throw new Error('Sign in again before connecting your player.')
@@ -28,12 +31,21 @@ export async function connectPlayer(client: SupabaseClient, playerId: string, us
     connectTimeout:12000, readTimeout:12000,
   }).catch(() => { throw new Error('Could not confirm your player connection. Return to My Lab and refresh before trying again.') })
   if (response.status === 401) throw new Error('Sign in again before connecting your player.')
-  if (response.status < 200 || response.status >= 300 || response.data?.ok !== true || response.data?.profile?.linked_player_id !== playerId) {
+  const profile=response.data?.profile
+  if (response.status < 200 || response.status >= 300 || response.data?.ok !== true || profile?.linked_player_id !== playerId) {
     throw new Error('Couldn’t confirm your player connection. Return to My Lab and refresh before trying again.')
   }
+  const {linked_player_name:name,linked_team_name:team,linked_league_name:league}=profile
+  const complete=typeof name==='string'&&Boolean(name.trim())&&(team===null||typeof team==='string')&&(league===null||typeof league==='string')
+  return {id:playerId,profile:complete?{linked_player_id:playerId,linked_player_name:name,linked_team_name:team,linked_league_name:league}:null}
 }
 
-type ConnectionActions = {search: (term: string) => Promise<PlayerChoice[]>; connect: (playerId: string) => Promise<void>}
+type ConnectionActions = {
+  search: (term: string) => Promise<PlayerChoice[]>
+  connect: (playerId: string) => Promise<PlayerLink>
+  onConnected: (link: PlayerLink) => void
+  teamInvite?: (trigger: HTMLButtonElement) => void
+}
 export function showPlayerConnection(app: HTMLElement, actions: ConnectionActions, back: () => void, isCurrent: () => boolean) {
   let disposed = false
   let request = 0
@@ -78,6 +90,8 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
     if (saving || !valid()) return
     const version = ++request
     error.textContent = ''
+    status.textContent = ''
+    status.classList.remove('sr-only')
     choices.innerHTML = ''
     clearSelection()
     try { playerSearchTerm(input.value) } catch (failure) { error.textContent = (failure as Error).message; return }
@@ -86,14 +100,24 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
     try {
       const rows = await actions.search(input.value)
       if (!valid() || version !== request) return
-      const summary = rows.length ? `${rows.length} record${rows.length === 1 ? '' : 's'} found.${rows.length === 12 ? ' Add more of your name to narrow the results.' : ''}` : 'No records found. Try the name used in your league results.'
+      if (!rows.length) {
+        status.classList.add('sr-only')
+        status.textContent = 'No player records found.'
+        showExploreSearchEmpty(choices,input,status,{
+          title:'No player records found',
+          detail:'Try your last name or a different spelling.',
+          action:actions.teamInvite?{label:'Use a team invite',open:trigger=>{if(valid())actions.teamInvite?.(trigger)}}:undefined,
+        })
+        return
+      }
+      const summary = `${rows.length} record${rows.length === 1 ? '' : 's'} found.${rows.length === 12 ? ' Add more of your name to narrow the results.' : ''}`
       status.textContent = summary
-      choices.innerHTML = rows.length?`<ul class="player-connect-results native-entry-list">${rows.map((row,index) => `
+      choices.innerHTML = `<ul class="player-connect-results native-entry-list">${rows.map((row,index) => `
         <li><button type="button" class="secondary app-tool" data-player-choice="${index}" aria-label="Review this record for ${html(row.name)}" aria-describedby="player-choice-${index}">
           <span class="app-tool-icon" aria-hidden="true">${nativeActionIcon('profile')}</span>
           <span class="app-tool-copy"><strong>${html(row.name)}</strong><span id="player-choice-${index}">${html(row.location || 'Location not listed')} · ${row.flight?'Flight '+html(row.flight):'Flight not listed'}</span></span>
           <span aria-hidden="true">›</span>
-        </button></li>`).join('')}</ul>`:''
+        </button></li>`).join('')}</ul>`
       choices.querySelectorAll<HTMLButtonElement>('[data-player-choice]').forEach(button => {
         button.onclick = () => {
           if (saving || !valid()) return
@@ -128,8 +152,8 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
             app.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button,input').forEach(control => {control.disabled = true})
             progress.textContent = 'Connecting your player…'
             try {
-              await actions.connect(selected.id)
-              if (valid()) back()
+              const link=await actions.connect(selected.id)
+              if (valid()) actions.onConnected(link)
             } catch (failure) {
               if (!valid()) return
               feedback.textContent = failure instanceof Error ? failure.message : 'Couldn’t confirm the connection. Return to My Lab and refresh.'

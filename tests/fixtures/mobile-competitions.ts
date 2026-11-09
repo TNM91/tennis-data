@@ -56,7 +56,7 @@ const send:ScenarioSend=async options=>{
  const p=new URL(options.url).searchParams,snapshot=competitionSnapshot()
  snapshot.scope=p.get('scope')==='mine'?'mine':'discover';snapshot.query=p.get('q')||''
  if(snapshot.scope==='discover')snapshot.connections=[]
- if(snapshot.query==='nothing')snapshot.leagues=[]
+ if(snapshot.query==='nothing'){snapshot.leagues=[];snapshot.connections=[]}
  if(mode.includes('finder'))snapshot.leagues.push({...snapshot.leagues[0],id:'league-two',name:'Second season'})
  if((mode==='browse-return'||mode==='entry-list')&&!p.get('league')){
   const [league]=snapshot.leagues

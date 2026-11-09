@@ -3,25 +3,26 @@ import type {ScenarioSend} from './captain-scenarios-data'
 import type {TournamentSnapshot,TournamentSummary,TournamentDetail,TournamentMatch,TournamentStanding} from '../../lib/native-tournaments-contract'
 import {formatTournamentEventDate,formatTournamentEventTime} from '../../lib/tournament-event-presentation'
 import {loadTournaments} from './tournaments-data'
-import {bindCompetitionSearch,competitionDirectoryHtml} from './competition-directory'
+import {bindCompetitionSearch,competitionDirectoryHtml,focusCompetitionSearchResults} from './competition-directory'
 import {competitionEntryActionHtml} from './competition-entry-action'
+import {competitionMatchFilterEmptyHtml} from './competition-filters'
 import {bindCompetitionHistory,competitionHistoryNavigationHtml,competitionHistorySectionHtml} from './competition-history'
-import {competitionMatchGroupsHtml,competitionOpponentsHtml,competitionOutcomeHtml,competitionScheduleHtml} from './competition-match-card'
+import {bindCompetitionScheduleJumps,competitionMatchGroupsHtml,competitionOpponentsHtml,competitionOutcomeHtml,competitionScheduleClock,competitionScheduleHtml,competitionScheduleJumpButton,competitionScheduleJumpHtml,focusCalendarCompetitionMatch,focusCompetitionMatch} from './competition-match-card'
 import {openTournamentEntry} from './tournament-entry-view'
 import {html} from './match-details'
 import {bindTournamentStandingsFinder,emptyTournamentStandingFilters,tournamentStandingsHtml,type TournamentStandingFilters} from './tournament-standings-finder'
 import {restoreLeagueEvidenceFocus as restoreListFocus} from './league-evidence-dialog'
-import {emptyTournamentMatchFilters,filterTournamentMatches,tournamentMatchFiltersHtml,tournamentViewMatches,tournamentEntrantMatches,tournamentCourtLabel,tournamentDrawRoundLabel,tournamentScheduleDay,type TournamentMatchFilters,type TournamentMatchView} from './tournament-match-filters'
+import {emptyTournamentMatchFilters,filterTournamentMatches,tournamentMatchFiltersHtml,tournamentViewMatches,tournamentEntrantMatches,tournamentCourtLabel,tournamentDrawRoundLabel,tournamentScheduleDay,tournamentScheduleTime,type TournamentMatchFilters,type TournamentMatchView} from './tournament-match-filters'
 type View='home'|'draw'|'schedule'|'results'|'standings'
 type Entrant=Pick<TournamentStanding,'name'|'group'>
 const status=(t:TournamentSummary)=>t.status==='open'&&t.registrationClosed?'Registration closed':({open:'Registration open',scheduled:'Scheduled',completed:'Completed'})[t.status]
 export function tournamentCardsHtml(tournaments:TournamentSummary[],division=false){
- return tournaments.length?'<div class="competition-cards">'+tournaments.map((t,i)=>'<article class="competition-card"><div class="competition-card-meta"><span>'+html(t.isEvent?'Tournament event':t.formatLabel)+'</span><span class="competition-state" data-state="'+(t.registrationClosed?'closed':html(t.status))+'">'+html(status(t))+'</span></div><h3>'+html(t.name)+'</h3><div class="competition-card-details"><p>'+html(formatTournamentEventDate(t.date,true))+'</p><p>'+html(t.location||'Venue to be confirmed')+'</p></div><button type="button" class="secondary" data-tournament-'+(division?'division':'open')+'="'+i+'">'+(division?'Open division':'Open tournament')+'<span class="sr-only"> '+html(t.name)+'</span><span class="app-tool-arrow" aria-hidden="true">›</span></button></article>').join('')+'</div>':'<div class="competition-empty"><h3>No public '+(division?'divisions':'tournaments')+' found</h3><p>'+(division?'The organizer has not published a division yet.':'Try another tournament name or clear your search.')+'</p></div>'
+ return tournaments.length?'<div class="competition-cards">'+tournaments.map((t,i)=>'<article class="competition-card"><div class="competition-card-meta"><span>'+html(t.isEvent?'Tournament event':t.formatLabel)+'</span><span class="competition-state" data-state="'+(t.registrationClosed?'closed':html(t.status))+'">'+html(status(t))+'</span></div><h3>'+html(t.name)+'</h3><div class="competition-card-details"><p>'+html(formatTournamentEventDate(t.date,true))+'</p><p>'+html(t.location||'Venue to be confirmed')+'</p></div><button type="button" class="secondary" data-tournament-'+(division?'division':'open')+'="'+i+'">'+(division?'Open division':'Open tournament')+'<span class="sr-only"> '+html(t.name)+'</span><span class="app-tool-arrow" aria-hidden="true">›</span></button></article>').join('')+'</div>':'<div class="competition-empty"><h3>No public '+(division?'divisions':'tournaments')+' found</h3><p>'+(division?'The organizer has not published a division yet.':'Published tournaments will appear here.')+'</p></div>'
 }
-function matchHtml(m:TournamentMatch,view:TournamentMatchView='results') {
+function matchHtml(m:TournamentMatch,view:TournamentMatchView|'preview'='results') {
  const court=tournamentCourtLabel(m.court)
  const outcome=m.winner?competitionOutcomeHtml('Winner',m.winner,m.score||undefined):''
- if(view==='schedule')return `<article class="competition-fixture tournament-match-card competition-schedule-match">
+ if(view==='schedule')return `<article class="competition-fixture tournament-match-card competition-schedule-match" data-competition-schedule-match="${html(m.id)}">
   ${competitionScheduleHtml('',formatTournamentEventTime(m.time),court||'Court not published')}
   <div class="fixture-heading">
    <p class="competition-date">${html(tournamentDrawRoundLabel(m))}</p>
@@ -29,8 +30,8 @@ function matchHtml(m:TournamentMatch,view:TournamentMatchView='results') {
   </div>
   ${competitionOpponentsHtml(m.a,m.b,'h5')}${outcome}
  </article>`
- const schedule=competitionScheduleHtml(m.date?formatTournamentEventDate(m.date,true):'',m.time?formatTournamentEventTime(m.time):'',court||(view==='draw'?'Court not published':''))
- if(view==='draw')return `<article class="competition-fixture tournament-match-card tournament-draw-match">
+ const schedule=competitionScheduleHtml(m.date?formatTournamentEventDate(m.date,true):'',m.time?formatTournamentEventTime(m.time):'',court||(view==='draw'||view==='preview'?'Court not published':''))
+ if(view==='draw')return `<article class="competition-fixture tournament-match-card tournament-draw-match" data-competition-draw-match="${html(m.id)}">
   ${competitionOpponentsHtml(m.a,m.b,'h5')}${schedule}${outcome}
  </article>`
  return `<article class="competition-fixture tournament-match-card">
@@ -41,6 +42,7 @@ function matchHtml(m:TournamentMatch,view:TournamentMatchView='results') {
   ${schedule}
   ${outcome}
   ${competitionOpponentsHtml(m.a,m.b)}
+  ${view==='preview'?competitionScheduleJumpHtml(m.id,`${m.a} vs ${m.b}, ${formatTournamentEventDate(m.date,true)}`):''}
  </article>`
 }
 export function tournamentEntrantDetailHtml(d:TournamentDetail,entrant:Entrant){
@@ -55,7 +57,17 @@ export function tournamentDetailHtml(d:TournamentDetail,view:View,filters:Tourna
  const t=d.active||d.root,e=t.details
  if(!d.active)return '<h3 tabindex="-1">Divisions</h3>'+tournamentCardsHtml(d.divisions,true)+(d.moreDivisions?'<p class="rating-context">Showing the first 20 public divisions.</p>':'')
  if(view==='home'&&d.drawNotice)return '<h3 tabindex="-1">'+html(t.formatLabel)+'</h3><p>'+html(d.drawNotice)+'</p>'
- if(view==='home')return '<h3 tabindex="-1">'+html(t.formatLabel)+'</h3><div class="competition-metrics">'+[[d.entrants,'Entrants'],[d.matches.length,'Matches'],[d.matches.filter(m=>m.winner).length,'Results']].map(([n,label])=>'<div><strong>'+n+'</strong><span>'+label+'</span></div>').join('')+'</div><p>'+html(e.formatSummary||'Follow the published draw, scheduled courts and recorded results.')+'</p>'+(t.registrationClosed?'<p>Registration has closed.</p>':'')+(e.registrationClosesOn?'<p>Registration deadline: '+html(formatTournamentEventDate(e.registrationClosesOn,true))+'</p>':'')+(e.venueName?'<p>'+html(e.venueName)+'</p>':'')+(e.venueAddress?'<p>'+html(e.venueAddress)+'</p>':'')+(e.directorName?'<p>Tournament director: '+html(e.directorName)+'</p>':'')
+ if(view==='home'){
+  const zone=e.timeZone||d.root.details.timeZone
+  const now=competitionScheduleClock(zone||'UTC')
+  const next=t.status==='completed'?undefined:tournamentViewMatches(d.matches,'schedule')
+   .find(match=>{
+    const day=tournamentScheduleDay(match),time=tournamentScheduleTime(match.time)
+    return !match.winner&&Boolean(time||match.court)&&(day>now.day||day===now.day&&(!zone||!time||time>=now.time))
+   })
+  const preview=next?`<h4>Coming up</h4><p class="league-finder-context">${zone?`Times use ${html(zone)}.`:'Time zone not published.'}</p>${matchHtml(next,'preview')}`:''
+  return '<h3 tabindex="-1">'+html(t.formatLabel)+'</h3><div class="competition-metrics">'+[[d.entrants,'Entrants'],[d.matches.length,'Matches'],[d.matches.filter(m=>m.winner).length,'Results']].map(([n,label])=>'<div><strong>'+n+'</strong><span>'+label+'</span></div>').join('')+'</div>'+preview+'<p>'+html(e.formatSummary||'Follow the published draw, scheduled courts and recorded results.')+'</p>'+(t.registrationClosed?'<p>Registration has closed.</p>':'')+(e.registrationClosesOn?'<p>Registration deadline: '+html(formatTournamentEventDate(e.registrationClosesOn,true))+'</p>':'')+(e.venueName?'<p>'+html(e.venueName)+'</p>':'')+(e.venueAddress?'<p>'+html(e.venueAddress)+'</p>':'')+(e.directorName?'<p>Tournament director: '+html(e.directorName)+'</p>':'')
+ }
  if(d.drawNotice)return '<h3 tabindex="-1">Draw details</h3><p>'+html(d.drawNotice)+'</p>'
  if(view==='standings')return tournamentStandingsHtml(d,standingFilters)
  const matches=filterTournamentMatches(d.matches,view,filters),total=tournamentViewMatches(d.matches,view).length
@@ -64,15 +76,19 @@ export function tournamentDetailHtml(d:TournamentDetail,view:View,filters:Tourna
   view==='schedule'?formatTournamentEventDate:label=>label,
   match=>matchHtml(match,view),
  )
- return '<h3 tabindex="-1">'+({draw:'Draw',schedule:'Schedule',results:'Results'})[view]+'</h3>'+(view==='schedule'?'<p class="league-finder-context">Published court assignments · '+html(e.timeZone||'Time zone not published')+'. Check the desk for live court calls.</p>':'')+(total?tournamentMatchFiltersHtml(d.matches,view,filters)+'<p class="tournament-filter-status" tabindex="-1" role="status" data-tournament-filter-status>'+matches.length+' of '+total+' '+(total===1?'match':'matches')+' · selected division</p>':'')+(matches.length?cards:'<p>'+(total?'No matches fit these filters. Clear filters to see this division.':view==='results'?'No results have been recorded.':view==='schedule'?'Court assignments have not been published.':'The draw has not been published.')+'</p>')
+ const empty=total?competitionMatchFilterEmptyHtml(view)
+  : `<p>${{draw:'The draw has not been published.',schedule:'Court assignments have not been published.',results:'No results have been recorded.'}[view]}</p>`
+ return '<h3 tabindex="-1">'+({draw:'Draw',schedule:'Schedule',results:'Results'})[view]+'</h3>'+(view==='schedule'?'<p class="league-finder-context">Published court assignments · '+html(e.timeZone||'Time zone not published')+'. Check the desk for live court calls.</p>':'')+(total?tournamentMatchFiltersHtml(d.matches,view,filters,matches.length>0)+'<p class="tournament-filter-status" tabindex="-1" role="status" data-tournament-filter-status>'+matches.length+' of '+total+' '+(total===1?'match':'matches')+' · selected division</p>':'')+(matches.length?cards:empty)
 
 }
-export function openTournaments(client:SupabaseClient,owner:string,current:()=>boolean,onClose:()=>void,send?:ScenarioSend,trigger?:HTMLElement,backLabel='← Competitions',initialTournament=''){
+export function openTournaments(client:SupabaseClient,owner:string,current:()=>boolean,onClose:()=>void,send?:ScenarioSend,trigger?:HTMLElement,backLabel='← Competitions',initialTournament='',calendarEntry?:{divisionId?:string;matchId?:string}){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog competitions-dialog tournaments-dialog';dialog.setAttribute('aria-label','Tournaments')
  let child:ReturnType<typeof openTournamentEntry>|null=null
- let disposed=false,version=0,busy=false,query='',selected=/^[a-zA-Z0-9_-]{1,80}$/.test(initialTournament)?initialTournament:'',division='',view:View='home',snapshot:TournamentSnapshot|null=null,notice='',filters=emptyTournamentMatchFilters(),entrant:Entrant|null=null,standingsScroll=0,standingFilters=emptyTournamentStandingFilters()
+ let disposed=false,version=0,busy=false,query='',selected=/^[a-zA-Z0-9_-]{1,80}$/.test(initialTournament)?initialTournament:'',division=calendarEntry?.divisionId??'',view:View=calendarEntry?'draw':'home',snapshot:TournamentSnapshot|null=null,notice='',filters=emptyTournamentMatchFilters(),entrant:Entrant|null=null,standingsScroll=0,standingFilters=emptyTournamentStandingFilters()
  let tournamentListScroll:number|null=null,divisionListScroll=0
+ let calendarMatchId=calendarEntry?.matchId
+ let showFullSchedule=false
  const active=()=>!disposed&&current()
  const dispose=()=>{if(disposed)return;disposed=true;version++;child?.dispose();child=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();onClose();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const hidden=()=>{if(document.visibilityState==='hidden')dispose()}
@@ -82,31 +98,34 @@ export function openTournaments(client:SupabaseClient,owner:string,current:()=>b
   if(!active()){dispose();return true}
   if(child?.isOpen())return child.back()
   if(entrant){returnToStandings();return true}
+  if(calendarEntry){dispose();return true}
   if(!selected){dispose();return true}
   const returning=division?{id:division,scroll:divisionListScroll}:tournamentListScroll===null?undefined:{id:selected,scroll:tournamentListScroll}
   if(division)division=''
   else{selected='';tournamentListScroll=null}
-  view='home';filters=emptyTournamentMatchFilters();standingFilters=emptyTournamentStandingFilters()
+  view='home';filters=emptyTournamentMatchFilters();standingFilters=emptyTournamentStandingFilters();showFullSchedule=false
   void load(returning)
   return true
  }
  const render=()=>{
   if(!active())return
   const d=snapshot?.detail,t=d?.active||d?.root
+  const noMatches=Boolean(query)&&snapshot?.tournaments.length===0
   const compactDetail=!!selected&&view!=='home'&&!entrant
+  const matchFilters=view==='schedule'&&showFullSchedule?emptyTournamentMatchFilters():filters
   const toolbar=`<header class="competition-header${compactDetail?' competition-header-compact':''}">
-   <button type="button" class="secondary" data-tournament-back>${html(entrant?'← Standings':division?'← Event':selected?'← Tournaments':backLabel)}</button>
+   <button type="button" class="secondary" data-tournament-back>${html(entrant?'← Standings':calendarEntry?'Back to calendar':division?'← Event':selected?'← Tournaments':backLabel)}</button>
    ${compactDetail&&d?.active?competitionEntryActionHtml('tournament',true):''}
    <button type="button" class="secondary" data-tournament-refresh aria-label="Refresh tournaments" ${busy?'disabled':''}>Refresh</button>
   </header>`
   dialog.innerHTML=toolbar+(entrant?'<p class="tournament-entrant-context">'+html(t?.name||'Tournament')+'</p>':selected?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(t?(t.isEvent?'TiQ tournament event':t.entrantType==='teams'?'TiQ team tournament':'TiQ player tournament'):'TiQ tournaments')+'</small><h2 tabindex="-1">'+html(t?.name||'Tournaments')+'</h2>'+(t?'<p>'+html([formatTournamentEventDate(t.date,true),t.location,status(t)].filter(Boolean).join(' · '))+'</p>':'')+'</div>':'')+
-   (!selected?competitionDirectoryHtml('tournament',query,busy)+(snapshot?tournamentCardsHtml(snapshot.tournaments)+(snapshot.more?'<p>Showing up to 20 recently updated tournaments. Search by name to narrow the list.</p>':''):''):
-   d?(d.active&&!entrant?'<nav class="competition-tabs" aria-label="Tournament views">'+(['home','draw','schedule','results',...(d.standings.length?['standings']:[])] as View[]).map(v=>'<button type="button" class="secondary" data-tournament-view="'+v+'" aria-pressed="'+(view===v)+'">'+({home:'Overview',draw:'Draw',schedule:'Schedule',results:'Results',standings:'Standings'})[v]+'</button>').join('')+'</nav>'+(compactDetail?'':competitionEntryActionHtml('tournament')):'')+'<div data-tournament-content>'+(entrant?tournamentEntrantDetailHtml(d,entrant):tournamentDetailHtml(d,view,filters,standingFilters))+'</div>':'')+
+   (!selected?competitionDirectoryHtml('tournament',query,busy,{count:snapshot?.tournaments.length})+(snapshot&&!noMatches?tournamentCardsHtml(snapshot.tournaments)+(snapshot.more?'<p>Showing up to 20 recently updated tournaments. Search by name to narrow the list.</p>':''):''):
+   d?(d.active&&!entrant?'<nav class="competition-tabs" aria-label="Tournament views">'+(['home','draw','schedule','results',...(d.standings.length?['standings']:[])] as View[]).map(v=>'<button type="button" class="secondary" data-tournament-view="'+v+'" aria-pressed="'+(view===v)+'">'+({home:'Overview',draw:'Draw',schedule:'Schedule',results:'Results',standings:'Standings'})[v]+'</button>').join('')+'</nav>'+(compactDetail?'':competitionEntryActionHtml('tournament')):'')+'<div data-tournament-content>'+(entrant?tournamentEntrantDetailHtml(d,entrant):tournamentDetailHtml(d,view,matchFilters,standingFilters))+'</div>':'')+
    '<p role="'+(notice&&!busy?'alert':'status')+'" tabindex="-1" data-tournament-notice>'+html(notice)+'</p>'+(snapshot?'<p class="competition-checked">Checked '+html(new Date(snapshot.checkedAt).toLocaleString())+' · refresh for changes.</p>':'')
   dialog.querySelector('[data-tournament-entry]')?.addEventListener('click',e=>{if(!active()||busy||entrant||!snapshot?.detail?.active||child?.isOpen())return;const detail=snapshot.detail;child=openTournamentEntry(client,owner,active,detail.root.isEvent?detail.root.id:'',detail.active!.id,()=>{child=null},send,e.currentTarget instanceof HTMLElement?e.currentTarget:undefined)})
   dialog.querySelector('[data-tournament-back]')?.addEventListener('click',back)
   dialog.querySelector('[data-tournament-refresh]')?.addEventListener('click',()=>{void load()})
-  bindCompetitionSearch(dialog,value=>{query=value;void load()})
+  bindCompetitionSearch(dialog,value=>{query=value;void load(undefined,true)})
   dialog.querySelectorAll<HTMLButtonElement>('[data-tournament-open]').forEach(b=>{b.onclick=()=>{
    const tournament=snapshot?.tournaments[Number(b.dataset.tournamentOpen)]
    if(!tournament)return
@@ -128,6 +147,7 @@ export function openTournaments(client:SupabaseClient,owner:string,current:()=>b
   bindCompetitionHistory(dialog,()=>active()&&!busy&&!!entrant,focus)
   const applyMatchFilters=(form?:FormData)=>{
    if(!active()||busy||!snapshot?.detail?.active)return
+   showFullSchedule=false
    filters={...filters,query:String(form?.get('player')||'').slice(0,160).trim()}
    if(view==='schedule'){
     filters.day=String(form?.get('day')||'')
@@ -135,13 +155,32 @@ export function openTournaments(client:SupabaseClient,owner:string,current:()=>b
    }
    if(view==='draw')filters.round=String(form?.get('round')||'').slice(0,500)
    render()
-   dialog.querySelector<HTMLElement>('[data-tournament-filter-status]')?.focus({preventScroll:true})
+   dialog.querySelector<HTMLElement>('[data-tournament-filter-status]')?.focus()
   }
   dialog.querySelector<HTMLFormElement>('.tournament-match-filters')?.addEventListener('submit',e=>{e.preventDefault();applyMatchFilters(new FormData(e.currentTarget as HTMLFormElement))})
-  dialog.querySelector('[data-tournament-clear-filters]')?.addEventListener('click',()=>applyMatchFilters())
-  dialog.querySelectorAll<HTMLButtonElement>('[data-tournament-view]').forEach(b=>{b.onclick=()=>{view=b.dataset.tournamentView as View;render();focus()}})
+  dialog.querySelector('[data-competition-clear-match-filters]')?.addEventListener('click',()=>applyMatchFilters())
+  dialog.querySelectorAll<HTMLButtonElement>('[data-tournament-view]').forEach(b=>{b.onclick=()=>{
+   showFullSchedule=false
+   view=b.dataset.tournamentView as View
+   render();focus()
+  }})
+  if(d)bindCompetitionScheduleJumps(dialog,id=>{
+   if(!active()||busy||view!=='home'||entrant)return
+   const overviewScroll=dialog.scrollTop
+   showFullSchedule=!filterTournamentMatches(d.matches,'schedule',filters).some(match=>match.id===id)
+   view='schedule'
+   render()
+   if(!focusCompetitionMatch(dialog,id,()=>{
+    if(!active()||busy||view!=='schedule')return
+    showFullSchedule=false
+    view='home'
+    render()
+    const opener=competitionScheduleJumpButton(dialog,id)??dialog.querySelector<HTMLElement>('[data-tournament-content] h3')
+    restoreListFocus(dialog,opener,overviewScroll)
+   }))focus()
+  })
  }
- const load=async(returning?:{id:string;scroll:number})=>{if(!active())return;const attempt=++version;busy=true;snapshot=null;notice='Loading published tournaments…';render()
+ const load=async(returning?:{id:string;scroll:number},fromSearch=false)=>{if(!active())return;const attempt=++version;busy=true;snapshot=null;notice='Loading published tournaments…';render()
   try{const result=await loadTournaments(client,owner,()=>active()&&version===attempt,query,selected,division,send);if(active()&&version===attempt){snapshot=result;notice=''}}
   catch{if(active()&&version===attempt)notice='Couldn’t load these tournaments. Refresh to try again.'}
   finally{if(active()&&version===attempt){
@@ -152,7 +191,11 @@ export function openTournaments(client:SupabaseClient,owner:string,current:()=>b
    const opener=index>=0?dialog.querySelector<HTMLElement>('['+action+'="'+index+'"]'):null
    if(notice)dialog.querySelector<HTMLElement>('[data-tournament-notice]')?.focus()
    else if(opener&&returning)restoreListFocus(dialog,opener,returning.scroll)
-   else focus()
+   else if(calendarMatchId&&view==='draw'){
+    focusCalendarCompetitionMatch(dialog,calendarMatchId,dialog.querySelector('[data-tournament-content] h3'),back)
+    calendarMatchId=undefined
+   }
+   else if(!fromSearch||!focusCompetitionSearchResults(dialog))focus()
   }}
  }
  dialog.oncancel=e=>{e.preventDefault();back()};document.addEventListener('visibilitychange',hidden);document.body.append(dialog);dialog.showModal();void load()

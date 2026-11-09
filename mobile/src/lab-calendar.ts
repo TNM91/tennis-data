@@ -64,7 +64,8 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   return read
  }
  const mount=(host:HTMLElement,owner:string,current:()=>boolean,linked:boolean,
-  open:OpenCalendarHighlight,kind:'up-next'|'match'='up-next')=>{
+  open:OpenCalendarHighlight,kind:'up-next'|'match'='up-next',
+  replies?:{button:HTMLButtonElement;open:OpenCalendarHighlight})=>{
   const matchOnly=kind==='match'
   host.innerHTML=`<button type="button" class="secondary app-tool">
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.calendar}</span>
@@ -82,6 +83,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   const action=button.querySelector<HTMLElement>('[data-next-action]')!
   const active=()=>host.isConnected&&current()
   let event:CalendarOccurrence|undefined
+  let replyEvent:CalendarOccurrence|undefined
   const paint=(calendar:NativeCalendar|null)=>{
    if(!active())return
    const now=new Date()
@@ -89,8 +91,17 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    const matches=matchOnly&&calendar
     ?new Map(calendar.competitions.filter(item=>item.eventType==='match').map(item=>[item.id,item]))
     :null
-   event=calendar?calendarOccurrences(calendar).find(item=>
+   const events=calendar?calendarOccurrences(calendar):[]
+   event=calendar?events.find(item=>
     (!matches||item.source==='competition'&&matches.has(item.id))&&isCurrentCalendarOccurrence(item,calendar,now)):undefined
+   if(replies){
+    replyEvent=calendar?events.find(item=>item.matchNeedsReply&&isCurrentCalendarOccurrence(item,calendar,now)):undefined
+    if(!replyEvent&&document.activeElement===replies.button){
+     const destination=event?button:host.parentElement?.querySelector<HTMLElement>('h1')
+     destination?.focus({preventScroll:true})
+    }
+    replies.button.hidden=!replyEvent
+   }
    if(matchOnly){
     if(!event&&host.contains(document.activeElement)){
      host.parentElement?.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
@@ -106,16 +117,23 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    action.textContent=matchOnly?'View match · '+event.readiness:event.source==='team'?'View practice':'View event'
    details.textContent=[match?.opponent?match.competitionName:'',highlightDateDetails(event,now)].filter(Boolean).join(' · ')
   }
+  const afterClose=(changed:boolean)=>{
+   if(!changed)return
+   clear()
+   if(linked&&active())void readWeek(owner).then(paint)
+  }
   button.onclick=()=>{
    if(!active())return
    button.focus({preventScroll:true})
-   open(button,event,changed=>{
-    if(!changed)return
-    clear()
-    if(linked&&active())void readWeek(owner).then(paint)
-   })
+   open(button,event,afterClose)
+  }
+  if(replies)replies.button.onclick=()=>{
+   if(!active()||!replyEvent)return
+   replies.button.focus({preventScroll:true})
+   replies.open(replies.button,replyEvent,afterClose)
   }
   if(linked)void readWeek(owner).then(paint)
+  return afterClose
  }
  const mountLesson=(button:HTMLButtonElement,owner:string,current:()=>boolean,open:OpenCalendarHighlight)=>{
   const title=button.querySelector('strong')!

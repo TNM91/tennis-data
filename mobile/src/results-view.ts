@@ -5,7 +5,7 @@ import {playerRecentRecord} from '../../lib/player-recent-record'
 import {filterMatchbookEntries} from '../../lib/player-matchbook'
 import { matchDate, matchResult, type RecentMatchRow } from './recent-results'
 import { html } from './match-details'
-import {recentScorecardRow} from './recent-scorecard-row'
+import {recentScorecardRow,scorecardOpponents} from './recent-scorecard-row'
 import type {PlayerProfileFormat} from './player-profile-format'
 
 export type MatchFilter = 'All' | 'Singles' | 'Doubles'
@@ -109,7 +109,7 @@ function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolea
   if (!rows.length) return ''
   const entries = rows.map((row, index) => {
     const result = matchResult(row, playerId)
-    if (compact) return recentScorecardRow(row, index, result)
+    if (compact) return recentScorecardRow(row, index, result, playerId)
     const tone = result === 'Won' ? 'won' : result === 'Lost' ? 'lost' : 'pending'
     const date = html(matchDate(row.match_date))
     const format = html(row.match_type || 'Match')
@@ -126,8 +126,43 @@ function matchListHtml(rows: RecentMatchRow[], playerId: string, compact: boolea
   const format = filter === 'All' ? '' : `${filter.toLowerCase()} `
   return `<details class="recent-match-list">
     <summary><span class="app-tool-copy"><strong>Match scorecards</strong><span>${rows.length} ${format}${rows.length === 1 ? 'match' : 'matches'}</span></span><span class="app-tool-arrow" aria-hidden="true">›</span></summary>
+    <div class="recent-scorecard-search">
+      <label for="lab-scorecard-search">Find a scorecard</label>
+      <input id="lab-scorecard-search" type="search" maxlength="100" autocomplete="off" placeholder="Opponent or league">
+      <p role="status" data-scorecard-search-status></p>
+      <button type="button" class="secondary" data-clear-scorecard-search hidden>Clear search</button>
+    </div>
     ${list}
   </details>`
+}
+
+function bindScorecardSearch(list:HTMLDetailsElement,rows:RecentMatchRow[],playerId:string,query:string,onQuery:(query:string)=>void) {
+  const input=list.querySelector<HTMLInputElement>('#lab-scorecard-search')!
+  const entries=list.querySelector<HTMLOListElement>('ol.matches')!
+  const note=list.querySelector<HTMLElement>(':scope > small')!
+  const status=list.querySelector<HTMLElement>('[data-scorecard-search-status]')!
+  const clear=list.querySelector<HTMLButtonElement>('[data-clear-scorecard-search]')!
+  const normalize=(text:string)=>text.normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase().trim()
+  const cards=Array.from(entries.children,(entry,index)=>({
+    entry:entry as HTMLLIElement,
+    text:normalize(`${scorecardOpponents(rows[index],playerId)} ${rows[index].league_name??''}`),
+  }))
+  const update=()=>{
+    const words=normalize(input.value).split(/\s+/).filter(Boolean)
+    let count=0
+    for(const {entry,text} of cards){
+      entry.hidden=!words.every(word=>text.includes(word))
+      if(!entry.hidden)count++
+    }
+    entries.hidden=note.hidden=count===0
+    status.textContent=words.length?(count?`${count} of ${cards.length} scorecards shown.`:'No loaded scorecards match.') : ''
+    clear.hidden=count!==0
+  }
+  input.value=query
+  input.oninput=()=>{onQuery(input.value);update()}
+  clear.onclick=()=>{input.value='';input.focus({preventScroll:true});onQuery('');update()}
+  update()
+  return input
 }
 
 export function resultsHtml(rows: RecentMatchRow[], playerId: string, filter: MatchFilter, owner = 'your', compact=false,breakdown:BreakdownView='leagues',view:ResultView=breakdown==='seasons'?'years':'form') {
@@ -152,7 +187,7 @@ function profileScorecardsHtml(shown:RecentMatchRow[],total:number,playerId:stri
   const format=filter==='All'?'':`${filter.toLowerCase()} `
   const count=shown.length?`${shown.length} ${format}${shown.length===1?'scorecard':'scorecards'}`:`No ${format}scorecards`
   return `${matchFilterControls(filter)}<p class="player-scorecard-note">${count} in the latest ${total} ${total===1?'result':'results'}.</p>
-    ${shown.length?`<ol class="matches player-scorecard-list" role="list">${shown.map((row,index)=>recentScorecardRow(row,index,matchResult(row,playerId))).join('')}</ol>
+    ${shown.length?`<ol class="matches player-scorecard-list" role="list">${shown.map((row,index)=>recentScorecardRow(row,index,matchResult(row,playerId),playerId)).join('')}</ol>
     <p class="player-scorecard-note">Scores follow the source’s court order.</p>`:''}`
 }
 export type RecentHistoryLoader={current:()=>boolean;load:(rows:RecentMatchRow[])=>Promise<{rows:RecentMatchRow[];hasMore:boolean}>}
@@ -162,15 +197,33 @@ export function showRecentResults(content: HTMLElement, initialRows: RecentMatch
     return
   }
   let rows=initialRows,activeView:ResultView='form',activeFilter:MatchFilter='All',busy=false,hasMore=rows.length===10,notice=''
+  let scorecardQuery='',scorecardsExpanded=false
   const valid=()=>content.isConnected&&(!history||history.current())
   const profileFilter=()=>filters.find(filter=>profileViews[filter]===profileFormat?.get())??'All'
   const render = (filter: MatchFilter, restoreFocus = false,viewFocus=false,historyFocus=false) => {
     activeFilter=filter
     const shown=filteredMatches(rows,filter)
-    const expanded=content.querySelector<HTMLDetailsElement>('.recent-match-list')?.open??false
+    const previousList=content.querySelector<HTMLDetailsElement>('.recent-match-list')
+    const previousSearch=previousList?.querySelector<HTMLInputElement>('#lab-scorecard-search')
+    const selection=previousSearch&&document.activeElement===previousSearch
+      ? [previousSearch.selectionStart,previousSearch.selectionEnd] as const : null
+    if(previousList)scorecardsExpanded=previousList.open
     const results=profileFormat?profileScorecardsHtml(shown,rows.length,playerId,filter):resultsHtml(rows,playerId,filter,owner,compact,activeView==='years'?'seasons':'leagues',activeView)
-    content.innerHTML = results+(history?`<div class="recent-history-actions"><p>${rows.length} connected results loaded. Up to ${RECENT_HISTORY_LIMIT} per visit; this is not a full-history total.</p><p role="status">${html(notice)}</p>${hasMore&&rows.length<RECENT_HISTORY_LIMIT?`<button type="button" class="secondary" data-older-results ${busy?'disabled':''}>${busy?'Loading older matches...':'Load older matches'}</button>`:`<p>${rows.length>=RECENT_HISTORY_LIMIT?'Sample limit reached. Refresh profile to return to the latest ten.':'No more older matches were found in this loaded history.'}</p>`}</div>`:'')
-    const list=content.querySelector<HTMLDetailsElement>('.recent-match-list');if(list)list.open=expanded
+    content.innerHTML = results+(history?`<div class="recent-history-actions">
+      <p>${rows.length} ${rows.length===1?'match':'matches'} loaded.</p>
+      <p role="status">${html(notice)}</p>
+      ${hasMore&&rows.length<RECENT_HISTORY_LIMIT
+        ? `<button type="button" class="secondary" data-older-results ${busy?'disabled':''}>${busy?'Loading older matches...':'Load older matches'}</button>`
+        : `<p>${rows.length>=RECENT_HISTORY_LIMIT?`Showing the latest ${RECENT_HISTORY_LIMIT} matches.`:'No older matches available.'}</p>`}
+    </div>`:'')
+    const list=content.querySelector<HTMLDetailsElement>('.recent-match-list')
+    let searchInput:HTMLInputElement|undefined
+    if(list){
+      list.open=scorecardsExpanded
+      searchInput=bindScorecardSearch(list,shown,playerId,scorecardQuery,value=>{scorecardQuery=value})
+      const historyActions=content.querySelector<HTMLElement>('.recent-history-actions')
+      if(historyActions)list.append(historyActions)
+    }
     content.querySelectorAll<HTMLButtonElement>('[data-result-view]').forEach(button=>{button.onclick=()=>{activeView=button.dataset.resultView as ResultView;render(activeFilter,false,true)}})
     content.querySelectorAll<HTMLButtonElement>('[data-match-filter]').forEach(button => {
       button.onclick = () => {
@@ -197,13 +250,27 @@ export function showRecentResults(content: HTMLElement, initialRows: RecentMatch
     if(older&&history)older.onclick=async()=>{
       if(busy||!valid())return
       busy=true;notice='';render(activeFilter)
-      try{const result=await history.load(rows);if(!valid())return;rows=result.rows;hasMore=result.hasMore;notice='Older match check finished. Charts and records use the loaded sample.'}
+      try{
+        const result=await history.load(rows)
+        if(!valid())return
+        notice=result.rows.length>rows.length?'Older matches loaded.':''
+        rows=result.rows
+        hasMore=result.hasMore
+      }
       catch{if(!valid())return;notice='Could not add older matches. Your loaded results are still here. Try again, or refresh your profile if history changed.'}
       finally{busy=false;if(valid())render(activeFilter,false,false,true)}
     }
     if (restoreFocus) content.querySelector<HTMLButtonElement>('[data-match-filter][aria-pressed="true"]')?.focus({preventScroll:true})
     if (viewFocus) content.querySelector<HTMLButtonElement>('[data-result-view][aria-pressed="true"]')?.focus({preventScroll:true})
-    if (historyFocus) (content.querySelector<HTMLButtonElement>('[data-older-results]')||content.querySelector<HTMLButtonElement>('[data-match-filter][aria-pressed="true"]'))?.focus({preventScroll:true})
+    if (selection&&searchInput) {
+      searchInput.focus({preventScroll:true})
+      searchInput.setSelectionRange(...selection)
+    } else if (historyFocus) {
+      const target=list&&!list.open
+        ? list.querySelector<HTMLElement>('summary')
+        : content.querySelector<HTMLButtonElement>('[data-older-results]')??searchInput??content.querySelector<HTMLButtonElement>('[data-match-filter][aria-pressed="true"]')
+      target?.focus({preventScroll:true})
+    }
   }
   render(profileFilter())
   return profileFormat?.subscribe(()=>{

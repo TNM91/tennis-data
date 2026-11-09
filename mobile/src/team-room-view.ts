@@ -44,6 +44,7 @@ import {watchTeamChat,type TeamLiveStatus} from './team-chat-live'
 import {newerChatTime} from './team-chat-read'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {loadTeamRoom,loadTeamChatUpdate,TeamRoomAccessError,type NativeTeamData,type NativeTeamRoom,type TeamScope,type TeamChatDestination} from './team-room-data'
+import type {CompeteTeamAction} from './compete-teams'
 import {ChatActionError,TeamChatDraft,postTeamChat,type ChatAction} from './team-chat-send'
 import {html} from './match-details'
 import {matchDate} from './recent-results'
@@ -65,10 +66,11 @@ export function teamMatchDayHtml(room:NativeTeamRoom) {
 }
 type ChatReplyReturn={messageId:string;query:string;filter:ChatFilter;findOpen:boolean;selectionStart:number|null;selectionEnd:number|null}
 
-export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string,isCurrent:()=>boolean,initialScope?:TeamChatDestination,alerts?:{unread:()=>ChatUnread|null;refresh:()=>void;mountNotifications:(host:HTMLElement)=>void}) {
+export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string,isCurrent:()=>boolean,initialScope?:TeamChatDestination,alerts?:{unread:()=>ChatUnread|null;refresh:()=>void;mountNotifications:(host:HTMLElement)=>void},entry?:{view:CompeteTeamAction;back:()=>void}) {
  let initialMessageId=initialScope?.messageId||'',historyFocusId='',alertFocusId=''
  let inbox=!initialScope
- let disposed=false,revision=0,selected:TeamScope|undefined=initialScope?{teamName:initialScope.teamName,leagueName:initialScope.leagueName,flight:initialScope.flight,...(initialScope.chatRoomId?{chatRoomId:initialScope.chatRoomId}:{})}:undefined,tab:'Match day'|'Conversation'|'Members'|'Captain'='Conversation',snapshot:NativeTeamData|null=null
+ let openPlansOnLoad=entry?.view==='plans'
+ let disposed=false,revision=0,selected:TeamScope|undefined=initialScope?{teamName:initialScope.teamName,leagueName:initialScope.leagueName,flight:initialScope.flight,...(initialScope.chatRoomId?{chatRoomId:initialScope.chatRoomId}:{})}:undefined,tab:'Match day'|'Conversation'|'Members'|'Captain'=entry?.view==='match'?'Match day':entry?.view==='captain'?'Captain':'Conversation',snapshot:NativeTeamData|null=null
  const inboxFilter:ChatsInboxFilter={query:'',unreadOnly:false,filtersOpen:false}
  let inboxView:ReturnType<typeof bindChatsInbox>|null=null
  let roomPicker:ReturnType<typeof openChatRooms>|null=null
@@ -359,10 +361,14 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   historyLoading=false
   fullLoads++
   const version=++revision
-  if(!preserve){snapshot=null;app.innerHTML='<h1 tabindex="-1">Chats</h1><p role="status">Loading your linked team…</p>'}
+  if(!preserve){
+   snapshot=null;app.innerHTML=`<h1 tabindex="-1">${entry?html(selected?.teamName||'Team'):'Chats'}</h1><p role="status">Loading your linked team…</p>`
+   if(entry){const back=document.createElement('button');back.type='button';back.className='secondary';back.textContent='Back to Compete';back.onclick=entry.back;app.append(back);app.querySelector<HTMLElement>('h1')?.focus()}
+  }
   try{
    const result=await loadTeamRoom(client,userId,valid,selected)
    if(!valid() || version!==revision)return
+   if(entry&&!result.room)throw new TeamRoomAccessError('Team access is unavailable.')
    replyReturn=null;historyFocusId='';historyBefore='';historyNotice='';historyLoading=false;const first=result.room?.messages[0];historyNext=result.room?.messages.length===75 && first?teamChatCursor(first.createdAt,first.id):''
    snapshot=result;matchDetailsDirty=false;selected=result.room?{teamName:result.room.teamName,leagueName:result.room.leagueName,flight:result.room.flight,...(result.room.chatRoom?{chatRoomId:result.room.chatRoom.id}:{})}:undefined
    alerts?.refresh()
@@ -370,15 +376,17 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    if(initialMessageId)initialCatchup=false
    if(result.room&&!inbox)ensureLive(result.room)
    render(latest || !preserve)
+   if(entry&&!preserve&&!historySearch?.isOpen())app.querySelector<HTMLElement>('.chat-room-heading h1')?.focus({preventScroll:true})
    if(initialMessageId&&result.room&&!inbox){const id=initialMessageId;initialMessageId='';await focusChatMessage(id)}
   }catch(cause){
    if(!valid() || version!==revision)return
    if(cause instanceof TeamRoomAccessError){freshDraft();snapshot=null}
    if(preserve && snapshot){safetyNotice='Couldn’t refresh the conversation. Your draft is still here.';render();return}
-   app.innerHTML='<h1 tabindex="-1">Chats</h1><p role="alert">Can’t open this team. Check your connection and team membership, then try again.</p><button type="button" class="secondary" id="retry-team">Retry team</button><button type="button" class="secondary" id="reset-team">Load my linked teams</button>'
+   app.innerHTML='<h1 tabindex="-1">'+(entry?html(selected?.teamName||'Team'):'Chats')+'</h1><p role="alert">Can’t open this team. Check your connection and team membership, then try again.</p><button type="button" class="secondary" id="retry-team">Retry team</button><button type="button" class="secondary" id="reset-team">'+(entry?'Back to Compete':'Load my linked teams')+'</button>'
    if(inbox)coachInbox.mount(app)
    app.querySelector<HTMLButtonElement>('#retry-team')!.onclick=()=>{void load()}
-   app.querySelector<HTMLButtonElement>('#reset-team')!.onclick=()=>{freshDraft();selected=undefined;void load()}
+   app.querySelector<HTMLButtonElement>('#reset-team')!.onclick=entry?.back??(()=>{freshDraft();selected=undefined;void load()})
+   if(entry)app.querySelector<HTMLElement>('h1')?.focus()
   }finally{fullLoads--;if(fullLoads===0 && needsLiveRefresh && valid() && snapshot?.room && !busy && !draft.sending){needsLiveRefresh=false;void refreshLive().catch(()=>{})}}
  }
  const safetyAction=async(action:ChatAction)=>{
@@ -403,6 +411,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const openInbox=()=>{
   if(!valid()||inbox||roomPicker?.isOpen()||draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending||(availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen()||fixturesView?.isOpen()||historySearch?.isOpen()||matchReview?.isOpen()||matchShare?.isOpen()||inviteView?.isOpen()||messageView?.isOpen()||linkView?.isOpen()||announcementView?.isOpen()||postEditor?.isOpen()||photoDialog||mentionDialog)return
   if((draft.text.trim()||draft.photo)&&!window.confirm('Return to Chats? Your unfinished message will be discarded.'))return
+  if(entry){entry.back();return}
   freshDraft();inbox=true;render()
  }
  const render=(latest=false)=>{
@@ -434,7 +443,8 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const room=snapshot.room
   if(viewedPhotoId && !room?.messages.some(message=>message.id===viewedPhotoId && !message.deletedAt && message.hasPhoto))closePhoto()
   if(!room){freshDraft();app.innerHTML='<h1 tabindex="-1">Chats</h1><p>Join your team with an invite from your captain.</p><button type="button" id="join-team">Join team</button><button type="button" class="secondary" id="refresh-team">Refresh teams</button>';app.querySelector<HTMLButtonElement>('#join-team')!.onclick=openInvite;app.querySelector<HTMLButtonElement>('#refresh-team')!.onclick=()=>{void load()};return}
-  app.innerHTML=chatRoomHeaderHtml(room,snapshot.teams,tab,Boolean(draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending),Boolean(draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending||draft.text.trim()||draft.photo||draft.reply))+`<p id="chat-reaction-status" role="status" class="chat-inline-status"></p><p id="chat-history-status" role="status" class="chat-inline-status" ${historyNotice?'':'hidden'}>${html(historyNotice)}</p><p id="chat-active-filter" class="chat-active-filter" hidden></p><div id="team-panel"></div><p id="chat-read-status" role="status" class="chat-inline-status"></p><p role="status" class="chat-safety-status">${html(safetyNotice)}</p>`
+  if(tab==='Captain'&&!room.canManage){tab='Match day';safetyNotice='Captain tools are unavailable for this team.'}
+  app.innerHTML=chatRoomHeaderHtml(room,snapshot.teams,tab,Boolean(draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending),Boolean(draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending||draft.text.trim()||draft.photo||draft.reply),entry?'Back to Compete':undefined)+`<p id="chat-reaction-status" role="status" class="chat-inline-status"></p><p id="chat-history-status" role="status" class="chat-inline-status" ${historyNotice?'':'hidden'}>${html(historyNotice)}</p><p id="chat-active-filter" class="chat-active-filter" hidden></p><div id="team-panel"></div><p id="chat-read-status" role="status" class="chat-inline-status"></p><p role="status" class="chat-safety-status">${html(safetyNotice)}</p>`
   app.querySelector<HTMLButtonElement>('#join-team')!.onclick=openInvite
   app.querySelector<HTMLButtonElement>('#all-team-chats')!.onclick=openInbox
   bindTeamToolsClose(app)
@@ -477,12 +487,28 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    app.querySelector('#chat-history-search')!.setAttribute('aria-expanded',String(findOpen))
    panel.insertAdjacentHTML('beforeend','<p id="chat-filter-empty" role="status" class="rating-context" hidden></p>')
    if(room.canManage&&room.chatReady&&!room.chatRoom)app.querySelector('.chat-room-announcement')!.innerHTML=`<button type="button" class="secondary" id="chat-announcement" aria-label="Post captain announcement">${actionIcon('mention')}<span>Post announcement</span></button>`
-   const openHistory=(kind:ChatSearchKind)=>{if(!valid()||draft.pending||draft.sending||busy||photoChoosing||matchActions.sending||matchActions.pending)return;closeMessageMenus();app.querySelector<HTMLDetailsElement>('.chat-room-options')?.removeAttribute('open');gifs.clear();previews.clear();historySearch?.dispose();const epoch=reactionEpoch,scope={...currentScope()};historySearch=openChatHistory(client,userId,scope,room.id,()=>valid()&&epoch===reactionEpoch&&document.visibilityState==='visible',kind,(restore,changed,messageId)=>{if(changed)needsLiveRefresh=true;if(!valid()||epoch!==reactionEpoch||document.visibilityState!=='visible'||tab!=='Conversation')return;if(messageId){historySearch=null;needsLiveRefresh=false;void focusChatMessage(messageId,'search',true);return}if(restore){historySearch=null;const restoreFocus=()=>{if(valid()&&epoch===reactionEpoch)app.querySelector<HTMLElement>(kind==='plans'?'.chat-room-options>summary':'#chat-history-open')?.focus({preventScroll:true})};if(needsLiveRefresh){needsLiveRefresh=false;void refreshLive().then(restoreFocus).catch(()=>{})}else{previews.attach(app.querySelector<HTMLElement>('.team-conversation'));restoreFocus()}}},room.chatRoom?.name||'General',true,kind==='plans'?'':searchText)}
+   const openHistory=(kind:ChatSearchKind,returnToCompete=false)=>{
+    if(!valid()||draft.pending||draft.sending||busy||photoChoosing||matchActions.sending||matchActions.pending)return
+    closeMessageMenus();app.querySelector<HTMLDetailsElement>('.chat-room-options')?.removeAttribute('open');gifs.clear();previews.clear();historySearch?.dispose()
+    const epoch=reactionEpoch,scope={...currentScope()}
+    historySearch=openChatHistory(client,userId,scope,room.id,()=>valid()&&epoch===reactionEpoch&&document.visibilityState==='visible',kind,(restore,changed,messageId)=>{
+     if(changed)needsLiveRefresh=true
+     if(!valid()||epoch!==reactionEpoch||document.visibilityState!=='visible'||tab!=='Conversation')return
+     if(messageId){historySearch=null;needsLiveRefresh=false;void focusChatMessage(messageId,'search',true);return}
+     if(!restore)return
+     historySearch=null
+     if(returnToCompete&&entry){entry.back();return}
+     const restoreFocus=()=>{if(valid()&&epoch===reactionEpoch)app.querySelector<HTMLElement>(kind==='plans'?'.chat-room-options>summary':'#chat-history-open')?.focus({preventScroll:true})}
+     if(needsLiveRefresh){needsLiveRefresh=false;void refreshLive().then(restoreFocus).catch(()=>{})}
+     else{previews.attach(app.querySelector<HTMLElement>('.team-conversation'));restoreFocus()}
+    },room.chatRoom?.name||'General',true,kind==='plans'?'':searchText,returnToCompete?'Back to Compete':undefined)
+   }
    app.querySelector<HTMLButtonElement>('#chat-history-search')!.onclick=()=>setFindOpen(!findOpen)
    app.querySelector<HTMLButtonElement>('#chat-history-open')!.onclick=()=>openHistory(chatFilter)
    quickFind.onsubmit=event=>event.preventDefault()
    app.querySelector<HTMLButtonElement>('[data-chat-find-close]')!.onclick=()=>setFindOpen(false)
    app.querySelector<HTMLButtonElement>('#chat-team-plans')?.addEventListener('click',()=>openHistory('plans'))
+   if(openPlansOnLoad){openPlansOnLoad=false;openHistory('plans',true)}
    const searchInput=app.querySelector<HTMLInputElement>('#chat-search')!;searchInput.value=searchText
    app.querySelector<HTMLInputElement>('#chat-search')!.oninput=event=>{if(!valid()||!findOpen||snapshot?.room?.id!==room.id)return;searchText=(event.currentTarget as HTMLInputElement).value;gifs.clear();applySearch(room)}
    app.querySelector<HTMLButtonElement>('#chat-search-clear')!.onclick=()=>{gifs.clear();searchText='';const input=app.querySelector<HTMLInputElement>('#chat-search')!;input.value='';applySearch(room);input.focus()}

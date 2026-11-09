@@ -5,7 +5,7 @@ import {applyCalendarVenueLocations} from './venue-calendar-storage'
 import {mapApprovedCompetitionSchedule} from './player-competition-schedule'
 import {mapCoachAssignmentRow,type CoachAssignmentRow} from './coach-storage'
 import {buildCoachStudentCalendarEvents} from './coach-calendar'
-import {calendarPayload,personalDraft,sameCalendarDraft,type CalendarIntent,type CalendarRange,type NativeCalendar,type CalendarSharedDate} from './native-calendar-contract'
+import {COMPETITION_DATES_UNAVAILABLE,calendarPayload,personalDraft,readCalendarCompetitionView,sameCalendarDraft,type CalendarIntent,type CalendarRange,type NativeCalendar,type CalendarSharedDate} from './native-calendar-contract'
 
 export class CalendarFault extends Error {constructor(public status:number,message:string){super(message)}}
 const conflict=()=>new CalendarFault(409,'This date changed. Refresh and review it before saving again.')
@@ -31,15 +31,24 @@ export async function calendarCompetitions(client:SupabaseClient,owner:string){
  const tournamentIds=[...new Set(tournamentEntries.map(r=>r.tournament_id))],leagueIds=[...new Set(leagueEntries.map(r=>r.league_id))]
  const empty={data:[],error:null}
  const [a,b,c]=await Promise.all([
-  tournamentIds.length?client.from('tiq_tournaments').select('id,name,format,starts_on,location_label,entrants,results,schedule').in('id',tournamentIds).limit(101):empty,
-  leagueIds.length?client.from('tiq_leagues').select('id,league_name,season_label,starts_on,location_label,default_facility').in('id',leagueIds).limit(101):empty,
+  tournamentIds.length?client.from('tiq_tournaments').select('id,event_id,is_public,status,name,format,starts_on,location_label,entrants,results,schedule').in('id',tournamentIds).limit(101):empty,
+  leagueIds.length?client.from('tiq_leagues').select('id,is_public,season_status,league_name,season_label,starts_on,location_label,default_facility').in('id',leagueIds).limit(101):empty,
   leagueIds.length?client.from('tiq_league_schedule_items').select('id,league_id,participant_a_name,participant_a_id,participant_b_name,participant_b_id,scheduled_date,scheduled_time,facility,status,notes').in('league_id',leagueIds).neq('status','cancelled').limit(501):empty,
  ])
  const tournaments=rows(a,100),leagues=rows(b,100),leagueSchedule=rows(c)
  if(tournaments.some(t=>!tournamentIds.includes(t.id)||!Array.isArray(t.entrants)||t.entrants.length>128)||leagues.some(l=>!leagueIds.includes(l.id))||leagueSchedule.some(s=>!leagueIds.includes(s.league_id)))throw Error('Competition calendar unavailable')
  const events=mapApprovedCompetitionSchedule({tournamentEntries,leagueEntries,tournaments,leagues,leagueSchedule,responses})
  if(events.length>1000)throw Error('Competition calendar too large')
- return events
+ const publicLeagues=new Set(leagues.filter(league=>league.is_public===true&&league.season_status!=='draft').map(league=>league.id))
+ const publicTournaments=new Map(tournaments.filter(tournament=>tournament.is_public===true&&tournament.status!=='draft').map(tournament=>[
+  tournament.id,tournament.event_id?{id:tournament.event_id,divisionId:tournament.id}:{id:tournament.id},
+ ]))
+ return events.map(event=>{
+  const target=event.kind==='league'
+   ?publicLeagues.has(event.competitionId)?{id:event.competitionId}:undefined
+   :publicTournaments.get(event.competitionId)
+  return {...event,publishedView:readCalendarCompetitionView(event,target)}
+ })
 }
 async function calendarCoach(client:SupabaseClient,owner:string,range:CalendarRange):Promise<CalendarSharedDate[]>{
  const links=rows(await client.from('coach_player_links').select('id,player_user_id,player_name,status').eq('player_user_id',owner).neq('status','paused').limit(101),100)
@@ -56,7 +65,7 @@ export async function loadNativeCalendar(client:SupabaseClient,owner:string,rang
  ])
  // Personal dates are the writable baseline. Never present a failed read as an empty account.
  if(p.status==='rejected')throw Error('Personal calendar unavailable')
- return {owner,range,personal:p.value,competitions:c.status==='fulfilled'?c.value.filter(e=>inRange(e.date,range)):[],coach:h.status==='fulfilled'?h.value:[],warnings:[...(c.status==='rejected'?['League and tournament dates couldn’t load. Refresh to check them.']:[]),...(h.status==='rejected'?['Shared Coach dates couldn’t load. Refresh to check them.']:[])]}
+ return {owner,range,personal:p.value,competitions:c.status==='fulfilled'?c.value.filter(e=>inRange(e.date,range)):[],coach:h.status==='fulfilled'?h.value:[],warnings:[...(c.status==='rejected'?[COMPETITION_DATES_UNAVAILABLE]:[]),...(h.status==='rejected'?['Shared Coach dates couldn’t load. Refresh to check them.']:[])]}
 }
 export async function writeCalendarPersonal(client:SupabaseClient,owner:string,intent:Exclude<CalendarIntent,{action:'respond'}>){
  const id=intent.action==='delete'?intent.id:intent.item.id

@@ -7,12 +7,13 @@ import {showTeamRoster} from './team-roster-view'
 import type { LeagueCard } from '../../lib/league-summary'
 import { html } from './match-details'
 import { matchDate } from './recent-results'
-import { searchTeams, loadTeamRecords, loadLeagues, filterLeagues, type TeamChoice, type TeamRecord } from './directory-data'
+import { searchTeams, loadTeamRecords, loadLeagues, filterLeagues, teamKey, type TeamChoice, type TeamRecord } from './directory-data'
 import {showExploreSearchEmpty} from './explore-search-empty'
-import {exploreResultCard} from './explore-result-card'
+import {bindExploreResults,exploreResultCard} from './explore-result-card'
 import {competitionOpponentsHtml} from './competition-match-card'
 
 export type DirectoryMode = 'Teams'|'Leagues'
+const leagueKey=(row:LeagueCard)=>JSON.stringify([row.key,row.year,row.season])
 const count=(value:unknown)=>typeof value==='number' && Number.isFinite(value) && value>=0 ? String(Math.floor(value)) : 'Unavailable'
 function directoryProfileHeader(label:string,title:string,context:string) {
   return `<header class="tab-hero directory-profile-header"><small class="stat-eyebrow">${html(label)}</small>
@@ -45,8 +46,9 @@ function teamFixtures(rows:TeamRecord[]) {
   }).join('')}</ol>
     <p class="directory-profile-note">Scores follow the source’s court order. Records may include scheduled fixtures.</p>`
 }
-export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',initial?:{team?:TeamChoice;league?:FollowedLeagueScope;back?:()=>void;backLabel?:string},access?:PublicBrowseAccess) {
-  let disposed=false,request=0,selected=false,scroll=0
+export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='',initial?:{team?:TeamChoice;league?:FollowedLeagueScope;back?:()=>void;backLabel?:string},access?:PublicBrowseAccess,resumeKey?:string) {
+  let disposed=false,request=0,scroll=0
+  let selectedKey:string|undefined
   let previousFocus:HTMLElement|null=null
   let roster:ReturnType<typeof showTeamRoster>|null=null
   const clearRoster=()=>{roster?.dispose();roster=null}
@@ -62,9 +64,9 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
   const error=search.querySelector<HTMLElement>('#directory-error')!
   const choices=search.querySelector<HTMLElement>('#directory-choices')!
   const detail=app.querySelector<HTMLElement>('#directory-detail')!
-  const back=()=>{clearRoster();request++;selected=false;detail.hidden=true;detail.innerHTML='';search.hidden=false;window.scrollTo(0,scroll);previousFocus?.focus({preventScroll:true})}
-  const open=(markup:string,trigger?:HTMLElement)=>{
-    clearRoster();request++;selected=true;scroll=window.scrollY;previousFocus=trigger??null
+  const back=()=>{clearRoster();request++;selectedKey=undefined;detail.hidden=true;detail.innerHTML='';search.hidden=false;window.scrollTo(0,scroll);previousFocus?.focus({preventScroll:true})}
+  const open=(markup:string,key:string,trigger?:HTMLElement)=>{
+    clearRoster();request++;selectedKey=key;scroll=window.scrollY;previousFocus=trigger??null
     search.hidden=true;detail.hidden=false
     detail.innerHTML=`<button type="button" class="secondary" id="directory-back">Back to ${mode.toLowerCase()}</button>${markup}`
     detail.querySelector<HTMLButtonElement>('#directory-back')!.onclick=initial?.team&&initial.back?initial.back:back
@@ -78,10 +80,10 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
       <div id="team-follow-control"></div>
       <section class="directory-profile-section" aria-labelledby="directory-fixtures-title">
         <h2 id="directory-fixtures-title">Recorded fixtures</h2><div id="team-records" aria-live="polite"></div>
-      </section><div id="team-roster-details"></div>`,trigger)
+      </section><div id="team-roster-details"></div>`,teamKey(team),trigger)
     const version=request,content=detail.querySelector<HTMLElement>('#team-records')!
-    if(access)showPublicSignIn(detail.querySelector<HTMLElement>('#team-follow-control')!,access,()=>valid()&&selected&&request===version)
-    const follow=directoryFollowItem(team);if(!access&&follow){const host=detail.querySelector<HTMLElement>('#team-follow-control')!;showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}
+    if(access)showPublicSignIn(detail.querySelector<HTMLElement>('#team-follow-control')!,access,()=>valid()&&request===version)
+    const follow=directoryFollowItem(team);if(!access&&follow){const host=detail.querySelector<HTMLElement>('#team-follow-control')!;showDirectoryFollow(host,client,follow,()=>valid()&&request===version)}
     if(!access)roster=showTeamRoster(detail.querySelector<HTMLElement>('#team-roster-details')!,client,team,()=>valid()&&request===version)
     const load=async()=>{
       content.innerHTML='<p role="status">Loading team records…</p>'
@@ -97,8 +99,21 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
       }
     };void load()
   }
+  const openLeague=(row:LeagueCard,trigger:HTMLElement)=>{
+    if(!valid())return
+    open(leagueDetails(row),leagueKey(row),trigger)
+    const follow=directoryFollowItem(row)
+    if(!access&&!follow)return
+    const version=request,current=()=>valid()&&request===version
+    const host=document.createElement('div')
+    detail.append(host)
+    if(access)showPublicSignIn(host,access,current)
+    else if(follow)showDirectoryFollow(host,client,follow,current)
+  }
   const run=async()=>{
     if(!valid() || button.disabled)return
+    const pendingKey=resumeKey
+    resumeKey=undefined
     const text=input.value.trim().replace(/\s+/g,' ')
     if(text.length>80 || (mode==='Teams' && text.length<2)){error.textContent='Use between 2 and 80 characters for a team search.';return}
     const version=++request;button.disabled=true;error.textContent='';choices.innerHTML='';status.textContent=`Loading ${mode.toLowerCase()}…`
@@ -115,7 +130,8 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
           title:team.name,
           context:`${team.league || 'League unavailable'} · ${team.flight || 'Flight unavailable'}`,
         })).join('')}</ul>`
-        choices.querySelectorAll<HTMLButtonElement>('[data-explore-result]').forEach(control=>{control.onclick=()=>openTeam(result.teams[Number(control.dataset.exploreResult)],control)})
+        button.disabled=false
+        bindExploreResults(choices,result.teams,teamKey,openTeam,pendingKey)
       } else {
         const result=await loadLeagues()
         if(!valid() || version!==request)return
@@ -134,7 +150,8 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
           actionName:[league.leagueName,league.year,league.season,league.flight].filter(Boolean).join(' '),
           context:[league.year,league.season,league.flight,league.ustaSection,league.districtArea].filter(Boolean).join(' · ') || 'Area unavailable',
         })).join('')}</ul>`
-        choices.querySelectorAll<HTMLButtonElement>('[data-explore-result]').forEach(control=>{control.onclick=()=>{if(valid()){const row=rows[Number(control.dataset.exploreResult)];open(leagueDetails(row),control);const follow=directoryFollowItem(row),version=request;if(access){const host=document.createElement('div');detail.append(host);showPublicSignIn(host,access,()=>valid()&&selected&&request===version)}else if(follow){const host=document.createElement('div');detail.append(host);showDirectoryFollow(host,client,follow,()=>valid()&&selected&&request===version)}}}})
+        button.disabled=false
+        bindExploreResults(choices,rows,leagueKey,openLeague,pendingKey)
       }
     } catch {
       if(!valid() || version!==request)return
@@ -145,5 +162,5 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
   form.onsubmit=event=>{event.preventDefault();void run()}
   if(initial?.team)openTeam(initial.team)
   else if(mode==='Leagues'||initialTerm)void run()
-  return {searchTerm:()=>input.value,dispose:()=>{disposed=true;request++;clearRoster()},back:()=>{if(roster?.back())return true;if(selected){if(initial?.team)return false;back();return true}return false}}
+  return {searchTerm:()=>input.value,resultPosition:()=>({key:selectedKey}),dispose:()=>{disposed=true;request++;clearRoster()},back:()=>{if(roster?.back())return true;if(selectedKey){if(initial?.team)return false;back();return true}return false}}
 }

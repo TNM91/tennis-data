@@ -269,6 +269,7 @@ body[data-screen]:not(.native-chat-conversation) .app-atmosphere::after {
 }
 /* Score, evidence, next move — the same order at every phone size. */
 .lab-scoreboard-intro { margin:0;padding:0 0 14px;gap:12px; }
+.tab-hero .lab-scoreboard-intro .stat-eyebrow.lab-link-confirmed { color:var(--premium-lime);line-height:1.4; }
 .lab-scoreboard-intro .lab-profile-action { border-radius:var(--premium-control-radius);background:var(--premium-inset);border-color:var(--premium-line);color:var(--premium-white); }
 body[data-screen="lab"] section.lab-scoreboard {
  --scoreboard-ink:var(--premium-surface);
@@ -330,6 +331,12 @@ body[data-screen="lab"] section.lab-scoreboard::before {
 .lab-scoreboard .rating-context-info { border-color:var(--premium-line);margin:8px 0 0; }
 .lab-scoreboard .rating-context-info summary { font-size:.75rem;color:#bad6e9; }
 .lab-scoreboard .rating-context-info p { font-size:.8125rem; }
+.lab-scoreboard button.lab-scorecard-jump.secondary {
+ display:flex;justify-content:space-between;align-items:center;gap:12px;min-block-size:44px;
+ margin:8px 0 10px;padding:8px 12px;border:1px solid transparent;border-radius:var(--premium-control-radius);
+ background:var(--premium-court-inlay);color:var(--premium-white);font-size:.8125rem;text-align:start;
+}
+.lab-scorecard-jump span[aria-hidden] { color:var(--premium-lime); }
 
 /* Loading reserves the scoreboard's space and never invents a rating. */
 .lab-profile-loading-line { display:block;block-size:1.355rem;margin-block-start:8px; }
@@ -356,6 +363,27 @@ body[data-screen="lab"] section.lab-scoreboard::before {
 :is(.lab-up-next,.compete-next-match,.coach-next-assignment) .app-tool-copy .lab-next-action { color:var(--premium-lime);font-weight:700; }
 :is(.compete-next-match,.coach-next-assignment) .app-tool-copy .lab-next-action { font-size:.75rem; }
 .lab-up-next [hidden],.compete-next-match[hidden],.coach-next-assignment[hidden] { display:none!important; }
+.compete-replies:not([hidden]) {
+ display:flex;align-items:center;justify-content:space-between;gap:12px;min-block-size:44px;
+ margin:0;padding:10px 14px;text-align:start;line-height:1.35;
+}
+.app-tools-hub .compete-teams { margin:18px 0 0;padding:0;border:0;background:none;box-shadow:none; }
+.compete-teams h2 { margin:0 4px 8px;color:var(--premium-white);font-size:1rem;font-weight:750; }
+.compete-teams [data-compete-team-list] { display:grid;gap:8px; }
+.compete-teams .compete-team-card {
+ min-inline-size:0;margin:0;padding:12px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);
+}
+.compete-team-card h3 { margin:0;color:var(--premium-white);font-size:1rem;overflow-wrap:anywhere; }
+.compete-teams p { margin:2px 0 0;color:var(--premium-copy);font-size:.8125rem;overflow-wrap:anywhere; }
+.compete-team-actions { display:flex;flex-wrap:wrap;gap:6px;margin-block-start:10px; }
+.compete-teams .compete-team-card button.secondary {
+ flex:1 1 7rem;min-inline-size:0;min-block-size:44px;width:auto;margin:0;padding:6px 8px;
+ border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset);
+ color:var(--premium-white);font-size:.8125rem;font-weight:700;line-height:1.25;white-space:normal;
+}
+.compete-teams .compete-team-card>button.secondary { margin-block-start:8px; }
+.compete-teams .compete-team-card button.secondary:focus-visible { outline:2px solid var(--premium-lime);outline-offset:2px; }
 .coach-next-assignment { margin-block-end:18px; }
 .lab-form-heading h2 { font-size:1.25rem;font-weight:700;letter-spacing:-.03em; }
 .lab-form-heading>span { font-size:.6875rem;padding:5px 9px;background:#1a3d51;color:#cee4ef; }
@@ -420,8 +448,12 @@ button.app-tool.lab-action-row.secondary {
 .lab-rating-trends>p { margin:9px 2px 0;font-size:.8125rem;line-height:1.55;color:var(--premium-copy); }
 
 /* Compact insight navigation; labels can wrap to a second row at larger text sizes. */
+body[data-screen="lab"] :is(.lab-scoreboard,#recent-results) { scroll-margin-block-start:calc(env(safe-area-inset-top,0px) + 12px); }
 body[data-screen="lab"] #recent-results { padding:22px 16px;border-radius:24px;background:var(--premium-surface); }
-body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.035em;margin-block-end:20px; }
+.lab-recent-heading { display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 12px;margin-block-end:20px; }
+body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.035em;margin:0; }
+.lab-recent-heading button.secondary { inline-size:auto;min-block-size:44px;margin:0;padding:6px 10px;font-size:.75rem; }
+.lab-recent-heading button[hidden] { display:none; }
 .recent-match-list {
  margin-block:12px 16px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
  background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;
@@ -442,10 +474,18 @@ body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.0
 #results-content .recent-scorecard.secondary,
 :is(.recent-match-list,.lab-breakdown-matches,.player-scorecard-list) .recent-scorecard.secondary { inline-size:100%;margin:0;background:transparent; }
 .recent-scorecard .app-tool-copy>strong { font-variant-numeric:tabular-nums; }
+.recent-scorecard .app-tool-copy>.recent-scorecard-opponent { color:var(--premium-ice);font-weight:650;overflow-wrap:anywhere; }
 .recent-scorecard-meta { display:flex;flex-wrap:wrap;gap:2px 8px; }
 .recent-scorecard-date::first-letter { text-transform:uppercase; }
 .recent-scorecard-meta .result-lost { color:#ffbdc8; }
 .recent-match-list>small { display:block;padding:10px 12px;border-block-start:1px solid var(--premium-line);color:var(--premium-copy);font-size:.6875rem;line-height:1.5; }
+.recent-scorecard-search { padding:10px 12px;border-block-start:1px solid var(--premium-line); }
+.recent-scorecard-search label,.recent-scorecard-search p { color:var(--premium-copy);font-size:.75rem; }
+.recent-scorecard-search input { min-block-size:44px;margin:6px 0 0; }
+.recent-scorecard-search p { margin:0; }
+.recent-scorecard-search p:not(:empty) { margin-block-start:6px; }
+.recent-scorecard-search button.secondary { inline-size:auto;min-block-size:44px;margin:8px 0 0;font-size:.75rem; }
+.recent-match-list .recent-history-actions { margin-block-start:0;padding:10px 12px 12px; }
 body[data-screen="lab"] #recent-results .result-view-controls { display:flex;flex-wrap:wrap;gap:4px;padding:0 0 8px;border:0;border-block-end:1px solid #33546b;border-radius:0;background:transparent; }
 body[data-screen="lab"] #recent-results .result-view-controls button.secondary { flex:1 1 4.25em;font-size:.8125rem;min-block-size:44px;padding:10px 5px;border:0;border-radius:10px;color:#bcd5e5; }
 .lab-match-form {
@@ -610,7 +650,8 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 .explore-back[hidden],
 .explore-back:has(+ #explore-content :is(#directory-detail,#explore-player):not([hidden])) { display:none!important; }
 :is(#explore-status,#directory-status,#rankings-status) { overflow-wrap:anywhere; }
-:is(#explore-choices,#directory-choices,#rankings-rows) .explore-search-empty {
+:is(#explore-choices,#directory-choices,#rankings-rows,#player-choices) .explore-search-empty,
+[data-competition-search-empty] .explore-search-empty {
  display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start;
  margin:12px 0;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
  background:var(--premium-card);box-shadow:inset 0 1px #b1e4ff20;overflow-wrap:anywhere;
@@ -620,7 +661,7 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
  border-radius:10px;background:var(--premium-inset);color:var(--premium-ice);
 }
 .explore-search-empty-icon svg { inline-size:18px;block-size:18px; }
-.explore-search-empty h2 { margin:0 0 4px;color:var(--premium-white);font-size:1rem;line-height:1.3; }
+.explore-search-empty :is(h2,h3) { margin:0 0 4px;color:var(--premium-white);font-size:1rem;line-height:1.3; }
 .explore-search-empty p { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.5; }
 .explore-search-empty-actions { grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px; }
 .explore-search-empty .explore-search-empty-actions button.secondary {
@@ -1625,6 +1666,18 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
 .competition-schedule-match .fixture-heading .competition-date { font-size:.75rem; }
 .tournament-match-card.competition-schedule-match .fixture-heading .competition-status { padding:0;border:0;background:none;font-size:.6875rem; }
 .competition-schedule-match.competition-fixture .competition-opponents { margin:6px 0 0!important; }
+.competitions-dialog button.competition-schedule-jump.secondary {
+ display:flex;align-items:center;justify-content:space-between;gap:10px;min-block-size:44px;
+ margin:10px 0 0;padding:8px 12px;border:1px solid transparent;border-radius:var(--premium-control-radius);
+ background:var(--premium-court-inlay);color:var(--premium-white);font-size:.8125rem;text-align:start;
+}
+.competition-schedule-jump .app-tool-arrow { color:var(--premium-lime); }
+.competitions-dialog button.competition-schedule-return.secondary {
+ inline-size:auto;min-block-size:44px;margin:12px 0 0;padding:8px 12px;border-color:var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-inset);color:var(--premium-ice);font-size:.8125rem;
+}
+:is([data-competition-schedule-match],[data-competition-draw-match]) { scroll-margin-block-start:12px; }
+:is([data-competition-schedule-match],[data-competition-draw-match]):focus-within { outline:2px solid var(--premium-lime);outline-offset:-2px; }
 :is(.competition-fixture,.league-result-card) .competition-opponents { display:grid;grid-template-columns:minmax(0,1fr);gap:4px;margin-block:12px!important; }
 :is(.competition-fixture,.league-result-card) .competition-opponents .competition-contender { color:var(--premium-white);font-size:1.0625rem;font-weight:650;line-height:1.35;min-inline-size:0;overflow-wrap:anywhere; }
 :is(.competition-fixture,.league-result-card) .competition-opponents .fixture-versus { display:flex;align-items:center;gap:8px;font-size:.6875rem;line-height:1.4;color:var(--premium-copy);font-weight:400; }
@@ -1695,6 +1748,10 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
  border-radius:var(--premium-control-radius);background:var(--premium-inset);color:var(--premium-ice);font-size:.8125rem;white-space:normal;overflow-wrap:anywhere;
 }
 .competitions-dialog .competition-empty { border-style:solid;border-color:#34546c;background:var(--premium-surface); }
+.competition-empty button[data-competition-clear-match-filters].secondary {
+ inline-size:auto;min-block-size:44px;margin:12px 0 0;border-color:var(--premium-line);
+ border-radius:var(--premium-control-radius);color:var(--premium-lime);
+}
 .competitions-dialog .competition-checked { font-size:.75rem;color:#a9c6d9; }
 
 /* Browse, enter, follow the decision — the same hierarchy for both disciplines. */
@@ -1722,6 +1779,7 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
 .competitions-dialog .competition-card-actions button[data-competition-league-entry] { background:var(--premium-inset); }
 .competition-card-actions [data-competition-league-entry] .app-tool-arrow { color:var(--premium-lime); }
 .competition-directory {
+ container-type:inline-size;
  display:grid;gap:12px;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
  background:var(--premium-card);box-shadow:inset 0 1px #b2c8ff22;
 }
@@ -1731,9 +1789,16 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
  border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset);
 }
 .competitions-dialog .competition-directory-heading h2 { margin:0;font-size:1.5rem;line-height:1.15;letter-spacing:-.035em;overflow-wrap:anywhere; }
+@container (max-width:calc(9rem + 52px)) {
+ .competition-directory-heading { display:block; }
+ .competition-directory-heading>span { display:none; }
+}
+.competitions-dialog .competition-header:has(+.competition-directory) button.secondary { padding:8px 12px!important;font-size:.8125rem; }
 .competition-directory .competition-switch { margin:0; }
 .competition-directory .competition-switch button.secondary { padding:8px 4px!important; }
 .competition-search label { display:block;margin:0 0 6px;color:var(--premium-copy);font-size:.8125rem;font-weight:650;line-height:1.4; }
+.competition-directory .competition-search-results { margin:0;color:var(--premium-copy);font-size:.75rem; }
+.competition-directory [data-competition-search-empty] .explore-search-empty { margin:0;background:var(--premium-inset); }
 .competition-search-fields { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px; }
 .competitions-dialog .competition-search :is(input,button) { min-block-size:48px;margin:0;border-radius:var(--premium-control-radius); }
 .competitions-dialog .competition-search input { background:var(--premium-inset);border-color:var(--premium-line);font-size:max(16px,.875rem); }

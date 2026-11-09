@@ -423,6 +423,7 @@ dialog.native-calendar-screen[open]{display:flex;flex-direction:column;gap:12px}
 .cal-hero .stat-eyebrow{font-size:.65rem;letter-spacing:.13em;color:var(--premium-lime)}
 .cal-hero h2{font-size:clamp(1.35rem,5vw,1.8rem);letter-spacing:-.035em;line-height:1.08;margin:6px 0 8px}
 .cal-hero p{color:var(--premium-copy);font-size:.9rem;line-height:1.4;margin:0}
+.cal-hero [data-cal-reply-needed],.cal-event-copy>[data-cal-reply-needed]{color:#efc78a;font-weight:650}
 .native-calendar-screen .cal-hero button[data-cal-jump]{
  margin-block-start:12px;background:var(--premium-inset);border-color:var(--premium-line);
  border-radius:var(--premium-control-radius);color:var(--premium-white);
@@ -462,6 +463,9 @@ dialog.native-calendar-screen[open]{display:flex;flex-direction:column;gap:12px}
 .cal-event-summary dl>div:last-child{grid-column:1/-1;border-block-start:1px solid var(--premium-line);padding-block-start:8px}
 .cal-event-summary dt{margin:0;color:var(--premium-ice);font-size:.6875rem;letter-spacing:.08em;text-transform:uppercase}
 .cal-event-summary dd{margin:3px 0 0;color:var(--premium-white);font-size:.875rem;font-weight:650;line-height:1.35}
+.native-calendar-screen .cal-event-summary .cal-venue-link{margin-block-start:12px;text-align:start}
+.cal-venue-link span{color:var(--premium-ice)}
+.cal-event-summary .cal-venue-status:empty{margin:0}
 .cal-event-panel .cal-event-readiness{padding:8px 10px;border-inline-start:2px solid var(--premium-royal-line);border-radius:8px;background:var(--premium-inset);font-weight:650}
 .cal-event-panel .cal-event-readiness[data-tone="available"]{border-inline-start-color:var(--premium-lime);color:var(--premium-lime)}
 .cal-event-panel .cal-event-readiness[data-tone="changed"]{border-inline-start-color:#efc78a;color:#efc78a}
