@@ -22,6 +22,8 @@ export type PlayerCompetitionScheduleEvent = {
   responseIsStale?: boolean
 }
 
+export const tournamentCalendarMatchId = (divisionId: string, matchId: string) => `tournament:${divisionId}:${matchId}`
+
 type ScheduleResponseRow = {
   event_id?: string | null
   response?: string | null
@@ -276,7 +278,7 @@ export function mapApprovedCompetitionSchedule(input: {
       const opponent = isSideA ? match.sideB : match.sideA
       const court = cleanText(match.schedule?.court)
       events.push({
-        id: `tournament:${competitionId}:${match.id}`,
+        id: tournamentCalendarMatchId(competitionId, match.id),
         kind: 'tournament',
         eventType: 'match',
         competitionId,

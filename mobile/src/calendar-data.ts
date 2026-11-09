@@ -54,6 +54,12 @@ export function shiftCalendarPeriod(day:string,mode:'week'|'month',direction:num
 }
 export type CalendarOccurrence={key:string;id:string;source:'personal'|'competition'|'coach'|'team';endTime?:string;teamStatus?:CalendarTeamPractice['status'];title:string;date:string;time:string;location:string;detail:string;kind:string;recurring:boolean;readiness:string;matchNeedsReply?:boolean}
 export const isScheduledCompetitionMatch=(event:PlayerCompetitionScheduleEvent)=>event.eventType==='match'&&(event.status==='Confirmed'||event.status==='Scheduled')
+export type CalendarTournamentEntry={parent:string;division:string}
+export function calendarTournamentEntry(event:NativeCalendar['competitions'][number]|undefined):CalendarTournamentEntry|undefined {
+ if(event?.kind!=='tournament'||!event.publishedView)return
+ const {id,divisionId}=event.publishedView
+ return divisionId?{parent:id,division:divisionId}:{parent:'',division:id}
+}
 export const personalOccurrenceKey=(id:string,day:string)=>`personal:${id}:${day}`
 export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[]{
  const entries:CalendarOccurrence[]=[]
@@ -109,7 +115,11 @@ export function calendarMatchVenueHref(match:PlayerCompetitionScheduleEvent){
  // Tournament schedules repeat the assigned court in the match detail.
  const assignedCourt=match.kind==='tournament'&&last.startsWith('Court ')&&match.detail.endsWith(' · '+last)
  if(assignedCourt||/^Courts?\s+#?(?:\d+[a-z]?|[a-z])$/i.test(last))parts.pop()
- const venue=parts.join(' · ').trim()
+ return appleMapsVenueHref(parts.join(' · '))
+}
+
+export function appleMapsVenueHref(location:string){
+ const venue=location.trim()
  if(!venue||/^(?:location |venue )?(?:tbd|tba|to be confirmed|to be determined|not set)$/i.test(venue))return ''
  const query=new URLSearchParams({q:resolveCalendarLocation(venue)})
  return `https://maps.apple.com/?${query}`

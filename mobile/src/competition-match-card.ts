@@ -8,15 +8,15 @@ export function competitionScheduleClock(timeZone:string) {
  return {day:`${value('year')}-${value('month')}-${value('day')}`,time:`${value('hour')}:${value('minute')}`}
 }
 
-export function competitionScheduleJumpHtml(id:string,matchup:string) {
+export function competitionScheduleJumpHtml(id:string,matchup:string,label='View in schedule',detail='') {
  return id?`<button type="button" class="secondary competition-schedule-jump" data-competition-schedule-jump="${html(id)}">
-  <span>View in schedule<span class="sr-only"> for ${html(matchup)}</span></span><span class="app-tool-arrow" aria-hidden="true">›</span>
+  <span>${html(label)}${detail?` <small class="competition-schedule-jump-detail">${html(detail)}</small>`:''}<span class="sr-only"> for ${html(matchup)}</span></span><span class="app-tool-arrow" aria-hidden="true">›</span>
  </button>`:''
 }
 
-export function bindCompetitionScheduleJumps(host:HTMLElement,open:(id:string)=>void) {
+export function bindCompetitionScheduleJumps(host:HTMLElement,open:(id:string,trigger:HTMLButtonElement)=>void) {
  host.querySelectorAll<HTMLButtonElement>('[data-competition-schedule-jump]').forEach(button=>{
-  button.onclick=()=>open(button.dataset.competitionScheduleJump!)
+  button.onclick=()=>open(button.dataset.competitionScheduleJump!,button)
  })
 }
 

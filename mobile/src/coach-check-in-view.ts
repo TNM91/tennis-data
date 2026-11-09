@@ -1,15 +1,20 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {getCoachAssignmentPack,getCoachAssignmentSummary,type CoachAssignment} from '../../lib/coach-storage'
 import type {TrainingCoachLink} from './training-inbox-data'
-import {coachCheckInDraft,submitCoachCheckIn,CoachCheckInError,type CoachCheckIn} from './coach-check-in'
+import {coachCheckInDraft,submitCoachCheckIn,CoachCheckInError,type CoachCheckIn,type CoachPracticeStats} from './coach-check-in'
+import {trainingTime} from './level-up-model'
 import {html} from './match-details'
-export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>boolean,assignment:CoachAssignment,link:TrainingCoachLink,refresh:(saved:boolean)=>void){
+const evidenceLimit=300
+export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>boolean,assignment:CoachAssignment,link:TrainingCoachLink,refresh:(saved:boolean)=>void,practice?:CoachPracticeStats){
  const dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog training-dialog coach-check-in-screen'
  dialog.setAttribute('aria-label','Coach assignment check-in')
  const previous=document.activeElement as HTMLElement|null
  const proofTarget=getCoachAssignmentSummary(assignment.assignment).expectedEvidence
  const packDrills=getCoachAssignmentPack(assignment.assignment)?.items.filter(item=>item.status!=='skipped').length??0
+ const practiceDate=practice?new Date(practice.completedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):''
+ const practiceStats=practice?`Self-rated proof ${practice.rating}/5${practice.elapsedSeconds?` · ${trainingTime(practice.elapsedSeconds)} timed`:''}`:''
+ const practiceEvidence=practice?`${practice.drillTitle} · ${practiceStats}`:''
  let disposed=false,busy=false,attempted=false,conflict=false,leaving=false
  let recap='',evidence='',notice='',draft:CoachCheckIn|null=null
  const active=()=>!disposed&&current()
@@ -47,8 +52,13 @@ export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>
  const statusHtml=()=>`<p class="coach-check-in-status" data-check-in-status tabindex="-1" role="status">${html(notice)}</p>`
  const writeHtml=()=>`<form data-form>
   <label>Your recap<textarea name="recap" rows="3" maxlength="700" required placeholder="What did you work on?"></textarea></label>
-  <label>Proof or next-match cue<textarea name="evidence" rows="2" maxlength="300" aria-describedby="coach-check-in-proof" placeholder="Add a result or cue"></textarea></label>
+  <label>Proof or next-match cue<textarea name="evidence" rows="2" maxlength="${evidenceLimit}" aria-describedby="coach-check-in-proof" placeholder="Add a result or cue"></textarea></label>
   <p id="coach-check-in-proof">Optional.${proofTarget?` <strong>Coach’s proof target</strong> ${html(proofTarget)}`:''}</p>
+  ${practice?`<div class="coach-check-in-practice">
+   <small class="stat-eyebrow">Saved practice · ${html(practiceDate)}</small>
+   <div id="coach-practice-stats"><strong>${html(practice.drillTitle)}</strong><p>${html(practiceStats)}</p></div>
+   <button type="button" class="secondary" data-add-practice aria-describedby="coach-practice-stats">Add practice stats</button>
+  </div>`:''}
   ${statusHtml()}
   <button type="submit">Review check-in</button>
  </form>`
@@ -89,8 +99,17 @@ export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>
    recapInput.oninput=()=>{recap=recapInput.value}
   }
   if(evidenceInput){
+   const status=dialog.querySelector<HTMLElement>('[data-check-in-status]')!
    evidenceInput.value=evidence
-   evidenceInput.oninput=()=>{evidence=evidenceInput.value}
+   evidenceInput.oninput=()=>{evidence=evidenceInput.value;notice='';status.textContent=''}
+   dialog.querySelector<HTMLButtonElement>('[data-add-practice]')?.addEventListener('click',()=>{
+    const next=evidence.split('\n').includes(practiceEvidence)?evidence:[evidence.trimEnd(),practiceEvidence].filter(Boolean).join('\n')
+    if(next.length<=evidenceLimit){evidence=next;evidenceInput.value=next;notice='Practice stats added to your proof.'}
+    else notice='Make space in your proof to add the practice stats.'
+    status.textContent=notice
+    evidenceInput.focus()
+    evidenceInput.setSelectionRange(evidence.length,evidence.length)
+   })
   }
   const form=dialog.querySelector<HTMLFormElement>('[data-form]')
   if(form)form.onsubmit=event=>{

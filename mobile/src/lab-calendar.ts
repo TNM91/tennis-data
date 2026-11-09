@@ -2,7 +2,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {CapacitorHttp,type HttpOptions,type HttpResponse} from '@capacitor/core'
 import {isValidCalendarDate} from '../../lib/calendar-date'
 import {html} from './match-details'
-import {calendarOccurrences,isCurrentCalendarOccurrence,isPracticeInProgress,localCalendarDate,shiftCalendarDay,type CalendarOccurrence} from './calendar-data'
+import {calendarOccurrences,calendarTournamentEntry,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,localCalendarDate,shiftCalendarDay,type CalendarOccurrence,type CalendarTournamentEntry} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
 import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
 import type {NativeCalendar} from '../../lib/native-calendar-contract'
@@ -49,6 +49,10 @@ function highlightDateDetails(event:CalendarOccurrence,now:Date){
  return [date,time,event.location].filter(Boolean).join(' · ')
 }
 type OpenCalendarHighlight=(button:HTMLButtonElement,event:CalendarOccurrence|undefined,onClose:(changed:boolean)=>void)=>void
+type CompeteCalendarShortcuts={
+ replies:{button:HTMLButtonElement;open:OpenCalendarHighlight}
+ tournament:{button:HTMLButtonElement;open:(button:HTMLButtonElement,entry:CalendarTournamentEntry,onClose:(changed:boolean)=>void)=>void}
+}
 export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>string|undefined){
  let version=0
  let cached:{owner:string;date:string;expires:number;read:Promise<NativeCalendar|null>}|null=null
@@ -65,7 +69,8 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
  }
  const mount=(host:HTMLElement,owner:string,current:()=>boolean,linked:boolean,
   open:OpenCalendarHighlight,kind:'up-next'|'match'='up-next',
-  replies?:{button:HTMLButtonElement;open:OpenCalendarHighlight})=>{
+  shortcuts?:CompeteCalendarShortcuts)=>{
+  const {replies,tournament}=shortcuts??{}
   const matchOnly=kind==='match'
   host.innerHTML=`<button type="button" class="secondary app-tool">
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.calendar}</span>
@@ -84,6 +89,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   const active=()=>host.isConnected&&current()
   let event:CalendarOccurrence|undefined
   let replyEvent:CalendarOccurrence|undefined
+  let tournamentEntry:CalendarTournamentEntry|undefined
   const paint=(calendar:NativeCalendar|null)=>{
    if(!active())return
    const now=new Date()
@@ -94,6 +100,20 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    const events=calendar?calendarOccurrences(calendar):[]
    event=calendar?events.find(item=>
     (!matches||item.source==='competition'&&matches.has(item.id))&&isCurrentCalendarOccurrence(item,calendar,now)):undefined
+   if(tournament){
+    const next=calendar?events.find(item=>{
+     const match=item.source==='competition'?matches?.get(item.id):undefined
+     return match&&calendarTournamentEntry(match)&&isScheduledCompetitionMatch(match)&&isCurrentCalendarOccurrence(item,calendar,now)
+    }):undefined
+    const match=next?matches?.get(next.id):undefined
+    tournamentEntry=calendarTournamentEntry(match)
+    if(!tournamentEntry&&document.activeElement===tournament.button){
+     const fallback=event?button:host.parentElement?.querySelector<HTMLElement>('h1')
+     fallback?.focus({preventScroll:true})
+    }
+    tournament.button.hidden=!tournamentEntry
+    tournament.button.querySelector<HTMLElement>('[data-compete-event-name]')!.textContent=match?.competitionName??''
+   }
    if(replies){
     replyEvent=calendar?events.find(item=>item.matchNeedsReply&&isCurrentCalendarOccurrence(item,calendar,now)):undefined
     if(!replyEvent&&document.activeElement===replies.button){
@@ -131,6 +151,11 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    if(!active()||!replyEvent)return
    replies.button.focus({preventScroll:true})
    replies.open(replies.button,replyEvent,afterClose)
+  }
+  if(tournament)tournament.button.onclick=()=>{
+   if(!active()||!tournamentEntry)return
+   tournament.button.focus({preventScroll:true})
+   tournament.open(tournament.button,tournamentEntry,afterClose)
   }
   if(linked)void readWeek(owner).then(paint)
   return afterClose

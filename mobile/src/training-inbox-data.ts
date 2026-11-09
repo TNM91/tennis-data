@@ -1,7 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {CapacitorHttp,type HttpOptions,type HttpResponse} from '@capacitor/core'
 import {parseWeeklyLevelUpPlan,type WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
-import {getPlayerAssignmentCheckIn,sortPlayerAssignmentsForAction,type CoachAssignment} from '../../lib/coach-storage'
+import {getCoachAssignmentReview,getPlayerAssignmentCheckIn,sortPlayerAssignmentsForAction,type CoachAssignment} from '../../lib/coach-storage'
 export type TrainingCoachLink={id:string;identitySlug:string;status:string}
 export type TrainingCoachWork={links:TrainingCoachLink[];assignments:CoachAssignment[]}
 export type TrainingInboxSend=(options:HttpOptions)=>Promise<HttpResponse>
@@ -12,6 +12,17 @@ export function trainingAssignmentQueue(work:TrainingCoachWork,now:Date){
   group.push(assignment)
  }
  return {active,recorded}
+}
+export function trainingCoachFeedback(work:TrainingCoachWork,assignmentId?:string){
+ const reviews=work.assignments.flatMap(assignment=>{
+  if(assignmentId&&assignment.id!==assignmentId)return []
+  if(assignment.status!=='completed'&&!getPlayerAssignmentCheckIn(assignment.assignment))return []
+  const review=getCoachAssignmentReview(assignment.assignment)
+  if(!review)return []
+  const reviewed=Date.parse(review.reviewedAt)
+  return [{assignment,review,sortTime:Number.isFinite(reviewed)?reviewed:Date.parse(assignment.updatedAt)}]
+ })
+ return reviews.sort((a,b)=>b.sortTime-a.sortTime||a.assignment.id.localeCompare(b.assignment.id))[0]
 }
 const record=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{}
 const text=(v:unknown,max:number,required=false)=>{if(typeof v!=='string'||v.length>max||(required&&!v.trim()))throw Error('Training work unavailable.');return v}

@@ -14,6 +14,7 @@ import {openCoachMessages} from './coach-messages-view'
 import {openCoachVideo} from './coach-video-view'
 import {openCompetitions} from './competitions-view'
 import {openTournaments} from './tournaments-view'
+import {openTournamentEntry} from './tournament-entry-view'
 import {openCoachWorkspace} from './coach-workspace-view'
 import {openCoachConnection} from './coach-connection-view'
 import {openNativeTactics} from './coach-tactics-view'
@@ -44,7 +45,7 @@ import {labTrainingOverview} from './lab-training-overview'
 import {showExplore as showPlayerDetail} from './explore'
 import {openLevelUp} from './level-up-view'
 import {createTeamNavigationGuard} from './navigation-warning'
-import {labIdentityHtml,labActionsHtml,labScoreboardHtml,labTrainingActionsHtml} from './lab-home'
+import {labIdentityHtml,labActionsHtml,labFirstScorecardHtml,labScoreboardHtml,labTrainingActionsHtml} from './lab-home'
 import {createNativePush} from './native-push'
 import {createCoachAlerts} from './coach-alerts'
 import {createCoachAlertHandoff} from './coach-alert-handoff'
@@ -489,20 +490,31 @@ function showHub(next:AppHub,fromLab=false,returnTeam?:CompeteTeamDestination){
  let refreshCompeteCalendar:((changed:boolean)=>void)|undefined
  if(nextMatch){
   const replies=app.querySelector<HTMLButtonElement>('[data-compete-replies]')!
+  const tournament=app.querySelector<HTMLButtonElement>('[data-compete-my-event]')!
   refreshCompeteCalendar=calendarHighlights.mount(nextMatch,owner,current,true,
    (button,event,onClose)=>launchCalendar(button,{event,onClose,followMovedMatch:true}),'match',
-   {button:replies,open:(button,event,onClose)=>launchCalendar(button,{event,filter:'needs-reply',onClose})})
+   {
+    replies:{button:replies,open:(button,event,onClose)=>launchCalendar(button,{event,filter:'needs-reply',onClose})},
+    tournament:{button:tournament,open:(button,entry,onClose)=>{
+     if(!current()||document.querySelector('dialog[open]'))return
+     tournaments=openTournamentEntry(client,owner,current,entry.parent,entry.division,changed=>{
+      tournaments=null
+      if(current())onClose(changed)
+     },undefined,button,{backLabel:'Back to Compete',existingEntry:true})
+    }},
+   })
  }
  const nextAssignment=app.querySelector<HTMLElement>('[data-coach-next-assignment]')
- if(nextAssignment){
+ const latestFeedback=app.querySelector<HTMLElement>('[data-coach-latest-feedback]')
+ if(nextAssignment&&latestFeedback){
   const lessonDates=app.querySelector<HTMLButtonElement>('[data-app-destination="coach-dates"]')!
   const openLesson=calendarHighlights.mountLesson(lessonDates,owner,current,
    (button,event,onClose)=>launchCalendar(button,{event,filter:'coach',onClose}))
-  const refresh=coachNextAssignment.mount(nextAssignment,owner,current,openCoachInbox)
-  function openCoachInbox(trigger:HTMLButtonElement,assignmentId?:string){
+  const refresh=coachNextAssignment.mount(nextAssignment,latestFeedback,owner,current,openCoachInbox)
+  function openCoachInbox(trigger:HTMLButtonElement,id?:string,kind:'assignment'|'feedback'='assignment'){
    if(!current()||!trigger.isConnected||connection?.isSaving()||document.querySelector('dialog[open]'))return
    trigger.focus({preventScroll:true})
-   training=openLevelUp(client,owner,current,{view:'coach',assignmentId,onClose:refresh})
+   training=openLevelUp(client,owner,current,{view:'coach',...(kind==='feedback'?{feedbackId:id}:{assignmentId:id}),onClose:refresh})
   }
   bindAppDestinations(app,(destination,trigger)=>{
    if(destination==='training-inbox')openCoachInbox(trigger)
@@ -555,9 +567,8 @@ async function lab(entry?:'coach'|PlayerLink) {
   selectNavigation('lab')
   recovery?.dispose()
   recovery = null
-  details?.dispose()
+  details?.dispose();details=null
   const version = ++revision
-  details = createMatchDetails(app, client, () => version === revision && current.user.id === session?.user.id)
   const link=typeof entry==='object'?entry:undefined
   if(!link?.profile){
     app.dataset.state = 'loading'
@@ -672,6 +683,16 @@ async function lab(entry?:'coach'|PlayerLink) {
     catch {if(version!==revision||!button.isConnected)return;app.querySelector('#notice')!.textContent='Couldn’t log out. Check your connection and try again.';button.disabled=false}
   }
   if (!error&&playerId) {
+    const active = () => version===revision && current.user.id===session?.user.id
+    details = createMatchDetails(app, client, active, {openPractice: (match, currentMatch) => {
+      if (!currentMatch() || training?.isOpen() || document.querySelector('dialog[open]')) return
+      training = openLevelUp(client, current.user.id, currentMatch, {
+        view: 'scorecard',
+        matchDate: match.match_date,
+        doubles: match.match_type?.trim().toLowerCase() === 'doubles',
+      })
+      return training
+    }})
     const content = app.querySelector<HTMLElement>('#results-content')!
     const ratingsSection=app.querySelector<HTMLElement>('.lab-scoreboard')!
     const recent=app.querySelector<HTMLElement>('#recent-results')!
@@ -730,8 +751,17 @@ async function lab(entry?:'coach'|PlayerLink) {
         return
       }
       const rows = (result.data || []) as RecentMatchRow[]
+      if (!rows.length) {
+        content.dataset.state = 'empty'
+        recentHeading.textContent='Your first scorecard'
+        content.innerHTML = labFirstScorecardHtml()
+        const jumpLabel=jump?.querySelector('span:first-child')
+        if(jumpLabel)jumpLabel.textContent='First scorecard'
+        bindAppDestinations(content,openDestination)
+        return
+      }
       mountLabRecentForm(formSection,rows,playerId,()=>version===revision&&current.user.id===session?.user.id,row=>details?.open(row,playerId))
-      content.dataset.state = rows.length ? 'ready' : 'empty'
+      content.dataset.state = 'ready'
       showRecentResults(content, rows, playerId, row => details?.open(row, playerId),'your',true,{current:()=>version===revision&&current.user.id===session?.user.id,load:loaded=>loadOlderResults(client,playerId,loaded)})
       if(!backToScoreboard.hidden)revealScorecards()
     }

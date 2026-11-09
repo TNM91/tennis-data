@@ -1,7 +1,7 @@
 import type {OfficeDetail,OfficeFixture,OfficeResult} from '../../lib/native-league-office-contract'
 import {formatCalendarDay,isValidCalendarDate} from '../../lib/calendar-date'
 import {formatCaptainPracticeTime} from '../../lib/captain-practice-invite'
-import {competitionMatchGroupsHtml,competitionOpponentsHtml,competitionOutcomeHtml,competitionScheduleHtml,competitionScheduleJumpHtml} from './competition-match-card'
+import {competitionMatchGroupsHtml,competitionOpponentsHtml,competitionOutcomeHtml,competitionScheduleClock,competitionScheduleHtml,competitionScheduleJumpHtml} from './competition-match-card'
 import {competitionFiltersHtml,competitionMatchFilterEmptyHtml} from './competition-filters'
 import {html} from './match-details'
 import {matchDate} from './recent-results'
@@ -18,6 +18,7 @@ export function leagueFixtureDay(fixture:OfficeFixture){
  return (fixture.date.length===10||fixture.date[10]==='T')&&isValidCalendarDate(date)?date:''
 }
 const sortableTime=(time:string)=>time.trim().replace(/^(\d):/,'0$1:')
+const fixtureClock=(time:string)=>/^((?:[01]?\d|2[0-3]):[0-5]\d)(?::00(?:\.0+)?)?$/.exec(time.trim())?.[1]
 export function filterLeagueFixtures(rows:OfficeFixture[],filters:LeagueMatchFilters){
  const query=normalized(filters.query)
  return rows.filter(f=>(!query||matchesName(query,f.a,f.b))&&(!filters.day||leagueFixtureDay(f)===filters.day)&&(!filters.status||f.status===filters.status)).sort((a,b)=>{
@@ -29,10 +30,31 @@ export function filterLeagueResults(rows:OfficeResult[],filters:LeagueMatchFilte
  const query=normalized(filters.query)
  return rows.filter(r=>(!filters.day||r.date===filters.day)&&(!query||matchesName(query,r.a,r.b)||r.courts.some(c=>matchesName(query,c.a,c.b)))).sort((a,b)=>b.date.localeCompare(a.date)||a.id.localeCompare(b.id))
 }
+
+function nextLeagueMeetings(d:OfficeDetail,results:OfficeResult[]){
+ const meetings=new Map<string,OfficeFixture>()
+ if(!results.length||d.league.status!=='active'||d.moreFixtures||d.moreParticipants)return meetings
+ let now:ReturnType<typeof competitionScheduleClock>
+ try{now=competitionScheduleClock(d.league.timeZone)}catch{return meetings}
+ const upcoming=filterLeagueFixtures(d.fixtures,emptyLeagueMatchFilters()).filter(f=>{
+  if(f.status!=='confirmed'&&f.status!=='coordinator_set')return false
+  const day=leagueFixtureDay(f),time=fixtureClock(f.time)
+  return day>now.day||day===now.day&&!!time&&sortableTime(time)>=now.time
+ })
+ const activeNames=new Map<string,number>()
+ for(const p of d.participants)if(p.status==='active')activeNames.set(p.name,(activeNames.get(p.name)||0)+1)
+ for(const {id,date,a,b} of results){
+  if(!isValidCalendarDate(date)||!a||!b||a===b||activeNames.get(a)!==1||activeNames.get(b)!==1)continue
+  const meeting=upcoming.find(f=>leagueFixtureDay(f)>date&&((f.a===a&&f.b===b)||(f.a===b&&f.b===a)))
+  if(meeting)meetings.set(id,meeting)
+ }
+ return meetings
+}
+
 export function leagueFixtureHtml(f:OfficeFixture,view:'standalone'|'day-group'|'preview'='standalone') {
  const savedTime=f.time.trim()
- const clock=/^((?:[01]?\d|2[0-3]):[0-5]\d)(?::00(?:\.0+)?)?$/.exec(savedTime)
- const time=clock?formatCaptainPracticeTime(clock[1]):savedTime
+ const clock=fixtureClock(savedTime)
+ const time=clock?formatCaptainPracticeTime(clock):savedTime
  const status=`<span class="competition-status" data-fixture-state="${html(f.status)}">${html(statuses[f.status]||f.status)}</span>`
  const grouped=view==='day-group'
  const schedule=competitionScheduleHtml(grouped?'':matchDate(f.date),time||'Time to be confirmed',f.facility||'Venue to be confirmed')
@@ -55,9 +77,9 @@ function finderHtml(d:OfficeDetail,view:LeagueMatchView,filters:LeagueMatchFilte
  return competitionFiltersHtml(view==='fixtures'?'schedule':'results',form,activeCount)
 }
 const courtWinner=(c:OfficeResult['courts'][number])=>c.winner==='Side A'?(c.a||c.winner):c.winner==='Side B'?(c.b||c.winner):c.winner
-export function leagueResultHtml(r:OfficeResult,team:boolean,query=''){
+export function leagueResultHtml(r:OfficeResult,team:boolean,query='',meeting?:OfficeFixture){
  const search=normalized(query),courtMatch=!!search&&r.courts.some(c=>matchesName(search,c.a,c.b))
- return `<article class="league-result-card">
+ return `<article class="league-result-card" data-league-result-id="${html(r.id)}">
   <p class="competition-date">${html(matchDate(r.date))} · ${team?'Team result':'Player result'}</p>
   ${competitionOutcomeHtml(team?'Team winner':'Winner',r.winner,r.score||undefined)}
   ${competitionOpponentsHtml(r.a,r.b)}
@@ -69,14 +91,16 @@ export function leagueResultHtml(r:OfficeResult,team:boolean,query=''){
     ${competitionOutcomeHtml('Court winner',courtWinner(c),c.score)}
    </div>`).join('')}
   </details>`:''}
+  ${meeting?competitionScheduleJumpHtml(meeting.id,`${r.a} vs ${r.b}`,'Next meeting',matchDate(meeting.date)):''}
  </article>`
 }
-export function leagueMatchViewHtml(d:OfficeDetail,view:LeagueMatchView,filters:LeagueMatchFilters=emptyLeagueMatchFilters()){
+export function leagueMatchViewHtml(d:OfficeDetail,view:LeagueMatchView,filters:LeagueMatchFilters=emptyLeagueMatchFilters(),showNextMeeting=false){
  const schedule=view==='fixtures',total=schedule?d.fixtures.length:d.results.length,limited=schedule?d.moreFixtures:d.moreResults
  const fixtures=schedule?filterLeagueFixtures(d.fixtures,filters):[]
  const results=schedule?[]:filterLeagueResults(d.results,filters)
  const count=fixtures.length+results.length
- const cards=schedule?competitionMatchGroupsHtml(fixtures,leagueFixtureDay,formatCalendarDay,f=>leagueFixtureHtml(f,'day-group')):results.map(r=>leagueResultHtml(r,d.league.format==='team',filters.query)).join('')
+ const meetings=showNextMeeting?nextLeagueMeetings(d,results):undefined
+ const cards=schedule?competitionMatchGroupsHtml(fixtures,leagueFixtureDay,formatCalendarDay,f=>leagueFixtureHtml(f,'day-group')):results.map(r=>leagueResultHtml(r,d.league.format==='team',filters.query,meetings?.get(r.id))).join('')
  const noun=schedule?'matches':d.league.format==='team'?'team results':'player results'
  const empty=total
   ? competitionMatchFilterEmptyHtml(schedule?'schedule':'results')

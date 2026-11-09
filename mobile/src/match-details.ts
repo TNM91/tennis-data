@@ -24,7 +24,19 @@ export function matchParticipantChoice(rows: Participant[], index: number): Play
   return {id:row.player_id, name:player.name.trim(), location:null, flight:null}
 }
 
-export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, labels: {backLabel?: string; sideLabel?: string;local?: boolean;scrollHost?: HTMLElement;publicBrowse?:PublicBrowseAccess;neutral?:boolean;onClose?:()=>void;externalBack?:boolean} = {}) {
+type MatchDetailOptions = {
+  backLabel?: string
+  sideLabel?: string
+  local?: boolean
+  scrollHost?: HTMLElement
+  publicBrowse?: PublicBrowseAccess
+  neutral?: boolean
+  onClose?: () => void
+  externalBack?: boolean
+  openPractice?: (match: RecentMatchRow, current: () => boolean) => { dispose: () => void } | undefined
+}
+
+export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, labels: MatchDetailOptions = {}) {
   let selected: { row: RecentMatchRow; playerId: string; backLabel:string } | null = null
   let request = 0
   let previousFocus: HTMLElement | null = null
@@ -32,11 +44,13 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
   let disposed = false
   let profile:ReturnType<typeof openRosterPlayerProfile>|null=null
   let sharing:ReturnType<typeof openScorecardShare>|null=null
+  let practice: ReturnType<NonNullable<MatchDetailOptions['openPractice']>>
   const valid = () => !disposed && isCurrent()
   const close = () => {
     profile?.dispose();profile=null
     sharing?.dispose();sharing=null
     request++
+    practice?.dispose();practice=undefined
     delete app.dataset.view
     app.querySelector('#match-detail')?.remove()
     if(labels.scrollHost)labels.scrollHost.scrollTop=scroll;else window.scrollTo(0, scroll)
@@ -48,6 +62,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
     profile?.dispose();profile=null
     sharing?.dispose();sharing=null
     const version = ++request
+    practice?.dispose();practice=undefined
     if (push&&!labels.local) history.pushState({view: 'match'}, '', '#match')
     app.dataset.view = 'match'
     app.querySelector('#match-detail')?.remove()
@@ -57,6 +72,8 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
     const resultLabel = labels.neutral ? (['A','B'].includes(row.winner_side || '') ? 'Side ' + row.winner_side + ' won' : 'Result pending') : matchResult(row, playerId)
     const outcome = resultLabel === 'Won' ? 'won' : resultLabel === 'Lost' ? 'lost' : 'recorded'
     const setScores = renderMatchSetScores(row, labels.neutral ? null : playerId, labels.sideLabel || 'Your side')
+    const canOpenPractice = labels.openPractice && !labels.neutral && !labels.publicBrowse
+      && outcome !== 'recorded' && Boolean(row.score?.trim()) && matchScorecardSide(row, playerId)
     detail.innerHTML = `
       ${labels.externalBack?'':`<button type="button" class="secondary" id="back-matches"><span aria-hidden="true">‹</span><span>${html(backLabel)}</span></button>`}
       <div class="match-scorecard-hero">
@@ -75,6 +92,10 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
           ${row.score ? '<p class="scorecard-source-note">Listed in the original court order.</p>' : ''}
         </div>
       </div>
+      ${canOpenPractice ? `<button type="button" class="secondary" data-match-practice aria-labelledby="match-practice-title" aria-describedby="match-practice-detail">
+        <span class="app-tool-copy"><strong id="match-practice-title">Work on my game</strong><span id="match-practice-detail">Pick one focus for your next practice</span></span>
+        <span class="app-tool-arrow" aria-hidden="true">›</span>
+      </button>` : ''}
       <section class="match-court-players" aria-labelledby="match-court-players-title">
         <div class="match-section-heading">
           <h2 id="match-court-players-title" data-match-section="lineup">Players on court</h2>
@@ -87,6 +108,13 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
         <span class="app-tool-arrow" aria-hidden="true">›</span>
       </button>`}`
     app.append(detail)
+    const practiceButton = detail.querySelector<HTMLButtonElement>('[data-match-practice]')
+    if (practiceButton) practiceButton.onclick = () => {
+      const current = () => valid() && version === request && detail.isConnected
+      if (!current()) return
+      practiceButton.focus({preventScroll:true})
+      practice = labels.openPractice?.(row, current) ?? practice
+    }
     detail.querySelectorAll<HTMLButtonElement>('[data-match-jump]').forEach(button => {
       button.onclick = () => {
         if (!valid() || version !== request || !detail.isConnected) return
@@ -187,6 +215,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
       profile?.dispose();profile=null
       sharing?.dispose();sharing=null
       request++
+      practice?.dispose();practice=undefined
       selected = null
       window.removeEventListener('popstate', pop)
       delete app.dataset.view

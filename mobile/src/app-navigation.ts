@@ -77,7 +77,7 @@ export function appHubHtml(hub:AppHub,fromLab=false){
   </div>`:''
  const groupHtml=groups.map(group=>{
   const lane=group.lane?` id="coach-${group.lane}-tools" data-coach-lane${group.lane==='studio'?' hidden':''}`:''
-  return `<section class="app-hub-group"${lane}>${group.lane==='player'?'<div class="coach-next-assignment" data-coach-next-assignment hidden></div>':''}<h2>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],key==='tactics')).join('')}</div></section>`
+  return `<section class="app-hub-group"${lane}>${group.lane==='player'?'<div class="coach-next-assignment" data-coach-next-assignment hidden></div><div class="coach-latest-feedback" data-coach-latest-feedback hidden></div>':''}<h2>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],key==='tactics')).join('')}</div></section>`
  }).join('')
  const toolFinder=hub==='more'?`<div class="app-tool-finder" role="search" aria-label="Tools">
   <label for="app-tool-query" class="sr-only">Find a tool</label>
@@ -93,7 +93,11 @@ export function appHubHtml(hub:AppHub,fromLab=false){
    ${hub==='coach'&&fromLab?`<button type="button" class="secondary coach-hub-back" data-coach-back><span aria-hidden="true">${nativeActionIcon('back')}</span>Back to My Lab</button>`:''}
    <h1 tabindex="-1">${title}</h1>${hub==='more'?'':'<p>'+note+'</p>'}
   </header>
-  ${hub==='compete'?'<div class="compete-next-match" data-compete-next-match hidden></div><button type="button" class="secondary compete-replies" data-compete-replies hidden>Matches that need a reply <span aria-hidden="true">›</span></button><section class="compete-teams" data-compete-teams aria-labelledby="compete-teams-title"><h2 id="compete-teams-title">My Teams</h2><div data-compete-team-list></div></section>':''}
+  ${hub==='compete'?`<div class="compete-next-match" data-compete-next-match hidden></div><button type="button" class="secondary compete-replies" data-compete-replies hidden>Matches that need a reply <span aria-hidden="true">›</span></button>
+   <button type="button" class="secondary app-tool compete-my-event" data-compete-my-event aria-labelledby="compete-my-event-title" aria-describedby="compete-my-event-name" hidden>
+    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.tournaments}</span><span class="app-tool-copy"><strong id="compete-my-event-title">My Event</strong><span id="compete-my-event-name" data-compete-event-name></span></span><span class="app-tool-arrow" aria-hidden="true">›</span>
+   </button>
+   <section class="compete-teams" data-compete-teams aria-labelledby="compete-teams-title"><h2 id="compete-teams-title">My Teams</h2><div data-compete-team-list></div></section>`:''}
   ${coachControls}${toolFinder}<div id="app-tool-results">${groupHtml}</div>
   ${hub==='more'?'<p class="app-tools-empty" data-tools-empty hidden>No tools found. Try coach, leagues or account.</p>':''}
   <p role="alert" class="app-hub-notice"></p>

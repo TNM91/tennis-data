@@ -1,4 +1,4 @@
-import {describe,it,expect} from 'vitest'
+import {describe,it,expect,vi} from 'vitest'
 import {emptyLeagueMatchFilters,filterLeagueFixtures,filterLeagueResults,leagueFixtureHtml,leagueMatchViewHtml} from '../../mobile/src/league-match-finder'
 import {competitionDetail} from '../../tests/fixtures/competitions-data'
 
@@ -54,6 +54,26 @@ describe('league match discovery keeps team and court evidence separate',()=>{
   const d=competitionDetail();const schedule={query:'Baseline',day:'2026-11-07',status:'cancelled'},results={query:'Jordan',day:'2026-10-23',status:''}
   expect(filterLeagueFixtures(d.fixtures,schedule)).toHaveLength(1);expect(filterLeagueResults(d.results,results)).toHaveLength(1)
   expect(filterLeagueResults(d.results,{...results,day:'2026-11-07'})).toHaveLength(0);expect(schedule.day).toBe('2026-11-07')
+ })
+ it('links results to the earliest upcoming exact meeting in a complete season schedule',()=>{
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-11-06T16:00:00Z'))
+  try{
+   const d=competitionDetail(),fixture=d.fixtures[0]
+   d.fixtures.push(
+    {...fixture,id:'past-today',time:'9:30'},
+    {...fixture,id:'proposal',time:'11:30',status:'proposed'},
+    {...fixture,id:'similar-pair',time:'12:30',a:fixture.a+' B'},
+    {...fixture,id:'next-meeting',time:'15:30:00',status:'coordinator_set',a:fixture.b,b:fixture.a},
+   )
+   const render=()=>leagueMatchViewHtml(d,'results',undefined,true)
+   expect(render()).toContain('data-competition-schedule-jump="next-meeting"')
+   d.moreFixtures=true
+   expect(render()).not.toContain('Next meeting')
+   d.moreFixtures=false
+   d.participants.push({...d.participants[0]})
+   expect(render()).not.toContain('Next meeting')
+  }finally{vi.useRealTimers()}
  })
  it('does not search scores, winner text, facilities or an unrelated court when filtering schedule',()=>{
   const d=competitionDetail();expect(filterLeagueResults(d.results,{query:'6-4',day:'',status:''})).toEqual([])

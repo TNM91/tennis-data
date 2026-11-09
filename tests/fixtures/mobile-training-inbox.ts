@@ -1,7 +1,7 @@
 import {buildPlayerAssignmentCompletion,type CoachAssignment} from '../../lib/coach-storage'
 import {LEVEL_UP_CARDS} from '../../lib/level-up/level-up-cards'
 import {PLAYER_DEVELOPMENT_IDENTITIES} from '../../lib/player-development'
-import {getWeeklyLevelUpPlanWeekStart,toggleWeeklyLevelUpPlanRep,type WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
+import {buildWeeklyLevelUpCoachResponse,getWeeklyLevelUpPlanWeekStart,toggleWeeklyLevelUpPlanRep,type WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
 import {localCalendarDate,shiftCalendarDay} from '../../mobile/src/calendar-data'
 import type {TrainingSave} from '../../mobile/src/level-up-data'
 import {freezeTrainingSave} from '../../mobile/src/level-up-model'
@@ -27,6 +27,18 @@ const assignments:CoachAssignment[]=[
  {...overdue,id:'training-finished',title:'Baseline recovery drill',status:'completed',assignment:buildPlayerAssignmentCompletion({}, {recap:'Balanced on the first step.',evidence:'Four of five.'})},
  overdue,
 ]
+const assignmentFeedback=new URL(location.href).searchParams.has('training-assignment-feedback')
+const trainingFeedbackFixture={newReview:false,practiceSaves:0,assignmentWrites:0}
+if(assignmentFeedback){
+ const finished=assignments[1]
+ if(overdue.assignment.levelUpPack){
+  finished.assignment=buildPlayerAssignmentCompletion({levelUpPack:overdue.assignment.levelUpPack},{recap:'Balanced on the first step.',evidence:'Four of five.'})
+ }
+ finished.assignment={...finished.assignment,cardId:'split-step-rhythm',coachReview:{
+  note:'Your first step stayed balanced under pressure.',nextFocus:'Recover toward the center after the return.',reviewedAt:'2026-11-06T18:00:00Z',
+ }}
+ Object.assign(window,{trainingFeedbackFixture})
+}
 const weekStart=getWeeklyLevelUpPlanWeekStart()
 const currentPlan:WeeklyLevelUpPlan={
  version:1,id:'training-week',identitySlug,weekStart,summary:'A better first step',strongestFocus:'Recovery',
@@ -38,6 +50,14 @@ const currentPlan:WeeklyLevelUpPlan={
  ],
 }
 const plans=[currentPlan,{...currentPlan,id:'training-previous-week',weekStart:shiftCalendarDay(weekStart,-7),summary:'Hold depth on the move',reps:[{...currentPlan.reps[1],title:'Move through the return'}]}]
+if(new URL(location.href).searchParams.has('training-week-coach-cue')){
+ const coachUserId='synthetic-coach'
+ const coachResponse=buildWeeklyLevelUpCoachResponse(currentPlan,{
+  action:'replaced',targetRepId:currentPlan.reps[1].id,note:'Call your target before the second serve.',
+  replacementRep:{...currentPlan.reps[2],id:'coach-selected-serve',title:'Reset before the second serve'},
+ },coachUserId)
+ plans[0]={...currentPlan,sharedWithCoach:true,coachUserId,studentLinkId:link.id,coachResponse}
+}
 if(new URL(location.href).searchParams.has('training-coach-update')){
  const coachUserId='synthetic-coach',previous=plans[1]
  plans[1]={...previous,sharedWithCoach:true,coachUserId,studentLinkId:link.id,coachResponse:{action:'adjusted',note:'Recover toward the center after the return.',targetRepId:previous.reps[0].id,replacementRep:null,coachUserId,updatedAt,playerReply:{action:'acknowledged',message:'',playerUserId:navigationOwner,updatedAt}}}
@@ -62,6 +82,7 @@ export function trainingInboxPreview(url:URL,method:string,body?:BodyInit|null){
    return Response.json({ok:true,sessions})
   }
   if(method!=='POST')return Response.json({ok:false},{status:405})
+  trainingFeedbackFixture.practiceSaves++
   const saved:TrainingSave=JSON.parse(String(body)).session
   const session={...saved,playerUserId:navigationOwner,sessionJson:{cardId:saved.cardId}}
   sessions.push(session)
@@ -95,8 +116,14 @@ export function trainingInboxPreview(url:URL,method:string,body?:BodyInit|null){
   return Response.json({ok:true,plan:plans[index]})
  }
  if(url.pathname!=='/api/player/coach-assignments')return null
- if(method==='GET')return Response.json({ok:true,coachLinks:[link],assignments})
+ if(method==='GET'){
+  const latest=assignmentFeedback&&trainingFeedbackFixture.newReview?[{...assignments[1],id:'training-new-review',title:'Serve placement review',assignment:{
+   coachReview:{note:'Your toss is more consistent.',nextFocus:'Place the second serve to the backhand.',reviewedAt:'2026-11-07T18:00:00Z'},
+  }}]:[]
+  return Response.json({ok:true,coachLinks:[link],assignments:[...assignments,...latest]})
+ }
  if(method!=='PATCH')return Response.json({ok:false},{status:405})
+ trainingFeedbackFixture.assignmentWrites++
  const input=JSON.parse(String(body))
  const found=assignments.find(a=>a.id===input.assignmentId&&a.status==='assigned'&&a.updatedAt===input.expectedUpdatedAt)
  if(!found)return Response.json({ok:false},{status:409})

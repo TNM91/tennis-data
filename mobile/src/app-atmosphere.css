@@ -448,6 +448,13 @@ dialog.native-calendar-screen[open]{display:flex;flex-direction:column;gap:12px}
 .native-calendar-screen .cal-event{display:flex;align-items:center;gap:12px;inline-size:100%;text-align:start;padding:17px 12px;border:1px solid #204560;border-inline-start:3px solid #b2e52e;border-radius:15px;background:linear-gradient(110deg,#0b2941,#071d32);color:#f1f6fb;margin-block:9px}
 .native-calendar-screen .cal-event.competition{border-inline-start-color:#77caff}.native-calendar-screen .cal-event.coach{border-inline-start-color:#d3b6ff}
 .native-calendar-screen .cal-event.team{border-inline-start-color:#e5f3ff}
+.cal-scheduled-rep { margin-block:9px; }
+.native-calendar-screen .cal-scheduled-rep .cal-event { margin-block:0 6px; }
+.native-calendar-screen button.cal-open-rep.secondary {
+ display:flex;align-items:center;justify-content:space-between;gap:8px;inline-size:100%;text-align:start;
+ border:1px solid transparent;border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);color:var(--premium-white);
+}
+.cal-open-rep span { color:var(--premium-lime); }
 .cal-event-time{flex:0 0 3.6em;white-space:nowrap;font-size:.73rem;color:#c4d9e8}.cal-event-copy{flex:1;display:flex;flex-direction:column;gap:5px;overflow-wrap:anywhere}.cal-event-copy small{font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:#81bbd7}.cal-event-copy strong{font-size:.98rem;line-height:1.35}.cal-event-copy>span{font-size:.78rem;color:#aac7da;line-height:1.4}
 .cal-actions{display:flex;gap:7px;padding-block-start:12px;border-block-start:1px solid #22435b;flex:none}.cal-actions>button:first-child{flex:1}.cal-actions>button{font-size:.82rem;padding:10px}
 .cal-footnote{font-size:.76rem;line-height:1.6;color:#8cabc1;margin:24px 0 6px}.cal-warning{font-size:.85rem;padding:12px;border:1px solid #816335;border-radius:12px;color:#f0d4a1;background:#30291e;line-height:1.5}

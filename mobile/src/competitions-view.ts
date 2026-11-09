@@ -44,7 +44,7 @@ export function competitionSeasonHtml(d:OfficeDetail,view:View,today?:string,fil
    .filter(f=>leagueFixtureDay(f)>=localToday&&!['cancelled','completed'].includes(f.status)).slice(0,2)
   return '<div class="competition-metrics" aria-label="Loaded season records">'+[[d.participants.length+(d.moreParticipants?'+':''),d.league.format==='team'?'Teams':'Players'],[d.fixtures.length+(d.moreFixtures?'+':''),'Dates'],[d.results.length+(d.moreResults?'+':''),'Results']].map(([v,label])=>'<div><strong>'+v+'</strong><span>'+label+'</span></div>').join('')+'</div><h3 tabindex="-1">Coming up</h3>'+(upcoming.length?upcoming.map(f=>leagueFixtureHtml(f,'preview')).join(''):'<p>No upcoming dates in the loaded schedule.</p>')+(d.moreFixtures?'<p class="rating-context">This is a limited schedule sample. Open Schedule to review the loaded dates.</p>':'')+'<p class="rating-context">Times use '+html(d.league.timeZone)+'. Proposals and cancellations keep their recorded status.</p>'
  }
- if(view==='fixtures'||view==='results')return leagueMatchViewHtml(d,view,filters)
+ if(view==='fixtures'||view==='results')return leagueMatchViewHtml(d,view,filters,view==='results')
  if(view==='participants')return leagueParticipantsViewHtml(d,listFilters,false)
  return leagueStandingsViewHtml(d,listFilters)
 }
@@ -122,20 +122,28 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    view=b.dataset.competitionView as View
    render();focus()
   }})
-  if(d)bindCompetitionScheduleJumps(dialog,id=>{
-   if(!active()||busy||view!=='home')return
-   const overviewScroll=dialog.scrollTop
+  if(d)bindCompetitionScheduleJumps(dialog,(id,trigger)=>{
+   if(!active()||busy||(view!=='home'&&view!=='results'))return
+   const source=view,sourceScroll=dialog.scrollTop
+   const sourceResult=trigger.closest<HTMLElement>('[data-league-result-id]')
+   const resultId=sourceResult?.dataset.leagueResultId
+   const scoresOpen=sourceResult?.querySelector('details')?.open
    showFullSchedule=!filterLeagueFixtures(d.fixtures,filters.fixtures).some(fixture=>fixture.id===id)
    view='fixtures'
    render()
    if(!focusCompetitionMatch(dialog,id,()=>{
     if(!active()||busy||view!=='fixtures')return
     showFullSchedule=false
-    view='home'
+    view=source
     render()
-    const opener=competitionScheduleJumpButton(dialog,id)??dialog.querySelector<HTMLElement>('[data-competition-content] h3')
-    restoreListFocus(dialog,opener,overviewScroll)
-   }))focus()
+    const result=resultId?dialog.querySelector<HTMLElement>(`[data-league-result-id="${CSS.escape(resultId)}"]`):dialog
+    const scores=result?.querySelector('details')
+    if(scores&&scoresOpen!==undefined)scores.open=scoresOpen
+    const resultHeading=resultId?result?.querySelector<HTMLElement>('.competition-opponents'):null
+    if(resultHeading)resultHeading.tabIndex=-1
+    const target=(result&&competitionScheduleJumpButton(result,id))??resultHeading??dialog.querySelector<HTMLElement>('[data-competition-content] h3')
+    restoreListFocus(dialog,target,sourceScroll)
+   },source==='results'?'Back to results':'Back to overview'))focus()
   })
   dialog.querySelectorAll<HTMLButtonElement>('[data-competition-league-entry]').forEach(b=>{b.onclick=()=>{
    const league=snapshot?.leagues[Number(b.dataset.competitionLeagueEntry)]

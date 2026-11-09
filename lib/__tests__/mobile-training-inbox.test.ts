@@ -1,6 +1,6 @@
 import {describe,it,expect,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {parseTrainingPlans,parseTrainingCoachWork,loadTrainingPlans,loadTrainingCoachWork,type TrainingInboxSend} from '../../mobile/src/training-inbox-data'
+import {parseTrainingPlans,parseTrainingCoachWork,loadTrainingPlans,loadTrainingCoachWork,trainingCoachFeedback,type TrainingInboxSend} from '../../mobile/src/training-inbox-data'
 import {trainingInboxLaunches,trainingPlansHtml,trainingCoachWorkHtml} from '../../mobile/src/training-inbox-view'
 const owner='owner',date='2026-10-25T06:00:00Z',identity='relentless-competitor-4-0'
 const rep=(id='r1',focusId='split-step-rhythm')=>({id,kind:'repeat',focusId,identitySlug:identity,label:'Repeat',title:'Split-step rhythm',detail:'Recover after contact.',href:'/level-up/'+identity+'?focus='+focusId,completedAt:null})
@@ -15,6 +15,15 @@ describe('native training inbox',()=>{
  it('withholds coach records for a wrong owner, missing link, duplicates, invalid status or due date',()=>{const w=work();for(const value of [{...w,coachLinks:[{...w.coachLinks[0],playerUserId:'other'}]},{...w,coachLinks:[]},{...w,assignments:[w.assignments[0],w.assignments[0]]},{...w,assignments:[{...w.assignments[0],status:'draft'}]},{...w,assignments:[{...w.assignments[0],dueDate:'2026-02-30'}]}])expect(()=>parseTrainingCoachWork(value,owner)).toThrow()})
  it('uses coach replacement reps and never guesses a card from a title or external URL',()=>{const p={...plan(),coachResponse:{action:'replaced',note:'Reset first.',targetRepId:'r1',replacementRep:rep('new','double-fault-reset'),coachUserId:'coach',updatedAt:date,playerReply:null}};const plans=parseTrainingPlans({ok:true,plans:[p]});expect(trainingInboxLaunches(plans,null)[0].cardId).toBe('double-fault-reset');const unknown=parseTrainingPlans({ok:true,plans:[{...plan(),reps:[{...rep('r2','unknown'),title:'Split-Step Rhythm'}]}]});expect(trainingInboxLaunches(unknown,null)).toEqual([]);expect(trainingPlansHtml(unknown)).toContain('no exact matching drill card')})
  it('keeps recorded check-ins and coach notes in history without mutating account work',()=>{const w=work();Object.assign(w.assignments[0].assignment,{coachReview:{note:'<script>Keep moving',nextFocus:'Return depth',reviewedAt:date},playerCheckIn:{recap:'Feet stayed quiet',evidence:'3/5 proof',completedAt:date}});const parsed=parseTrainingCoachWork(w,owner),before=JSON.stringify(parsed),view=trainingCoachWorkHtml(parsed,new Date('2026-10-25T12:00:00'));expect(view).toContain('Checked in');expect(view).toContain('Completed work and check-ins (1)');expect(view).not.toContain('data-coach-checkin');expect(view).toContain('&lt;script&gt;');expect(view).not.toContain('<script>');expect(view).toContain('Feet stayed quiet');expect(view).toContain('does not complete an assignment');expect(JSON.stringify(parsed)).toBe(before)})
+ it('carries an adjustment only into its exact weekly rep even when the drill repeats',()=>{
+  const response={action:'adjusted',note:'Recover first.',targetRepId:'r2',replacementRep:null,coachUserId:'coach',updatedAt:date,playerReply:null}
+  const raw={...plan(),reps:[rep(),{...rep('r2'),title:'Recover on the next ball'}],coachResponse:response}
+  const adjusted=parseTrainingPlans({ok:true,plans:[raw]},owner)
+  expect(trainingInboxLaunches(adjusted,null).map(launch=>launch.coachCue)).toEqual([undefined,'Recover first.'])
+  expect(trainingPlansHtml(adjusted)).toContain('For Recover on the next ball')
+  const answered=parseTrainingPlans({ok:true,plans:[{...raw,coachResponse:{...response,action:'answered'}}]},owner)
+  expect(trainingInboxLaunches(answered,null).every(launch=>!launch.coachCue)).toBe(true)
+ })
  it('highlights overdue work ahead of later assignments regardless of the API order',()=>{
   const raw=work(),overdue=raw.assignments[0]
   raw.assignments.unshift({...overdue,id:'tomorrow',title:'Second serves',dueDate:'2026-10-26'})
@@ -36,6 +45,23 @@ describe('native training inbox',()=>{
   expect(latest).toContain('That assignment is no longer open')
   expect(latest).toContain('Completed work and check-ins (1)')
   expect(latest).not.toContain('data-coach-checkin="tomorrow"')
+ })
+ it('features the newest recorded review and opens requested feedback by exact assignment',()=>{
+  const raw=work(),assignment=raw.assignments[0]
+  raw.assignments.push(
+   {...assignment,id:'older',title:'First-step review',status:'completed',updatedAt:'2026-10-26T00:00:00Z',assignment:Object.assign({...assignment.assignment},{coachReview:{note:'<img src=x>',nextFocus:'Recover first.',reviewedAt:'2026-10-23T00:00:00Z'}})},
+   {...assignment,id:'latest',title:'Serve review',status:'completed',assignment:Object.assign({...assignment.assignment,cardId:'unknown'},{coachReview:{note:'Start deeper.',nextFocus:'Split-Step Rhythm',reviewedAt:date}})},
+  )
+  Object.assign(assignment.assignment,{coachReview:{note:'In progress',nextFocus:'Stay balanced.',reviewedAt:'2026-10-27T00:00:00Z'}})
+  const parsed=parseTrainingCoachWork(raw,owner)
+  expect(trainingCoachFeedback(parsed)?.assignment.id).toBe('latest')
+  expect(trainingCoachWorkHtml(parsed)).not.toContain('Revisit Split-Step Rhythm')
+  const opened=trainingCoachWorkHtml(parsed,new Date(),undefined,'older')
+  expect(opened).toContain('Revisit Split-Step Rhythm')
+  expect(opened).toContain('&lt;img src=x&gt;')
+  expect(opened).not.toContain('<img src=x>')
+  expect(trainingInboxLaunches([],parsed,'older').find(launch=>launch.coachCue)).toMatchObject({cardId:'split-step-rhythm',coachCue:'Recover first.'})
+  expect(trainingCoachWorkHtml({links:[],assignments:[]},new Date(),undefined,'removed')).toContain('That coach feedback is unavailable.')
  })
  it('leads with the unfinished pack drill and keeps repeated cards separately launchable within the display limit',()=>{
   const w=work(),items=Array.from({length:31},(_,slot)=>({

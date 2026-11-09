@@ -3,23 +3,24 @@ import {html} from './match-details'
 import {COMPETITION_DATES_UNAVAILABLE,calendarDraft,personalDraft,sameCalendarDraft,type CalendarDraft,type CalendarIntent,type NativeCalendar} from '../../lib/native-calendar-contract'
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
-import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,exportableCalendarOccurrences,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence} from './calendar-data'
+import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,calendarTournamentEntry,exportableCalendarOccurrences,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
 import {createCalendarFinder} from './calendar-finder'
 import {openPlayerPractices} from './player-practices-view'
 import {openCompetitions} from './competitions-view'
 import {openTournaments} from './tournaments-view'
+import {openTournamentEntry} from './tournament-entry-view'
 import {exportCoachFile,cancelCoachFile} from './native-coach-files'
 import {Browser} from './native-browser'
 import websiteUi from '../generated/website-ui.json'
 
 const label=(day:string)=>new Date(day+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})
-function previousMatchSchedule(before:CalendarOccurrence,after:CalendarOccurrence){
+function previousMatchSchedule(before:Pick<CalendarOccurrence,'date'|'time'>&{location?:string},after:CalendarOccurrence){
  const beforeTime=before.time.slice(0,5),afterTime=after.time.slice(0,5)
  return [
   before.date!==after.date?label(before.date):'',
   beforeTime!==afterTime?formatCaptainPracticeTimeRange(beforeTime)||'Time not set':'',
-  before.location!==after.location?before.location||'Venue not set':'',
+  before.location!==undefined&&before.location!==after.location?before.location||'Venue not set':'',
  ].filter(Boolean).join(' · ')
 }
 const repeatNames:Record<string,string>={'':'Does not repeat','FREQ=DAILY':'Every day','FREQ=WEEKLY':'Every week','FREQ=MONTHLY':'Every month on this day'}
@@ -43,17 +44,22 @@ type RefreshContext={message?:string;focusKey?:string;focusControl?:string;prefe
 type MatchAvailability=NativeCalendar['competitions'][number]
 type AvailabilityChoice=NonNullable<MatchAvailability['responseStatus']>
 const savedReply=(match?:MatchAvailability):AvailabilityChoice=>match?.responseIsStale?'':match?.responseStatus??''
-export type CalendarStart='all'|'coach'|{practiceTitle:string;onClose:()=>void}|{event?:CalendarOccurrence;filter?:'coach'|'competition'|'needs-reply';followMovedMatch?:boolean;onClose:(changed:boolean)=>void}
+export type TournamentCalendarMatch=Pick<CalendarOccurrence,'id'|'date'|'time'>
+export type CalendarStart='all'|'coach'|{practiceTitle:string;openDrill?:()=>void;onClose:()=>void}
+ |{tournamentMatch:TournamentCalendarMatch;onClose:(changed:boolean)=>void}
+ |{event?:CalendarOccurrence;filter?:'coach'|'competition'|'needs-reply';followMovedMatch?:boolean;onClose:(changed:boolean)=>void}
 export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all'){
  const practice=typeof initial==='object'&&'practiceTitle' in initial?initial:null
- const highlight=typeof initial==='object'&&!('practiceTitle' in initial)?initial:undefined
+ const tournamentShortcut=typeof initial==='object'&&'tournamentMatch' in initial
+ let initialTournamentMatch=tournamentShortcut?initial.tournamentMatch:undefined
+ const highlight=typeof initial==='object'&&!('practiceTitle' in initial)&&!tournamentShortcut?initial:undefined
  const replyShortcut=highlight?.filter==='needs-reply'?highlight.event:undefined
  let initialEvent=replyShortcut?undefined:highlight?.event
  let changed=false
  const dialog=document.createElement('dialog');dialog.className='native-calendar-screen';dialog.setAttribute('aria-label','Your calendar')
- let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'=highlight?.filter==='competition'?'month':'week',anchor=highlight?.event?.date??localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
+ let disposed=false,busy=false,calendar:NativeCalendar|null=null,notice='',mode:'week'|'month'=tournamentShortcut||highlight?.filter==='competition'?'month':'week',anchor=initialTournamentMatch?.date??highlight?.event?.date??localCalendarDate(),day='',shown=100,panel:Panel='agenda',returnPanel:Panel='agenda'
  let failedRefresh:RefreshContext|null=null
- let filter:CalendarFilter=typeof initial==='string'?initial:highlight?.filter??'all'
+ let filter:CalendarFilter=tournamentShortcut?'competition':typeof initial==='string'?initial:highlight?.filter??'all'
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
  let competitionView:ReturnType<typeof openCompetitions>|null=null
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago'
@@ -63,6 +69,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  let draftStart:CalendarDraft|null=null
  let discardDestination:'agenda'|'close'='close'
  let schedulingRep=false
+ let scheduledPracticeKey=''
  let agendaOpener:AgendaOpener|null=null
  let query='',agendaScroll=0,finderSource:NativeCalendar|null=null,finder:ReturnType<typeof createCalendarFinder>|null=null
  const active=()=>!disposed&&current()
@@ -116,7 +123,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   competitionView?.dispose()
   competitionView=null
   void cancelCoachFile(owner).catch(()=>{})
-  calendar=null;finder=null;finderSource=null;query='';draft=null;draftStart=null;pending=null;initialEvent=undefined
+  calendar=null;finder=null;finderSource=null;query='';draft=null;draftStart=null;pending=null;initialEvent=undefined;initialTournamentMatch=undefined
   dialog.close()
   dialog.remove()
   if(!current())return
@@ -154,11 +161,12 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  const back=()=>{
   if(practiceView?.isOpen()){practiceView.back();return true}
   if(competitionView?.isOpen())return competitionView.back()
-  if(busy&&initialEvent&&highlight?.followMovedMatch){dispose();return true}
+  if(busy&&(initialTournamentMatch||initialEvent&&highlight?.followMovedMatch)){dispose();return true}
   if(busy){notice='Finishing this calendar check…';status();return true}
   if(panel==='leave'){keepChange();return true}
   if(panel==='match-export'){returnToMatch();return true}
   if(pending||panel==='editor'||panel==='review'||hasReplyChanges()){confirmDiscard('close');return true}
+  if(tournamentShortcut){dispose();return true}
   if(panel!=='agenda'){returnAgenda();return true}
   dispose();return true
  }
@@ -169,6 +177,24 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  })
  const finishAgendaRead=({focusKey,focusControl,preferFeatured,reviewReply,message}:RefreshContext)=>{
   busy=false
+  if(calendar&&initialTournamentMatch){
+   const requested=initialTournamentMatch
+   if(calendar.warnings.includes(COMPETITION_DATES_UNAVAILABLE))notice='Tournament dates couldn’t load. Refresh to check this match.'
+   else{
+    initialTournamentMatch=undefined
+    const match=calendar.competitions.find(item=>item.id===requested.id&&item.kind==='tournament'&&item.eventType==='match')
+    const event=match&&(isScheduledCompetitionMatch(match)||match.status==='Completed')?findEvents('').find(item=>item.key==='competition:'+match.id):undefined
+    if(event){
+     const previous=previousMatchSchedule(requested,event)
+     changed=changed||Boolean(previous)||match?.status==='Completed'
+     rememberAgenda({kind:'row',key:event.key})
+     openEvent(event,previous)
+     return
+    }
+    changed=true
+    notice='This match moved or is no longer on your calendar. Return to My Event for the latest draw.'
+   }
+  }
   if(!changed&&calendar&&replyShortcut&&replyShortcut.date>=calendar.range.from&&replyShortcut.date<=calendar.range.to){
    const currentReply=findEvents('').find(item=>item.key===replyShortcut.key)
    changed=!currentReply||!needsMatchReply(currentReply,new Date())
@@ -246,6 +272,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const confirmed=async(context:RefreshContext,{saved,loaded}:{saved?:PlayerCalendarItem|null;loaded?:NativeCalendar}={})=>{
   changed=true
+  if(schedulingRep&&saved&&practice?.openDrill)scheduledPracticeKey=personalOccurrenceKey(saved.id,saved.date)
   pending=null
   draft=null
   draftStart=null
@@ -407,7 +434,11 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const time=e.time?e.time.slice(0,5):e.source==='team'?'TBD':'All day'
    const type=e.source==='competition'?e.kind:e.source==='coach'?'Coach':e.source==='team'?'Team practice · '+(calendar?.practices?.find(p=>p.id===e.id)?.scope.teamName||''):'Personal'
    const readiness=e.readiness?`<span${needsMatchReply(e,now)?' data-cal-reply-needed':''}>${html(e.readiness)}</span>`:''
-   return `${heading}<button type="button" class="cal-event ${e.source}" data-cal-event="${html(e.key)}"><span class="cal-event-time">${html(time)}</span><span class="cal-event-copy"><small>${html(type)}${e.recurring?' · Repeats':''}</small><strong>${html(e.title)}</strong>${e.location?'<span>'+html(e.location)+'</span>':''}${readiness}</span><span aria-hidden="true">›</span></button>`
+   const scheduled=e.key===scheduledPracticeKey
+   const row=`<button type="button" class="cal-event ${e.source}" data-cal-event="${html(e.key)}"><span class="cal-event-time">${html(time)}</span><span class="cal-event-copy"><small>${html(type)}${e.recurring?' · Repeats':''}</small><strong${scheduled?' id="cal-scheduled-rep-title"':''}>${html(e.title)}</strong>${e.location?'<span>'+html(e.location)+'</span>':''}${readiness}</span><span aria-hidden="true">›</span></button>`
+   return heading+(scheduled?`<div class="cal-scheduled-rep">${row}
+    <button type="button" class="secondary cal-open-rep" data-cal-open-rep aria-describedby="cal-scheduled-rep-title">Open practice drill<span aria-hidden="true">›</span></button>
+   </div>`:row)
   }).join('')+(list.length>shown?'<button class="secondary" data-cal-more>Show more dates</button>':'')
  }
  const dateLabel=(date:string,count:number)=>{
@@ -459,12 +490,13 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   }
   if(panel==='respond'&&selected){
    const match=selectedMatch()
-   const competitionButton=match?.publishedView?`<button type="button" class="secondary" data-cal-competition>${match.kind==='league'?'View league schedule':'View tournament draw'}</button>`:''
+   const eventButton=!tournamentShortcut&&calendarTournamentEntry(match)?'<button type="button" class="secondary" data-cal-my-event>Open My Event</button>':''
+   const competitionButton=match?.publishedView&&!(tournamentShortcut&&match.kind==='tournament')?`<button type="button" class="secondary" data-cal-competition>${match.kind==='league'?'View league schedule':'View tournament draw'}</button>`:''
    const exportButton=exportableMatch()?'<button type="button" class="secondary" data-cal-match-export-review>Export this match</button>':''
    const update=earlierSchedule?`<p id="cal-match-update" class="cal-event-readiness" data-tone="changed"><strong>Match schedule updated</strong><br>Previously ${html(earlierSchedule)}</p>`:''
    const description=[notice?'cal-status':'',update?'cal-match-update':''].filter(Boolean).join(' ')
    const heading=match?.status==='Completed'?'Match details':selected.source==='competition'?'Your availability':'Shared Coach date'
-   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1"${description?` aria-describedby="${description}"`:''}>${heading}</h2>${update}${details(selected,'Time to be confirmed',Boolean(venueHref()))}${match?availabilityControls(match,selected.readiness):'<p>Shared Coach dates are managed with your coach. Open Coach & training to review your plan.</p>'}${competitionButton}${exportButton}<button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
+   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1"${description?` aria-describedby="${description}"`:''}>${heading}</h2>${update}${details(selected,'Time to be confirmed',Boolean(venueHref()))}${match?availabilityControls(match,selected.readiness):'<p>Shared Coach dates are managed with your coach. Open Coach & training to review your plan.</p>'}${eventButton}${competitionButton}${exportButton}<button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
   }
   if(panel==='export'||panel==='match-export'){
    const single=panel==='match-export',list=exportEvents(),selectedZone=exportZone()
@@ -525,7 +557,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const row=Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-cal-event]')).find(button=>button.dataset.calEvent===key)
   if(!row)return false
   row.focus({preventScroll:true})
-  row.scrollIntoView({block:'nearest'})
+  const target=row.closest('.cal-scheduled-rep')??row
+  target.scrollIntoView({block:'nearest'})
   return true
  }
  const rememberAgenda=(opener:AgendaOpener)=>{
@@ -572,8 +605,9 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(clear)clear.onclick=reset
   rows.onclick=event=>{
    if(!active()||busy||panel!=='agenda')return
-   const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-cal-event],[data-cal-more]'):null
+   const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-cal-event],[data-cal-more],[data-cal-open-rep]'):null
    if(!button||!rows.contains(button))return
+   if(button.hasAttribute('data-cal-open-rep')&&practice?.openDrill){dispose();if(current())practice.openDrill();return}
    if(button.hasAttribute('data-cal-more')){const first=visible()[shown];if(first)focusAgendaEvent(first.key);return}
    if(button.dataset.calEvent)openAgendaEvent(button.dataset.calEvent,'row')
   }
@@ -590,7 +624,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  const render=()=>{
   if(!active())return
   const scroll=dialog.querySelector('.cal-body')?.scrollTop||0
-  dialog.innerHTML=`<header class="cal-heading"><div><small class="stat-eyebrow">Your tennis</small><h1 tabindex="-1">Calendar</h1></div><button class="secondary" data-cal-close>Close</button></header><div class="cal-body"><p id="cal-status" data-cal-status role="${failedRefresh||pending?'alert':'status'}">${html(notice)}</p>${content()}</div>${panel==='agenda'?'<footer class="cal-actions"><button data-cal-new '+(busy||!calendar?'disabled':'')+'>＋ Add event</button><button class="secondary" data-cal-export-review '+(busy||!exportableCalendarOccurrences(visible()).length?'disabled':'')+'>Export</button><button class="secondary" data-cal-refresh '+(busy?'disabled':'')+'>'+ (failedRefresh?'Retry':'Refresh')+'</button></footer>':''}`
+  dialog.innerHTML=`<header class="cal-heading"><div><small class="stat-eyebrow">Your tennis</small><h1 tabindex="-1">Calendar</h1></div><button class="secondary" data-cal-close${tournamentShortcut?' aria-label="Back to My Event"':''}>${tournamentShortcut?'My Event':'Close'}</button></header><div class="cal-body"><p id="cal-status" data-cal-status role="${failedRefresh||pending?'alert':'status'}">${html(notice)}</p>${content()}</div>${panel==='agenda'?'<footer class="cal-actions"><button data-cal-new '+(busy||!calendar?'disabled':'')+'>＋ Add event</button><button class="secondary" data-cal-export-review '+(busy||!exportableCalendarOccurrences(visible()).length?'disabled':'')+'>Export</button><button class="secondary" data-cal-refresh '+(busy?'disabled':'')+'>'+ (failedRefresh?'Retry':'Refresh')+'</button></footer>':''}`
   dialog.querySelector('.cal-body')!.scrollTop=scroll
   const on=(selector:string,fn:(button:HTMLButtonElement)=>void)=>dialog.querySelectorAll<HTMLButtonElement>(selector).forEach(button=>button.onclick=()=>{if(active()&&!busy)fn(button)})
   dialog.querySelector('[data-cal-close]')!.addEventListener('click',back)
@@ -621,6 +655,13 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    practiceView=openPlayerPractices(client,owner,p.scope,active,restore=>{practiceView=null;if(!active()||!restore)return;selected=null;panel='agenda';void refresh(context)},'','Back to calendar',p.id)
   })
   on('[data-cal-agenda]',returnFromDetails)
+  on('[data-cal-my-event]',button=>{
+   const entry=calendarTournamentEntry(selectedMatch())
+   if(!entry||tournamentShortcut||competitionView?.isOpen())return
+   competitionView=openTournamentEntry(client,owner,active,entry.parent,entry.division,()=>{competitionView=null},undefined,button,{
+    allowCalendar:false,backLabel:'Back to calendar',existingEntry:true,
+   })
+  })
   on('[data-cal-competition]',button=>{
    const match=selectedMatch(),target=match?.publishedView
    if(!match||!target||competitionView?.isOpen())return

@@ -29,6 +29,7 @@ let pendingLabRatings:Promise<void>|null=null
 let releaseLabRatings:(()=>void)|null=null
 let pendingLabMatches:Promise<void>|null=null
 let releaseLabMatches:(()=>void)|null=null
+let labMatchState:'ready'|'empty'|'unavailable'='ready'
 export const labProfileFixture={
  defer(){pendingLabProfile=new Promise<void>(resolve=>{releaseLabProfile=resolve})},
  release(){releaseLabProfile?.();releaseLabProfile=null;pendingLabProfile=null},
@@ -36,6 +37,7 @@ export const labProfileFixture={
  releaseRatings(){releaseLabRatings?.();releaseLabRatings=null;pendingLabRatings=null},
  deferMatches(){pendingLabMatches=new Promise<void>(resolve=>{releaseLabMatches=resolve})},
  releaseMatches(){releaseLabMatches?.();releaseLabMatches=null;pendingLabMatches=null},
+ setMatches(state:typeof labMatchState){labMatchState=state},
 }
 function matchRows(length:number,singlesOnly=false){
  return Array.from({length},(_,i)=>({
@@ -78,10 +80,16 @@ function data(table:string){
 export function createClient(){return {
  channel:()=>{const callbacks:(()=>void)[]=[];const channel={on:(_type:string,_filter:unknown,callback:()=>void)=>{callbacks.push(callback);return channel},subscribe:(status:(value:string)=>void)=>{queueMicrotask(()=>status('SUBSCRIBED'));chatSignals.add(callbacks);return channel}};return channel},removeChannel:async()=> 'ok',
  auth:{signInWithPassword:async({password}:{password:string})=>{if(password==='synthetic-wrong')return {error:{code:'invalid_credentials'}};signedIn=true;listener?.('SIGNED_IN',session());return {error:null}},getSession:async()=>({data:{session:session()},error:null}),onAuthStateChange:(fn:typeof listener)=>{listener=fn;queueMicrotask(()=>listener?.('INITIAL_SESSION',session()));return {data:{subscription:{unsubscribe(){}}}}},startAutoRefresh(){},stopAutoRefresh(){},signOut:async()=>{signedIn=false;listener?.('SIGNED_OUT',null);return {error:null}}},
- from:(table:string)=>{if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:null;count?:number}={data:data(table),error:null};let select='',emptySearch=false,counted=false;const chain:Record<string,unknown>={then:async(resolve:(value:unknown)=>void)=>{
+ from:(table:string)=>{if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:{message:string}|null;count?:number}={data:data(table),error:null};let select='',emptySearch=false,counted=false;const chain:Record<string,unknown>={then:async(resolve:(value:unknown)=>void)=>{
   if(table==='profiles'&&select.includes('linked_league_name'))await pendingLabProfile
   if(table==='players'&&select.endsWith('doubles_dynamic_rating,rating_source'))await pendingLabRatings
-  if(table==='matches')await pendingLabMatches
+  if(table==='matches'){
+   await pendingLabMatches
+   if(select.includes('participants:match_players')){
+    if(labMatchState==='empty')result.data=[]
+    if(labMatchState==='unavailable'){result.data=null;result.error={message:'Synthetic matches unavailable'}}
+   }
+  }
   if(counted&&Array.isArray(result.data))result.count=result.data.length
   return resolve(result)
  }};for(const method of ['eq','in','order','limit','abortSignal','maybeSingle','single','ilike','or','is','not','range','gte','lte','lt','neq'])chain[method]=()=>chain;chain.select=(fields:string,options?:{count?:string})=>{

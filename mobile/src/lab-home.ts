@@ -31,6 +31,25 @@ export function labScoreboardHtml(profile:LabProfile|null,justConnected=false){
   </button>`:''}
  </section>`
 }
+
+export function labFirstScorecardHtml(){
+ return `<div class="lab-first-scorecard">
+  <p>Scorecards appear here as results are added to your player record.</p>
+  <div class="native-entry-list">
+   <button type="button" class="secondary app-tool native-entry-featured" data-app-destination="compete" aria-labelledby="first-scorecard-play" aria-describedby="first-scorecard-play-detail">
+    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.compete}</span>
+    <span class="app-tool-copy"><strong id="first-scorecard-play">Find a match</strong><span id="first-scorecard-play-detail">Browse leagues and tournaments.</span></span>
+    <span class="app-tool-arrow" aria-hidden="true">›</span>
+   </button>
+   <button type="button" class="secondary app-tool" data-app-destination="training" aria-labelledby="first-scorecard-practice" aria-describedby="first-scorecard-practice-detail">
+    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.catalog}</span>
+    <span class="app-tool-copy"><strong id="first-scorecard-practice">Browse drills</strong><span id="first-scorecard-practice-detail">Pick a skill to work on.</span></span>
+    <span class="app-tool-arrow" aria-hidden="true">›</span>
+   </button>
+  </div>
+ </div>`
+}
+
 export function labIdentityHtml(profile: LabProfile | null, overview?: LabTrainingOverview, focus?: LabGoal) {
  const name = profile?.linked_player_name || ''
  const linked = Boolean(profile?.linked_player_id && name)

@@ -1,9 +1,10 @@
 import {openWeeklyCoachReply} from './weekly-coach-reply-view'
 import {openCoachCheckIn} from './coach-check-in-view'
+import {findCoachPracticeStats} from './coach-check-in'
 import {newWeeklyChange,completionWeeklyChange,saveWeeklyChange,checkWeeklyChange,findSavedWeeklyPlan,weeklyChangeMatches,WeeklyChangeError,type WeeklyChange} from './weekly-plan-actions'
 import {Browser} from './native-browser'
 import {SAVED_WEEK_LIST_LIMIT,loadTrainingPlans,loadTrainingCoachWork,type TrainingCoachWork} from './training-inbox-data'
-import {trainingPlansHtml,trainingCoachWorkHtml,trainingInboxLaunches,type SavedWeekPractice} from './training-inbox-view'
+import {trainingPlansHtml,trainingCoachWorkHtml,trainingCoachCueHtml,trainingInboxLaunches,type SavedWeekPractice} from './training-inbox-view'
 import type {WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
 import {formatWeekdayDate} from '../../lib/captain-formatters'
 import {openCalendar} from './calendar-view'
@@ -13,6 +14,7 @@ import {LEVEL_UP_CARDS,LEVEL_UP_MODULES} from '../../lib/level-up/level-up-cards
 import type {LevelUpCard,LevelUpModule} from '../../lib/level-up/level-up-types'
 import {MEMBERSHIP_TIERS} from '../../lib/product-story'
 import {html} from './match-details'
+import {matchDate} from './recent-results'
 import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingSave,type TrainingSession,type TrainingSave} from './level-up-data'
 import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave} from './level-up-model'
 const trainingCueHtml=(card:LevelUpCard)=>`<p class="training-drill-cue"><strong>On-court cue</strong> ${html(card.cue)}</p>`
@@ -133,21 +135,42 @@ export function trainingHistoryHtml(rows:TrainingSession[],complete=true){
   </li>`).join('')}
  </ol>`
 }
+const scorecardFocusOptions = [
+ {title:'Serve placement', cardId:'serve-target-ladder', target:'Hit the chosen serve target 6 times in 10 attempts.'},
+ {title:'Return depth', cardId:'return-depth-lane', target:'Land 6 of 8 returns in the chosen lane and recover to ready.'},
+ {title:'Rally consistency', cardId:'crosscourt-consistency', target:'Rally 8 crosscourt balls in a row with time to recover.'},
+ {title:'Doubles first move', cardId:'doubles-return-first-move', target:'Follow the return and partner call on 6 of 8 points.', doublesOnly:true},
+] as const
+const matchTargetLimit = 160
+const trainingNoteLimit = 700
+
 type TrainingStart='catalog'|'progress'|'inbox'
  |{view:'weeks';planId?:string}
- |{view:'coach';assignmentId?:string;onClose:(work:TrainingCoachWork|null)=>void}
+ |{view:'coach';assignmentId?:string;feedbackId?:string;onClose:(work:TrainingCoachWork|null)=>void}
+ |{view:'scorecard';matchDate:string|null;doubles:boolean}
 
 export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boolean,initial:TrainingStart='catalog',launch?:{cardId:string;identitySlug:string}){
  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog training-dialog';dialog.setAttribute('aria-label','Level Up training')
  let requestedPlanId=typeof initial==='object'&&initial.view==='weeks'?initial.planId:undefined
  const coachStart=typeof initial==='object'&&initial.view==='coach'?initial:undefined
+ const scorecardStart=typeof initial==='object'&&initial.view==='scorecard'?initial:undefined
+ const scorecardLabel=scorecardStart?`${scorecardStart.doubles?'Doubles':'Singles'} match · ${matchDate(scorecardStart.matchDate)}`:''
+ const matchFocusChoices=scorecardStart?scorecardFocusOptions.flatMap(option=>{
+  if('doublesOnly' in option&&!scorecardStart.doubles)return []
+  const card=LEVEL_UP_CARDS.find(item=>item.id===option.cardId)
+  return card?[{...option,card}]:[]
+ }):[]
+ let matchPractice:{cardId:string;target:string}|null=null
+ let matchPracticeSaved=false
  let requestedAssignmentId=coachStart?.assignmentId
- let disposed=false,version=0,historyVersion=0,phase:'inbox'|'plan'|'catalog'|'modules'|'module'|'card'|'session'|'progress'=typeof initial==='object'?'inbox':initial,practiceModule:LevelUpModule|null=null,selected:LevelUpCard|null=null,allowed:boolean|null=null,accessError=false,history:TrainingSession[]|null=null,historyError=false,historyComplete=false,historyBusy=false,accessBusy=false,saving=false,checking=false,confirming=false,notice='',instructionsOpen=false,sessionScroll=0,rating='',note='',context='alone',feeling='ready',payload:Readonly<TrainingSave>|null=null
+ const requestedFeedbackId=coachStart?.feedbackId
+ let focusRequestedFeedback=Boolean(requestedFeedbackId),coachPracticeCue=''
+ let disposed=false,version=0,historyVersion=0,phase:'match-focus'|'inbox'|'plan'|'catalog'|'modules'|'module'|'card'|'session'|'progress'=scorecardStart?'match-focus':typeof initial==='object'?'inbox':initial,practiceModule:LevelUpModule|null=null,selected:LevelUpCard|null=null,allowed:boolean|null=null,accessError=false,history:TrainingSession[]|null=null,historyError=false,historyComplete=false,historyBusy=false,accessBusy=false,saving=false,checking=false,confirming=false,notice='',instructionsOpen=false,sessionScroll=0,rating='',note='',context='alone',feeling='ready',payload:Readonly<TrainingSave>|null=null
  let query='',setting='',maxMinutes=Infinity,catalogLimit=catalogPageSize,catalogReturnCard=''
  let choices=(()=>{try{return loadTrainingChoices(owner,window.localStorage)}catch{return emptyTrainingChoices()}})(),choiceStored=true,cardFromPlan=false,cardFromProgress=false
  if(initial==='catalog'&&choices.active)phase='plan'
  let plans:WeeklyLevelUpPlan[]|null=null,coachWork:TrainingCoachWork|null|undefined,plansBusy=false,coachBusy=false,plansError=false,coachError=false,inboxLoaded=false,cardFromInbox=false,sessionDirection=choices.active,sessionOrigin=''
- let inboxSection:'coach'|'weeks'=typeof initial==='object'?initial.view:'coach'
+ let inboxSection:'coach'|'weeks'=typeof initial==='object'&&initial.view==='weeks'?'weeks':'coach'
  let inboxReturnCard=''
  let savedWeekPractice:SavedWeekPractice|undefined
  const openInboxFolds=new Set<string>()
@@ -163,7 +186,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;practiceCalendar?.dispose();practiceCalendar=null
   version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;practiceModule=null;choices=emptyTrainingChoices()
   const lastCoachWork=coachWork
-  plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';savedWeekPractice=undefined
+  plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';savedWeekPractice=undefined;matchPractice=null;coachPracticeCue=''
   clearInterval(tick);document.removeEventListener('visibilitychange',visibility);dialog.remove()
   if(current()){
    if(previous?.isConnected)previous.focus({preventScroll:true})
@@ -175,6 +198,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const bindCards=()=>dialog.querySelectorAll<HTMLButtonElement>('[data-card]').forEach(button=>{button.onclick=()=>{
   const card=LEVEL_UP_CARDS.find(item=>item.id===button.dataset.card)
   if(!card)return
+  matchPractice=null;matchPracticeSaved=false
   selected=card;cardFromPlan=phase==='plan';cardFromInbox=false;cardFromProgress=phase==='progress'
   catalogReturnCard=phase==='catalog'?card.id:''
   if(cardFromProgress)practiceModule=null
@@ -183,12 +207,14 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus()
  const findInboxCard=(key:string)=>Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-inbox-card]'))
   .find(button=>button.dataset.inboxCard===key&&button.getClientRects().length>0)
- const focusInboxReturn=(practiceSaved=false)=>{
+ const focusInboxReturn=(practiceSaved=false,checkInReady=false)=>{
   const button=inboxReturnCard?findInboxCard(inboxReturnCard):undefined
   inboxReturnCard=''
+  coachPracticeCue=''
   const rep=practiceSaved?button?.closest('.training-week-rep-ready'):undefined
   const mark=rep?.querySelector<HTMLButtonElement>('[data-week-mark]')
-  const target=mark??button
+  const checkIn=checkInReady?button?.closest('.training-assignment')?.querySelector<HTMLButtonElement>('[data-coach-checkin]'):undefined
+  const target=mark??checkIn??button
   if(!target){focus();return}
   if(mark)rep?.scrollIntoView({block:'start'})
   target.scrollIntoView({block:'nearest'})
@@ -242,6 +268,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   <button type="button" class="secondary" data-history data-progress-control="refresh" aria-label="Refresh account progress" aria-disabled="${historyBusy}">Refresh</button>
  </div>
  <p role="status" data-notice>${html(notice)}</p>
+ ${matchPracticeSaved?'<div class="training-scorecard-coach"><p>Use your practice result in a coach check-in when it relates to your assignment.</p><button type="button" class="secondary" data-inbox>Open coach assignments</button></div>':''}
  ${historyBusy?`<p role="status">${history?'Refreshing your practice log…':'Loading your practice log…'}</p>`:''}
  ${historyError?`<p role="alert">${history?.length?'Showing your last loaded sessions. Refresh to try again.':'Training history is unavailable. Refresh to try again.'}</p>`:''}
  ${history&&(!historyError||history.length)?trainingHistoryHtml(history,historyComplete):''}
@@ -267,20 +294,35 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   <details class="training-inbox-fold" data-inbox-fold="module-tools"><summary>More training tools</summary>
    ${trainingViews()}<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>
   </details>`}`
+ const matchFocusHtml=()=>`<header class="training-inbox-header">
+  <h1 tabindex="-1">Next practice</h1><button type="button" class="secondary" data-close aria-label="Back to scorecard">Back</button>
+ </header>
+ <p class="training-scorecard-source">${html(scorecardLabel)}</p>
+ <p>Choose one focus for your next session.</p>
+ <ul class="training-catalog-list" role="list">${matchFocusChoices.map(({title,card})=>`<li>
+  <button type="button" class="secondary training-catalog-card" data-match-focus="${html(card.id)}" aria-labelledby="match-focus-${html(card.id)}" aria-describedby="match-focus-drill-${html(card.id)}">
+   <span class="training-catalog-card-title" id="match-focus-${html(card.id)}">${html(title)}</span>
+   <span class="training-catalog-goal" id="match-focus-drill-${html(card.id)}">${html(card.title)} · ${card.durationMinutes}&nbsp;min</span>
+   <span class="training-catalog-arrow" aria-hidden="true">›</span>
+  </button>
+ </li>`).join('')}</ul>`
+ const targetNote=()=>matchPractice?`Practice target: ${matchPractice.target.trim()}`:''
  const drillScreenHtml=(card:LevelUpCard)=>{
-  const back=cardFromInbox?['inbox','Back to training inbox']:cardFromPlan?['plan-back','Back to your direction']:cardFromProgress?['progress-back','Back to training progress']:practiceModule?['module-back','Back to practice module']:['catalog-back','Back to training cards']
+  const back=matchPractice?['match-focus-back','Change focus']:cardFromInbox?['inbox','Back to training inbox']:cardFromPlan?['plan-back','Back to your direction']:cardFromProgress?['progress-back','Back to training progress']:practiceModule?['module-back','Back to practice module']:['catalog-back','Back to training cards']
   return `<header class="training-drill-header"><h1 tabindex="-1">Practice drill</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button></header>
    <div class="training-drill-body" data-training-drill-body>
     <button type="button" class="secondary" data-${back[0]}>${back[1]}</button>
     ${trainingDrillOverviewHtml(card)}
+    ${cardFromInbox?trainingCoachCueHtml(coachPracticeCue):''}
+    ${matchPractice?`<div class="training-scorecard-target"><label>Practice target<input type="text" data-match-target maxlength="${matchTargetLimit}" value="${html(matchPractice.target)}" aria-describedby="training-match-target-help"></label><p id="training-match-target-help">Set a number you can track. It saves with your completed session.</p></div>`:''}
     ${trainingSafetyHtml(card)}
     ${trainingRoutineHtml(card)}
     <details class="training-inbox-fold" data-drill-fold="notes"><summary>Coaching notes &amp; proof</summary>${trainingDrillNotesHtml(card)}</details>
     <p role="status" data-notice>${html(notice)}</p>
-    <details class="training-inbox-fold" data-drill-fold="tools"><summary>More training tools</summary>
+    ${matchPractice?'':`<details class="training-inbox-fold" data-drill-fold="tools"><summary>More training tools</summary>
      ${trainingViews()}
      ${cardFromInbox?'':'<button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>'}
-    </details>
+    </details>`}
    </div>
    <footer class="training-drill-footer">
     ${allowed===true?'':trainingAccessHtml()}
@@ -323,7 +365,9 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    <p data-timer-hint>${timerHint()}</p>
   </section>
   ${trainingCueHtml(card)}
+  ${cardFromInbox?trainingCoachCueHtml(coachPracticeCue):''}
   ${trainingSafetyHtml(card)}
+  ${matchPractice?`<p class="training-session-track"><strong>Practice target</strong> ${html(matchPractice.target)}</p>`:''}
   <p class="training-session-track"><strong>Track</strong> ${html(card.proof)}</p>
   <details class="training-inbox-fold" data-instructions ${instructionsOpen?'open':''}>
    <summary>Review training instructions</summary>
@@ -331,7 +375,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   </details>
   <section class="training-session-log">
    <h2>Log your session</h2>
-   <p>${sessionOrigin?`Private practice from ${html(sessionOrigin)}.`:'Save your proof to your private training history.'}</p>
+   <p>${matchPractice?'Save your target and result to your private training history.':sessionOrigin?`Private practice from ${html(sessionOrigin)}.`:'Save your proof to your private training history.'}</p>
    ${sessionDirection?`<p>Training direction · ${html(trainingIdentity(sessionDirection)?.title||'')}</p>`:''}
    <form data-proof>
     <label>Self-rated proof (0–5)<select name="rating" required ${locked?'disabled':''}>
@@ -344,7 +388,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     <label>How did you feel?<select name="feeling" ${locked?'disabled':''}>
      ${['ready','tight','tired','nervous'].map(value=>`<option value="${value}" ${value===feeling?'selected':''}>${value}</option>`).join('')}
     </select></label>
-    <label>Your training note<textarea name="note" maxlength="700" rows="3" ${locked?'disabled':''}></textarea></label>
+    <label>${matchPractice?'How did you do against your target?':'Your training note'}<textarea name="note" maxlength="${trainingNoteLimit-(matchPractice?targetNote().length+2:0)}" rows="3" ${locked?'disabled':''}></textarea></label>
     <p role="status" tabindex="-1" data-notice>${html(notice)}</p>
     ${payload?`<button type="button" data-check ${saving||checking?'disabled':''}>Check whether this session saved</button>`:''}
     <button type="submit" ${payload?'class="secondary"':''} ${saving||checking?'disabled':''}>${saving?'Saving…':payload?'Retry same session':'Save completed session'}</button>
@@ -358,7 +402,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   </div>
   <p role="status" data-notice>${html(notice)}</p>
   <div role="region" aria-label="Coach assignments" tabindex="-1" id="training-inbox-coach" data-inbox-region="coach" ${inboxSection==='coach'?'':'hidden'}>
-   ${coachBusy?'<p role="status">Loading coach assignments…</p>':coachError?'<p role="alert">Coach assignments couldn’t load. Try refreshing.</p>':coachWork?trainingCoachWorkHtml(coachWork,new Date(),requestedAssignmentId):''}
+   ${coachBusy?'<p role="status">Loading coach assignments…</p>':coachError?'<p role="alert">Coach assignments couldn’t load. Try refreshing.</p>':coachWork?trainingCoachWorkHtml(coachWork,new Date(),requestedAssignmentId,requestedFeedbackId):''}
    <button type="button" class="secondary" data-coach-refresh ${coachBusy?'disabled':''}>Refresh coach work</button>
    <button type="button" class="secondary" data-training-web="coach">Coach check-ins on website</button>
   </div>
@@ -375,6 +419,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.classList.toggle('training-session-screen',phase==='session'&&!confirming&&Boolean(selected))
   dialog.classList.toggle('training-progress-screen',phase==='progress')
   dialog.classList.toggle('training-catalog-screen',phase==='catalog')
+  dialog.classList.toggle('training-scorecard-screen',phase==='match-focus')
   dialog.classList.toggle('training-modules-screen',phase==='modules'||phase==='module')
   dialog.classList.toggle('training-direction-screen',phase==='plan'&&!weekPending)
   if(weekPending){renderWeekChange();return}
@@ -382,13 +427,15 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const frozen=Boolean(payload),locked=frozen||saving||checking
   const focusedInboxSection=dialog.querySelector<HTMLElement>('[data-inbox-section]:focus')?.dataset.inboxSection
   const focusedInboxCard=dialog.querySelector<HTMLElement>('[data-inbox-card]:focus')?.dataset.inboxCard
+  const focusedFeedback=Boolean(dialog.querySelector('[data-coach-feedback-focus]:focus'))
   const focusedWeekControl=dialog.querySelector<HTMLElement>('[data-week-plan] :is(h2,.training-week-rep-next h3,[data-week-mark]):focus')
   const focusedWeekId=focusedWeekControl?.closest<HTMLElement>('[data-week-plan]')?.dataset.weekPlan
   const focusedProgressControl=dialog.querySelector<HTMLElement>('[data-progress-control]:focus')?.dataset.progressControl
+  const focusedTarget=dialog.querySelector<HTMLInputElement>('[data-match-target]:focus')
   const previousDrill=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   const drillScroll=previousDrill?.scrollTop??0
   const openDrillFolds=Array.from(previousDrill?.querySelectorAll<HTMLDetailsElement>('[data-drill-fold][open]')??[],fold=>fold.dataset.drillFold)
-  dialog.innerHTML=phase==='inbox'?inboxHtml():phase==='progress'?progressScreenHtml():phase==='catalog'?catalogScreenHtml():phase==='modules'||phase==='module'?modulesScreenHtml(phase==='module'?practiceModule:null):phase==='card'&&selected?drillScreenHtml(selected):phase==='session'&&selected?sessionScreenHtml(selected,locked):planScreenHtml()
+  dialog.innerHTML=phase==='match-focus'?matchFocusHtml():phase==='inbox'?inboxHtml():phase==='progress'?progressScreenHtml():phase==='catalog'?catalogScreenHtml():phase==='modules'||phase==='module'?modulesScreenHtml(phase==='module'?practiceModule:null):phase==='card'&&selected?drillScreenHtml(selected):phase==='session'&&selected?sessionScreenHtml(selected,locked):planScreenHtml()
   const drillBody=dialog.querySelector<HTMLElement>('[data-training-drill-body]')
   if(drillBody&&previousDrill){
    drillBody.querySelectorAll<HTMLDetailsElement>('[data-drill-fold]').forEach(fold=>{fold.open=openDrillFolds.includes(fold.dataset.drillFold)})
@@ -402,8 +449,33 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   })
   if(focusedInboxSection)dialog.querySelector<HTMLElement>(`[data-inbox-section="${focusedInboxSection}"]`)?.focus({preventScroll:true})
   if(focusedInboxCard)findInboxCard(focusedInboxCard)?.focus({preventScroll:true})
+  if(focusedFeedback)dialog.querySelector<HTMLElement>('[data-coach-feedback-focus]')?.focus({preventScroll:true})
   if(focusedWeekId)weekFocusTarget(focusedWeekId,focusedWeekControl?.dataset.weekMark)?.focus({preventScroll:true})
   if(focusedProgressControl)dialog.querySelector<HTMLElement>(`[data-progress-control="${focusedProgressControl}"]`)?.focus({preventScroll:true})
+  const targetInput=dialog.querySelector<HTMLInputElement>('[data-match-target]')
+  if(targetInput){
+   targetInput.oninput=()=>{
+    if(matchPractice)matchPractice.target=targetInput.value
+    notice=''
+    const status=dialog.querySelector<HTMLElement>('[data-notice]')
+    if(status)status.textContent=''
+   }
+   if(focusedTarget){targetInput.focus({preventScroll:true});targetInput.setSelectionRange(focusedTarget.selectionStart,focusedTarget.selectionEnd)}
+  }
+  dialog.querySelectorAll<HTMLButtonElement>('[data-match-focus]').forEach(button=>{
+   button.onclick=()=>{
+    const choice=matchFocusChoices.find(item=>item.card.id===button.dataset.matchFocus)
+    if(!active()||!choice)return
+    selected=choice.card
+    if(matchPractice?.cardId!==choice.card.id)matchPractice={cardId:choice.card.id,target:choice.target}
+    phase='card';notice='';render();focus()
+   }
+  })
+  dialog.querySelector<HTMLButtonElement>('[data-match-focus-back]')?.addEventListener('click',()=>{
+   phase='match-focus';notice='';render()
+   const button=Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-match-focus]')).find(item=>item.dataset.matchFocus===matchPractice?.cardId)
+   if(button)button.focus();else focus()
+  })
   dialog.querySelector<HTMLButtonElement>('[data-access]')?.addEventListener('click',()=>{void readAccess()})
   dialog.querySelectorAll<HTMLButtonElement>('[data-catalog]').forEach(b=>{b.onclick=()=>{phase='catalog';practiceModule=null;notice='';render();focus()}})
   dialog.querySelector<HTMLButtonElement>('[data-catalog-back]')?.addEventListener('click',()=>{
@@ -465,7 +537,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.querySelectorAll<HTMLButtonElement>('[data-inbox]').forEach(button=>{button.onclick=()=>{
    const returning=phase==='card'&&cardFromInbox
    phase='inbox';practiceModule=null;notice='';render()
-   if(returning)focusInboxReturn();else{inboxReturnCard='';focus()}
+   if(returning)focusInboxReturn();else{inboxReturnCard='';coachPracticeCue='';focus()}
    if(!inboxLoaded){inboxLoaded=true;void readPlans();void readCoach()}
   }})
   dialog.querySelector<HTMLButtonElement>('[data-plan-refresh]')?.addEventListener('click',()=>{void readPlans()})
@@ -473,21 +545,26 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const schedule=dialog.querySelector<HTMLButtonElement>('[data-week-schedule]')
   if(schedule)schedule.onclick=()=>{
    const {weekSchedule,scheduleTitle}=schedule.dataset
-   if(!active()||practiceCalendar?.isOpen()||!scheduleTitle)return
-   practiceCalendar=openCalendar(client,owner,active,undefined,{practiceTitle:scheduleTitle,onClose:()=>{
-    practiceCalendar=null
-    const button=dialog.querySelector<HTMLButtonElement>('[data-week-schedule]')
-    if(button&&button.dataset.weekSchedule===weekSchedule)button.focus({preventScroll:true})
-    else focus()
-   }})
+   if(!active()||practiceCalendar?.isOpen()||!weekSchedule||!scheduleTitle)return
+   practiceCalendar=openCalendar(client,owner,active,undefined,{
+    practiceTitle:scheduleTitle,
+    openDrill:findInboxCard(weekSchedule)?()=>{findInboxCard(weekSchedule)?.click()}:undefined,
+    onClose:()=>{
+     practiceCalendar=null
+     const button=dialog.querySelector<HTMLButtonElement>('[data-week-schedule]')
+     if(button&&button.dataset.weekSchedule===weekSchedule)button.focus({preventScroll:true})
+     else focus()
+    },
+   })
   }
   dialog.querySelectorAll<HTMLButtonElement>('[data-inbox-card]').forEach(button=>{button.onclick=()=>{
    if(!active())return
-   const launch=trainingInboxLaunches(plans||[],coachWork??null).find(item=>item.key===button.dataset.inboxCard)
+   const launch=trainingInboxLaunches(plans||[],coachWork??null,requestedFeedbackId).find(item=>item.key===button.dataset.inboxCard)
    if(!launch)return
    selected=LEVEL_UP_CARDS.find(card=>card.id===launch.cardId)||null
    if(!selected)return
    inboxReturnCard=launch.key;practiceModule=null;cardFromPlan=false;cardFromInbox=true;cardFromProgress=false
+   coachPracticeCue=launch.coachCue??''
    sessionDirection=trainingIdentity(launch.identitySlug)?launch.identitySlug:choices.active
    sessionOrigin=launch.label;phase='card';notice='This is private self-guided practice. Your plan and assignment status stay unchanged.';render();focus()
   }})
@@ -507,12 +584,13 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    if(!active()||coachEditor?.isOpen())return
    const assignment=coachWork?.assignments.find(a=>a.id===button.dataset.coachCheckin),link=coachWork?.links.find(l=>l.id===assignment?.studentLinkId)
    if(!assignment||!link)return
+   const practice=findCoachPracticeStats(assignment,history??[],owner)
    button.focus({preventScroll:true})
    coachEditor=openCoachCheckIn(client,owner,active,assignment,link,saved=>{
     if(requestedAssignmentId===assignment.id)requestedAssignmentId=undefined
     notice=saved?'Check-in sent to your coach.':'Review your latest coach assignments.';coachVersion++;coachBusy=false;coachWork=null
     void readCoach().then(()=>{if(active()&&phase==='inbox'&&inboxSection==='coach')dialog.querySelector<HTMLElement>('[data-inbox-region="coach"]')?.focus()})
-   })
+   },practice)
   }})
   dialog.querySelectorAll<HTMLButtonElement>('[data-week-mark]').forEach(b=>{b.onclick=()=>{if(!active())return;try{const [planId,repId]=JSON.parse(b.dataset.weekMark||'[]') as string[],plan=plans?.find(p=>p.id===planId);if(!plan)return;weekPending=completionWeeklyChange(plan,repId,b.dataset.weekCompleted==='true');weekAttempted=false;weekConflict=false;weekNotice='';render();focus()}catch{notice='Refresh saved weeks before changing a rep.';render()}}})
   const catalogResults=dialog.querySelector<HTMLElement>('[data-cards]')
@@ -551,9 +629,14 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   }else bindCards()
   dialog.querySelector<HTMLButtonElement>('[data-start]')?.addEventListener('click',()=>{
    if(allowed!==true||!selected)return
+   if(matchPractice){
+    matchPractice.target=matchPractice.target.trim()
+    if(!matchPractice.target){notice='Enter a practice target before you start.';render();dialog.querySelector<HTMLInputElement>('[data-match-target]')?.focus();return}
+   }
    phase='session';instructionsOpen=false;pausedInBackground=false
    context=initialTrainingContext(selected);rating='';note='';feeling='ready'
    clock.reset();clock.start();notice='';render();focus()
+   if(matchPractice&&!historyComplete)void readHistory()
   })
   const timerButton=dialog.querySelector<HTMLButtonElement>('[data-timer]')
   timerButton?.addEventListener('click',()=>{
@@ -582,12 +665,17 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   history=[row,...(history||[]).filter(r=>r.id!==row.id)].sort((a,b)=>Date.parse(b.completedAt)-Date.parse(a.completedAt)).slice(0,80)
   const practicedRep=cardFromInbox&&inboxSection==='weeks'
    ?trainingInboxLaunches(plans??[],null).find(launch=>launch.key===inboxReturnCard&&launch.cardId===row.cardId):undefined
+  const practicedCoachId=cardFromInbox&&inboxSection==='coach'
+   ?trainingInboxLaunches([],coachWork??null).find(launch=>launch.key===inboxReturnCard&&launch.cardId===row.cardId)?.checkInAssignmentId:undefined
+  const practicedAssignment=coachWork?.assignments.find(assignment=>assignment.id===practicedCoachId)
+  const checkInReady=Boolean(practicedAssignment&&findCoachPracticeStats(practicedAssignment,[row],owner))
   if(practicedRep)savedWeekPractice={key:practicedRep.key,cardId:row.cardId,rating:row.rating,elapsedSeconds:row.elapsedSeconds}
+  matchPracticeSaved=Boolean(matchPractice);matchPractice=null
   payload=null;selected=null
   phase=practiceModule?'module':cardFromInbox?'inbox':cardFromPlan?'plan':'progress'
-  notice=practicedRep?'':practiceModule?'Drill saved to your account.':'Session saved to your account. Your self-rated training proof is separate from your TIQ rating.'
+  notice=checkInReady?'Practice saved privately. You can add its stats to your check-in.':matchPracticeSaved?'Practice saved privately with your target.':practicedRep?'':practiceModule?'Drill saved to your account.':'Session saved to your account. Your self-rated training proof is separate from your TIQ rating.'
   render()
-  if(cardFromInbox){focusInboxReturn(Boolean(practicedRep));return}
+  if(cardFromInbox){focusInboxReturn(Boolean(practicedRep),checkInReady);return}
   const next=dialog.querySelector<HTMLElement>('[data-module-next],[data-module-complete]')
   if(next)next.focus();else focus()
  }
@@ -601,7 +689,8 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    if(!payload){
     if(rating==='')throw Error('Choose a proof rating.')
     clock.pause()
-    payload=freezeTrainingSave(selected,Number(rating),note,context,feeling,clock.seconds(),'level-up-'+crypto.randomUUID(),new Date().toISOString(),sessionDirection)
+    const sessionNote=matchPractice?[targetNote(),note.trim()].filter(Boolean).join('\n\n'):note
+    payload=freezeTrainingSave(selected,Number(rating),sessionNote,context,feeling,clock.seconds(),'level-up-'+crypto.randomUUID(),new Date().toISOString(),sessionDirection)
    }
   }catch{
    payload=null;notice='Choose a proof rating from 0 to 5 before saving.';showSessionStatus();return
@@ -645,7 +734,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     }
     const create=dialog.querySelector<HTMLButtonElement>('[data-direction-week]')
     if(create)create.hidden=allowed!==true
-   }else if(phase!=='catalog'&&phase!=='modules'&&phase!=='module')render()
+   }else if(phase!=='match-focus'&&phase!=='catalog'&&phase!=='modules'&&phase!=='module')render()
   }
   paintAccess()
   try{
@@ -678,7 +767,31 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   }
  }
  const readPlans=async()=>{if(plansBusy||!active())return;const request=++plansVersion;plansBusy=true;plansError=false;if(phase==='inbox')render();try{const rows=await loadTrainingPlans(client,owner,active);if(active()&&request===plansVersion)plans=rows}catch{if(active()&&request===plansVersion){plans=null;plansError=true}}finally{if(active()&&request===plansVersion){plansBusy=false;if(phase==='inbox')render()}}}
- const readCoach=async()=>{if(coachBusy||!active())return;const request=++coachVersion;coachBusy=true;coachError=false;if(phase==='inbox')render();try{const rows=await loadTrainingCoachWork(client,owner,active);if(active()&&request===coachVersion)coachWork=rows}catch{if(active()&&request===coachVersion){coachWork=null;coachError=true}}finally{if(active()&&request===coachVersion){coachBusy=false;if(phase==='inbox')render()}}}
+ const readCoach=async()=>{
+  if(coachBusy||!active())return
+  const request=++coachVersion
+  coachBusy=true;coachError=false
+  if(phase==='inbox')render()
+  try{
+   const rows=await loadTrainingCoachWork(client,owner,active)
+   if(active()&&request===coachVersion)coachWork=rows
+  }catch{
+   if(active()&&request===coachVersion){coachWork=null;coachError=true}
+  }finally{
+   if(active()&&request===coachVersion){
+    coachBusy=false
+    if(phase==='inbox'){
+     render()
+     if(focusRequestedFeedback&&inboxSection==='coach'){
+      const feedback=dialog.querySelector<HTMLElement>('[data-coach-feedback-focus]')
+      const target=feedback??dialog.querySelector<HTMLElement>('[data-coach-refresh]')
+      target?.scrollIntoView({block:'nearest'});target?.focus({preventScroll:true})
+     }
+    }
+    if(!coachError)focusRequestedFeedback=false
+   }
+  }
+ }
  const showSavedWeek=(saved:WeeklyLevelUpPlan,message='')=>{
   const otherWeeks=(plans??[]).filter(plan=>plan.id!==saved.id&&(plan.identitySlug!==saved.identitySlug||plan.weekStart!==saved.weekStart))
   plans=[saved,...otherWeeks].slice(0,SAVED_WEEK_LIST_LIMIT)
@@ -805,5 +918,5 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   if(active()){pausedInBackground=true;paintTimerControls()}
  }
  const tick=setInterval(()=>{if(!active()){dispose();return}paintSessionClock()},1000)
- document.addEventListener('visibilitychange',visibility);dialog.oncancel=e=>{e.preventDefault();if(confirming){confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})}else requestClose()};document.body.append(dialog);render();dialog.showModal();focus();void readAccess();void readHistory();if(phase==='inbox'){inboxLoaded=true;void readPlans();void readCoach()}return {dispose,isOpen:()=>!disposed,back:requestClose}
+ document.addEventListener('visibilitychange',visibility);dialog.oncancel=e=>{e.preventDefault();if(confirming){confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})}else requestClose()};document.body.append(dialog);render();dialog.showModal();focus();void readAccess();if(!scorecardStart)void readHistory();if(phase==='inbox'){inboxLoaded=true;void readPlans();void readCoach()}return {dispose,isOpen:()=>!disposed,back:requestClose}
 }

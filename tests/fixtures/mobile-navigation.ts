@@ -11,21 +11,31 @@ import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complet
 import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal,labProfileFixture} from './mobile-navigation-client'
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {tournamentSnapshot} from './native-tournaments'
+import {tournamentEntrySnapshot,tournamentReceipt} from './native-tournament-entry'
 import {DEFAULT_ENTITLEMENTS} from '../../lib/access-model-core'
 import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coachPreviewConnectionRequest} from './native-coach-browser'
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
 import {trainingInboxPreview} from './mobile-training-inbox'
 const originalFetch=window.fetch.bind(window)
 const fixtureState={requests:0,leagueReads:0,teamReads:0,teamInviteActions:[] as string[]}
+const tournamentShortcutFixture={enabled:new URL(location.href).searchParams.has('tournament-shortcut-review'),approved:true,entryReads:[] as string[]}
+const shortcutDate='2026-11-13'
+if(tournamentShortcutFixture.enabled){
+ const match={...calendarFixture.competitions[0],id:'tournament:division-one:r2-m1',kind:'tournament',competitionId:'division-one',competitionName:'Northside Open · 4.0 Doubles',
+  date:shortcutDate,time:'10:00',title:'Northside Open: vs Jordan Serve',opponent:'Jordan Serve',detail:'Round 2 · Court 1',status:'Scheduled',publishedView:{id:'event-one',divisionId:'division-one'}}
+ calendarFixture.competitions.push(match)
+ Object.assign(window,{tournamentShortcutFixture})
+}
 if(new URL(location.href).searchParams.has('team-practice-review')){
  calendarTeamFixture.enabled=true
  calendarTeamFixture.items[0].title='Return + first ball'
 }
 const chatUnreadFixture={total:7,reads:0,fail:false,detailed:false,secondTeam:false,empty:false,denyRoom:false,captain:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
+const matchDayFixture={enabled:new URL(location.href).searchParams.has('match-day-review'),published:false,finalSeen:false,response:'',posts:[] as string[]}
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
 const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
-Object.assign(window,{chatUnreadFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
+Object.assign(window,{chatUnreadFixture,matchDayFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
@@ -47,12 +57,34 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/coach/alerts'){if(init?.method==='POST'){nativeCoachAlertFixture.enabled=JSON.parse(String(init.body)).enabled;nativeCoachAlertFixture.writes.push(nativeCoachAlertFixture.enabled)}return Response.json({ok:true,owner:currentNavigationOwner(),enabled:nativeCoachAlertFixture.enabled,available:true})}
  if(url.pathname==='/api/team-rooms/teams')return coachChatFixture.teamFail?Response.json({ok:false},{status:503}):Response.json({ok:true,owner:currentNavigationOwner(),teams:chatTeams().map(team=>({...team,canManage:canManage(team)}))})
  if(url.pathname==='/api/team-rooms'){
+  if(matchDayFixture.enabled&&init?.method==='POST'){
+   const action=JSON.parse(String(init.body))
+   matchDayFixture.posts.push(action.action)
+   if(action.action==='respond'&&action.messageId==='match-card'){
+    matchDayFixture.response=action.response
+    return Response.json({ok:true,response:action.response})
+   }
+   if(action.action==='ack_final_lineup'&&action.messageId==='lineup-announcement'){
+    matchDayFixture.finalSeen=true
+    return Response.json({ok:true,seen:true})
+   }
+   return Response.json({ok:false},{status:409})
+  }
   fixtureState.teamReads++
   if(coachChatFixture.teamFail)return Response.json({ok:false},{status:503})
   const roomId=url.searchParams.get('chatRoom'),selected=url.searchParams.get('team')
   if(selected)chatUnreadFixture.opened.push(url.search)
   if(selected&&chatUnreadFixture.denyRoom)return Response.json({ok:false},{status:403})
   const team=chatTeams().find(team=>team.teamName===selected&&team.leagueName===url.searchParams.get('league')&&team.flight===url.searchParams.get('flight'))
+  if(team&&matchDayFixture.enabled&&!roomId){
+   const nextScheduledMatch={matchDate:'2026-11-08',opponent:'River Returners',facility:'Northside Tennis Center',matchTime:'18:00'}
+   const card={...nextScheduledMatch,state:'active',cardType:'projected_lineup',lineupVersion:2,finalLineup:matchDayFixture.published?{id:'final-lineup'}:null,
+    lineup:[{label:'D1',players:['Jordan Lee','Casey Rivera']},{label:'D2',players:['Taylor Morgan','Sam Return']}]}
+   return Response.json({ok:true,teams:chatTeams(),room:{...team,id:'22222222-2222-4222-8222-222222222222',subject:team.teamName,activeCardId:'match-card',
+    chatReady:true,canManage:canManage(team),nextScheduledMatch,members:[{id:navigationOwner,name:'Jordan Lee',playerName:'Jordan Lee',roles:['player']}],
+    messages:[{id:'match-card',kind:'match_card',card,response:matchDayFixture.response}],
+    finalLineupReview:matchDayFixture.published?{announcementMessageId:'lineup-announcement',currentUserRequired:true,currentUserSeen:matchDayFixture.finalSeen}:null}})
+  }
   return Response.json({ok:true,teams:chatTeams(),room:chatUnreadFixture.detailed&&team?{...team,id:roomId||'22222222-2222-4222-8222-222222222222',subject:team.teamName,messages:[],members:[],chatReady:false,canManage:!roomId&&canManage(team),...(roomId?{chatRoom:{id:roomId,parentId:'22222222-2222-4222-8222-222222222222',name:chatUnreadFixture.roomName,teamMuted:false}}:{})}:null})
  }
  if(url.pathname==='/api/team-rooms/search')return Response.json({ok:true,chatSearch:1,roomId:'22222222-2222-4222-8222-222222222222',query:url.searchParams.get('q'),kind:url.searchParams.get('kind'),beforeCursor:'',nextCursor:'',results:[]})
@@ -93,7 +125,23 @@ window.fetch=async(input,init)=>{
  }
  if(url.pathname==='/api/auth/access')reply={ok:true,access:{role:'admin',entitlements:{...DEFAULT_ENTITLEMENTS}}}
  if(url.pathname==='/api/mobile/competitions'){const snapshot=competitionSnapshot();snapshot.scope=url.searchParams.get('scope')==='discover'?'discover':'mine';snapshot.query=url.searchParams.get('q')||'';if(url.searchParams.get('league'))snapshot.detail=competitionDetail();reply={ok:true,...snapshot}}
- if(url.pathname==='/api/mobile/tournaments'){const snapshot=tournamentSnapshot(url.searchParams.get('tournament')||'',url.searchParams.get('division')||'');snapshot.owner=navigationOwner;snapshot.query=url.searchParams.get('q')||'';reply={ok:true,...snapshot}}
+ if(url.pathname==='/api/mobile/tournaments/entry'&&tournamentShortcutFixture.enabled){
+  tournamentShortcutFixture.entryReads.push(url.search)
+  const snapshot=tournamentEntrySnapshot()
+  if(url.searchParams.get('parent')!==snapshot.context.parent||url.searchParams.get('division')!==snapshot.context.division||init?.method&&init.method!=='GET')return Response.json({ok:false},{status:404})
+  snapshot.context.owner=navigationOwner
+  snapshot.receipt=tournamentShortcutFixture.approved?{...tournamentReceipt(),status:'approved',inDraw:true}:null
+  return Response.json({ok:true,...snapshot})
+ }
+ if(url.pathname==='/api/mobile/tournaments'){
+  const snapshot=tournamentSnapshot(url.searchParams.get('tournament')||'',url.searchParams.get('division')||'')
+  snapshot.owner=navigationOwner;snapshot.query=url.searchParams.get('q')||''
+  if(tournamentShortcutFixture.enabled&&snapshot.detail?.active){
+   const match=snapshot.detail.matches.find(match=>match.id==='r2-m1')!
+   match.a=tournamentReceipt().name;match.date=shortcutDate
+  }
+  reply={ok:true,...snapshot}
+ }
  return new Response(JSON.stringify(reply),{status:200,headers:{'Content-Type':'application/json'}})
 }
 void import('../../mobile/src/main').then(()=>{

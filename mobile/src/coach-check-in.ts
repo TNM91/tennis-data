@@ -1,9 +1,22 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {CapacitorHttp,type HttpOptions,type HttpResponse} from '@capacitor/core'
-import {buildPlayerAssignmentCompletion,getPlayerAssignmentCheckIn,type CoachAssignment} from '../../lib/coach-storage'
+import {buildPlayerAssignmentCompletion,getCoachAssignmentPack,getPlayerAssignmentCheckIn,type CoachAssignment} from '../../lib/coach-storage'
+import {LEVEL_UP_CARDS} from '../../lib/level-up/level-up-cards'
 import {parseTrainingCoachWork,type TrainingCoachLink} from './training-inbox-data'
+import type {TrainingSession} from './level-up-data'
 export type CoachCheckIn={assignment:CoachAssignment;link:TrainingCoachLink;recap:string;evidence:string}
 export type CoachCheckInSend=(method:'GET'|'PATCH',options:HttpOptions)=>Promise<HttpResponse>
+export type CoachPracticeStats=Pick<TrainingSession,'drillTitle'|'rating'|'elapsedSeconds'|'completedAt'>
+
+export function findCoachPracticeStats(assignment:CoachAssignment,history:TrainingSession[],owner:string):CoachPracticeStats|undefined {
+ if(assignment.status!=='assigned'||getPlayerAssignmentCheckIn(assignment.assignment)||getCoachAssignmentPack(assignment.assignment))return
+ const card=LEVEL_UP_CARDS.find(card=>card.id===assignment.assignment.cardId)
+ if(!card)return
+ const updated=Date.parse(assignment.updatedAt)
+ // The account history is ordered newest first and the exact drill must match the current assignment.
+ const row=history.find(session=>session.playerUserId===owner&&!session.sharedWithCoach&&session.cardId===card.id&&Date.parse(session.completedAt)>=updated)
+ if(row)return {drillTitle:card.title,rating:row.rating,elapsedSeconds:row.elapsedSeconds,completedAt:row.completedAt}
+}
 const transport:CoachCheckInSend=(method,o)=>method==='GET'?CapacitorHttp.get(o):CapacitorHttp.patch(o)
 function freeze<T>(v:T):T{if(v&&typeof v==='object'){Object.values(v).forEach(freeze);Object.freeze(v)}return v}
 const canonical=(v:unknown):string=>JSON.stringify(v&&typeof v==='object'?Array.isArray(v)?v.map(x=>JSON.parse(canonical(x))):Object.fromEntries(Object.entries(v).filter(([,x])=>x!==undefined).sort(([a],[b])=>a.localeCompare(b)).map(([k,x])=>[k,JSON.parse(canonical(x))])):v===undefined?null:v)
