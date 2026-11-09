@@ -16,8 +16,24 @@ import {emptyTournamentMatchFilters,filterTournamentMatches,tournamentMatchFilte
 type View='home'|'draw'|'schedule'|'results'|'standings'
 type Entrant=Pick<TournamentStanding,'name'|'group'>
 const status=(t:TournamentSummary)=>t.status==='open'&&t.registrationClosed?'Registration closed':({open:'Registration open',scheduled:'Scheduled',completed:'Completed'})[t.status]
-export function tournamentCardsHtml(tournaments:TournamentSummary[],division=false){
- return tournaments.length?'<div class="competition-cards">'+tournaments.map((t,i)=>'<article class="competition-card"><div class="competition-card-meta"><span>'+html(t.isEvent?'Tournament event':t.formatLabel)+'</span><span class="competition-state" data-state="'+(t.registrationClosed?'closed':html(t.status))+'">'+html(status(t))+'</span></div><h3>'+html(t.name)+'</h3><div class="competition-card-details"><p>'+html(formatTournamentEventDate(t.date,true))+'</p><p>'+html(t.location||'Venue to be confirmed')+'</p></div><button type="button" class="secondary" data-tournament-'+(division?'division':'open')+'="'+i+'">'+(division?'Open division':'Open tournament')+'<span class="sr-only"> '+html(t.name)+'</span><span class="app-tool-arrow" aria-hidden="true">›</span></button></article>').join('')+'</div>':'<div class="competition-empty"><h3>No public '+(division?'divisions':'tournaments')+' found</h3><p>'+(division?'The organizer has not published a division yet.':'Published tournaments will appear here.')+'</p></div>'
+export function tournamentCardsHtml(tournaments:TournamentSummary[],event?:TournamentSummary){
+ const division=Boolean(event)
+ if(!tournaments.length)return '<div class="competition-empty"><h3>No public '+(division?'divisions':'tournaments')+' found</h3><p>'+(division?'The organizer has not published a division yet.':'Published tournaments will appear here.')+'</p></div>'
+ return '<div class="competition-cards">'+tournaments.map((t,i)=>{
+  const deadline=!division&&t.status==='open'&&!t.registrationClosed?t.details.registrationClosesOn:undefined
+  const date=event&&(!t.date||t.date===event.date)?'':formatTournamentEventDate(t.date,true)
+  const venue=event?(t.location===event.location?'':t.location):(t.location||'Venue to be confirmed')
+  return `<article class="competition-card${division?' tournament-division-card':''}">
+   <div class="competition-card-meta"><span>${html(t.isEvent?'Tournament event':t.formatLabel)}</span><span class="competition-state" data-state="${t.registrationClosed?'closed':html(t.status)}">${html(status(t))}</span></div>
+   <h3>${html(t.name)}</h3>
+   <div class="competition-card-details">
+    ${deadline?`<p class="tournament-card-deadline">Enter by <time datetime="${html(deadline)}">${html(formatTournamentEventDate(deadline,true))}</time></p>`:''}
+    ${division?`<p class="tournament-division-entry">${t.entrantType==='teams'?'Team entry':'Individual entry'}</p>`:''}
+    ${date?`<p>${html(date)}</p>`:''}${venue?`<p>${html(venue)}</p>`:''}
+   </div>
+   <button type="button" class="secondary" data-tournament-${division?'division':'open'}="${i}">${division?'Open division':'Open tournament'}<span class="sr-only"> ${html(t.name)}</span><span class="app-tool-arrow" aria-hidden="true">›</span></button>
+  </article>`
+ }).join('')+'</div>'
 }
 function matchHtml(m:TournamentMatch,view:TournamentMatchView|'preview'='results') {
  const court=tournamentCourtLabel(m.court)
@@ -55,7 +71,7 @@ export function tournamentEntrantDetailHtml(d:TournamentDetail,entrant:Entrant){
 }
 export function tournamentDetailHtml(d:TournamentDetail,view:View,filters:TournamentMatchFilters=emptyTournamentMatchFilters(),standingFilters:TournamentStandingFilters=emptyTournamentStandingFilters()){
  const t=d.active||d.root,e=t.details
- if(!d.active)return '<h3 tabindex="-1">Divisions</h3>'+tournamentCardsHtml(d.divisions,true)+(d.moreDivisions?'<p class="rating-context">Showing the first 20 public divisions.</p>':'')
+ if(!d.active)return '<h3 tabindex="-1">Divisions</h3>'+tournamentCardsHtml(d.divisions,d.root)+(d.moreDivisions?'<p class="rating-context">Showing the first 20 public divisions.</p>':'')
  if(view==='home'&&d.drawNotice)return '<h3 tabindex="-1">'+html(t.formatLabel)+'</h3><p>'+html(d.drawNotice)+'</p>'
  if(view==='home'){
   const zone=e.timeZone||d.root.details.timeZone

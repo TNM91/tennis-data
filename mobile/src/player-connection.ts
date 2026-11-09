@@ -3,7 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { nativeActionIcon } from './native-action-icons'
 import { html } from './match-details'
 import {showExploreSearchEmpty} from './explore-search-empty'
-import type {LabProfile} from './lab-home'
+import {bindAppDestinations,type AppDestination} from './app-navigation'
+import {labStarterActionsHtml,type LabProfile} from './lab-home'
 
 export type PlayerChoice = {id: string; name: string; location: string | null; flight: string | null}
 export type PlayerLink = {id:string;profile:LabProfile|null}
@@ -45,6 +46,7 @@ type ConnectionActions = {
   connect: (playerId: string) => Promise<PlayerLink>
   onConnected: (link: PlayerLink) => void
   teamInvite?: (trigger: HTMLButtonElement) => void
+  openStarterAction?: (destination: AppDestination,trigger: HTMLButtonElement) => void
 }
 export function showPlayerConnection(app: HTMLElement, actions: ConnectionActions, back: () => void, isCurrent: () => boolean) {
   let disposed = false
@@ -108,6 +110,10 @@ export function showPlayerConnection(app: HTMLElement, actions: ConnectionAction
           detail:'Try your last name or a different spelling.',
           action:actions.teamInvite?{label:'Use a team invite',open:trigger=>{if(valid())actions.teamInvite?.(trigger)}}:undefined,
         })
+        if (actions.openStarterAction) {
+          choices.insertAdjacentHTML('beforeend',labStarterActionsHtml())
+          bindAppDestinations(choices,(destination,trigger)=>{if(valid())actions.openStarterAction?.(destination,trigger)})
+        }
         return
       }
       const summary = `${rows.length} record${rows.length === 1 ? '' : 's'} found.${rows.length === 12 ? ' Add more of your name to narrow the results.' : ''}`

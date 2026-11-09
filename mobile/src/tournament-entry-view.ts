@@ -1,6 +1,8 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {ScenarioSend} from './captain-scenarios-data'
 import {tournamentEntryCanSend,tournamentEntryAction,type TournamentEntrySnapshot,type TournamentEntryDraft,type TournamentEntryReceipt} from '../../lib/native-tournament-entry-contract'
+import {isValidCalendarDate} from '../../lib/calendar-date'
+import {formatTournamentEventDate} from '../../lib/tournament-event-presentation'
 import {tournamentEntryRequest} from './tournament-entry-data'
 import {loadTournaments} from './tournaments-data'
 import {tournamentMyEvent} from './tournament-my-event'
@@ -12,17 +14,23 @@ const levels=(name:string,value:number|null,disabled:boolean)=>'<select name="'+
 function receiptHtml(e:TournamentEntryReceipt){return '<section class="entry-receipts" aria-label="Your entry"><article data-entry-state="'+e.status+'"><small>Saved entry</small><strong>'+html(e.name)+'</strong><span class="entry-state">'+html(label(e))+'</span>'+(e.note?'<p>Organizer: '+html(e.note)+'</p>':'')+(e.legacy?'<p>Contact the organizer to change this existing entry.</p>':'')+'</article></section>'}
 export function tournamentEntryHtml(s:TournamentEntrySnapshot,d:TournamentEntryDraft,busy:boolean,organizer=false,selected=''){
  const c=s.context
+ const deadline=isValidCalendarDate(c.deadline)?`<p class="entry-note tournament-entry-deadline">Entry deadline <time datetime="${html(c.deadline)}">${html(formatTournamentEventDate(c.deadline))}</time>${c.zone?` · ${html(c.zone)}`:''}</p>`:''
  if(organizer){const e=s.queue.find(x=>x.id===selected)
-  return '<h3 tabindex="-1">App entry requests</h3><p>Review self-reported player details before adding anyone to the draw.</p>'+(e?'<article class="entry-receipts"><strong>'+html(e.name)+'</strong><p>'+html(e.one)+' · self-rated '+e.rating?.toFixed(1)+(e.two?'<br>'+html(e.two)+' · self-rated '+e.partnerRating?.toFixed(1):'')+'</p><form data-tournament-decision><label for="tournament-decision-note">Note to player</label><textarea id="tournament-decision-note" name="note" maxlength="600" required '+(busy?'disabled':'')+'></textarea><label class="entry-check"><input type="checkbox" name="confirmed" '+(busy||!c.canApprove?'disabled':'')+'><span>I checked '+(c.paired?'both players’':'this player’s')+' eligibility and can add '+'them'+' to this draw.</span></label><p>No payment is collected here. Arrange any entry fee with the organizer.</p><div class="decision-actions"><button type="submit" name="decision" value="approve" '+(busy||!c.canApprove?'disabled':'')+'>Approve and add to draw</button><button type="submit" class="secondary" name="decision" value="decline" '+(busy?'disabled':'')+'>Decline request</button><button type="button" class="secondary" data-request-list '+(busy?'disabled':'')+'>← Requests</button></div></form></article>':
+  return deadline+'<h3 tabindex="-1">App entry requests</h3><p>Review self-reported player details before adding anyone to the draw.</p>'+(e?'<article class="entry-receipts"><strong>'+html(e.name)+'</strong><p>'+html(e.one)+' · self-rated '+e.rating?.toFixed(1)+(e.two?'<br>'+html(e.two)+' · self-rated '+e.partnerRating?.toFixed(1):'')+'</p><form data-tournament-decision><label for="tournament-decision-note">Note to player</label><textarea id="tournament-decision-note" name="note" maxlength="600" required '+(busy?'disabled':'')+'></textarea><label class="entry-check"><input type="checkbox" name="confirmed" '+(busy||!c.canApprove?'disabled':'')+'><span>I checked '+(c.paired?'both players’':'this player’s')+' eligibility and can add '+'them'+' to this draw.</span></label><p>No payment is collected here. Arrange any entry fee with the organizer.</p><div class="decision-actions"><button type="submit" name="decision" value="approve" '+(busy||!c.canApprove?'disabled':'')+'>Approve and add to draw</button><button type="submit" class="secondary" name="decision" value="decline" '+(busy?'disabled':'')+'>Decline request</button><button type="button" class="secondary" data-request-list '+(busy?'disabled':'')+'>← Requests</button></div></form></article>':
    '<ul class="decision-list">'+s.queue.map(e=>'<li><button type="button" class="secondary" data-request="'+html(e.id)+'">'+html(e.name)+'<span>Review request →</span></button></li>').join('')+'</ul>'+(s.queue.length?'':'<p>No pending app entry requests.</p>')+(s.more?'<p>Showing the first 50 requests. Review these, then refresh for more.</p>':''))+(c.locked?'<p class="entry-note">The draw has results or assigned courts. New approvals are paused. You can still decline a pending request.</p>':'')
  }
- if(s.receipt)return receiptHtml(s.receipt)
- if(c.mode!=='native')return '<p class="entry-note">'+(c.mode==='director'?'Enter through the tournament director: '+html(c.director):c.mode==='unsupported'?'Contact the organizer to enter this draw format.':'Entry requests are closed for this division.')+'</p>'
- return '<p>Request a place'+(c.paired?' with your doubles partner':'')+'. The organizer reviews entries before adding players to the draw.</p><form data-tournament-entry><fieldset class="entry-fields"><legend>Your player details</legend><label for="tournament-entry-one">Your player name</label><input id="tournament-entry-one" name="one" maxlength="90" required value="'+html(d.one)+'" '+(c.playerLocked?'readonly':'')+' '+(busy?'disabled':'')+'><p class="rating-context">'+(c.playerLocked?'Using your linked player name.':'Use the name you play under. This request does not link a player profile.')+'</p><label>Your self-rated level'+levels('rating',d.rating,busy)+'</label></fieldset>'+
+ if(s.receipt)return (s.receipt.status==='approved'&&s.receipt.inDraw?'':deadline)+receiptHtml(s.receipt)
+ if(c.mode!=='native')return deadline+'<p class="entry-note">'+(c.mode==='director'?'Enter through the tournament director: '+html(c.director):c.mode==='unsupported'?'Contact the organizer to enter this draw format.':'Entry requests are closed for this division.')+'</p>'
+ return `<section class="tournament-entry-checklist" aria-labelledby="tournament-entry-checklist-title">
+  <h3 id="tournament-entry-checklist-title">Before you enter</h3>
+  ${deadline}
+  <p>${c.paired?'Have both self-rated levels, your partner’s name and their permission to enter.':'Have your self-rated level ready.'}</p>
+  <p>The organizer reviews your request and handles any fees. You’ll need approval to join the draw.</p>
+ </section>`+'<form data-tournament-entry><fieldset class="entry-fields"><legend>Your player details</legend><label for="tournament-entry-one">Your player name</label><input id="tournament-entry-one" name="one" maxlength="90" required value="'+html(d.one)+'" '+(c.playerLocked?'readonly':'')+' '+(busy?'disabled':'')+'><p class="rating-context">'+(c.playerLocked?'Using your linked player name.':'Use the name you play under. This request does not link a player profile.')+'</p><label>Your self-rated level'+levels('rating',d.rating,busy)+'</label></fieldset>'+
  (c.paired?'<fieldset class="entry-fields"><legend>Your doubles partner</legend><label for="tournament-entry-two">Partner name</label><input id="tournament-entry-two" name="two" maxlength="90" required value="'+html(d.two)+'" '+(busy?'disabled':'')+'><label>Partner self-rated level'+levels('partnerRating',d.partnerRating,busy)+'</label></fieldset>':'')+
  '<fieldset class="entry-fields entry-confirmations"><legend>Before you send</legend><label class="entry-check"><input type="checkbox" name="attested" '+(d.attested?'checked':'')+' '+(busy?'disabled':'')+'><span>I meet this division’s requirements and my details are accurate.</span></label>'+
  (c.paired?'<label class="entry-check"><input type="checkbox" name="partnerAttested" '+(d.partnerAttested?'checked':'')+' '+(busy?'disabled':'')+'><span>My partner agrees to enter. Their details are accurate and they meet this division’s requirements.</span></label>':'')+
- '<p class="entry-note">Levels are self-reported. Entry fees, if any, are arranged with the organizer. No payment is collected here.</p></fieldset><button type="submit" data-entry-send '+(busy||!tournamentEntryCanSend(c,d)?'disabled':'')+'>Request entry</button></form>'
+ '</fieldset><button type="submit" data-entry-send '+(busy||!tournamentEntryCanSend(c,d)?'disabled':'')+'>Request entry</button></form>'
 }
 type TournamentEntryOptions={allowCalendar?:boolean;backLabel?:string;existingEntry?:boolean}
 export function openTournamentEntry(client:SupabaseClient,owner:string,current:()=>boolean,parent:string,division:string,onClose:(changed:boolean)=>void,send?:ScenarioSend,trigger?:HTMLElement,{allowCalendar=true,backLabel='← Division',existingEntry=false}:TournamentEntryOptions={}){
@@ -36,19 +44,19 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
   if(!active())return
   const entry=approvedEntry()
   const title=entry||existingEntry?'My event':organizer?'Review entries':'Tournament entry'
-  const eventName=entry&&snapshot?.context.eventName!==snapshot?.context.name?snapshot?.context.eventName:''
+  const context=snapshot?.context
+  const eventName=context?.eventName!==context?.name?context?.eventName:''
   dialog.setAttribute('aria-label',entry||existingEntry?'My event':'Tournament entry')
   dialog.innerHTML=`<header class="competition-header">
    <button type="button" class="secondary" data-entry-back>${organizer?'← Your entry':html(backLabel)}</button>
-   <button type="button" class="secondary" data-entry-refresh ${busy?'disabled':''}${entry?' aria-label="Refresh entry and match details"':''}>${entry?'Refresh':'Refresh entry status'}</button>
+   <button type="button" class="secondary" data-entry-refresh ${busy?'disabled':''} aria-label="${entry?'Refresh entry and match details':'Refresh entry status'}">Refresh</button>
   </header>
   <div class="competition-hero entry-hero${entry?' tournament-pass-hero':''}">
-   <small>${entry?html(eventName||'Tournament entry'):'Tournament registration'}</small><h2 tabindex="-1">${title}</h2>
+   <small>${html(eventName||(entry?'Tournament entry':'Tournament registration'))}</small><h2 tabindex="-1">${title}</h2>
    ${snapshot?`<p>${html(snapshot.context.name)}${entry?` <span aria-hidden="true">·</span> ${html(entry.name)}`:''}</p>`:''}
   </div>
   ${entry?'<div data-tournament-pass aria-busy="true"><p role="status">Checking the published draw…</p></div>':''}
-  ${snapshot?`${snapshot.context.deadline&&!entry?`<p class="rating-context">Entry deadline: ${html(snapshot.context.deadline)} · ${html(snapshot.context.zone)}</p>`:''}
-   ${existingEntry&&!snapshot.receipt?'<p class="entry-note">Your approved entry is unavailable. Refresh to check your registration.</p>':tournamentEntryHtml(snapshot,draft,busy,organizer,selected)}
+  ${snapshot?`${existingEntry&&!snapshot.receipt?'<p class="entry-note">Your approved entry is unavailable. Refresh to check your registration.</p>':tournamentEntryHtml(snapshot,draft,busy,organizer,selected)}
    ${!existingEntry&&!organizer&&snapshot.context.canManage?`<button type="button" class="secondary" data-organizer-entries ${busy?'disabled':''}>Review app entries</button>`:''}`:''}
   <p role="${notice&&!busy&&(!snapshot?.receipt||uncertain)?'alert':'status'}" tabindex="-1" data-registration-notice>${html(notice)}</p>
   ${uncertain?'<p class="entry-note">Refresh entry status before trying again. A lost connection does not mean the change was not saved.</p>':''}`
@@ -96,7 +104,11 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
   render()
   const entry=approvedEntry(),host=dialog.querySelector<HTMLElement>('[data-tournament-pass]')
   if(existingEntry&&snapshot&&!entry){needsScheduleRefresh=true;dialog.querySelector<HTMLElement>('h2')?.focus();return}
-  if(!entry||!host){focus();return}
+  if(!entry||!host){
+   if(notice)focus()
+   else dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})
+   return
+  }
   dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})
   void loadPass(attempt,entry,host)
  }

@@ -4,6 +4,7 @@ import websiteUi from '../generated/website-ui.json'
 import {nativeActionIcon} from './native-action-icons'
 import type {LabTrainingOverview} from './lab-training-overview'
 import {labRatingLoadingHtml} from './player-ratings-view'
+import {trainingTime} from './level-up-model'
 export type LabProfile={linked_player_id?:string|null;linked_player_name?:string|null;linked_team_name?:string|null;linked_league_name?:string|null}
 
 export function labTrainingActionsHtml(){
@@ -32,21 +33,31 @@ export function labScoreboardHtml(profile:LabProfile|null,justConnected=false){
  </section>`
 }
 
+export function labStarterActionsHtml(){
+ return `<div class="native-entry-list lab-starter-actions" role="group" aria-label="Play or practice">
+   <button type="button" class="secondary app-tool native-entry-featured" data-app-destination="compete" data-browse-first>
+    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.compete}</span>
+    <span class="app-tool-copy"><strong>Find a match</strong></span>
+   </button>
+   <button type="button" class="secondary app-tool" data-app-destination="training" data-training-card="split-step-rhythm">
+    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.catalog}</span>
+    <span class="app-tool-copy"><strong>Try a drill</strong></span>
+   </button>
+   <p class="lab-warmup-receipt sr-only" data-lab-warmup-receipt role="status" aria-atomic="true"></p>
+ </div>`
+}
+
+export function showLabWarmupReceipt(trigger:HTMLElement,title:string,elapsedSeconds:number){
+ const receipt=trigger.closest('.lab-starter-actions')?.querySelector<HTMLElement>('[data-lab-warmup-receipt]')
+ if(!receipt?.isConnected)return
+ receipt.classList.remove('sr-only')
+ receipt.innerHTML=`<strong><span aria-hidden="true">✓ </span>Warm-up complete</strong><span>${html(title)} · ${trainingTime(elapsedSeconds)}</span>`
+}
+
 export function labFirstScorecardHtml(){
  return `<div class="lab-first-scorecard">
   <p>Scorecards appear here as results are added to your player record.</p>
-  <div class="native-entry-list">
-   <button type="button" class="secondary app-tool native-entry-featured" data-app-destination="compete" aria-labelledby="first-scorecard-play" aria-describedby="first-scorecard-play-detail">
-    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.compete}</span>
-    <span class="app-tool-copy"><strong id="first-scorecard-play">Find a match</strong><span id="first-scorecard-play-detail">Browse leagues and tournaments.</span></span>
-    <span class="app-tool-arrow" aria-hidden="true">›</span>
-   </button>
-   <button type="button" class="secondary app-tool" data-app-destination="training" aria-labelledby="first-scorecard-practice" aria-describedby="first-scorecard-practice-detail">
-    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.catalog}</span>
-    <span class="app-tool-copy"><strong id="first-scorecard-practice">Browse drills</strong><span id="first-scorecard-practice-detail">Pick a skill to work on.</span></span>
-    <span class="app-tool-arrow" aria-hidden="true">›</span>
-   </button>
-  </div>
+  ${labStarterActionsHtml()}
  </div>`
 }
 

@@ -17,7 +17,8 @@ import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coac
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
 import {trainingInboxPreview} from './mobile-training-inbox'
 const originalFetch=window.fetch.bind(window)
-const fixtureState={requests:0,leagueReads:0,teamReads:0,teamInviteActions:[] as string[]}
+const freeTraining=new URL(location.href).searchParams.has('free-training')
+const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[]}
 const tournamentShortcutFixture={enabled:new URL(location.href).searchParams.has('tournament-shortcut-review'),approved:true,entryReads:[] as string[]}
 const shortcutDate='2026-11-13'
 if(tournamentShortcutFixture.enabled){
@@ -108,6 +109,7 @@ window.fetch=async(input,init)=>{
   return response
  }
  if(url.pathname==='/api/mobile/coach/tactics')return tacticsPreviewRequest(init?.method||'GET',url,init?.body)
+ if(url.pathname==='/api/player/level-up-sessions'&&init?.method==='POST')fixtureState.trainingWrites++
  const trainingReply=trainingInboxPreview(url,init?.method||'GET',init?.body);if(trainingReply)return trainingReply
  let reply:unknown={ok:false,error:'Synthetic preview does not provide this service'}
  if(url.pathname==='/api/leagues/summary'&&new URL(location.href).searchParams.has('explore-return')){
@@ -123,7 +125,7 @@ window.fetch=async(input,init)=>{
   const profile=legacy?{linked_player_id:navigationOwner}:{linked_player_id:navigationOwner,linked_player_name:'Jordan Lee',linked_team_name:'Baseline Aces',linked_league_name:'City Tennis League'}
   reply={ok:true,profile}
  }
- if(url.pathname==='/api/auth/access')reply={ok:true,access:{role:'admin',entitlements:{...DEFAULT_ENTITLEMENTS}}}
+ if(url.pathname==='/api/auth/access')reply={ok:true,access:{role:freeTraining?'member':'admin',entitlements:{...DEFAULT_ENTITLEMENTS}}}
  if(url.pathname==='/api/mobile/competitions'){const snapshot=competitionSnapshot();snapshot.scope=url.searchParams.get('scope')==='discover'?'discover':'mine';snapshot.query=url.searchParams.get('q')||'';if(url.searchParams.get('league'))snapshot.detail=competitionDetail();reply={ok:true,...snapshot}}
  if(url.pathname==='/api/mobile/tournaments/entry'&&tournamentShortcutFixture.enabled){
   tournamentShortcutFixture.entryReads.push(url.search)

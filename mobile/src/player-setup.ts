@@ -1,5 +1,6 @@
 import websiteUi from '../generated/website-ui.json'
 import {nativeActionIcon} from './native-action-icons'
+import {labStarterActionsHtml} from './lab-home'
 
 const setupActions=[
  {key:'player',attribute:'data-connect-player',title:'Find my player',detail:'Bring your TIQ ratings and match history into My Lab.',icon:nativeActionIcon('profile')},
@@ -12,13 +13,13 @@ export function playerSetupHtml(){
   <header class="native-entry-hero tab-hero tab-hero-court">
    <small class="stat-eyebrow">My Lab</small>
    <h1 id="player-setup-title" tabindex="-1">Your tennis starts here.</h1>
-   <p>Find your record or jump into your team.</p>
+   <p>Find your record or get on court.</p>
   </header>
   <div class="native-entry-list">${setupActions.map(action=>`
    <button type="button" class="secondary app-tool${action.key==='player'?' native-entry-featured':''}" ${action.attribute} aria-labelledby="setup-${action.key}-title" aria-describedby="setup-${action.key}-detail">
     <span class="app-tool-icon" aria-hidden="true">${action.icon}</span>
     <span class="app-tool-copy"><strong id="setup-${action.key}-title">${action.title}</strong><span id="setup-${action.key}-detail">${action.detail}</span></span>
     <span aria-hidden="true">›</span>
-   </button>`).join('')}</div>
+   </button>${action.key==='player'?labStarterActionsHtml():''}`).join('')}</div>
  </section>`
 }

@@ -61,24 +61,28 @@ export function homeShortcutsHtml(){
   </button>`
  }).join('')}</nav>`
 }
-export function appHubHtml(hub:AppHub,fromLab=false){
+export function appHubHtml(hub:AppHub,{fromLab=false,browseFirst=false}={}){
+ const discoveryFirst=hub==='compete'&&browseFirst
  const groups:{title:string;keys:string[];lane?:'player'|'studio'}[]=hub==='compete'
   ?[{title:'Browse competitions',keys:['leagueDiscovery','tournamentDiscovery']},{title:'Your season',keys:['competitionCalendar','leagueEntries','office']}]
   :hub==='coach'
    ?[{title:'Your game plan',keys:['lessonDates','inbox','connection','training','progress'],lane:'player'},{title:'Coach studio',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video'],lane:'studio'}]
    :[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]
  const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'More'
- const note=hub==='compete'?'Find events and follow your season.':'Lessons, practice and conversations.'
+ const note=discoveryFirst?'Find a league or tournament to play.':hub==='compete'?'Find events and follow your season.':'Lessons, practice and conversations.'
  const total=groups.reduce((count,group)=>count+group.keys.length,0)
  const coachControls=hub==='coach'?`<div class="coach-hub-messages">${toolHtml(tools.coachMessages)}</div>
   <div class="coach-hub-lanes" role="group" aria-label="Coach and training tools">
    <button type="button" class="secondary" aria-controls="coach-player-tools" aria-pressed="true">For players</button>
    <button type="button" class="secondary" aria-controls="coach-studio-tools" aria-pressed="false">For coaches</button>
   </div>`:''
- const groupHtml=groups.map(group=>{
+ const groupHtml=groups.map((group,index)=>{
+  const discovery=hub==='compete'&&index===0
   const lane=group.lane?` id="coach-${group.lane}-tools" data-coach-lane${group.lane==='studio'?' hidden':''}`:''
-  return `<section class="app-hub-group"${lane}>${group.lane==='player'?'<div class="coach-next-assignment" data-coach-next-assignment hidden></div><div class="coach-latest-feedback" data-coach-latest-feedback hidden></div>':''}<h2>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],key==='tactics')).join('')}</div></section>`
- }).join('')
+  return `<section class="app-hub-group"${lane}${discovery?' data-compete-discovery aria-labelledby="compete-discovery-title"':''}>
+   ${group.lane==='player'?'<div class="coach-next-assignment" data-coach-next-assignment hidden></div><div class="coach-latest-feedback" data-coach-latest-feedback hidden></div>':''}
+   <h2${discovery?' id="compete-discovery-title"':''}>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],key==='tactics')).join('')}</div></section>`
+ })
  const toolFinder=hub==='more'?`<div class="app-tool-finder" role="search" aria-label="Tools">
   <label for="app-tool-query" class="sr-only">Find a tool</label>
   <div class="app-tool-search">
@@ -93,12 +97,13 @@ export function appHubHtml(hub:AppHub,fromLab=false){
    ${hub==='coach'&&fromLab?`<button type="button" class="secondary coach-hub-back" data-coach-back><span aria-hidden="true">${nativeActionIcon('back')}</span>Back to My Lab</button>`:''}
    <h1 tabindex="-1">${title}</h1>${hub==='more'?'':'<p>'+note+'</p>'}
   </header>
+  ${discoveryFirst?groupHtml[0]:''}
   ${hub==='compete'?`<div class="compete-next-match" data-compete-next-match hidden></div><button type="button" class="secondary compete-replies" data-compete-replies hidden>Matches that need a reply <span aria-hidden="true">›</span></button>
    <button type="button" class="secondary app-tool compete-my-event" data-compete-my-event aria-labelledby="compete-my-event-title" aria-describedby="compete-my-event-name" hidden>
     <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.tournaments}</span><span class="app-tool-copy"><strong id="compete-my-event-title">My Event</strong><span id="compete-my-event-name" data-compete-event-name></span></span><span class="app-tool-arrow" aria-hidden="true">›</span>
    </button>
    <section class="compete-teams" data-compete-teams aria-labelledby="compete-teams-title"><h2 id="compete-teams-title">My Teams</h2><div data-compete-team-list></div></section>`:''}
-  ${coachControls}${toolFinder}<div id="app-tool-results">${groupHtml}</div>
+  ${coachControls}${toolFinder}<div id="app-tool-results">${groupHtml.slice(discoveryFirst?1:0).join('')}</div>
   ${hub==='more'?'<p class="app-tools-empty" data-tools-empty hidden>No tools found. Try coach, leagues or account.</p>':''}
   <p role="alert" class="app-hub-notice"></p>
  </div>`

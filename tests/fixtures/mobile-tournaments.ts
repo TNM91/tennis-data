@@ -42,6 +42,29 @@ const send:ScenarioSend=async o=>{
   data={ok:true,...s}
  }else if(u.pathname.endsWith('/tournaments')){
   const s=tournamentSnapshot(u.searchParams.get('tournament')||'',u.searchParams.get('division')||'');s.query=u.searchParams.get('q')||''
+  if(mode==='registration-deadlines'){
+   const event=s.tournaments[0]
+   event.status='open'
+   event.details.registrationClosesOn='2026-11-12'
+   if(s.detail){
+    const division=s.detail.divisions[0]
+    division.status='open'
+    division.details.registrationClosesOn='2026-11-13'
+   }else{
+    s.tournaments.push(
+     {...event,id:'closed',name:'Southside Open',registrationClosed:true},
+     {...event,id:'scheduled',name:'Eastside Open',status:'scheduled'},
+     {...event,id:'undated',name:'Westside Open',details:{}},
+    )
+   }
+  }
+  if(mode==='division-comparison'&&s.detail){
+   const doubles=s.detail.divisions[0]
+   doubles.entrantType='teams'
+   const singles={...tournamentSummary('division-two','event-one'),name:'3.5 Singles',format:'single_elimination',formatLabel:'Single elimination',date:'2026-11-15',location:'Westside Courts'}
+   s.detail.divisions.push(singles)
+   if(s.detail.active)s.detail.active=s.division===singles.id?singles:doubles
+  }
   if(mode==='event-pass'&&s.detail?.active){
    if(pass.drawUnavailable)throw Error('Draw unavailable')
    const d=s.detail,entrant=tournamentReceipt().name

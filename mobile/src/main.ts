@@ -46,7 +46,7 @@ import {labTrainingOverview} from './lab-training-overview'
 import {showExplore as showPlayerDetail} from './explore'
 import {openLevelUp} from './level-up-view'
 import {createTeamNavigationGuard} from './navigation-warning'
-import {labIdentityHtml,labActionsHtml,labFirstScorecardHtml,labScoreboardHtml,labTrainingActionsHtml} from './lab-home'
+import {labIdentityHtml,labActionsHtml,labFirstScorecardHtml,labScoreboardHtml,labTrainingActionsHtml,showLabWarmupReceipt} from './lab-home'
 import {createNativePush} from './native-push'
 import {createCoachAlerts} from './coach-alerts'
 import {createCoachAlertHandoff} from './coach-alert-handoff'
@@ -415,7 +415,7 @@ function openMatchup(){
   })
 }
 
-function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeamDestination){
+function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeamDestination&{browseFirst?:boolean}){
   if(coachWorkspace?.isOpen()){coachWorkspace.requestLeave(()=>{coachWorkspace=null;openTeamRoom(initialScope,fromCompete)});return}
   if(comparison?.isNotebookOpen()){comparison.back();return}
   if(goals?.isOpen()){goals.back();return}
@@ -429,7 +429,7 @@ function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeam
   const current=()=>version===revision&&userId===session?.user.id
   teamRoom=showTeamRoom(app,client,userId,current,initialScope,{unread:()=>chatUnread.snapshot(),refresh:()=>{void chatUnread.refresh()},mountNotifications:host=>nativePush.mount(host)},fromCompete?{
    view:fromCompete.action,
-   back:()=>{if(current())showHub('compete',false,fromCompete)},
+   back:()=>{if(current())showHub('compete',{returnTeam:fromCompete,browseFirst:fromCompete.browseFirst})},
   }:undefined)
   void chatUnread.refresh()
 }
@@ -441,6 +441,9 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='updates'){launchUpdates(trigger);return}
  if(destination==='calendar'||destination==='coach-dates'){launchCalendar(trigger,destination==='coach-dates'?'coach':'all');return}
  if(!session||!trigger.isConnected||connection?.isSaving())return
+ if(destination==='compete'&&trigger.hasAttribute('data-browse-first')){
+  guardNavigation(()=>showHub('compete',{browseFirst:true}));return
+ }
  if(destination==='leagues'||destination==='browse-leagues'){launchCompetitions(destination==='browse-leagues'?'discover':'mine',trigger);return}
  if(destination==='tournaments'){
   if(tournaments?.isOpen()||competitions?.isOpen()||accountSettings?.isOpen())return
@@ -449,7 +452,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  }
  if(destination==='following'){openFollowing();return}
  if(destination==='matchup'){openMatchup();return}
- if(destination==='coach'){guardNavigation(()=>showHub('coach',Boolean(trigger.closest('.lab-shortcuts'))));return}
+ if(destination==='coach'){guardNavigation(()=>showHub('coach',{fromLab:Boolean(trigger.closest('.lab-shortcuts'))}));return}
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  if(destination==='coach-workspace'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachWorkspace(client,owner,current,undefined,trigger);return}
  if(destination==='coach-connection'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachConnection(client,owner,current,trigger);return}
@@ -464,7 +467,9 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='training'||destination==='training-inbox'||destination==='training-progress'){
   if(!training?.isOpen()){
    trigger.focus({preventScroll:true})
-   training=openLevelUp(client,owner,current,destination==='training-inbox'?'inbox':destination==='training-progress'?'progress':'catalog')
+   const starterCard=destination==='training'?trigger.dataset.trainingCard:undefined
+   training=openLevelUp(client,owner,current,destination==='training-inbox'?'inbox':destination==='training-progress'?'progress':'catalog',
+     starterCard?{cardId:starterCard,identitySlug:'',starterWarmup:{onFinish:(title,seconds)=>showLabWarmupReceipt(trigger,title,seconds)}}:undefined)
   }
   return
  }
@@ -487,14 +492,14 @@ function openCoachHref(href:string){
  return true
 }
 document.addEventListener('tenaceiq:navigate',event=>{const e=event as CustomEvent<{href?:unknown}>;if(typeof e.detail?.href==='string'&&openCoachHref(e.detail.href))event.preventDefault()})
-function showHub(next:AppHub,fromLab=false,returnTeam?:CompeteTeamDestination){
+function showHub(next:AppHub,{fromLab=false,returnTeam,browseFirst=false}:{fromLab?:boolean;returnTeam?:CompeteTeamDestination;browseFirst?:boolean}={}){
  if(!session)return
  accountSettings?.dispose();accountSettings=null
  emailAuth?.dispose();emailAuth=null;goals?.dispose();goals=null;training?.dispose();training=null
  teamRoom?.dispose();teamRoom=null;comparison?.dispose();comparison=null;following?.dispose();following=null
  explore?.dispose();explore=null;profileOpen=false;connection?.dispose();connection=null
  recovery?.dispose();recovery=null;details?.dispose();details=null
- ++revision;selectNavigation(next,fromLab?'lab':undefined);app.dataset.state='ready';app.innerHTML=appHubHtml(next,fromLab)
+ ++revision;selectNavigation(next,fromLab?'lab':undefined);app.dataset.state='ready';app.innerHTML=appHubHtml(next,{fromLab,browseFirst})
  const back=app.querySelector<HTMLButtonElement>('[data-coach-back]')
  if(back)back.onclick=()=>{void lab('coach')}
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
@@ -541,7 +546,7 @@ function showHub(next:AppHub,fromLab=false,returnTeam?:CompeteTeamDestination){
  app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
  const teams=app.querySelector<HTMLElement>('[data-compete-teams]')
  if(teams)mountCompeteTeams(teams,client,owner,current,destination=>{
-  if(current()&&!document.querySelector('dialog[open]'))openTeamRoom(destination.team,destination)
+  if(current()&&!document.querySelector('dialog[open]'))openTeamRoom(destination.team,{...destination,browseFirst})
  },trigger=>launchTeamInvite('',trigger),returnTeam)
 }
 const coachIncoming=document.createElement('aside');coachIncoming.hidden=true;app.before(coachIncoming)
@@ -652,6 +657,7 @@ async function lab(entry?:'coach'|PlayerLink) {
       connect: playerId => connectPlayer(client, playerId, current.user.id, isCurrent),
       onConnected: link => { void lab(link) },
       teamInvite:hasIdentity?undefined:trigger=>launchTeamInvite('',trigger),
+      openStarterAction:hasIdentity?undefined:openDestination,
     }, () => { void lab() }, isCurrent)
   }})
   }
@@ -770,9 +776,12 @@ async function lab(entry?:'coach'|PlayerLink) {
       }
       const rows = (result.data || []) as RecentMatchRow[]
       if (!rows.length) {
+        const keepScorecardFocus=document.activeElement===recentHeading
         content.dataset.state = 'empty'
         recentHeading.textContent='Your first scorecard'
         content.innerHTML = labFirstScorecardHtml()
+        ratingsSection.after(recent)
+        if(keepScorecardFocus){recentHeading.focus({preventScroll:true});recent.scrollIntoView({block:'start'})}
         const jumpLabel=jump?.querySelector('span:first-child')
         if(jumpLabel)jumpLabel.textContent='First scorecard'
         bindAppDestinations(content,openDestination)
