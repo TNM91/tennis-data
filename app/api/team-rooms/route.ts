@@ -317,6 +317,18 @@ export async function GET(request: Request) {
   if(url.searchParams.has('chatRoom')&&['summary','teamFixtures','activeChallenge','levelUpChallenge','levelUpHistory','nativeCaptainReview','nativeCaptainReplacement','namedRooms'].some(key=>url.searchParams.has(key)))return Response.json({ok:false},{status:400})
   const linksResult = await loadAcceptedTeamLinks(auth.service, auth.userId)
   if (!linksResult.ok) return Response.json({ ok: false, message: linksResult.message }, { status: 500 })
+  if (url.searchParams.get('teamsOnly') === '1') {
+    return Response.json({
+      ok: true,
+      owner: auth.userId,
+      teams: linksResult.links.map(link => ({
+        teamName: link.team_name,
+        leagueName: link.league_name,
+        flight: link.flight || '',
+        canManage: canManageTeamRoom(teamRoles(link)),
+      })),
+    }, { headers: { 'Cache-Control': 'private, no-store' } })
+  }
   if (!linksResult.links.length) {
     if(url.searchParams.get('chatMessage')==='1'||url.searchParams.get('chatSearch')==='1'||url.searchParams.get('teamFixtures')==='1')return Response.json({ok:false,message:'Team access is unavailable.'},{status:403,headers:{'Cache-Control':'private, no-store'}})
     return Response.json({
