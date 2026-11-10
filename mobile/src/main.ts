@@ -32,7 +32,7 @@ import type {TeamChatDestination} from './team-room-data'
 import {nativeActionIcon} from './native-action-icons'
 import websiteUi from '../generated/website-ui.json'
 import {mountLabRecentForm} from './lab-recent-form'
-import {mountPersonalMatchLog} from './personal-match-view'
+import {mountPersonalMatchLog,type PersonalMatchFormSession} from './personal-match-view'
 import type {CalendarScorecardSeed} from './personal-match-data'
 import {labLevelPathHtml} from './lab-level-path'
 import {loadOlderResults} from './recent-results-history'
@@ -113,6 +113,7 @@ let accountSettings:ReturnType<typeof openAccountSettings>|null=null
 let guest:ReturnType<typeof showGuestExplore>|null=null
 let storageUnavailable=false
 let session: Session | null = null
+let personalMatchForm:PersonalMatchFormSession={}
 let linkedLabOwner:string|undefined
 let exploreSearch:ExploreSearchState|undefined
 let guestExploreResume:{visit:ExploreVisit;owner?:string}|undefined
@@ -743,7 +744,7 @@ async function lab(entry?:'coach'|PlayerLink|{scorecard:CalendarScorecardSeed}) 
       bindAppDestinations(shortcuts,openDestination)
       const matchLog = document.createElement('div')
       shortcuts.after(matchLog)
-      mountPersonalMatchLog(matchLog,client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,scorecard)
+      mountPersonalMatchLog(matchLog,client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,personalMatchForm,scorecard)
       if(entry==='coach')shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')?.focus()
       return
     }
@@ -838,6 +839,7 @@ async function lab(entry?:'coach'|PlayerLink|{scorecard:CalendarScorecardSeed}) 
 client.auth.onAuthStateChange((_event, next) => {
   if(next?.user.id!==session?.user.id){
     calendarHighlights.clear();coachNextAssignment.clear();linkedLabOwner=undefined;exploreSearch=undefined
+    personalMatchForm={}
     if(!session&&next&&_event==='SIGNED_IN'&&guestExploreResume)guestExploreResume.owner=next.user.id
     else guestExploreResume=undefined
   }
