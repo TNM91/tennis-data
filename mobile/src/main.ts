@@ -323,10 +323,10 @@ function selectNavigation(screen:AppScreen,activeTab=currentTab(screen)) {
     else button.removeAttribute('aria-current')
   })
 }
-function launchCompetitions(scope:'mine'|'discover'='mine',trigger?:HTMLElement){
+function launchCompetitions(scope:'mine'|'discover'='mine',trigger?:HTMLElement,query?:string){
  if(!session||competitions?.isOpen()||accountSettings?.isOpen())return
  const owner=session.user.id,visit=revision
- competitions=openCompetitions(client,owner,()=>visit===revision&&owner===session?.user.id,scope,()=>navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')?.click(),undefined,trigger)
+ competitions=openCompetitions(client,owner,()=>visit===revision&&owner===session?.user.id,scope,()=>navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')?.click(),undefined,trigger,'',undefined,query)
 }
 function openScheduledRep(owner:string,current:()=>boolean,button:HTMLElement,calendarRep:CalendarWeeklyRep,options?:{reviewRep:boolean;fromCalendar:true}){
  button.focus({preventScroll:true})
@@ -391,7 +391,7 @@ function openExplore(resume?:ExploreVisit) {
       search:exploreSearch,
       resume,
       onLeave:state=>{exploreSearch=state},
-      onCompetitions:trigger=>launchCompetitions('discover',trigger),
+      onCompetitions:(trigger,query)=>launchCompetitions('discover',trigger,query),
     })
   })
 }

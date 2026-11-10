@@ -5,6 +5,7 @@ import { showExplore as showPlayers } from './explore'
 import { showDirectory } from './directory-view'
 import { showRankings } from './rankings-view'
 import type {RatingView} from '../../lib/player-rating-display'
+import {firstPartyBuild} from './build-scope'
 
 const searchModes={
  Players:{label:'Player name',placeholder:'Search by tennis name',required:true},
@@ -18,17 +19,17 @@ export type ExploreResultPosition={key?:string;view?:RatingView}
 export type ExploreVisit=ExploreSearchState & {results?:ExploreResultPosition}
 type ExploreOptions={
  access?:PublicBrowseAccess
- onCompetitions?:(trigger:HTMLElement)=>void
+ onCompetitions?:(trigger:HTMLElement,query?:string)=>void
  search?:ExploreSearchState
  resume?:ExploreVisit
  onLeave?:(state:ExploreSearchState)=>void
 }
 function exploreHomeHtml(competitions:boolean){
  return `<div class="native-explore-hero">
-  <header class="tab-hero tab-hero-court explore-spotlight"><small class="stat-eyebrow">Explore</small><h1 tabindex="-1">Find players, teams, leagues.</h1></header>
+  <header class="tab-hero tab-hero-court explore-spotlight"><small class="stat-eyebrow">Explore</small><h1 tabindex="-1">${firstPartyBuild?'Find your next league.':'Find players, teams, leagues.'}</h1></header>
   <div class="explore-search-panel">
    <div class="explore-categories" role="group" aria-label="Explore categories">
-    ${Object.keys(searchModes).map(category=>`<button type="button" data-category="${category}">${category}</button>`).join('')}
+    ${(firstPartyBuild?['Leagues']:Object.keys(searchModes)).map(category=>`<button type="button" data-category="${category}">${category}</button>`).join('')}
    </div>
    <form id="native-search" role="search" aria-label="Explore tennis">
     <label for="native-search-term"></label>
@@ -45,7 +46,7 @@ function exploreHomeHtml(competitions:boolean){
 }
 export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,{access,onCompetitions,search,resume,onLeave}:ExploreOptions={}) {
   let disposed=false
-  let category:ExploreCategory=(resume??search)?.category??'Players'
+  let category:ExploreCategory=firstPartyBuild?'Leagues':(resume??search)?.category??'Players'
   let active:ReturnType<typeof showPlayers>|ReturnType<typeof showDirectory>|ReturnType<typeof showRankings>|null=null
   let overviewScroll=0
   app.dataset.state='explore'
@@ -53,7 +54,7 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
   const backButton=app.querySelector<HTMLButtonElement>('.explore-back')!
   const content=app.querySelector<HTMLElement>('#explore-content')!
   const template=document.createElement('template')
-  template.innerHTML=exploreHomeHtml(Boolean(onCompetitions))
+  template.innerHTML=exploreHomeHtml(Boolean(onCompetitions)&&!(firstPartyBuild&&access))
   const overview=template.content.firstElementChild as HTMLElement
   const categoryButtons=overview.querySelectorAll<HTMLButtonElement>('[data-category]')
   const form=overview.querySelector<HTMLFormElement>('#native-search')!
@@ -73,6 +74,7 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
     target?.focus({preventScroll:true})
   }
   const openResults=(term:string,position?:ExploreResultPosition)=>{
+    if(firstPartyBuild){onCompetitions?.(submit,term);return}
     backButton.hidden=false
     window.scrollTo(0,0)
     if(category==='Players')active=showPlayers(content,client,valid,undefined,term,access,position?.key)
@@ -82,7 +84,7 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
   const selectMode=(mode:ExploreCategory)=>{
     category=mode
     const spec=searchModes[mode]
-    label.textContent=spec.label
+    label.textContent=firstPartyBuild?'League name (optional)':spec.label
     input.placeholder=spec.placeholder
     input.required=spec.required
     input.setCustomValidity('')
@@ -109,9 +111,10 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
     openResults(term)
   }
   const visit=():ExploreVisit=>({category,term:(active?.searchTerm()??input.value).slice(0,80),results:active?.resultPosition()})
-  input.value=(resume??search)?.term??''
+  const saved=resume??search
+  input.value=firstPartyBuild&&saved?.category!=='Leagues'?'':saved?.term??''
   selectMode(category)
-  if(resume?.results)openResults(resume.term,resume.results)
+  if(!firstPartyBuild&&resume?.results)openResults(resume.term,resume.results)
   else showOverview()
   return {visit,dispose:()=>{
     if(valid()&&onLeave){const {category,term}=visit();onLeave({category,term})}

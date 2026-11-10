@@ -2,7 +2,9 @@ import {CapacitorHttp,type HttpResponse} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {scenarioOwner,type ScenarioSend} from './captain-scenarios-data'
 import {entryLeague,entryDraft,readEntryReview,readEntryReceipt,type EntryDraft,type EntryReview} from '../../lib/native-league-entry-contract'
+import {firstPartyBuild} from './build-scope'
 export async function leagueEntryRequest(client:SupabaseClient,owner:string,current:()=>boolean,leagueId:string,submission?:{review:EntryReview;draft:EntryDraft;information?:{entryId:string;updatedAt:string}},send:ScenarioSend=o=>CapacitorHttp.request(o)){
+ if(firstPartyBuild)throw Error('League registration is unavailable in this edition.')
  entryLeague(leagueId);const session=await scenarioOwner(client,owner,current)
  const body=submission?submission.information?{leagueId,information:true,...submission.information,draft:entryDraft(submission.draft)}:{leagueId,review:submission.review.review,draft:entryDraft(submission.draft)}:undefined
  if(submission&&(submission.review.owner!==owner||submission.review.leagueId!==leagueId))throw Error('Entry account changed')

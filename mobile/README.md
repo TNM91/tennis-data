@@ -83,7 +83,19 @@ Both baselines are internal TestFlight builds. Submit the selected track from a 
 - **Carry over after isolating connected reads.** Coach invites and direct coach-player messages have dedicated account-scoped routes. Team chat shares routes with fixtures and lineups. Keep first-party conversations and the existing safety controls, and scope fixture cards, profile lookups and roster data separately.
 - **Hold for verified rights and data scope.** External imports, imported directory and match history, and ratings computed from those records. The fallback bundle and its server endpoints should enforce the scope before returning data. Hiding a screen alone leaves other paths to the same data.
 
-The full-app preview is for local verification with synthetic data. It has no signing target or workflow option. Before packaging it, scope the remaining integrated reads in Explore, linked player identity, leagues, teams and related links, then verify the network boundary on an iPhone. Build 255 remains the offline TestFlight baseline.
+Explore and Compete share the reviewed TenAceIQ league feed. Guests can browse approved public leagues. Signed-in users can also see their own submissions and seasons they organize. Explore holds player search, team search and rankings until those views have first-party sources. League registration and League Office use separate routes.
+
+The full-app preview is for local verification with synthetic data. It has no signing target or workflow option. Before packaging it, scope linked player identity, the League Office and entry paths, team data and related links, then verify the network boundary on an iPhone. Build 255 remains the offline TestFlight baseline.
+
+#### Approve a league season
+
+Export each season's JSON from the authenticated `GET /api/mobile/competitions?scope=discover&league=<id>` route. Review the summary, public participants, schedules, results and standings. Confirm that TenAceIQ can publish every record in that snapshot. Keep the export outside the repository and generate the approval value:
+
+```sh
+npx tsx scripts/fingerprint-first-party-leagues.ts path/to/reviewed-season.json
+```
+
+Pass multiple file paths to approve multiple seasons. Set the output as the server-only `TIQ_FIRST_PARTY_LEAGUE_APPROVALS` value. With no approvals, the catalog is empty. A changed summary or detail needs review and a new fingerprint before that content can appear.
 
 #### Approve a tournament revision
 

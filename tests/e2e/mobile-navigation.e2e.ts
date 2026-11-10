@@ -41,10 +41,14 @@ async function bounded(page:Page){
 }
 const requestCount=(page:Page)=>page.evaluate(()=>(window as unknown as {navigationFixture:{requests:number}}).navigationFixture.requests)
 
-test('first-party preview keeps the app shell and uses only the scoped tournament feed', async ({page}) => {
+async function useFirstPartyNavigation(page:Page) {
  const preview = await bundleNavigation(true)
  const previewScript = preview.outputFiles.find(file => file.path.endsWith('.js'))!.text
  await page.route(origin+'/app.js',route=>route.fulfill({contentType:'text/javascript',body:previewScript}))
+}
+
+test('first-party preview keeps the app shell and uses only the scoped tournament feed', async ({page}) => {
+ await useFirstPartyNavigation(page)
  await page.goto(origin)
  const nav = page.getByRole('navigation',{name:'Main navigation'})
  await expect(nav.locator('button > span:last-child')).toHaveText(['My Lab','Explore','Chats','Compete','More'])
@@ -75,6 +79,42 @@ test('first-party preview keeps the app shell and uses only the scoped tournamen
  await expect(tournaments.getByRole('alert')).toContainText('Couldn’t load these tournaments')
  const paths = await page.evaluate(()=>(window as unknown as {navigationFixture:{tournamentReads:string[]}}).navigationFixture.tournamentReads)
  expect(paths).toEqual(Array(4).fill('/api/mobile/first-party/tournaments'))
+})
+
+for(const guest of [false,true])test(`first-party Explore searches reviewed league seasons for ${guest?'guests':'members'}`,async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+(guest?'/?signedOut=1':''))
+ if(guest)await page.getByRole('button',{name:'Explore without signing in',exact:true}).click()
+ else await page.getByRole('button',{name:'Explore',exact:true}).click()
+ const categories=page.getByRole('group',{name:'Explore categories'})
+ await expect(categories.getByRole('button')).toHaveText(['Leagues'])
+ await page.getByRole('searchbox',{name:'League name (optional)'}).fill('Northside')
+ const search=page.getByRole('button',{name:'Find leagues',exact:true})
+ await search.click()
+ const dialog=page.getByRole('dialog',{name:'Competitions',exact:true})
+ await expect(dialog.getByRole('button',{name:'Your entries',exact:true})).toHaveCount(guest?0:1)
+ await dialog.getByRole('button',{name:/Open league Northside Night League/}).click()
+ await dialog.getByRole('button',{name:'Schedule',exact:true}).click()
+ await expect(dialog.getByText('Northside · Courts 1–3').first()).toBeVisible()
+ await expect(dialog.locator('[data-competition-entry]')).toHaveCount(0)
+ await page.evaluate(()=>{
+  const state=(window as unknown as {navigationFixture:{unscopedLeagueReply:boolean}}).navigationFixture
+  state.unscopedLeagueReply=true
+ })
+ await dialog.getByRole('button',{name:'Refresh',exact:true}).click()
+ await expect(dialog.getByRole('alert')).toContainText('Couldn’t load these competitions')
+ await expect(dialog.getByText('Northside · Courts 1–3')).toHaveCount(0)
+ await page.evaluate(()=>{
+  const state=(window as unknown as {navigationFixture:{unscopedLeagueReply:boolean}}).navigationFixture
+  state.unscopedLeagueReply=false
+ })
+ await dialog.getByRole('button',{name:'← Competitions',exact:true}).click()
+ await dialog.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(search).toBeFocused()
+ const requests=await page.evaluate(()=>(window as unknown as {navigationFixture:{competitionReads:unknown[]}}).navigationFixture.competitionReads)
+ expect(requests).toEqual(Array(4).fill({
+  path:'/api/mobile/first-party/competitions',query:'Northside',audience:guest?'public':null,authenticated:!guest,
+ }))
 })
 
 type CalendarPreviewWindow=Window&{calendarFixture:typeof import('../fixtures/mobile-calendar').calendarFixture;switchNavigationOwner:()=>void}

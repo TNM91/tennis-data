@@ -1,6 +1,6 @@
 import type {ScenarioSend} from './captain-scenarios-data'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import type {CompetitionSnapshot,CompetitionScope} from '../../lib/native-competitions-contract'
+import {publicCompetitionOwner,type CompetitionSnapshot,type CompetitionScope} from '../../lib/native-competitions-contract'
 import type {OfficeDetail} from '../../lib/native-league-office-contract'
 import {loadCompetitions} from './competitions-data'
 import {bindCompetitionSearch,competitionDirectoryHtml,focusCompetitionSearchResults} from './competition-directory'
@@ -14,13 +14,14 @@ import {bindLeagueListFinder,emptyLeagueListFinder,emptyLeagueListFilters,league
 import {bindLeaguePlayerActions,openLeaguePlayerEvidence,restoreLeaguePlayerFocus} from './league-player-evidence'
 import {bindLeagueTeamActions,openLeagueTeamEvidence,restoreLeagueTeamFocus} from './league-team-evidence'
 import {restoreLeagueEvidenceFocus as restoreListFocus} from './league-evidence-dialog'
+import {firstPartyBuild} from './build-scope'
 type View='home'|'fixtures'|'results'|'standings'|'participants'
 type ReturnPosition={scroll:number}&({target:'league'|'league-entry';id:string}|{target:'registration'})
 const stateLabel=(v:string)=>(({draft:'Draft',registration_open:'Registration open',active:'In season',completed:'Completed',archived:'Past season'} as Record<string,string>)[v]||v.replaceAll('_',' '))
 export function competitionCardsHtml(snapshot:CompetitionSnapshot){
  return snapshot.leagues.length?'<div class="competition-cards">'+snapshot.leagues.map((l,i)=>{
   const related=snapshot.scope==='mine'?snapshot.connections.filter(c=>c.leagueId===l.id):[]
-  const canViewEntry=related.some(c=>c.kind!=='organizer')
+  const canViewEntry=!firstPartyBuild&&related.some(c=>c.kind!=='organizer')
   const connections=related.map(c=>c.kind==='organizer'?'<li>Season you created</li>':`<li>
    <span>${c.kind==='team'?'Team entry':'Player entry'}</span>
    <span class="competition-entry-status" data-entry-status="${html(c.status)}">${c.status==='active'?'Approved':'Awaiting approval'}</span>
@@ -35,7 +36,7 @@ export function competitionCardsHtml(snapshot:CompetitionSnapshot){
     ${canViewEntry?`<button type="button" class="secondary" data-competition-league-entry="${i}">View entry<span class="sr-only"> for ${name}</span><span class="app-tool-arrow" aria-hidden="true">›</span></button>`:''}
    </div>
   </article>`
- }).join('')+'</div>':'<div class="competition-empty"><h3>'+(snapshot.scope==='mine'?'No connected public leagues yet':'No public leagues found')+'</h3><p>'+(snapshot.scope==='mine'?'Your submitted entries and leagues matched to your linked player will appear here. Browse leagues to see public seasons.':'Public TiQ league seasons will appear here when published.')+'</p>'+(snapshot.scope==='mine'?'<button type="button" data-competition-discover>Browse leagues</button>':'')+'</div>'
+ }).join('')+'</div>':'<div class="competition-empty"><h3>'+(snapshot.scope==='mine'?'No connected public leagues yet':'No public leagues found')+'</h3><p>'+(snapshot.scope==='mine'?(firstPartyBuild?'Your submitted entries and published seasons you organize will appear here.':'Your submitted entries and leagues matched to your linked player will appear here. Browse leagues to see public seasons.'):'Public TiQ league seasons will appear here when published.')+'</p>'+(snapshot.scope==='mine'?'<button type="button" data-competition-discover>Browse leagues</button>':'')+'</div>'
 }
 export function competitionSeasonHtml(d:OfficeDetail,view:View,today?:string,filters:LeagueMatchFilters=emptyLeagueMatchFilters(),listFilters:LeagueListFilters=emptyLeagueListFilters()){
  if(view==='home'){
@@ -48,10 +49,11 @@ export function competitionSeasonHtml(d:OfficeDetail,view:View,today?:string,fil
  if(view==='participants')return leagueParticipantsViewHtml(d,listFilters,false)
  return leagueStandingsViewHtml(d,listFilters)
 }
-export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement,initialLeague='',calendarEntry?:{matchId?:string}){
+export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement,initialLeague='',calendarEntry?:{matchId?:string},initialQuery=''){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog competitions-dialog';dialog.setAttribute('aria-label','Competitions')
- let disposed=false,version=0,busy=false,scope=initial,query='',selected=/^[a-zA-Z0-9_-]{1,80}$/.test(initialLeague)?initialLeague:'',view:View=calendarEntry?'fixtures':'home',snapshot:CompetitionSnapshot|null=null,notice=''
+ const guest=firstPartyBuild&&owner===publicCompetitionOwner
+ let disposed=false,version=0,busy=false,scope=initial,query=initialQuery,selected=/^[a-zA-Z0-9_-]{1,80}$/.test(initialLeague)?initialLeague:'',view:View=calendarEntry?'fixtures':'home',snapshot:CompetitionSnapshot|null=null,notice=''
  let calendarMatchId=calendarEntry?.matchId
  let filters=emptyLeagueFinder(),lists=emptyLeagueListFinder()
  let showFullSchedule=false
@@ -77,7 +79,7 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   return true
  }
  const showEntry=(id:string,returning:ReturnPosition)=>{
-  if(!active()||busy||entry?.isOpen())return
+  if(firstPartyBuild||!active()||busy||entry?.isOpen())return
   entry=openLeagueEntry(client,owner,active,id,()=>{entry=null;if(active())void load(returning)},send,returning.target==='league-entry'?'entries':'league')
  }
  const render=()=>{
@@ -89,18 +91,20 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   const displayedFilters=view==='fixtures'&&showFullSchedule?emptyLeagueMatchFilters():matchFilters
   const toolbar=`<header class="competition-header${compactDetail?' competition-header-compact':''}">
    <button type="button" class="secondary" data-competition-back>${calendarEntry?'Back to calendar':selected?'← Competitions':'Close'}</button>
-   ${compactDetail&&d?competitionEntryActionHtml('league',true):''}
+   ${!firstPartyBuild&&compactDetail&&d?competitionEntryActionHtml('league',true):''}
    <button type="button" class="secondary" data-competition-refresh ${busy?'disabled':''}>Refresh</button>
   </header>`
   dialog.innerHTML=toolbar+
-   (selected?d?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(d.league.format==='team'?'TiQ team league':'TiQ player league')+'</small><h2 tabindex="-1">'+html(d.league.name)+'</h2><p>'+html([d.league.season,d.league.flight,stateLabel(d.league.status)].filter(Boolean).join(' · '))+'</p><p>'+html(d.league.location||'Location to be confirmed')+'</p></div><nav class="competition-tabs" aria-label="League views">'+(['home','fixtures','results',...(d.league.format==='team'?['standings']:[]),'participants'] as View[]).map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>'+(compactDetail?'':competitionEntryActionHtml('league'))+'<div data-competition-content>'+competitionSeasonHtml(d,view,undefined,displayedFilters,view==='participants'||view==='standings'?lists[view]:undefined)+'</div>'+(onChats?'<button type="button" class="secondary competition-chat" data-competition-chats>Open your team chats →</button>':''):'<h2 tabindex="-1">League</h2>':
-   competitionDirectoryHtml('league',query,busy,{count:snapshot?.leagues.length,resetLabel:scope==='mine'?'Show all entries':undefined,controls:`<div class="competition-switch" role="group" aria-label="Competition list">
+   (selected?d?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(d.league.format==='team'?'TiQ team league':'TiQ player league')+'</small><h2 tabindex="-1">'+html(d.league.name)+'</h2><p>'+html([d.league.season,d.league.flight,stateLabel(d.league.status)].filter(Boolean).join(' · '))+'</p><p>'+html(d.league.location||'Location to be confirmed')+'</p></div><nav class="competition-tabs" aria-label="League views">'+(['home','fixtures','results',...(d.league.format==='team'?['standings']:[]),'participants'] as View[]).map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>'+(firstPartyBuild||compactDetail?'':competitionEntryActionHtml('league'))+'<div data-competition-content>'+competitionSeasonHtml(d,view,undefined,displayedFilters,view==='participants'||view==='standings'?lists[view]:undefined)+'</div>'+(onChats?'<button type="button" class="secondary competition-chat" data-competition-chats>Open your team chats →</button>':''):'<h2 tabindex="-1">League</h2>':
+   competitionDirectoryHtml('league',query,busy,{count:snapshot?.leagues.length,resetLabel:scope==='mine'?'Show all entries':undefined,controls:guest?'':`<div class="competition-switch" role="group" aria-label="Competition list">
     <button type="button" class="secondary" data-competition-scope="mine" aria-pressed="${scope==='mine'}" ${busy?'disabled':''}>Your entries</button>
     <button type="button" class="secondary" data-competition-scope="discover" aria-pressed="${scope==='discover'}" ${busy?'disabled':''}>Browse leagues</button>
    </div>`})+
    (snapshot?(noMatches?'':competitionCardsHtml(snapshot))+(snapshot.moreLeagues?'<p class="rating-context">Showing up to 20 recently updated leagues. Search a league name to narrow the list.</p>':'')+(snapshot.moreConnections?'<p class="rating-context">Your connected-entry sample is limited; some older entries may be missing.</p>':''):'')+
-   (scope==='mine'?'<details class="competition-list-help"><summary>Which leagues appear here?</summary><p>Public seasons you created, your submitted entries and entries matched to your linked player. Private organizer seasons remain in League Office.</p></details>':'<p class="rating-context">Discover public TiQ team and player leagues. Imported USTA league summaries remain in Explore → Leagues.</p>')+
-   '<button type="button" class="secondary competition-entry-open" data-competition-tournaments>Browse tournaments →</button>'
+   (scope==='mine'?'<details class="competition-list-help"><summary>Which leagues appear here?</summary><p>'+(
+    firstPartyBuild?'Public seasons you created and your submitted entries.':'Public seasons you created, your submitted entries and entries matched to your linked player. Private organizer seasons remain in League Office.'
+   )+'</p></details>':'<p class="rating-context">Discover public TiQ team and player leagues.'+(firstPartyBuild?'':' Imported USTA league summaries remain in Explore → Leagues.')+'</p>')+
+   (guest?'':'<button type="button" class="secondary competition-entry-open" data-competition-tournaments>Browse tournaments →</button>')
   )+'<p role="'+(notice&&!busy?'alert':'status')+'" tabindex="-1" data-competition-notice>'+html(notice)+'</p>'+(snapshot?'<p class="competition-checked">Checked '+html(new Date(snapshot.checkedAt).toLocaleString())+' · refresh for changes.</p>':'')
   const tournamentLink=dialog.querySelector<HTMLButtonElement>('[data-competition-tournaments]')
   if(tournamentLink)tournamentLink.onclick=()=>{if(tournaments?.isOpen())return;tournaments=openTournaments(client,owner,active,()=>{tournaments=null},send,tournamentLink)}

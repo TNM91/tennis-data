@@ -1,10 +1,27 @@
-import {describe,it,expect} from 'vitest'
-import type {SupabaseClient} from '@supabase/supabase-js'
+import {afterEach,describe,it,expect,vi} from 'vitest'
+import type {SupabaseClient,SupabaseClientOptions} from '@supabase/supabase-js'
 import {loadNativeCompetitions} from '../native-competitions'
-import {competitionInput,readCompetitionSnapshot} from '../native-competitions-contract'
+import {competitionInput,publicCompetitionOwner,readCompetitionSnapshot} from '../native-competitions-contract'
+import {reviewedRevisionDigest} from '../first-party-revisions'
+import {getSignedInPlayerApiAuth} from '../player-api-auth'
+import {GET as firstPartyCompetitions} from '../../app/api/mobile/first-party/competitions/route'
 import {competitionCardsHtml,competitionSeasonHtml} from '../../mobile/src/competitions-view'
 import {loadCompetitions} from '../../mobile/src/competitions-data'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from '../../tests/fixtures/competitions-data'
+vi.mock('../player-api-auth', () => ({ getSignedInPlayerApiAuth: vi.fn() }))
+const publicClientFixture = vi.hoisted(() => vi.fn<() => SupabaseClient | undefined>())
+vi.mock('@supabase/supabase-js', async importOriginal => {
+ const actual = await importOriginal<typeof import('@supabase/supabase-js')>()
+ return {
+  ...actual,
+  createClient: (url:string,key:string,options?:SupabaseClientOptions<'public'>) =>
+   publicClientFixture() ?? actual.createClient(url,key,options),
+ }
+})
+afterEach(() => {
+ vi.unstubAllEnvs()
+ vi.clearAllMocks()
+})
 function fixture(){
  const l={id:'league-one',created_by_user_id:owner,league_name:'City League',league_format:'team',season_label:'Fall',season_status:'active',flight:'4.0',location_label:'Northside',starts_on:'2026-10-01',ends_on:'2026-12-01',schedule_time_zone:'America/Chicago',updated_at:'2026-10-30T02:00:00Z',scoring_system:'dynamic_points',competition_rules:{},is_public:true}
  const tables:Record<string,Record<string,unknown>[]>={
@@ -21,6 +38,82 @@ function fixture(){
   const q={select(v:string){call.ops.push(['select',v]);return q},eq(k:string,v:unknown){call.ops.push(['eq',k,v]);filters.push(r=>r[k]===v);return q},neq(k:string,v:unknown){call.ops.push(['neq',k,v]);filters.push(r=>r[k]!==v);return q},in(k:string,v:unknown[]){call.ops.push(['in',k,v]);filters.push(r=>v.includes(r[k]));return q},ilike(k:string,v:string){call.ops.push(['ilike',k,v]);filters.push(r=>String(r[k]).toLowerCase().includes(v.slice(1,-1).replace(/\\(.)/g,'$1').toLowerCase()));return q},order(...v:unknown[]){call.ops.push(['order',...v]);return q},limit(v:number){limit=v;call.ops.push(['limit',v]);return q},abortSignal(){return q},maybeSingle(){const found=get();return Promise.resolve({data:found[0]||null,error:errors.has(table)?{}:null})},then(resolve:(v:unknown)=>unknown){return Promise.resolve({data:get(),error:errors.has(table)?{}:null}).then(resolve)}};return q}} as unknown as SupabaseClient
  return {db,tables,calls,errors,changePublic:()=>{changePublic=true},changePlayer:()=>{changePlayer=true}}
 }
+
+describe('first-party league route', () => {
+ const request=(query='',headers?:HeadersInit)=>new Request('https://example.test/api/mobile/first-party/competitions'+query,{headers})
+ const account=(db:SupabaseClient)=>vi.mocked(getSignedInPlayerApiAuth).mockResolvedValue({ok:true,supabase:db,userId:owner})
+ async function approve(f:ReturnType<typeof fixture>) {
+  const {detail}=await loadNativeCompetitions(f.db,owner,'discover','','league-one')
+  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS',JSON.stringify({
+   'league-one': {summary:reviewedRevisionDigest(detail!.league),detail:reviewedRevisionDigest(detail)},
+  }))
+  f.calls.length=0
+ }
+
+ it('uses only reviewed seasons for guest search and returns reviewed schedules, results and standings',async()=>{
+  const f=fixture()
+  await approve(f)
+  f.tables.tiq_leagues.push({...f.tables.tiq_leagues[0],id:'unreviewed',league_name:'Unreviewed City'})
+  publicClientFixture.mockReturnValueOnce(f.db).mockReturnValueOnce(f.db)
+  const response=await firstPartyCompetitions(request('?audience=public&q=City'))
+  expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  const list=await response.json()
+  expect(list.releaseScope).toBe('first-party')
+  expect(readCompetitionSnapshot(list,publicCompetitionOwner,'discover','City','').leagues.map(l=>l.id)).toEqual(['league-one'])
+  expect(f.calls[0].ops).toContainEqual(['in','id',['league-one']])
+  const selected=await firstPartyCompetitions(request('?audience=public&league=league-one'))
+  const {detail}=readCompetitionSnapshot(await selected.json(),publicCompetitionOwner,'discover','','league-one')
+  expect(detail?.fixtures[0]).toMatchObject({facility:'Northside',status:'confirmed'})
+  expect(detail?.results[0].courts[0].score).toBe('6-4, 6-3')
+  expect(detail?.standings[0]).toMatchObject({teamName:'Aces',wins:1})
+  expect(getSignedInPlayerApiAuth).not.toHaveBeenCalled()
+  expect(f.calls.some(c=>c.table==='profiles')).toBe(false)
+ })
+
+ it('keeps personal entries account-scoped without consulting a linked player',async()=>{
+  const f=fixture()
+  await approve(f)
+  account(f.db)
+  const response=await firstPartyCompetitions(request('?scope=mine'))
+  const snapshot=readCompetitionSnapshot(await response.json(),owner,'mine','','')
+  expect(snapshot.connections).toEqual([
+   {leagueId:'league-one',kind:'team',status:'pending'},
+   {leagueId:'league-one',kind:'organizer',status:'active'},
+  ])
+  expect(f.calls.some(c=>c.table==='profiles')).toBe(false)
+  expect(f.calls.find(c=>c.table==='tiq_team_league_entries')?.ops).toContainEqual(['in','league_id',['league-one']])
+ })
+
+ it('withholds unreviewed and changed data even if the season id and timestamp stay the same',async()=>{
+  const f=fixture()
+  await approve(f)
+  account(f.db)
+  expect((await firstPartyCompetitions(request('?league=unreviewed'))).status).toBe(503)
+  expect(f.calls).toHaveLength(0)
+  f.tables.tiq_team_league_match_lines[0].score='6-0 6-0'
+  const changed=await firstPartyCompetitions(request('?league=league-one'))
+  expect(changed.status).toBe(503)
+  expect(await changed.text()).not.toContain('6-0')
+  f.tables.tiq_leagues[0].league_name='Unreviewed title'
+  const list=await firstPartyCompetitions(request())
+  expect(readCompetitionSnapshot(await list.json(),owner,'discover','','').leagues).toEqual([])
+ })
+
+ it('rejects private guest scopes and defaults to an empty catalog when no approval is configured',async()=>{
+  const f=fixture()
+  account(f.db)
+  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS','')
+  expect((await firstPartyCompetitions(request('?audience=public&scope=mine'))).status).toBe(400)
+  expect((await firstPartyCompetitions(request('?audience=public',{Authorization:'Bearer synthetic'}))).status).toBe(400)
+  expect(publicClientFixture).not.toHaveBeenCalled()
+  const empty=await firstPartyCompetitions(request())
+  expect(readCompetitionSnapshot(await empty.json(),owner,'discover','','').leagues).toEqual([])
+  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS','{"league-one":{"summary":"invalid"}}')
+  expect((await firstPartyCompetitions(request())).status).toBe(503)
+  expect(f.calls).toHaveLength(0)
+ })
+})
+
 describe('public TiQ competitions through caller RLS',()=>{
  it('bounds discovery and excludes private and draft seasons',async()=>{const f=fixture();f.tables.tiq_leagues.push({...f.tables.tiq_leagues[0],id:'private',is_public:false},{...f.tables.tiq_leagues[0],id:'draft',season_status:'draft'});const r=await loadNativeCompetitions(f.db,owner);expect(r.leagues.map(l=>l.id)).toEqual(['league-one']);expect(f.calls).toHaveLength(1);expect(f.calls[0].ops).toContainEqual(['eq','is_public',true]);expect(f.calls[0].ops).toContainEqual(['neq','season_status','draft']);expect(f.calls[0].ops).toContainEqual(['limit',21]);expect(JSON.stringify(r.leagues)).not.toContain('created_by_user_id');expect(r.detail).toBeNull()})
  it('shows only caller submissions, exact linked-player entries and public created seasons',async()=>{const f=fixture(),r=await loadNativeCompetitions(f.db,owner,'mine');expect(r.connections).toEqual(expect.arrayContaining([{leagueId:'league-one',kind:'player',status:'active'},{leagueId:'league-one',kind:'team',status:'pending'},{leagueId:'league-one',kind:'organizer',status:'active'}]));expect(JSON.stringify(r)).not.toContain('phone');expect(f.calls.filter(c=>c.table==='profiles')).toHaveLength(2);expect(r.leagues).toHaveLength(1)})

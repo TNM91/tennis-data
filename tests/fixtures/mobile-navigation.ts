@@ -10,6 +10,7 @@ import {clearCoachDeviceData} from '../../mobile/src/coach-device-cleanup'
 import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complete-browser'
 import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal,labProfileFixture} from './mobile-navigation-client'
 import {competitionSnapshot,competitionDetail} from './competitions-data'
+import {publicCompetitionOwner} from '../../lib/native-competitions-contract'
 import {tournamentSnapshot} from './native-tournaments'
 import {tournamentEntrySnapshot,tournamentReceipt} from './native-tournament-entry'
 import type {MyTournamentEntry} from '../../lib/native-tournament-entry-contract'
@@ -19,7 +20,7 @@ import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-bro
 import {trainingInboxPreview} from './mobile-training-inbox'
 const originalFetch=window.fetch.bind(window)
 const freeTraining=new URL(location.href).searchParams.has('free-training')
-const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false}
+const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false,unscopedLeagueReply:false,competitionReads:[] as {path:string;query:string;audience:string|null;authenticated:boolean}[]}
 const tournamentShortcutFixture={enabled:new URL(location.href).searchParams.has('tournament-shortcut-review'),approved:true,entryReads:[] as string[]}
 const myEntriesFixture={
  enabled:new URL(location.href).searchParams.has('my-tournament-entries'),
@@ -138,7 +139,19 @@ window.fetch=async(input,init)=>{
   reply={ok:true,profile}
  }
  if(url.pathname==='/api/auth/access')reply={ok:true,access:{role:freeTraining?'member':'admin',entitlements:{...DEFAULT_ENTITLEMENTS}}}
- if(url.pathname==='/api/mobile/competitions'){const snapshot=competitionSnapshot();snapshot.scope=url.searchParams.get('scope')==='discover'?'discover':'mine';snapshot.query=url.searchParams.get('q')||'';if(url.searchParams.get('league'))snapshot.detail=competitionDetail();reply={ok:true,...snapshot}}
+ if(url.pathname==='/api/mobile/competitions'||url.pathname==='/api/mobile/first-party/competitions'){
+  const snapshot=competitionSnapshot(),audience=url.searchParams.get('audience')
+  snapshot.scope=url.searchParams.get('scope')==='discover'?'discover':'mine'
+  snapshot.query=url.searchParams.get('q')||''
+  if(url.searchParams.get('league'))snapshot.detail=competitionDetail()
+  if(audience==='public')snapshot.owner=publicCompetitionOwner
+  const scoped=url.pathname==='/api/mobile/first-party/competitions'
+  if(scoped&&(snapshot.scope==='discover'||snapshot.detail))snapshot.connections=[]
+  fixtureState.competitionReads.push({
+   path:url.pathname,query:snapshot.query,audience,authenticated:new Headers(init?.headers).has('Authorization'),
+  })
+  reply={ok:true,releaseScope:scoped&&!fixtureState.unscopedLeagueReply?'first-party':undefined,...snapshot}
+ }
  if(myEntriesFixture.enabled&&url.pathname==='/api/mobile/tournaments/entries'){
   if(myEntriesFixture.fail)return Response.json({ok:false},{status:503})
   const division=url.searchParams.get('division')
