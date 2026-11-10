@@ -1,7 +1,10 @@
 import { accountClient, accountResponse, readAccountJson, verifiedAccount } from '@/lib/mobile-account-auth'
 import { findReviewedTeamConversation, loadReviewedTeamLinks, readReviewedTeamRooms, reviewedTeamRoom } from '@/lib/first-party-team-scopes'
+import { actOnCaptainInvite } from '@/lib/native-captain-invites'
 import { actOnNativeInvite } from '@/lib/native-team-invites'
 import { nativeInviteReview } from '@/lib/native-team-invite-contract'
+import { loadPlayerAccess } from '@/lib/player-api-auth'
+import { supabaseKey } from '@/lib/supabase-public-config'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -17,12 +20,25 @@ export async function POST(request: Request) {
     if (!account) return denied(401)
     if (new URL(request.url).search) return denied(400)
     const body = await readAccountJson(request, 4096)
-    if (!body || body.action !== 'preview' && body.action !== 'join') return denied(400)
+    if (!body) return denied(400)
+    const managing = body.action === 'list' || body.action === 'create' || body.action === 'revoke'
+    if (!managing && body.action !== 'preview' && body.action !== 'join') return denied(400)
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
     if (!key) return denied(503)
     const approvals = readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)
     if (!approvals.size) return denied(404)
     const service = accountClient(key), owner = account.user.id
+    if (managing) {
+      const team = (await loadReviewedTeamLinks(service, owner, approvals)).find(link =>
+        link.teamName === body.teamName && link.leagueName === body.leagueName && link.flight === body.flight)
+      if (!team?.isCaptain || !await findReviewedTeamConversation(service, team)) return denied(403)
+      const access = await loadPlayerAccess(accountClient(supabaseKey, account.token), owner)
+      if (!access.canUseCaptainWorkflow) {
+        return json({ ok: false, message: 'Captain access is required for this team.' }, 403)
+      }
+      const result = await actOnCaptainInvite(service, owner, body, team.roomId)
+      return json({ ...result, owner }, result.status)
+    }
     const preview = await actOnNativeInvite(service, owner, { action: 'preview', token: body.token })
     if (!preview.ok || !('review' in preview)) return denied(preview.status)
     const review = nativeInviteReview(preview.review)

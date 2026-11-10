@@ -144,6 +144,14 @@ export function validateTiqTennisMatchScore(
   return { valid: true, message: '', parsedSets }
 }
 
+export function inferTiqBestOfThreeWinner(score: string): 'A' | 'B' | undefined {
+  const { valid, parsedSets } = validateTiqTennisMatchScore(score)
+  if (!valid) return
+  const [aWonFirst, aWonSecond, aWonDecider] = parsedSets.map(set => set.sideAGames > set.sideBGames)
+  if (aWonDecider !== undefined && aWonFirst === aWonSecond) return
+  return (aWonDecider ?? aWonSecond) ? 'A' : 'B'
+}
+
 export function calculateDynamicPointsForSides(
   score: string | null | undefined,
   winnerSide: 'A' | 'B' | null | undefined,

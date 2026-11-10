@@ -2,8 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { POST as invite } from '../../app/api/mobile/first-party/team-invites/route'
 import { GET as room, POST as write } from '../../app/api/mobile/first-party/team-rooms/route'
 
-const { auth, from, act, read, save } = vi.hoisted(() => ({
-  auth: vi.fn(), from: vi.fn(), act: vi.fn(), read: vi.fn(), save: vi.fn(),
+const { auth, from, act, read, save, access, manage } = vi.hoisted(() => ({
+  auth: vi.fn(), from: vi.fn(), act: vi.fn(), read: vi.fn(), save: vi.fn(), access: vi.fn(), manage: vi.fn(),
 }))
 vi.mock('@/lib/mobile-account-auth', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/mobile-account-auth')>(),
@@ -11,6 +11,8 @@ vi.mock('@/lib/mobile-account-auth', async importOriginal => ({
   accountClient: () => ({ from }),
 }))
 vi.mock('@/lib/native-team-invites', () => ({ actOnNativeInvite: act }))
+vi.mock('@/lib/native-captain-invites', () => ({ actOnCaptainInvite: manage }))
+vi.mock('@/lib/player-api-auth', () => ({ loadPlayerAccess: access }))
 vi.mock('@/lib/native-coach-chat-unread', () => ({ nativeCoachChatUnread: vi.fn() }))
 vi.mock('@/lib/first-party-team-chat', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/first-party-team-chat')>(),
@@ -83,7 +85,31 @@ it('requires one exact reviewed team and room for reads and writes', async () =>
   read.mockResolvedValue({ ok: true, room: { id: roomId } })
   const result = await room(new Request(root+query))
   expect(await result.json()).toMatchObject({ ok: true, owner, releaseScope: 'first-party', teams: [{ ...scope, canManage: false }] })
-  expect(read).toHaveBeenCalledWith(expect.anything(), owner, approved, new URLSearchParams(query))
+  expect(read).toHaveBeenCalledWith(expect.anything(), owner, expect.objectContaining(approved), new URLSearchParams(query))
+})
+
+it('offers invite management only to entitled captains of the reviewed room', async () => {
+  const command = { ...scope, action: 'create', id: token }
+  const rejected = await invite(post(command))
+  expect(rejected.status).toBe(403)
+  expect(access).not.toHaveBeenCalled()
+  links = [{ ...member, team_role: 'co_captain', team_roles: ['co_captain'] }]
+  roomId = token
+  expect((await invite(post(command))).status).toBe(403)
+  roomId = approved.roomId
+  access.mockResolvedValue({ canUseCaptainWorkflow: false })
+  expect((await invite(post(command))).status).toBe(403)
+  expect(manage).not.toHaveBeenCalled()
+
+  access.mockResolvedValue({ canUseCaptainWorkflow: true })
+  read.mockResolvedValue({ ok: true, room: { id: roomId, canManage: false } })
+  expect(await (await room(new Request(root+query))).json()).toMatchObject({ room: { canInviteTeammates: true, canManage: false } })
+  manage.mockResolvedValue({ ok: true, status: 200, nativeCaptainInvites: 1, action: 'create', scope })
+  const result = await invite(post(command))
+  expect(await result.json()).toMatchObject({ ok: true, releaseScope: 'first-party', owner, action: 'create' })
+  expect(manage).toHaveBeenCalledOnce()
+  expect(manage).toHaveBeenCalledWith(expect.anything(), owner, command, approved.roomId)
+  expect(act).not.toHaveBeenCalled()
 })
 
 it('rejects an unreviewed invite or changed fingerprint before any join and accepts the original fingerprint', async () => {

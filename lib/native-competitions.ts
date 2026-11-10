@@ -8,7 +8,7 @@ const columns=nativeLeagueColumns+',is_public'
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const rows=(r:{data:unknown;error:unknown},max:number):Row[]=>{if(r.error||!Array.isArray(r.data)||r.data.length>max)throw Error('Competition records unavailable');return r.data as Row[]}
 const timeout=()=>AbortSignal.timeout(12000)
-function publicLeague(r:Row):OfficeLeague{
+export function publicLeague(r:Row):OfficeLeague{
  if(r.is_public!==true||r.season_status==='draft'||!text(r.id)||!text(r.league_name)||!['team','individual'].includes(text(r.league_format)))throw Error('League visibility changed')
  return {id:text(r.id),name:text(r.league_name),format:r.league_format as 'team'|'individual',season:text(r.season_label),status:text(r.season_status),flight:text(r.flight),location:text(r.location_label),startsOn:text(r.starts_on),endsOn:text(r.ends_on),timeZone:text(r.schedule_time_zone)||'America/Chicago',updatedAt:text(r.updated_at)}
 }

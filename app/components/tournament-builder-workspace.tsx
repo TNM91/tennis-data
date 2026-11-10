@@ -1109,7 +1109,7 @@ export default function TournamentBuilderWorkspace() {
   async function issueAwards() {
     if (!selectedRecord) return
 
-    const savedAwards = (await Promise.all(awardCandidates
+    const results = await Promise.all(awardCandidates
       .map((candidate) => {
         const recipientName = awardRecipients[candidate.placement]?.trim()
         if (!recipientName) return null
@@ -1127,7 +1127,8 @@ export default function TournamentBuilderWorkspace() {
           coordinatorName: '',
           notes: selectedRecord.directorNotes,
         }, userId)
-      })))
+      }))
+    const savedAwards = results
       .map((result) => result?.data || null)
       .filter((award): award is TiqAwardRecord => Boolean(award))
 
@@ -1136,7 +1137,16 @@ export default function TournamentBuilderWorkspace() {
       setAlertKind('recap')
       setAlertBody(buildTournamentAwardRecapBody(selectedRecord, savedAwards))
     }
-    setNotice(savedAwards.length ? `${savedAwards.length} award${savedAwards.length === 1 ? '' : 's'} ready to print, email, or send as a recap.` : 'Add at least one recipient before creating awards.')
+    const linked = results.filter(result => result?.source === 'cloud' && result.data?.recipientPlayerId).length
+    const failed = results.filter(result => result?.error).length
+    const summary = [
+      linked ? `${linked} award${linked === 1 ? '' : 's'} published to player trophy cases.` : '',
+      savedAwards.length > linked ? userId
+        ? 'Awards without a linked player profile have certificates. Link the entrants’ profiles to add the awards to their Trophy Cases.'
+        : 'Certificates saved on this device. Sign in and publish from your tournament to add them to player Trophy Cases.' : '',
+      failed ? `${failed} award${failed === 1 ? '' : 's'} could not be published. Check your organizer access and try again.` : '',
+    ].filter(Boolean).join(' ')
+    setNotice(summary || 'Add at least one recipient before creating awards.')
   }
 
   function updateAwardRecipient(placement: TiqAwardPlacement, value: string) {
@@ -2909,7 +2919,7 @@ export default function TournamentBuilderWorkspace() {
           {awardRecords.length ? (
             <div style={awardGridStyle}>
               {awardRecords.map((award) => {
-                const awardPlayerId = award.recipientPlayerId || selectedRecord.entrantPlayerIds[award.recipientName] || ''
+                const awardPlayerId = award.recipientPlayerId
                 return (
                   <article key={award.id} style={awardCardStyle}>
                     <div style={awardCertificatePreviewStyle}>
