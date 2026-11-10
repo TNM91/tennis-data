@@ -79,6 +79,12 @@ The offline prototype packages its assets from `mobile/bundled-first-party/` int
 
 The fallback links only core Capacitor. The check command verifies the packaged assets, plugin registrations, default bridge, and absence of the beta's StoreKit source, permissions and push entitlements. Open the project under `ios-first-party/` for simulator or device work. The standard beta still uses `mobile/ios/`.
 
+To compile and launch the unsigned fallback on the Mac runner, select **first-party** when manually running **Mobile iOS simulator build** from the fallback branch. The three-day artifact contains the simulator app and a launch screenshot. From GitHub CLI:
+
+```sh
+gh workflow run mobile-ios-simulator.yml --ref codex/ios-first-party-release -f profile=first-party
+```
+
 Before preparing an App Store candidate, verify the data provenance of any connected features, compile and test the selected package on an iPhone, and review the store listing and privacy disclosures against that package. The existing store preparation script requires the standard bundle.
 
 ## Native sessions and sign-in smoke

@@ -46,3 +46,28 @@ test('the simulator launches and exercises StoreKit before saving its artifact',
  assert.ok(steps[runtime]['timeout-minutes']<=6)
  assert.match(steps[pack].run,/ios-storekit-smoke\.json/)
 })
+
+test('the first-party profile builds and launches the isolated unsigned app',()=>{
+ const profile = workflow.on.workflow_dispatch.inputs.profile
+ assert.equal(profile.type,'choice')
+ assert.deepEqual(profile.options,['standard','first-party'])
+ assert.equal(profile.default,'standard')
+ const simulator = workflow.jobs.simulator
+ assert.match(simulator.env.TIQ_SIMULATOR_PROJECT,/inputs\.profile == 'first-party' && 'mobile\/ios-first-party\/App\/App\.xcodeproj' \|\| 'mobile\/ios\/App\/App\.xcodeproj'/)
+ const find = name => simulator.steps.find(step=>step.name===name)
+ const bundle = find('Bundle and verify first-party iOS project')
+ const compile = find('Compile simulator app without signing')
+ const launch = find('Launch and capture first-party simulator app')
+ const artifact = find('Save first-party simulator artifact')
+ const stages = [bundle,compile,launch,artifact].map(step=>simulator.steps.indexOf(step))
+ assert.ok(stages[0]>=0 && stages[0]<stages[1] && stages[1]<stages[2] && stages[2]<stages[3])
+ for(const command of ['build','prepare','check'])assert.ok(bundle.run.includes(`npm run ${command}:ios:first-party --prefix mobile`))
+ assert.match(compile.run,/-project "\$TIQ_SIMULATOR_PROJECT"/)
+ assert.match(launch.run,/simctl launch --terminate-running-process "\$DEVICE" com\.tenaceiq\.prototype\s/)
+ assert.match(launch.run,/simctl io "\$DEVICE" screenshot/)
+ assert.equal(artifact.with['retention-days'],3)
+ for(const step of [bundle,launch,artifact])assert.equal(step.if,"inputs.profile == 'first-party'")
+ for(const name of ['Bundle and generate iOS project','Add unsigned Debug runtime probe','Verify the launched StoreKit bridge','Save simulator artifact']){
+  assert.match(find(name).if,/inputs\.profile != 'first-party'/)
+ }
+})

@@ -3,6 +3,12 @@ name: Mobile iOS simulator build
 # Manual dispatch or an explicit PR label; never run on pushes or PR updates.
 on:
   workflow_dispatch:
+    inputs:
+      profile:
+        description: App profile to compile and launch
+        type: choice
+        default: standard
+        options: [standard, first-party]
   pull_request:
     types: [labeled]
 
@@ -20,6 +26,7 @@ jobs:
     timeout-minutes: 25
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      TIQ_SIMULATOR_PROJECT: ${{ inputs.profile == 'first-party' && 'mobile/ios-first-party/App/App.xcodeproj' || 'mobile/ios/App/App.xcodeproj' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -34,8 +41,10 @@ jobs:
             package-lock.json
             mobile/package-lock.json
       - name: Check Xcode
+        run: xcodebuild -version
+      - name: Check standard export tooling
+        if: inputs.profile != 'first-party'
         run: |
-          xcodebuild -version
           xcodebuild -help > "$RUNNER_TEMP/tiq-xcode-help.txt" 2>&1
           python3 -c 'import pathlib,sys; assert "testFlightInternalTestingOnly" in pathlib.Path(sys.argv[1]).read_text(), "Xcode internal-only export option unavailable"' "$RUNNER_TEMP/tiq-xcode-help.txt"
       - name: Install locked dependencies
@@ -43,16 +52,25 @@ jobs:
           npm ci
           npm ci --prefix mobile
       - name: Check bundled client
+        if: inputs.profile != 'first-party'
         run: |
           python3 mobile/scripts/test-ios-export-options.py
           npx vitest run lib/__tests__/mobile-account-links.test.ts lib/__tests__/mobile-match-details.test.ts lib/__tests__/mobile-recent-results.test.ts lib/__tests__/mobile-recent-form.test.ts lib/__tests__/mobile-player-connection.test.ts lib/__tests__/native-auth-storage.test.ts
           node --test mobile/scripts/ios-app-lock.test.mjs mobile/scripts/ios-purchases.test.mjs mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-icon.test.mjs
       - name: Bundle and generate iOS project
+        if: inputs.profile != 'first-party'
         run: |
           npm run build:bundled --prefix mobile
           npm run prepare:ios --prefix mobile
           npm run check:ios --prefix mobile
+      - name: Bundle and verify first-party iOS project
+        if: inputs.profile == 'first-party'
+        run: |
+          npm run build:ios:first-party --prefix mobile
+          npm run prepare:ios:first-party --prefix mobile
+          npm run check:ios:first-party --prefix mobile
       - name: Add unsigned Debug runtime probe
+        if: inputs.profile != 'first-party'
         run: node mobile/scripts/ios-purchases-runtime-smoke.mjs --prepare mobile/ios/App/App/TenAceIQPurchases.swift
       - name: Boot iPhone simulator before compiling
         timeout-minutes: 4
@@ -65,12 +83,13 @@ jobs:
           echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
       - name: Compile simulator app without signing
         run: |
-          xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App \
+          xcodebuild -project "$TIQ_SIMULATOR_PROJECT" -scheme App \
             -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath mobile/ios-build \
             CODE_SIGNING_ALLOWED=NO build
       - name: Verify the launched StoreKit bridge
+        if: inputs.profile != 'first-party'
         timeout-minutes: 6
         run: |
           set -euo pipefail
@@ -92,7 +111,7 @@ jobs:
           xcrun simctl shutdown "$DEVICE"
       - name: Capture simulator diagnostics
         timeout-minutes: 2
-        if: always()
+        if: always() && inputs.profile != 'first-party'
         run: |
           mkdir -p mobile/ios-smoke-diagnostics
           xcrun simctl io booted screenshot mobile/ios-smoke-diagnostics/simulator.png || true
@@ -103,7 +122,7 @@ jobs:
             cp "$container"/Documents/tiq-storekit-smoke.json* mobile/ios-smoke-diagnostics/ 2>/dev/null || true
           done
       - name: Package simulator app
-        if: always()
+        if: always() && inputs.profile != 'first-party'
         run: |
           test -d mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
           ditto -c -k --sequesterRsrc --keepParent \
@@ -112,10 +131,32 @@ jobs:
           test ! -f mobile/ios-storekit-smoke.json || zip -j mobile/ios-simulator.zip mobile/ios-storekit-smoke.json
           zip -j mobile/ios-simulator.zip mobile/ios-smoke-diagnostics/*
       - name: Save simulator artifact
-        if: always()
+        if: always() && inputs.profile != 'first-party'
         uses: actions/upload-artifact@v6
         with:
           name: tenaceiq-ios-simulator-${{ github.sha }}
           path: mobile/ios-simulator.zip
+          if-no-files-found: error
+          retention-days: 3
+      - name: Launch and capture first-party simulator app
+        if: inputs.profile == 'first-party'
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          DEVICE="$TIQ_SIMULATOR_UDID"
+          APP=mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
+          OUTPUT="$RUNNER_TEMP/tiq-first-party-simulator"
+          mkdir -p "$OUTPUT"
+          xcrun simctl install "$DEVICE" "$APP"
+          xcrun simctl launch --terminate-running-process "$DEVICE" com.tenaceiq.prototype
+          sleep 5
+          xcrun simctl io "$DEVICE" screenshot "$OUTPUT/first-party-launch.png"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$OUTPUT/first-party-simulator.zip"
+      - name: Save first-party simulator artifact
+        if: inputs.profile == 'first-party'
+        uses: actions/upload-artifact@v6
+        with:
+          name: tenaceiq-first-party-simulator-${{ github.sha }}
+          path: ${{ runner.temp }}/tiq-first-party-simulator
           if-no-files-found: error
           retention-days: 3
