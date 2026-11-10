@@ -4,6 +4,8 @@ import { competitionLeague, competitionOwner } from './competitions-data'
 export const captainFixtureId = '55555555-5555-4555-8555-555555555555'
 const opponent = '22222222-2222-4222-8222-222222222222'
 const match = { league: competitionLeague.id, fixture: captainFixtureId, date: '2026-11-06', teamA: 'Baseline Aces', teamB: 'Rally Crew' }
+const membersA = [{ id: competitionOwner, name: 'Jordan Lee' }, { id: '33333333-3333-4333-8333-333333333333', name: 'Alex Rally' }]
+const membersB = [{ id: opponent, name: 'Casey Serve' }, { id: '44444444-4444-4444-8444-444444444444', name: 'Taylor Volley' }]
 export const captainCourtsFixture = { enabled: new URL(location.href).searchParams.has('captain-courts'), courts: [] as CaptainCourt[] }
 
 export function captainCourtPreview(url: URL, owner: string, body: unknown) {
@@ -31,5 +33,5 @@ export function captainCourtPreview(url: URL, owner: string, body: unknown) {
   }
   const captain = owner === competitionOwner
   return Response.json({ ...response, desk: { ...match, captain, side: captain ? 'A' : 'B', courts: captain ? captainCourtsFixture.courts : [],
-    membersA: captain ? [{ id: competitionOwner, name: 'Jordan Lee' }] : [], membersB: captain ? [{ id: opponent, name: 'Casey Serve' }] : [] } })
+    membersA: captain ? membersA : [], membersB: captain ? membersB : [] } })
 }
