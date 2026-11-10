@@ -2,6 +2,7 @@ import { accountClient, accountResponse, readAccountJson, verifiedAccount } from
 import { countFirstPartyChats, readFirstPartyChat, reviewedTeamOptions, writeFirstPartyChat } from '@/lib/first-party-team-chat'
 import { findReviewedTeamConversation, loadReviewedTeamLinks, readReviewedTeamRooms } from '@/lib/first-party-team-scopes'
 import { nativeCoachChatUnread } from '@/lib/native-coach-chat-unread'
+import { loadPlayerAccess } from '@/lib/player-api-auth'
 import { supabaseKey } from '@/lib/supabase-public-config'
 
 export const runtime = 'nodejs'
@@ -45,7 +46,12 @@ export async function GET(request: Request) {
       team.leagueName === params.get('league') && team.flight === params.get('flight'))
     if (!selected || !await findReviewedTeamConversation(service, selected)) return denied(403)
     const result = await readFirstPartyChat(service, owner, selected, params)
-    return result.ok ? json({ ...result, owner, teams: options }) : json(result, result.status)
+    if (!result.ok) return json(result, result.status)
+    if (op === 'room' && 'room' in result && selected.isCaptain) {
+      const access = await loadPlayerAccess(accountClient(supabaseKey, account.token), owner).catch(() => null)
+      return json({ ...result, owner, teams: options, room: { ...result.room, canInviteTeammates: access?.canUseCaptainWorkflow === true } })
+    }
+    return json({ ...result, owner, teams: options })
   } catch {
     return denied(503)
   }

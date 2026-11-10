@@ -23,7 +23,7 @@ export function openTeamInvite(client:SupabaseClient,owner:string,current:()=>bo
    ${review.alreadyJoined?'':'<p class="rating-context">Alerts use your iPhone and email settings.</p>'}
    <button type="button" id="team-invite-join" ${busy?'disabled':''}>${busy?'Joining…':uncertain?'Retry same join':review.alreadyJoined?'Open team':'Join as player'}</button>
    ${busy||uncertain?'':'<button type="button" class="secondary" data-invite-change>Use a different invite</button>'}`
-   :`<p>Paste the invite your captain shared. You’ll see the team before you join.</p>
+   :`<p>Paste the invite link or code your captain shared. You’ll see the team before you join.</p>
     <form data-invite-form><label>Team invite<input id="team-invite-input" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="600" value="${html(input)}" ${busy?'disabled':''}></label>
     <button type="submit" ${busy?'disabled':''}>${busy?'Checking…':'Review invite'}</button></form>`}
    <p role="status" tabindex="-1" data-invite-feedback>${html(notice)}</p>`
@@ -58,5 +58,5 @@ export function openTeamInvite(client:SupabaseClient,owner:string,current:()=>bo
   }
  }
  dialog.addEventListener('cancel',e=>{e.preventDefault();close()});render();dialog.showModal();dialog.querySelector<HTMLElement>('h2')?.focus();if(input)void preview()
- return {dispose,isOpen:()=>!disposed}
+ return {dispose,close,isOpen:()=>!disposed}
 }

@@ -33,6 +33,7 @@ import {chatBodyHtml,openChatLink} from './chat-links'
 import {openAnnouncement} from './chat-announcement'
 import {chatMatches,chatFilterStatus,type ChatFilter} from './chat-filters'
 import {openTeamInvite} from './team-invite-view'
+import {openCaptainInvites} from './captain-invite-view'
 import {chooseTeamGif} from './chat-gif-library-picker'
 import {chatGifPlayback} from './chat-gif-playback'
 import {teamChatCursor} from '../../lib/team-chat-cursor'
@@ -456,6 +457,17 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   app.querySelector<HTMLButtonElement>('#join-team')!.onclick=openInvite
   app.querySelector<HTMLButtonElement>('#all-team-chats')!.onclick=openInbox
   bindTeamToolsClose(app)
+  const inviteTeammates=app.querySelector<HTMLButtonElement>('#chat-invite-teammates')
+  if(inviteTeammates)inviteTeammates.onclick=()=>{
+   if(!valid()||inviteView?.isOpen()||snapshot?.room?.id!==room.id||!snapshot.room.canInviteTeammates)return
+   inviteTeammates.focus({preventScroll:true})
+   const epoch=reactionEpoch,{teamName,leagueName,flight}=room
+   const current=()=>valid()&&epoch===reactionEpoch&&snapshot?.room?.id===room.id
+   inviteView=openCaptainInvites(client,userId,{teamName,leagueName,flight},current,()=>{
+    inviteView=null
+    if(current()&&inviteTeammates.isConnected)inviteTeammates.focus({preventScroll:true})
+   })
+  }
   const roomsButton=app.querySelector<HTMLButtonElement>('#open-team-rooms')
   if(roomsButton)roomsButton.onclick=()=>{
    if(!valid()||roomPicker?.isOpen())return
@@ -650,5 +662,5 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   if(needsLiveRefresh&&!busy&&!draft.sending&&fullLoads===0&&!app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]')){needsLiveRefresh=false;void refreshLive().catch(()=>{})}
  }
  void load()
- return {openInbox,refreshUnread:()=>{if(valid()&&inbox){inboxView?.update(alerts?.unread()??null);coachInbox.update(alerts?.unread()??null)}},hasDraft:()=>Boolean(coachInbox.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || inviteView?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{replyReturn=null;coachInbox.dispose();inboxView?.dispose();inboxView=null;pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;inviteView?.dispose();inviteView=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(coachInbox.back())return true;if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
+ return {openInbox,refreshUnread:()=>{if(valid()&&inbox){inboxView?.update(alerts?.unread()??null);coachInbox.update(alerts?.unread()??null)}},hasDraft:()=>Boolean(coachInbox.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || inviteView?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{replyReturn=null;coachInbox.dispose();inboxView?.dispose();inboxView=null;pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;inviteView?.dispose();inviteView=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(coachInbox.back())return true;if(inviteView?.isOpen()){inviteView.close();return true}if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
 }

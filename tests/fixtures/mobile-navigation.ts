@@ -67,6 +67,8 @@ const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},
 const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
 const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false}
+const captainInvitesEnabled=new URL(location.href).searchParams.has('captain-invites')
+let captainInvite:{id:string;token:string;expiresAt:string;revokedAt:string|null;acceptedCount:number;active:boolean}|null=null
 const firstPartyTeamMessages=[{id:'66666666-6666-4666-8666-666666666666',senderUserId:'77777777-7777-4777-8777-777777770E4A',senderName:'Teammate 0E4A',body:'Anyone up for a hit on Friday?',kind:'message',createdAt:'2026-11-06T10:00:00.000Z',isMine:false}]
 Object.assign(window,{firstPartyTeamFixture})
 Object.assign(window,{chatUnreadFixture,matchDayFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
@@ -76,7 +78,7 @@ window.fetch=async(input,init)=>{
  if(url.origin===location.origin)return originalFetch(input,init)
  if(url.pathname==='/api/mobile/first-party/updates')return firstPartyUpdatesPreview(init?.method||'GET',url,init?.body,currentNavigationOwner())
  if(url.pathname.includes('/calendar'))calendarPaths.push(url.pathname)
- if(/^\/api\/(team-rooms(?:\/|$)|mobile\/(team-invites|chats\/unread)$)/.test(url.pathname))firstPartyTeamFixture.integratedReads++
+ if(/^\/api\/(team-rooms(?:\/|$)|mobile\/(team-invites|captain\/invites|chats\/unread)$)/.test(url.pathname))firstPartyTeamFixture.integratedReads++
  if(url.pathname==='/api/mobile/first-party/team-rooms'){
   const op=url.searchParams.get('op')||'room',owner=currentNavigationOwner()
   firstPartyTeamFixture.requests.push(op)
@@ -93,7 +95,8 @@ window.fetch=async(input,init)=>{
    return Response.json({...base,message})
   }
   const team=teams.find(item=>item.teamName===url.searchParams.get('team')&&item.leagueName===url.searchParams.get('league')&&item.flight===url.searchParams.get('flight'))
-  const room=team?{...team,id:chatRoomId,chatReady:true,lastReadAt:'2026-11-06T10:00:00.000Z',members:[],messages:firstPartyTeamMessages}:null
+  const room=team?{...team,id:chatRoomId,chatReady:true,canInviteTeammates:captainInvitesEnabled&&owner===navigationOwner,
+   lastReadAt:'2026-11-06T10:00:00.000Z',members:[],messages:firstPartyTeamMessages}:null
   return Response.json({...base,teams,room,nextCursor:''})
  }
  // Track tool-driven traffic separately from the independent live unread counter.
@@ -103,6 +106,18 @@ window.fetch=async(input,init)=>{
   const command=JSON.parse(String(init?.body))
   const release=url.pathname.includes('/first-party/')?{releaseScope:'first-party',owner:currentNavigationOwner()}:{}
   if(release.releaseScope)firstPartyTeamFixture.requests.push('invite:'+command.action)
+  if(['list','create','revoke'].includes(command.action)){
+   if(!release.releaseScope||!captainInvitesEnabled||release.owner!==navigationOwner||
+    command.teamName!==chatTeam.teamName||command.leagueName!==chatTeam.leagueName||command.flight!==chatTeam.flight)
+    return Response.json({ok:false},{status:403})
+   const receipt={...release,ok:true,nativeCaptainInvites:1,action:command.action,scope:chatTeam}
+   if(command.action==='list')return Response.json({...receipt,invites:captainInvite?[captainInvite]:[]})
+   if(command.action==='create'&&!captainInvite)captainInvite={id:command.id,token:'44444444-4444-4444-8444-444444444444',
+    expiresAt:'2030-01-01T00:00:00Z',revokedAt:null,acceptedCount:0,active:true}
+   if(!captainInvite||captainInvite.id!==command.id)return Response.json({ok:false},{status:409})
+   if(command.action==='revoke')captainInvite={...captainInvite,revokedAt:'2026-11-10T12:00:00Z',active:false}
+   return Response.json({...receipt,operationId:command.id,invite:captainInvite})
+  }
   const scope={...chatTeam,roomId:chatRoomId,expiresAt:'2027-06-30T18:00:00Z'}
   const expected={...scope,inviteId:'55555555-5555-4555-8555-555555555555',creatorId:navigationOwner}
   if(command.token!=='44444444-4444-4444-8444-444444444444')return Response.json({ok:false,message:'Invite unavailable.'},{status:404})
