@@ -6,7 +6,7 @@ import type {CalendarTeamPractice} from './native-calendar-practices-contract'
 export type CalendarRange={from:string;to:string}
 export type CalendarSharedDate={id:string;title:string;date:string;time:string;location:string;detail:string;kind:'lesson'|'reminder'}
 export type CalendarCompetitionView={id:string;divisionId?:string}
-export type NativeCalendarCompetition=PlayerCompetitionScheduleEvent&{publishedView?:CalendarCompetitionView}
+export type NativeCalendarCompetition=PlayerCompetitionScheduleEvent&{publishedView?:CalendarCompetitionView;scorecardFormat?:'singles'|'doubles'}
 export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:NativeCalendarCompetition[];coach:CalendarSharedDate[];practices?:CalendarTeamPractice[];practicesUnavailable?:boolean;warnings:string[]}
 export const COMPETITION_DATES_UNAVAILABLE='League and tournament dates couldn’t load. Refresh to check them.'
 export function readCalendarCompetitionView(event:PlayerCompetitionScheduleEvent,value:unknown):CalendarCompetitionView|undefined{
