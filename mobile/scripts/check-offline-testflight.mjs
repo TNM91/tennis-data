@@ -3,8 +3,9 @@ import {setTimeout as sleep} from 'node:timers/promises'
 
 const bundleId = 'com.tenaceiq.app'
 const buildNumber = '255'
+const previousBuildNumber = '254'
 const origin = 'https://api.appstoreconnect.apple.com'
-const shouldAssign = process.env.TIQ_ASSIGN_T1 === 'true'
+const shouldAssign = process.env.TIQ_ASSIGN_PREVIOUS_GROUP === 'true'
 const {API_KEY,API_KEY_ID,API_ISSUER} = process.env
 if(!API_KEY || !API_KEY_ID || !API_ISSUER)throw new Error('App Store Connect credentials are unavailable.')
 const key = createPrivateKey(Buffer.from(API_KEY,'base64'))
@@ -38,51 +39,80 @@ async function addBuildToGroup(buildId,groupId){
  })
  // Another reviewer may have added the build between the read and the update.
  // A conflict still requires the same relationship check as a success.
- if(response.status!==204 && response.status!==409)throw new Error(`Apple returned HTTP ${response.status} while assigning build 255 to T1.`)
+ if(response.status!==204 && response.status!==409)throw new Error(`Apple returned HTTP ${response.status} while assigning build 255 to the previous group.`)
 }
-
-const isT1 = item => item.type==='betaGroups' && item.attributes.isInternalGroup===true
- && item.attributes.name.trim().toUpperCase()==='T1'
 
 const apps = await read('/v1/apps',{'filter[bundleId]':bundleId,'fields[apps]':'bundleId',limit:'2'})
 const [app] = apps.data
 if(apps.data.length!==1 || app.attributes.bundleId!==bundleId)throw new Error('Could not resolve the exact TenAceIQ app.')
 
-let result
-let assignmentAttempted = false
-for(let attempt=0;attempt<6;attempt++){
- const reply = await read('/v1/builds',{'filter[app]':app.id,'filter[version]':buildNumber,
+async function readBuild(number){
+ const reply = await read('/v1/builds',{'filter[app]':app.id,'filter[version]':number,
   include:'preReleaseVersion,buildBetaDetail,betaGroups',limit:'5'})
  const included = reply.included ?? []
  const builds = reply.data.filter(build=>{
   const version = included.find(item=>item.type==='preReleaseVersions' && item.id===build.relationships.preReleaseVersion?.data?.id)
-  return build.attributes.version===buildNumber && version?.attributes.platform==='IOS' && version.attributes.version==='1.0'
+  return build.attributes.version===number && version?.attributes.platform==='IOS' && version.attributes.version==='1.0'
  })
- if(builds.length>1)throw new Error('Build 255 is ambiguous in App Store Connect.')
+ if(reply.links?.next || builds.length>1)throw new Error(`Build ${number} is ambiguous in App Store Connect.`)
  const [build] = builds
  const detail = included.find(item=>item.type==='buildBetaDetails' && item.id===build?.relationships.buildBetaDetail?.data?.id)
- const groupIds = new Set((build?.relationships.betaGroups?.data ?? []).map(group=>group.id))
- result = {
-  build:buildNumber,
+ return {
+  id:build?.id,
   processing:build?.attributes.processingState ?? 'AWAITING_PROCESSING',
   audience:build?.attributes.buildAudienceType ?? null,
   internalState:detail?.attributes.internalBuildState ?? null,
-  t1Assigned:included.some(item=>isT1(item) && groupIds.has(item.id)),
+  groupIds:new Set((build?.relationships.betaGroups?.data ?? []).map(group=>group.id)),
+ }
+}
+
+async function groupContainsBuild(groupId,buildId){
+ const links = await read(`/v1/betaGroups/${encodeURIComponent(groupId)}/relationships/builds`,{limit:'200'})
+ return links.data.some(link=>link.type==='builds' && link.id===buildId)
+}
+
+const previous = await readBuild(previousBuildNumber)
+if(!previous.id || previous.processing!=='VALID')throw new Error('Could not verify the prior iOS build 254.')
+const groups = await read(`/v1/apps/${encodeURIComponent(app.id)}/betaGroups`,{'fields[betaGroups]':'isInternalGroup',limit:'200'})
+if(groups.links?.next)throw new Error('The list of TenAceIQ groups is incomplete.')
+const internalGroups = groups.data.filter(group=>group.type==='betaGroups' && group.attributes.isInternalGroup===true)
+let previousGroups = internalGroups.filter(group=>previous.groupIds.has(group.id))
+// Confirm from the group side when Apple omits the build-side relationship.
+if(previousGroups.length===0 && internalGroups.length<=4){
+ const memberships = await Promise.all(internalGroups.map(group=>groupContainsBuild(group.id,previous.id)))
+ previousGroups = internalGroups.filter((_group,index)=>memberships[index])
+}
+if(previousGroups.length!==1){
+ console.log(JSON.stringify({priorBuild:previousBuildNumber,priorState:previous.internalState,
+  internalGroups:internalGroups.length,verifiedPriorGroups:previousGroups.length}))
+ throw new Error('Could not verify exactly one existing internal group with access to build 254.')
+}
+const [previousGroup] = previousGroups
+
+let result
+let assignmentAttempted = false
+for(let attempt=0;attempt<6;attempt++){
+ const current = await readBuild(buildNumber)
+ const assigned = current.groupIds.has(previousGroup.id) || Boolean(current.id && current.processing==='VALID'
+  && await groupContainsBuild(previousGroup.id,current.id))
+ result = {
+  build:buildNumber,
+  processing:current.processing,
+  audience:current.audience,
+  internalState:current.internalState,
+  sameGroupAs254:assigned,
  }
  if(result.processing==='FAILED' || result.processing==='INVALID')break
- if(result.processing==='VALID' && result.t1Assigned && (!shouldAssign || result.internalState==='IN_BETA_TESTING'))break
- if(shouldAssign && !assignmentAttempted && attempt<5 && result.processing==='VALID' && !result.t1Assigned){
+ if(result.processing==='VALID' && assigned && (!shouldAssign || result.internalState==='IN_BETA_TESTING'))break
+ if(shouldAssign && !assignmentAttempted && attempt<5 && result.processing==='VALID' && !assigned){
   if(result.audience!=='INTERNAL_ONLY' || !['READY_FOR_BETA_TESTING','IN_BETA_TESTING'].includes(result.internalState)){
    throw new Error('Build 255 is outside the approved internal testing scope.')
   }
-  const groups = await read(`/v1/apps/${encodeURIComponent(app.id)}/betaGroups`,{'fields[betaGroups]':'name,isInternalGroup',limit:'200'})
-  const matches = groups.data.filter(isT1)
-  if(groups.links?.next || matches.length!==1)throw new Error('Expected exactly one existing internal T1 group for TenAceIQ.')
-  await addBuildToGroup(build.id,matches[0].id)
+  await addBuildToGroup(current.id,previousGroup.id)
   assignmentAttempted = true
   continue
  }
  if(attempt<5)await sleep(20000)
 }
 console.log(JSON.stringify(result))
-if(shouldAssign && !result.t1Assigned)throw new Error('Apple did not confirm the build 255 assignment to T1.')
+if(shouldAssign && !result.sameGroupAs254)throw new Error('Apple did not confirm build 255 in the same group as build 254.')
