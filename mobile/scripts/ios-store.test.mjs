@@ -99,7 +99,7 @@ test('signed workflow restricts secret use and defaults to no upload', async () 
   assert.equal(workflow.jobs.signed.environment, 'apple-testflight')
   assert.match(workflow.jobs.signed.if, /github\.repository == 'TNM91\/tennis-data'/)
   assert.match(workflow.jobs.signed.if, /inputs\.distribution == 'app-store' && inputs\.upload/)
-  assert.match(workflow.jobs.signed.if, /inputs\.profile == 'first-party' && github\.ref == 'refs\/heads\/codex\/ios-first-party-release' &&\s+inputs\.distribution == 'internal' && !inputs\.upload/)
+  assert.match(workflow.jobs.signed.if, /inputs\.profile == 'first-party' && github\.ref == 'refs\/heads\/codex\/ios-first-party-release' &&\s+inputs\.distribution == 'internal' && \(!inputs\.upload \|\| inputs\.build_number == '255'\)/)
   assert.deepEqual(workflow.permissions, {contents:'read'})
   assert.equal(workflow.concurrency['cancel-in-progress'], false)
   const steps = workflow.jobs.signed.steps
@@ -112,14 +112,35 @@ test('signed workflow restricts secret use and defaults to no upload', async () 
   assert.match(archive.run,/mobile\/bundled-first-party --first-party/)
   assert.match(archive.run,/testFlightInternalTestingOnly/)
   const upload = steps.find(s=>s.name==='Upload to App Store Connect')
-  assert.equal(upload.if,"inputs.profile == 'standard' && inputs.upload")
+  assert.equal(upload.if,'inputs.upload')
   assert.match(upload.run, /--output-format json/)
   assert.match(upload.run, /validate-altool-upload\.py/)
   const artifact = steps.find(s=>s.uses?.startsWith('actions/upload-artifact@'))
   assert.equal(artifact.with.path, '${{ runner.temp }}/tiq-export/App.ipa')
-  assert.equal(artifact.if, "inputs.distribution == 'internal'")
+  assert.equal(artifact.if, "inputs.distribution == 'internal' && (inputs.profile != 'first-party' || !inputs.upload)")
   assert.equal(steps.at(-1).if,'always()')
   assert.doesNotMatch(JSON.stringify(workflow), /-allowProvisioningUpdates|pull_request_target|ios-purchases-runtime-smoke/)
+})
+
+test('the offline TestFlight upload reuses the approved build 255 IPA',async()=>{
+ const workflow = load(await readFile(new URL('../../.github/workflows/mobile-ios-signed.yml',import.meta.url),'utf8'))
+ const job = workflow.jobs.signed
+ assert.deepEqual(job.permissions,{contents:'read',actions:'read'})
+ const steps = job.steps
+ const retrieve = steps.find(step=>step.name==='Retrieve and verify approved offline IPA')
+ const upload = steps.find(step=>step.name==='Upload to App Store Connect')
+ assert.ok(steps.indexOf(retrieve)<steps.indexOf(upload))
+ assert.equal(retrieve.if,"inputs.profile == 'first-party' && inputs.upload")
+ assert.deepEqual(retrieve.env,{GH_TOKEN:'${{ github.token }}'})
+ assert.match(retrieve.run,/SOURCE_RUN=42749137524/)
+ assert.match(retrieve.run,/SOURCE_SHA=4bf00ab4b55935dd22b93e269cc39d66c8110583/)
+ assert.match(retrieve.run,/IPA_SHA256=6da7e12cce8e4e07f28da181c0d2d76a1f5780a5e428d3a47b9de4214c5c2b08/)
+ assert.match(retrieve.run,/test "\$SOURCE" = "\$SOURCE_SHA:success"/)
+ assert.match(retrieve.run,/gh run download.*--name tenaceiq-ios-first-party-signed-255/)
+ assert.match(retrieve.run,/shasum -a 256 -c -/)
+ for(const name of ['Prepare bundled native app','Import signing material and validate profile','Archive and export signed IPA']){
+  assert.equal(steps.find(step=>step.name===name).if,"inputs.profile != 'first-party' || !inputs.upload")
+ }
 })
 
 test('camera purposes are top-level plist values even with nested scene dictionaries',()=>{

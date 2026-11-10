@@ -38,7 +38,10 @@ jobs:
         (github.ref == 'refs/heads/master' || (github.ref == 'refs/heads/codex/apple-mobile-build' && inputs.distribution == 'internal')) &&
         (inputs.distribution == 'internal' || (inputs.distribution == 'app-store' && inputs.upload))) ||
        (inputs.profile == 'first-party' && github.ref == 'refs/heads/codex/ios-first-party-release' &&
-        inputs.distribution == 'internal' && !inputs.upload))
+        inputs.distribution == 'internal' && (!inputs.upload || inputs.build_number == '255')))
+    permissions:
+      contents: read
+      actions: read
     environment: apple-testflight
     runs-on: macos-15
     timeout-minutes: 30
@@ -53,6 +56,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-node@v6
+        if: inputs.profile != 'first-party' || !inputs.upload
         with:
           node-version: 22
           cache: npm
@@ -60,6 +64,7 @@ jobs:
             package-lock.json
             mobile/package-lock.json
       - name: Prepare bundled native app
+        if: inputs.profile != 'first-party' || !inputs.upload
         run: |
           npm ci
           npm ci --prefix mobile
@@ -78,6 +83,7 @@ jobs:
             node mobile/scripts/prepare-ios-store.mjs
           fi
       - name: Import signing material and validate profile
+        if: inputs.profile != 'first-party' || !inputs.upload
         env:
           CERTIFICATE: ${{ secrets.APPLE_DISTRIBUTION_P12_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
@@ -105,6 +111,7 @@ jobs:
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$RUNNER_TEMP/tiq-signing/app.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$(cat "$RUNNER_TEMP/tiq-signing/uuid").mobileprovision"
       - name: Archive and export signed IPA
+        if: inputs.profile != 'first-party' || !inputs.upload
         run: |
           set -euo pipefail
           xcodebuild -help > "$RUNNER_TEMP/tiq-xcode-help.txt" 2>&1
@@ -130,8 +137,21 @@ jobs:
             python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist"
             python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$IPA" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled
           fi
+      - name: Retrieve and verify approved offline IPA
+        if: inputs.profile == 'first-party' && inputs.upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SOURCE_RUN=42749137524
+          SOURCE_SHA=4bf00ab4b55935dd22b93e269cc39d66c8110583
+          IPA_SHA256=6da7e12cce8e4e07f28da181c0d2d76a1f5780a5e428d3a47b9de4214c5c2b08
+          SOURCE=$(gh run view "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --json headSha,conclusion --jq '.headSha + ":" + .conclusion')
+          test "$SOURCE" = "$SOURCE_SHA:success"
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name tenaceiq-ios-first-party-signed-255 --dir "$RUNNER_TEMP/tiq-export"
+          printf '%s  %s\n' "$IPA_SHA256" "$RUNNER_TEMP/tiq-export/App.ipa" | shasum -a 256 -c -
       - name: Upload to App Store Connect
-        if: inputs.profile == 'standard' && inputs.upload
+        if: inputs.upload
         env:
           API_KEY: ${{ secrets.APPLE_UPLOAD_API_KEY_P8_BASE64 }}
           API_KEY_ID: ${{ secrets.APPLE_UPLOAD_API_KEY_ID }}
@@ -147,7 +167,7 @@ jobs:
             --output-format json > "$RUNNER_TEMP/tiq-upload.json"
           python3 mobile/scripts/validate-altool-upload.py "$RUNNER_TEMP/tiq-upload.json"
       - name: Save signed app only
-        if: inputs.distribution == 'internal'
+        if: inputs.distribution == 'internal' && (inputs.profile != 'first-party' || !inputs.upload)
         uses: actions/upload-artifact@v6
         with:
           name: tenaceiq-ios-${{ inputs.profile == 'first-party' && 'first-party-signed' || 'signed' }}-${{ inputs.build_number }}
