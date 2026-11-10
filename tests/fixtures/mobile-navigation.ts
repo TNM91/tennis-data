@@ -44,6 +44,12 @@ if(new URL(location.href).searchParams.has('team-practice-review')){
  calendarTeamFixture.enabled=true
  calendarTeamFixture.items[0].title='Return + first ball'
 }
+const calendarPaths:string[]=[]
+if(new URL(location.href).searchParams.has('mixed-calendar')){
+ const match=calendarFixture.competitions[0]
+ calendarFixture.competitions.push({...match,id:'league:imported-league:match-one',competitionId:'imported-league',title:'Unreviewed league date'})
+ calendarFixture.personal.push({...calendarFixture.personal[0],id:'team-schedule-external-copy',title:'Imported schedule copy'})
+}
 const chatUnreadFixture={total:7,reads:0,fail:false,detailed:false,secondTeam:false,empty:false,denyRoom:false,captain:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
 const matchDayFixture={enabled:new URL(location.href).searchParams.has('match-day-review'),published:false,finalSeen:false,response:'',posts:[] as string[]}
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
@@ -53,10 +59,11 @@ const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integr
 const firstPartyTeamMessages=[{id:'66666666-6666-4666-8666-666666666666',senderUserId:'77777777-7777-4777-8777-777777770E4A',senderName:'Teammate 0E4A',body:'Anyone up for a hit on Friday?',kind:'message',createdAt:'2026-11-06T10:00:00.000Z',isMine:false}]
 Object.assign(window,{firstPartyTeamFixture})
 Object.assign(window,{chatUnreadFixture,matchDayFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
-Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture,labDataReads})
+Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPaths,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture,labDataReads})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
+ if(url.pathname.includes('/calendar'))calendarPaths.push(url.pathname)
  if(/^\/api\/(team-rooms(?:\/|$)|mobile\/(team-invites|chats\/unread)$)/.test(url.pathname))firstPartyTeamFixture.integratedReads++
  if(url.pathname==='/api/mobile/first-party/team-rooms'){
   const op=url.searchParams.get('op')||'room',owner=currentNavigationOwner()
@@ -129,7 +136,7 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/team-rooms/search')return Response.json({ok:true,chatSearch:1,roomId:'22222222-2222-4222-8222-222222222222',query:url.searchParams.get('q'),kind:url.searchParams.get('kind'),beforeCursor:'',nextCursor:'',results:[]})
  if(url.pathname==='/api/mobile/captain')return Response.json({ok:true,scope:chatTeam,roster:[],matches:[],drafts:[]})
  if(url.pathname==='/api/mobile/calendar/practices'||url.pathname==='/api/mobile/practices')return calendarTeamPreview(init?.method||'GET',url,init?.body)
- if(url.pathname==='/api/mobile/calendar')return calendarPreview(init?.method||'GET',url,init?.body)
+ if(url.pathname==='/api/mobile/calendar'||url.pathname==='/api/mobile/first-party/calendar')return calendarPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/messages'){
   const unreadReply=await coachUnreadMessages(currentNavigationOwner(),init?.method||'GET',url,init?.body);if(unreadReply)return unreadReply

@@ -81,6 +81,26 @@ test('first-party scorecard links stop before loading the integrated match',asyn
  expect(reads).toEqual({linkedProfile:0,players:0,matches:0,goalScopes:[]})
 })
 
+test('first-party calendar keeps personal, coach and reviewed match dates on the scoped route',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?mixed-calendar=1&team-practice-review=1')
+ await page.getByRole('button',{name:'More',exact:true}).click()
+ await page.locator('[data-app-destination="calendar"]').click()
+ const calendar=page.getByRole('dialog',{name:'Your calendar',exact:true})
+ await expect(calendar.locator('.cal-event')).toHaveCount(3)
+ await expect(calendar.locator('.cal-event.personal')).toContainText('Serve + first ball')
+ await expect(calendar.locator('.cal-event.coach')).toContainText('Lesson: Jordan Lee')
+ await expect(calendar.locator('.cal-event.competition')).toContainText('Riverside Rally')
+ await expect(calendar).not.toContainText(/Imported schedule copy|Unreviewed league date|Team practices/)
+ await calendar.locator('.cal-event.competition').click()
+ await calendar.getByRole('combobox',{name:'Your reply',exact:true}).selectOption('available')
+ await calendar.getByRole('button',{name:'Confirm availability reply',exact:true}).click()
+ await expect(calendar).toContainText('Saved your “I can play” reply.')
+ const paths=await page.evaluate(()=>(window as unknown as {calendarPaths:string[]}).calendarPaths)
+ expect(paths.length).toBeGreaterThan(1)
+ expect(new Set(paths)).toEqual(new Set(['/api/mobile/first-party/calendar']))
+})
+
 test('first-party team chat keeps the existing inbox and uses only scoped routes',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.goto(origin)

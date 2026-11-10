@@ -4,7 +4,9 @@ vi.mock('../mobile-account-auth',async original=>({...await original<typeof impo
 vi.mock('../supabase-public-config',()=>({supabaseKey:'test-key'}))
 vi.mock('../native-calendar',async original=>({...await original<typeof import('../native-calendar')>(),loadNativeCalendar:vi.fn(),calendarPersonal:vi.fn(),writeCalendarPersonal:vi.fn(),respondNativeCalendar:vi.fn()}))
 import {GET,POST} from '../../app/api/mobile/calendar/route'
+import {GET as scopedGet,POST as scopedPost} from '../../app/api/mobile/first-party/calendar/route'
 import {CalendarFault,loadNativeCalendar,calendarPersonal,writeCalendarPersonal,respondNativeCalendar} from '../native-calendar'
+import {loadFirstPartyCalendarCompetitions} from '../first-party-calendar'
 const base='https://synthetic.invalid/api/mobile/calendar',window='?from=2026-10-26&to=2026-11-01'
 const draft={id:'player-calendar-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',title:'Practice',date:'2026-10-31',time:'',location:'',kind:'practice',recurrenceRule:'',availabilityStatus:'',venueDirectoryId:'',venuePreferenceId:''}
 const post=(body:unknown,query='',type='application/json')=>new Request(base+query,{method:'POST',headers:{'Content-Type':type},body:JSON.stringify(body)})
@@ -30,4 +32,19 @@ describe('native calendar API boundaries',()=>{
   vi.mocked(writeCalendarPersonal).mockRejectedValueOnce(Error('private SQL table password diagnostic'));const failed=await POST(post(request));expect(failed.status).toBe(503);expect(await failed.text()).not.toContain('password')
   expect(respondNativeCalendar).not.toHaveBeenCalled()
  })
+})
+it('uses the signed-in first-party calendar loader and blocks access to copied schedule items',async()=>{
+ const scoped='https://synthetic.invalid/api/mobile/first-party/calendar'
+ const result=await scopedGet(new Request(scoped+window))
+ expect(await result.json()).toMatchObject({ok:true,owner:state.owner,releaseScope:'first-party'})
+ expect(loadNativeCalendar).toHaveBeenCalledWith(state.client,state.owner,{from:'2026-10-26',to:'2026-11-01'},loadFirstPartyCalendarCompetitions)
+ for(const id of ['team-schedule-owner-aces-match','message-calendar-conversation-1']){
+  expect(await (await scopedGet(new Request(scoped+'?item='+id))).json()).toMatchObject({ok:true,item:null})
+  expect((await scopedPost(post({action:'delete',id,expectedUpdatedAt:'2026-10-31T12:00:00Z'}))).status).toBe(404)
+ }
+ expect(calendarPersonal).not.toHaveBeenCalled()
+ expect(writeCalendarPersonal).not.toHaveBeenCalled()
+ const reply={action:'respond',eventId:'league:reviewed:match',response:'available',snapshot:{title:'Match',date:'2026-10-31',time:'18:00',location:'Court 2'},expectedResponseUpdatedAt:'',requestId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'}
+ expect((await scopedPost(post(reply))).status).toBe(200)
+ expect(respondNativeCalendar).toHaveBeenCalledWith(state.client,state.owner,reply,loadFirstPartyCalendarCompetitions)
 })

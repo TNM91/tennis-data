@@ -35,11 +35,12 @@ export class CalendarRequestFault extends Error{constructor(public status:number
 export async function calendarRequest(client:SupabaseClient,owner:string,current:()=>boolean,query:Record<string,string>={},intent?:CalendarIntent,send:(o:HttpOptions)=>Promise<HttpResponse>=o=>intent?CapacitorHttp.post(o):CapacitorHttp.get(o)){
  const own=async()=>{const {data,error}=await client.auth.getSession();if(error||!current()||data.session?.user.id!==owner||!data.session.access_token)throw Error('Sign in again to open your calendar.');return data.session}
  const session=await own()
- const result=await send({url:'https://www.tenaceiq.com/api/mobile/calendar'+(Object.keys(query).length?'?'+new URLSearchParams(query):''),headers:{Authorization:'Bearer '+session.access_token,'Cache-Control':'no-store',...(intent?{'Content-Type':'application/json'}:{})},...(intent?{data:intent}:{}),webFetchExtra:{cache:'no-store'},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:30000})
+ const endpoint=firstPartyBuild?'https://www.tenaceiq.com/api/mobile/first-party/calendar':'https://www.tenaceiq.com/api/mobile/calendar'
+ const result=await send({url:endpoint+(Object.keys(query).length?'?'+new URLSearchParams(query):''),headers:{Authorization:'Bearer '+session.access_token,'Cache-Control':'no-store',...(intent?{'Content-Type':'application/json'}:{})},...(intent?{data:intent}:{}),webFetchExtra:{cache:'no-store'},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:30000})
  await own()
  const r=obj(result.data)
  if(result.status!==200||r.ok!==true)throw new CalendarRequestFault(result.status,result.status===409?'This date changed. Check the saved entry and review it again.':'The calendar result couldn’t be confirmed. Check the saved entry before trying again.')
- if(r.owner!==owner||JSON.stringify(r).length>3000000)throw Error('Calendar account changed.')
+ if(r.owner!==owner||firstPartyBuild&&r.releaseScope!=='first-party'||JSON.stringify(r).length>3000000)throw Error('Calendar account changed.')
  return r
 }
 export const localCalendarDate=(now=new Date())=>[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-')

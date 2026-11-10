@@ -87,6 +87,10 @@ Explore and Compete share the reviewed TenAceIQ league feed. Guests can browse a
 
 My Lab opens from the signed-in account. Saved training, coaching and the private training notebook work without a linked player. New notebook goals stay in an account scope separate from existing player-linked goals. Following, Matchup and shared scorecards remain on hold until their data has a first-party source.
 
+#### Calendar
+
+Personal dates entered in My Lab and dates shared by a connected coach use the signed-in account. The candidate skips imported schedule copies and dates extracted from team messages. League fixtures and tournament draws reuse the same revision approvals as Explore and Compete. The calendar checks the signed-in player's active league entry or approved tournament entry before showing dates or accepting availability replies. A division also needs its parent event approved. Team practice invitations stay outside this calendar until they have a separate reviewed source.
+
 #### Review a team conversation
 
 Confirm the team and league names, flight, and exact General conversation UUID against the TenAceIQ team record. Review what the room has been used for, including its existing messages. Use the server-only `TIQ_FIRST_PARTY_TEAM_ROOMS` setting for approved rooms. This example uses fictional data.

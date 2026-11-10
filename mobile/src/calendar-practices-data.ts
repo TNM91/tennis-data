@@ -3,6 +3,7 @@ import {CapacitorHttp} from '@capacitor/core'
 import {readCalendarPractices} from '../../lib/native-calendar-practices-contract'
 import type {CalendarRange,NativeCalendar} from '../../lib/native-calendar-contract'
 import {calendarRequest,readCalendar} from './calendar-data'
+import {firstPartyBuild} from './build-scope'
 
 export async function calendarPracticesRequest(client:SupabaseClient,owner:string,current:()=>boolean,range:CalendarRange,send=CapacitorHttp.get){
  const own=async()=>{const {data,error}=await client.auth.getSession();if(error||!current()||data.session?.user.id!==owner||!data.session.access_token)throw Error('Calendar account changed');return data.session}
@@ -11,6 +12,11 @@ export async function calendarPracticesRequest(client:SupabaseClient,owner:strin
  return readCalendarPractices(response.data,owner,range)
 }
 export async function loadCalendarSources(client:SupabaseClient,owner:string,current:()=>boolean,range:CalendarRange,base=calendarRequest,team=calendarPracticesRequest):Promise<NativeCalendar>{
+ if(firstPartyBuild){
+  const calendar=await base(client,owner,current,range)
+  if(!current())throw Error('Calendar unavailable')
+  return readCalendar(calendar,owner,range)
+ }
  const [calendar,practices]=await Promise.allSettled([base(client,owner,current,range).then(value=>readCalendar(value,owner,range)),team(client,owner,current,range)])
  if(!current()||calendar.status==='rejected')throw Error('Calendar unavailable')
  return {...calendar.value,practices:practices.status==='fulfilled'?practices.value:[],practicesUnavailable:practices.status==='rejected',warnings:[...calendar.value.warnings,...(practices.status==='rejected'?['Team practice dates couldn’t load. Refresh to check them.']:[])]}
