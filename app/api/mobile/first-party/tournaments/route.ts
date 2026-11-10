@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     }
 
     const snapshot = await loadFirstPartyNativeTournaments(auth.supabase, auth.userId, input)
-    return Response.json({ ok: true, ...snapshot }, { headers })
+    return Response.json({ ok: true, scope: 'first-party', ...snapshot }, { headers })
   } catch {
     return Response.json({ ok: false, message: 'Tournaments are unavailable. Refresh to try again.' }, { status: 503, headers })
   }

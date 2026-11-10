@@ -18,8 +18,9 @@ import path from 'node:path'
 const origin='http://127.0.0.1:4283'
 let javascript='',stylesheet='',documentHtml=''
 test.describe.configure({retries:0,timeout:25000})
+const bundleNavigation=(firstParty=false)=>build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',define:{TIQ_FIRST_PARTY_BUILD:String(firstParty)},loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^\.\/native-push$/},args=>args.importer.replace(/\\/g,"/").endsWith("/mobile/src/main.ts")?{path:path.resolve("tests/fixtures/mobile-native-coach-alerts.ts")}:undefined);b.onResolve({filter:/^@capacitor\/app$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-app.ts')}));b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
 test.beforeAll(async()=>{
- const bundle=await build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^\.\/native-push$/},args=>args.importer.replace(/\\/g,"/").endsWith("/mobile/src/main.ts")?{path:path.resolve("tests/fixtures/mobile-native-coach-alerts.ts")}:undefined);b.onResolve({filter:/^@capacitor\/app$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-app.ts')}));b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
+ const bundle=await bundleNavigation()
  javascript=bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css','premium-surfaces.css'].map(file=>file==='app.css'?Promise.resolve(bundle.outputFiles.find(file=>file.path.endsWith('.css'))!.text):readFile('mobile/bundled/'+file,'utf8')))).join('\n')+'\n.preview-controls{padding:24px 12px 120px}.preview-controls button{min-height:44px}'
  documentHtml=await readFile('mobile/bundled/index.html','utf8')
@@ -39,6 +40,43 @@ async function bounded(page:Page){
  for(const button of await page.locator('.app-tools-hub .app-tool:visible').all())expect(await button.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
 }
 const requestCount=(page:Page)=>page.evaluate(()=>(window as unknown as {navigationFixture:{requests:number}}).navigationFixture.requests)
+
+test('first-party preview keeps the app shell and uses only the scoped tournament feed', async ({page}) => {
+ const preview = await bundleNavigation(true)
+ const previewScript = preview.outputFiles.find(file => file.path.endsWith('.js'))!.text
+ await page.route(origin+'/app.js',route=>route.fulfill({contentType:'text/javascript',body:previewScript}))
+ await page.goto(origin)
+ const nav = page.getByRole('navigation',{name:'Main navigation'})
+ await expect(nav.locator('button > span:last-child')).toHaveText(['My Lab','Explore','Chats','Compete','More'])
+ await expect(page.getByRole('region',{name:'Your game',exact:true})).toBeVisible()
+ await expect(page.locator('[data-lab-ratings], [data-lab-profile], #recent-results')).toHaveCount(0)
+ await expect(page.getByRole('heading',{name:'Your training',exact:true})).toBeVisible()
+ await expect(page.locator('[data-open-imports]')).toHaveCount(0)
+
+ await nav.getByRole('button',{name:'More',exact:true}).click()
+ await expect(page.locator('[data-app-destination="imports"]')).toHaveCount(0)
+ await expect(page.locator('[data-app-destination="coach"]')).toBeVisible()
+ await nav.getByRole('button',{name:'Compete',exact:true}).click()
+ await expect(page.locator('[data-app-destination="browse-leagues"]')).toBeVisible()
+ await expect(page.locator('[data-app-destination="tournament-entries"]')).toHaveCount(0)
+ await page.getByRole('button',{name:/^Browse tournaments/}).click()
+
+ const tournaments = page.getByRole('dialog',{name:'Tournaments',exact:true})
+ await tournaments.getByRole('button',{name:/^Open tournament Northside Open/}).click()
+ await tournaments.getByRole('button',{name:/^Open division 4.0 Doubles/}).click()
+ await tournaments.getByRole('button',{name:'Draw',exact:true}).click()
+ await expect(tournaments.getByRole('heading',{name:'Draw',exact:true})).toBeVisible()
+ await expect(tournaments.locator('[data-tournament-entry]')).toHaveCount(0)
+ await page.evaluate(()=>{
+  const state=(window as unknown as {navigationFixture:{unscopedTournamentReply:boolean}}).navigationFixture
+  state.unscopedTournamentReply=true
+ })
+ await tournaments.getByRole('button',{name:'Refresh tournaments'}).click()
+ await expect(tournaments.getByRole('alert')).toContainText('Couldn’t load these tournaments')
+ const paths = await page.evaluate(()=>(window as unknown as {navigationFixture:{tournamentReads:string[]}}).navigationFixture.tournamentReads)
+ expect(paths).toEqual(Array(4).fill('/api/mobile/first-party/tournaments'))
+})
+
 type CalendarPreviewWindow=Window&{calendarFixture:typeof import('../fixtures/mobile-calendar').calendarFixture;switchNavigationOwner:()=>void}
 const calendarRequestCount=(page:Page)=>page.evaluate(()=>(window as unknown as CalendarPreviewWindow).calendarFixture.requests.length)
 type UpdatesPreviewWindow=Window&{updatesFixture:{failList:boolean;failCount:boolean;loseWrite:boolean;deferList:boolean;release:()=>void;queries:{table:string;method:string;ids:string[];owner:string|null}[];rows:{id:string;read_at:string|null}[]};refreshNavigationSession:()=>void;switchNavigationOwner:()=>void}

@@ -19,7 +19,7 @@ import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-bro
 import {trainingInboxPreview} from './mobile-training-inbox'
 const originalFetch=window.fetch.bind(window)
 const freeTraining=new URL(location.href).searchParams.has('free-training')
-const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[]}
+const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false}
 const tournamentShortcutFixture={enabled:new URL(location.href).searchParams.has('tournament-shortcut-review'),approved:true,entryReads:[] as string[]}
 const myEntriesFixture={
  enabled:new URL(location.href).searchParams.has('my-tournament-entries'),
@@ -164,14 +164,16 @@ window.fetch=async(input,init)=>{
   snapshot.receipt=tournamentShortcutFixture.approved?{...tournamentReceipt(),status:'approved',inDraw:true}:null
   return Response.json({ok:true,...snapshot})
  }
- if(url.pathname==='/api/mobile/tournaments'){
+ if(url.pathname==='/api/mobile/tournaments'||url.pathname==='/api/mobile/first-party/tournaments'){
+  fixtureState.tournamentReads.push(url.pathname)
   const snapshot=tournamentSnapshot(url.searchParams.get('tournament')||'',url.searchParams.get('division')||'')
   snapshot.owner=navigationOwner;snapshot.query=url.searchParams.get('q')||''
   if((tournamentShortcutFixture.enabled||myEntriesFixture.enabled)&&snapshot.detail?.active){
    const match=snapshot.detail.matches.find(match=>match.id==='r2-m1')!
    match.a=tournamentReceipt().name;match.date=shortcutDate
   }
-  reply={ok:true,...snapshot}
+  const scope=url.pathname==='/api/mobile/first-party/tournaments'&&!fixtureState.unscopedTournamentReply?'first-party':undefined
+  reply={ok:true,scope,...snapshot}
  }
  return new Response(JSON.stringify(reply),{status:200,headers:{'Content-Type':'application/json'}})
 }

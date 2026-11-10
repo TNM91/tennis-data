@@ -79,9 +79,11 @@ Both baselines are internal TestFlight builds. Submit the selected track from a 
 ### First-party launch scope
 
 - **Available in build 255.** Offline drills, a timer, self-entered matches and recent form.
-- **Carry over first.** The signed-in `GET /api/mobile/first-party/tournaments` route reuses the native tournament feed for approved records. The offline baseline does not call it yet. Apply the same data-source checks to TenAceIQ leagues, including the season detail and entry paths that currently consult a linked player profile.
+- **Full-app candidate.** `npm --prefix mobile run build:bundled -- --first-party-preview` builds the integrated app shell and assets into `.next/mobile-first-party-preview`. The preview omits external uploads and imports, skips the imported ratings and match history reads in My Lab, and sends tournament browsing to the signed-in `GET /api/mobile/first-party/tournaments` feed for approved records. Tournament registration and saved entries are held until their separate routes enforce the same scope.
 - **Carry over after isolating connected reads.** Coach invites and direct coach-player messages have dedicated account-scoped routes. Team chat shares routes with fixtures and lineups. Keep first-party conversations and the existing safety controls, and scope fixture cards, profile lookups and roster data separately.
 - **Hold for verified rights and data scope.** External imports, imported directory and match history, and ratings computed from those records. The fallback bundle and its server endpoints should enforce the scope before returning data. Hiding a screen alone leaves other paths to the same data.
+
+The full-app preview is for local verification with synthetic data. It has no signing target or workflow option. Before packaging it, scope the remaining integrated reads in Explore, linked player identity, leagues, teams and related links, then verify the network boundary on an iPhone. Build 255 remains the offline TestFlight baseline.
 
 #### Approve a tournament revision
 

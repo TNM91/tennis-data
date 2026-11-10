@@ -8,6 +8,7 @@ import {eventCalendarStart} from '../../lib/calendar-date'
 import {resolveCalendarLocation} from '../../lib/calendar-location'
 import {buildPracticeCalendarRange} from '../../lib/captain-practice-rsvp'
 import type {CalendarTeamPractice} from '../../lib/native-calendar-practices-contract'
+import {firstPartyBuild} from './build-scope'
 
 export function readCalendarItem(raw:unknown):PlayerCalendarItem|null{
  if(raw===null)return null
@@ -56,6 +57,7 @@ export type CalendarOccurrence={key:string;id:string;source:'personal'|'competit
 export const isScheduledCompetitionMatch=(event:PlayerCompetitionScheduleEvent)=>event.eventType==='match'&&(event.status==='Confirmed'||event.status==='Scheduled')
 export type CalendarTournamentEntry={parent:string;division:string}
 export function calendarTournamentEntry(event:NativeCalendar['competitions'][number]|undefined):CalendarTournamentEntry|undefined {
+ if (firstPartyBuild) return undefined
  if(event?.kind!=='tournament'||!event.publishedView)return
  const {id,divisionId}=event.publishedView
  return divisionId?{parent:id,division:divisionId}:{parent:'',division:id}

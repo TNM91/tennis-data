@@ -35,7 +35,7 @@ import {mountLabRecentForm} from './lab-recent-form'
 import {labLevelPathHtml} from './lab-level-path'
 import {loadOlderResults} from './recent-results-history'
 import {mountLabRatingTrends} from './lab-rating-trends'
-import {openDataImports} from './data-imports-view'
+import {firstPartyBuild} from './build-scope'
 import {openLeagueOffice} from './league-office-view'
 import {createCalendarHighlights} from './lab-calendar'
 import {CALENDAR_WEEKLY_REP_CHANGED,type CalendarWeeklyRep,type CalendarWeeklyRepChange} from './calendar-weekly-reps'
@@ -93,7 +93,7 @@ function launchAccount(trigger:HTMLButtonElement){
  accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner),trigger)
 }
 let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
-let dataImports:ReturnType<typeof openDataImports>|null=null
+let dataImports:ReturnType<typeof import('./data-imports-view').openDataImports>|null=null
 let competitions:ReturnType<typeof openCompetitions>|null=null
 let tournaments:ReturnType<typeof openTournaments>|null=null
 let coachWorkspace:ReturnType<typeof openCoachWorkspace>|ReturnType<typeof openCoachConnection>|ReturnType<typeof openNativeTactics>|ReturnType<typeof openCoachLessons>|ReturnType<typeof openCoachResources>|ReturnType<typeof openCoachMessages>|ReturnType<typeof openCoachVideo>|null=null
@@ -443,6 +443,15 @@ function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeam
 navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()=>openTeamRoom()
 navigation.querySelector<HTMLButtonElement>('[data-screen="compete"]')!.onclick=()=>{if(!connection?.isSaving())guardNavigation(()=>showHub('compete'))}
 navigation.querySelector<HTMLButtonElement>('[data-screen="more"]')!.onclick=()=>{if(!connection?.isSaving())guardNavigation(()=>showHub('more'))}
+async function launchDataImports(owner: string, current: () => boolean) {
+ // Keep the condition at the import so the first-party build can omit the module entirely.
+ if (typeof TIQ_FIRST_PARTY_BUILD === 'undefined' || !TIQ_FIRST_PARTY_BUILD) {
+  const canOpen = () => current() && !dataImports?.isOpen() && !leagueOffice?.isOpen() && !training?.isOpen() && !goals?.isOpen()
+  if (!canOpen()) return
+  const {openDataImports} = await import('./data-imports-view')
+  if (canOpen()) dataImports = openDataImports(client,owner,current)
+ }
+}
 function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='updates'){launchUpdates(trigger);return}
  if(destination==='calendar'||destination==='coach-dates'){launchCalendar(trigger,destination==='coach-dates'?'coach':'all');return}
@@ -451,6 +460,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
   guardNavigation(()=>showHub('compete',{browseFirst:true}));return
  }
  if(destination==='leagues'||destination==='browse-leagues'){launchCompetitions(destination==='browse-leagues'?'discover':'mine',trigger);return}
+ if(firstPartyBuild&&destination==='tournament-entries')return
  if(destination==='tournaments'||destination==='tournament-entries'){
   if(tournaments?.isOpen()||competitions?.isOpen()||accountSettings?.isOpen())return
   const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
@@ -472,7 +482,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='coach-messages'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachMessages(client,owner,current,trigger,undefined,undefined,undefined,()=>{void chatUnread.refresh()});return}
  if(destination==='coach-tactics'){if(!coachWorkspace?.isOpen())coachWorkspace=openNativeTactics(client,owner,current,trigger,undefined,openCoachHref);return}
  if(destination==='league-office'){if(!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
- if(destination==='imports'){if(!dataImports?.isOpen())dataImports=openDataImports(client,owner,current);return}
+ if(destination==='imports'){void launchDataImports(owner,current);return}
  if(destination==='account'){launchAccount(trigger);return}
  if(destination==='training'||destination==='training-inbox'||destination==='training-progress'){
   if(!training?.isOpen()){
@@ -522,7 +532,7 @@ function showHub(next:AppHub,{fromLab=false,returnTeam,browseFirst=false}:{fromL
    (button,event,onClose)=>launchCalendar(button,{event,onClose,followMovedMatch:true}),'match',
    {
     replies:{button:replies,open:(button,event,onClose)=>launchCalendar(button,{event,filter:'needs-reply',onClose})},
-    tournament:{button:tournament,open:(button,entry,onClose)=>{
+    tournament:firstPartyBuild?undefined:{button:tournament,open:(button,entry,onClose)=>{
      if(!current()||document.querySelector('dialog[open]'))return
      tournaments=openTournamentEntry(client,owner,current,entry.parent,entry.division,changed=>{
       tournaments=null
@@ -603,9 +613,12 @@ async function lab(entry?:'coach'|PlayerLink) {
       ?labScoreboardHtml(null)
       :'<header class="tab-hero tab-hero-court"><small class="stat-eyebrow">Your game</small><h1>My Lab</h1><p role="status">Loading your player profile…</p></header>'
   }
-  const { data, error } = link?.profile?{data:link.profile,error:null}:await client.from('profiles')
-    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
-    .eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
+  const { data, error } = link?.profile
+    ? {data:link.profile,error:null}
+    : await (firstPartyBuild
+      ? client.from('profiles').select('linked_player_id,linked_player_name')
+      : client.from('profiles').select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
+    ).eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
   if (version !== revision || current.user.id !== session?.user.id) return
   app.dataset.state = error ? 'unavailable' : 'ready'
   const playerId=typeof data?.linked_player_id==='string'?data.linked_player_id:''
@@ -613,7 +626,7 @@ async function lab(entry?:'coach'|PlayerLink) {
   const hasIdentity=Boolean(playerId&&data?.linked_player_name)
   const justConnected=hasIdentity&&link?.id===playerId
   const tools=error?'':labActionsHtml()+
-    '<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section>'+
+    (firstPartyBuild?'':'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section>')+
     '<section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>'
   const controls=`<button id="refresh">${error?'Try again':'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
   const identity=error
@@ -621,7 +634,7 @@ async function lab(entry?:'coach'|PlayerLink) {
     : `${playerId&&data?labScoreboardHtml(data,justConnected):''}<div id="lab-identity">${hasIdentity?labIdentityHtml(data):playerSetupHtml()}</div>`
   const trainingContent=!error&&hasIdentity?labTrainingActionsHtml()+
     '<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''
-  const matches=!error&&playerId?`<section id="recent-results" aria-labelledby="results-title">
+  const matches=!firstPartyBuild&&!error&&playerId?`<section id="recent-results" aria-labelledby="results-title">
     <div class="lab-recent-heading">
       <h2 id="results-title" tabindex="-1">Recent matches</h2>
       <button type="button" class="secondary" data-lab-scorecard-return hidden><span aria-hidden="true">↑</span> Back to scoreboard</button>
@@ -671,7 +684,7 @@ async function lab(entry?:'coach'|PlayerLink) {
     }, () => { void lab() }, isCurrent)
   }})
   }
-  app.querySelector('[data-open-imports]')?.addEventListener('click',()=>{if(dataImports?.isOpen()||leagueOffice?.isOpen()||training?.isOpen()||goals?.isOpen())return;dataImports=openDataImports(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id)})
+  app.querySelector('[data-open-imports]')?.addEventListener('click',()=>{void launchDataImports(current.user.id,()=>version===revision&&current.user.id===session?.user.id)})
   app.querySelector('[data-league-office]')?.addEventListener('click',()=>{if(leagueOffice?.isOpen()||training?.isOpen()||goals?.isOpen())return;leagueOffice=openLeagueOffice(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id)})
   bindLabActions()
   const calendar=document.createElement('div')
@@ -717,6 +730,13 @@ async function lab(entry?:'coach'|PlayerLink) {
     catch {if(version!==revision||!button.isConnected)return;app.querySelector('#notice')!.textContent='Couldn’t log out. Check your connection and try again.';button.disabled=false}
   }
   if (!error&&playerId) {
+    const shortcuts=document.createElement('div');shortcuts.innerHTML=homeShortcutsHtml()
+    if(firstPartyBuild){
+      calendar.after(shortcuts)
+      bindAppDestinations(shortcuts,openDestination)
+      if(entry==='coach')shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')?.focus()
+      return
+    }
     const active = () => version===revision && current.user.id===session?.user.id
     details = createMatchDetails(app, client, active, {openPractice: (match, currentMatch) => {
       if (!currentMatch() || training?.isOpen() || document.querySelector('dialog[open]')) return
@@ -753,7 +773,6 @@ async function lab(entry?:'coach'|PlayerLink) {
     app.querySelector('#lab-identity')!.before(recent)
     const trendSection=document.createElement('section')
     const formSection=document.createElement('div');formSection.className='lab-form-host'
-    const shortcuts=document.createElement('div');shortcuts.innerHTML=homeShortcutsHtml()
     calendar.after(formSection,shortcuts,trendSection)
     if(entry==='coach'){
       const shortcut=shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')!

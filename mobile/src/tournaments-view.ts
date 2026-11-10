@@ -3,6 +3,7 @@ import type {ScenarioSend} from './captain-scenarios-data'
 import type {TournamentSnapshot,TournamentSummary,TournamentDetail,TournamentMatch,TournamentStanding} from '../../lib/native-tournaments-contract'
 import {formatTournamentEventDate,formatTournamentEventTime} from '../../lib/tournament-event-presentation'
 import {loadTournaments} from './tournaments-data'
+import {firstPartyBuild} from './build-scope'
 import {bindCompetitionSearch,competitionDirectoryHtml,focusCompetitionSearchResults} from './competition-directory'
 import {competitionEntryActionHtml} from './competition-entry-action'
 import {competitionMatchFilterEmptyHtml} from './competition-filters'
@@ -131,12 +132,12 @@ export function openTournaments(client:SupabaseClient,owner:string,current:()=>b
   const matchFilters=view==='schedule'&&showFullSchedule?emptyTournamentMatchFilters():filters
   const toolbar=`<header class="competition-header${compactDetail?' competition-header-compact':''}">
    <button type="button" class="secondary" data-tournament-back>${html(entrant?'← Standings':calendarEntry?'Back to calendar':division?'← Event':selected?'← Tournaments':backLabel)}</button>
-   ${compactDetail&&d?.active?competitionEntryActionHtml('tournament',true):''}
+   ${!firstPartyBuild&&compactDetail&&d?.active?competitionEntryActionHtml('tournament',true):''}
    <button type="button" class="secondary" data-tournament-refresh aria-label="Refresh tournaments" ${busy?'disabled':''}>Refresh</button>
   </header>`
   dialog.innerHTML=toolbar+(entrant?'<p class="tournament-entrant-context">'+html(t?.name||'Tournament')+'</p>':selected?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(t?(t.isEvent?'TiQ tournament event':t.entrantType==='teams'?'TiQ team tournament':'TiQ player tournament'):'TiQ tournaments')+'</small><h2 tabindex="-1">'+html(t?.name||'Tournaments')+'</h2>'+(t?'<p>'+html([formatTournamentEventDate(t.date,true),t.location,status(t)].filter(Boolean).join(' · '))+'</p>':'')+'</div>':'')+
    (!selected?competitionDirectoryHtml('tournament',query,busy,{count:snapshot?.tournaments.length})+(snapshot&&!noMatches?tournamentCardsHtml(snapshot.tournaments)+(snapshot.more?'<p>Showing up to 20 recently updated tournaments. Search by name to narrow the list.</p>':''):''):
-   d?(d.active&&!entrant?'<nav class="competition-tabs" aria-label="Tournament views">'+(['home','draw','schedule','results',...(d.standings.length?['standings']:[])] as View[]).map(v=>'<button type="button" class="secondary" data-tournament-view="'+v+'" aria-pressed="'+(view===v)+'">'+({home:'Overview',draw:'Draw',schedule:'Schedule',results:'Results',standings:'Standings'})[v]+'</button>').join('')+'</nav>'+(compactDetail?'':competitionEntryActionHtml('tournament')):'')+'<div data-tournament-content>'+(entrant?tournamentEntrantDetailHtml(d,entrant):tournamentDetailHtml(d,view,matchFilters,standingFilters))+'</div>':'')+
+   d?(d.active&&!entrant?'<nav class="competition-tabs" aria-label="Tournament views">'+(['home','draw','schedule','results',...(d.standings.length?['standings']:[])] as View[]).map(v=>'<button type="button" class="secondary" data-tournament-view="'+v+'" aria-pressed="'+(view===v)+'">'+({home:'Overview',draw:'Draw',schedule:'Schedule',results:'Results',standings:'Standings'})[v]+'</button>').join('')+'</nav>'+(firstPartyBuild||compactDetail?'':competitionEntryActionHtml('tournament')):'')+'<div data-tournament-content>'+(entrant?tournamentEntrantDetailHtml(d,entrant):tournamentDetailHtml(d,view,matchFilters,standingFilters))+'</div>':'')+
    '<p role="'+(notice&&!busy?'alert':'status')+'" tabindex="-1" data-tournament-notice>'+html(notice)+'</p>'+(snapshot?'<p class="competition-checked">Checked '+html(new Date(snapshot.checkedAt).toLocaleString())+' · refresh for changes.</p>':'')
   dialog.querySelector('[data-tournament-entry]')?.addEventListener('click',e=>{if(!active()||busy||entrant||!snapshot?.detail?.active||child?.isOpen())return;const detail=snapshot.detail;child=openTournamentEntry(client,owner,active,detail.root.isEvent?detail.root.id:'',detail.active!.id,()=>{child=null},send,e.currentTarget instanceof HTMLElement?e.currentTarget:undefined,{allowCalendar:!calendarEntry})})
   dialog.querySelector('[data-tournament-back]')?.addEventListener('click',back)

@@ -1,6 +1,7 @@
 import websiteUi from '../generated/website-ui.json'
 import {nativeActionIcon} from './native-action-icons'
 import {html} from './match-details'
+import {firstPartyBuild} from './build-scope'
 
 export type AppScreen='lab'|'explore'|'following'|'matchup'|'teams'|'compete'|'more'|'coach'
 export type AppDestination=AppScreen|'leagues'|'browse-leagues'|'tournaments'|'tournament-entries'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'|'coach-dates'|'updates'|'calendar'|'competition-calendar'
@@ -71,6 +72,9 @@ export function appHubHtml(hub:AppHub,{fromLab=false,browseFirst=false}={}){
    :[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]
  const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'More'
  const note=discoveryFirst?'Find a league or tournament to play.':hub==='compete'?'Find events and follow your season.':'Lessons, practice and conversations.'
+ if (firstPartyBuild) {
+  for (const group of groups) group.keys = group.keys.filter(key => key !== 'imports' && key !== 'tournamentEntries')
+ }
  const total=groups.reduce((count,group)=>count+group.keys.length,0)
  const coachControls=hub==='coach'?`<div class="coach-hub-messages">${toolHtml(tools.coachMessages)}</div>
   <div class="coach-hub-lanes" role="group" aria-label="Coach and training tools">

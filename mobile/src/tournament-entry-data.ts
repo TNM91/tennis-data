@@ -2,8 +2,10 @@ import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {scenarioOwner,type ScenarioSend} from './captain-scenarios-data'
 import {tournamentEntryId,tournamentEntryAction,readTournamentEntrySnapshot,readMyTournamentEntries} from '../../lib/native-tournament-entry-contract'
+import {firstPartyBuild} from './build-scope'
 
 export async function getMyTournamentEntries(client:SupabaseClient, owner:string, current:()=>boolean, division?:string) {
+ if(firstPartyBuild)throw Error('Tournament entries are unavailable in this edition.')
  const session = await scenarioOwner(client, owner, current)
  const query = division === undefined ? '' : '?'+new URLSearchParams({division:tournamentEntryId(division)})
  const response = await CapacitorHttp.get({
@@ -20,6 +22,7 @@ export async function getMyTournamentEntries(client:SupabaseClient, owner:string
  return readMyTournamentEntries(response.data, owner)
 }
 export async function tournamentEntryRequest(client:SupabaseClient,owner:string,current:()=>boolean,parent:string,division:string,organizer=false,action?:ReturnType<typeof tournamentEntryAction>,send:ScenarioSend=o=>CapacitorHttp.request(o)){
+ if(firstPartyBuild)throw Error('Tournament registration is unavailable in this edition.')
  tournamentEntryId(parent,true);tournamentEntryId(division)
  if(action&&(action.parent!==parent||action.division!==division))throw Error('Entry selection changed.')
  const body=action?tournamentEntryAction(action):undefined,session=await scenarioOwner(client,owner,current)

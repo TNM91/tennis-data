@@ -3,6 +3,7 @@ import {toInternalNotification,type InternalNotification,type NotificationRow} f
 import {readAppLink,type AppLink} from './app-links'
 import {isValidCalendarDate} from '../../lib/calendar-date'
 import {getMyTournamentEntries} from './tournament-entry-data'
+import {firstPartyBuild} from './build-scope'
 
 export type UpdateFilter={unread:boolean;category:'all'|'message'|'schedule'|'other'}
 export type UpdateCursor={createdAt:string;id:string}
@@ -83,6 +84,7 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
     const u=new URL(href,'https://www.tenaceiq.com')
     if(u.protocol!=='https:'||!['www.tenaceiq.com','tenaceiq.com'].includes(u.hostname)||u.username||u.password||u.port)return null
     const tournamentDecision=row.notificationType==='system'&&(row.title==='Tournament entry approved'||row.title==='Tournament entry update')
+    if(firstPartyBuild&&tournamentDecision)return null
     const link=readAppLink(u.href)
     if(tournamentDecision&&link?.kind==='tournament')return {kind:'tournament-entry',division:link.id,label:'Open tournament entry'}
     if(tournamentDecision&&u.pathname==='/compete'&&!u.search&&u.hash==='#my-entries'){
