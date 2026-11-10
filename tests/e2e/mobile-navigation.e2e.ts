@@ -245,6 +245,26 @@ test('first-party rematches leave the original calendar scorecard linked', async
   .personalMatchFixture.rows.map(row=>row.calendar_match_id))
  expect(keys).toHaveLength(2)
  expect(keys).toEqual(expect.arrayContaining(['tournament:draw-one:r1-m1',null]))
+
+ const logMatch=page.getByRole('button',{name:'Log a match',exact:true})
+ const recentOpponents=page.getByText('Recent opponents',{exact:true})
+ await page.setViewportSize({width:320,height:740})
+ await logMatch.click()
+ await recentOpponents.click()
+ const recentOpponent=page.getByRole('button',{name:'Casey & Drew · Doubles',exact:true})
+ await expect(recentOpponent).toHaveCount(1)
+ await bounded(page)
+ await recentOpponent.click()
+ await expect(page.getByLabel('Opponent or doubles team',{exact:true})).toHaveValue('Casey & Drew')
+ await expect(page.getByLabel('Format',{exact:true})).toHaveValue('doubles')
+ await expect(page.getByLabel('Score',{exact:true})).toBeFocused()
+ await expect(page.getByLabel('Score',{exact:true})).toHaveValue('')
+ await expect(page.getByLabel('Result',{exact:true})).toHaveValue('')
+ await page.getByRole('button',{name:'Cancel',exact:true}).click()
+
+ await page.evaluate(()=> (window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+ await logMatch.click()
+ await expect(recentOpponents).toHaveCount(0)
 })
 
 test('first-party captain doubles corrections count once beside the player’s private entry', async ({page}) => {

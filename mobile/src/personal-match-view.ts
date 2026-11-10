@@ -12,6 +12,17 @@ import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatch
 const formatName = (format: PersonalMatch['format']) => format === 'singles' ? 'Singles' : 'Doubles'
 type LogScorecard = PersonalMatch | PostedCourtScorecard
 
+function recentOpponents(matches: PersonalMatch[]) {
+  const opponents = new Map<string, PersonalMatch>()
+  for (const match of matches) {
+    const key = `${match.format}:${match.opponent.toLowerCase()}`
+    if (opponents.has(key)) continue
+    opponents.set(key, match)
+    if (opponents.size === 3) break
+  }
+  return [...opponents.values()]
+}
+
 export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient, owner: string, current: () => boolean, seed?: CalendarScorecardSeed) {
   host.innerHTML = `<div class="lab-form-host" data-personal-form></div>
     <section aria-labelledby="personal-matches-title">
@@ -139,6 +150,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     const calendarSeed = seed && 'calendarMatchId' in seed ? seed : undefined
     const previous = seed && 'previous' in seed ? seed.previous : undefined
     const prefill = match ?? calendarSeed ?? previous
+    const recent = prefill ? [] : recentOpponents(matches)
     history.hidden = formHost.hidden = add.disabled = true
     editor.innerHTML = `<form class="lab-first-scorecard" data-match-editor>
       <h3 tabindex="-1">${match ? 'Edit scorecard' : previous ? 'Log a rematch' : 'Log a match'}</h3>
@@ -146,6 +158,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       <fieldset>
         <legend class="sr-only">Match details</legend>
         <label>Match date <input type="date" name="match_date" required max="${localCalendarDate()}"></label>
+        ${recent.length ? `<details data-recent-opponents><summary>Recent opponents</summary>${recent.map(saved =>
+          `<button type="button" class="secondary" data-reuse-opponent>${html(saved.opponent)} · ${formatName(saved.format)}</button>`).join('')}</details>` : ''}
         <label>Opponent or doubles team <input name="opponent" maxlength="100" required></label>
         <label for="personal-match-format">Format</label>
         <select id="personal-match-format" name="format" required><option value="">Choose format</option><option value="singles">Singles</option><option value="doubles">Doubles</option></select>
@@ -171,6 +185,20 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       input.value = value
     }
     const score = form.querySelector<HTMLInputElement>('[name="score"]')!
+    const picker = form.querySelector<HTMLDetailsElement>('[data-recent-opponents]')
+    if (picker) {
+      const opponent = form.querySelector<HTMLInputElement>('[name="opponent"]')!
+      const format = form.querySelector<HTMLSelectElement>('[name="format"]')!
+      picker.querySelectorAll<HTMLButtonElement>('[data-reuse-opponent]').forEach((button, index) => {
+        button.onclick = () => {
+          if (!active() || writing) return
+          opponent.value = recent[index].opponent
+          format.value = recent[index].format
+          picker.open = false
+          score.focus()
+        }
+      })
+    }
     const outcome = form.querySelector<HTMLSelectElement>('[name="outcome"]')!
     const useResult = form.querySelector<HTMLButtonElement>('[data-use-score-result]')!
     let suggested: PersonalMatch['outcome'] | undefined
