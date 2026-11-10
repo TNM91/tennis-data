@@ -2,11 +2,12 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {toInternalNotification,type InternalNotification,type NotificationRow} from '../../lib/internal-notification-record'
 import {readAppLink,type AppLink} from './app-links'
 import {isValidCalendarDate} from '../../lib/calendar-date'
+import {getMyTournamentEntries} from './tournament-entry-data'
 
 export type UpdateFilter={unread:boolean;category:'all'|'message'|'schedule'|'other'}
 export type UpdateCursor={createdAt:string;id:string}
-export type UpdateAction={kind:'link';link:AppLink;label:string}|{kind:'tool';destination:'lab'|'coach'|'training-inbox'|'calendar';label:string}|{kind:'conversation';id:string;label:string}|{kind:'coach-plan';planId:string;label:string}
-export type ResolvedUpdateAction=Exclude<UpdateAction,{kind:'conversation'}>|{kind:'coach-message';student:string;label:string}
+export type UpdateAction={kind:'link';link:AppLink;label:string}|{kind:'tool';destination:'lab'|'coach'|'training-inbox'|'calendar'|'tournament-entries';label:string}|{kind:'conversation';id:string;label:string}|{kind:'coach-plan';planId:string;label:string}|{kind:'tournament-entry';division:string;label:string}
+export type ResolvedUpdateAction=Exclude<UpdateAction,{kind:'conversation'|'tournament-entry'}>|{kind:'coach-message';student:string;label:string}|{kind:'tournament-entry';parent:string;division:string;receiptId:string;label:string}
 export type UpdatePage={rows:InternalNotification[];more:boolean;cursor:UpdateCursor|null}
 export const UPDATE_PAGE_SIZE=25,UPDATE_LOADED_LIMIT=100
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -81,7 +82,12 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
   try{
     const u=new URL(href,'https://www.tenaceiq.com')
     if(u.protocol!=='https:'||!['www.tenaceiq.com','tenaceiq.com'].includes(u.hostname)||u.username||u.password||u.port)return null
+    const tournamentDecision=row.notificationType==='system'&&(row.title==='Tournament entry approved'||row.title==='Tournament entry update')
     const link=readAppLink(u.href)
+    if(tournamentDecision&&link?.kind==='tournament')return {kind:'tournament-entry',division:link.id,label:'Open tournament entry'}
+    if(tournamentDecision&&u.pathname==='/compete'&&!u.search&&u.hash==='#my-entries'){
+      return {kind:'tool',destination:'tournament-entries',label:'Open tournament entries'}
+    }
     if(link)return {kind:'link',link,label:link.kind==='chat'?'Open team chat':link.kind==='league'?'Open league':link.kind==='tournament'?'Open tournament':link.kind==='match'?'Open scorecard':'Review invitation'}
     const only=(keys:string[])=>Array.from(u.searchParams.keys()).every(k=>keys.includes(k)&&u.searchParams.getAll(k).length===1)
     if(u.pathname==='/messages'&&only(['thread'])&&!u.hash){const id=u.searchParams.get('thread');if(id&&uuid.test(id)&&(!row.conversationId||row.conversationId===id))return {kind:'conversation',id,label:'Open conversation'}}
@@ -97,6 +103,14 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
   }catch{return null}
 }
 export async function resolveUpdateAction(client:SupabaseClient,owner:string,current:()=>boolean,action:UpdateAction):Promise<ResolvedUpdateAction>{
+  if(action.kind==='tournament-entry'){
+    const {entries}=await getMyTournamentEntries(client,owner,current,action.division)
+    const entry=entries[0]
+    if(entries.length!==1||entry?.selection?.division!==action.division){
+      throw Error('This entry is unavailable. Check My Tournament Entries in Compete.')
+    }
+    return {kind:'tournament-entry',...entry.selection,receiptId:entry.id,label:action.label}
+  }
   const session=await updateOwner(client,owner,current)
   if(action.kind!=='conversation')return action
   const {data,error}=await client.from('internal_conversations').select('id,conversation_type,related_entity_type,related_entity_id').eq('id',action.id).limit(1).setHeader('Authorization','Bearer '+session.access_token).abortSignal(AbortSignal.timeout(12000)).maybeSingle()

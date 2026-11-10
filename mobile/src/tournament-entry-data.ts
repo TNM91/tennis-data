@@ -1,7 +1,24 @@
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {scenarioOwner,type ScenarioSend} from './captain-scenarios-data'
-import {tournamentEntryId,tournamentEntryAction,readTournamentEntrySnapshot} from '../../lib/native-tournament-entry-contract'
+import {tournamentEntryId,tournamentEntryAction,readTournamentEntrySnapshot,readMyTournamentEntries} from '../../lib/native-tournament-entry-contract'
+
+export async function getMyTournamentEntries(client:SupabaseClient, owner:string, current:()=>boolean, division?:string) {
+ const session = await scenarioOwner(client, owner, current)
+ const query = division === undefined ? '' : '?'+new URLSearchParams({division:tournamentEntryId(division)})
+ const response = await CapacitorHttp.get({
+  url: 'https://www.tenaceiq.com/api/mobile/tournaments/entries'+query,
+  headers: {Authorization: 'Bearer '+session.access_token, 'Cache-Control': 'no-store'},
+  webFetchExtra: {cache: 'no-store'},
+  disableRedirects: true,
+  responseType: 'json',
+  connectTimeout: 12000,
+  readTimeout: 30000,
+ })
+ await scenarioOwner(client, owner, current)
+ if(response.status !== 200)throw Error('Tournament entries unavailable.')
+ return readMyTournamentEntries(response.data, owner)
+}
 export async function tournamentEntryRequest(client:SupabaseClient,owner:string,current:()=>boolean,parent:string,division:string,organizer=false,action?:ReturnType<typeof tournamentEntryAction>,send:ScenarioSend=o=>CapacitorHttp.request(o)){
  tournamentEntryId(parent,true);tournamentEntryId(division)
  if(action&&(action.parent!==parent||action.division!==division))throw Error('Entry selection changed.')

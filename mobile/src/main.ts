@@ -15,6 +15,7 @@ import {openCoachVideo} from './coach-video-view'
 import {openCompetitions} from './competitions-view'
 import {openTournaments} from './tournaments-view'
 import {openTournamentEntry} from './tournament-entry-view'
+import {openMyTournamentEntries} from './my-tournament-entries'
 import {openCoachWorkspace} from './coach-workspace-view'
 import {openCoachConnection} from './coach-connection-view'
 import {openNativeTactics} from './coach-tactics-view'
@@ -349,9 +350,14 @@ function launchUpdates(trigger:HTMLElement){
    button.focus({preventScroll:true})
    return openLevelUp(client,owner,active,{view:'weeks',planId:action.planId})
   }
+  if(action.kind==='tournament-entry'){
+   return openTournamentEntry(client,owner,active,action.parent,action.division,()=>{},undefined,button,
+    {backLabel:'Back to updates',receiptId:action.receiptId})
+  }
   if(action.kind==='tool'){
    if(action.destination==='calendar')return openPlayerCalendar(owner,active,button)
    if(action.destination==='training-inbox')return openLevelUp(client,owner,active,'inbox')
+   if(action.destination==='tournament-entries')return openMyTournamentEntries(client,owner,active,()=>{},button,'Updates')
    leave();guardNavigation(()=>{if(!current())return;if(action.destination==='lab')void lab();else showHub('coach')});return null
   }
   const link=action.link
@@ -445,10 +451,14 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
   guardNavigation(()=>showHub('compete',{browseFirst:true}));return
  }
  if(destination==='leagues'||destination==='browse-leagues'){launchCompetitions(destination==='browse-leagues'?'discover':'mine',trigger);return}
- if(destination==='tournaments'){
+ if(destination==='tournaments'||destination==='tournament-entries'){
   if(tournaments?.isOpen()||competitions?.isOpen()||accountSettings?.isOpen())return
-  const owner=session.user.id,visit=revision
-  tournaments=openTournaments(client,owner,()=>visit===revision&&owner===session?.user.id,()=>{tournaments=null},undefined,trigger,'Close');return
+  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
+  const onClose=()=>{tournaments=null}
+  tournaments=destination==='tournament-entries'
+   ?openMyTournamentEntries(client,owner,current,onClose,trigger)
+   :openTournaments(client,owner,current,onClose,undefined,trigger,'Close')
+  return
  }
  if(destination==='following'){openFollowing();return}
  if(destination==='matchup'){openMatchup();return}

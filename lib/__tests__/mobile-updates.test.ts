@@ -63,6 +63,13 @@ describe('Updates app destinations',()=>{
   for(const href of ['https://evil.test/tournaments/a','//evil.test/tournaments/a','javascript:alert(1)','/login?next=/coach','/account','/api/auth/access','/messages?thread='+id()+'&thread='+id(2),'/coach?admin=true','https://user@www.tenaceiq.com/coach'])expect(updateAction({...item(),href})).toBeNull()
   expect(updateAction({...item(),href:'/messages?thread='+id(),conversationId:id(2)})).toBeNull()
  })
+ it('opens the division in a tournament decision and uses the entry list for older notices',()=>{
+  const notice={...item(),notificationType:'system' as const,title:'Tournament entry approved'}
+  expect(updateAction({...notice,href:'/tournaments/division-one'})).toEqual({kind:'tournament-entry',division:'division-one',label:'Open tournament entry'})
+  expect(updateAction({...notice,title:'Tournament entry update',href:'/compete#my-entries'})).toMatchObject({kind:'tool',destination:'tournament-entries'})
+  expect(updateAction({...notice,title:'Tournament entry request',href:'/tournaments/division-one'})).toMatchObject({kind:'link',link:{kind:'tournament'}})
+  expect(updateAction({...notice,href:'https://evil.test/tournaments/division-one'})).toBeNull()
+ })
  it('resolves only an accessible exact Coach conversation; membership is checked again by the existing screen',async()=>{
   const action={kind:'conversation' as const,id:id(),label:'Open conversation'}
   const h=client(()=>json({id:id(),conversation_type:'direct',related_entity_type:'coach_student',related_entity_id:id(3)}))

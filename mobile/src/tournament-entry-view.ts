@@ -1,4 +1,5 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
+import {Clipboard} from '@capacitor/clipboard'
 import type {ScenarioSend} from './captain-scenarios-data'
 import {tournamentEntryCanSend,tournamentEntryAction,type TournamentEntrySnapshot,type TournamentEntryDraft,type TournamentEntryReceipt} from '../../lib/native-tournament-entry-contract'
 import {isValidCalendarDate} from '../../lib/calendar-date'
@@ -20,7 +21,14 @@ export function tournamentEntryHtml(s:TournamentEntrySnapshot,d:TournamentEntryD
    '<ul class="decision-list">'+s.queue.map(e=>'<li><button type="button" class="secondary" data-request="'+html(e.id)+'">'+html(e.name)+'<span>Review request →</span></button></li>').join('')+'</ul>'+(s.queue.length?'':'<p>No pending app entry requests.</p>')+(s.more?'<p>Showing the first 50 requests. Review these, then refresh for more.</p>':''))+(c.locked?'<p class="entry-note">The draw has results or assigned courts. New approvals are paused. You can still decline a pending request.</p>':'')
  }
  if(s.receipt)return (s.receipt.status==='approved'&&s.receipt.inDraw?'':deadline)+receiptHtml(s.receipt)
- if(c.mode!=='native')return deadline+'<p class="entry-note">'+(c.mode==='director'?'Enter through the tournament director: '+html(c.director):c.mode==='unsupported'?'Contact the organizer to enter this draw format.':'Entry requests are closed for this division.')+'</p>'
+ if(c.mode==='director'){
+  const email=c.director.trim()
+  return deadline+`<section class="tournament-entry-checklist" aria-labelledby="tournament-director-title">
+   <h3 id="tournament-director-title">Enter through the tournament director</h3>
+   ${email?`<p class="tournament-director-address">${html(email)}</p><button type="button" class="secondary" data-copy-tournament-director${busy?' disabled':''}>Copy director email</button>`:'<p>Ask the event desk how to enter this division.</p>'}
+  </section>`
+ }
+ if(c.mode!=='native')return deadline+'<p class="entry-note">'+(c.mode==='unsupported'?'Contact the organizer to enter this draw format.':'Entry requests are closed for this division.')+'</p>'
  return `<section class="tournament-entry-checklist" aria-labelledby="tournament-entry-checklist-title">
   <h3 id="tournament-entry-checklist-title">Before you enter</h3>
   ${deadline}
@@ -32,8 +40,8 @@ export function tournamentEntryHtml(s:TournamentEntrySnapshot,d:TournamentEntryD
  (c.paired?'<label class="entry-check"><input type="checkbox" name="partnerAttested" '+(d.partnerAttested?'checked':'')+' '+(busy?'disabled':'')+'><span>My partner agrees to enter. Their details are accurate and they meet this division’s requirements.</span></label>':'')+
  '</fieldset><button type="submit" data-entry-send '+(busy||!tournamentEntryCanSend(c,d)?'disabled':'')+'>Request entry</button></form>'
 }
-type TournamentEntryOptions={allowCalendar?:boolean;backLabel?:string;existingEntry?:boolean}
-export function openTournamentEntry(client:SupabaseClient,owner:string,current:()=>boolean,parent:string,division:string,onClose:(changed:boolean)=>void,send?:ScenarioSend,trigger?:HTMLElement,{allowCalendar=true,backLabel='← Division',existingEntry=false}:TournamentEntryOptions={}){
+type TournamentEntryOptions={allowCalendar?:boolean;backLabel?:string;existingEntry?:boolean;receiptId?:string}
+export function openTournamentEntry(client:SupabaseClient,owner:string,current:()=>boolean,parent:string,division:string,onClose:(changed:boolean)=>void,send?:ScenarioSend,trigger?:HTMLElement,{allowCalendar=true,backLabel='← Division',existingEntry=false,receiptId}:TournamentEntryOptions={}){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog competitions-dialog league-entry-dialog tournament-entry-dialog';dialog.setAttribute('aria-label','Tournament entry')
  let disposed=false,version=0,busy=false,uncertain=false,organizer=false,selected='',snapshot:TournamentEntrySnapshot|null=null,notice='',revision='',draft:TournamentEntryDraft={one:'',two:'',rating:null,partnerRating:null,attested:false,partnerAttested:false}
  let calendar:ReturnType<typeof openCalendar>|null=null
@@ -43,10 +51,10 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
  const render=()=>{
   if(!active())return
   const entry=approvedEntry()
-  const title=entry||existingEntry?'My event':organizer?'Review entries':'Tournament entry'
+  const title=entry||existingEntry?'My event':receiptId?'Your entry':organizer?'Review entries':'Tournament entry'
   const context=snapshot?.context
   const eventName=context?.eventName!==context?.name?context?.eventName:''
-  dialog.setAttribute('aria-label',entry||existingEntry?'My event':'Tournament entry')
+  dialog.setAttribute('aria-label',title==='Review entries'?'Tournament entry':title)
   dialog.innerHTML=`<header class="competition-header">
    <button type="button" class="secondary" data-entry-back>${organizer?'← Your entry':html(backLabel)}</button>
    <button type="button" class="secondary" data-entry-refresh ${busy?'disabled':''} aria-label="${entry?'Refresh entry and match details':'Refresh entry status'}">Refresh</button>
@@ -57,11 +65,23 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
   </div>
   ${entry?'<div data-tournament-pass aria-busy="true"><p role="status">Checking the published draw…</p></div>':''}
   ${snapshot?`${existingEntry&&!snapshot.receipt?'<p class="entry-note">Your approved entry is unavailable. Refresh to check your registration.</p>':tournamentEntryHtml(snapshot,draft,busy,organizer,selected)}
-   ${!existingEntry&&!organizer&&snapshot.context.canManage?`<button type="button" class="secondary" data-organizer-entries ${busy?'disabled':''}>Review app entries</button>`:''}`:''}
+   ${!existingEntry&&!receiptId&&!organizer&&snapshot.context.canManage?`<button type="button" class="secondary" data-organizer-entries ${busy?'disabled':''}>Review app entries</button>`:''}`:''}
   <p role="${notice&&!busy&&(!snapshot?.receipt||uncertain)?'alert':'status'}" tabindex="-1" data-registration-notice>${html(notice)}</p>
   ${uncertain?'<p class="entry-note">Refresh entry status before trying again. A lost connection does not mean the change was not saved.</p>':''}`
   dialog.querySelector('[data-entry-back]')?.addEventListener('click',()=>{back()})
   dialog.querySelector('[data-entry-refresh]')?.addEventListener('click',()=>{void load()})
+  const copyDirector=dialog.querySelector<HTMLButtonElement>('[data-copy-tournament-director]')
+  const director=context?.director.trim()
+  if(copyDirector&&director)copyDirector.onclick=async()=>{
+   if(!active()||busy)return
+   let message='Director email copied.'
+   try{await Clipboard.write({string:director})}
+   catch{message='Couldn’t copy the email. Select and copy the address above.'}
+   if(!active()||!copyDirector.isConnected)return
+   notice=message
+   const status=dialog.querySelector<HTMLElement>('[data-registration-notice]')!
+   status.textContent=notice
+  }
   dialog.querySelector('[data-organizer-entries]')?.addEventListener('click',()=>{organizer=true;selected='';void load()})
   dialog.querySelector('[data-request-list]')?.addEventListener('click',()=>{selected='';render()})
   dialog.querySelectorAll<HTMLButtonElement>('[data-request]').forEach(b=>{b.onclick=()=>{selected=b.dataset.request||'';render();dialog.querySelector<HTMLElement>('h3')?.focus({preventScroll:true})}})
@@ -112,7 +132,28 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
   dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})
   void loadPass(attempt,entry,host)
  }
- const load=async()=>{if(!active()||busy)return;const attempt=++version;busy=true;snapshot=null;selected='';notice='Checking entry status…';render();try{const s=await tournamentEntryRequest(client,owner,()=>active()&&attempt===version,parent,division,organizer,undefined,send);if(active()&&attempt===version){snapshot=s;uncertain=false;if(revision!==s.context.revision){draft={one:s.context.playerName,two:'',rating:null,partnerRating:null,attested:false,partnerAttested:false};revision=s.context.revision}notice=''}}catch(e){if(active()&&attempt===version)notice=e instanceof Error?e.message:'Registration unavailable.'}finally{if(active()&&attempt===version){busy=false;showEntry(attempt)}}}
+ const load=async()=>{
+  if(!active()||busy)return
+  const attempt=++version
+  const valid=()=>active()&&attempt===version
+  busy=true;snapshot=null;selected='';notice='Checking entry status…';render()
+  try {
+   const result=await tournamentEntryRequest(client,owner,valid,parent,division,organizer,undefined,send)
+   if(!valid())return
+   if(receiptId&&result.receipt?.id!==receiptId)throw Error('This saved entry is unavailable. Go back and refresh your entries.')
+   snapshot=result
+   uncertain=false
+   if(revision!==result.context.revision){
+    draft={one:result.context.playerName,two:'',rating:null,partnerRating:null,attested:false,partnerAttested:false}
+    revision=result.context.revision
+   }
+   notice=''
+  } catch(error) {
+   if(valid())notice=error instanceof Error?error.message:'Registration unavailable.'
+  } finally {
+   if(valid()){busy=false;showEntry(attempt)}
+  }
+ }
  const write=async(action:ReturnType<typeof tournamentEntryAction>)=>{if(!active()||busy||uncertain||!snapshot)return;const attempt=++version;busy=true;notice='Saving entry…';render();let reload=false;try{const s=await tournamentEntryRequest(client,owner,()=>active()&&attempt===version,parent,division,organizer,action,send);if(active()&&attempt===version){if(organizer){snapshot=null;reload=true}else snapshot=s;notice=organizer?'Decision saved.':s.receipt?.status==='pending'?'Request saved. The organizer will review your entry.':'Your saved entry is shown above.'}}catch(e){if(active()&&attempt===version){snapshot=null;uncertain=true;notice=e instanceof Error?e.message:'The change could not be confirmed. Refresh entry status.'}}finally{if(active()&&attempt===version){busy=false;if(reload)void load();else showEntry(attempt)}}}
  const back=()=>{
   if(calendar?.isOpen()){calendar.back();return true}

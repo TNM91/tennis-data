@@ -82,6 +82,47 @@ test('Updates opens a published tournament and preserves its parent on return',a
  const dialog=await updatesScreen(page);await dialog.locator('article').filter({hasText:'Tournament entry approved'}).getByRole('button',{name:'Open tournament',exact:false}).click()
  const child=page.getByRole('dialog',{name:'Tournaments',exact:true});await expect(child).toContainText('Northside Open');await child.getByRole('button',{name:'← Tournaments',exact:true}).click();await child.getByRole('button',{name:'Back to updates',exact:true}).click();await expect(dialog).toBeVisible();await expect(dialog.locator('.updates-item')).toHaveCount(25)
 })
+test('Tournament decision alerts open the exact saved entry from Updates',async({page})=>{
+ await page.clock.setFixedTime(new Date(2026,10,8,8))
+ await page.setViewportSize({width:320,height:844})
+ await page.goto(origin+'/?large=1&my-tournament-entries=1')
+ await page.evaluate(()=>{
+  const fixture=window as unknown as UpdatesPreviewWindow&{myEntriesFixture:{fail:boolean}}
+  fixture.myEntriesFixture.fail=false
+  const decisions=[
+   {title:'Tournament entry approved',body:'Your doubles entry is in the draw.',href:'/tournaments/division-one'},
+   {title:'Tournament entry update',body:'Your other doubles entry was declined.',href:'/tournaments/division-declined'},
+   {title:'Tournament entry update',body:'This division was removed.',href:'/tournaments/removed-division'},
+  ]
+  for(const [index,decision] of decisions.entries()){
+   Object.assign(fixture.updatesFixture.rows[5+index],{...decision,notification_type:'system'})
+  }
+ })
+ await page.locator('.native-updates-entry').click()
+ const updates=page.getByRole('dialog',{name:'Updates',exact:true})
+ const alert=(body:string)=>updates.locator('article').filter({hasText:body})
+ const approve=alert('Your doubles entry is in the draw.').getByRole('button',{name:/^Open tournament entry/})
+ await approve.click()
+ const pass=page.getByRole('dialog',{name:'My event',exact:true})
+ await expect(pass.getByRole('region',{name:'Next match',exact:true})).toContainText('vs Jordan Serve')
+ await pass.getByRole('button',{name:'Back to updates',exact:true}).click()
+ await expect(approve).toBeFocused()
+ await expect(alert('Your doubles entry is in the draw.')).not.toHaveClass(/is-unread/)
+
+ const decline=alert('Your other doubles entry was declined.').getByRole('button',{name:/^Open tournament entry/})
+ await decline.click()
+ const receipt=page.getByRole('dialog',{name:'Your entry',exact:true})
+ await expect(receipt).toContainText('5.0 Doubles')
+ await expect(receipt).toContainText('The division is full.')
+ await receipt.getByRole('button',{name:'Back to updates',exact:true}).click()
+ await expect(decline).toBeFocused()
+
+ const removed=alert('This division was removed.')
+ await removed.getByRole('button',{name:/^Open tournament entry/}).click()
+ await expect(updates).toContainText('This entry is unavailable.')
+ await expect(removed).toHaveClass(/is-unread/)
+ await expect(receipt).toHaveCount(0)
+})
 test('A coach update opens the exact saved week and restores the read notification',async({page})=>{
  await page.goto(origin+'/?training-inbox-review=1&training-coach-update=1')
  await page.evaluate(()=>{
@@ -1850,6 +1891,48 @@ test('Compete opens the competition month for matches beyond the next seven days
  await expect.poll(()=>calendarRequestCount(page)).toBe(6)
 })
 type TournamentShortcutWindow=CalendarPreviewWindow&{tournamentShortcutFixture:{approved:boolean;entryReads:string[]}}
+test('Compete opens saved tournament entries from request to match day',async({page},info)=>{
+ await page.clock.setFixedTime(new Date(2026,10,8,8))
+ await page.setViewportSize({width:320,height:844})
+ await page.goto(origin+'/?large=1&my-tournament-entries=1')
+ await page.getByRole('button',{name:'Compete',exact:true}).click()
+ const shortcut=page.getByRole('button',{name:/^My Tournament Entries/})
+ await shortcut.click()
+ const entries=page.getByRole('dialog',{name:'My Tournament Entries',exact:true})
+ await expect(entries.getByRole('alert')).toContainText('Couldn’t load your tournament entries.')
+ await page.evaluate(()=>{(window as unknown as {myEntriesFixture:{fail:boolean}}).myEntriesFixture.fail=false})
+ await entries.getByRole('button',{name:'Refresh',exact:true}).click()
+ const pending=entries.getByRole('article').filter({hasText:'3.5 Singles'})
+ const declined=entries.getByRole('article').filter({hasText:'5.0 Doubles'})
+ const approved=entries.getByRole('article').filter({hasText:'4.0 Doubles'})
+ await expect(pending).toContainText('Pending review')
+ await expect(declined).toContainText('Not approved')
+ await expect(approved).toContainText('Northside Open')
+ expect(await entries.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true)
+ await page.screenshot({path:info.outputPath('my-tournament-entries.png')})
+
+ const pendingButton=pending.getByRole('button',{name:/Open entry/})
+ await pendingButton.click()
+ const receipt=page.getByRole('dialog',{name:'Your entry',exact:true})
+ await expect(receipt.getByRole('region',{name:'Your entry',exact:true})).toContainText('Awaiting organizer approval')
+ await receipt.getByRole('button',{name:'Back to entries',exact:true}).click()
+ await expect(pendingButton).toBeFocused()
+ await declined.getByRole('button',{name:/Open entry/}).click()
+ await expect(receipt).toContainText('The division is full.')
+ await receipt.getByRole('button',{name:'Back to entries',exact:true}).click()
+ await approved.getByRole('button',{name:/Open entry/}).click()
+ const pass=page.getByRole('dialog',{name:'My event',exact:true})
+ await expect(pass.getByRole('region',{name:'Next match',exact:true})).toContainText('vs Jordan Serve')
+ await pass.getByRole('button',{name:'Back to entries',exact:true}).click()
+
+ await page.evaluate(()=>{(window as unknown as {myEntriesFixture:{missingReceipt:boolean}}).myEntriesFixture.missingReceipt=true})
+ await pendingButton.click()
+ await expect(receipt.getByRole('alert')).toContainText('This saved entry is unavailable.')
+ await expect(receipt.locator('form')).toHaveCount(0)
+ await receipt.getByRole('button',{name:'Back to entries',exact:true}).click()
+ await entries.getByRole('button',{name:'Back to Compete',exact:true}).click()
+ await expect(shortcut).toBeFocused()
+})
 test('Compete and Calendar open My Event for the exact approved tournament division',async({page},info)=>{
  await page.clock.setFixedTime(new Date(2026,10,8,8))
  await page.setViewportSize({width:320,height:844})

@@ -12,6 +12,7 @@ import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNa
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {tournamentSnapshot} from './native-tournaments'
 import {tournamentEntrySnapshot,tournamentReceipt} from './native-tournament-entry'
+import type {MyTournamentEntry} from '../../lib/native-tournament-entry-contract'
 import {DEFAULT_ENTITLEMENTS} from '../../lib/access-model-core'
 import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coachPreviewConnectionRequest} from './native-coach-browser'
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
@@ -20,6 +21,17 @@ const originalFetch=window.fetch.bind(window)
 const freeTraining=new URL(location.href).searchParams.has('free-training')
 const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[]}
 const tournamentShortcutFixture={enabled:new URL(location.href).searchParams.has('tournament-shortcut-review'),approved:true,entryReads:[] as string[]}
+const myEntriesFixture={
+ enabled:new URL(location.href).searchParams.has('my-tournament-entries'),
+ fail:true,
+ missingReceipt:false,
+ entries:[
+  {id:tournamentReceipt().id,eventName:'Northside Open',divisionName:'4.0 Doubles',status:'approved',selection:{parent:'event-one',division:'division-one'}},
+  {id:'20000000-0000-4000-8000-000000000003',eventName:'Northside Open',divisionName:'3.5 Singles',status:'pending',selection:{parent:'event-one',division:'division-pending'}},
+  {id:'20000000-0000-4000-8000-000000000004',eventName:'Northside Open',divisionName:'5.0 Doubles',status:'declined',selection:{parent:'event-one',division:'division-declined'}},
+ ] satisfies MyTournamentEntry[],
+}
+Object.assign(window,{myEntriesFixture})
 const shortcutDate='2026-11-13'
 if(tournamentShortcutFixture.enabled){
  const match={...calendarFixture.competitions[0],id:'tournament:division-one:r2-m1',kind:'tournament',competitionId:'division-one',competitionName:'Northside Open · 4.0 Doubles',
@@ -127,6 +139,23 @@ window.fetch=async(input,init)=>{
  }
  if(url.pathname==='/api/auth/access')reply={ok:true,access:{role:freeTraining?'member':'admin',entitlements:{...DEFAULT_ENTITLEMENTS}}}
  if(url.pathname==='/api/mobile/competitions'){const snapshot=competitionSnapshot();snapshot.scope=url.searchParams.get('scope')==='discover'?'discover':'mine';snapshot.query=url.searchParams.get('q')||'';if(url.searchParams.get('league'))snapshot.detail=competitionDetail();reply={ok:true,...snapshot}}
+ if(myEntriesFixture.enabled&&url.pathname==='/api/mobile/tournaments/entries'){
+  if(myEntriesFixture.fail)return Response.json({ok:false},{status:503})
+  const division=url.searchParams.get('division')
+  const entries=division?myEntriesFixture.entries.filter(item=>item.selection?.division===division):myEntriesFixture.entries
+  return Response.json({ok:true,owner:currentNavigationOwner(),entries,more:false})
+ }
+ if(myEntriesFixture.enabled&&url.pathname==='/api/mobile/tournaments/entry'){
+  const entry=myEntriesFixture.entries.find(item=>item.selection?.division===url.searchParams.get('division')&&item.selection?.parent===url.searchParams.get('parent'))
+  if(!entry?.selection||init?.method&&init.method!=='GET')return Response.json({ok:false},{status:404})
+  const snapshot=tournamentEntrySnapshot()
+  Object.assign(snapshot.context,{owner:currentNavigationOwner(),...entry.selection,name:entry.divisionName})
+  snapshot.receipt=myEntriesFixture.missingReceipt?null:{
+   ...tournamentReceipt(),id:entry.id,status:entry.status,inDraw:entry.status==='approved',
+   note:entry.status==='declined'?'The division is full.': '',
+  }
+  return Response.json({ok:true,...snapshot})
+ }
  if(url.pathname==='/api/mobile/tournaments/entry'&&tournamentShortcutFixture.enabled){
   tournamentShortcutFixture.entryReads.push(url.search)
   const snapshot=tournamentEntrySnapshot()
@@ -138,7 +167,7 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/tournaments'){
   const snapshot=tournamentSnapshot(url.searchParams.get('tournament')||'',url.searchParams.get('division')||'')
   snapshot.owner=navigationOwner;snapshot.query=url.searchParams.get('q')||''
-  if(tournamentShortcutFixture.enabled&&snapshot.detail?.active){
+  if((tournamentShortcutFixture.enabled||myEntriesFixture.enabled)&&snapshot.detail?.active){
    const match=snapshot.detail.matches.find(match=>match.id==='r2-m1')!
    match.a=tournamentReceipt().name;match.date=shortcutDate
   }

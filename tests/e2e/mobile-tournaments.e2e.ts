@@ -453,7 +453,33 @@ for(const width of [320,390]){
 }
 test('entry lost reply locks resubmission and refresh recovers the saved receipt',async({page})=>{const e=await fillEntry(page);await change(page,{entryLostReply:true});await e.getByRole('button',{name:'Request entry',exact:true}).click();await expect(e.getByRole('alert')).toContainText('could not be confirmed');await expect(e.getByRole('button',{name:'Request entry',exact:true})).toHaveCount(0);await e.getByRole('button',{name:'Refresh entry status',exact:true}).click();await expect(e).toContainText('Awaiting organizer approval');expect(await page.evaluate(()=>(window as unknown as {tournamentFixture:{state:{entryPosts:number}}}).tournamentFixture.state.entryPosts)).toBe(1)})
 test('entry account change and parent disposal discard late private replies',async({page})=>{const e=await entry(page);await change(page,{delay:true});await e.getByRole('button',{name:'Refresh entry status',exact:true}).click();await change(page,{owner:'other'});await page.evaluate(()=>(window as unknown as {tournamentFixture:{state:{release:()=>void}}}).tournamentFixture.state.release());await expect(e.getByRole('alert')).toBeVisible();await expect(e.getByLabel('Partner name',{exact:true})).toHaveCount(0);await page.evaluate(()=>(window as unknown as {tournamentFixture:{dispose:()=>void}}).tournamentFixture.dispose());await expect(page.getByRole('dialog')).toHaveCount(0)})
-test('director and closed registrations show no misleading request form',async({page})=>{let e=await entry(page,'entry-director');await expect(e).toContainText('director@example.test');await expect(e.locator('form')).toHaveCount(0);e=await entry(page,'entry-closed');await expect(e).toContainText('Entry requests are closed');await expect(e.locator('form')).toHaveCount(0)})
+test('director registrations let players copy the address and retry a clipboard failure',async({page})=>{
+ await page.addInitScript(()=>{
+  let fail=true
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{
+   if(fail){fail=false;throw Error('Clipboard unavailable')}
+   sessionStorage.setItem('copied-director-address',text)
+  }}})
+ })
+ const e=await entry(page,'entry-director')
+ const director=e.getByRole('region',{name:'Enter through the tournament director',exact:true})
+ await expect(director).toContainText('director@example.test')
+ await expect(e.locator('form')).toHaveCount(0)
+ const copy=director.getByRole('button',{name:'Copy director email',exact:true})
+ const before=await requestCount(page)
+ await copy.click()
+ await expect(e.getByRole('status')).toContainText('Couldn’t copy the email')
+ await copy.click()
+ await expect(e.getByRole('status')).toHaveText('Director email copied.')
+ expect(await page.evaluate(()=>sessionStorage.getItem('copied-director-address'))).toBe('director@example.test')
+ expect(await requestCount(page)).toBe(before)
+})
+test('closed registrations show no request form or director action',async({page})=>{
+ const e=await entry(page,'entry-closed')
+ await expect(e).toContainText('Entry requests are closed')
+ await expect(e.locator('form')).toHaveCount(0)
+ await expect(e.getByRole('button',{name:'Copy director email',exact:true})).toHaveCount(0)
+})
 test('large text and long organizer names remain inside the phone',async({page},info)=>{await page.setViewportSize({width:320,height:844});const e=await entry(page,'entry-manager-long');await page.addStyleTag({content:':root{font-size:22px!important}'});await e.getByRole('button',{name:'Review app entries',exact:true}).click();expect(await e.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);await e.getByRole('button',{name:/Review request/}).click();expect(await e.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);await page.screenshot({path:info.outputPath('tournaments-entry-large-text.png')})})
 test('device back closes entry before changing the selected division',async({page})=>{await entry(page);await page.evaluate(()=>(window as unknown as {tournamentFixture:{back:()=>void}}).tournamentFixture.back());await expect(page.getByRole('dialog',{name:'Tournament entry',exact:true})).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Tournaments',exact:true}).getByRole('button',{name:'Draw',exact:true})).toBeVisible()})
 
