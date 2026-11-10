@@ -36,6 +36,18 @@ describe('lightweight moderated conversation reads',()=>{
 
 describe('bounded older conversation pages',()=>{
  const time='2026-10-24T08:00:00.123456+00:00',id='1959be10-0000-4000-8000-000000000075',before=`${time}|${id}`
+ it('applies first-party text filters before paging and fails closed on unexpected workflow metadata',async()=>{
+  const chat={...row,message_kind:'message',metadata:{},sender_user_id:'allowed',created_at:time}
+  const db=database({internal_messages:{data:[chat],error:null}})
+  expect(await loadTeamChatRows(db.service,'owner','room',false,before,'',true)).toMatchObject({ok:true,rows:[chat]})
+  const queries=db.calls.filter(call=>call.table==='internal_messages')
+  expect(queries.findIndex(call=>call.method==='eq'&&call.args[0]==='metadata'&&call.args[1]==='{}')).toBeLessThan(queries.findIndex(call=>call.method==='limit'))
+  expect(queries).toContainEqual({table:'internal_messages',method:'eq',args:['message_kind','message']})
+  for(const mixed of [{...chat,metadata:{nativePoll:{}}},{...chat,message_kind:'system'}]){
+   const unexpected=database({internal_messages:{data:[mixed],error:null}})
+   expect(await loadTeamChatRows(unexpected.service,'owner','room',false,before,'',true)).toMatchObject({ok:false,status:503})
+  }
+ })
  it('uses strict tuple pagination with microseconds and a UUID tie break, scoped to the authorized room',async()=>{
   const rows=Array.from({length:76},(_,i)=>({...row,id:`1959be10-0000-4000-8000-${String(74-i).padStart(12,'0')}`,created_at:time}))
   const db=database({internal_messages:{data:rows,error:null}}),result=await loadTeamChatRows(db.service,'owner','verified-room',false,before)

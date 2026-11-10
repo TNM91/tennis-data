@@ -22,6 +22,8 @@ export type PlayerCompetitionScheduleEvent = {
   responseIsStale?: boolean
 }
 
+export const tournamentCalendarMatchId = (divisionId: string, matchId: string) => `tournament:${divisionId}:${matchId}`
+
 type ScheduleResponseRow = {
   event_id?: string | null
   response?: string | null
@@ -250,6 +252,7 @@ function sortEvents(events: PlayerCompetitionScheduleEvent[]) {
 export function mapApprovedCompetitionSchedule(input: {
   tournamentEntries: TournamentEntryRow[]
   tournaments: TournamentRow[]
+  tournamentMatches?: ReadonlyMap<string, TournamentScheduleMatch[]>
   leagueEntries: LeagueEntryRow[]
   leagues: LeagueRow[]
   leagueSchedule: LeagueScheduleRow[]
@@ -266,7 +269,7 @@ export function mapApprovedCompetitionSchedule(input: {
 
     const competitionName = cleanText(tournament.name) || 'TIQ tournament'
     const playerName = normalizeName(entry.player_name)
-    const playerMatches = buildTournamentMatches(tournament).filter((match) =>
+    const playerMatches = (input.tournamentMatches?.get(competitionId) ?? buildTournamentMatches(tournament)).filter((match) =>
       playerName && (normalizeName(match.sideA) === playerName || normalizeName(match.sideB) === playerName),
     )
     const scheduledMatches = playerMatches.filter((match) => cleanText(match.schedule?.date))
@@ -276,7 +279,7 @@ export function mapApprovedCompetitionSchedule(input: {
       const opponent = isSideA ? match.sideB : match.sideA
       const court = cleanText(match.schedule?.court)
       events.push({
-        id: `tournament:${competitionId}:${match.id}`,
+        id: tournamentCalendarMatchId(competitionId, match.id),
         kind: 'tournament',
         eventType: 'match',
         competitionId,
@@ -363,8 +366,12 @@ export function mapApprovedCompetitionSchedule(input: {
     }
   }
 
-  const responseByEventId = new Map((input.responses ?? []).map((row) => [cleanText(row.event_id), row]))
-  return sortEvents(events.map((event) => {
+  return sortEvents(applyCompetitionScheduleResponses(events, input.responses ?? []))
+}
+
+export function applyCompetitionScheduleResponses<T extends PlayerCompetitionScheduleEvent>(events: T[], responses: ScheduleResponseRow[]): T[] {
+  const responseByEventId = new Map(responses.map((row) => [cleanText(row.event_id), row]))
+  return events.map((event) => {
     const response = responseByEventId.get(event.id)
     const snapshot = response?.event_snapshot ?? {}
     const responseStatus = response?.response === 'available' || response?.response === 'unavailable'
@@ -382,7 +389,7 @@ export function mapApprovedCompetitionSchedule(input: {
       responseUpdatedAt: cleanText(response?.updated_at),
       responseIsStale,
     }
-  }))
+  })
 }
 
 export async function loadPlayerCompetitionSchedule(client: SupabaseClient, userId: string) {

@@ -3,12 +3,12 @@ import {tournamentInput,type TournamentSnapshot,type TournamentSummary,type Tour
 import {normalizeTournamentEventDetails,isTournamentEventRegistrationClosed} from './tournament-event-presentation'
 import {getTournamentDrawFormatDefinition} from './competition-format-registry'
 import {buildTournamentPreview,buildTournamentGroupChampionship,buildRoundRobinStandings} from './tournament-draw'
+import {nativeTournamentDrawColumns,nativeTournamentSummaryColumns,readTournamentApprovals,tournamentRevisionDigest} from './native-tournament-approvals'
 import type {TiqTournamentRecord,TiqTournamentMatchResult,TiqTournamentMatchSchedule,TiqTournamentMatchPreview,TiqTournamentStanding} from './tiq-tournament-registry'
 type Row=Record<string,unknown>
-const columns='id,event_id,is_event,name,format,entrant_type,status,starts_on,location_label,event_details,updated_at,is_public'
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const signal=()=>AbortSignal.timeout(12000)
-const list=(r:{data:unknown;error:unknown})=>{if(r.error||!Array.isArray(r.data)||r.data.length>21)throw Error('Tournaments unavailable');return r.data as Row[]}
+const list=(r:{data:unknown;error:unknown},limit:number)=>{if(r.error||!Array.isArray(r.data)||r.data.length>limit)throw Error('Tournaments unavailable');return r.data as Row[]}
 function published(r:Row):TournamentSummary{
  if(r.is_public!==true||!['open','scheduled','completed'].includes(text(r.status))||!/^[a-zA-Z0-9_-]{1,80}$/.test(text(r.id))||!text(r.name)||text(r.name).length>500||!['players','teams'].includes(text(r.entrant_type))||typeof r.is_event!=='boolean'||!text(r.updated_at))throw Error('Tournament unavailable')
  const details=normalizeTournamentEventDetails(r.event_details),format=text(r.format)
@@ -47,18 +47,41 @@ function draw(r:Row):Pick<TournamentDetail,'entrants'|'drawNotice'|'matches'|'st
  return {entrants:entrants.length,drawNotice:'',matches:matches.map(match),standings}
 }
 /** Caller JWT/RLS only. No entry contacts, private desk state, service role or production writes. */
-export async function loadNativeTournaments(db:SupabaseClient,owner:string,query='',selected='',division=''):Promise<TournamentSnapshot>{
+export function loadFirstPartyNativeTournaments(db: SupabaseClient, owner: string, input: ReturnType<typeof tournamentInput>) {
+  const approvals = readTournamentApprovals(process.env.TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS)
+  return loadNativeTournaments(db, owner, input.query, input.selected, input.division, approvals)
+}
+
+export async function loadNativeTournaments(db:SupabaseClient,owner:string,query='',selected='',division='',approvals?:ReturnType<typeof readTournamentApprovals>):Promise<TournamentSnapshot>{
  const input=tournamentInput(query,selected,division);if(!owner)throw Error('Account required')
  const base:TournamentSnapshot={owner,checkedAt:new Date().toISOString(),...input,tournaments:[],more:false,detail:null}
- const publicQuery=(full=false)=>db.from('tiq_tournaments').select(columns+(full?',entrants,results,schedule':'')).eq('is_public',true).neq('status','draft')
- const get=async(id:string,full=false)=>{const result=await publicQuery(full).eq('id',id).abortSignal(signal()).maybeSingle();const row=result.data as unknown as Row|null;if(result.error||!row||row.id!==id)throw Error('Tournament unavailable');published(row);return row}
+ const approvedIds = approvals && [...approvals.keys()]
+ if (approvals && [selected, division].some(id => id && !approvals.has(id))) throw Error('Tournament unavailable')
+ if (approvedIds?.length === 0) return base
+
+ const isApproved = (row: Row, full = false) => {
+  if (!approvals) return true
+  const approval = approvals.get(text(row.id))
+  return !!approval && tournamentRevisionDigest(row) === approval.summary &&
+    (!full || tournamentRevisionDigest(row, true) === approval.draw)
+ }
+ const publicQuery = (full = false) => {
+  const request = db.from('tiq_tournaments').select(full ? nativeTournamentDrawColumns : nativeTournamentSummaryColumns)
+    .eq('is_public', true).neq('status', 'draft')
+  return approvedIds ? request.in('id', approvedIds) : request
+ }
+ // Read the whole bounded approval set before truncating so stale revisions cannot hide approved events.
+ const listLimit = approvedIds?.length ?? 21
+ const approvedList = (result: Parameters<typeof list>[0]) =>
+  list(result, listLimit).filter(row => isApproved(row))
+ const get=async(id:string,full=false)=>{const result=await publicQuery(full).eq('id',id).abortSignal(signal()).maybeSingle();const row=result.data as unknown as Row|null;if(result.error||!row||row.id!==id||!isApproved(row,full))throw Error('Tournament unavailable');published(row);return row}
  if(!selected){let q=publicQuery().is('event_id',null);if(input.query)q=q.ilike('name','%'+input.query.replace(/[\\%_]/g,'\\$&')+'%')
-  const records=list(await q.order('updated_at',{ascending:false}).order('id').limit(21).abortSignal(signal())),tournaments=records.slice(0,20).map(published)
+  const records=approvedList(await q.order('updated_at',{ascending:false}).order('id').limit(listLimit).abortSignal(signal())),tournaments=records.slice(0,20).map(published)
   if(tournaments.some(t=>t.parentId)||new Set(tournaments.map(t=>t.id)).size!==tournaments.length)throw Error('Ambiguous tournament list')
   return {...base,tournaments,more:records.length>20}
  }
  const rootRow=await get(selected),root=published(rootRow);if(root.parentId||division&&!root.isEvent)throw Error('Choose a public event')
- const children=root.isEvent?list(await publicQuery().eq('event_id',selected).eq('is_event',false).order('name').order('id').limit(21).abortSignal(signal())):[]
+ const children=root.isEvent?approvedList(await publicQuery().eq('event_id',selected).eq('is_event',false).order('name').order('id').limit(listLimit).abortSignal(signal())):[]
  const divisions=children.slice(0,20).map(published);if(divisions.some(d=>d.parentId!==selected||d.isEvent)||new Set(divisions.map(d=>d.id)).size!==divisions.length)throw Error('Event divisions changed')
  const id=root.isEvent?division:selected,activeRow=id?await get(id,true):null,active=activeRow?published(activeRow):null
  if(active&&(active.isEvent||active.parentId!==(root.isEvent?selected:'')))throw Error('Division moved to another event')

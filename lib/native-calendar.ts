@@ -5,7 +5,7 @@ import {applyCalendarVenueLocations} from './venue-calendar-storage'
 import {mapApprovedCompetitionSchedule} from './player-competition-schedule'
 import {mapCoachAssignmentRow,type CoachAssignmentRow} from './coach-storage'
 import {buildCoachStudentCalendarEvents} from './coach-calendar'
-import {COMPETITION_DATES_UNAVAILABLE,calendarPayload,personalDraft,readCalendarCompetitionView,sameCalendarDraft,type CalendarIntent,type CalendarRange,type NativeCalendar,type CalendarSharedDate} from './native-calendar-contract'
+import {COMPETITION_DATES_UNAVAILABLE,calendarPayload,firstPartyPersonalCalendarId,personalDraft,readCalendarCompetitionView,sameCalendarDraft,type CalendarIntent,type CalendarRange,type NativeCalendar,type CalendarSharedDate} from './native-calendar-contract'
 
 export class CalendarFault extends Error {constructor(public status:number,message:string){super(message)}}
 const conflict=()=>new CalendarFault(409,'This date changed. Refresh and review it before saving again.')
@@ -50,18 +50,24 @@ export async function calendarCompetitions(client:SupabaseClient,owner:string){
   return {...event,publishedView:readCalendarCompetitionView(event,target)}
  })
 }
-async function calendarCoach(client:SupabaseClient,owner:string,range:CalendarRange):Promise<CalendarSharedDate[]>{
- const links=rows(await client.from('coach_player_links').select('id,player_user_id,player_name,status').eq('player_user_id',owner).neq('status','paused').limit(101),100)
+async function calendarCoach(client:SupabaseClient,owner:string,range:CalendarRange,firstParty:boolean):Promise<CalendarSharedDate[]>{
+ const source=client.from('coach_player_links')
+ const linkQuery=firstParty?source.select('id,player_user_id,status'):source.select('id,player_user_id,player_name,status')
+ const links=rows<{id:string;player_user_id:string;player_name?:string}>(await linkQuery.eq('player_user_id',owner).neq('status','paused').limit(101),100)
  if(links.some(l=>l.player_user_id!==owner))throw Error('Coach calendar owner changed')
  if(!links.length)return []
  const assignments=rows(await client.from('coach_assignments').select('id,student_link_id,title,focus,due_date,status,assignment_json,updated_at').in('student_link_id',links.map(l=>l.id)).not('status','in','(draft,archived)').limit(501))
  if(assignments.some(a=>!links.some(l=>l.id===a.student_link_id)))throw Error('Coach calendar link changed')
- return links.flatMap(link=>buildCoachStudentCalendarEvents(assignments.filter(a=>a.student_link_id===link.id).map(a=>mapCoachAssignmentRow(a as CoachAssignmentRow)),{id:link.id,playerName:link.player_name}).filter(e=>inRange(e.date,range)).map(e=>({id:e.id,title:e.title,date:e.date,time:e.time||'',location:e.location||'',detail:e.description||'',kind:e.id.startsWith('coach-lesson-')?'lesson' as const:'reminder' as const})))
+ return links.flatMap(link=>buildCoachStudentCalendarEvents(assignments.filter(a=>a.student_link_id===link.id).map(a=>mapCoachAssignmentRow(a as CoachAssignmentRow)),{id:link.id,playerName:firstParty?'you':link.player_name??''}).filter(e=>inRange(e.date,range)).map(e=>({id:e.id,title:firstParty&&e.id.startsWith('coach-lesson-')?'Coaching lesson':e.title,date:e.date,time:e.time||'',location:e.location||'',detail:e.description||'',kind:e.id.startsWith('coach-lesson-')?'lesson' as const:'reminder' as const})))
 }
-export async function loadNativeCalendar(client:SupabaseClient,owner:string,range:CalendarRange):Promise<NativeCalendar>{
+type CalendarCompetitionLoader=(client:SupabaseClient,owner:string)=>Promise<NativeCalendar['competitions']>
+export async function loadNativeCalendar(client:SupabaseClient,owner:string,range:CalendarRange,scopedCompetitions?:CalendarCompetitionLoader):Promise<NativeCalendar>{
+ const firstParty=Boolean(scopedCompetitions)
+ const personal=client.from('player_calendar_items').select(playerCalendarSelect).eq('player_user_id',owner).lte('scheduled_date',range.to)
+ if(firstParty)personal.not('id','like','team-schedule-*').not('id','like','message-calendar-*')
  const [p,c,h]=await Promise.allSettled([
-  client.from('player_calendar_items').select(playerCalendarSelect).eq('player_user_id',owner).lte('scheduled_date',range.to).or('scheduled_date.gte.'+range.from+',recurrence_rule.in.(FREQ=DAILY,FREQ=WEEKLY,FREQ=MONTHLY)').order('scheduled_date').order('id').limit(501).then(async result=>{const found=rows(result);if(found.some(r=>r.player_user_id!==owner))throw Error();return (await applyCalendarVenueLocations(client,owner,found as PlayerCalendarItemRow[])).map(mapPlayerCalendarItemRow)}),
-  calendarCompetitions(client,owner),calendarCoach(client,owner,range),
+  personal.or('scheduled_date.gte.'+range.from+',recurrence_rule.in.(FREQ=DAILY,FREQ=WEEKLY,FREQ=MONTHLY)').order('scheduled_date').order('id').limit(501).then(async result=>{const found=rows(result);if(found.some(r=>r.player_user_id!==owner))throw Error();const allowed=firstParty?found.filter(row=>firstPartyPersonalCalendarId(row.id)):found;return (await applyCalendarVenueLocations(client,owner,allowed as PlayerCalendarItemRow[])).map(mapPlayerCalendarItemRow)}),
+  (scopedCompetitions??calendarCompetitions)(client,owner),calendarCoach(client,owner,range,firstParty),
  ])
  // Personal dates are the writable baseline. Never present a failed read as an empty account.
  if(p.status==='rejected')throw Error('Personal calendar unavailable')
@@ -90,9 +96,9 @@ export async function writeCalendarPersonal(client:SupabaseClient,owner:string,i
  if(!item||!sameCalendarDraft(personalDraft(item),intent.item))throw conflict()
  return {item}
 }
-export async function respondNativeCalendar(client:SupabaseClient,owner:string,intent:Extract<CalendarIntent,{action:'respond'}>){
- const event=(await calendarCompetitions(client,owner)).find(e=>e.id===intent.eventId)
- if(!event||event.status==='Completed'||Object.entries(intent.snapshot).some(([k,v])=>event[k as keyof typeof intent.snapshot]!==v))throw conflict()
+export async function respondNativeCalendar(client:SupabaseClient,owner:string,intent:Extract<CalendarIntent,{action:'respond'}>,scopedCompetitions?:CalendarCompetitionLoader){
+ const event=(await (scopedCompetitions??calendarCompetitions)(client,owner)).find(e=>e.id===intent.eventId)
+ if(!event||scopedCompetitions&&event.eventType!=='match'||event.status==='Completed'||Object.entries(intent.snapshot).some(([k,v])=>event[k as keyof typeof intent.snapshot]!==v))throw conflict()
  const query=()=>client.from('player_schedule_responses').select('id,player_user_id,event_id,response,event_snapshot,updated_at').eq('player_user_id',owner).eq('competition_kind',event.kind).eq('competition_id',event.competitionId).eq('event_id',event.id)
  const previous=await query().maybeSingle();if(previous.error)throw Error('Availability unavailable')
  const same=(r:NonNullable<typeof previous.data>)=>r.player_user_id===owner&&r.event_id===event.id&&r.response===intent.response&&Object.entries(intent.snapshot).every(([k,v])=>r.event_snapshot?.[k]===v)
@@ -106,7 +112,7 @@ export async function respondNativeCalendar(client:SupabaseClient,owner:string,i
  try{
   const [organizer,entry]=await Promise.all([
    client.from(event.kind==='league'?'tiq_leagues':'tiq_tournaments').select('created_by_user_id').eq('id',event.competitionId).maybeSingle(),
-   client.from(event.kind==='league'?'tiq_player_league_entries':'tiq_tournament_entries').select('player_name').eq(event.kind==='league'?'league_id':'tournament_id',event.competitionId).eq(event.kind==='league'?'created_by_user_id':'submitted_by_user_id',owner).limit(1).maybeSingle(),
+   scopedCompetitions?{data:null,error:null}:client.from(event.kind==='league'?'tiq_player_league_entries':'tiq_tournament_entries').select('player_name').eq(event.kind==='league'?'league_id':'tournament_id',event.competitionId).eq(event.kind==='league'?'created_by_user_id':'submitted_by_user_id',owner).limit(1).maybeSingle(),
   ])
   if(organizer.error||entry.error)throw Error()
   if(organizer.data?.created_by_user_id&&organizer.data.created_by_user_id!==owner){const alert=await client.from('internal_notifications').insert({id:intent.requestId,recipient_profile_id:organizer.data.created_by_user_id,actor_user_id:owner,notification_type:'schedule',title:(entry.data?.player_name||'A player')+(intent.response==='available'?' is available':' can’t play'),body:`${event.title} · ${event.date}${event.time?' at '+event.time:''}`,href:event.kind==='league'?'/league-coordinator#league-registry':'/league-coordinator/tournaments#tournament-builder'});if(alert.error)throw Error()}
