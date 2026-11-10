@@ -7,8 +7,10 @@ let missLookup = false
 export function personalMatchQuery() {
   const filters = new Map<string, string>()
   let action = 'read', values: Partial<Row> = {}, single = false, limit = 21
+  let afterId: string | undefined
   const chain = {
     eq(key: string, value: string) { filters.set(key, value); return chain },
+    or(value: string) { afterId = /,id\.lt\.([0-9a-f-]+)\)$/.exec(value)?.[1]; return chain },
     select() { return chain },
     order() { return chain },
     limit(value: number) { limit = value; return chain },
@@ -34,8 +36,9 @@ export function personalMatchQuery() {
       if (action === 'update') selected.forEach(row => Object.assign(row, values))
       if (action === 'delete') fixture.rows = fixture.rows.filter(row => !selected.includes(row))
       if (action === 'read' && filters.has('id') && missLookup) { missLookup = false; return fail('Lookup unavailable') }
-      selected.sort((a, b) => b.match_date.localeCompare(a.match_date) || b.created_at.localeCompare(a.created_at))
-      resolve({ data: single ? selected[0] ?? null : selected.slice(0, limit), error: null })
+      selected.sort((a, b) => b.match_date.localeCompare(a.match_date) || b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))
+      const offset = afterId ? selected.findIndex(row => row.id === afterId) + 1 : 0
+      resolve({ data: single ? selected[0] ?? null : selected.slice(offset, offset + limit), error: null })
     },
   }
   return chain

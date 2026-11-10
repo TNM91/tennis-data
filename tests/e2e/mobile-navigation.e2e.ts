@@ -106,6 +106,8 @@ test('first-party match log retries one scorecard and updates My Lab from the sa
  await expect(page.getByRole('heading',{name:'Casey <Rally>',exact:true})).toBeFocused()
  await backToLog.click()
  await expect(recentWin).toBeFocused()
+ const search=page.getByRole('searchbox',{name:'Search loaded scorecards',exact:true})
+ await search.fill('casey')
  await scorecardRow.click()
  await expect(page.getByRole('heading',{name:'Casey <Rally>',exact:true})).toBeFocused()
  await page.getByRole('button',{name:'Edit scorecard',exact:true}).click()
@@ -123,12 +125,44 @@ test('first-party match log retries one scorecard and updates My Lab from the sa
  await backToLog.click()
  await expect(scorecardRow).toBeFocused()
  await expect(scorecardRow).toBeInViewport()
+ await expect(search).toHaveValue('casey')
  await scorecardRow.click()
  await page.getByRole('button',{name:'Remove scorecard',exact:true}).click()
  await page.getByRole('button',{name:'Remove scorecard',exact:true}).click()
  await expect(page.getByText('Scorecard removed.',{exact:true})).toBeVisible()
  await expect(form).toHaveCount(0)
+ await expect(search).toBeHidden()
  await expect(page.getByRole('button',{name:/Open scorecard for/})).toHaveCount(0)
+})
+
+test('first-party scorecard search stays active when older matches load', async ({page}) => {
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?unlinked=1')
+ await page.evaluate(() => {
+  const {personalMatchFixture}=window as unknown as typeof import('../fixtures/mobile-personal-matches')
+  for (let index=0;index<21;index++) {
+   personalMatchFixture.rows.push({id:crypto.randomUUID(),revision:crypto.randomUUID(),owner_user_id:'11111111-1111-4111-8111-111111111111',
+    match_date:`2026-10-${String(index+1).padStart(2,'0')}`,created_at:'2026-10-21T18:00:00.000Z',calendar_match_id:null,
+    format:'singles',outcome:'Won',score:'6-4 6-3',opponent:index ? `Practice opponent ${index}` : 'Archive opponent'})
+  }
+ })
+ const nav=page.getByRole('navigation',{name:'Main navigation'})
+ await nav.getByRole('button',{name:'Explore',exact:true}).click()
+ await nav.getByRole('button',{name:'My Lab',exact:true}).click()
+ const search=page.getByRole('searchbox',{name:'Search loaded scorecards',exact:true})
+ const empty=page.getByText('No loaded scorecards match this opponent.',{exact:true})
+ await search.fill('  aRcHiVe  ')
+ await expect(search).toBeFocused()
+ await expect(empty).toBeVisible()
+ const form=page.getByRole('region',{name:'Recent form',exact:true})
+ await expect(form.getByText('5W · 0L',{exact:true}).first()).toBeVisible()
+ await page.getByRole('button',{name:'Load older matches',exact:true}).click()
+ const row=page.getByRole('button',{name:'Open scorecard for Archive opponent',exact:true})
+ await expect(row).toBeFocused()
+ await expect(search).toHaveValue('  aRcHiVe  ')
+ await expect(empty).toBeHidden()
+ await expect(page.getByRole('button',{name:/^Open scorecard for /})).toHaveCount(1)
+ await expect(form.getByText('5W · 0L',{exact:true}).first()).toBeVisible()
 })
 
 test('first-party scorecard links stop before loading the integrated match',async({page})=>{

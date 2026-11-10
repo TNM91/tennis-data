@@ -50,13 +50,26 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         <button type="button" data-log-match>Log a match</button></div>
       <p>Your scores and recent form sync privately to your account.</p>
       <div data-personal-editor></div>
-      <div data-personal-history></div>
+      <div data-personal-history>
+        <div data-scorecard-search hidden>
+          <h3>Saved scorecards</h3>
+          <label>Search loaded scorecards <input type="search" name="scorecard-opponent" maxlength="100" autocomplete="off" placeholder="Opponent name"></label>
+        </div>
+        <p role="status" data-scorecard-no-results hidden>No loaded scorecards match this opponent.</p>
+        <div data-scorecard-list></div>
+        <div data-scorecard-pagination></div>
+      </div>
       <p role="status" data-captain-score-status hidden></p>
       <p role="status" data-personal-status></p>
     </section>`
   const formHost = host.querySelector<HTMLElement>('[data-personal-form]')!
   const editor = host.querySelector<HTMLElement>('[data-personal-editor]')!
   const history = host.querySelector<HTMLElement>('[data-personal-history]')!
+  const searchBox = history.querySelector<HTMLElement>('[data-scorecard-search]')!
+  const search = searchBox.querySelector<HTMLInputElement>('input')!
+  const noResults = history.querySelector<HTMLElement>('[data-scorecard-no-results]')!
+  const list = history.querySelector<HTMLElement>('[data-scorecard-list]')!
+  const pagination = history.querySelector<HTMLElement>('[data-scorecard-pagination]')!
   const status = host.querySelector<HTMLElement>('[data-personal-status]')!
   const captainStatus = host.querySelector<HTMLElement>('[data-captain-score-status]')!
   const add = host.querySelector<HTMLButtonElement>('[data-log-match]')!
@@ -77,20 +90,29 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
   }
 
   function paintHistory() {
-    const focused = document.activeElement
-    const focusedId = focused instanceof HTMLButtonElement && history.contains(focused) ? focused.dataset.scorecardId : undefined
     const linked = new Set(posted.map(card => card.calendar_match_id))
     const scorecards: LogScorecard[] = [...posted, ...matches.filter(card => !card.calendar_match_id || !linked.has(card.calendar_match_id))]
       .sort((a, b) => b.match_date.localeCompare(a.match_date))
     mountPersonalRecentForm(formHost, scorecards, active, openScorecard)
-    history.innerHTML = scorecards.length ? `<h3>Saved scorecards</h3><ol class="lab-saved-scorecards" role="list">${scorecards.map(savedScorecardRow).join('')}</ol>` : ''
-    if (more) history.insertAdjacentHTML('beforeend', '<button type="button" class="secondary" data-older-scorecards>Load older matches</button>')
-    history.querySelectorAll<HTMLButtonElement>('[data-open-scorecard]').forEach(button => {
-      button.onclick = () => openScorecard(scorecards[Number(button.dataset.openScorecard)], button)
+    searchBox.hidden = !scorecards.length
+    search.oninput = () => { if (active()) paintScorecardRows(scorecards) }
+    paintScorecardRows(scorecards)
+    pagination.innerHTML = more ? '<button type="button" class="secondary" data-older-scorecards>Load older matches</button>' : ''
+    const older = pagination.querySelector<HTMLButtonElement>('[data-older-scorecards]')
+    if (older) older.onclick = () => { void readHistory(true) }
+  }
+
+  function paintScorecardRows(scorecards: LogScorecard[]) {
+    const focused = document.activeElement
+    const focusedId = focused instanceof HTMLButtonElement && list.contains(focused) ? focused.dataset.scorecardId : undefined
+    const term = search.value.trim().toLowerCase()
+    const rows = term ? scorecards.filter(card => card.opponent.toLowerCase().includes(term)) : scorecards
+    noResults.hidden = !term || !scorecards.length || rows.length > 0
+    list.innerHTML = rows.length ? `<ol class="lab-saved-scorecards" role="list">${rows.map(savedScorecardRow).join('')}</ol>` : ''
+    list.querySelectorAll<HTMLButtonElement>('[data-open-scorecard]').forEach(button => {
+      button.onclick = () => openScorecard(rows[Number(button.dataset.openScorecard)], button)
     })
     if (focusedId) findHistoryRow(focusedId)?.focus({ preventScroll: true })
-    const older = history.querySelector<HTMLButtonElement>('[data-older-scorecards]')
-    if (older) older.onclick = () => { void readHistory(true) }
   }
 
   function setReading(value: boolean) {
@@ -113,12 +135,14 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       const previous = older ? new Set(matches.map(row => row.id)) : null
       matches = older ? [...new Map([...matches, ...page.matches].map(row => [row.id, row])).values()] : page.matches
       more = page.more
+      if (!matches.length && !posted.length) search.value = ''
+      history.querySelector('[data-refresh-matches]')?.remove()
       paintHistory()
       status.textContent = receipt || (matches.length || posted.length ? '' : 'Your first scorecard will appear here.')
       if (previous) {
         const appended = [...history.querySelectorAll<HTMLButtonElement>('[data-open-scorecard]')]
           .find(button => page.matches.some(row => row.id === button.dataset.scorecardId && !previous.has(row.id)))
-        const nextFocus = appended ?? history.querySelector<HTMLButtonElement>('[data-older-scorecards]') ?? add
+        const nextFocus = appended ?? pagination.querySelector<HTMLButtonElement>('[data-older-scorecards]') ?? (searchBox.hidden ? add : search)
         nextFocus.focus()
       }
     } catch {
