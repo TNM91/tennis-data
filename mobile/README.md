@@ -79,9 +79,21 @@ Both baselines are internal TestFlight builds. Submit the selected track from a 
 ### First-party launch scope
 
 - **Available in build 255.** Offline drills, a timer, self-entered matches and recent form.
-- **Carry over first.** Start with TenAceIQ-created tournaments and their published draws and results. The native tournament loader already reads `tiq_tournaments`. Verify the provenance of event details, entrants and results before exposing them in the fallback. Apply the same checks to TenAceIQ leagues, including the season detail and entry paths that currently consult a linked player profile.
+- **Carry over first.** The signed-in `GET /api/mobile/first-party/tournaments` route reuses the native tournament feed for approved records. The offline baseline does not call it yet. Apply the same data-source checks to TenAceIQ leagues, including the season detail and entry paths that currently consult a linked player profile.
 - **Carry over after isolating connected reads.** Coach invites and direct coach-player messages have dedicated account-scoped routes. Team chat shares routes with fixtures and lineups. Keep first-party conversations and the existing safety controls, and scope fixture cards, profile lookups and roster data separately.
 - **Hold for verified rights and data scope.** External imports, imported directory and match history, and ratings computed from those records. The fallback bundle and its server endpoints should enforce the scope before returning data. Hiding a screen alone leaves other paths to the same data.
+
+#### Approve a tournament revision
+
+Review the event and each division separately. Confirm the origin and publishing rights for the event details, entrants, schedule and results before approving. Public visibility by itself does not grant first-party approval.
+
+Export only the reviewed rows from `tiq_tournaments` to a local JSON array. Use the fields in `nativeTournamentDrawColumns` in `lib/native-tournament-approvals.ts`. Keep the export outside the repository. Generate the approval value from the reviewed snapshot:
+
+```sh
+npx tsx scripts/fingerprint-first-party-tournaments.ts path/to/reviewed-rows.json
+```
+
+Set the output as the server-only `TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS` value for the candidate backend. The route accepts up to 50 rows, including events and divisions. With no approvals, the catalog is empty. Edits to an approved revision require review and a new fingerprint. Removing an approval withdraws the record from the first-party feed. Review records against the updated feed before connecting a TestFlight build.
 
 ### Offline baseline build
 
