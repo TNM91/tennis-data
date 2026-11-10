@@ -174,7 +174,7 @@ test('first-party calendar keeps personal, coach and reviewed match dates on the
  expect(new Set(paths)).toEqual(new Set(['/api/mobile/first-party/calendar']))
 })
 
-test('first-party calendar prefills a completed match and reopens its one private scorecard', async ({page}) => {
+test('first-party rematches leave the original calendar scorecard linked', async ({page}) => {
  await useFirstPartyNavigation(page)
  await page.clock.setFixedTime(new Date(2026,10,11,12))
  await page.goto(origin+'/?calendar-scorecard=1')
@@ -202,15 +202,36 @@ test('first-party calendar prefills a completed match and reopens its one privat
  await page.getByLabel('Score',{exact:true}).fill('6-3 6-2')
  await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
  await expect(page.getByText('Scorecard saved.',{exact:true})).toBeVisible()
+
+ await page.clock.setFixedTime(new Date(2026,10,12,12))
+ const rematch=page.getByRole('button',{name:'Log a rematch',exact:true})
+ await rematch.click()
+ await expect(page.getByRole('heading',{name:'Log a rematch',exact:true})).toBeFocused()
+ await expect(page.getByLabel('Match date',{exact:true})).toHaveValue('2026-11-12')
+ await expect(page.getByLabel('Opponent or doubles team',{exact:true})).toHaveValue('Casey & Drew')
+ await expect(page.getByLabel('Format',{exact:true})).toHaveValue('doubles')
+ await expect(page.getByLabel('Result',{exact:true})).toHaveValue('')
+ await expect(page.getByLabel('Score',{exact:true})).toHaveValue('')
+ await page.getByRole('button',{name:'Cancel',exact:true}).click()
+ await expect(page.getByRole('heading',{name:'Casey & Drew',exact:true})).toBeFocused()
+ await rematch.click()
+ await page.getByLabel('Result',{exact:true}).selectOption('Lost')
+ await page.getByLabel('Score',{exact:true}).fill('4-6 4-6')
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ await expect(page.getByText('Scorecard saved.',{exact:true})).toBeVisible()
+ const form=page.getByRole('region',{name:'Recent form',exact:true})
+ await expect(form.getByText('1W · 1L',{exact:true}).first()).toBeVisible()
+
  await openCalendar()
  await calendar.locator('.cal-event.competition').filter({hasText:'Casey & Drew'}).click()
  await scorecard.click()
  await expect(page.getByRole('heading',{name:'Casey & Drew',exact:true})).toBeFocused()
  await expect(page.getByText('6-3 6-2',{exact:true})).toBeVisible()
  await expect(page.getByText('From your TenAceIQ calendar',{exact:true})).toBeVisible()
- const keys=await page.evaluate(()=> (window as unknown as {personalMatchFixture:{rows:{calendar_match_id:string}[]}})
+ const keys=await page.evaluate(()=> (window as unknown as {personalMatchFixture:{rows:{calendar_match_id:string|null}[]}})
   .personalMatchFixture.rows.map(row=>row.calendar_match_id))
- expect(keys).toEqual(['tournament:draw-one:r1-m1'])
+ expect(keys).toHaveLength(2)
+ expect(keys).toEqual(expect.arrayContaining(['tournament:draw-one:r1-m1',null]))
 })
 
 test('first-party captain doubles corrections count once beside the player’s private entry', async ({page}) => {

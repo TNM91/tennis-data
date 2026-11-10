@@ -50,10 +50,17 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     if (older) older.onclick = () => { void readHistory(true) }
   }
 
+  function setReading(value: boolean) {
+    reading = value
+    if (!active()) return
+    add.disabled = value
+    const rematch = editor.querySelector<HTMLButtonElement>('[data-log-rematch]')
+    if (rematch) rematch.disabled = value
+  }
+
   async function readHistory(older = false, receipt = '') {
     if (!active() || reading || writing) return
-    reading = true
-    add.disabled = true
+    setReading(true)
     const olderButton = history.querySelector<HTMLButtonElement>('[data-older-scorecards]')
     if (olderButton) olderButton.disabled = true
     status.textContent = older ? 'Loading older matches…' : 'Loading match history…'
@@ -80,8 +87,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         history.querySelector<HTMLButtonElement>('[data-refresh-matches]')!.onclick = () => { void readHistory() }
       }
     } finally {
-      reading = false
-      if (active()) add.disabled = false
+      setReading(false)
     }
   }
 
@@ -108,11 +114,13 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       <p>${html(matchDate(match.match_date))} · ${formatName(match.format)} · ${match.outcome}</p>
       ${match.calendar_match_id ? '<p>From your TenAceIQ calendar</p>' : ''}
       <p><strong>${html(match.score)}</strong></p>
+      <button type="button" class="secondary" data-log-rematch ${reading ? 'disabled' : ''}>Log a rematch</button>
       <button type="button" class="secondary" data-edit-match>Edit scorecard</button>
       <button type="button" class="secondary" data-remove-match>Remove scorecard</button>
       <button type="button" class="secondary" data-close-scorecard>Back to match log</button>
     </article>`
     editor.querySelector<HTMLElement>('h3')!.focus()
+    editor.querySelector<HTMLButtonElement>('[data-log-rematch]')!.onclick = () => showEditor(null, { previous: match })
     editor.querySelector<HTMLButtonElement>('[data-edit-match]')!.onclick = () => showEditor(match)
     editor.querySelector<HTMLButtonElement>('[data-remove-match]')!.onclick = () => confirmRemoval(match)
     editor.querySelector<HTMLButtonElement>('[data-close-scorecard]')!.onclick = closeEditor
@@ -125,11 +133,14 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     add.focus({ preventScroll: true })
   }
 
-  function showEditor(match: PersonalMatch | null, calendarSeed?: CalendarScorecardSeed) {
+  function showEditor(match: PersonalMatch | null, seed?: CalendarScorecardSeed | { previous: PersonalMatch }) {
     if (!active() || writing || reading) return
+    const calendarSeed = seed && 'calendarMatchId' in seed ? seed : undefined
+    const previous = seed && 'previous' in seed ? seed.previous : undefined
+    const prefill = match ?? calendarSeed ?? previous
     history.hidden = formHost.hidden = add.disabled = true
     editor.innerHTML = `<form class="lab-first-scorecard" data-match-editor>
-      <h3 tabindex="-1">${match ? 'Edit scorecard' : 'Log a match'}</h3>
+      <h3 tabindex="-1">${match ? 'Edit scorecard' : previous ? 'Log a rematch' : 'Log a match'}</h3>
       ${calendarSeed ? '<p>Match details from your TenAceIQ calendar.</p>' : ''}
       <fieldset>
         <legend class="sr-only">Match details</legend>
@@ -151,7 +162,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     const save = form.querySelector<HTMLButtonElement>('[data-save-scorecard]')!
     const cancel = form.querySelector<HTMLButtonElement>('[data-cancel-scorecard]')!
     for (const [field, value] of Object.entries({ match_date: match?.match_date ?? calendarSeed?.date ?? localCalendarDate(),
-      opponent: match?.opponent ?? calendarSeed?.opponent ?? '', format: match?.format ?? calendarSeed?.format ?? '',
+      opponent: prefill?.opponent ?? '', format: prefill?.format ?? '',
       outcome: match?.outcome ?? '', score: match?.score ?? '' })) {
       const input = form.elements.namedItem(field) as HTMLInputElement | HTMLSelectElement
       input.value = value
@@ -160,7 +171,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     cancel.onclick = () => {
       if (writing) return
       if (draft || calendarSeed) { closeEditor(); void readHistory(); return }
-      if (match) showScorecard(match)
+      const returnTo = match ?? previous
+      if (returnTo) showScorecard(returnTo)
       else closeEditor()
     }
     form.onsubmit = async event => {
