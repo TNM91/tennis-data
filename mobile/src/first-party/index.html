@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+ <meta name="theme-color" content="#071426">
+ <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+ <title>TenAceIQ</title>
+ <link rel="stylesheet" href="./app.css">
+</head>
+<body>
+ <header class="brand-header"><img src="./brand/header-logo-transparent.png" alt="TenAceIQ"></header>
+ <main>
+  <header class="hero">
+   <p class="eyebrow">My Lab</p>
+   <h1>Build your game</h1>
+   <p>Warm up with a tennis drill and keep a record of the matches you play.</p>
+  </header>
+  <section aria-labelledby="drill-title">
+   <p class="eyebrow">Practice</p>
+   <h2 id="drill-title">Split-Step Rhythm</h2>
+   <p id="drill-cue"></p>
+   <details><summary>Drill steps</summary><ol id="drill-steps"></ol></details>
+   <div class="timer">
+    <span id="elapsed" role="timer" aria-label="Elapsed time">0m 0s</span>
+    <button type="button" id="timer-toggle">Start warm-up</button>
+    <button type="button" id="timer-finish" class="secondary" hidden>Finish</button>
+   </div>
+   <p class="notice" id="drill-status" role="status"></p>
+  </section>
+  <section aria-labelledby="match-title">
+   <p class="eyebrow">Match log</p>
+   <h2 id="match-title">Record a match</h2>
+   <p>Add a result from a match you played. Your log is saved on this device.</p>
+   <form id="match-form">
+    <label>Match date<input type="date" name="date" required></label>
+    <div class="match-fields">
+     <label>Format<select name="format" required><option value="">Choose</option><option>Singles</option><option>Doubles</option></select></label>
+     <label>Result<select name="result" required><option value="">Choose</option><option>Won</option><option>Lost</option></select></label>
+    </div>
+    <label>Set scores <span class="optional">Optional</span><input name="score" maxlength="48" placeholder="6-4 6-3"></label>
+    <button type="submit">Save match</button>
+   </form>
+   <p class="notice" id="match-status" role="status"></p>
+   <h3>Your matches</h3>
+   <p id="match-empty">Your recorded matches will appear here.</p>
+   <ul class="match-list" id="match-list"></ul>
+  </section>
+ </main>
+ <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -4,19 +4,29 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import sharp from 'sharp'
 import { iosIcon } from './ios-icon.mjs'
+import {checkFirstPartyBundle,firstPartyAssets,firstPartyWebDir} from './first-party-bundle.mjs'
 
 const root = new URL('../', import.meta.url)
 const read = path => readFile(new URL(path, root), 'utf8')
 const config = JSON.parse(await read('ios/App/App/capacitor.config.json'))
+const firstParty = process.argv.includes('--first-party')
 assert.equal(config.appId, 'com.tenaceiq.prototype')
-assert.equal(config.webDir, 'bundled')
+assert.equal(config.webDir, firstParty ? firstPartyWebDir : 'bundled')
 assert.ok(!config.server, 'iOS must not depend on a development server')
+if(firstParty){
+  await checkFirstPartyBundle(fileURLToPath(new URL(firstPartyWebDir+'/',root)))
+  for(const file of firstPartyAssets){
+    const packed = await readFile(new URL('ios/App/App/public/'+file,root))
+    const source = await readFile(new URL(firstPartyWebDir+'/'+file,root))
+    assert.deepEqual(packed,source,'Packaged first-party asset differs: '+file)
+  }
+}
 const spm = await read('ios/App/CapApp-SPM/Package.swift')
 const scheme = await read('ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme')
 assert.ok(scheme.includes('BlueprintName="App"') && scheme.includes('container:App.xcodeproj'), 'Expected a shared App scheme for CI')
 for (const name of ['AparajitaCapacitorSecureStorage', 'CapacitorApp', 'CapacitorBrowser', 'CapacitorPushNotifications', 'CapacitorCamera', 'CapacitorShare', 'CapacitorClipboard']) assert.ok(spm.includes(name), `Missing ${name}`)
 const app = await read('ios/App/App/public/app.js')
-assert.ok(app.length > 10000, 'Expected bundled client code')
+assert.ok(app.length > (firstParty ? 1000 : 10000), 'Expected bundled client code')
 assert.match(await read('ios/App/App/public/index.html'), /href="\.\/app\.css"/)
 assert.ok((await read('ios/App/App/public/app.css')).length > 1000, 'Expected shared interactive chart CSS in the signed bundle')
 const contents = JSON.parse(await read('ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json'))

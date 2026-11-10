@@ -65,6 +65,20 @@ This is a Capacitor 8 development harness for testing the current Next.js applic
 
 Run `npm run doctor` in this directory to check Node, Java, API 36, build tools, ADB, connected devices, the local login route, and unauthenticated API rejection. A nonzero exit means setup is incomplete; the output names each missing prerequisite. The emulator URL is translated to loopback only for the host-side server check.
 
+## Offline iOS fallback
+
+Use a separate checkout for the first-party fallback because iOS preparation writes the generated Capacitor configuration and Xcode project. From the repository root, with both dependency sets installed, run:
+
+```sh
+npm --prefix mobile run build:ios:first-party
+npm --prefix mobile run prepare:ios:first-party
+npm --prefix mobile run check:ios:first-party
+```
+
+The offline prototype packages its assets from `mobile/bundled-first-party/` into `mobile/ios/App/App.xcodeproj`. It includes the Split-Step Rhythm timer and a device-only match log. Its JavaScript has an explicit source allowlist and the WebView page blocks network connections. Confirm the exact bundled assets with the check command before opening the Xcode project.
+
+Before preparing an App Store candidate, verify the data provenance of any connected features, compile and test the selected package on an iPhone, and review the store listing and privacy disclosures against that package. The existing store preparation script requires the standard bundle.
+
 ## Native sessions and sign-in smoke
 
 Run `npm ci` in both the repository root and `mobile/`, then sync and rebuild the native APK when native dependencies change. `@aparajita/capacitor-secure-storage` must be included in the APK; serving updated web code to an older APK without the plugin will not initialize native auth. Native storage failures do not fall back to plaintext browser storage.

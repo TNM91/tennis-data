@@ -14,6 +14,9 @@
     "open:android": "cap open android",
     "open:ios": "cap open ios",
     "build:bundled": "node scripts/build-bundled.mjs",
+    "build:ios:first-party": "node scripts/build-ios-first-party.mjs",
+    "prepare:ios:first-party": "node scripts/prepare-ios.mjs --first-party",
+    "check:ios:first-party": "node scripts/check-ios.mjs --first-party",
     "prepare:ios": "node scripts/prepare-ios.mjs",
     "check:ios": "node scripts/check-ios.mjs"
   },

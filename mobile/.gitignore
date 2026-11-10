@@ -3,5 +3,6 @@ capacitor.config.json
 android/
 ios/
 bundled/
+bundled-first-party/
 ios-build/
 ios-simulator.zip

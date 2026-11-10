@@ -7,12 +7,15 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { iosIcon } from './ios-icon.mjs'
+import {checkFirstPartyBundle,firstPartyWebDir} from './first-party-bundle.mjs'
 
 const mobile = fileURLToPath(new URL('../', import.meta.url))
 const config = JSON.parse(await readFile(resolve(mobile, 'capacitor.config.json'), 'utf8'))
-if (config.webDir !== 'bundled' || config.server || config.appId !== 'com.tenaceiq.prototype') {
-  throw new Error('Run build:bundled first. iOS preparation requires bundled assets and the prototype identifier.')
+const firstParty = process.argv.includes('--first-party')
+if (config.webDir !== (firstParty ? firstPartyWebDir : 'bundled') || config.server || config.appId !== 'com.tenaceiq.prototype') {
+  throw new Error('Build the selected bundle before preparing iOS.')
 }
+if(firstParty)await checkFirstPartyBundle(resolve(mobile,firstPartyWebDir))
 const exists = async path => access(path).then(() => true, () => false)
 const ios = resolve(mobile, 'ios')
 const hasProject = await exists(ios)
