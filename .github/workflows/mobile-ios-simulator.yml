@@ -73,6 +73,7 @@ jobs:
         if: inputs.profile != 'first-party'
         run: node mobile/scripts/ios-purchases-runtime-smoke.mjs --prepare mobile/ios/App/App/TenAceIQPurchases.swift
       - name: Boot iPhone simulator before compiling
+        if: inputs.profile != 'first-party'
         timeout-minutes: 4
         run: |
           set -euo pipefail
@@ -138,23 +139,40 @@ jobs:
           path: mobile/ios-simulator.zip
           if-no-files-found: error
           retention-days: 3
+      - name: Package first-party simulator app
+        if: inputs.profile == 'first-party'
+        run: |
+          OUTPUT="$RUNNER_TEMP/tiq-first-party-simulator"
+          mkdir -p "$OUTPUT"
+          ditto -c -k --sequesterRsrc --keepParent \
+            mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app \
+            "$OUTPUT/first-party-simulator.zip"
+      - name: Boot a fresh first-party iPhone simulator
+        if: inputs.profile == 'first-party'
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          RUNTIME=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(r for r in sorted(devices, reverse=True) if r.startswith("com.apple.CoreSimulator.SimRuntime.iOS-") and any(d["name"] == "iPhone 16e" for d in devices[r])))')
+          DEVICE=$(xcrun simctl create 'TenAceIQ Offline' com.apple.CoreSimulator.SimDeviceType.iPhone-16e "$RUNTIME")
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
+      - name: Install first-party simulator app
+        if: inputs.profile == 'first-party'
+        timeout-minutes: 2
+        run: xcrun simctl install "$TIQ_SIMULATOR_UDID" mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
       - name: Launch and capture first-party simulator app
         if: inputs.profile == 'first-party'
         timeout-minutes: 3
         run: |
           set -euo pipefail
           DEVICE="$TIQ_SIMULATOR_UDID"
-          APP=mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
-          OUTPUT="$RUNNER_TEMP/tiq-first-party-simulator"
-          SCREENSHOT="$OUTPUT/first-party-launch.png"
-          mkdir -p "$OUTPUT"
-          xcrun simctl install "$DEVICE" "$APP"
+          SCREENSHOT="$RUNNER_TEMP/tiq-first-party-simulator/first-party-launch.png"
           xcrun simctl launch --terminate-running-process "$DEVICE" com.tenaceiq.prototype
           for attempt in {1..10}; do
             sleep 5
             xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT"
             if node mobile/scripts/check-ios-first-party-launch.mjs "$SCREENSHOT"; then
-              ditto -c -k --sequesterRsrc --keepParent "$APP" "$OUTPUT/first-party-simulator.zip"
               exit 0
             fi
           done
