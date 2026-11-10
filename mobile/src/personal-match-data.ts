@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isValidCalendarDate } from '../../lib/calendar-date'
+import type { NativeCalendarCompetition } from '../../lib/native-calendar-contract'
 import { localCalendarDate } from './calendar-data'
 
 type MatchFields = {
@@ -10,18 +11,28 @@ type MatchFields = {
   score: string
 }
 
-export type PersonalMatch = MatchFields & { id: string; revision: string; created_at: string }
-export type PersonalMatchDraft = MatchFields & { id: string; revision: string; expected: string | null }
+export type PersonalMatch = MatchFields & { id: string; revision: string; created_at: string; calendar_match_id: string | null }
+export type PersonalMatchDraft = MatchFields & { id: string; revision: string; expected: string | null; calendar_match_id: string | null }
+export type CalendarScorecardSeed = { calendarMatchId: string; date: string; opponent: string; format?: MatchFields['format'] }
 export class MatchChanged extends Error {}
 
 const table = 'native_personal_matches'
-const columns = 'owner_user_id,id,revision,match_date,opponent,format,outcome,score,created_at'
+const columns = 'owner_user_id,id,revision,calendar_match_id,match_date,opponent,format,outcome,score,created_at'
 const pageSize = 20
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const calendarMatchId = /^(?:league|tournament):[a-zA-Z0-9_-]{1,80}:[a-zA-Z0-9_:-]{1,120}$/
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/
 const text = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 const validText = (value: string, max: number) => value !== '' && [...value].length <= max && !/\p{Cc}/u.test(value)
 const timeout = () => AbortSignal.timeout(12000)
+
+export function calendarScorecardSeed(match: NativeCalendarCompetition | undefined, today = localCalendarDate()): CalendarScorecardSeed | undefined {
+  if (!match?.publishedView || match.eventType !== 'match' || !['Confirmed', 'Scheduled', 'Completed'].includes(match.status) ||
+      !isValidCalendarDate(match.date) || match.date > today || !calendarMatchId.test(match.id) ||
+      !match.id.startsWith(`${match.kind}:${match.competitionId}:`)) return
+  return { calendarMatchId: match.id, date: match.date,
+    opponent: validText(match.opponent, 100) ? match.opponent : '', format: match.scorecardFormat }
+}
 
 function matchFields(input: Record<string, unknown>): MatchFields {
   const date = text(input.match_date)
@@ -35,18 +46,20 @@ function matchFields(input: Record<string, unknown>): MatchFields {
   return { match_date: date, opponent, format: input.format, outcome: input.outcome, score }
 }
 
-export function personalMatchDraft(form: FormData, match: PersonalMatch | null): PersonalMatchDraft {
+export function personalMatchDraft(form: FormData, match: PersonalMatch | null, seed?: CalendarScorecardSeed): PersonalMatchDraft {
   const fields = matchFields(Object.fromEntries(form))
   if (fields.match_date > localCalendarDate()) throw Error('Choose a date for a match you’ve already played.')
-  return { ...fields, id: match?.id ?? crypto.randomUUID(), revision: crypto.randomUUID(), expected: match?.revision ?? null }
+  return { ...fields, id: match?.id ?? crypto.randomUUID(), revision: crypto.randomUUID(), expected: match?.revision ?? null,
+    calendar_match_id: match?.calendar_match_id ?? seed?.calendarMatchId ?? null }
 }
 
 function readMatch(value: unknown, owner: string): PersonalMatch {
   const row = value as Record<string, unknown> | null
   if (!row || row.owner_user_id !== owner || typeof row.id !== 'string' || !uuid.test(row.id) ||
       typeof row.revision !== 'string' || !uuid.test(row.revision) || typeof row.created_at !== 'string' ||
+      !(row.calendar_match_id === null || typeof row.calendar_match_id === 'string' && calendarMatchId.test(row.calendar_match_id)) ||
       !timestamp.test(row.created_at) || !Number.isFinite(Date.parse(row.created_at))) throw Error('Match record unavailable.')
-  return { ...matchFields(row), id: row.id, revision: row.revision, created_at: row.created_at }
+  return { ...matchFields(row), id: row.id, revision: row.revision, created_at: row.created_at, calendar_match_id: row.calendar_match_id }
 }
 
 async function requireOwner(client: SupabaseClient, owner: string, current: () => boolean) {
@@ -70,25 +83,37 @@ export async function loadPersonalMatches(client: SupabaseClient, owner: string,
   return { matches: data.slice(0, pageSize).map(row => readMatch(row, owner)), more: data.length > pageSize }
 }
 
-async function lookup(client: SupabaseClient, owner: string, id: string, current: () => boolean) {
+async function lookup(client: SupabaseClient, owner: string, field: 'id' | 'calendar_match_id', key: string, current: () => boolean) {
   await requireOwner(client, owner, current)
-  const { data, error } = await client.from(table).select(columns).eq('owner_user_id', owner).eq('id', id)
+  const { data, error } = await client.from(table).select(columns).eq('owner_user_id', owner).eq(field, key)
     .abortSignal(timeout()).retry(false).maybeSingle()
   await requireOwner(client, owner, current)
   if (error) throw Error('Couldn’t confirm this scorecard. Try again.')
-  return data ? readMatch(data, owner) : null
+  const match = data ? readMatch(data, owner) : null
+  if (match && match[field] !== key) throw Error('The returned scorecard does not match this entry.')
+  return match
+}
+
+export function loadCalendarScorecard(client: SupabaseClient, owner: string, seed: CalendarScorecardSeed, current: () => boolean) {
+  return lookup(client, owner, 'calendar_match_id', seed.calendarMatchId, current)
 }
 
 export async function savePersonalMatch(client: SupabaseClient, owner: string, draft: PersonalMatchDraft, current: () => boolean) {
   await requireOwner(client, owner, current)
-  const { id, expected, ...values } = draft
+  const { id, expected, calendar_match_id, ...values } = draft
   const query = expected
     ? client.from(table).update(values).eq('owner_user_id', owner).eq('id', id).eq('revision', expected)
-    : client.from(table).insert({ ...values, owner_user_id: owner, id })
+    : client.from(table).insert({ ...values, owner_user_id: owner, id, calendar_match_id })
   const result = await query.select(columns).abortSignal(timeout()).retry(false).maybeSingle()
   await requireOwner(client, owner, current)
-  const saved = result.data ? readMatch(result.data, owner) : await lookup(client, owner, id, current)
-  if (saved?.id === id && Object.entries(values).every(([key, value]) => saved[key as keyof PersonalMatch] === value)) return saved
+  const saved = result.data ? readMatch(result.data, owner) : !expected && calendar_match_id
+    ? await lookup(client, owner, 'calendar_match_id', calendar_match_id, current)
+    : await lookup(client, owner, 'id', id, current)
+  if (saved?.id === id && saved.calendar_match_id === calendar_match_id &&
+      Object.entries(values).every(([key, value]) => saved[key as keyof PersonalMatch] === value)) return saved
+  if (!expected && calendar_match_id && saved?.calendar_match_id === calendar_match_id) {
+    throw new MatchChanged('A scorecard is already saved for this calendar match. Open it again from your calendar.')
+  }
   if ((saved?.revision ?? null) !== expected) throw new MatchChanged('This scorecard changed on another device. Reopen it to see the latest result.')
   throw Error('Couldn’t confirm the save. Retry this scorecard.')
 }
@@ -99,7 +124,7 @@ export async function removePersonalMatch(client: SupabaseClient, owner: string,
     .select('id').abortSignal(timeout()).retry(false).maybeSingle()
   await requireOwner(client, owner, current)
   if (data?.id === match.id) return
-  const existing = await lookup(client, owner, match.id, current)
+  const existing = await lookup(client, owner, 'id', match.id, current)
   if (!existing) return
   if (existing.revision !== match.revision) throw new MatchChanged('This scorecard changed on another device. Reopen it before removing it.')
   throw Error('Couldn’t confirm removal. Try again.')

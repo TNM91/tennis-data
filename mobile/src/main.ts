@@ -33,6 +33,7 @@ import {nativeActionIcon} from './native-action-icons'
 import websiteUi from '../generated/website-ui.json'
 import {mountLabRecentForm} from './lab-recent-form'
 import {mountPersonalMatchLog} from './personal-match-view'
+import type {CalendarScorecardSeed} from './personal-match-data'
 import {labLevelPathHtml} from './lab-level-path'
 import {loadOlderResults} from './recent-results-history'
 import {mountLabRatingTrends} from './lab-rating-trends'
@@ -335,7 +336,8 @@ function openScheduledRep(owner:string,current:()=>boolean,button:HTMLElement,ca
  return openLevelUp(client,owner,current,{view:'weeks',calendarRep,...options})
 }
 function openPlayerCalendar(owner:string,current:()=>boolean,trigger:HTMLElement,initial?:CalendarStart){
- return openCalendar(client,owner,current,trigger,initial,(rep,button,active,reviewRep)=>openScheduledRep(owner,active,button,rep,{reviewRep,fromCalendar:true}))
+ return openCalendar(client,owner,current,trigger,initial,(rep,button,active,reviewRep)=>openScheduledRep(owner,active,button,rep,{reviewRep,fromCalendar:true}),
+  firstPartyBuild?scorecard=>guardNavigation(()=>{if(current())void lab({scorecard})}):undefined)
 }
 function launchCalendar(trigger:HTMLElement,initial:CalendarStart='all'){
  if(!session||agenda?.isOpen()||connection?.isSaving()||document.querySelector('dialog[open]'))return
@@ -585,7 +587,7 @@ const nativePurchases=applePurchases(client)
 const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
 function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
-async function lab(entry?:'coach'|PlayerLink) {
+async function lab(entry?:'coach'|PlayerLink|{scorecard:CalendarScorecardSeed}) {
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
@@ -608,7 +610,8 @@ async function lab(entry?:'coach'|PlayerLink) {
   recovery = null
   details?.dispose();details=null
   const version = ++revision
-  const link=typeof entry==='object'?entry:undefined
+  const link=typeof entry==='object'&&'profile' in entry?entry:undefined
+  const scorecard=typeof entry==='object'&&'scorecard' in entry?entry.scorecard:undefined
   if(!firstPartyBuild&&!link?.profile){
     app.dataset.state = 'loading'
     app.innerHTML = linkedLabOwner===current.user.id
@@ -738,7 +741,7 @@ async function lab(entry?:'coach'|PlayerLink) {
       bindAppDestinations(shortcuts,openDestination)
       const matchLog = document.createElement('div')
       shortcuts.after(matchLog)
-      mountPersonalMatchLog(matchLog,client,current.user.id,()=>version===revision&&current.user.id===session?.user.id)
+      mountPersonalMatchLog(matchLog,client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,scorecard)
       if(entry==='coach')shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')?.focus()
       return
     }

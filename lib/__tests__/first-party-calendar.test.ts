@@ -72,7 +72,7 @@ it('maps reviewed fixtures and draws alongside manual and coach dates without im
   expect(result.coach).toEqual([expect.objectContaining({ title: 'Coaching lesson', date, time: '09:00' })])
   expect(result.competitions).toEqual([
     expect.objectContaining({ id: 'league:tiq-league:fixture-one', opponent: 'Riley Park', responseStatus: 'available', publishedView: { id: league.id } }),
-    expect.objectContaining({ id: 'tournament:fall-open-division:r1-m1', opponent: 'Drew Spin', publishedView: { id: parent.id, divisionId: division.id } }),
+    expect.objectContaining({ id: 'tournament:fall-open-division:r1-m1', opponent: 'Drew Spin', scorecardFormat: 'singles', publishedView: { id: parent.id, divisionId: division.id } }),
   ])
   expect(JSON.stringify(result)).not.toMatch(/Imported opponent|Extracted from message|Unreviewed fixture notes|Linked directory name/)
   const entries = calls.find(call => call.url.pathname.endsWith('/tiq_player_league_entries') && call.url.searchParams.has('created_by_user_id'))!

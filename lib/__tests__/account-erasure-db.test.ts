@@ -35,12 +35,15 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
 
   await db.exec('grant usage on schema auth to authenticated; set role authenticated')
   const matchId = '22222222-aaaa-4222-8222-222222222222'
-  const insertMatch = (owner:string) => db.query(`insert into native_personal_matches
-    (owner_user_id,id,revision,match_date,opponent,format,outcome,score)
-    values ($1,$2,gen_random_uuid(),current_date,'Practice partner','singles','Won','6-4 6-3')`, [owner,matchId])
+  const fixtureId = 'league:city-league:match-one'
+  const insertMatch = (owner:string,id=matchId) => db.query(`insert into native_personal_matches
+    (owner_user_id,id,revision,calendar_match_id,match_date,opponent,format,outcome,score)
+    values ($1,$2,gen_random_uuid(),$3,current_date,'Practice partner','singles','Won','6-4 6-3')`, [owner,id,fixtureId])
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[a])
   await insertMatch(a)
   await expect(insertMatch(a)).rejects.toMatchObject({code:'23505'})
+  await expect(insertMatch(a, '22222222-aaaa-4222-8222-222222222223')).rejects.toMatchObject({code:'23505'})
+  await expect(db.query('update native_personal_matches set calendar_match_id=null')).rejects.toMatchObject({code:'42501'})
   await expect(insertMatch(b)).rejects.toMatchObject({code:'42501'})
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[b])
   expect((await db.query('select id from native_personal_matches')).rows).toEqual([])

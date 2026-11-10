@@ -21,11 +21,13 @@ export function readCalendar(value:unknown,owner:string,range:CalendarRange):Nat
  const r=obj(value),window=obj(r.range)
  if(r.ok!==true||r.owner!==owner||window.from!==range.from||window.to!==range.to||JSON.stringify(r).length>3000000||!Array.isArray(r.personal)||r.personal.length>500||!Array.isArray(r.competitions)||r.competitions.length>1000||!Array.isArray(r.coach)||r.coach.length>1000||!Array.isArray(r.warnings)||r.warnings.length>4)throw Error('Calendar account or dates changed. Refresh to try again.')
  const personal=unique(r.personal.map(p=>{const item=readCalendarItem(p);if(!item)throw Error();return item}))
- const competitions=unique(r.competitions.map(raw=>{
+ const competitions=unique(r.competitions.map((raw):NativeCalendar['competitions'][number]=>{
   const e=obj(raw)
   if(!['league','tournament'].includes(String(e.kind))||!['match','competition'].includes(String(e.eventType))||!['','available','unavailable'].includes(String(e.responseStatus??''))||typeof e.responseIsStale!=='boolean')throw Error('Competition dates unavailable.')
   const event={id:id(e.id),kind:e.kind,eventType:e.eventType,competitionId:id(e.competitionId),competitionName:text(e.competitionName,2000),title:text(e.title,2000),date:date(e.date),time:time(e.time),location:text(e.location,2000),opponent:text(e.opponent,2000),detail:text(e.detail,8000),href:'',status:text(e.status,80),responseStatus:e.responseStatus||'',responseUpdatedAt:e.responseUpdatedAt?revision(e.responseUpdatedAt):'',responseIsStale:e.responseIsStale} as PlayerCompetitionScheduleEvent
-  return {...event,publishedView:readCalendarCompetitionView(event,e.publishedView)}
+  const publishedView=readCalendarCompetitionView(event,e.publishedView)
+  const scorecardFormat=firstPartyBuild&&publishedView&&event.eventType==='match'&&(e.scorecardFormat==='singles'||e.scorecardFormat==='doubles')?e.scorecardFormat:undefined
+  return {...event,publishedView,...(scorecardFormat?{scorecardFormat}:{})}
  }))
  const coach=unique(r.coach.map(raw=>{const e=obj(raw);if(!['lesson','reminder'].includes(String(e.kind)))throw Error();return {id:id(e.id),title:text(e.title,2000),date:date(e.date),time:time(e.time),location:text(e.location,2000),detail:text(e.detail,8000),kind:e.kind as 'lesson'|'reminder'}}))
  if([...competitions,...coach].some(e=>e.date<range.from||e.date>range.to))throw Error('Calendar range changed.')

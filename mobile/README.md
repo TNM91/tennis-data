@@ -89,7 +89,9 @@ The **Mobile iOS signed build** workflow packages the full app with profile **fi
 
 My Lab opens from the signed-in account. Saved training, coaching and the private training notebook work without a linked player. New notebook goals stay in an account scope separate from existing player-linked goals. Following, Matchup and shared scorecards remain on hold until their data has a first-party source.
 
-The full-app match log uses account-owned `native_personal_matches` rows for manually entered scores and Recent Form. Before distributing a build with this log, apply `20261110000200_restore_updates_erasure_catalog.sql` and `20261110000300_native_personal_matches.sql` in order, verify the account-deletion catalog, then save, edit, and remove a scorecard with a QA account. These entries are private. TenAceIQ fixture prefill and organizer results use a separate integration step.
+The full-app match log uses account-owned `native_personal_matches` rows for manually entered scores and Recent Form. Reviewed calendar matches prefill the date and opponent, plus the format when the tournament division supplies it. Each account can save one linked scorecard per calendar match and reopen it from the same fixture. Manual entries without a fixture stay separate. The link supports future score reconciliation. These records are private.
+
+Before distributing a build with this log, apply `20261110000200_restore_updates_erasure_catalog.sql` and `20261110000300_native_personal_matches.sql` in order if pending. Verify the account-deletion catalog, then open, save, reopen, edit, and remove a calendar-linked scorecard with a QA account.
 
 #### Calendar
 

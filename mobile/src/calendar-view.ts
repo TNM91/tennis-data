@@ -14,6 +14,7 @@ import {openTournamentEntry} from './tournament-entry-view'
 import {exportCoachFile,cancelCoachFile} from './native-coach-files'
 import {Browser} from './native-browser'
 import {firstPartyBuild} from './build-scope'
+import {calendarScorecardSeed,type CalendarScorecardSeed} from './personal-match-data'
 import websiteUi from '../generated/website-ui.json'
 
 const label=(day:string)=>new Date(day+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})
@@ -52,7 +53,7 @@ export type CalendarStart='all'|'coach'|{practiceTitle:string;weeklyRep?:Calenda
  |{tournamentMatch:TournamentCalendarMatch;onClose:(changed:boolean)=>void}
  |{event?:CalendarOccurrence;filter?:'coach'|'competition'|'needs-reply';followMovedMatch?:boolean;onClose:(changed:boolean)=>void}
 type OpenCalendarRep=(rep:CalendarWeeklyRep,button:HTMLButtonElement,current:()=>boolean,review:boolean)=>{isOpen:()=>boolean;dispose:()=>void;back:()=>void}
-export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all',openRep?:OpenCalendarRep){
+export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all',openRep?:OpenCalendarRep,openScorecard?:(seed:CalendarScorecardSeed)=>void){
  const practice=typeof initial==='object'&&'practiceTitle' in initial?initial:null
  const linkedPractice=typeof initial==='object'&&'practiceEventId' in initial?initial:null
  const tournamentShortcut=typeof initial==='object'&&'tournamentMatch' in initial
@@ -558,11 +559,12 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const match=selectedMatch()
    const eventButton=!tournamentShortcut&&calendarTournamentEntry(match)?'<button type="button" class="secondary" data-cal-my-event>Open My Event</button>':''
    const competitionButton=match?.publishedView&&!(tournamentShortcut&&match.kind==='tournament')?`<button type="button" class="secondary" data-cal-competition>${match.kind==='league'?'View league schedule':'View tournament draw'}</button>`:''
+   const scorecardButton=openScorecard&&calendarScorecardSeed(match)?'<button type="button" class="secondary" data-cal-scorecard>Open scorecard in My Lab</button>':''
    const exportButton=exportableMatch()?'<button type="button" class="secondary" data-cal-match-export-review>Export this match</button>':''
    const update=earlierSchedule?`<p id="cal-match-update" class="cal-event-readiness" data-tone="changed"><strong>Match schedule updated</strong><br>Previously ${html(earlierSchedule)}</p>`:''
    const description=[notice?'cal-status':'',update?'cal-match-update':''].filter(Boolean).join(' ')
    const heading=match?.status==='Completed'?'Match details':selected.source==='competition'?'Your availability':'Shared Coach date'
-   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1"${description?` aria-describedby="${description}"`:''}>${heading}</h2>${update}${details(selected,'Time to be confirmed',Boolean(venueHref()))}${match?availabilityControls(match,selected.readiness):'<p>Shared Coach dates are managed with your coach. Open Coach & training to review your plan.</p>'}${eventButton}${competitionButton}${exportButton}<button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
+   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1"${description?` aria-describedby="${description}"`:''}>${heading}</h2>${update}${details(selected,'Time to be confirmed',Boolean(venueHref()))}${match?availabilityControls(match,selected.readiness):'<p>Shared Coach dates are managed with your coach. Open Coach & training to review your plan.</p>'}${eventButton}${competitionButton}${scorecardButton}${exportButton}<button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
   }
   if(panel==='export'||panel==='match-export'){
    const single=panel==='match-export',list=exportEvents(),selectedZone=exportZone()
@@ -760,6 +762,13 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    competitionView=match.kind==='league'
     ?openCompetitions(client,owner,active,'discover',undefined,undefined,button,target.id,{matchId})
     :openTournaments(client,owner,active,()=>{competitionView=null},undefined,button,'Back to calendar',target.id,{divisionId:target.divisionId,matchId})
+  })
+  on('[data-cal-scorecard]',()=>{
+   const seed=calendarScorecardSeed(selectedMatch())
+   if(!seed||!openScorecard)return
+   if(pending||hasReplyChanges()){notice='Save or clear your availability reply before opening the scorecard.';status();return}
+   dispose()
+   if(current())openScorecard(seed)
   })
   const form=dialog.querySelector<HTMLFormElement>('form')
   if(form&&draft){

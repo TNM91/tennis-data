@@ -25,7 +25,8 @@ export function personalMatchQuery() {
       if (action === 'insert') {
         const row = { ...values, created_at: new Date().toISOString() } as Row
         fixture.writtenIds.push(row.id)
-        if (fixture.rows.some(item => item.id === row.id && item.owner_user_id === row.owner_user_id)) return fail('Duplicate ID')
+        if (fixture.rows.some(item => item.owner_user_id === row.owner_user_id &&
+            (item.id === row.id || row.calendar_match_id && item.calendar_match_id === row.calendar_match_id))) return fail('Duplicate ID')
         fixture.rows.push(row)
         if (fixture.loseReceipt) { fixture.loseReceipt = false; missLookup = true; return fail('Receipt unavailable') }
         return resolve({ data: row, error: null })

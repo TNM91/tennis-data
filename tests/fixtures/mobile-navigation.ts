@@ -19,6 +19,7 @@ import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coac
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
 import {trainingInboxPreview} from './mobile-training-inbox'
 import {personalMatchFixture} from './mobile-personal-matches'
+import {shiftCalendarDay} from '../../mobile/src/calendar-data'
 const originalFetch=window.fetch.bind(window)
 const freeTraining=new URL(location.href).searchParams.has('free-training')
 const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false,unscopedLeagueReply:false,competitionReads:[] as {path:string;query:string;audience:string|null;authenticated:boolean}[]}
@@ -50,6 +51,14 @@ if(new URL(location.href).searchParams.has('mixed-calendar')){
  const match=calendarFixture.competitions[0]
  calendarFixture.competitions.push({...match,id:'league:imported-league:match-one',competitionId:'imported-league',title:'Unreviewed league date'})
  calendarFixture.personal.push({...calendarFixture.personal[0],id:'team-schedule-external-copy',title:'Imported schedule copy'})
+}
+if(new URL(location.href).searchParams.has('calendar-scorecard')){
+ const match=calendarFixture.competitions[0]
+ const reviewed=Object.assign({...match,id:'tournament:draw-one:r1-m1',kind:'tournament',competitionId:'draw-one',
+  title:'City Open: vs Casey & Drew',opponent:'Casey & Drew',status:'Completed'},
+  {publishedView:{id:'draw-one'},scorecardFormat:'doubles'})
+ calendarFixture.competitions.push(reviewed,{...reviewed,id:'tournament:draw-one:r2-m1',
+  title:'City Open: future round',date:shiftCalendarDay(match.date,1),status:'Scheduled'})
 }
 const chatUnreadFixture={total:7,reads:0,fail:false,detailed:false,secondTeam:false,empty:false,denyRoom:false,captain:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
 const matchDayFixture={enabled:new URL(location.href).searchParams.has('match-day-review'),published:false,finalSeen:false,response:'',posts:[] as string[]}

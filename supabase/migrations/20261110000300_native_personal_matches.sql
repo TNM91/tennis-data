@@ -17,14 +17,19 @@ create table public.native_personal_matches (
   owner_user_id uuid not null references auth.users(id) on delete cascade,
   id uuid not null,
   revision uuid not null,
+  calendar_match_id text check (calendar_match_id ~ '^(league|tournament):[a-zA-Z0-9_-]{1,80}:[a-zA-Z0-9_:-]{1,120}$'),
   match_date date not null check (match_date between date '0001-01-01' and current_date + 1),
   opponent text not null check (char_length(opponent) between 1 and 100 and btrim(opponent) <> '' and opponent !~ '[[:cntrl:]]'),
   format text not null check (format in ('singles', 'doubles')),
   outcome text not null check (outcome in ('Won', 'Lost')),
   score text not null check (char_length(score) between 1 and 64 and btrim(score) <> '' and score !~ '[[:cntrl:]]'),
   created_at timestamptz not null default now(),
-  primary key (owner_user_id, id)
+  primary key (owner_user_id, id),
+  unique (owner_user_id, calendar_match_id)
 );
+
+comment on column public.native_personal_matches.calendar_match_id is
+  'Private calendar association supplied by the owner. This field does not verify participation or the result.';
 
 create index native_personal_matches_history_idx
   on public.native_personal_matches (owner_user_id, match_date desc, created_at desc, id desc);
@@ -34,7 +39,7 @@ create policy own_personal_matches on public.native_personal_matches for all to 
   using (owner_user_id = (select auth.uid())) with check (owner_user_id = (select auth.uid()));
 revoke all on public.native_personal_matches from public, anon, authenticated;
 grant select, delete on public.native_personal_matches to authenticated;
-grant insert (owner_user_id, id, revision, match_date, opponent, format, outcome, score),
+grant insert (owner_user_id, id, revision, calendar_match_id, match_date, opponent, format, outcome, score),
   update (revision, match_date, opponent, format, outcome, score)
   on public.native_personal_matches to authenticated;
 
@@ -49,7 +54,7 @@ begin
     or length(source) - length(replace(source, foreign_keys_marker, '')) <> length(foreign_keys_marker) then
     raise exception 'Account deletion catalog markers changed';
   end if;
-  execute replace(replace(source, columns_marker, '646dc27d056d61e79aea103912e90cd0'),
+  execute replace(replace(source, columns_marker, '0c6f2399c3bb83c30104cea3ad909760'),
     foreign_keys_marker, foreign_keys_marker || match_owner_fk);
   if not public.account_erasure_catalog_ready() then
     raise exception 'Account deletion catalog did not validate with the personal matches table';
