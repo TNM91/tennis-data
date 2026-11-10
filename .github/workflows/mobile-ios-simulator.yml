@@ -140,23 +140,32 @@ jobs:
           retention-days: 3
       - name: Launch and capture first-party simulator app
         if: inputs.profile == 'first-party'
-        timeout-minutes: 2
+        timeout-minutes: 3
         run: |
           set -euo pipefail
           DEVICE="$TIQ_SIMULATOR_UDID"
           APP=mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
           OUTPUT="$RUNNER_TEMP/tiq-first-party-simulator"
+          SCREENSHOT="$OUTPUT/first-party-launch.png"
           mkdir -p "$OUTPUT"
           xcrun simctl install "$DEVICE" "$APP"
           xcrun simctl launch --terminate-running-process "$DEVICE" com.tenaceiq.prototype
-          sleep 5
-          xcrun simctl io "$DEVICE" screenshot "$OUTPUT/first-party-launch.png"
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "$OUTPUT/first-party-simulator.zip"
+          for attempt in {1..10}; do
+            sleep 5
+            xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT"
+            if node mobile/scripts/check-ios-first-party-launch.mjs "$SCREENSHOT"; then
+              ditto -c -k --sequesterRsrc --keepParent "$APP" "$OUTPUT/first-party-simulator.zip"
+              exit 0
+            fi
+          done
+          xcrun simctl spawn "$DEVICE" log show --style compact --last 2m --predicate 'process == "App"' | tail -n 80 || true
+          echo '::error::The offline practice card did not render before the simulator deadline.'
+          exit 1
       - name: Save first-party simulator artifact
-        if: inputs.profile == 'first-party'
+        if: (success() || failure()) && inputs.profile == 'first-party'
         uses: actions/upload-artifact@v6
         with:
           name: tenaceiq-first-party-simulator-${{ github.sha }}
           path: ${{ runner.temp }}/tiq-first-party-simulator
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 3

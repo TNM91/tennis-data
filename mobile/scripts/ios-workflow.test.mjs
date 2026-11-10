@@ -65,8 +65,12 @@ test('the first-party profile builds and launches the isolated unsigned app',()=
  assert.match(compile.run,/-project "\$TIQ_SIMULATOR_PROJECT"/)
  assert.match(launch.run,/simctl launch --terminate-running-process "\$DEVICE" com\.tenaceiq\.prototype\s/)
  assert.match(launch.run,/simctl io "\$DEVICE" screenshot/)
+ assert.match(launch.run,/for attempt in \{1\.\.10\}/)
+ assert.match(launch.run,/if node mobile\/scripts\/check-ios-first-party-launch\.mjs "\$SCREENSHOT"; then\s+ditto/)
+ assert.ok(launch['timeout-minutes']<=3)
  assert.equal(artifact.with['retention-days'],3)
- for(const step of [bundle,launch,artifact])assert.equal(step.if,"inputs.profile == 'first-party'")
+ for(const step of [bundle,launch])assert.equal(step.if,"inputs.profile == 'first-party'")
+ assert.equal(artifact.if,"(success() || failure()) && inputs.profile == 'first-party'")
  for(const name of ['Bundle and generate iOS project','Add unsigned Debug runtime probe','Verify the launched StoreKit bridge','Save simulator artifact']){
   assert.match(find(name).if,/inputs\.profile != 'first-party'/)
  }
