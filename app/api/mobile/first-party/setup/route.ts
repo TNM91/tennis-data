@@ -19,11 +19,11 @@ export async function GET(request: Request) {
     const owner = account.user.id
     const db = accountClient(supabaseKey, account.token)
     const service = accountClient(key)
-    const [tracks, competitionTrophies] = await Promise.all([
+    const [tracks, honors] = await Promise.all([
       loadPlayerAccess(db, owner).then(access => loadFirstPartySetup(db, service, owner, access)),
-      loadFirstPartyCompetitionTrophies(db, service, owner).catch(() => null),
+      loadFirstPartyCompetitionTrophies(db, service, owner).catch(() => ({ competitionTrophies: null })),
     ])
-    return json({ ok: true, owner, tracks, competitionTrophies }, 200)
+    return json({ ok: true, owner, tracks, ...honors }, 200)
   } catch {
     return json({ ok: false }, 503)
   }

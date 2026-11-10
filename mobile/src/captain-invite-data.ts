@@ -27,5 +27,6 @@ export async function shareCaptainInvite(invite:CaptainInvite,scope:TeamScope,cu
  if(!invite.active||Date.parse(invite.expiresAt)<=Date.now()||!current())throw Error('Refresh this invite before sharing.')
  const available=await share.canShare();if(!current())return
  if(!available.value)throw Error('Sharing is unavailable. Select and copy the invite link instead.')
- await share.share({title:'Join '+scope.teamName+' on TenAceIQ',text:'Join our team conversation on TenAceIQ. Open My teams, choose Join team, and paste this invite.',url:captainInviteUrl(invite),dialogTitle:'Share team invite'})
+ const destination=firstPartyBuild?'Chats':'My teams'
+ await share.share({title:'Join '+scope.teamName+' on TenAceIQ',text:`Join our team conversation on TenAceIQ. Open ${destination}, choose Join team, and paste this invite.`,url:captainInviteUrl(invite),dialogTitle:'Share team invite'})
 }

@@ -132,8 +132,10 @@ import { buildTiqLeagueSchedulingPlanRows, getTiqLeagueSchedulingHandoffSummary 
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
+  buildIndividualLeagueAwardFinishers,
   buildTiqAwardCertificateText,
   buildTiqLeagueAwardCandidates,
+  getTiqAwardDeliveryLabel,
   readTiqAwardsForSource,
   saveTiqAwardRecordForUser,
   type TiqAwardRecord,
@@ -976,7 +978,7 @@ export function LeagueCoordinatorWorkspace() {
 
     const individualAwardRows = individualResultBookRows.map((row) => {
       const candidates = buildTiqLeagueAwardCandidates(
-        buildIndividualLeagueAwardFinishers(row.league, individualResults.filter((result) => result.leagueId === row.league.id)),
+        buildIndividualLeagueAwardFinishers(row.league.players, individualResults.filter((result) => result.leagueId === row.league.id)),
       )
       return {
         league: row.league,
@@ -1613,6 +1615,10 @@ export function LeagueCoordinatorWorkspace() {
   }
 
   async function issueLeagueAward(league: TiqLeagueRecord, candidate: TiqLeagueAwardCandidate) {
+    if (candidate.recipientProfileConflict) {
+      setStatus('Review the linked players in the league results before publishing this award.')
+      return
+    }
     if (!candidate.recipientName) {
       setStatus('Add league results before creating this award.')
       return
@@ -3926,6 +3932,11 @@ export function LeagueCoordinatorWorkspace() {
                             <span style={pillSlate}>{candidate.label}</span>
                             <strong>{candidate.recipientName || 'Needs results'}</strong>
                             <small>{candidate.helperText}</small>
+                            {candidate.recipientProfileConflict ? (
+                              <small>Multiple player profiles share this name. Check the player links in the league results.</small>
+                            ) : candidate.recipientName && !issuedAward ? (
+                              <small>{getTiqAwardDeliveryLabel(candidate.recipientPlayerId, Boolean(userId))}</small>
+                            ) : null}
                           </div>
                           {issuedAward ? (
                             <div style={responsiveButtonRowStyle}>
@@ -3936,15 +3947,15 @@ export function LeagueCoordinatorWorkspace() {
                                   Trophy case
                                 </GhostLink>
                               ) : null}
-                              {candidate.recipientPlayerId && candidate.recipientPlayerId !== issuedAward.recipientPlayerId ? (
+                              {!candidate.recipientProfileConflict && candidate.recipientPlayerId && candidate.recipientPlayerId !== issuedAward.recipientPlayerId ? (
                                 <GhostBtn onClick={() => void issueLeagueAward(row.league, candidate)}>Publish to Trophy Case</GhostBtn>
                               ) : null}
                             </div>
-                          ) : (
+                          ) : candidate.recipientName && !candidate.recipientProfileConflict ? (
                             <GhostBtn onClick={() => void issueLeagueAward(row.league, candidate)}>
                               Create award
                             </GhostBtn>
-                          )}
+                          ) : null}
                         </div>
                       )
                     })}
@@ -4024,55 +4035,6 @@ function LeagueSecondaryToolsGroup({
       <div style={leagueSecondaryToolsBodyStyle}>{children}</div>
     </details>
   )
-}
-
-function buildIndividualLeagueAwardFinishers(
-  league: TiqLeagueRecord,
-  results: TiqIndividualLeagueResultRecord[],
-) {
-  const records = new Map<string, { name: string; playerId: string; wins: number; losses: number }>()
-
-  for (const playerName of league.players) {
-    if (!records.has(playerName.toLowerCase())) {
-      records.set(playerName.toLowerCase(), { name: playerName, playerId: '', wins: 0, losses: 0 })
-    }
-  }
-
-  for (const result of results) {
-    const players = [
-      { name: result.playerAName, id: result.playerAId },
-      { name: result.playerBName, id: result.playerBId },
-    ]
-
-    for (const player of players) {
-      const key = player.name.toLowerCase()
-      if (!records.has(key)) {
-        records.set(key, { name: player.name, playerId: player.id, wins: 0, losses: 0 })
-      } else if (player.id) {
-        records.get(key)!.playerId = player.id
-      }
-    }
-
-    const winnerKey = result.winnerPlayerName.toLowerCase()
-    const loserName = result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
-    const loserKey = loserName.toLowerCase()
-    if (records.has(winnerKey)) records.get(winnerKey)!.wins += 1
-    if (records.has(loserKey)) records.get(loserKey)!.losses += 1
-  }
-
-  return [...records.values()]
-    .filter((record) => record.wins > 0 || record.losses > 0)
-    .sort((left, right) => {
-      if (right.wins !== left.wins) return right.wins - left.wins
-      if (left.losses !== right.losses) return left.losses - right.losses
-      return left.name.localeCompare(right.name)
-    })
-    .slice(0, 3)
-    .map((record) => ({
-      recipientName: record.name,
-      recipientPlayerId: record.playerId,
-      detail: `${record.wins}-${record.losses}`,
-    }))
 }
 
 function buildLeagueAwardMailto(award: TiqAwardRecord) {

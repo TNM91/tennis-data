@@ -44,12 +44,28 @@ it('uses the account’s exact player ID, current approved sources and verified 
       default: throw Error('Unexpected trophy query')
     }
   } } })
-  expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual([
+  expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual({ competitionProfileLinked: true, competitionTrophies: [
     { id: 'league-award', kind: 'league', placement: 'first', name: league.league_name, division: 'Fall · 4.5', awardedOn: '2026-11-10' },
     { id: 'tournament-award', kind: 'tournament', placement: 'first', name: event.name, division: division.name, awardedOn: '2026-11-10' },
-  ])
+  ] })
   parentName = 'Changed event'
-  expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual([expect.objectContaining({ id: 'league-award' })])
+  expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual({
+    competitionProfileLinked: true, competitionTrophies: [expect.objectContaining({ id: 'league-award' })],
+  })
   playerId = ''
-  expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual([])
+  expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual({ competitionProfileLinked: false, competitionTrophies: [] })
+})
+
+it('reports the connection state even without reviewed competitions and makes only the account profile read', async () => {
+  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS', '')
+  vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', '')
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = new URL(String(input))
+    expect(url.pathname).toBe('/rest/v1/profiles')
+    expect(url.searchParams.get('id')).toBe('eq.' + owner)
+    return Response.json({ linked_player_id: 'linked-player' })
+  })
+  const client = createClient('https://example.test', 'key', { auth: { persistSession: false }, global: { fetch } })
+  expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual({ competitionProfileLinked: true, competitionTrophies: [] })
+  expect(fetch).toHaveBeenCalledOnce()
 })

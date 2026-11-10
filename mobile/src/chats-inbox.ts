@@ -14,7 +14,7 @@ const inboxShortcuts=[
  {target:'chats-coach-inbox',label:'Coach & player',description:'Private chats',icon:websiteUi.icons.coach},
 ] as const
 const chatStartActions={
- team:{title:'Use a team invite',detail:'Use the link from your captain.',icon:websiteUi.icons.teams},
+ team:{title:firstPartyBuild?'Join team':'Use a team invite',detail:'Use the link from your captain.',icon:websiteUi.icons.teams},
  coach:{title:'Accept coach invitation',detail:'Start a private chat with your coach.',icon:websiteUi.icons.coach},
 } as const
 
@@ -67,7 +67,7 @@ export function chatsInboxHtml(data:NativeTeamData){
  </details>
  ${chatsFilterFeedbackHtml('team')}
  ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}"><span class="chats-team-avatar" aria-hidden="true">${html(team.teamName.trim().slice(0,1).toUpperCase())}</span><span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(team.leagueName)}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:chatsStartActionHtml('team')}
- ${firstPartyBuild&&!data.teams.length?`<details class="chat-team-setup"><summary>Set up a team as captain</summary>
+ ${firstPartyBuild?`<details class="chat-team-setup"><summary>Set up a team as captain</summary>
   <ol>${[setupSteps.team,setupSteps.invite,setupSteps.teammate].map(step=>`<li><strong>${html(step.title)}</strong><p>${html(step.detail)}</p></li>`).join('')}</ol>
   <p class="rating-context">Track these steps toward your Team Rally trophy in My Lab.</p>
  </details>`:''}

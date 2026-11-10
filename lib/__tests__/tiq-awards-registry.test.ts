@@ -3,12 +3,15 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
+  buildIndividualLeagueAwardFinishers,
   buildTiqAwardCertificateText,
   buildTiqLeagueAwardCandidates,
   buildTiqTournamentAwardCandidates,
   getTiqAwardBadgeCode,
   getTiqAwardBadgeLabel,
+  getTiqAwardDeliveryLabel,
   getTiqAwardPlacementLabel,
+  getTiqTournamentAwardPlayerId,
   loadTiqAwardsForPlayer,
   loadTiqAwardById,
   loadRecentTiqAwards,
@@ -138,6 +141,30 @@ describe('TIQ awards registry helpers', () => {
       { placement: 'second', recipientName: 'Blake Carter', helperText: '7-2' },
       { placement: 'third', recipientName: 'Casey Nguyen', helperText: '6-3' },
     ])
+  })
+
+  it('blocks a league award when results associate a name with two player profiles', () => {
+    const first = { playerAName: 'Avery Stone', playerAId: 'avery-one', playerBName: 'Blake Carter', playerBId: 'blake', winnerPlayerName: 'Avery Stone' }
+    const conflicting = { ...first, playerAName: 'AVERY STONE', playerAId: 'avery-two', winnerPlayerName: 'AVERY STONE' }
+    const candidates = (results: typeof first[]) => buildTiqLeagueAwardCandidates(buildIndividualLeagueAwardFinishers(['Avery Stone', 'Blake Carter'], results))
+
+    expect(candidates([first, conflicting])).toMatchObject([
+      { recipientName: 'Avery Stone', recipientPlayerId: '', recipientProfileConflict: true, helperText: '2-0' },
+      { recipientName: 'Blake Carter', recipientPlayerId: 'blake', recipientProfileConflict: false, helperText: '0-2' },
+      { recipientName: '', recipientProfileConflict: false },
+    ])
+    expect(candidates([first, { ...first, playerAId: '' }])[0]).toMatchObject({ recipientPlayerId: 'avery-one', recipientProfileConflict: false })
+  })
+
+  it('previews trophy delivery only for a signed-in organizer and an exact linked recipient', () => {
+    const entrants = { 'Avery Stone': 'avery', constructor: 'actual-entrant' }
+    expect(getTiqTournamentAwardPlayerId(entrants, ' Avery Stone ')).toBe('avery')
+    expect(getTiqTournamentAwardPlayerId(entrants, 'avery stone')).toBe('')
+    expect(getTiqTournamentAwardPlayerId(entrants, 'toString')).toBe('')
+    expect(getTiqTournamentAwardPlayerId(entrants, 'constructor')).toBe('actual-entrant')
+    expect(getTiqAwardDeliveryLabel('avery', true)).toBe('Player Trophy Case and certificate')
+    expect(getTiqAwardDeliveryLabel('', true)).toBe('Certificate only')
+    expect(getTiqAwardDeliveryLabel('avery', false)).toBe('Certificate on this device')
   })
 
   it('stores awards against linked TIQ player ids', () => {

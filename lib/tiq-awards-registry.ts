@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from './supabase'
+import type { TiqIndividualLeagueResultRecord } from './tiq-individual-results-service'
 import {
   buildTournamentPreview,
   summarizeTournamentResults,
@@ -44,6 +45,7 @@ export type TiqTournamentAwardCandidate = {
 export type TiqLeagueAwardFinisher = {
   recipientName: string
   recipientPlayerId?: string
+  recipientProfileConflict?: boolean
   detail?: string
 }
 
@@ -52,6 +54,7 @@ export type TiqLeagueAwardCandidate = {
   label: string
   recipientName: string
   recipientPlayerId: string
+  recipientProfileConflict: boolean
   helperText: string
 }
 
@@ -433,11 +436,61 @@ export function buildTiqTournamentAwardCandidates(record: TiqTournamentRecord): 
   ]
 }
 
+export function getTiqAwardDeliveryLabel(recipientPlayerId: string, signedIn: boolean) {
+  if (!signedIn) return 'Certificate on this device'
+  return recipientPlayerId ? 'Player Trophy Case and certificate' : 'Certificate only'
+}
+
+export function getTiqTournamentAwardPlayerId(entrantPlayerIds: Record<string, string>, recipientName: string) {
+  const name = recipientName.trim()
+  return Object.hasOwn(entrantPlayerIds, name) ? entrantPlayerIds[name] : ''
+}
+
+type AwardResult = Pick<TiqIndividualLeagueResultRecord, 'playerAName' | 'playerAId' | 'playerBName' | 'playerBId' | 'winnerPlayerName'>
+
+export function buildIndividualLeagueAwardFinishers(playerNames: readonly string[], results: readonly AwardResult[]): TiqLeagueAwardFinisher[] {
+  const records = new Map<string, { name: string; playerIds: Set<string>; wins: number; losses: number }>()
+
+  function getRecord(name: string) {
+    const key = name.toLowerCase()
+    const existing = records.get(key)
+    if (existing) return existing
+    const record = { name, playerIds: new Set<string>(), wins: 0, losses: 0 }
+    records.set(key, record)
+    return record
+  }
+
+  for (const name of playerNames) getRecord(name)
+  for (const result of results) {
+    const a = getRecord(result.playerAName)
+    const b = getRecord(result.playerBName)
+    if (result.playerAId) a.playerIds.add(result.playerAId)
+    if (result.playerBId) b.playerIds.add(result.playerBId)
+
+    const winner = records.get(result.winnerPlayerName.toLowerCase())
+    const loser = result.winnerPlayerName === result.playerAName ? b : a
+    if (winner) winner.wins += 1
+    loser.losses += 1
+  }
+
+  return [...records.values()]
+    .filter(record => record.wins > 0 || record.losses > 0)
+    .sort((left, right) => right.wins - left.wins || left.losses - right.losses || left.name.localeCompare(right.name))
+    .slice(0, 3)
+    .map(record => ({
+      recipientName: record.name,
+      recipientPlayerId: record.playerIds.size === 1 ? [...record.playerIds][0] : '',
+      recipientProfileConflict: record.playerIds.size > 1,
+      detail: `${record.wins}-${record.losses}`,
+    }))
+}
+
 export function buildTiqLeagueAwardCandidates(finishers: TiqLeagueAwardFinisher[]): TiqLeagueAwardCandidate[] {
   const cleanFinishers = finishers
     .map((finisher) => ({
       recipientName: cleanText(finisher.recipientName),
       recipientPlayerId: cleanText(finisher.recipientPlayerId),
+      recipientProfileConflict: finisher.recipientProfileConflict === true,
       detail: cleanText(finisher.detail),
     }))
     .filter((finisher) => finisher.recipientName)
@@ -451,6 +504,7 @@ export function buildTiqLeagueAwardCandidates(finishers: TiqLeagueAwardFinisher[
       label: getTiqAwardPlacementLabel(placement),
       recipientName: finisher?.recipientName || '',
       recipientPlayerId: finisher?.recipientPlayerId || '',
+      recipientProfileConflict: finisher?.recipientProfileConflict ?? false,
       helperText: finisher?.detail || (finisher ? 'League finisher detected from standings.' : 'Add results to fill this league award.'),
     }
   })
