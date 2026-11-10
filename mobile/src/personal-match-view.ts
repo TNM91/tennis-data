@@ -12,6 +12,26 @@ import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatch
 const formatName = (format: PersonalMatch['format']) => format === 'singles' ? 'Singles' : 'Doubles'
 type LogScorecard = PersonalMatch | PostedCourtScorecard
 
+function savedScorecardRow(match: LogScorecard, index: number) {
+  const captain = 'scoreOrder' in match
+  return `<li><button type="button" class="secondary lab-saved-scorecard" data-open-scorecard="${index}" data-scorecard-id="${html(match.id)}"
+    aria-label="Open scorecard for ${html(match.opponent)}" aria-describedby="lab-scorecard-meta-${index} lab-scorecard-result-${index}">
+    <span class="lab-saved-scorecard-copy">
+      <strong>${html(match.opponent)}</strong>
+      <span id="lab-scorecard-meta-${index}">
+        <small class="lab-saved-scorecard-meta"><span>${formatName(match.format)}</span> <span>${html(matchDate(match.match_date))}</span></small>
+        ${captain ? `<small class="lab-saved-scorecard-meta"><span>Captain posted</span> <span>Court ${match.court}</span></small>` : ''}
+      </span>
+    </span>
+    <span class="lab-saved-scorecard-result" id="lab-scorecard-result-${index}">
+      <span class="${match.outcome === 'Won' ? 'result-won' : 'result-lost'}">${match.outcome}</span>
+      <strong>${html(match.score)}</strong>
+      ${captain ? `<small>Team order<span class="sr-only"> · ${html(match.scoreOrder)}</span></small>` : ''}
+    </span>
+    <span class="lab-saved-scorecard-chevron" aria-hidden="true">›</span>
+  </button></li>`
+}
+
 function recentOpponents(matches: PersonalMatch[]) {
   const opponents = new Map<string, PersonalMatch>()
   for (const match of matches) {
@@ -50,10 +70,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     const scorecards: LogScorecard[] = [...posted, ...matches.filter(card => !card.calendar_match_id || !linked.has(card.calendar_match_id))]
       .sort((a, b) => b.match_date.localeCompare(a.match_date))
     mountPersonalRecentForm(formHost, scorecards, active, showScorecard)
-    history.innerHTML = scorecards.length ? `<h3>Saved scorecards</h3><ol class="matches">${scorecards.map((match, index) =>
-      `<li><strong>${html(match.opponent)}</strong><p>${match.outcome} · ${formatName(match.format)} · ${html(matchDate(match.match_date))}</p>
-      ${'scoreOrder' in match ? '<p>Captain posted · Court ' + match.court + '</p>' : ''}
-      <button type="button" class="secondary" data-open-scorecard="${index}" data-scorecard-id="${html(match.id)}">Open scorecard<span class="sr-only"> for ${html(match.opponent)}</span></button></li>`).join('')}</ol>` : ''
+    history.innerHTML = scorecards.length ? `<h3>Saved scorecards</h3><ol class="lab-saved-scorecards" role="list">${scorecards.map(savedScorecardRow).join('')}</ol>` : ''
     if (more) history.insertAdjacentHTML('beforeend', '<button type="button" class="secondary" data-older-scorecards>Load older matches</button>')
     history.querySelectorAll<HTMLButtonElement>('[data-open-scorecard]').forEach(button => {
       button.onclick = () => showScorecard(scorecards[Number(button.dataset.openScorecard)])
