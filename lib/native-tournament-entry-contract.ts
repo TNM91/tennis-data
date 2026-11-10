@@ -3,10 +3,45 @@ export type TournamentEntryDraft={one:string;two:string;rating:number|null;partn
 export type TournamentEntryReceipt={id:string;name:string;status:'pending'|'approved'|'declined';updatedAt:string;one:string;two:string;rating:number|null;partnerRating:number|null;note:string;legacy:boolean;inDraw:boolean}
 export type TournamentEntryContext={owner:string;parent:string;division:string;name:string;eventName:string;paired:boolean;playerName:string;playerLocked:boolean;canManage:boolean;mode:'native'|'director'|'unsupported'|'closed';director:string;locked:boolean;canApprove:boolean;date:string;deadline:string;zone:string;revision:string}
 export type TournamentEntrySnapshot={context:TournamentEntryContext;receipt:TournamentEntryReceipt|null;queue:TournamentEntryReceipt[];more:boolean;alreadySubmitted?:boolean}
+export const MY_TOURNAMENT_ENTRY_LIMIT = 30
+export type MyTournamentEntry = {
+ id: string
+ status: TournamentEntryReceipt['status']
+ eventName: string
+ divisionName: string
+ selection: {parent: string; division: string} | null
+}
 const text=(v:unknown,max=240)=>{if(typeof v!=='string'||v.length>max)throw Error('Registration details changed. Refresh to try again.');return v}
 const bool=(v:unknown)=>{if(typeof v!=='boolean')throw Error('Registration details changed.');return v}
 const rating=(v:unknown)=>{if(v===null)return null;if(typeof v!=='number'||!Number.isFinite(v)||v<1||v>7||v*2%1)throw Error('Choose a self-rated level from 1.0 to 7.0 in half steps.');return v}
 export function tournamentEntryId(v:unknown,empty=false){const s=text(v,80);if((!empty||s)&&!/^[a-zA-Z0-9_-]{1,80}$/.test(s))throw Error('Choose a tournament division.');return s}
+function entryStatus(value: unknown): TournamentEntryReceipt['status'] {
+ if(value !== 'pending' && value !== 'approved' && value !== 'declined')throw Error('Entry status unavailable.')
+ return value
+}
+
+export function readMyTournamentEntries(value: unknown, owner: string) {
+ const payload = lineupRecord(value)
+ if(payload.ok !== true || !owner || payload.owner !== owner || !Array.isArray(payload.entries)
+  || payload.entries.length > MY_TOURNAMENT_ENTRY_LIMIT || typeof payload.more !== 'boolean')throw Error('Tournament entries unavailable.')
+
+ const entries = payload.entries.map((value: unknown): MyTournamentEntry => {
+  const row = lineupRecord(value)
+  const id = text(row.id, 36)
+  if(!/^[a-f0-9-]{36}$/i.test(id))throw Error('Entry ID unavailable.')
+  const status = entryStatus(row.status)
+  const eventName = text(row.eventName, 500)
+  const divisionName = text(row.divisionName, 500)
+  if(row.selection === null)return {id, status, eventName: '', divisionName: '', selection: null}
+  const target = lineupRecord(row.selection)
+  const parent = tournamentEntryId(target.parent, true)
+  const division = tournamentEntryId(target.division)
+  if(!eventName.trim() || parent === division || Boolean(parent) !== Boolean(divisionName.trim()))throw Error('Tournament entry context changed.')
+  return {id, status, eventName, divisionName, selection: {parent, division}}
+ })
+ if(new Set(entries.map(entry => entry.id)).size !== entries.length)throw Error('Duplicate entry records.')
+ return {entries, more: payload.more}
+}
 export function tournamentEntryDraft(v:unknown):TournamentEntryDraft{
  const r=lineupRecord(v);if(Object.keys(r).some(k=>!['one','two','rating','partnerRating','attested','partnerAttested'].includes(k)))throw Error('Check your entry details.')
  const one=text(r.one,90).replace(/\s+/g,' ').trim(),two=text(r.two,90).replace(/\s+/g,' ').trim()
@@ -18,8 +53,8 @@ export function tournamentEntryCanSend(c:TournamentEntryContext,d:TournamentEntr
 }
 export function readTournamentEntryReceipt(v:unknown):TournamentEntryReceipt{
  const r=lineupRecord(v),id=text(r.id,80),updatedAt=text(r.updatedAt,80)
- if(!/^[a-f0-9-]{36}$/i.test(id)||!Number.isFinite(Date.parse(updatedAt))||!['pending','approved','declined'].includes(String(r.status)))throw Error('Entry receipt unavailable.')
- return {id,name:text(r.name,200),status:r.status as TournamentEntryReceipt['status'],updatedAt,one:text(r.one,200),two:text(r.two,90),rating:rating(r.rating),partnerRating:rating(r.partnerRating),note:text(r.note,600),legacy:bool(r.legacy),inDraw:bool(r.inDraw)}
+ if(!/^[a-f0-9-]{36}$/i.test(id)||!Number.isFinite(Date.parse(updatedAt)))throw Error('Entry receipt unavailable.')
+ return {id,name:text(r.name,200),status:entryStatus(r.status),updatedAt,one:text(r.one,200),two:text(r.two,90),rating:rating(r.rating),partnerRating:rating(r.partnerRating),note:text(r.note,600),legacy:bool(r.legacy),inDraw:bool(r.inDraw)}
 }
 export function readTournamentEntrySnapshot(v:unknown,owner:string,parent:string,division:string,organizer=false):TournamentEntrySnapshot{
  const r=lineupRecord(v),c=lineupRecord(r.context)
