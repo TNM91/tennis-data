@@ -5,7 +5,7 @@ import { html } from './match-details'
 import { matchDate } from './recent-results'
 import { loadCaptainScorecards } from './captain-court-data'
 import type { PostedCourtScorecard } from '../../lib/native-court-result-contract'
-import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, removePersonalMatch, savePersonalMatch,
+import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, removePersonalMatch, savePersonalMatch, suggestPersonalMatchOutcome,
   type CalendarScorecardSeed, type PersonalMatch, type PersonalMatchDraft } from './personal-match-data'
 
 const formatName = (format: PersonalMatch['format']) => format === 'singles' ? 'Singles' : 'Doubles'
@@ -148,9 +148,11 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         <label>Opponent or doubles team <input name="opponent" maxlength="100" required></label>
         <label for="personal-match-format">Format</label>
         <select id="personal-match-format" name="format" required><option value="">Choose format</option><option value="singles">Singles</option><option value="doubles">Doubles</option></select>
+        <label>Score <input name="score" maxlength="64" placeholder="6-4 6-3" aria-describedby="personal-score-tip" required></label>
+        <p id="personal-score-tip">Enter your side’s score first in each set for a result suggestion.</p>
+        <button type="button" class="secondary" data-use-score-result hidden></button>
         <label for="personal-match-outcome">Result</label>
         <select id="personal-match-outcome" name="outcome" required><option value="">Choose result</option><option>Won</option><option>Lost</option></select>
-        <label>Score <input name="score" maxlength="64" placeholder="6-4 6-3" required></label>
       </fieldset>
       <p role="status" data-match-feedback></p>
       <button type="submit" data-save-scorecard>Save scorecard</button>
@@ -166,6 +168,23 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       outcome: match?.outcome ?? '', score: match?.score ?? '' })) {
       const input = form.elements.namedItem(field) as HTMLInputElement | HTMLSelectElement
       input.value = value
+    }
+    const score = form.querySelector<HTMLInputElement>('[name="score"]')!
+    const outcome = form.querySelector<HTMLSelectElement>('[name="outcome"]')!
+    const useResult = form.querySelector<HTMLButtonElement>('[data-use-score-result]')!
+    let suggested: PersonalMatch['outcome'] | undefined
+    const refreshSuggestion = () => {
+      suggested = outcome.value ? undefined : suggestPersonalMatchOutcome(score.value)
+      useResult.hidden = !suggested
+      if (suggested) useResult.textContent = suggested === 'Won' ? 'Mark as won' : 'Mark as lost'
+    }
+    score.addEventListener('input', refreshSuggestion)
+    outcome.addEventListener('change', refreshSuggestion)
+    useResult.onclick = () => {
+      if (!suggested) return
+      outcome.value = suggested
+      outcome.focus()
+      refreshSuggestion()
     }
     let draft: PersonalMatchDraft | undefined
     cancel.onclick = () => {
