@@ -373,6 +373,7 @@ body[data-screen="lab"] section.lab-scoreboard::before {
 :is(.lab-up-next,.compete-next-match,.coach-next-assignment) .app-tool-copy .lab-next-action { color:var(--premium-lime);font-weight:700; }
 :is(.compete-next-match,.coach-next-assignment) .app-tool-copy .lab-next-action { font-size:.75rem; }
 .lab-up-next [hidden],.compete-next-match[hidden],.coach-next-assignment[hidden] { display:none!important; }
+body[data-screen="lab"] .lab-up-next button[data-lab-calendar-scorecard] { margin-block-start:8px; }
 .lab-up-next button.lab-next-calendar.secondary {
  inline-size:100%;min-block-size:44px;margin:6px 0 0;padding:6px 10px;
  border-color:var(--premium-line);border-radius:var(--premium-control-radius);

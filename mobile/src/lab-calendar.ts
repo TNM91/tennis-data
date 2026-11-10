@@ -7,6 +7,7 @@ import {loadCalendarSources} from './calendar-practices-data'
 import {readCalendarWeeklyReps,type CalendarWeeklyRep} from './calendar-weekly-reps'
 import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
 import type {NativeCalendar} from '../../lib/native-calendar-contract'
+import {calendarScorecardSeed,type CalendarScorecardSeed} from './personal-match-data'
 import websiteUi from '../generated/website-ui.json'
 export type CourtEvent={id:string;source:'personal'|'competition';title:string;date:string;time:string;location:string;detail:string;kind:string;readiness:string;recurrence:string}
 export type CourtCalendar={events:CourtEvent[];competitionUnavailable:boolean}
@@ -54,6 +55,7 @@ type CalendarHighlightShortcuts={
  replies?:{button:HTMLButtonElement;open:OpenCalendarHighlight}
  tournament?:{button:HTMLButtonElement;open:(button:HTMLButtonElement,entry:CalendarTournamentEntry,onClose:(changed:boolean)=>void)=>void}
  practice?:(button:HTMLButtonElement,rep:CalendarWeeklyRep)=>void
+ scorecard?:(seed:CalendarScorecardSeed)=>void
 }
 export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>string|undefined){
  let version=0
@@ -73,7 +75,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
  const mount=(host:HTMLElement,owner:string,current:()=>boolean,linked:boolean,
   open:OpenCalendarHighlight,kind:'up-next'|'match'='up-next',
   shortcuts?:CalendarHighlightShortcuts)=>{
-  const {replies,tournament,practice}=shortcuts??{}
+  const {replies,tournament,practice,scorecard}=shortcuts??{}
   const matchOnly=kind==='match'
   host.innerHTML=`<button type="button" class="secondary app-tool">
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.calendar}</span>
@@ -83,8 +85,16 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
     <span data-next-details>Matches, lessons and practice.</span>
     <span class="lab-next-action" data-next-action hidden>View event</span>
    </span><span aria-hidden="true">›</span>
-  </button>`
+  </button>${scorecard?`<button type="button" class="secondary app-tool" data-lab-calendar-scorecard hidden>
+   <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.tournaments}</span>
+   <span class="app-tool-copy">
+    <small>Completed today</small>
+    <strong data-scorecard-opponent></strong>
+    <span class="lab-next-action">Open scorecard</span>
+   </span><span aria-hidden="true">›</span>
+  </button>`:''}`
   const button=host.querySelector<HTMLButtonElement>('button')!
+  const scorecardButton=host.querySelector<HTMLButtonElement>('[data-lab-calendar-scorecard]')
   const kicker=button.querySelector<HTMLElement>('[data-next-kicker]')!
   const title=button.querySelector<HTMLElement>('[data-next-title]')!
   const details=button.querySelector<HTMLElement>('[data-next-details]')!
@@ -99,11 +109,25 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   let lastCalendar:NativeCalendar|null=null
   let replyEvent:CalendarOccurrence|undefined
   let tournamentEntry:CalendarTournamentEntry|undefined
+  let completedScorecard:CalendarScorecardSeed|undefined
   const paint=(calendar:NativeCalendar|null)=>{
    if(!active())return
    lastCalendar=calendar
    const now=new Date()
    const incomplete=!calendar||calendar.warnings.length>0
+   if(scorecardButton){
+    const today=localCalendarDate(now)
+    const completed=incomplete?[]:calendar.competitions.flatMap(match=>{
+     if(match.kind!=='tournament'||match.status!=='Completed'||match.date!==today)return []
+     const seed=calendarScorecardSeed(match,today)
+     return seed?[seed]:[]
+    })
+    completedScorecard=completed.length===1?completed[0]:undefined
+    if(!completedScorecard&&document.activeElement===scorecardButton)button.focus({preventScroll:true})
+    scorecardButton.hidden=!completedScorecard
+    scorecardButton.querySelector<HTMLElement>('[data-scorecard-opponent]')!.textContent=completedScorecard?.opponent
+     ?'vs '+completedScorecard.opponent:'Tournament match'
+   }
    const matches=matchOnly&&calendar
     ?new Map(calendar.competitions.filter(item=>item.eventType==='match').map(item=>[item.id,item]))
     :null
@@ -196,6 +220,9 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    if(!active()||!tournamentEntry)return
    tournament.button.focus({preventScroll:true})
    tournament.open(tournament.button,tournamentEntry,afterClose)
+  }
+  if(scorecardButton&&scorecard)scorecardButton.onclick=()=>{
+   if(active()&&completedScorecard)scorecard(completedScorecard)
   }
   if(linked)refresh()
   return afterClose

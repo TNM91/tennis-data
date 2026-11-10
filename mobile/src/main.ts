@@ -704,6 +704,7 @@ async function lab(entry?:'coach'|PlayerLink|{scorecard:CalendarScorecardSeed}) 
     const active=()=>version===revision&&current.user.id===session?.user.id
     calendarHighlights.mount(calendar,current.user.id,active,Boolean(scoreboard),
       (button,event,onClose)=>launchCalendar(button,{event,onClose}),'up-next',{
+       scorecard:firstPartyBuild&&!scorecard?seed=>guardNavigation(()=>{if(active())void lab({scorecard:seed})}):undefined,
        practice:(button,rep)=>{
         if(connection?.isSaving()||document.querySelector('dialog[open]'))return
         training=openScheduledRep(current.user.id,active,button,rep)
