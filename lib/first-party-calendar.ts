@@ -68,7 +68,9 @@ export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, own
         tournaments: [{ id, name: active.name, starts_on: active.date, location_label: active.location }],
         tournamentMatches: new Map([[id, draw]]), leagueEntries: [], leagues: [], leagueSchedule: [],
       })
-      return events.map(event => ({ ...event, publishedView: parent ? { id: parent, divisionId: id } : { id } }))
+      const scorecardFormat = active.entrantType === 'teams' ? 'doubles' : 'singles'
+      return events.map(event => ({ ...event, publishedView: parent ? { id: parent, divisionId: id } : { id },
+        scorecardFormat: event.eventType === 'match' ? scorecardFormat : undefined }))
     }),
   ]
 
