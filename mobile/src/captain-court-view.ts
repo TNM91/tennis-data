@@ -6,6 +6,12 @@ import { html } from './match-details'
 import type { CalendarScorecardSeed } from './personal-match-data'
 import { matchDate } from './recent-results'
 
+type CourtDraft = {
+  revision: string | null
+  values: ReadonlyArray<readonly [string, string]>
+  winnerWasInferred: boolean
+}
+
 function playerOptions(members: CourtMember[]) {
   return '<option value="">Choose player</option>' + members.map(member =>
     `<option value="${html(member.id)}">${html(member.name)} · ${html(member.id.slice(-6).toUpperCase())}</option>`).join('')
@@ -17,6 +23,7 @@ export function openCaptainCourtScores(client: SupabaseClient, owner: string, cu
   dialog.className = 'captain-lineup-dialog'
   dialog.setAttribute('aria-label', 'Court scores')
   let disposed = false, loading = false, posting = false, desk: CourtDesk | undefined, selected = 1, notice = ''
+  const drafts = new Map<number, CourtDraft>()
   const active = () => !disposed && current()
   const focus = () => dialog.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true })
   function dispose() {
@@ -33,8 +40,11 @@ export function openCaptainCourtScores(client: SupabaseClient, owner: string, cu
     dialog.innerHTML = `<h2 tabindex="-1">Court scores</h2>${desk ? `<h3>${html(desk.teamA)} vs ${html(desk.teamB)}</h3>
       <p>${html(matchDate(desk.date))}</p>
       <form data-court-form>
-        <label for="court-number">Court number</label><select id="court-number" name="court">${Array.from({ length: 30 }, (_, n) =>
-          `<option value="${n + 1}">${n + 1}${desk!.courts.some(row => row.court === n + 1) ? ' · posted' : ''}</option>`).join('')}</select>
+        <label for="court-number">Court number</label><select id="court-number" name="court">${Array.from({ length: 30 }, (_, n) => {
+          const court = n + 1
+          const status = drafts.has(court) ? ' · draft' : desk!.courts.some(row => row.court === court) ? ' · posted' : ''
+          return `<option value="${court}">${court}${status}</option>`
+        }).join('')}</select>
         ${desk.captain ? `<fieldset><legend>Players and result</legend>
           <label for="court-format">Format</label><select id="court-format" name="format"><option value="singles">Singles</option><option value="doubles">Doubles</option></select>
           <label for="court-a1">${html(desk.teamA)} player 1</label><select id="court-a1" name="a1" required>${playerOptions(desk.membersA)}</select>
@@ -59,7 +69,13 @@ export function openCaptainCourtScores(client: SupabaseClient, owner: string, cu
     const feedback = dialog.querySelector<HTMLElement>('[data-court-status]')!
     const number = field('court')
     number.value = String(selected)
-    number.onchange = () => { selected = Number(number.value); notice = ''; paint(); dialog.querySelector<HTMLElement>('#court-number')?.focus() }
+    const switchCourt = () => {
+      selected = Number(number.value)
+      notice = ''
+      paint()
+      dialog.querySelector<HTMLElement>('#court-number')?.focus()
+    }
+    number.onchange = switchCourt
     const personal = form.querySelector<HTMLButtonElement>('[data-personal-court]')
     if (personal) personal.onclick = () => {
       if (!active() || !desk || !courtNumber(selected) || !openPersonal) return
@@ -74,19 +90,29 @@ export function openCaptainCourtScores(client: SupabaseClient, owner: string, cu
       form.querySelectorAll<HTMLElement>('[data-second-player]').forEach(section => { section.hidden = format.value !== 'doubles' })
       for (const key of ['a2', 'b2']) field(key).required = format.value === 'doubles'
     }
-    for (const [key, value] of Object.entries({ format: saved?.format ?? 'singles', a1: saved?.a[0] ?? '', a2: saved?.a[1] ?? '',
-      b1: saved?.b[0] ?? '', b2: saved?.b[1] ?? '', winner: saved?.winner ?? '', score: saved?.score ?? '' })) field(key).value = value
+    const savedValues = Object.entries({ format: saved?.format ?? 'singles', a1: saved?.a[0] ?? '', a2: saved?.a[1] ?? '',
+      b1: saved?.b[0] ?? '', b2: saved?.b[1] ?? '', winner: saved?.winner ?? '', score: saved?.score ?? '' })
+    const draft = drafts.get(selected)
+    for (const [key, value] of draft?.values ?? savedValues) field(key).value = value
     format.onchange = showSecond
     showSecond()
     const score = field('score')
     const winner = field('winner')
-    let winnerWasInferred = false
+    let winnerWasInferred = draft?.winnerWasInferred ?? false
     score.oninput = () => {
       const next = inferTiqBestOfThreeWinner(score.value)
       if (next || winnerWasInferred) winner.value = next ?? ''
       winnerWasInferred = Boolean(next)
     }
     winner.onchange = () => { winnerWasInferred = false }
+    const rememberDraft = () => {
+      if (savedValues.some(([key, value]) => field(key).value !== value)) {
+        drafts.set(selected, { revision: saved?.revision ?? null,
+          values: savedValues.map(([key]) => [key, field(key).value] as const), winnerWasInferred })
+      } else drafts.delete(selected)
+    }
+    number.onchange = () => { rememberDraft(); switchCourt() }
+    reload.onclick = () => { rememberDraft(); void load() }
     let pending: CourtSubmission | undefined
     const post = form.querySelector<HTMLButtonElement>('[data-post-court]')!
     form.onsubmit = async event => {
@@ -105,6 +131,7 @@ export function openCaptainCourtScores(client: SupabaseClient, owner: string, cu
       try {
         const result = await postCourt(client, owner, active, context, pending)
         if (!active()) return
+        drafts.delete(result.court)
         desk.courts = [...desk.courts.filter(row => row.court !== result.court), result]
         notice = 'Score posted to the confirmed players’ match logs.'
         paint()
@@ -128,7 +155,18 @@ export function openCaptainCourtScores(client: SupabaseClient, owner: string, cu
     desk = undefined
     notice = 'Checking the fixture and team rosters…'
     paint()
-    try { desk = await readCourtDesk(client, owner, active, context); notice = '' }
+    try {
+      desk = await readCourtDesk(client, owner, active, context)
+      notice = ''
+      if (!desk.captain) drafts.clear()
+      for (const [court, draft] of drafts) {
+        const revision = desk.courts.find(row => row.court === court)?.revision ?? null
+        if (revision !== draft.revision) {
+          drafts.delete(court)
+          notice = 'A posted score changed. Review the latest court scores.'
+        }
+      }
+    }
     catch (error) { notice = error instanceof CourtRequestError ? error.message : 'Court scores are unavailable. Reload to try again.' }
     finally { loading = false; if (active()) { paint(); focus() } }
   }
