@@ -9,6 +9,10 @@ on:
         type: choice
         default: standard
         options: [standard, first-party]
+      device_only:
+        description: Compile the first-party Release target with the iPhone SDK and skip the simulator
+        type: boolean
+        default: false
   pull_request:
     types: [labeled]
 
@@ -28,6 +32,11 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       TIQ_SIMULATOR_PROJECT: ${{ inputs.profile == 'first-party' && 'mobile/ios-first-party/App/App.xcodeproj' || 'mobile/ios/App/App.xcodeproj' }}
     steps:
+      - name: Validate requested target
+        if: inputs.device_only && inputs.profile != 'first-party'
+        run: |
+          echo '::error::The unsigned device compile requires the first-party profile.'
+          exit 1
       - name: Check out repository
         uses: actions/checkout@v7
         with:
@@ -69,6 +78,26 @@ jobs:
           npm run build:ios:first-party --prefix mobile
           npm run prepare:ios:first-party --prefix mobile
           npm run check:ios:first-party --prefix mobile
+      - name: Compile and verify first-party iPhone target
+        if: inputs.profile == 'first-party' && inputs.device_only
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          TIQ_BUILD_NUMBER=1 TIQ_IOS_DISTRIBUTION=internal node mobile/scripts/prepare-ios-store.mjs --first-party
+          BUILD_DIR="$RUNNER_TEMP/tiq-iphone-build"
+          xcodebuild -project "$TIQ_SIMULATOR_PROJECT" -scheme App \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath "$BUILD_DIR" CODE_SIGNING_ALLOWED=NO build
+          APP="$BUILD_DIR/Build/Products/Release-iphoneos/App.app"
+          INFO="$APP/Info.plist"
+          EXECUTABLE=$(plutil -extract CFBundleExecutable raw -o - "$INFO")
+          test "$(plutil -extract CFBundleIdentifier raw -o - "$INFO")" = com.tenaceiq.app
+          test "$(plutil -extract DTPlatformName raw -o - "$INFO")" = iphoneos
+          test "$(xcrun lipo -archs "$APP/$EXECUTABLE")" = arm64
+          test ! -f "$APP/embedded.mobileprovision"
+          cmp "$APP/capacitor.config.json" mobile/ios-first-party/App/App/capacitor.config.json
+          diff -qr "$APP/public" mobile/ios-first-party/App/App/public
+          echo 'Verified the unsigned arm64 iPhone Release build and its exact offline assets.'
       - name: Add unsigned Debug runtime probe
         if: inputs.profile != 'first-party'
         run: node mobile/scripts/ios-purchases-runtime-smoke.mjs --prepare mobile/ios/App/App/TenAceIQPurchases.swift
@@ -83,6 +112,7 @@ jobs:
           xcrun simctl bootstatus "$DEVICE" -b
           echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
       - name: Compile simulator app without signing
+        if: '!inputs.device_only'
         run: |
           xcodebuild -project "$TIQ_SIMULATOR_PROJECT" -scheme App \
             -configuration Debug -sdk iphonesimulator \
@@ -112,7 +142,7 @@ jobs:
           xcrun simctl shutdown "$DEVICE"
       - name: Capture simulator diagnostics
         timeout-minutes: 2
-        if: always() && inputs.profile != 'first-party'
+        if: always() && inputs.profile != 'first-party' && !inputs.device_only
         run: |
           mkdir -p mobile/ios-smoke-diagnostics
           xcrun simctl io booted screenshot mobile/ios-smoke-diagnostics/simulator.png || true
@@ -123,7 +153,7 @@ jobs:
             cp "$container"/Documents/tiq-storekit-smoke.json* mobile/ios-smoke-diagnostics/ 2>/dev/null || true
           done
       - name: Package simulator app
-        if: always() && inputs.profile != 'first-party'
+        if: always() && inputs.profile != 'first-party' && !inputs.device_only
         run: |
           test -d mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
           ditto -c -k --sequesterRsrc --keepParent \
@@ -132,7 +162,7 @@ jobs:
           test ! -f mobile/ios-storekit-smoke.json || zip -j mobile/ios-simulator.zip mobile/ios-storekit-smoke.json
           zip -j mobile/ios-simulator.zip mobile/ios-smoke-diagnostics/*
       - name: Save simulator artifact
-        if: always() && inputs.profile != 'first-party'
+        if: always() && inputs.profile != 'first-party' && !inputs.device_only
         uses: actions/upload-artifact@v6
         with:
           name: tenaceiq-ios-simulator-${{ github.sha }}
@@ -140,7 +170,7 @@ jobs:
           if-no-files-found: error
           retention-days: 3
       - name: Package first-party simulator app
-        if: inputs.profile == 'first-party'
+        if: inputs.profile == 'first-party' && !inputs.device_only
         run: |
           OUTPUT="$RUNNER_TEMP/tiq-first-party-simulator"
           mkdir -p "$OUTPUT"
@@ -148,7 +178,7 @@ jobs:
             mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app \
             "$OUTPUT/first-party-simulator.zip"
       - name: Boot a fresh first-party iPhone simulator
-        if: inputs.profile == 'first-party'
+        if: inputs.profile == 'first-party' && !inputs.device_only
         timeout-minutes: 5
         run: |
           set -euo pipefail
@@ -158,11 +188,11 @@ jobs:
           xcrun simctl bootstatus "$DEVICE" -b
           echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
       - name: Install first-party simulator app
-        if: inputs.profile == 'first-party'
+        if: inputs.profile == 'first-party' && !inputs.device_only
         timeout-minutes: 2
         run: xcrun simctl install "$TIQ_SIMULATOR_UDID" mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
       - name: Launch and capture first-party simulator app
-        if: inputs.profile == 'first-party'
+        if: inputs.profile == 'first-party' && !inputs.device_only
         timeout-minutes: 3
         run: |
           set -euo pipefail
@@ -180,7 +210,7 @@ jobs:
           echo '::error::The offline practice card did not render before the simulator deadline.'
           exit 1
       - name: Save first-party simulator artifact
-        if: (success() || failure()) && inputs.profile == 'first-party'
+        if: (success() || failure()) && inputs.profile == 'first-party' && !inputs.device_only
         uses: actions/upload-artifact@v6
         with:
           name: tenaceiq-first-party-simulator-${{ github.sha }}

@@ -76,9 +76,30 @@ test('the first-party profile builds and launches the isolated unsigned app',()=
  assert.ok(install['timeout-minutes']<=2)
  assert.ok(launch['timeout-minutes']<=3)
  assert.equal(artifact.with['retention-days'],3)
- for(const step of [bundle,pack,boot,install,launch])assert.equal(step.if,"inputs.profile == 'first-party'")
- assert.equal(artifact.if,"(success() || failure()) && inputs.profile == 'first-party'")
+ assert.equal(bundle.if,"inputs.profile == 'first-party'")
+ assert.equal(compile.if,'!inputs.device_only')
+ for(const step of [pack,boot,install,launch])assert.equal(step.if,"inputs.profile == 'first-party' && !inputs.device_only")
+ assert.equal(artifact.if,"(success() || failure()) && inputs.profile == 'first-party' && !inputs.device_only")
  for(const name of ['Bundle and generate iOS project','Add unsigned Debug runtime probe','Verify the launched StoreKit bridge','Save simulator artifact']){
   assert.match(find(name).if,/inputs\.profile != 'first-party'/)
  }
+})
+
+test('the optional iPhone SDK check compiles the offline Release without signing',()=>{
+ const deviceOnly = workflow.on.workflow_dispatch.inputs.device_only
+ assert.equal(deviceOnly.type,'boolean')
+ assert.equal(deviceOnly.default,false)
+ const steps = workflow.jobs.simulator.steps
+ const reject = steps.find(step=>step.name==='Validate requested target')
+ const device = steps.find(step=>step.name==='Compile and verify first-party iPhone target')
+ assert.equal(reject.if,"inputs.device_only && inputs.profile != 'first-party'")
+ assert.match(reject.run,/exit 1/)
+ assert.equal(device.if,"inputs.profile == 'first-party' && inputs.device_only")
+ assert.match(device.run,/prepare-ios-store\.mjs --first-party/)
+ assert.match(device.run,/-configuration Release -sdk iphoneos -destination 'generic\/platform=iOS'/)
+ assert.match(device.run,/CODE_SIGNING_ALLOWED=NO build/)
+ assert.match(device.run,/lipo -archs .* = arm64/)
+ assert.match(device.run,/diff -qr "\$APP\/public" mobile\/ios-first-party\/App\/App\/public/)
+ assert.doesNotMatch(device.run,/simctl|altool|secrets\./)
+ assert.ok(device['timeout-minutes']<=10)
 })

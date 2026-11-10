@@ -85,6 +85,8 @@ To compile and launch the unsigned fallback on the Mac runner, select **first-pa
 gh workflow run mobile-ios-simulator.yml --ref codex/ios-first-party-release -f profile=first-party
 ```
 
+Add `-f device_only=true` to compile the offline Release with the iPhone SDK and verify the arm64 binary and packaged assets. The device check uses no signing credentials and skips simulator startup. Physical installation requires a signed build.
+
 The **Mobile iOS signed build** workflow can export the fallback as an internal-only IPA for the existing TenAceIQ app ID. It verifies the exported assets and signed entitlements before saving the IPA. The `apple-testflight` environment must explicitly allow `codex/ios-first-party-release`, and the existing reviewer approval still applies. Select **first-party**, **internal**, and leave **Upload** off. A separate App Store Connect upload is needed for TestFlight installation.
 
 Before preparing an App Store candidate, verify the data provenance of any connected features, test the selected package on an iPhone, and review the listing and privacy disclosures against that package.
