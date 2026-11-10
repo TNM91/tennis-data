@@ -13,14 +13,17 @@ function rows<T>(result: { data: T[] | null; error: unknown }, max: number) {
 const empty = { data: [], error: null }
 
 export async function loadFirstPartyCompetitionTrophies(db: SupabaseClient, service: SupabaseClient, owner: string) {
-  const leagueApprovals = readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS, 'detail')
-  const tournamentApprovals = readTournamentApprovals(process.env.TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS)
-  const sourceIds = [...new Set([...leagueApprovals.keys(), ...tournamentApprovals.keys()])]
-  if (!sourceIds.length) return []
   const profile = await db.from('profiles').select('linked_player_id').eq('id', owner).maybeSingle()
   if (profile.error) throw Error('Player connection unavailable')
   const playerId = profile.data?.linked_player_id
-  if (typeof playerId !== 'string' || !playerId.trim()) return []
+  if (typeof playerId !== 'string' || !playerId.trim()) {
+    return { competitionProfileLinked: false, competitionTrophies: [] }
+  }
+
+  const leagueApprovals = readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS, 'detail')
+  const tournamentApprovals = readTournamentApprovals(process.env.TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS)
+  const sourceIds = [...new Set([...leagueApprovals.keys(), ...tournamentApprovals.keys()])]
+  if (!sourceIds.length) return { competitionProfileLinked: true, competitionTrophies: [] }
 
   const awards = rows(await db.from('tiq_awards').select('id,source_type,source_id,placement,issued_at,created_by_user_id')
     .eq('recipient_player_id', playerId).in('source_id', sourceIds)
@@ -56,7 +59,7 @@ export async function loadFirstPartyCompetitionTrophies(db: SupabaseClient, serv
     if (row.event_id && !parent) return []
     return [[row.id, { name: parent || row.name, division: parent ? row.name : '', owner: row.created_by_user_id }] as const]
   }))
-  return readCompetitionTrophies(awards.flatMap((award): CompetitionTrophy[] => {
+  const competitionTrophies = readCompetitionTrophies(awards.flatMap((award): CompetitionTrophy[] => {
     const { source_id: sourceId, source_type: kind, created_by_user_id: publisher } = award
     if (kind !== 'league' && kind !== 'tournament' || !publisher || !isCompetitionPlacement(award.placement)) return []
     const source = kind === 'league' ? leagues.get(sourceId) : approvedTournaments.get(sourceId)
@@ -64,4 +67,5 @@ export async function loadFirstPartyCompetitionTrophies(db: SupabaseClient, serv
     const awardedOn = typeof award.issued_at === 'string' ? award.issued_at.slice(0, 10) : ''
     return [{ id: award.id, kind, placement: award.placement, name: source.name, division: source.division, awardedOn }]
   }))
+  return { competitionProfileLinked: true, competitionTrophies }
 }
