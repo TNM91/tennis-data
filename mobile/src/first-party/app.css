@@ -49,6 +49,9 @@ label { display:grid;gap:5px;color:#dce9f9;min-inline-size:0;font-size:.9rem; }
 .match-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
 .optional { display:inline;color:#9bb4ce;font-size:.75rem; }
 input,select { min-inline-size:0;inline-size:100%;min-block-size:44px;padding:8px;border:1px solid #426b95;border-radius:10px;background:#0a182d;color:#f0f6ff; }
+/* The iOS date control can add its padding outside a percentage width. */
+input[type="date"] { appearance:none; }
+input[type="date"]::-webkit-date-and-time-value { text-align:start; }
 select {
  appearance:none;padding-inline-end:26px;
  background-image:linear-gradient(45deg,transparent 50%,#b7cce0 50%),linear-gradient(135deg,#b7cce0 50%,transparent 50%);
