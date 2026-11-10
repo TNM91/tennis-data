@@ -3,6 +3,7 @@ import type {InternalNotification} from '../../lib/internal-notification-record'
 import {html} from './match-details'
 import websiteUi from '../generated/website-ui.json'
 import {createUpdatesFinder} from './updates-finder'
+import {firstPartyBuild} from './build-scope'
 import {loadUpdates,markUpdatesRead,resolveUpdateAction,updateAction,UPDATE_LOADED_LIMIT,type UpdateFilter,type UpdateCursor,type ResolvedUpdateAction} from './updates-data'
 
 export type UpdatesChild={dispose:()=>void;isOpen:()=>boolean;back?:()=>unknown}
@@ -128,8 +129,8 @@ export function openUpdates(client:SupabaseClient,owner:string,current:()=>boole
           <label>Type<select data-updates-category ${busy?'disabled':''}>
             <option value="all" ${filter.category==='all'?'selected':''}>All types</option>
             <option value="message" ${filter.category==='message'?'selected':''}>Messages</option>
-            <option value="schedule" ${filter.category==='schedule'?'selected':''}>Schedule</option>
-            <option value="other" ${filter.category==='other'?'selected':''}>Account &amp; support</option>
+            ${firstPartyBuild?'':`<option value="schedule" ${filter.category==='schedule'?'selected':''}>Schedule</option>`}
+            <option value="other" ${filter.category==='other'?'selected':''}>${firstPartyBuild?'Support':'Account &amp; support'}</option>
           </select></label>
           <div class="updates-search">
             <label for="updates-query">Find an update</label>

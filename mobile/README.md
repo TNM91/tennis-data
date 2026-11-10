@@ -91,6 +91,12 @@ My Lab opens from the signed-in account. Saved training, coaching and the privat
 
 Personal dates entered in My Lab and dates shared by a connected coach use the signed-in account. The candidate skips imported schedule copies and dates extracted from team messages. League fixtures and tournament draws reuse the same revision approvals as Explore and Compete. The calendar checks the signed-in player's active league entry or approved tournament entry before showing dates or accepting availability replies. A division also needs its parent event approved. Team practice invitations stay outside this calendar until they have a separate reviewed source.
 
+#### Updates
+
+The candidate shows short previews for notices tied to a current Coach conversation, a shared weekly plan, or an account, billing, or general support request. Coach links open the existing conversation or plan. Support previews can be marked read in the app. Team, schedule, import, and competition-entry alerts stay outside this feed until their sources can be checked. Coach and team message counts are available in Chats.
+
+The Updates list, unread badge, and read actions use the same signed-in scope. Apply `20261110000100_native_first_party_updates.sql` to the candidate backend before testing the scoped route with a real account.
+
 #### Review a team conversation
 
 Confirm the team and league names, flight, and exact General conversation UUID against the TenAceIQ team record. Review what the room has been used for, including its existing messages. Use the server-only `TIQ_FIRST_PARTY_TEAM_ROOMS` setting for approved rooms. This example uses fictional data.

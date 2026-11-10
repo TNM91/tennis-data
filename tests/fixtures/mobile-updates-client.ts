@@ -6,6 +6,29 @@ export const updatesFixture={
   queries:[] as {table:string;method:string;ids:string[];owner:string|null}[],
   rows:Array.from({length:31},(_,i):Row=>({id:'aaaa0000-0000-4000-8000-'+String(i+1).padStart(12,'0'),recipient_profile_id:competitionOwner,notification_type:i%4===0?'system':i%4===1?'schedule':'message',title:i===1?'Your league season is ready':i===2?'Tournament entry approved':i===3?'Taylor sent a coaching note':i===4?'A safe text preview':'Tennis update '+(i+1),body:i===4?'<img src=x onerror=alert(1)> A long preview '+('Tennis'.repeat(30)):'Review your next match, practice or team update.',href:i===1?'/explore/leagues/tiq/league-one':i===2?'/tournaments/event-one':i===3?'/messages?thread='+updateCoachThread:i===4?'https://outside.invalid/track':'/mylab',conversation_id:i===3?updateCoachThread:null,schedule_event_id:null,read_at:i%4===0?'2026-10-31T13:00:00Z':null,created_at:new Date(Date.UTC(2026,9,31,12,0)-i*60000).toISOString()})),
 }
+
+const scopedRows:Row[]=[
+  {...updatesFixture.rows[3],title:'Coach conversation',body:'Open Coach messages to catch up.',href:'/messages?coach='+updateCoachStudent},
+  {...updatesFixture.rows[4],title:'TenAceIQ support update',body:'There’s an update on your support request.',notification_type:'support',href:'',read_at:null},
+]
+export const firstPartyUpdatesFixture={calls:[] as string[],omitMarker:false}
+export function firstPartyUpdatesPreview(method:string,url:URL,body:unknown,owner:string){
+  const op=method==='POST'?'mark':url.searchParams.get('op')??'list'
+  firstPartyUpdatesFixture.calls.push(op)
+  const envelope={ok:true,owner,releaseScope:firstPartyUpdatesFixture.omitMarker?undefined:'first-party'}
+  const owned=scopedRows.filter(row=>row.recipient_profile_id===owner)
+  if(op==='count')return Response.json({...envelope,count:owned.filter(row=>!row.read_at).length})
+  if(op==='mark'){
+    const ids=(JSON.parse(String(body)) as {ids:string[]}).ids
+    const selected=owned.filter(row=>ids.includes(row.id))
+    if(!ids.length||selected.length!==ids.length)return Response.json({ok:false},{status:409})
+    for(const row of selected)row.read_at??='2026-11-10T10:00:00Z'
+    return Response.json({...envelope,rows:selected.map(({id,recipient_profile_id,read_at})=>({id,recipient_profile_id,read_at}))})
+  }
+  const category=url.searchParams.get('category')
+  return Response.json({...envelope,rows:owned.filter(row=>(url.searchParams.get('unread')!=='1'||!row.read_at)&&
+    (!category||category==='all'||(category==='other'?row.notification_type==='support':row.notification_type===category)))})
+}
 export function updatesQuery(table:string){
   const eq=new Map<string,unknown>(),sets=new Map<string,unknown[]>();let head=false,unread=false,limit=100,mutation:Record<string,unknown>|null=null,cursor='',single=false
   const q:Record<string,unknown>={}

@@ -81,6 +81,36 @@ test('first-party scorecard links stop before loading the integrated match',asyn
  expect(reads).toEqual({linkedProfile:0,players:0,matches:0,goalScopes:[]})
 })
 
+test('first-party Updates only shows scoped previews and confirms the same unread badge',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin)
+ const badge=page.locator('.native-updates-entry')
+ await expect(badge).toHaveAttribute('aria-label','Updates, 2 unread')
+ await badge.click()
+ const updates=page.getByRole('dialog',{name:'Updates',exact:true})
+ await expect(updates.locator('.updates-item')).toHaveCount(2)
+ await expect(updates).toContainText('Coach conversation')
+ await expect(updates).toContainText('TenAceIQ support update')
+ await expect(updates).not.toContainText(/Your league season is ready|Tournament entry approved|Taylor sent a coaching note/)
+ await updates.getByRole('button',{name:/Open Coach messages/}).click()
+ const coach=page.getByRole('dialog',{name:'Coach messages',exact:true})
+ await expect(coach).toContainText('Bring your return notes to our next lesson.')
+ await expect(badge).toHaveAttribute('aria-label','Updates, 1 unread')
+ await coach.getByRole('button',{name:/^Back|^Close/}).first().click()
+ await expect(updates).toBeVisible()
+
+ await page.evaluate(()=>{(window as unknown as {firstPartyUpdatesFixture:{omitMarker:boolean}}).firstPartyUpdatesFixture.omitMarker=true})
+ await updates.getByRole('button',{name:'Refresh',exact:true}).click()
+ await expect(updates.getByRole('alert')).toContainText('Updates couldn’t load')
+ await expect(updates.locator('.updates-item')).toHaveCount(0)
+ const reads=await page.evaluate(()=>{
+  const state=window as unknown as {firstPartyUpdatesFixture:{calls:string[]};updatesFixture:{queries:unknown[]}}
+  return {scoped:state.firstPartyUpdatesFixture.calls,raw:state.updatesFixture.queries}
+ })
+ expect(reads.scoped).toEqual(expect.arrayContaining(['count','list','mark']))
+ expect(reads.raw).toEqual([])
+})
+
 test('first-party calendar keeps personal, coach and reviewed match dates on the scoped route',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?mixed-calendar=1&team-practice-review=1')
