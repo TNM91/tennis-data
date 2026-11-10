@@ -5,7 +5,8 @@ import { html } from './match-details'
 import { matchDate } from './recent-results'
 import { loadCaptainScorecards } from './captain-court-data'
 import type { PostedCourtScorecard } from '../../lib/native-court-result-contract'
-import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, removePersonalMatch, savePersonalMatch, suggestPersonalMatchOutcome,
+import { inferTiqBestOfThreeWinner } from '../../lib/tiq-scoring'
+import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, removePersonalMatch, savePersonalMatch,
   type CalendarScorecardSeed, type PersonalMatch, type PersonalMatchDraft } from './personal-match-data'
 
 const formatName = (format: PersonalMatch['format']) => format === 'singles' ? 'Singles' : 'Doubles'
@@ -174,7 +175,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     const useResult = form.querySelector<HTMLButtonElement>('[data-use-score-result]')!
     let suggested: PersonalMatch['outcome'] | undefined
     const refreshSuggestion = () => {
-      suggested = outcome.value ? undefined : suggestPersonalMatchOutcome(score.value)
+      const winner = outcome.value ? undefined : inferTiqBestOfThreeWinner(score.value)
+      suggested = winner === 'A' ? 'Won' : winner === 'B' ? 'Lost' : undefined
       useResult.hidden = !suggested
       if (suggested) useResult.textContent = suggested === 'Won' ? 'Mark as won' : 'Mark as lost'
     }

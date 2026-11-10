@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { courtNumber, courtScorecardKey, readCourtSubmission, type CourtDesk, type CourtMember, type CourtSubmission } from '../../lib/native-court-result-contract'
+import { inferTiqBestOfThreeWinner } from '../../lib/tiq-scoring'
 import { CourtRequestError, postCourt, readCourtDesk } from './captain-court-data'
 import { html } from './match-details'
 import type { CalendarScorecardSeed } from './personal-match-data'
@@ -40,8 +41,8 @@ export function openCaptainCourtScores(client: SupabaseClient, owner: string, cu
           <div data-second-player><label for="court-a2">${html(desk.teamA)} player 2</label><select id="court-a2" name="a2">${playerOptions(desk.membersA)}</select></div>
           <label for="court-b1">${html(desk.teamB)} player 1</label><select id="court-b1" name="b1" required>${playerOptions(desk.membersB)}</select>
           <div data-second-player><label for="court-b2">${html(desk.teamB)} player 2</label><select id="court-b2" name="b2">${playerOptions(desk.membersB)}</select></div>
-          <label for="court-winner">Winning team</label><select id="court-winner" name="winner" required><option value="">Choose winner</option><option value="A">${html(desk.teamA)}</option><option value="B">${html(desk.teamB)}</option></select>
           <label>Set scores (${html(desk.teamA)} first)<input name="score" required maxlength="64" placeholder="6-4 6-3"></label>
+          <label for="court-winner">Winning team</label><select id="court-winner" name="winner" required><option value="">Choose winner</option><option value="A">${html(desk.teamA)}</option><option value="B">${html(desk.teamB)}</option></select>
           </fieldset><button type="submit" data-post-court>${saved ? 'Update court score' : 'Post court score'}</button>` : ''}
         ${openPersonal ? '<button type="button" class="secondary" data-personal-court>Log my score in My Lab</button>' : ''}
       </form>` : ''}
@@ -77,6 +78,15 @@ export function openCaptainCourtScores(client: SupabaseClient, owner: string, cu
       b1: saved?.b[0] ?? '', b2: saved?.b[1] ?? '', winner: saved?.winner ?? '', score: saved?.score ?? '' })) field(key).value = value
     format.onchange = showSecond
     showSecond()
+    const score = field('score')
+    const winner = field('winner')
+    let winnerWasInferred = false
+    score.oninput = () => {
+      const next = inferTiqBestOfThreeWinner(score.value)
+      if (next || winnerWasInferred) winner.value = next ?? ''
+      winnerWasInferred = Boolean(next)
+    }
+    winner.onchange = () => { winnerWasInferred = false }
     let pending: CourtSubmission | undefined
     const post = form.querySelector<HTMLButtonElement>('[data-post-court]')!
     form.onsubmit = async event => {
@@ -85,7 +95,7 @@ export function openCaptainCourtScores(client: SupabaseClient, owner: string, cu
       try {
         const doubles = format.value === 'doubles'
         pending ??= readCourtSubmission({ court: selected, format: format.value, a: [field('a1').value, ...(doubles ? [field('a2').value] : [])],
-          b: [field('b1').value, ...(doubles ? [field('b2').value] : [])], score: field('score').value, winner: field('winner').value,
+          b: [field('b1').value, ...(doubles ? [field('b2').value] : [])], score: score.value, winner: winner.value,
           revision: crypto.randomUUID(), expected: saved?.revision ?? null })
       } catch (error) { feedback.textContent = error instanceof Error ? error.message : 'Check the court details.'; return }
       posting = close.disabled = post.disabled = reload.disabled = number.disabled = true

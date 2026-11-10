@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isValidCalendarDate } from '../../lib/calendar-date'
 import type { NativeCalendarCompetition } from '../../lib/native-calendar-contract'
-import { validateTiqTennisMatchScore } from '../../lib/tiq-scoring'
 import { localCalendarDate } from './calendar-data'
 
 type MatchFields = {
@@ -45,14 +44,6 @@ function matchFields(input: Record<string, unknown>): MatchFields {
   if (input.outcome !== 'Won' && input.outcome !== 'Lost') throw Error('Choose whether you won or lost.')
   if (!validText(score, 64)) throw Error('Enter a score of up to 64 characters.')
   return { match_date: date, opponent, format: input.format, outcome: input.outcome, score }
-}
-
-export function suggestPersonalMatchOutcome(score: string): MatchFields['outcome'] | undefined {
-  const { valid, parsedSets } = validateTiqTennisMatchScore(score)
-  if (!valid) return
-  const [wonFirst, wonSecond, wonDecider] = parsedSets.map(set => set.sideAGames > set.sideBGames)
-  if (wonDecider !== undefined && wonFirst === wonSecond) return
-  return (wonDecider ?? wonSecond) ? 'Won' : 'Lost'
 }
 
 export function personalMatchDraft(form: FormData, match: PersonalMatch | null, seed?: CalendarScorecardSeed): PersonalMatchDraft {
