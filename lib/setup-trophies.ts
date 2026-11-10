@@ -1,6 +1,6 @@
 import { MEMBERSHIP_TIER_ORDER, type MembershipTierId } from './product-story'
 
-const captainTeamSetup = 'Ask your league coordinator to enter your team name and flight in a TenAceIQ season and confirm your captain role. If you run the season, open League Office on the TenAceIQ website, create a team season, and add your team under Participants.'
+const captainTeamSetup = 'Ask your league coordinator to enter your team name and flight in a TenAceIQ season and confirm your captain role. If you run the season, open League Office on the TenAceIQ website, create a team season, and add your team under Participants. If your team is still missing after you tap Refresh teams in Chats, contact support@tenaceiq.com to check whether team chat is enabled.'
 
 export const setupSteps = {
   account: { title: 'Verify your account', detail: 'Confirm your email and sign in to TenAceIQ.' },

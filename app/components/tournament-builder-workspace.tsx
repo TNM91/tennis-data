@@ -88,6 +88,8 @@ import {
 import {
   buildTiqAwardCertificateText,
   buildTiqTournamentAwardCandidates,
+  getTiqAwardDeliveryLabel,
+  getTiqTournamentAwardPlayerId,
   loadTiqAwardsForSource,
   readTiqAwardsForSource,
   saveTiqAwardRecordForUser,
@@ -551,8 +553,8 @@ export default function TournamentBuilderWorkspace() {
     },
     {
       label: 'Trophy cases',
-      value: awardRecords.length ? 'Linked' : 'Next',
-      detail: awardRecords.length ? 'Awards can land in player trophy cases.' : 'Issue awards after profiles and results are ready.',
+      value: awardRecords.length ? 'Review' : 'Next',
+      detail: awardRecords.length ? 'Check the player profile on each issued award.' : 'Issue awards after profiles and results are ready.',
       href: '#tournament-awards',
       ready: awardRecords.length > 0,
     },
@@ -1118,7 +1120,7 @@ export default function TournamentBuilderWorkspace() {
           sourceId: selectedRecord.id,
           sourceName: selectedRecord.name,
           recipientName,
-          recipientPlayerId: selectedRecord.entrantPlayerIds[recipientName] || '',
+          recipientPlayerId: getTiqTournamentAwardPlayerId(selectedRecord.entrantPlayerIds, recipientName),
           placement: candidate.placement,
           title: candidate.label,
           subtitle: selectedRecord.locationLabel
@@ -2874,35 +2876,46 @@ export default function TournamentBuilderWorkspace() {
           </div>
 
           <div style={awardSetupGridStyle}>
-            {awardCandidates.map((candidate) => (
-              <label key={candidate.placement} style={fieldStyle}>
-                {candidate.label}
-                <input
-                  value={awardRecipients[candidate.placement] || ''}
-                  onChange={(event) => updateAwardRecipient(candidate.placement, event.target.value)}
-                  placeholder={candidate.placement === 'third' ? 'Enter 3rd place finisher' : 'Winner name'}
-                  style={inputStyle}
-                />
-                <span style={smallNoteStyle}>{candidate.helperText}</span>
-                {candidate.recipientOptions.length ? (
-                  <span style={awardChoiceRowStyle}>
-                    {candidate.recipientOptions.map((option) => (
-                      <button
-                        key={`${candidate.placement}-${option}`}
-                        type="button"
-                        onClick={() => updateAwardRecipient(candidate.placement, option)}
-                        style={{
-                          ...awardChoiceButtonStyle,
-                          ...(awardRecipients[candidate.placement] === option ? awardChoiceButtonActiveStyle : null),
-                        }}
-                      >
-                        {option}
-                      </button>
-                    ))}
+            {awardCandidates.map((candidate) => {
+              const fieldId = `award-recipient-${candidate.placement}`
+              const recipient = awardRecipients[candidate.placement] || ''
+              const playerId = getTiqTournamentAwardPlayerId(selectedRecord.entrantPlayerIds, recipient)
+              return (
+                <div key={candidate.placement} style={fieldStyle}>
+                  <label htmlFor={fieldId}>{candidate.label}</label>
+                  <input
+                    id={fieldId}
+                    aria-describedby={`${fieldId}-help ${fieldId}-delivery`}
+                    value={recipient}
+                    onChange={(event) => updateAwardRecipient(candidate.placement, event.target.value)}
+                    placeholder={candidate.placement === 'third' ? 'Enter 3rd place finisher' : 'Winner name'}
+                    style={inputStyle}
+                  />
+                  <span id={`${fieldId}-help`} style={smallNoteStyle}>{candidate.helperText}</span>
+                  <span id={`${fieldId}-delivery`} style={smallNoteStyle}>
+                    {recipient.trim() ? getTiqAwardDeliveryLabel(playerId, Boolean(userId)) : 'Choose a recipient to check delivery.'}
                   </span>
-                ) : null}
-              </label>
-            ))}
+                  {candidate.recipientOptions.length ? (
+                    <div style={awardChoiceRowStyle}>
+                      {candidate.recipientOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => updateAwardRecipient(candidate.placement, option)}
+                          aria-pressed={recipient === option}
+                          style={{
+                            ...awardChoiceButtonStyle,
+                            ...(recipient === option ? awardChoiceButtonActiveStyle : null),
+                          }}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
           </div>
 
           <div style={actionRowStyle}>
