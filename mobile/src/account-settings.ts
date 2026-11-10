@@ -9,7 +9,7 @@ import {html} from './match-details'
 import {accountLinksHtml,bindAccountLinks,showPasswordRecovery} from './account-actions'
 import {showEmailAuth} from './email-auth'
 import {loadBillingPortal,readAccountSettings,type AccountSettings} from './account-settings-data'
-export function openAccountSettings(client:SupabaseClient,owner:string,current:()=>boolean,logOut:()=>Promise<void>,opener?:HTMLElement){
+export function openAccountSettings(client:SupabaseClient,owner:string,current:()=>boolean,logOut:()=>Promise<void>,opener?:HTMLElement,openTrophies?:()=>void){
  const previous=opener??(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog'),host=document.createElement('div'),close=document.createElement('button')
  host.className='account-settings-body';dialog.className='account-settings-dialog';dialog.setAttribute('aria-label','Account settings');close.type='button';close.className='secondary account-dialog-close';close.textContent='Done';close.setAttribute('aria-label','Close account settings');const toolbar=document.createElement('div'),logout=document.createElement('button'),logoutError=document.createElement('p');toolbar.className='account-settings-toolbar';logout.type='button';logout.className='secondary';logout.textContent='Log out';logout.dataset.accountLogout='';logoutError.setAttribute('role','alert');logoutError.dataset.accountLogoutError='';toolbar.append(close,logout);dialog.append(toolbar,logoutError,host)
  const sectionPrefix='account-'+crypto.randomUUID()
@@ -29,6 +29,12 @@ export function openAccountSettings(client:SupabaseClient,owner:string,current:(
   const pending=data.request
   host.innerHTML=`<header class="account-overview"><h1 tabindex="-1">Your account</h1><p class="account-email">${html(data.email)}</p></header><nav class="account-section-links" aria-label="Account sections"></nav><section class="account-access-panel" data-account-access data-account-section="tools" aria-label="Your tennis tools"></section><section class="apple-membership-panel" data-apple-membership data-account-section="membership" aria-label="Apple membership"></section><section class="account-controls" data-account-section="controls" aria-label="Account controls"><h2>Account controls</h2><div class="account-action-list"><button type="button" class="secondary" data-password><span>Reset password</span>${nativeActionIcon('down')}</button><button type="button" class="secondary" data-billing><span>Manage existing web billing</span>${nativeActionIcon('down')}</button><button type="button" class="secondary" data-delete><span>${pending?'Deletion request status':'Delete account'}</span>${nativeActionIcon('down')}</button></div><p role="alert" data-account-error></p>${pending?requestHtml(pending):''}</section>${accountLinksHtml}`
   accessPanel=mountAccountAccess(host.querySelector<HTMLElement>('[data-account-access]')!,client,owner,()=>valid()&&pane==='settings')
+  if(openTrophies&&!pending){
+   const trophyButton=document.createElement('button')
+   trophyButton.type='button';trophyButton.className='secondary';trophyButton.textContent='Open Trophy Case'
+   trophyButton.onclick=()=>{if(valid())openTrophies()}
+   host.querySelector('.account-overview')!.append(trophyButton)
+  }
   applePanel=mountAppleMemberships(host.querySelector<HTMLElement>('[data-apple-membership]')!,client,owner,()=>valid()&&pane==='settings',()=>accessPanel?.refresh())
   if(!pending){
    const lockHost=document.createElement('section');lockHost.className='account-access-panel';lockHost.setAttribute('aria-label','Face ID sign-in');lockHost.dataset.accountSection='signin';host.querySelector('[data-account-section=controls]')!.before(lockHost)

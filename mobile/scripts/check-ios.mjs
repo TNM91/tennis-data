@@ -71,7 +71,7 @@ if(firstParty){
   if(fullApp){
     assert.deepEqual(JSON.parse(scope),{profile:'first-party-full',version:1})
     for(const file of ['app.js','release-scope.json'])assert.equal(await read('App/public/'+file),await readFile(new URL('bundled/'+file,root),'utf8'))
-    for(const route of ['competitions','tournaments','team-rooms','team-invites','calendar','updates'])assert.ok(app.includes('/api/mobile/first-party/'+route),'Missing scoped '+route+' route')
+    for(const route of ['competitions','tournaments','team-rooms','team-invites','calendar','updates','setup'])assert.ok(app.includes('/api/mobile/first-party/'+route),'Missing scoped '+route+' route')
   }else assert.equal(scope,null,'A first-party bundle must use its dedicated signing profile')
   for (const name of ['AparajitaCapacitorSecureStorage', 'CapacitorApp', 'CapacitorBrowser', 'CapacitorPushNotifications', 'CapacitorCamera', 'CapacitorShare', 'CapacitorClipboard']) assert.ok(spm.includes(name), `Missing ${name}`)
   assert.match(await read('App/Push.entitlements'), /<key>aps-environment<\/key><string>development<\/string>/)

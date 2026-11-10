@@ -497,6 +497,16 @@ body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.0
 }
 .captain-court-progress p { flex-basis:100%;margin:0;color:var(--premium-copy);font-size:.875rem; }
 .captain-court-progress button.secondary { inline-size:auto;max-inline-size:100%;min-block-size:44px;margin:0;padding:8px 10px;font-size:.875rem; }
+.lab-trophy-case,.chat-team-setup {
+ margin-block:16px;padding:12px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-inset);overflow-wrap:anywhere;
+}
+:is(.lab-trophy-case,.chat-team-setup)>summary { min-block-size:44px;padding-block:8px;cursor:pointer; }
+.lab-trophy-case summary span,.setup-trophy-card li small { display:block;color:var(--premium-copy);font-size:.8125rem; }
+.setup-trophy-card { margin-block:12px;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius); }
+.setup-trophy-card h3,.setup-trophy-card p { margin-block:4px; }
+.setup-trophy-card li { margin-block:8px; }
+.setup-trophy-card progress { inline-size:100%;accent-color:var(--premium-lime); }
 [data-recent-opponents] summary { min-block-size:44px;padding-block:10px;cursor:pointer; }
 [data-recent-opponents] button.secondary { overflow-wrap:anywhere; }
 .lab-saved-scorecards { display:grid;gap:8px;list-style:none;margin:0;padding:0; }

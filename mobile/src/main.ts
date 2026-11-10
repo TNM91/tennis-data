@@ -32,6 +32,7 @@ import type {TeamChatDestination} from './team-room-data'
 import {nativeActionIcon} from './native-action-icons'
 import websiteUi from '../generated/website-ui.json'
 import {mountLabRecentForm} from './lab-recent-form'
+import {mountSetupTrophyCase} from './setup-trophy-case'
 import {mountPersonalMatchLog,type PersonalMatchFormSession} from './personal-match-view'
 import type {CalendarScorecardSeed} from './personal-match-data'
 import {labLevelPathHtml} from './lab-level-path'
@@ -93,7 +94,8 @@ accountEntry.onclick=()=>launchAccount(accountEntry)
 function launchAccount(trigger:HTMLButtonElement){
  if(!session||!trigger.isConnected||accountSettings?.isOpen()||competitions?.isOpen()||tournaments?.isOpen()||connection?.isSaving())return
  const owner=session.user.id,visit=revision
- accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner),trigger)
+ accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner),trigger,
+  firstPartyBuild?()=>{accountSettings?.dispose();accountSettings=null;guardNavigation(()=>{void lab('trophies')})}:undefined)
 }
 let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof import('./data-imports-view').openDataImports>|null=null
@@ -590,7 +592,7 @@ const nativePurchases=applePurchases(client)
 const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
 function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
-async function lab(entry?:'coach'|PlayerLink|{scorecard:CalendarScorecardSeed}) {
+async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScorecardSeed}) {
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
@@ -745,7 +747,15 @@ async function lab(entry?:'coach'|PlayerLink|{scorecard:CalendarScorecardSeed}) 
       bindAppDestinations(shortcuts,openDestination)
       const matchLog = document.createElement('div')
       shortcuts.after(matchLog)
-      mountPersonalMatchLog(matchLog,client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,personalMatchForm,scorecard)
+      const active = () => version===revision&&current.user.id===session?.user.id
+      mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,scorecard)
+      const trophies = document.createElement('div')
+      matchLog.after(trophies)
+      mountSetupTrophyCase(trophies,client,current.user.id,active,(action,button)=>{
+        if(action==='chats')openTeamRoom()
+        else if(action==='scorecard')matchLog.querySelector<HTMLButtonElement>('[data-log-match]')?.click()
+        else openDestination(action,button)
+      },entry==='trophies')
       if(entry==='coach')shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')?.focus()
       return
     }

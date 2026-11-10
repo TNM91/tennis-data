@@ -67,16 +67,25 @@ const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},
 const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
 const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false}
+const setupFixture={done:[] as string[],requests:0}
 const captainInvitesEnabled=new URL(location.href).searchParams.has('captain-invites')
 let captainInvite:{id:string;token:string;expiresAt:string;revokedAt:string|null;acceptedCount:number;active:boolean}|null=null
 const firstPartyTeamMessages=[{id:'66666666-6666-4666-8666-666666666666',senderUserId:'77777777-7777-4777-8777-777777770E4A',senderName:'Teammate 0E4A',body:'Anyone up for a hit on Friday?',kind:'message',createdAt:'2026-11-06T10:00:00.000Z',isMine:false}]
-Object.assign(window,{firstPartyTeamFixture})
+Object.assign(window,{firstPartyTeamFixture,setupFixture})
 Object.assign(window,{chatUnreadFixture,matchDayFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPaths,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,firstPartyUpdatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture,labDataReads,personalMatchFixture})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
  if(url.pathname==='/api/mobile/first-party/updates')return firstPartyUpdatesPreview(init?.method||'GET',url,init?.body,currentNavigationOwner())
+ if(url.pathname==='/api/mobile/first-party/setup'){
+  setupFixture.requests++
+  return Response.json({ok:true,owner:currentNavigationOwner(),releaseScope:'first-party',
+   tracks:[{tier:'free',done:['account']},{tier:'captain',done:setupFixture.done}]})
+ }
+ if(url.pathname==='/api/mobile/account'&&(!init?.method||init.method==='GET'))return Response.json({
+  ok:true,email:'captain@example.test',fulfillment:'automated',reviewDays:7,verificationRequired:false,request:null,
+ })
  if(url.pathname.includes('/calendar'))calendarPaths.push(url.pathname)
  if(/^\/api\/(team-rooms(?:\/|$)|mobile\/(team-invites|captain\/invites|chats\/unread)$)/.test(url.pathname))firstPartyTeamFixture.integratedReads++
  if(url.pathname==='/api/mobile/first-party/team-rooms'){
