@@ -26,7 +26,11 @@ on:
         default: standard
         options: [standard, first-party]
       check_testflight:
-        description: Read App Store Connect status for the offline build 255
+        description: Check App Store Connect status for the offline build 255
+        type: boolean
+        default: false
+      assign_t1:
+        description: When checking build 255, add it to the existing internal T1 group if needed
         type: boolean
         default: false
 permissions:
@@ -37,7 +41,7 @@ concurrency:
 jobs:
   signed:
     if: >-
-      github.repository == 'TNM91/tennis-data' && !inputs.check_testflight &&
+      github.repository == 'TNM91/tennis-data' && !inputs.check_testflight && !inputs.assign_t1 &&
       ((inputs.profile == 'standard' &&
         (github.ref == 'refs/heads/master' || (github.ref == 'refs/heads/codex/apple-mobile-build' && inputs.distribution == 'internal')) &&
         (inputs.distribution == 'internal' || (inputs.distribution == 'app-store' && inputs.upload))) ||
@@ -201,10 +205,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Read build 255 and its internal tester group
+      - name: Check build 255 and its internal tester group
         env:
           API_KEY: ${{ secrets.APPLE_UPLOAD_API_KEY_P8_BASE64 }}
           API_KEY_ID: ${{ secrets.APPLE_UPLOAD_API_KEY_ID }}
           API_ISSUER: ${{ secrets.APPLE_UPLOAD_API_ISSUER_ID }}
+          TIQ_ASSIGN_T1: ${{ inputs.assign_t1 }}
         run: node mobile/scripts/check-offline-testflight.mjs
 
