@@ -47,6 +47,18 @@ async function useFirstPartyNavigation(page:Page) {
  await page.route(origin+'/app.js',route=>route.fulfill({contentType:'text/javascript',body:previewScript}))
 }
 
+async function recordScorecardCopies(page: Page, failFirst = false) {
+ await page.evaluate(fail => {
+  const copies: string[] = []
+  let deny = fail
+  Object.assign(window,{scorecardCopies:copies})
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{
+   if (deny) { deny = false; throw Error('Clipboard unavailable') }
+   copies.push(text)
+  }}})
+ },failFirst)
+}
+
 test('first-party My Lab opens account notes and training without a linked player',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?unlinked=1')
@@ -73,6 +85,7 @@ test('first-party My Lab opens account notes and training without a linked playe
 test('first-party match log retries one scorecard and updates My Lab from the saved result', async ({page}) => {
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?unlinked=1')
+ await recordScorecardCopies(page,true)
  await page.evaluate(() => {
   const fixture = (window as unknown as { personalMatchFixture: { loseReceipt: boolean } }).personalMatchFixture
   fixture.loseReceipt = true
@@ -105,6 +118,14 @@ test('first-party match log retries one scorecard and updates My Lab from the sa
  const backToLog=page.getByRole('button',{name:'Back to match log',exact:true})
  await recentWin.click()
  await expect(page.getByRole('heading',{name:'Casey <Rally>',exact:true})).toBeFocused()
+ const copy=page.getByRole('button',{name:'Copy scorecard',exact:true})
+ await copy.click()
+ await expect(page.getByText('Couldn’t copy this scorecard. Try again.',{exact:true})).toBeVisible()
+ await copy.click()
+ await expect(page.getByText('Scorecard copied.',{exact:true})).toBeVisible()
+ expect(await page.evaluate(() => (window as unknown as {scorecardCopies:string[]}).scorecardCopies)).toEqual([
+  expect.stringMatching(/^Singles vs Casey <Rally>\n[^\n]+ · Won\nScore 6-4 7-6\(5\)$/),
+ ])
  await backToLog.click()
  await expect(recentWin).toBeFocused()
  const search=page.getByRole('searchbox',{name:'Search loaded scorecards',exact:true})
@@ -358,6 +379,7 @@ test('first-party rematches leave the original calendar scorecard linked', async
 test('first-party captain doubles corrections survive a lost receipt and count once', async ({page}) => {
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?captain-courts=retry-correction')
+ await recordScorecardCopies(page)
  const nav=page.getByRole('navigation',{name:'Main navigation'})
  const league=page.getByRole('dialog',{name:'Competitions',exact:true})
  const court=page.getByRole('dialog',{name:'Court scores',exact:true})
@@ -416,6 +438,11 @@ test('first-party captain doubles corrections survive a lost receipt and count o
  await expect(court.getByText(/Score posted to the confirmed players/)).toBeVisible()
  await court.getByRole('button',{name:'Log my score in My Lab',exact:true}).click()
  await expect(posted.getByText('4-6 3-6',{exact:true})).toBeVisible()
+ await posted.getByRole('button',{name:'Copy scorecard',exact:true}).click()
+ await expect(posted.getByText('Scorecard copied.',{exact:true})).toBeVisible()
+ expect(await page.evaluate(() => (window as unknown as {scorecardCopies:string[]}).scorecardCopies)).toEqual([
+  expect.stringMatching(/^Doubles vs Rally Crew\n[^\n]+ · Lost\nScore 4-6 3-6\nCaptain posted · Court 1\nScore order Baseline Aces – Rally Crew$/),
+ ])
  await expect(form.getByText('0W · 1L',{exact:true}).first()).toBeVisible()
  const captainRow=page.getByRole('button',{name:'Open scorecard for Rally Crew',exact:true})
  await expect(captainRow).toHaveCount(1)

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { Clipboard } from '@capacitor/clipboard'
 import { localCalendarDate } from './calendar-data'
 import { mountPersonalRecentForm } from './lab-recent-form'
 import { html } from './match-details'
@@ -13,6 +14,15 @@ const formatName = (format: PersonalMatch['format']) => format === 'singles' ? '
 type LogScorecard = PersonalMatch | PostedCourtScorecard
 type UnsubmittedScorecard = { match_date: string; opponent: string; format: string; outcome: string; score: string }
 export type PersonalMatchFormSession = { unsubmitted?: UnsubmittedScorecard }
+
+const scorecardCopyControls = `<button type="button" class="secondary" data-copy-scorecard>Copy scorecard</button>
+  <p role="status" data-scorecard-copy-status hidden></p>`
+
+function scorecardCopyText(match: LogScorecard) {
+  const lines = [`${formatName(match.format)} vs ${match.opponent}`, `${matchDate(match.match_date)} · ${match.outcome}`, `Score ${match.score}`]
+  if ('scoreOrder' in match) lines.push(`Captain posted · Court ${match.court}`, `Score order ${match.scoreOrder}`)
+  return lines.join('\n')
+}
 
 function savedScorecardRow(match: LogScorecard, index: number) {
   const captain = 'scoreOrder' in match
@@ -161,6 +171,29 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     }
   }
 
+  function bindScorecardActions(match: LogScorecard) {
+    editor.querySelector<HTMLElement>('h3')!.focus()
+    editor.querySelector<HTMLButtonElement>('[data-close-scorecard]')!.onclick = closeEditor
+    const copy = editor.querySelector<HTMLButtonElement>('[data-copy-scorecard]')!
+    const feedback = editor.querySelector<HTMLElement>('[data-scorecard-copy-status]')!
+    const visible = () => active() && copy.isConnected
+    let copying = false
+    copy.onclick = async () => {
+      if (!visible() || copying) return
+      copying = true
+      feedback.hidden = false
+      feedback.textContent = 'Copying scorecard…'
+      try {
+        await Clipboard.write({ string: scorecardCopyText(match) })
+        if (visible()) feedback.textContent = 'Scorecard copied.'
+      } catch {
+        if (visible()) feedback.textContent = 'Couldn’t copy this scorecard. Try again.'
+      } finally {
+        copying = false
+      }
+    }
+  }
+
   function showScorecard(match: LogScorecard, ownEntry?: PersonalMatch | null) {
     if (!active() || writing || !match) return
     history.hidden = formHost.hidden = false
@@ -171,10 +204,10 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         <h3 tabindex="-1">${html(match.opponent)}</h3><p>Captain posted · Court ${match.court}</p>
         <p>${html(matchDate(match.match_date))} · ${formatName(match.format)} · ${match.outcome}</p>
         <p><strong>${html(match.score)}</strong><br>${html(match.scoreOrder)} score order</p>
+        ${scorecardCopyControls}
         ${personal ? '<button type="button" class="secondary" data-personal-copy>View your private entry</button>' : ''}
         <button type="button" class="secondary" data-close-scorecard>Back to match log</button></article>`
-      editor.querySelector<HTMLElement>('h3')!.focus()
-      editor.querySelector<HTMLButtonElement>('[data-close-scorecard]')!.onclick = closeEditor
+      bindScorecardActions(match)
       const copy = editor.querySelector<HTMLButtonElement>('[data-personal-copy]')
       if (copy && personal) copy.onclick = () => showScorecard(personal)
       return
@@ -185,15 +218,15 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       ${match.calendar_match_id ? '<p>From your TenAceIQ calendar</p>' : ''}
       <p><strong>${html(match.score)}</strong></p>
       <button type="button" class="secondary" data-log-rematch ${reading ? 'disabled' : ''}>Log a rematch</button>
+      ${scorecardCopyControls}
       <button type="button" class="secondary" data-edit-match>Edit scorecard</button>
       <button type="button" class="secondary" data-remove-match>Remove scorecard</button>
       <button type="button" class="secondary" data-close-scorecard>Back to match log</button>
     </article>`
-    editor.querySelector<HTMLElement>('h3')!.focus()
+    bindScorecardActions(match)
     editor.querySelector<HTMLButtonElement>('[data-log-rematch]')!.onclick = () => showEditor(null, { previous: match })
     editor.querySelector<HTMLButtonElement>('[data-edit-match]')!.onclick = () => showEditor(match)
     editor.querySelector<HTMLButtonElement>('[data-remove-match]')!.onclick = () => confirmRemoval(match)
-    editor.querySelector<HTMLButtonElement>('[data-close-scorecard]')!.onclick = closeEditor
   }
 
   function closeEditor() {
