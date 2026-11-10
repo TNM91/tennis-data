@@ -23,6 +23,9 @@ export type CalendarIntent=
  |{action:'delete';id:string;expectedUpdatedAt:string}
  |{action:'respond';eventId:string;response:'available'|'unavailable';snapshot:{title:string;date:string;time:string;location:string};expectedResponseUpdatedAt:string;requestId:string}
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const nativePersonalId=new RegExp('^player-calendar-'+uuid.source.slice(1,-1)+'$','i')
+// The web My Lab uses a timestamp ID for manual entries. Imported schedules and message quick-add use separate IDs.
+export const firstPartyPersonalCalendarId=(id:string)=>nativePersonalId.test(id)||/^calendar-\d{13}-[0-9a-f]+$/i.test(id)
 export function calendarObject(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Refresh your calendar and try again.');return value as Record<string,unknown>}
 export function calendarText(value:unknown,max=300){if(typeof value!=='string'||value.length>max||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value))throw Error('Choose a shorter calendar value.');return value.trim()}
 export function calendarId(value:unknown){const id=calendarText(value,300);if(!id||/[\r\n]/.test(id))throw Error('Choose a saved calendar entry.');return id}
@@ -43,7 +46,7 @@ export function calendarIntent(value:unknown):CalendarIntent{
  const r=calendarObject(value)
  if(r.action==='create'||r.action==='update'){
   keys(r,['action','item','expectedUpdatedAt']);const item=calendarDraft(r.item)
-  if(r.action==='create'&&!new RegExp('^player-calendar-'+uuid.source.slice(1,-1)+'$','i').test(item.id))throw Error('Start a new calendar entry.')
+  if(r.action==='create'&&!nativePersonalId.test(item.id))throw Error('Start a new calendar entry.')
   return {action:r.action,item,expectedUpdatedAt:r.action==='update'?calendarRevision(r.expectedUpdatedAt):''}
  }
  if(r.action==='delete'){keys(r,['action','id','expectedUpdatedAt']);return {action:'delete',id:calendarId(r.id),expectedUpdatedAt:calendarRevision(r.expectedUpdatedAt)}}

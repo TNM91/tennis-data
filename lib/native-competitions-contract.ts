@@ -1,6 +1,7 @@
 import {lineupRecord} from './native-captain-lineup-contract'
 import {readOfficeSnapshot,type OfficeSnapshot} from './native-league-office-contract'
 export type CompetitionScope='discover'|'mine'
+export const publicCompetitionOwner='public-competitions'
 export type CompetitionConnection={leagueId:string;kind:'player'|'team'|'organizer';status:'active'|'pending'}
 export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean}
 export function competitionInput(scope:string,query:string,selected:string){
