@@ -72,7 +72,7 @@ Both tracks use the existing TenAceIQ App Store record. In TestFlight, open TenA
 | Track | TestFlight baseline | Release condition |
 | --- | --- | --- |
 | Integrated TenAceIQ | [1.0 (254)](https://github.com/TNM91/tennis-data/actions/runs/42731383414), `codex/apple-mobile-build` | Obtain written permission covering the integrated data and verify that the candidate and store disclosures match that permission. |
-| First-party fallback | [1.0 (255)](https://github.com/TNM91/tennis-data/actions/runs/42754005907), `codex/ios-first-party-release` | Use TenAceIQ content and records the product can publish independently. Build 255 passed the owner's iPhone offline check and serves as the starting point for this track. |
+| First-party fallback | [1.0 (255)](https://github.com/TNM91/tennis-data/actions/runs/42754005907), `codex/ios-first-party-release` | Use TenAceIQ content and records the product can publish independently. Build 255 passed the owner's iPhone offline check. The current candidate uses the full app described below. |
 
 Both baselines are internal TestFlight builds. Submit the selected track from a separate App Store–eligible archive with matching screenshots, privacy disclosures, and App Review notes. [Apple distribution options](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases/)
 
@@ -80,12 +80,24 @@ Both baselines are internal TestFlight builds. Submit the selected track from a 
 
 - **Available in build 255.** Offline drills, a timer, self-entered matches and recent form.
 - **Full-app candidate.** `npm --prefix mobile run build:bundled -- --first-party-preview` builds the integrated app shell and assets into `.next/mobile-first-party-preview`. The preview omits external uploads and imports, skips the imported ratings and match history reads in My Lab, and sends tournament browsing to the signed-in `GET /api/mobile/first-party/tournaments` feed for approved records. Tournament registration and saved entries are held until their separate routes enforce the same scope.
-- **Carry over after isolating connected reads.** Coach invites and direct coach-player messages have dedicated account-scoped routes. Team chat shares routes with fixtures and lineups. Keep first-party conversations and the existing safety controls, and scope fixture cards, profile lookups and roster data separately.
+- **Chats.** Coach invites and direct coach-player messages use their dedicated account routes. Team chat and team invites use the reviewed team routes described below. Compete → My Teams opens the same conversation as Chats.
 - **Hold for verified rights and data scope.** External imports, imported directory and match history, and ratings computed from those records. The fallback bundle and its server endpoints should enforce the scope before returning data. Hiding a screen alone leaves other paths to the same data.
 
 Explore and Compete share the reviewed TenAceIQ league feed. Guests can browse approved public leagues. Signed-in users can also see their own submissions and seasons they organize. Explore holds player search, team search and rankings until those views have first-party sources. League registration and League Office use separate routes.
 
 My Lab opens from the signed-in account. Saved training, coaching and the private training notebook work without a linked player. New notebook goals stay in an account scope separate from existing player-linked goals. Following, Matchup and shared scorecards remain on hold until their data has a first-party source.
+
+#### Review a team conversation
+
+Confirm the team and league names, flight, and exact General conversation UUID against the TenAceIQ team record. Review what the room has been used for, including its existing messages. Use the server-only `TIQ_FIRST_PARTY_TEAM_ROOMS` setting for approved rooms. This example uses fictional data.
+
+```json
+[{"teamName":"Baseline Aces","leagueName":"City League","flight":"4.0","roomId":"10000000-0000-4000-8000-000000000002"}]
+```
+
+The candidate shows approved teams only to members with an active invite or TenAceIQ entry and checks room membership on conversation reads and writes. Team invites must match the approved team and exact room. If the setting is empty, there are no team conversations or usable team invites in the candidate. Remove the approval to withdraw the conversation from the first-party feed.
+
+Approved chats support text, replies, reactions, read position, manual refresh, reports and blocks. Teammate labels use account-based aliases. The candidate holds attachments, named rooms, push registration, team plans and match cards, roster details, and captain tools pending separate data checks. Before distributing a signed candidate, verify what happens to existing push registrations when upgrading from the integrated build on the same iPhone.
 
 The full-app preview is for local verification with synthetic data. It has no signing target or workflow option. Before packaging it, scope the League Office and entry paths, team data and related links, then verify the network boundary on an iPhone. Build 255 remains the offline TestFlight baseline.
 

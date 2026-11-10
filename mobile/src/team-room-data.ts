@@ -4,6 +4,8 @@ import {readTeamChatCursor,teamChatMessageId} from '../../lib/team-chat-cursor'
 import {parseChatReactions,type ChatReaction} from './chat-reactions'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
+import {firstPartyBuild} from './build-scope'
+import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 export class TeamRoomAccessError extends Error {}
 export type TeamScope={teamName:string;leagueName:string;flight:string;chatRoomId?:string}
 export type TeamChatDestination=TeamScope & {messageId?:string}
@@ -11,7 +13,7 @@ export type ReplacementRequest={courtLabel:string;outgoingPlayerName:string;repl
 export function parseReplacement(value:unknown):ReplacementRequest|null{const row=record(value);if(!str(row.courtLabel)||!str(row.replacementPlayerName)||!Array.isArray(row.afterPlayers)||!/^[a-f0-9]{64}$/.test(str(row.token)))return null;const response=row.response==='accepted'||row.response==='declined'?row.response:'';return {courtLabel:str(row.courtLabel).slice(0,80),outgoingPlayerName:str(row.outgoingPlayerName).slice(0,120),replacementPlayerName:str(row.replacementPlayerName).slice(0,120),afterPlayers:row.afterPlayers.filter((v):v is string=>typeof v==='string').slice(0,4).map(v=>v.slice(0,120)),response,deadlineAt:str(row.deadlineAt).slice(0,40),token:str(row.token),canRespond:row.canRespond===true&&!response}}
 export type TeamMessage={mentions?:ChatMention[];editedAt?:string;canManageOwn?:boolean;response?:string;hasPhoto?:boolean;isGif?:boolean;reactions?:ChatReaction[];id:string;senderUserId:string;senderName:string;body:string;kind:string;createdAt:string;deletedAt:string;isMine:boolean;replyToMessageId:string;hasAttachment:boolean;card:{availabilityReady?:boolean;replacement?:ReplacementRequest|null;cardType?:string;lineupVersion?:number;acknowledged?:boolean;completed?:boolean;published?:boolean;arrivals?:{profileId:string;status:string;playerName:string;courtLabel:string}[];matchDate:string;opponent:string;facility:string;matchTime:string;state:string;lineup:{label:string;players:string[];defaulted:boolean}[]}|null}
 export type NativeTeamRoom=TeamScope & {chatRoom?:NamedChatRoom;canManage?:boolean;id:string;subject:string;messages:TeamMessage[];members:{id?:string;playerName?:string;name:string;roles:string[]}[];finalLineupReview?:{announcementMessageId:string;currentUserRequired:boolean;currentUserSeen:boolean}|null;nextMatch:{matchDate:string;matchTime:string;opponent:string;facility:string}|null;activeCardId:string;activeCard:TeamMessage|null;muted:boolean;chatReady:boolean;lastReadAt:string;blockedMembers:{id:string;name:string}[]}
-export type NativeTeamData={teams:TeamScope[];room:NativeTeamRoom|null}
+export type NativeTeamData={teams:TeamScope[];room:NativeTeamRoom|null;nextCursor?:string}
 const record=(value:unknown):Record<string,unknown>=>value && typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{}
 const str=(value:unknown)=>typeof value==='string'?value:''
 const array=(value:unknown)=>Array.isArray(value)?value:[]
@@ -36,31 +38,36 @@ export function parseTeamData(value:unknown):NativeTeamData {
 export async function loadTeamRoom(client:SupabaseClient,userId:string,isCurrent:()=>boolean,selected?:TeamScope,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options)) {
  const {data,error}=await client.auth.getSession()
  if(error || !data.session || data.session.user.id!==userId || !isCurrent())throw Error('Sign in again to open your team.')
- const url=new URL('https://www.tenaceiq.com/api/team-rooms')
- url.searchParams.set('read','0')
+ if(firstPartyBuild&&selected?.chatRoomId)throw new TeamRoomAccessError('Team access is unavailable.')
+ const url=new URL(firstPartyBuild?firstPartyTeamRooms:'https://www.tenaceiq.com/api/team-rooms')
+ if(!firstPartyBuild)url.searchParams.set('read','0')
  if(selected){url.searchParams.set('team',selected.teamName);url.searchParams.set('league',selected.leagueName);url.searchParams.set('flight',selected.flight);if(selected.chatRoomId)url.searchParams.set('chatRoom',selected.chatRoomId)}
  const response=await send({url:url.toString(),headers:{Authorization:`Bearer ${data.session.access_token}`},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000})
  if(response.status===401 || response.status===403)throw new TeamRoomAccessError('Team access is unavailable.')
- if(response.status!==200)throw Error('Team Room unavailable')
+ if(response.status!==200||!isCurrent()||!matchesTeamReleaseScope(response.data,userId))throw Error('Team Room unavailable')
  const parsed=parseTeamData(response.data)
  if(selected?.chatRoomId&&parsed.room?.chatRoom?.id!==selected.chatRoomId||!selected?.chatRoomId&&parsed.room?.chatRoom)throw Error('Conversation scope mismatch')
  if(selected && parsed.room && (parsed.room.teamName!==selected.teamName || parsed.room.leagueName!==selected.leagueName || parsed.room.flight!==selected.flight))throw Error('Team scope mismatch')
- return parsed
+ if(!firstPartyBuild||!parsed.room)return parsed
+ const nextCursor=str(record(response.data).nextCursor)
+ if(nextCursor&&!readTeamChatCursor(nextCursor))throw Error('Invalid conversation page')
+ return {...parsed,nextCursor}
 }
 export async function loadTeamChatUpdate(client:SupabaseClient,userId:string,isCurrent:()=>boolean,selected:TeamScope,roomId:string,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options),before='',focus='') {
  if(focus&&(!teamChatMessageId(focus)||before))throw Error('Invalid conversation message')
  if(before && !readTeamChatCursor(before))throw Error('Invalid conversation page')
  const {data,error}=await client.auth.getSession()
  if(error || data.session?.user.id!==userId || !isCurrent())throw Error('Sign in again to open your team.')
- const url=new URL('https://www.tenaceiq.com/api/team-rooms/chat')
- for(const [key,value] of [['team',selected.teamName],['league',selected.leagueName],['flight',selected.flight],['chatUpdates','1']])url.searchParams.set(key,value)
+ if(firstPartyBuild&&selected.chatRoomId)throw new TeamRoomAccessError('Team access is unavailable.')
+ const url=new URL(firstPartyBuild?firstPartyTeamRooms:'https://www.tenaceiq.com/api/team-rooms/chat')
+ for(const [key,value] of [['team',selected.teamName],['league',selected.leagueName],['flight',selected.flight],firstPartyBuild?['op','updates']:['chatUpdates','1']])url.searchParams.set(key,value)
  if(selected.chatRoomId)url.searchParams.set('chatRoom',selected.chatRoomId)
  if(before)url.searchParams.set('before',before)
  if(focus)url.searchParams.set('focus',focus)
  const response=await send({url:url.toString(),headers:{Authorization:`Bearer ${data.session.access_token}`},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000})
  if(response.status===401 || response.status===403)throw new TeamRoomAccessError('Team access is unavailable.')
  const root=record(response.data),room=record(root.room)
- if(response.status!==200 || root.ok!==true || root.chatUpdate!==true || !Array.isArray(room.blockedUserIds) || room.id!==roomId)throw Error('Conversation updates are unavailable.')
+ if(response.status!==200 || !isCurrent() || !matchesTeamReleaseScope(root,userId) || root.ok!==true || root.chatUpdate!==true || !Array.isArray(room.blockedUserIds) || room.id!==roomId)throw Error('Conversation updates are unavailable.')
  if((before || root.beforeCursor!==undefined) && root.beforeCursor!==before)throw Error('Conversation page mismatch')
  const focusCursor=typeof root.focusCursor==='string'?root.focusCursor:''
  if(focus&&(root.focusMessageId!==focus||readTeamChatCursor(focusCursor)?.id!==focus)||!focus&&(root.focusMessageId!==undefined||root.focusCursor!==undefined))throw Error('Conversation message mismatch')

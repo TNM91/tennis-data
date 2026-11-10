@@ -6,14 +6,18 @@ import type {TeamScope} from './team-room-data'
 import {chatMessageId,type ChatMessageView} from '../../lib/team-chat-message-contract'
 import {chatBodyHtml,openChatLink} from './chat-links'
 import {html} from './match-details'
+import {firstPartyBuild} from './build-scope'
+import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 export type ViewedChatMessage={id:string;senderName:string;body:string;kind:string;createdAt:string;editedAt:string;hasAttachment:boolean;truncated:boolean}
 export async function readChatMessage(client:SupabaseClient,owner:string,current:()=>boolean,scope:TeamScope,roomId:string,requestedId:string,view:ChatMessageView,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options)){
- if(!chatMessageId(requestedId))throw Error('Message unavailable.')
+ if(!chatMessageId(requestedId)||firstPartyBuild&&scope.chatRoomId)throw Error('Message unavailable.')
  const session=await client.auth.getSession();if(session.error||session.data.session?.user.id!==owner||!current())throw Error('Sign in again to view this message.')
- const url=new URL('https://www.tenaceiq.com/api/team-rooms/message');for(const [key,value] of Object.entries({team:scope.teamName,league:scope.leagueName,flight:scope.flight,message:requestedId,view}))url.searchParams.set(key,value)
+ const url=new URL(firstPartyBuild?firstPartyTeamRooms:'https://www.tenaceiq.com/api/team-rooms/message');for(const [key,value] of Object.entries({team:scope.teamName,league:scope.leagueName,flight:scope.flight,message:requestedId,view}))url.searchParams.set(key,value)
+ if(firstPartyBuild)url.searchParams.set('op','message')
  if(scope.chatRoomId)url.searchParams.set('chatRoom',scope.chatRoomId)
  const response=await send({url:url.href,headers:{Authorization:'Bearer '+session.data.session.access_token},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:12000});if(!current())throw Error('This team is no longer open.')
  const root=response.data,message=root?.message
+ if(!matchesTeamReleaseScope(root,owner))throw Error('Message unavailable.')
  if(response.status!==200||root?.ok!==true||root.messageView!==1||root.roomId!==roomId||root.requestedId!==requestedId||root.view!==view||!message||!chatMessageId(message.id)||view==='message'&&message.id!==requestedId||typeof message.body!=='string'||message.body.length>8000||typeof message.senderName!=='string'||message.senderName.length>120||!['message','announcement','system'].includes(message.kind)||typeof message.createdAt!=='string'||message.createdAt.length>64||typeof message.editedAt!=='string'||message.editedAt.length>64||typeof message.hasAttachment!=='boolean'||typeof message.truncated!=='boolean')throw Error('Message unavailable. It may have been removed or your team access may have changed.')
  return message as ViewedChatMessage
 }

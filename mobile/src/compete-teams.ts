@@ -2,8 +2,11 @@ import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {html} from './match-details'
 import type {TeamScope} from './team-room-data'
+import {firstPartyBuild} from './build-scope'
+import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 
 const actions={
+ chat:'Open chat',
  match:'Match day',
  plans:'Team plans',
  captain:'Captain tools',
@@ -18,14 +21,14 @@ async function loadCompeteTeams(client:SupabaseClient,owner:string,current:()=>b
  const {data,error}=await client.auth.getSession()
  if(error||data.session?.user.id!==owner||!current())throw Error('Team access unavailable')
  const response=await CapacitorHttp.get({
-  url:'https://www.tenaceiq.com/api/team-rooms/teams',
+  url:firstPartyBuild?firstPartyTeamRooms+'?op=teams':'https://www.tenaceiq.com/api/team-rooms/teams',
   headers:{Authorization:'Bearer '+data.session.access_token,'Cache-Control':'no-store'},
   responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000,
  })
  const fresh=await client.auth.getSession()
  if(fresh.error||fresh.data.session?.user.id!==owner||!current())throw Error('Team access changed')
  const payload=response.data as {ok?:boolean;owner?:string;teams?:unknown[]}|null
- if(response.status!==200||payload?.ok!==true||payload.owner!==owner||!Array.isArray(payload.teams))throw Error('Teams unavailable')
+ if(response.status!==200||payload?.ok!==true||payload.owner!==owner||!matchesTeamReleaseScope(payload,owner)||!Array.isArray(payload.teams))throw Error('Teams unavailable')
  const teams=new Map<string,CompeteTeam>()
  for(const item of payload.teams){
   const team=item as Partial<CompeteTeam>|null
@@ -58,7 +61,7 @@ export function mountCompeteTeams(section:HTMLElement,client:SupabaseClient,owne
    }
    list.innerHTML=teams.map((team,index)=>{
     const caption=[team.leagueName,team.flight].filter(Boolean).join(' · ')
-    const teamActions:CompeteTeamAction[]=team.canManage?['match','plans','captain']:['match','plans']
+    const teamActions:CompeteTeamAction[]=firstPartyBuild?['chat']:team.canManage?['match','plans','captain']:['match','plans']
     return `<article class="compete-team-card" aria-labelledby="compete-team-${index}">
      <h3 id="compete-team-${index}">${html(team.teamName)}</h3><p>${html(caption)}</p>
      <div class="compete-team-actions">${teamActions.map(action=>`<button type="button" class="secondary" data-compete-team="${index}" data-team-action="${action}" aria-label="${actions[action]} · ${html(team.teamName)} · ${html(caption)}">${actions[action]}</button>`).join('')}</div>

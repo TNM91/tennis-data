@@ -8,6 +8,7 @@ import {getNativeAuthStorage} from '../../lib/native-auth-storage'
 import {teamChatMessageId} from '../../lib/team-chat-cursor'
 import {nativeNotificationCleanup} from './native-notification-cleanup'
 import type {TeamChatDestination} from './team-room-data'
+import {firstPartyBuild} from './build-scope'
 import {pushCoachDestination} from './coach-alert-handoff'
 import type {ChatUnread} from './chat-unread'
 const storageKey='native-push-installation-v1'
@@ -31,7 +32,7 @@ export async function nativePushRequest(session:Session,data?:unknown,transport=
  return response.data
 }
 export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;clearDelivered?:()=>Promise<void>;setBadge?:(count:number)=>Promise<{applied:boolean}>;request?:(session:Session,data?:unknown)=>Promise<PushReply>;onCoachOpen?:(conversation:string,owner:string)=>void;onReceive?:(owner:string)=>void;mountCoachAlerts?:(host:HTMLElement)=>void}={}) {
- const supported=(deps.platform || Capacitor.getPlatform())==='ios'
+ const supported=!firstPartyBuild&&(deps.platform || Capacitor.getPlatform())==='ios'
  const plugin=deps.plugin || PushNotifications,storage=deps.storage || (supported?getNativeAuthStorage():undefined),request=deps.request || nativePushRequest
  const clearDelivered=deps.clearDelivered || (()=>nativeNotificationCleanup.clearDelivered()),setBadge=deps.setBadge || (count=>nativeNotificationCleanup.setBadge({count}))
  let disposed=false,resumeHandle:PluginListenerHandle|null=null,initialized=false,current:Session|null=null,version=0,host:HTMLElement|null=null,installation:Installation|null=null,available=false,busy=false,notice='Checking chat notifications…',actionHandle:PluginListenerHandle|null=null,receiptHandle:PluginListenerHandle|null=null

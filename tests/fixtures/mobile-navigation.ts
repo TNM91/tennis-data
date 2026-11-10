@@ -49,24 +49,49 @@ const matchDayFixture={enabled:new URL(location.href).searchParams.has('match-da
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
 const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
+const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false}
+const firstPartyTeamMessages=[{id:'66666666-6666-4666-8666-666666666666',senderUserId:'77777777-7777-4777-8777-777777770E4A',senderName:'Teammate 0E4A',body:'Anyone up for a hit on Friday?',kind:'message',createdAt:'2026-11-06T10:00:00.000Z',isMine:false}]
+Object.assign(window,{firstPartyTeamFixture})
 Object.assign(window,{chatUnreadFixture,matchDayFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture,labDataReads})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
+ if(/^\/api\/(team-rooms(?:\/|$)|mobile\/(team-invites|chats\/unread)$)/.test(url.pathname))firstPartyTeamFixture.integratedReads++
+ if(url.pathname==='/api/mobile/first-party/team-rooms'){
+  const op=url.searchParams.get('op')||'room',owner=currentNavigationOwner()
+  firstPartyTeamFixture.requests.push(op)
+  const base={ok:true,owner,releaseScope:firstPartyTeamFixture.unscoped?undefined:'first-party'}
+  if(op==='unread')return Response.json({...base,total:0,teams:[],coach:coachUnreadCounts(owner)})
+  const teams=chatTeams().map(team=>({...team,canManage:false}))
+  if(init?.method==='POST'){
+   const action=JSON.parse(String(init.body))
+   if(action.action==='mark_chat_read')return Response.json(base)
+   if(action.action!=='send')return Response.json({ok:false},{status:400})
+   firstPartyTeamFixture.posts.push(action.body)
+   const message={id:action.clientMessageId,senderUserId:owner,senderName:'You',body:action.body,kind:'message',createdAt:'2026-11-06T10:05:00.000Z',isMine:true,canManageOwn:true,replyToMessageId:action.replyToMessageId}
+   firstPartyTeamMessages.push(message)
+   return Response.json({...base,message})
+  }
+  const team=teams.find(item=>item.teamName===url.searchParams.get('team')&&item.leagueName===url.searchParams.get('league')&&item.flight===url.searchParams.get('flight'))
+  const room=team?{...team,id:chatRoomId,chatReady:true,lastReadAt:'2026-11-06T10:00:00.000Z',members:[],messages:firstPartyTeamMessages}:null
+  return Response.json({...base,teams,room,nextCursor:''})
+ }
  // Track tool-driven traffic separately from the independent live unread counter.
  if(url.pathname==='/api/mobile/chats/unread'){chatUnreadFixture.reads++;return Response.json(chatUnreadFixture.fail?{ok:false}:{ok:true,owner:currentNavigationOwner(),total:chatUnreadFixture.total,...(coachUnreadFixture.enabled?{coach:coachUnreadCounts(currentNavigationOwner())}:{}),teams:chatTeams().map((team,i)=>({...team,unread:i?0:chatUnreadFixture.total,...(chatUnreadFixture.detailed?{generalUnread:i?0:Math.min(2,chatUnreadFixture.total),rooms:i?[]:[{id:chatRoomId,name:chatUnreadFixture.roomName,unread:Math.max(0,chatUnreadFixture.total-2)}]}:{})}))},{status:chatUnreadFixture.fail?503:200})}
  fixtureState.requests++
- if(url.pathname==='/api/mobile/team-invites'){
+ if(url.pathname==='/api/mobile/team-invites'||url.pathname==='/api/mobile/first-party/team-invites'){
   const command=JSON.parse(String(init?.body))
+  const release=url.pathname.includes('/first-party/')?{releaseScope:'first-party',owner:currentNavigationOwner()}:{}
+  if(release.releaseScope)firstPartyTeamFixture.requests.push('invite:'+command.action)
   const scope={...chatTeam,roomId:chatRoomId,expiresAt:'2027-06-30T18:00:00Z'}
   const expected={...scope,inviteId:'55555555-5555-4555-8555-555555555555',creatorId:navigationOwner}
   if(command.token!=='44444444-4444-4444-8444-444444444444')return Response.json({ok:false,message:'Invite unavailable.'},{status:404})
   fixtureState.teamInviteActions.push(command.action)
-  if(command.action==='preview')return Response.json({ok:true,nativeTeamInvite:1,review:{...scope,expected,linkVersion:'v1',alreadyJoined:false}})
+  if(command.action==='preview')return Response.json({ok:true,nativeTeamInvite:1,review:{...scope,expected,linkVersion:'v1',alreadyJoined:false},...release})
   if(command.action!=='join'||JSON.stringify(command.expected)!==JSON.stringify({invite:expected,linkVersion:'v1'}))return Response.json({ok:false,message:'Invite changed.'},{status:409})
   chatUnreadFixture.detailed=true
-  return Response.json({ok:true,nativeTeamInvite:1,joined:true,roomId:chatRoomId,scope})
+  return Response.json({ok:true,nativeTeamInvite:1,joined:true,roomId:chatRoomId,scope,...release})
  }
  if(url.pathname==='/api/mobile/coach/alerts'){if(init?.method==='POST'){nativeCoachAlertFixture.enabled=JSON.parse(String(init.body)).enabled;nativeCoachAlertFixture.writes.push(nativeCoachAlertFixture.enabled)}return Response.json({ok:true,owner:currentNavigationOwner(),enabled:nativeCoachAlertFixture.enabled,available:true})}
  if(url.pathname==='/api/team-rooms/teams')return coachChatFixture.teamFail?Response.json({ok:false},{status:503}):Response.json({ok:true,owner:currentNavigationOwner(),teams:chatTeams().map(team=>({...team,canManage:canManage(team)}))})

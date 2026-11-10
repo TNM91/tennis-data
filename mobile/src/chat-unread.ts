@@ -4,6 +4,8 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 import {watchTeamChat} from './team-chat-live'
 import {namedChatRoomId,namedChatRoomName} from '../../lib/named-team-chat-rooms'
+import {firstPartyBuild} from './build-scope'
+import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 export type ChatUnreadTeam=TeamScope&{unread:number;generalUnread?:number;rooms?:{id:string;name:string;unread:number}[]}
 export type CoachChatUnread={available:boolean;total:number;connections:{id:string;unread:number;latest?:string|null}[]}
 /** total remains the legacy team total for installed builds. */
@@ -35,9 +37,9 @@ export function parseChatUnread(value:unknown,owner:string):ChatUnread{
 export async function loadChatUnread(client:SupabaseClient,owner:string,current:()=>boolean,send=CapacitorHttp.get){
  const {data,error}=await client.auth.getSession(),session=data.session
  if(error||session?.user.id!==owner||!current())throw Error('Chat account changed')
- const response=await send({url:'https://www.tenaceiq.com/api/mobile/chats/unread',headers:{Authorization:'Bearer '+session.access_token,'Cache-Control':'no-store'},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000,webFetchExtra:{cache:'no-store'}})
+ const response=await send({url:firstPartyBuild?firstPartyTeamRooms+'?op=unread':'https://www.tenaceiq.com/api/mobile/chats/unread',headers:{Authorization:'Bearer '+session.access_token,'Cache-Control':'no-store'},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000,webFetchExtra:{cache:'no-store'}})
  const latest=await client.auth.getSession()
- if(latest.error||latest.data.session?.user.id!==owner||!current()||response.status!==200)throw Error('Chat counts unavailable')
+ if(latest.error||latest.data.session?.user.id!==owner||!current()||response.status!==200||!matchesTeamReleaseScope(response.data,owner))throw Error('Chat counts unavailable')
  return parseChatUnread(response.data,owner)
 }
 export function paintChatsBadge(button:HTMLElement,count:number|null,partial=false){
@@ -65,6 +67,6 @@ export function createChatUnreadCounter(client:SupabaseClient,changed:(value:Cha
  return {refresh,snapshot:()=>summary,setOwner(next:string|null){
   if(next===owner)return
   live?.dispose();live=null;owner=next;epoch++;pending=null;queued=false;summary=null;changed(null)
-  if(next){void refresh();live=watch(client,next,null,()=>owner===next,refresh,()=>{})}
+  if(next){void refresh();if(!firstPartyBuild)live=watch(client,next,null,()=>owner===next,refresh,()=>{})}
  },clear(){this.setOwner(null)}}
 }
