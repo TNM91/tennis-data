@@ -1,5 +1,6 @@
 import {competitionOwner} from './competitions-data'
 import {updatesQuery} from './mobile-updates-client'
+import {personalMatchQuery} from './mobile-personal-matches'
 export const navigationOwner=competitionOwner
 export const labDataReads={linkedProfile:0,players:0,matches:0,goalScopes:[] as string[]}
 let user={id:navigationOwner,email:'preview@example.test'},signedIn=!new URL(location.href).searchParams.has('signedOut')
@@ -81,7 +82,7 @@ function data(table:string){
 export function createClient(){return {
  channel:()=>{const callbacks:(()=>void)[]=[];const channel={on:(_type:string,_filter:unknown,callback:()=>void)=>{callbacks.push(callback);return channel},subscribe:(status:(value:string)=>void)=>{queueMicrotask(()=>status('SUBSCRIBED'));chatSignals.add(callbacks);return channel}};return channel},removeChannel:async()=> 'ok',
  auth:{signInWithPassword:async({password}:{password:string})=>{if(password==='synthetic-wrong')return {error:{code:'invalid_credentials'}};signedIn=true;listener?.('SIGNED_IN',session());return {error:null}},getSession:async()=>({data:{session:session()},error:null}),onAuthStateChange:(fn:typeof listener)=>{listener=fn;queueMicrotask(()=>listener?.('INITIAL_SESSION',session()));return {data:{subscription:{unsubscribe(){}}}}},startAutoRefresh(){},stopAutoRefresh(){},signOut:async()=>{signedIn=false;listener?.('SIGNED_OUT',null);return {error:null}}},
- from:(table:string)=>{if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:{message:string}|null;count?:number}={data:data(table),error:null};let select='',emptySearch=false,counted=false;const chain:Record<string,unknown>={then:async(resolve:(value:unknown)=>void)=>{
+ from:(table:string)=>{if(table==='native_personal_matches')return personalMatchQuery();if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:{message:string}|null;count?:number}={data:data(table),error:null};let select='',emptySearch=false,counted=false;const chain:Record<string,unknown>={then:async(resolve:(value:unknown)=>void)=>{
   if(table==='profiles'&&select.includes('linked_league_name'))await pendingLabProfile
   if(table==='players'&&select.endsWith('doubles_dynamic_rating,rating_source'))await pendingLabRatings
   if(table==='matches'){

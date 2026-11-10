@@ -18,6 +18,7 @@ import {DEFAULT_ENTITLEMENTS} from '../../lib/access-model-core'
 import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coachPreviewConnectionRequest} from './native-coach-browser'
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
 import {trainingInboxPreview} from './mobile-training-inbox'
+import {personalMatchFixture} from './mobile-personal-matches'
 const originalFetch=window.fetch.bind(window)
 const freeTraining=new URL(location.href).searchParams.has('free-training')
 const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false,unscopedLeagueReply:false,competitionReads:[] as {path:string;query:string;audience:string|null;authenticated:boolean}[]}
@@ -59,7 +60,7 @@ const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integr
 const firstPartyTeamMessages=[{id:'66666666-6666-4666-8666-666666666666',senderUserId:'77777777-7777-4777-8777-777777770E4A',senderName:'Teammate 0E4A',body:'Anyone up for a hit on Friday?',kind:'message',createdAt:'2026-11-06T10:00:00.000Z',isMine:false}]
 Object.assign(window,{firstPartyTeamFixture})
 Object.assign(window,{chatUnreadFixture,matchDayFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
-Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPaths,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,firstPartyUpdatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture,labDataReads})
+Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPaths,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,firstPartyUpdatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture,labDataReads,personalMatchFixture})
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)

@@ -1,6 +1,7 @@
 import {matchResult,matchDate,type RecentMatchRow} from './recent-results'
 import {html} from './match-details'
 import {statDonutHtml} from './stat-donut'
+import type {PersonalMatch} from './personal-match-data'
 const formats=['all','singles','doubles'] as const
 type FormFormat=typeof formats[number]
 
@@ -16,18 +17,20 @@ export function labRecentSample(rows:RecentMatchRow[],playerId:string,filter:For
   return outcome==='Result pending'?[]:[{row,index,outcome,format}]
  }).slice(0,5)
 }
-type FormSample=ReturnType<typeof labRecentSample>
+type FormSample={index:number;date:string|null;outcome:'Won'|'Lost';format:string}[]
+const linkedSample=(rows:RecentMatchRow[],playerId:string,filter:FormFormat):FormSample=>
+ labRecentSample(rows,playerId,filter).map(({row,index,outcome,format})=>({date:row.match_date,index,outcome,format}))
 
-function sampleLabel(count:number,filter:FormFormat){
+function sampleLabel(count:number,filter:FormFormat,source:string){
  const format=filter==='all'?'':filter+' '
- return count?'Latest '+count+' decided '+format+(count===1?'result':'results')+' in your loaded matches':'No decided '+format+'results in your loaded matches.'
+ return count?'Latest '+count+' decided '+format+(count===1?'result':'results')+' in your '+source:'No decided '+format+'results in your '+source+'.'
 }
 
 function formSampleHtml(decided:FormSample,filter:FormFormat){
  if(!decided.length)return ''
  const wins=decided.filter(item=>item.outcome==='Won').length,percent=Math.round(wins/decided.length*100)
  const formatLabel=filter==='all'?'individual':filter
- return `<div class="lab-form-marks">${decided.map(({row,index,outcome,format})=>`<button type="button" class="secondary lab-form-mark ${outcome==='Won'?'is-win':'is-loss'}" data-lab-form-index="${index}" aria-label="${outcome} · ${html(matchDate(row.match_date))}. Open scorecard"><strong>${outcome==='Won'?'W':'L'}</strong><span>${format==='singles'?'Singles':'Doubles'}</span></button>`).join('')}</div>
+ return `<div class="lab-form-marks">${decided.map(({date,index,outcome,format})=>`<button type="button" class="secondary lab-form-mark ${outcome==='Won'?'is-win':'is-loss'}" data-lab-form-index="${index}" aria-label="${outcome} · ${html(matchDate(date))}. Open scorecard"><strong>${outcome==='Won'?'W':'L'}</strong><span>${format==='singles'?'Singles':'Doubles'}</span></button>`).join('')}</div>
  <p class="lab-form-help">Newest first · tap a result for its scorecard</p>
  <div class="lab-form-overview">
   ${statDonutHtml(percent,'Wins in your latest '+decided.length+' decided '+formatLabel+' '+(decided.length===1?'result':'results'))}
@@ -41,18 +44,30 @@ function formSampleHtml(decided:FormSample,filter:FormFormat){
 }
 
 export function labRecentFormHtml(rows:RecentMatchRow[],playerId:string){
- const decided=labRecentSample(rows,playerId)
+ return formHtml(linkedSample(rows,playerId,'all'),'loaded matches')
+}
+
+function formHtml(decided:FormSample,source:string){
  if(!decided.length)return ''
  return `<section class="lab-form-strip" aria-labelledby="lab-form-title">
   <div class="lab-form-heading"><h2 id="lab-form-title">Recent form</h2><span data-lab-form-count>${decided.length} decided</span></div>
   <div class="lab-form-filters" role="group" aria-label="Recent form format">${formats.map(format=>`<button type="button" class="secondary" data-lab-form-filter="${format}" aria-controls="lab-form-sample" aria-pressed="${format==='all'}">${format[0].toUpperCase()+format.slice(1)}</button>`).join('')}</div>
-  <p role="status" data-lab-form-status>${sampleLabel(decided.length,'all')}</p>
+  <p role="status" data-lab-form-status>${sampleLabel(decided.length,'all',source)}</p>
   <div id="lab-form-sample">${formSampleHtml(decided,'all')}</div>
  </section>`
 }
 
 export function mountLabRecentForm(host:HTMLElement,rows:RecentMatchRow[],playerId:string,current:()=>boolean,open:(row:RecentMatchRow)=>void){
- host.innerHTML=labRecentFormHtml(rows,playerId)
+ mountForm(host,rows,filter=>linkedSample(rows,playerId,filter),'loaded matches',current,open)
+}
+
+export function mountPersonalRecentForm(host:HTMLElement,rows:PersonalMatch[],current:()=>boolean,open:(row:PersonalMatch)=>void){
+ mountForm(host,rows,filter=>rows.flatMap((match,index)=>filter==='all'||filter===match.format
+  ?[{index,date:match.match_date,outcome:match.outcome,format:match.format}]:[]).slice(0,5),'match log',current,open)
+}
+
+function mountForm<T>(host:HTMLElement,rows:T[],readSample:(filter:FormFormat)=>FormSample,source:string,current:()=>boolean,open:(row:T)=>void){
+ host.innerHTML=formHtml(readSample('all'),source)
  const sample=host.querySelector<HTMLElement>('#lab-form-sample')
  if(!sample)return
  const buttons=host.querySelectorAll<HTMLButtonElement>('[data-lab-form-filter]')
@@ -62,10 +77,10 @@ export function mountLabRecentForm(host:HTMLElement,rows:RecentMatchRow[],player
  buttons.forEach((button,index)=>{
   button.onclick=()=>{
    if(!active()||button.getAttribute('aria-pressed')==='true')return
-   const filter=formats[index],decided=labRecentSample(rows,playerId,filter)
+   const filter=formats[index],decided=readSample(filter)
    for(const option of buttons)option.setAttribute('aria-pressed',String(option===button))
    count.textContent=decided.length+' decided'
-   status.textContent=sampleLabel(decided.length,filter)
+   status.textContent=sampleLabel(decided.length,filter,source)
    sample.innerHTML=formSampleHtml(decided,filter)
   }
  })

@@ -70,6 +70,49 @@ test('first-party My Lab opens account notes and training without a linked playe
  expect(reads).toEqual({linkedProfile:0,players:0,matches:0,goalScopes:['account:11111111-1111-4111-8111-111111111111']})
 })
 
+test('first-party match log retries one scorecard and updates My Lab from the saved result', async ({page}) => {
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?unlinked=1')
+ await page.evaluate(() => {
+  const fixture = (window as unknown as { personalMatchFixture: { loseReceipt: boolean } }).personalMatchFixture
+  fixture.loseReceipt = true
+ })
+ await page.getByRole('button',{name:'Log a match',exact:true}).click()
+ await page.getByLabel('Opponent or doubles team').fill('Casey <Rally>')
+ await page.getByLabel('Format',{exact:true}).selectOption('singles')
+ await page.getByLabel('Result',{exact:true}).selectOption('Won')
+ await page.getByLabel('Score',{exact:true}).fill('6-4 7-6(5)')
+ await bounded(page)
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ await expect(page.getByText(/Save unconfirmed/)).toBeVisible()
+ await page.getByRole('button',{name:'Retry save',exact:true}).click()
+ await expect(page.getByText('Scorecard saved.',{exact:true})).toBeVisible()
+ const form = page.getByRole('region',{name:'Recent form',exact:true})
+ await expect(form.getByText('1W · 0L',{exact:true}).first()).toBeVisible()
+ await expect(page.getByRole('button',{name:'Open scorecard for Casey <Rally>',exact:true})).toHaveCount(1)
+ expect(await page.evaluate(() => {
+  const fixture = (window as unknown as { personalMatchFixture: { writtenIds: string[]; rows: unknown[] } }).personalMatchFixture
+  return { writes:fixture.writtenIds.length, ids:new Set(fixture.writtenIds).size, rows:fixture.rows.length }
+ })).toEqual({writes:2,ids:1,rows:1})
+
+ await form.getByRole('button',{name:/Won.*Open scorecard/}).click()
+ await expect(page.getByRole('heading',{name:'Casey <Rally>',exact:true})).toBeFocused()
+ await page.getByRole('button',{name:'Edit scorecard',exact:true}).click()
+ await page.getByLabel('Format',{exact:true}).selectOption('doubles')
+ await page.getByLabel('Result',{exact:true}).selectOption('Lost')
+ await page.getByLabel('Score',{exact:true}).fill('4-6 6-3 [7-10]')
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ await expect(form.getByText('0W · 1L',{exact:true}).first()).toBeVisible()
+ await form.getByRole('button',{name:'Doubles',exact:true}).click()
+ await expect(form.getByText(/decided doubles result in your match log/)).toBeVisible()
+ await expect(page.getByText('4-6 6-3 [7-10]',{exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'Remove scorecard',exact:true}).click()
+ await page.getByRole('button',{name:'Remove scorecard',exact:true}).click()
+ await expect(page.getByText('Scorecard removed.',{exact:true})).toBeVisible()
+ await expect(form).toHaveCount(0)
+ await expect(page.getByRole('button',{name:/Open scorecard for/})).toHaveCount(0)
+})
+
 test('first-party scorecard links stop before loading the integrated match',async({page})=>{
  await useFirstPartyNavigation(page)
  const url='https://www.tenaceiq.com/matches/court-0?via=scorecard-share'

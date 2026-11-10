@@ -32,6 +32,7 @@ import type {TeamChatDestination} from './team-room-data'
 import {nativeActionIcon} from './native-action-icons'
 import websiteUi from '../generated/website-ui.json'
 import {mountLabRecentForm} from './lab-recent-form'
+import {mountPersonalMatchLog} from './personal-match-view'
 import {labLevelPathHtml} from './lab-level-path'
 import {loadOlderResults} from './recent-results-history'
 import {mountLabRatingTrends} from './lab-rating-trends'
@@ -735,6 +736,9 @@ async function lab(entry?:'coach'|PlayerLink) {
     if(firstPartyBuild){
       calendar.after(shortcuts)
       bindAppDestinations(shortcuts,openDestination)
+      const matchLog = document.createElement('div')
+      shortcuts.after(matchLog)
+      mountPersonalMatchLog(matchLog,client,current.user.id,()=>version===revision&&current.user.id===session?.user.id)
       if(entry==='coach')shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')?.focus()
       return
     }
