@@ -1,10 +1,21 @@
-import {describe,it,expect} from 'vitest'
+import {describe,it,expect,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {loadNativeCompetitions} from '../native-competitions'
 import {competitionInput,readCompetitionSnapshot} from '../native-competitions-contract'
 import {competitionCardsHtml,competitionSeasonHtml} from '../../mobile/src/competitions-view'
 import {loadCompetitions} from '../../mobile/src/competitions-data'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from '../../tests/fixtures/competitions-data'
+import {GET as firstPartyCompetitions} from '../../app/api/mobile/first-party/competitions/route'
+vi.mock('../player-api-auth',()=>({getSignedInPlayerApiAuth:vi.fn()}))
+
+it('returns a scoped guest league catalog without reading unapproved data',async()=>{
+ vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS','')
+ try{
+  const response=await firstPartyCompetitions(new Request('https://example.test/api/mobile/first-party/competitions?audience=public'))
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ok:true,owner:'public-competitions',releaseScope:'first-party',leagues:[]})
+ }finally{vi.unstubAllEnvs()}
+})
 function fixture(){
  const l={id:'league-one',created_by_user_id:owner,league_name:'City League',league_format:'team',season_label:'Fall',season_status:'active',flight:'4.0',location_label:'Northside',starts_on:'2026-10-01',ends_on:'2026-12-01',schedule_time_zone:'America/Chicago',updated_at:'2026-10-30T02:00:00Z',scoring_system:'dynamic_points',competition_rules:{},is_public:true}
  const tables:Record<string,Record<string,unknown>[]>={
