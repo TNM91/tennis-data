@@ -1,6 +1,7 @@
 import {namedChatRoomId,namedChatRoomName,type NamedChatRoom} from '../../lib/named-team-chat-rooms'
 import {readChatMentions,type ChatMention} from '../../lib/team-chat-mentions'
 import {readTeamChatCursor,teamChatMessageId} from '../../lib/team-chat-cursor'
+import {captainChatSetupMessages,type CaptainChatSetupStatus} from '../../lib/setup-trophies'
 import {parseChatReactions,type ChatReaction} from './chat-reactions'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
@@ -53,6 +54,19 @@ export async function loadTeamRoom(client:SupabaseClient,userId:string,isCurrent
  if(nextCursor&&!readTeamChatCursor(nextCursor))throw Error('Invalid conversation page')
  return {...parsed,nextCursor}
 }
+export async function loadCaptainChatSetup(client:SupabaseClient,userId:string,isCurrent:()=>boolean):Promise<CaptainChatSetupStatus> {
+ const {data,error}=await client.auth.getSession()
+ if(!firstPartyBuild||error||data.session?.user.id!==userId||!isCurrent())throw Error('Captain chat access unavailable')
+ const response=await CapacitorHttp.get({
+  url:firstPartyTeamRooms+'?op=captain-setup',headers:{Authorization:`Bearer ${data.session.access_token}`},
+  responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000,
+ })
+ const status=response.data?.captainChatSetup
+ if(!isCurrent()||response.status!==200||response.data?.ok!==true||!matchesTeamReleaseScope(response.data,userId)||
+    typeof status!=='string'||!Object.hasOwn(captainChatSetupMessages,status))throw Error('Captain chat access unavailable')
+ return status as CaptainChatSetupStatus
+}
+
 export async function loadTeamChatUpdate(client:SupabaseClient,userId:string,isCurrent:()=>boolean,selected:TeamScope,roomId:string,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options),before='',focus='') {
  if(focus&&(!teamChatMessageId(focus)||before))throw Error('Invalid conversation message')
  if(before && !readTeamChatCursor(before))throw Error('Invalid conversation page')

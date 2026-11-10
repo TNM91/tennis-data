@@ -2,7 +2,7 @@ import {html} from './match-details'
 import type {NativeTeamData,TeamScope} from './team-room-data'
 import {paintTeamUnread,type ChatUnread} from './chat-unread'
 import {firstPartyBuild} from './build-scope'
-import {setupSteps} from '../../lib/setup-trophies'
+import {captainChatSetupMessages,setupSteps,type CaptainChatSetupStatus} from '../../lib/setup-trophies'
 import websiteUi from '../generated/website-ui.json'
 
 export type ChatsInboxFilter={query:string;unreadOnly:boolean;filtersOpen:boolean}
@@ -68,6 +68,8 @@ export function chatsInboxHtml(data:NativeTeamData){
  ${chatsFilterFeedbackHtml('team')}
  ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}"><span class="chats-team-avatar" aria-hidden="true">${html(team.teamName.trim().slice(0,1).toUpperCase())}</span><span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(team.leagueName)}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:chatsStartActionHtml('team')}
  ${firstPartyBuild?`<details class="chat-team-setup"><summary>Set up a team as captain</summary>
+  <button type="button" class="secondary" data-check-captain-setup>Check captain chat access</button>
+  <p role="status" data-captain-setup-status></p>
   <ol>${[setupSteps.team,setupSteps.invite,setupSteps.teammate].map(step=>`<li><strong>${html(step.title)}</strong><p>${html(step.detail)}</p></li>`).join('')}</ol>
   <p class="rating-context">Track these steps toward your Team Rally trophy in My Lab.</p>
  </details>`:''}
@@ -75,7 +77,7 @@ export function chatsInboxHtml(data:NativeTeamData){
 }
 
 /** Filters and room jumps use the current authorized count snapshot; opening still reloads room access. */
-export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsInboxFilter,initial:ChatUnread|null,onOpen:(scope:TeamScope)=>void,current:()=>boolean){
+export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsInboxFilter,initial:ChatUnread|null,onOpen:(scope:TeamScope)=>void,current:()=>boolean,readCaptainSetup:()=>Promise<CaptainChatSetupStatus>){
  let summary=initial,disposed=false
  const events=new AbortController(),search=host.querySelector<HTMLInputElement>('#chats-team-search')!
  const filters=host.querySelector<HTMLDetailsElement>('[data-team-chat-filters]')!
@@ -87,6 +89,21 @@ export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsIn
  filters.addEventListener('toggle',()=>{if(filters.isConnected)filter.filtersOpen=filters.open},{signal:events.signal})
  search.value=filter.query
  const active=()=>!disposed&&current()&&host.isConnected
+ const check=host.querySelector<HTMLButtonElement>('[data-check-captain-setup]')
+ const setupStatus=host.querySelector<HTMLElement>('[data-captain-setup-status]')
+ if(check&&setupStatus)check.addEventListener('click',async()=>{
+  if(!active()||check.disabled)return
+  check.disabled=true
+  setupStatus.textContent='Checking your captain chat access…'
+  try{
+   const state=await readCaptainSetup()
+   if(active())setupStatus.textContent=captainChatSetupMessages[state]
+  }catch{
+   if(active())setupStatus.textContent='Couldn’t check captain chat access. Try again.'
+  }finally{
+   if(active())check.disabled=false
+  }
+ },{signal:events.signal})
  const counts=(team:TeamScope)=>summary?.teams.find(item=>sameTeam(item,team))
  const open=(team:TeamScope,roomId?:string)=>{if(active())onOpen({teamName:team.teamName,leagueName:team.leagueName,flight:team.flight,...(roomId?{chatRoomId:roomId}:{})})}
  const shortcuts=inboxShortcuts.map(({target,description})=>{

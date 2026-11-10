@@ -1,7 +1,21 @@
 import {PGlite} from '@electric-sql/pglite'
+import {createClient} from '@supabase/supabase-js'
 import {readFileSync} from 'node:fs'
-import {beforeAll,afterAll,it,expect} from 'vitest'
+import {beforeAll,afterAll,it,expect,vi} from 'vitest'
+import {GET as teamRooms} from '../../app/api/mobile/first-party/team-rooms/route'
+import {POST as teamInvites} from '../../app/api/mobile/first-party/team-invites/route'
+import {GET as setup} from '../../app/api/mobile/first-party/setup/route'
+import {buildProductAccessState} from '../access-model-core'
 import type {CaptainInvite} from '../native-captain-invite-contract'
+
+const account = vi.hoisted(() => ({ verify: vi.fn(), client: vi.fn(), access: vi.fn() }))
+vi.mock('../mobile-account-auth', async original => ({
+  ...await original<typeof import('../mobile-account-auth')>(), verifiedAccount: account.verify, accountClient: account.client,
+}))
+vi.mock('../player-api-auth', () => ({ loadPlayerAccess: account.access }))
+vi.mock('../native-coach-chat-unread', () => ({ nativeCoachChatUnread: vi.fn() }))
+vi.mock('../native-captain-workspace', () => ({ authorizeNativeCaptainScope: () => { throw Error('Unexpected integrated captain scope') } }))
+
 type Result={ok:boolean;status:number;invite:CaptainInvite;invites:CaptainInvite[]}
 let db:PGlite
 const owner='11111111-1111-4111-8111-111111111111',captain='22222222-2222-4222-8222-222222222222',room='33333333-3333-4333-8333-333333333333',one='55555555-5555-4555-8555-555555555555',two='66666666-6666-4666-8666-666666666666'
@@ -43,3 +57,111 @@ it('keeps execution restricted to the existing server role',async()=>{for(const 
 
 it('never recreates an expired create identity',async()=>{await reset();const first=await call('create',one);await sql(`update team_room_invites set expires_at=now()-interval '1 day' where id='${one}'`);const replay=await call('create',one);expect(replay.invite.active).toBe(false);expect(replay.invite.token).toBe(first.invite.token);expect((await db.query('select * from team_room_invites')).rows).toHaveLength(1)})
 it('keeps active links visible ahead of bounded history',async()=>{await reset();await call('create',one);for(let i=0;i<23;i++){const id=`88888888-8888-4888-8888-${String(i).padStart(12,'0')}`;await call('create',id);await call('revoke',id)}const result=await call();expect(result.invites).toHaveLength(20);expect(result.invites[0].id).toBe(one);expect(result.invites[0].active).toBe(true)})
+
+it('connects the first-party chat setup and invite routes to real membership and Team Rally writes', async () => {
+  await reset()
+  await sql(readFileSync('supabase/migrations/20261110000500_native_first_party_captain_invites.sql', 'utf8'))
+  await sql(`
+    alter table profiles add column linked_player_id uuid;
+    create table native_personal_matches(id uuid, owner_user_id uuid);
+    create table level_up_sessions(id uuid, player_user_id uuid);
+    grant select, insert, update on all tables in schema public to service_role;
+    set role service_role;
+  `)
+  const scope = { teamName: 'Aces', leagueName: 'City', flight: '4.0' }
+  const base = 'https://example.test/api/mobile/first-party/'
+  const captainToken = 'fixture-captain', teammateToken = 'fixture-teammate'
+  const roles: Record<string, string> = { [captainToken]: captain, [teammateToken]: owner }
+  const client = createClient('https://example.test', 'fixture', {
+    auth: { persistSession: false }, global: { fetch: firstPartyFixtureFetch },
+  })
+  account.verify.mockImplementation(async (request: Request) => {
+    const token = request.headers.get('authorization')?.slice('Bearer '.length) || ''
+    return roles[token] ? { user: { id: roles[token] }, token } : null
+  })
+  account.client.mockReturnValue(client)
+  account.access.mockImplementation(async (_client, userId) => buildProductAccessState('member', { captainSubscriptionActive: userId === captain }))
+  vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'fixture')
+  vi.stubEnv('TIQ_FIRST_PARTY_TEAM_ROOMS', JSON.stringify([{ ...scope, roomId: room }]))
+  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS', '')
+  vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', '')
+
+  const request = (path: string, token: string, body?: object) => new Request(base + path, {
+    method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  })
+  const ready = async () => (await teamRooms(request('team-rooms?op=captain-setup', captainToken))).json()
+  const progress = async () => (await setup(request('setup', captainToken))).json()
+  const invite = (token: string, body: object) => teamInvites(request('team-invites', token, body))
+  try {
+    expect(await ready()).toMatchObject({ captainChatSetup: 'needs-team' })
+    await db.query("update team_profile_links set source_type='tiq_entry' where profile_user_id=$1", [captain])
+    expect(await ready()).toEqual({ ok: true, releaseScope: 'first-party', owner: captain, captainChatSetup: 'ready' })
+    expect(await progress()).toMatchObject({ tracks: expect.arrayContaining([{ tier: 'captain', done: ['team'] }]) })
+
+    const created = await invite(captainToken, { ...scope, action: 'create', id: one })
+    expect(created.status).toBe(200)
+    const { invite: { token } } = await created.json()
+    expect(await progress()).toMatchObject({ tracks: expect.arrayContaining([{ tier: 'captain', done: ['team', 'invite'] }]) })
+
+    const preview = await invite(teammateToken, { action: 'preview', token })
+    expect(preview.status).toBe(200)
+    const { review } = await preview.json()
+    expect(review).toMatchObject({ ...scope, roomId: room, alreadyJoined: false })
+    expect((await db.query('select * from team_profile_links where profile_user_id=$1', [owner])).rows).toHaveLength(0)
+    const join = { action: 'join', token, expected: { invite: review.expected, linkVersion: review.linkVersion } }
+    expect(await (await invite(teammateToken, join)).json()).toMatchObject({ ok: true, owner, roomId: room, alreadyJoined: false })
+    expect(await (await invite(teammateToken, join)).json()).toMatchObject({ ok: true, owner, roomId: room, alreadyJoined: true })
+    expect(await (await teamRooms(request('team-rooms?op=teams', teammateToken))).json()).toMatchObject({ teams: [scope] })
+    expect((await db.query('select source_type, team_role from team_profile_links where profile_user_id=$1', [owner])).rows)
+      .toEqual([{ source_type: 'manual_invite', team_role: 'player' }])
+    expect((await db.query('select accepted_count from team_room_invites')).rows).toEqual([{ accepted_count: 1 }])
+    expect((await db.query('select message_kind from internal_messages')).rows).toEqual([{ message_kind: 'system' }])
+    expect(await progress()).toMatchObject({ tracks: expect.arrayContaining([{ tier: 'captain', done: ['team', 'invite', 'teammate'] }]) })
+
+    expect((await invite(captainToken, { ...scope, action: 'revoke', id: one })).status).toBe(200)
+    expect((await invite(teammateToken, { action: 'preview', token })).status).toBe(404)
+    expect(await (await teamRooms(request('team-rooms?op=teams', teammateToken))).json()).toMatchObject({ teams: [scope] })
+  } finally {
+    vi.unstubAllEnvs()
+    await sql('reset role')
+  }
+})
+
+// A narrow PostgREST adapter for the local database. Sign-ins and plan entitlements are synthetic.
+async function firstPartyFixtureFetch(input: RequestInfo | URL, options?: RequestInit) {
+  const url = new URL(String(input))
+  const name = url.pathname.split('/').at(-1) || ''
+  if (options?.method === 'POST') {
+    const keys = name === 'native_first_party_captain_invites'
+      ? ['p_owner', 'p_team', 'p_league', 'p_flight', 'p_action', 'p_id', 'p_room_id']
+      : name === 'native_team_invite' ? ['p_owner', 'p_token', 'p_join', 'p_expected'] : []
+    if (!keys.length) throw Error('Unexpected fixture RPC')
+    const args = JSON.parse(String(options.body))
+    const placeholders = keys.map((_, index) => '$' + (index + 1)).join(',')
+    const result = await db.query<{ value: unknown }>(`select public.${name}(${placeholders}) as value`, keys.map(key => args[key]))
+    return Response.json(result.rows[0].value)
+  }
+  const tables = ['team_profile_links', 'internal_conversations', 'internal_conversation_participants',
+    'team_room_member_removals', 'team_room_invites', 'profiles', 'native_personal_matches', 'level_up_sessions']
+  const fields = url.searchParams.get('select') || ''
+  if (!tables.includes(name) || !/^[a-z_,]+$/.test(fields)) throw Error('Unexpected fixture relation')
+  const values: unknown[] = [], conditions: string[] = []
+  for (const [key, filter] of url.searchParams) {
+    if (['select', 'order', 'limit'].includes(key)) continue
+    if (!/^[a-z_]+$/.test(key)) throw Error('Unexpected fixture column')
+    if (filter === 'is.null') conditions.push(key + ' is null')
+    else if (filter.startsWith('eq.')) conditions.push(`${key} = $${values.push(filter.slice(3))}`)
+    else if (filter.startsWith('in.(') && filter.endsWith(')')) {
+      const list = filter.slice(4, -1).split(',').map(value => '$' + values.push(value))
+      conditions.push(`${key} in (${list.join(',')})`)
+    } else throw Error('Unexpected fixture filter')
+  }
+  const where = conditions.length ? ' where ' + conditions.join(' and ') : ''
+  const order = url.searchParams.get('order')
+  if (order && order !== 'accepted_count.desc') throw Error('Unexpected fixture sort')
+  const limit = Number(url.searchParams.get('limit') || 51)
+  if (!Number.isInteger(limit) || limit < 1 || limit > 51) throw Error('Unexpected fixture limit')
+  const result = await db.query(`select ${fields} from ${name}${where}${order ? ' order by accepted_count desc' : ''} limit ${limit}`, values)
+  return Response.json(result.rows)
+}

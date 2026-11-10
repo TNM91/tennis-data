@@ -46,7 +46,7 @@ import {chatReactionButtons,type ChatReactionKind} from './chat-reactions'
 import {watchTeamChat,type TeamLiveStatus} from './team-chat-live'
 import {newerChatTime} from './team-chat-read'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {loadTeamRoom,loadTeamChatUpdate,TeamRoomAccessError,type NativeTeamData,type NativeTeamRoom,type TeamScope,type TeamChatDestination} from './team-room-data'
+import {loadCaptainChatSetup,loadTeamRoom,loadTeamChatUpdate,TeamRoomAccessError,type NativeTeamData,type NativeTeamRoom,type TeamScope,type TeamChatDestination} from './team-room-data'
 import type {CompeteTeamAction} from './compete-teams'
 import {ChatActionError,TeamChatDraft,postTeamChat,type ChatAction} from './team-chat-send'
 import {html} from './match-details'
@@ -440,7 +440,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    inboxView=bindChatsInbox(app,snapshot.teams,inboxFilter,alerts?.unread()??null,choice=>{
     if(!valid()||!inbox)return
     freshDraft();inbox=false;selected={...choice};tab='Conversation';void load()
-   },()=>valid()&&inbox)
+   },()=>valid()&&inbox,()=>loadCaptainChatSetup(client,userId,()=>valid()&&inbox))
    const notifications=app.querySelector<HTMLElement>('[data-chat-notifications]');if(notifications&&alerts)alerts.mountNotifications(notifications)
    app.querySelector<HTMLButtonElement>('#join-team')!.onclick=openInvite
    app.querySelector<HTMLButtonElement>('#refresh-team')!.onclick=()=>{alerts?.refresh();void load()}

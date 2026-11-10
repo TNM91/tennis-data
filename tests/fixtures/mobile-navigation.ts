@@ -66,7 +66,7 @@ const matchDayFixture={enabled:new URL(location.href).searchParams.has('match-da
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
 const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
-const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false}
+const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false,captainChatSetup:'needs-review'}
 const setupFixture={done:[] as string[],requests:0,competitionProfileLinked:undefined as boolean|undefined,
  competitionTrophies:[
   {id:'city-league-award',kind:'league',placement:'first',name:'City League',division:'Fall · 4.5',awardedOn:'2026-11-10'},
@@ -98,6 +98,7 @@ window.fetch=async(input,init)=>{
   firstPartyTeamFixture.requests.push(op)
   const base={ok:true,owner,releaseScope:firstPartyTeamFixture.unscoped?undefined:'first-party'}
   if(op==='unread')return Response.json({...base,total:0,teams:[],coach:coachUnreadCounts(owner)})
+  if(op==='captain-setup')return Response.json({...base,captainChatSetup:firstPartyTeamFixture.captainChatSetup})
   const teams=chatTeams().map(team=>({...team,canManage:false}))
   if(init?.method==='POST'){
    const action=JSON.parse(String(init.body))

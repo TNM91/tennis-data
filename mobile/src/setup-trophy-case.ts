@@ -46,7 +46,8 @@ function competitionHtml(trophies: CompetitionTrophy[] | null, profileLinked: un
         <button type="button" class="secondary" data-share-honor="${index}" aria-label="Share honor for ${html(trophy.name)}">Share honor</button>
       </li>`).join('')}</ul>` : profileLinked === false ? `<p>Your account isn’t connected to a player profile. If you’ve earned an award, ask your organizer which TenAceIQ player profile received it. Support can help you connect that profile.</p>
         <button type="button" class="secondary" data-competition-help>Get help connecting your profile</button><p role="status" data-competition-help-status></p>` :
-        '<p>No competition honors yet. If you expected an award, ask your organizer to check that it was published to your linked player profile.</p>'}
+        `<p>No competition honors yet. If you expected an award, ask your organizer to check that it was published to your linked player profile.</p>
+        ${profileLinked === true ? '<button type="button" class="secondary" data-share-sample-honor>Try sharing a sample honor</button>' : ''}`}
   </section>`
 }
 
@@ -95,11 +96,16 @@ export function mountSetupTrophyCase(
       }
       for (const button of list.querySelectorAll<HTMLButtonElement>('[data-share-honor]')) {
         const trophy = trophies?.[Number(button.dataset.shareHonor)]
-        if (trophy) button.onclick = () => openCompetitionTrophyShare(list, trophy, button, async () => {
-          const fresh = readCompetitionTrophies((await readTrophyCase()).competitionTrophies)
-          return fresh.find(honor => honor.id === trophy.id)
-        }, active)
+        if (trophy) button.onclick = () => openCompetitionTrophyShare(list, button, active, {
+          kind: 'earned', trophy,
+          read: async () => {
+            const fresh = readCompetitionTrophies((await readTrophyCase()).competitionTrophies)
+            return fresh.find(honor => honor.id === trophy.id)
+          },
+        })
       }
+      const sample = list.querySelector<HTMLButtonElement>('[data-share-sample-honor]')
+      if (sample) sample.onclick = () => openCompetitionTrophyShare(list, sample, active, { kind: 'sample' })
       const help = list.querySelector<HTMLButtonElement>('[data-competition-help]')
       const helpStatus = list.querySelector<HTMLElement>('[data-competition-help-status]')
       if (help && helpStatus) help.onclick = async () => {

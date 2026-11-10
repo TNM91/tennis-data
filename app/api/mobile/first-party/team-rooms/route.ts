@@ -1,6 +1,6 @@
 import { accountClient, accountResponse, readAccountJson, verifiedAccount } from '@/lib/mobile-account-auth'
 import { countFirstPartyChats, readFirstPartyChat, reviewedTeamOptions, writeFirstPartyChat } from '@/lib/first-party-team-chat'
-import { findReviewedTeamConversation, loadReviewedTeamLinks, readReviewedTeamRooms } from '@/lib/first-party-team-scopes'
+import { findReviewedTeamConversation, loadCaptainChatSetupStatus, loadReviewedTeamLinks, readReviewedTeamRooms } from '@/lib/first-party-team-scopes'
 import { nativeCoachChatUnread } from '@/lib/native-coach-chat-unread'
 import { loadPlayerAccess } from '@/lib/player-api-auth'
 import { supabaseKey } from '@/lib/supabase-public-config'
@@ -23,13 +23,20 @@ export async function GET(request: Request) {
     const fields = op === 'updates' ? ['before', 'focus'] : op === 'message' ? ['message', 'view'] : []
     const allowed = ['op', ...fields, ...(['room', 'updates', 'message'].includes(op) ? scopeKeys : [])]
     const selecting = scopeKeys.some(key => params.has(key)) || op === 'updates' || op === 'message'
-    if (!['room', 'teams', 'updates', 'message', 'unread'].includes(op) ||
+    if (!['room', 'teams', 'updates', 'message', 'unread', 'captain-setup'].includes(op) ||
         [...params.keys()].some(key => !allowed.includes(key) || params.getAll(key).length !== 1) ||
         selecting && scopeKeys.some(key => !params.has(key))) return denied(400)
 
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
     if (!key) return denied(503)
     const service = accountClient(key), owner = account.user.id
+    if (op === 'captain-setup') {
+      const access = await loadPlayerAccess(accountClient(supabaseKey, account.token), owner)
+      const status = access.canUseCaptainWorkflow
+        ? await loadCaptainChatSetupStatus(service, owner, readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS))
+        : 'needs-captain-access'
+      return json({ ok: true, owner, captainChatSetup: status })
+    }
     const approvals = readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)
     const teams = await loadReviewedTeamLinks(service, owner, approvals)
     if (op === 'unread') {

@@ -594,6 +594,27 @@ test('first-party captains can create and revoke an invite from their team chat'
  expect(result.requests.filter(request=>request.startsWith('invite:'))).toEqual(['invite:list','invite:create','invite:revoke'])
 })
 
+test('first-party captain chat setup gives the next action without checking until asked',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin)
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ const guide=page.locator('.chat-team-setup')
+ await guide.locator('summary').click()
+ const check=guide.getByRole('button',{name:'Check captain chat access',exact:true})
+ const status=guide.getByRole('status')
+ const requests=()=>page.evaluate(()=>(window as unknown as {firstPartyTeamFixture:{requests:string[]}}).firstPartyTeamFixture.requests.filter(request=>request==='captain-setup').length)
+ expect(await requests()).toBe(0)
+ await check.click()
+ await expect(status).toContainText('Team chat still needs review')
+ await page.evaluate(()=>{(window as unknown as {firstPartyTeamFixture:{captainChatSetup:string}}).firstPartyTeamFixture.captainChatSetup='ready'})
+ await check.click()
+ await expect(status).toContainText('Team → Invite teammates')
+ expect(await requests()).toBe(2)
+ await page.evaluate(()=>{(window as unknown as {firstPartyTeamFixture:{unscoped:boolean}}).firstPartyTeamFixture.unscoped=true})
+ await check.click()
+ await expect(status).toHaveText('Couldn’t check captain chat access. Try again.')
+})
+
 test('first-party Trophy Case leads captains through setup and unlocks Team Rally after a teammate joins',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.goto(origin)
@@ -703,6 +724,44 @@ test('first-party Trophy Case shares only the reviewed current honor',async({pag
  expect(await copies()).toEqual([message])
  await dialog.getByRole('button',{name:'Back to Trophy Case',exact:true}).click()
  await expect(trigger).toBeFocused()
+})
+
+test('first-party Trophy Case shares a labeled sample without creating an award',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:640})
+ await page.goto(origin)
+ await recordScorecardCopies(page)
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {setupFixture:{competitionProfileLinked:boolean;competitionTrophies:unknown[]}}).setupFixture
+  fixture.competitionProfileLinked=true
+  fixture.competitionTrophies=[]
+  const shares:ShareData[]=[]
+  Object.assign(window,{sampleHonorShares:shares})
+  Object.defineProperty(navigator,'share',{configurable:true,value:async(data:ShareData)=>{shares.push(data)}})
+ })
+ const trophyCase=page.locator('.lab-trophy-case')
+ await trophyCase.locator('summary').click()
+ const honors=trophyCase.getByRole('region',{name:'Competition honors',exact:true})
+ const sample=honors.getByRole('button',{name:'Try sharing a sample honor',exact:true})
+ await expect(honors.getByRole('list')).toHaveCount(0)
+ await sample.click()
+ const dialog=page.getByRole('dialog',{name:'Share sample honor',exact:true})
+ const preview=dialog.getByLabel('Honor message preview')
+ await expect(preview).toContainText('Sample honor · TenAceIQ demo')
+ expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ const text=await preview.textContent()
+ await dialog.getByRole('button',{name:'Choose where to share',exact:true}).click()
+ await expect(dialog.getByRole('status')).toHaveText('Share sheet closed.')
+ await dialog.getByRole('button',{name:'Copy sample',exact:true}).click()
+ await expect(dialog.getByRole('status')).toHaveText('Sample copied.')
+ const result=await page.evaluate(()=>{
+  const state=window as unknown as {sampleHonorShares:ShareData[];scorecardCopies:string[];setupFixture:{requests:number;competitionTrophies:unknown[]}}
+  return {shares:state.sampleHonorShares,copies:state.scorecardCopies,reads:state.setupFixture.requests,awards:state.setupFixture.competitionTrophies}
+ })
+ expect(result).toEqual({shares:[{title:'TenAceIQ sample honor',text}],copies:[text],reads:1,awards:[]})
+ await dialog.getByRole('button',{name:'Back to Trophy Case',exact:true}).click()
+ await expect(sample).toBeFocused()
+ await expect(honors.getByRole('list')).toHaveCount(0)
 })
 
 test('first-party invite reviews the team and rejoins the same room through scoped routes',async({page})=>{
