@@ -319,6 +319,13 @@ test('first-party rematches leave the original calendar scorecard linked', async
  await expect(page.getByLabel('Opponent or doubles team',{exact:true})).toHaveValue('Casey & Drew')
  await expect(page.getByLabel('Format',{exact:true})).toHaveValue('doubles')
  expect(await calendarReads()).toBe(reads)
+ await page.getByLabel('Score',{exact:true}).fill('6-3')
+ await openCalendar()
+ await calendar.locator('.cal-event.competition').filter({hasText:'Casey & Drew'}).click()
+ await scorecard.click()
+ await expect(page.getByRole('heading',{name:'Resume scorecard',exact:true})).toBeFocused()
+ await expect(page.getByLabel('Score',{exact:true})).toHaveValue('6-3')
+ await expect(page.getByLabel('Result',{exact:true})).toHaveValue('')
  await page.getByLabel('Result',{exact:true}).selectOption('Won')
  await page.getByLabel('Score',{exact:true}).fill('6-3 6-2')
  await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
@@ -381,6 +388,28 @@ test('first-party rematches leave the original calendar scorecard linked', async
  await page.evaluate(()=> (window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
  await logMatch.click()
  await expect(recentOpponents).toHaveCount(0)
+})
+
+test('first-party calendar starts a fresh scorecard when the opponent changes', async ({page}) => {
+ await useFirstPartyNavigation(page)
+ await page.clock.setFixedTime(new Date(2026,10,11,12))
+ await page.goto(origin+'/?calendar-scorecard=1')
+ await page.getByRole('button',{name:/Completed today.*Casey & Drew.*Open scorecard/}).click()
+ await page.getByLabel('Score',{exact:true}).fill('6-3')
+ await page.evaluate(() => {
+  const {calendarFixture}=window as unknown as typeof import('../fixtures/mobile-calendar')
+  const match=calendarFixture.competitions.find(item=>item.id==='tournament:draw-one:r1-m1')!
+  match.opponent='Morgan & Taylor'
+  match.title='City Open: vs Morgan & Taylor'
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'More',exact:true}).click()
+ await page.locator('[data-app-destination="calendar"]').click()
+ const calendar=page.getByRole('dialog',{name:'Your calendar',exact:true})
+ await calendar.locator('.cal-event.competition').filter({hasText:'Morgan & Taylor'}).click()
+ await calendar.getByRole('button',{name:'Open scorecard in My Lab',exact:true}).click()
+ await expect(page.getByRole('heading',{name:'Log a match',exact:true})).toBeFocused()
+ await expect(page.getByLabel('Opponent or doubles team',{exact:true})).toHaveValue('Morgan & Taylor')
+ await expect(page.getByLabel('Score',{exact:true})).toHaveValue('')
 })
 
 test('first-party captain doubles corrections survive a lost receipt and count once', async ({page}) => {

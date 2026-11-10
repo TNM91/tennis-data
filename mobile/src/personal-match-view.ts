@@ -13,7 +13,15 @@ import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatch
 const formatName = (format: PersonalMatch['format']) => format === 'singles' ? 'Singles' : 'Doubles'
 type LogScorecard = PersonalMatch | PostedCourtScorecard
 type UnsubmittedScorecard = { match_date: string; opponent: string; format: string; outcome: string; score: string }
-export type PersonalMatchFormSession = { unsubmitted?: UnsubmittedScorecard }
+type CalendarScorecardDraft = { seed: CalendarScorecardSeed; fields: UnsubmittedScorecard }
+export type PersonalMatchFormSession = { unsubmitted?: UnsubmittedScorecard; calendarDrafts?: Map<string, CalendarScorecardDraft> }
+
+function resumeCalendarScorecard(session: PersonalMatchFormSession, seed: CalendarScorecardSeed) {
+  const cached = session.calendarDrafts?.get(seed.calendarMatchId)
+  if (!cached) return
+  if (cached.seed.date === seed.date && cached.seed.opponent === seed.opponent && cached.seed.format === seed.format) return cached.fields
+  session.calendarDrafts?.delete(seed.calendarMatchId)
+}
 
 const scorecardCopyControls = `<button type="button" class="secondary" data-copy-scorecard>Copy scorecard</button>
   <p role="status" data-scorecard-copy-status hidden></p>`
@@ -244,8 +252,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     if (!active() || writing || reading) return
     const calendarSeed = seed && 'calendarMatchId' in seed ? seed : undefined
     const previous = seed && 'previous' in seed ? seed.previous : undefined
-    const resumed = seed && 'resume' in seed ? seed.resume : undefined
-    const canResume = !match && !calendarSeed && !previous
+    const resumed = calendarSeed ? resumeCalendarScorecard(formSession, calendarSeed) : seed && 'resume' in seed ? seed.resume : undefined
+    const canResume = !match && !previous
     const prefill = match ?? calendarSeed ?? previous
     const recent = prefill ? [] : recentOpponents(matches)
     const title = match ? 'Edit scorecard' : previous ? 'Log a rematch' : resumed ? 'Resume scorecard' : 'Log a match'
@@ -287,13 +295,20 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       if (!canResume || !active() || writing || draft) return
       const formValues = new FormData(form)
       const value = (name: keyof UnsubmittedScorecard) => String(formValues.get(name) ?? '')
-      formSession.unsubmitted = { match_date: value('match_date'), opponent: value('opponent'), format: value('format'),
+      const draftFields = { match_date: value('match_date'), opponent: value('opponent'), format: value('format'),
         outcome: value('outcome'), score: value('score') }
+      if (calendarSeed) {
+        formSession.calendarDrafts ??= new Map()
+        formSession.calendarDrafts.set(calendarSeed.calendarMatchId, { seed: calendarSeed, fields: draftFields })
+      } else formSession.unsubmitted = draftFields
     }
     const clearRemembered = () => {
       if (!canResume) return
-      formSession.unsubmitted = undefined
-      add.textContent = 'Log a match'
+      if (calendarSeed) formSession.calendarDrafts?.delete(calendarSeed.calendarMatchId)
+      else {
+        formSession.unsubmitted = undefined
+        add.textContent = 'Log a match'
+      }
     }
     if (canResume) {
       form.addEventListener('input', remember)
@@ -413,6 +428,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       if (!active()) return
       status.textContent = ''
       const captain = posted.find(card => card.calendar_match_id === calendarSeed.calendarMatchId)
+      if (captain || saved) formSession.calendarDrafts?.delete(calendarSeed.calendarMatchId)
       if (captain) { showScorecard(captain, saved); void readHistory() }
       else if (saved) { showScorecard(saved); void readHistory() }
       else showEditor(null, calendarSeed)
