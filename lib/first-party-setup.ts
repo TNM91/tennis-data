@@ -1,9 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ProductAccessState } from './access-model-core'
-import { loadReviewedTeamLinks, readReviewedTeamRooms } from './first-party-team-scopes'
+import { loadEligibleCaptainRoomIds, loadReviewedTeamLinks, readReviewedTeamRooms } from './first-party-team-scopes'
 import type { MembershipTierId } from './product-story'
 import { buildSetupTracks, type SetupEvidence } from './setup-trophies'
-import { buildTeamRoomScopeId } from './team-room'
 
 function checked<T>(result: { data: T[] | null; error: unknown }) {
   if (result.error || !Array.isArray(result.data)) throw Error('Setup records unavailable')
@@ -11,21 +10,8 @@ function checked<T>(result: { data: T[] | null; error: unknown }) {
 }
 
 async function captainEvidence(service: SupabaseClient, owner: string): Promise<SetupEvidence> {
-  const links = (await loadReviewedTeamLinks(service, owner, readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)))
-    .filter(link => link.isCaptain)
-  if (!links.length) return {}
-  const ids = links.map(link => link.roomId)
-  const [rooms, members, removals] = await Promise.all([
-    service.from('internal_conversations').select('id,related_entity_id').in('id', ids)
-      .eq('related_entity_type', 'team_room').eq('status', 'open').limit(50),
-    service.from('internal_conversation_participants').select('conversation_id').in('conversation_id', ids).eq('profile_id', owner).limit(50),
-    service.from('team_room_member_removals').select('conversation_id').in('conversation_id', ids).eq('profile_id', owner).limit(50),
-  ])
-  const open = new Map(checked(rooms).map(room => [room.id, room.related_entity_id]))
-  const participating = new Set(checked(members).map(row => row.conversation_id))
-  const removed = new Set(checked(removals).map(row => row.conversation_id))
-  const eligible = links.filter(link => open.get(link.roomId) === buildTeamRoomScopeId(link) &&
-    participating.has(link.roomId) && !removed.has(link.roomId)).map(link => link.roomId)
+  const links = await loadReviewedTeamLinks(service, owner, readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS))
+  const eligible = await loadEligibleCaptainRoomIds(service, owner, links)
   if (!eligible.length) return {}
   const invites = checked(await service.from('team_room_invites').select('accepted_count').eq('created_by_user_id', owner)
     .in('conversation_id', eligible).order('accepted_count', { ascending: false }).limit(1))

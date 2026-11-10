@@ -2,6 +2,15 @@ import { MEMBERSHIP_TIER_ORDER, type MembershipTierId } from './product-story'
 
 const captainTeamSetup = 'Ask your league coordinator to enter your team name and flight in a TenAceIQ season and confirm your captain role. If you run the season, open League Office on the TenAceIQ website, create a team season, and add your team under Participants. If your team is still missing after you tap Refresh teams in Chats, contact support@tenaceiq.com to check whether team chat is enabled.'
 
+export const captainChatSetupMessages = {
+  'needs-captain-access': 'Creating team invites requires Captain tools. Check your membership in Account settings.',
+  'needs-team': 'You don’t have a confirmed captain role on a TenAceIQ team yet. Ask your league coordinator to confirm it.',
+  'needs-review': 'Your captain role is confirmed. Team chat still needs review. Contact support@tenaceiq.com to get it checked.',
+  'needs-room-access': 'Your team chat has been reviewed, but your account can’t open it. Contact support@tenaceiq.com to check your room access.',
+  ready: 'You can invite teammates. Open a team you captain, then choose Team → Invite teammates.',
+} as const
+export type CaptainChatSetupStatus = keyof typeof captainChatSetupMessages
+
 export const setupSteps = {
   account: { title: 'Verify your account', detail: 'Confirm your email and sign in to TenAceIQ.' },
   scorecard: { title: 'Log your first match', detail: 'In My Lab, tap Log a match and save a scorecard.', action: 'scorecard' },
