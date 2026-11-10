@@ -64,17 +64,31 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
   let matches: PersonalMatch[] = []
   let posted: PostedCourtScorecard[] = []
   let more = false, reading = false, writing = false
+  let scorecardOrigin: { id: string; button: HTMLButtonElement } | undefined
+
+  function findHistoryRow(id: string) {
+    return [...history.querySelectorAll<HTMLButtonElement>('[data-scorecard-id]')].find(button => button.dataset.scorecardId === id)
+  }
+
+  function openScorecard(match: LogScorecard, button: HTMLButtonElement) {
+    if (!active() || writing || !match) return
+    scorecardOrigin = { id: match.id, button }
+    showScorecard(match)
+  }
 
   function paintHistory() {
+    const focused = document.activeElement
+    const focusedId = focused instanceof HTMLButtonElement && history.contains(focused) ? focused.dataset.scorecardId : undefined
     const linked = new Set(posted.map(card => card.calendar_match_id))
     const scorecards: LogScorecard[] = [...posted, ...matches.filter(card => !card.calendar_match_id || !linked.has(card.calendar_match_id))]
       .sort((a, b) => b.match_date.localeCompare(a.match_date))
-    mountPersonalRecentForm(formHost, scorecards, active, showScorecard)
+    mountPersonalRecentForm(formHost, scorecards, active, openScorecard)
     history.innerHTML = scorecards.length ? `<h3>Saved scorecards</h3><ol class="lab-saved-scorecards" role="list">${scorecards.map(savedScorecardRow).join('')}</ol>` : ''
     if (more) history.insertAdjacentHTML('beforeend', '<button type="button" class="secondary" data-older-scorecards>Load older matches</button>')
     history.querySelectorAll<HTMLButtonElement>('[data-open-scorecard]').forEach(button => {
-      button.onclick = () => showScorecard(scorecards[Number(button.dataset.openScorecard)])
+      button.onclick = () => openScorecard(scorecards[Number(button.dataset.openScorecard)], button)
     })
+    if (focusedId) findHistoryRow(focusedId)?.focus({ preventScroll: true })
     const older = history.querySelector<HTMLButtonElement>('[data-older-scorecards]')
     if (older) older.onclick = () => { void readHistory(true) }
   }
@@ -159,7 +173,11 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     editor.replaceChildren()
     history.hidden = formHost.hidden = false
     add.disabled = reading
-    add.focus({ preventScroll: true })
+    const origin = scorecardOrigin
+    scorecardOrigin = undefined
+    const target = origin && (origin.button.isConnected ? origin.button : findHistoryRow(origin.id))
+    if (target) target.focus()
+    else add.focus({ preventScroll: true })
   }
 
   function showEditor(match: PersonalMatch | null, seed?: CalendarScorecardSeed | { previous: PersonalMatch }) {
@@ -336,7 +354,10 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     captainStatus.textContent = 'Captain scores couldn’t load.'
     captainStatus.hidden = false
   })
-  add.onclick = () => showEditor(null)
+  add.onclick = () => {
+    scorecardOrigin = undefined
+    showEditor(null)
+  }
   if (seed) void openCalendarMatch(seed)
   else void readHistory()
 }

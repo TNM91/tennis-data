@@ -58,15 +58,15 @@ function formHtml(decided:FormSample,source:string){
 }
 
 export function mountLabRecentForm(host:HTMLElement,rows:RecentMatchRow[],playerId:string,current:()=>boolean,open:(row:RecentMatchRow)=>void){
- mountForm(host,rows,filter=>linkedSample(rows,playerId,filter),'loaded matches',current,open)
+ mountForm(host,rows,filter=>linkedSample(rows,playerId,filter),'loaded matches',current,row=>open(row))
 }
 
-export function mountPersonalRecentForm<T extends Pick<PersonalMatch,'match_date'|'outcome'|'format'>>(host:HTMLElement,rows:T[],current:()=>boolean,open:(row:T)=>void){
+export function mountPersonalRecentForm<T extends Pick<PersonalMatch,'match_date'|'outcome'|'format'>>(host:HTMLElement,rows:T[],current:()=>boolean,open:(row:T,button:HTMLButtonElement)=>void){
  mountForm(host,rows,filter=>rows.flatMap((match,index)=>filter==='all'||filter===match.format
   ?[{index,date:match.match_date,outcome:match.outcome,format:match.format}]:[]).slice(0,5),'match log',current,open)
 }
 
-function mountForm<T>(host:HTMLElement,rows:T[],readSample:(filter:FormFormat)=>FormSample,source:string,current:()=>boolean,open:(row:T)=>void){
+function mountForm<T>(host:HTMLElement,rows:T[],readSample:(filter:FormFormat)=>FormSample,source:string,current:()=>boolean,open:(row:T,button:HTMLButtonElement)=>void){
  host.innerHTML=formHtml(readSample('all'),source)
  const sample=host.querySelector<HTMLElement>('#lab-form-sample')
  if(!sample)return
@@ -89,6 +89,6 @@ function mountForm<T>(host:HTMLElement,rows:T[],readSample:(filter:FormFormat)=>
   const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-lab-form-index]'):null
   if(!button||!sample.contains(button))return
   const row=rows[Number(button.dataset.labFormIndex)]
-  if(row){button.focus({preventScroll:true});open(row)}
+  if(row){button.focus({preventScroll:true});open(row,button)}
  }
 }
