@@ -7,10 +7,11 @@ import zipfile
 
 distribution, build_number, ipa_path, export_path, bundle_path, *args = sys.argv[1:]
 first_party = len(args) == 2 and args[0] == '--first-party'
-assert not args or first_party, 'Unknown iOS distribution validation option'
+full_app = args == ['--first-party-full']
+assert not args or first_party or full_app, 'Unknown iOS distribution validation option'
 channels = {'internal': 'TestFlightInternalSandbox', 'app-store': 'AppStore'}
 assert distribution in channels, 'Unknown iOS distribution'
-assert not first_party or distribution == 'internal', 'The offline device candidate is internal-only'
+assert not (first_party or full_app) or distribution == 'internal', 'This first-party candidate is internal-only'
 options = plistlib.loads(pathlib.Path(export_path).read_bytes())
 assert options.get('method') == 'app-store-connect', 'Wrong export method'
 assert options.get('testFlightInternalTestingOnly') is (distribution == 'internal'), 'Wrong distribution scope'
@@ -47,8 +48,15 @@ with zipfile.ZipFile(ipa_path) as ipa:
         assert info.get('TiqApplePurchaseChannel') == channels[distribution], 'Wrong purchase channel'
         assets = ('index.html', 'app.js', 'app.css', 'style.css', 'app-atmosphere.css',
                   'premium-surfaces.css', 'brand/courts/tiq-native-night-session.png')
+        scope = app + 'public/release-scope.json'
+        if full_app:
+            assert settings.get('webDir') == 'bundled', 'Wrong full-app web directory'
+            assert json.loads(ipa.read(scope)) == {'profile': 'first-party-full', 'version': 1}, 'Wrong full-app release scope'
+            assets += ('release-scope.json',)
+        else:
+            assert scope not in ipa.namelist(), 'The standard IPA contains a first-party scope marker'
     for path in assets:
         assert ipa.read(app + 'public/' + path) == (bundle / path).read_bytes(), f'Mismatched bundled file: {path}'
 
-profile = 'offline' if first_party else 'standard'
+profile = 'offline' if first_party else 'first-party full app' if full_app else 'standard'
 print(f'Validated signed TenAceIQ 1.0 ({build_number}) {profile} build for {distribution} distribution.')

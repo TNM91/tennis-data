@@ -66,6 +66,32 @@ class InternalBetaExport(unittest.TestCase):
                                              distribution, '226', str(root/'App.ipa'), str(root/'export.plist'), str(root)], capture_output=True)
                     self.assertEqual(result.returncode == 0, ok, result.stderr)
 
+    def test_full_app_scope_must_match_the_internal_export(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            assets = ('index.html', 'app.js', 'app.css', 'style.css', 'app-atmosphere.css',
+                      'premium-surfaces.css', 'brand/courts/tiq-native-night-session.png', 'release-scope.json')
+            for name in assets:
+                asset = root / name
+                asset.parent.mkdir(parents=True, exist_ok=True)
+                asset.write_bytes(b'checked asset')
+            (root/'release-scope.json').write_text('{"profile":"first-party-full","version":1}')
+            for distribution, include_scope, args, ok in [('internal', True, ['--first-party-full'], True),
+                    ('internal', False, ['--first-party-full'], False), ('internal', True, [], False),
+                    ('app-store', True, ['--first-party-full'], False)]:
+                info = {'CFBundleIdentifier': 'com.tenaceiq.app', 'CFBundleShortVersionString': '1.0', 'CFBundleVersion': '256',
+                        'TiqApplePurchaseChannel': 'TestFlightInternalSandbox', 'ITSAppUsesNonExemptEncryption': False}
+                with zipfile.ZipFile(root/'App.ipa', 'w') as ipa:
+                    app = 'Payload/App.app/'
+                    ipa.writestr(app + 'Info.plist', plistlib.dumps(info))
+                    ipa.writestr(app + 'capacitor.config.json', '{"appId":"com.tenaceiq.app","webDir":"bundled"}')
+                    for name in assets if include_scope else assets[:-1]:
+                        ipa.write(root/name, app + 'public/' + name)
+                (root/'export.plist').write_bytes(plistlib.dumps({'method':'app-store-connect','testFlightInternalTestingOnly':True}))
+                result = subprocess.run([sys.executable, str(SCRIPTS/'validate-ios-distribution.py'), distribution, '256',
+                                         str(root/'App.ipa'), str(root/'export.plist'), str(root), *args], capture_output=True)
+                self.assertEqual(result.returncode == 0, ok, result.stderr)
+
     def test_offline_export_rejects_beta_resources_and_entitlements(self):
         with tempfile.TemporaryDirectory() as folder:
             root = pathlib.Path(folder)

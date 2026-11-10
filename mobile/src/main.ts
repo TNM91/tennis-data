@@ -482,7 +482,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='coach-video'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachVideo(client,owner,current,trigger);return}
  if(destination==='coach-messages'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachMessages(client,owner,current,trigger,undefined,undefined,undefined,()=>{void chatUnread.refresh()});return}
  if(destination==='coach-tactics'){if(!coachWorkspace?.isOpen())coachWorkspace=openNativeTactics(client,owner,current,trigger,undefined,openCoachHref);return}
- if(destination==='league-office'){if(!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
+ if(destination==='league-office'){if(!firstPartyBuild&&!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
  if(destination==='imports'){void launchDataImports(owner,current);return}
  if(destination==='account'){launchAccount(trigger);return}
  if(destination==='training'||destination==='training-inbox'||destination==='training-progress'){
@@ -627,8 +627,8 @@ async function lab(entry?:'coach'|PlayerLink) {
   const goalScope=firstPartyBuild?accountGoalScope(current.user.id):playerId?{owner:current.user.id,player:playerId}:null
   const justConnected=hasIdentity&&link?.id===playerId
   const tools=error?'':labActionsHtml()+
-    (firstPartyBuild?'':'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section>')+
-    '<section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>'
+    (firstPartyBuild?'':'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section>'+
+    '<section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>')
   const controls=`<button id="refresh">${error?'Try again':'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
   const identity=error
     ? `<header class="tab-hero tab-hero-court"><h1 tabindex="-1">My Lab</h1><p role="alert">${link?'Your player record was connected. Try again to load My Lab.':'Can’t load your profile. Check your connection, then try again.'}</p></header>`
@@ -686,7 +686,7 @@ async function lab(entry?:'coach'|PlayerLink) {
   }})
   }
   app.querySelector('[data-open-imports]')?.addEventListener('click',()=>{void launchDataImports(current.user.id,()=>version===revision&&current.user.id===session?.user.id)})
-  app.querySelector('[data-league-office]')?.addEventListener('click',()=>{if(leagueOffice?.isOpen()||training?.isOpen()||goals?.isOpen())return;leagueOffice=openLeagueOffice(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id)})
+  if(!firstPartyBuild)app.querySelector('[data-league-office]')?.addEventListener('click',()=>{if(leagueOffice?.isOpen()||training?.isOpen()||goals?.isOpen())return;leagueOffice=openLeagueOffice(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id)})
   bindLabActions()
   const calendar=document.createElement('div')
   if(!error){

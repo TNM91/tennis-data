@@ -193,12 +193,15 @@ test('first-party preview keeps the app shell and uses only the scoped tournamen
  await expect(page.locator('[data-lab-ratings], [data-lab-profile], #recent-results')).toHaveCount(0)
  await expect(page.getByRole('heading',{name:'Your training',exact:true})).toBeVisible()
  await expect(page.locator('[data-open-imports]')).toHaveCount(0)
+ await expect(page.locator('[data-league-office]')).toHaveCount(0)
 
  await nav.getByRole('button',{name:'More',exact:true}).click()
  await expect(page.locator('[data-app-destination="imports"]')).toHaveCount(0)
+ await expect(page.locator('[data-app-destination="league-office"]')).toHaveCount(0)
  await expect(page.locator('[data-app-destination="coach"]')).toBeVisible()
  await nav.getByRole('button',{name:'Compete',exact:true}).click()
  await expect(page.locator('[data-app-destination="browse-leagues"]')).toBeVisible()
+ await expect(page.locator('[data-app-destination="league-office"]')).toHaveCount(0)
  await expect(page.locator('[data-app-destination="tournament-entries"]')).toHaveCount(0)
  await page.getByRole('button',{name:/^Browse tournaments/}).click()
 

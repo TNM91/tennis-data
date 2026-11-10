@@ -24,13 +24,13 @@ on:
         description: App profile to build
         type: choice
         default: standard
-        options: [standard, first-party]
+        options: [standard, first-party, first-party-full]
       check_testflight:
-        description: Check App Store Connect status for the offline build 255
+        description: Check App Store Connect status for the selected first-party build
         type: boolean
         default: false
       assign_previous_group:
-        description: When checking build 255, use the verified internal tester group from build 254
+        description: Use the verified internal tester group from build 254 when checking a first-party build
         type: boolean
         default: false
 permissions:
@@ -46,7 +46,8 @@ jobs:
         (github.ref == 'refs/heads/master' || (github.ref == 'refs/heads/codex/apple-mobile-build' && inputs.distribution == 'internal')) &&
         (inputs.distribution == 'internal' || (inputs.distribution == 'app-store' && inputs.upload))) ||
        (inputs.profile == 'first-party' && github.ref == 'refs/heads/codex/ios-first-party-release' &&
-        inputs.distribution == 'internal' && (!inputs.upload || inputs.build_number == '255')))
+        inputs.distribution == 'internal' && (!inputs.upload || inputs.build_number == '255')) ||
+       (inputs.profile == 'first-party-full' && github.ref == 'refs/heads/codex/ios-first-party-release' && inputs.distribution == 'internal'))
     permissions:
       contents: read
       actions: read
@@ -71,6 +72,16 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             mobile/package-lock.json
+      - name: Check full-app release inputs
+        if: inputs.profile == 'first-party-full'
+        env:
+          TIQ_UPLOAD: ${{ inputs.upload }}
+        run: |
+          set -euo pipefail
+          [[ "$TIQ_BUILD_NUMBER" =~ ^[1-9][0-9]{2,8}$ ]] && (( TIQ_BUILD_NUMBER > 255 ))
+          if test "$TIQ_UPLOAD" = true; then
+            node mobile/scripts/check-first-party-api.mjs
+          fi
       - name: Prepare bundled native app
         if: inputs.profile != 'first-party' || !inputs.upload
         run: |
@@ -84,6 +95,11 @@ jobs:
             npm run prepare:ios:first-party --prefix mobile
             npm run check:ios:first-party --prefix mobile
             node mobile/scripts/prepare-ios-store.mjs --first-party
+          elif test "$TIQ_IOS_PROFILE" = first-party-full; then
+            npm run build:bundled --prefix mobile -- --first-party-full
+            npm run prepare:ios --prefix mobile
+            npm run check:ios --prefix mobile -- --first-party-full
+            node mobile/scripts/prepare-ios-store.mjs
           else
             npm run build:bundled --prefix mobile
             npm run prepare:ios --prefix mobile
@@ -141,6 +157,9 @@ jobs:
             codesign --verify --deep --strict "$APP"
             codesign --display --entitlements - --xml "$APP" > "$RUNNER_TEMP/tiq-signing/offline-entitlements.plist"
             python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$IPA" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled-first-party --first-party "$RUNNER_TEMP/tiq-signing/offline-entitlements.plist"
+          elif test "$TIQ_IOS_PROFILE" = first-party-full; then
+            python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist"
+            python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$IPA" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled --first-party-full
           else
             python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist"
             python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$IPA" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled
@@ -178,7 +197,7 @@ jobs:
         if: inputs.distribution == 'internal' && (inputs.profile != 'first-party' || !inputs.upload)
         uses: actions/upload-artifact@v6
         with:
-          name: tenaceiq-ios-${{ inputs.profile == 'first-party' && 'first-party-signed' || 'signed' }}-${{ inputs.build_number }}
+          name: tenaceiq-ios-${{ inputs.profile == 'first-party' && 'first-party-signed' || inputs.profile == 'first-party-full' && 'first-party-full-signed' || 'signed' }}-${{ inputs.build_number }}
           path: ${{ runner.temp }}/tiq-export/App.ipa
           if-no-files-found: error
           retention-days: 3
@@ -193,8 +212,9 @@ jobs:
   check-offline-testflight:
     if: >-
       github.repository == 'TNM91/tennis-data' && github.ref == 'refs/heads/codex/ios-first-party-release' &&
-      inputs.profile == 'first-party' && inputs.distribution == 'internal' && inputs.build_number == '255' &&
-      inputs.check_testflight && !inputs.upload
+      ((inputs.profile == 'first-party' && inputs.distribution == 'internal' && inputs.build_number == '255' &&
+        inputs.check_testflight && !inputs.upload) ||
+       (inputs.profile == 'first-party-full' && inputs.distribution == 'internal' && inputs.check_testflight && !inputs.upload))
     environment: apple-testflight
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -205,11 +225,12 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Check build 255 and its internal tester group
+      - name: Check the first-party build and its internal tester group
         env:
           API_KEY: ${{ secrets.APPLE_UPLOAD_API_KEY_P8_BASE64 }}
           API_KEY_ID: ${{ secrets.APPLE_UPLOAD_API_KEY_ID }}
           API_ISSUER: ${{ secrets.APPLE_UPLOAD_API_ISSUER_ID }}
           TIQ_ASSIGN_PREVIOUS_GROUP: ${{ inputs.assign_previous_group }}
+          TIQ_CHECK_BUILD_NUMBER: ${{ inputs.build_number }}
         run: node mobile/scripts/check-offline-testflight.mjs
 

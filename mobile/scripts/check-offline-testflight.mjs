@@ -2,7 +2,8 @@ import {createPrivateKey,sign} from 'node:crypto'
 import {setTimeout as sleep} from 'node:timers/promises'
 
 const bundleId = 'com.tenaceiq.app'
-const buildNumber = '255'
+const buildNumber = process.env.TIQ_CHECK_BUILD_NUMBER || '255'
+if(!/^[1-9][0-9]{2,8}$/.test(buildNumber)||Number(buildNumber)<255)throw Error('Choose a first-party build number of at least 255.')
 const previousBuildNumber = '254'
 const origin = 'https://api.appstoreconnect.apple.com'
 const shouldAssign = process.env.TIQ_ASSIGN_PREVIOUS_GROUP === 'true'
@@ -39,7 +40,7 @@ async function addBuildToGroup(buildId,groupId){
  })
  // Another reviewer may have added the build between the read and the update.
  // A conflict still requires the same relationship check as a success.
- if(response.status!==204 && response.status!==409)throw new Error(`Apple returned HTTP ${response.status} while assigning build 255 to the previous group.`)
+ if(response.status!==204 && response.status!==409)throw new Error(`Apple returned HTTP ${response.status} while assigning build ${buildNumber} to the previous group.`)
 }
 
 const apps = await read('/v1/apps',{'filter[bundleId]':bundleId,'fields[apps]':'bundleId',limit:'2'})
@@ -106,7 +107,7 @@ for(let attempt=0;attempt<6;attempt++){
  if(result.processing==='VALID' && assigned && (!shouldAssign || result.internalState==='IN_BETA_TESTING'))break
  if(shouldAssign && !assignmentAttempted && attempt<5 && result.processing==='VALID' && !assigned){
   if(result.audience!=='INTERNAL_ONLY' || !['READY_FOR_BETA_TESTING','IN_BETA_TESTING'].includes(result.internalState)){
-   throw new Error('Build 255 is outside the approved internal testing scope.')
+   throw new Error(`Build ${buildNumber} is outside the approved internal testing scope.`)
   }
   await addBuildToGroup(current.id,previousGroup.id)
   assignmentAttempted = true
@@ -115,4 +116,4 @@ for(let attempt=0;attempt<6;attempt++){
  if(attempt<5)await sleep(20000)
 }
 console.log(JSON.stringify(result))
-if(shouldAssign && !result.sameGroupAs254)throw new Error('Apple did not confirm build 255 in the same group as build 254.')
+if(shouldAssign && !result.sameGroupAs254)throw new Error(`Apple did not confirm build ${buildNumber} in the same group as build 254.`)

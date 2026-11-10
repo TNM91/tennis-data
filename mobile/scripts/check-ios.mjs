@@ -8,6 +8,8 @@ import {checkFirstPartyBundle,firstPartyAssets,firstPartyCapacitorConfig,firstPa
 
 const root = new URL('../', import.meta.url)
 const firstParty = process.argv.includes('--first-party')
+const fullApp = process.argv.includes('--first-party-full')
+assert.ok(!firstParty||!fullApp,'Choose one first-party iOS profile')
 const ios = new URL((firstParty ? firstPartyIosDir : 'ios')+'/App/',root)
 const read = path => readFile(new URL(path, ios), 'utf8')
 const config = JSON.parse(await read('App/capacitor.config.json'))
@@ -65,6 +67,12 @@ if(firstParty){
   assert.ok(!targetFiles.some(name=>name.endsWith('.entitlements') || name==='TenAceIQPurchases.swift' || name==='PrivacyInfo.xcprivacy'),'Unexpected beta files in the offline target')
   console.log('Offline iOS source checks passed: exact bundled assets, core Capacitor only, default bridge, no app entitlements or permission strings, and approved icon.')
 }else{
+  const scope = await read('App/public/release-scope.json').catch(error=>{if(error.code!=='ENOENT')throw error;return null})
+  if(fullApp){
+    assert.deepEqual(JSON.parse(scope),{profile:'first-party-full',version:1})
+    for(const file of ['app.js','release-scope.json'])assert.equal(await read('App/public/'+file),await readFile(new URL('bundled/'+file,root),'utf8'))
+    for(const route of ['competitions','tournaments','team-rooms','team-invites','calendar','updates'])assert.ok(app.includes('/api/mobile/first-party/'+route),'Missing scoped '+route+' route')
+  }else assert.equal(scope,null,'A first-party bundle must use its dedicated signing profile')
   for (const name of ['AparajitaCapacitorSecureStorage', 'CapacitorApp', 'CapacitorBrowser', 'CapacitorPushNotifications', 'CapacitorCamera', 'CapacitorShare', 'CapacitorClipboard']) assert.ok(spm.includes(name), `Missing ${name}`)
   assert.match(await read('App/Push.entitlements'), /<key>aps-environment<\/key><string>development<\/string>/)
   assert.match(await read('App/AppDelegate.swift'), /capacitorDidRegisterForRemoteNotifications/)

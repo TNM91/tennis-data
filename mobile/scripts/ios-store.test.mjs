@@ -156,6 +156,23 @@ test('the build 255 status check skips signing and upload',async()=>{
  assert.equal(job.steps.find(step=>step.run).env.TIQ_ASSIGN_PREVIOUS_GROUP,'${{ inputs.assign_previous_group }}')
 })
 
+test('the full-app first-party candidate has a separate internal-only upload lane',async()=>{
+ const workflow=load(await readFile(new URL('../../.github/workflows/mobile-ios-signed.yml',import.meta.url),'utf8'))
+ assert.ok(workflow.on.workflow_dispatch.inputs.profile.options.includes('first-party-full'))
+ const job=workflow.jobs.signed
+ assert.match(job.if,/inputs\.profile == 'first-party-full' && github\.ref == 'refs\/heads\/codex\/ios-first-party-release' && inputs\.distribution == 'internal'/)
+ const steps=job.steps
+ const preflight=steps.find(step=>step.name==='Check full-app release inputs')
+ const prepare=steps.find(step=>step.name==='Prepare bundled native app')
+ const archive=steps.find(step=>step.name==='Archive and export signed IPA')
+ assert.ok(steps.indexOf(preflight)<steps.indexOf(prepare))
+ assert.match(preflight.run,/TIQ_BUILD_NUMBER > 255/)
+ assert.match(preflight.run,/node mobile\/scripts\/check-first-party-api\.mjs/)
+ assert.match(prepare.run,/build:bundled --prefix mobile -- --first-party-full/)
+ assert.match(prepare.run,/check:ios --prefix mobile -- --first-party-full/)
+ assert.match(archive.run,/mobile\/bundled --first-party-full/)
+})
+
 test('camera purposes are top-level plist values even with nested scene dictionaries',()=>{
  const nested='<?xml version="1.0"?><plist version="1.0"><dict><key>UIApplicationSceneManifest</key><dict><key>Scene</key><array><dict><key>Name</key><string>Main</string></dict></array></dict></dict></plist>'
  const previous=nested.replace('</dict>',Object.entries(cameraPurposeStrings).map(([key,value])=>'<key>'+key+'</key><string>'+value+'</string>').join('')+'</dict>')

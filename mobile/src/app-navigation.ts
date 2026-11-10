@@ -26,7 +26,7 @@ const tools:Record<string,Tool>={
  office:{destination:'league-office',title:'League Office',detail:'Manage your league seasons, entries and match desk.',icon:'leagues'},
  imports:{destination:'imports',title:'Uploads & imports',detail:'Review your scorecards, schedules and roster uploads.',icon:'imports'},
  account:{destination:'account',title:'Account',detail:'Membership, Face ID, sign-in and account settings.',icon:'account',keywords:'login log in logout log out subscription billing password'},
- teams:{destination:'teams',title:'Teams & captain tools',detail:'Open Chats, then your team’s match-day and captain tools.',icon:'teams'},
+ teams:{destination:'teams',title:firstPartyBuild?'Team chats':'Teams & captain tools',detail:firstPartyBuild?'Open your team conversations in Chats.':'Open Chats, then your team’s match-day and captain tools.',icon:'teams'},
  training:{destination:'training',title:'Practice & drills',detail:'Build a focused session for your next step.',icon:'catalog'},
  inbox:{destination:'training-inbox',title:'Your coach & weekly plans',detail:'Open assignments, send a check-in and review saved weeks.',icon:'inbox'},
  connection:{destination:'coach-connection',title:'Accept coach invitation',detail:'Connect your account using the link your coach shared.',icon:'inbox'},
@@ -73,7 +73,7 @@ export function appHubHtml(hub:AppHub,{fromLab=false,browseFirst=false}={}){
  const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'More'
  const note=discoveryFirst?'Find a league or tournament to play.':hub==='compete'?'Find events and follow your season.':'Lessons, practice and conversations.'
  if (firstPartyBuild) {
-  const unavailable = new Set(['imports','tournamentEntries','following','matchup'])
+  const unavailable = new Set(['imports','tournamentEntries','following','matchup','office'])
   for (const group of groups) group.keys = group.keys.filter(key => !unavailable.has(key))
  }
  const total=groups.reduce((count,group)=>count+group.keys.length,0)
