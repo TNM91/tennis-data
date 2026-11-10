@@ -30,7 +30,7 @@
   </section>
   <section aria-labelledby="match-title">
    <p class="eyebrow">Match log</p>
-   <h2 id="match-title">Record a match</h2>
+   <h2 id="match-title" tabindex="-1">Record a match</h2>
    <p>Add a result from a match you played. Your log is saved on this device.</p>
    <form id="match-form">
     <label>Match date<input type="date" name="date" required></label>
@@ -39,11 +39,23 @@
      <label>Result<select name="result" required><option value="">Choose</option><option>Won</option><option>Lost</option></select></label>
     </div>
     <label>Set scores <span class="optional">Optional</span><input name="score" maxlength="48" placeholder="6-4 6-3"></label>
-    <button type="submit">Save match</button>
+    <div class="match-actions">
+     <button type="submit" id="match-save">Save match</button>
+     <button type="button" id="match-cancel" class="secondary" hidden>Cancel edit</button>
+    </div>
    </form>
    <p class="notice" id="match-status" role="status"></p>
    <h3>Your matches</h3>
    <p id="match-empty">Your recorded matches will appear here.</p>
+   <div class="recent-form" id="recent-form" role="group" aria-labelledby="recent-form-title" hidden>
+    <h4 id="recent-form-title">Recent form</h4>
+    <p id="recent-sample"></p>
+    <strong id="recent-record"></strong>
+    <dl>
+     <div><dt>Singles</dt><dd id="recent-singles"></dd></div>
+     <div><dt>Doubles</dt><dd id="recent-doubles"></dd></div>
+    </dl>
+   </div>
    <ul class="match-list" id="match-list"></ul>
   </section>
  </main>

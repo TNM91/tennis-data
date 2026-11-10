@@ -27,6 +27,8 @@ details { margin-block:12px;color:#dce9f9; }
 summary { cursor:pointer; }
 ol { padding-inline-start:1.3em;line-height:1.55; }
 .timer { display:flex;gap:8px;flex-wrap:wrap;align-items:center; }
+.match-actions { display:flex;gap:8px;flex-wrap:wrap; }
+.match-actions button:first-child { flex:1; }
 #elapsed { font-variant-numeric:tabular-nums;font-weight:700; }
 button,input,select { font:inherit; }
 button { min-block-size:44px;padding:8px 12px;border:1px solid #b5eb46;border-radius:12px;background:#b5eb46;color:#0b1d36;font-weight:700;cursor:pointer; }
@@ -36,9 +38,24 @@ label { display:grid;gap:5px;color:#dce9f9;min-inline-size:0;font-size:.9rem; }
 .match-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
 .optional { display:inline;color:#9bb4ce;font-size:.75rem; }
 input,select { min-inline-size:0;inline-size:100%;min-block-size:44px;padding:8px;border:1px solid #426b95;border-radius:10px;background:#0a182d;color:#f0f6ff; }
+select {
+ appearance:none;padding-inline-end:26px;
+ background-image:linear-gradient(45deg,transparent 50%,#b7cce0 50%),linear-gradient(135deg,#b7cce0 50%,transparent 50%);
+ background-position:right 15px center,right 10px center;background-size:5px 5px;background-repeat:no-repeat;
+}
 :focus-visible { outline:2px solid #b5eb46;outline-offset:3px; }
 .notice:not(:empty) { margin-block-start:8px;color:#d7ecaf; }
+.recent-form { padding:12px;margin-block:8px 12px;border:1px solid #355579;border-radius:14px;background:#0a182d; }
+.recent-form h4,.recent-form dl,.recent-form dd { margin:0; }
+.recent-form p { margin-block:4px 8px;font-size:.82rem; }
+.recent-form strong { color:#b5eb46; }
+.recent-form dl { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-block-start:10px; }
+.recent-form dt { color:#b7cce0;font-size:.82rem; }
+.recent-form dd { margin-block-start:3px; }
 .match-list { display:grid;gap:8px;padding:0;margin:0;list-style:none; }
-.match-list li { display:grid;gap:4px;padding:10px;border:1px solid #294665;border-radius:10px;overflow-wrap:anywhere; }
+.match-list li { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:10px;border:1px solid #294665;border-radius:10px;overflow-wrap:anywhere; }
+.match-list li div { display:grid;gap:4px; }
+.match-score { font-variant-numeric:tabular-nums; }
 .match-list time { color:#b7cce0;font-size:.82rem; }
+.match-list button { align-self:center; }
 @media(max-width:340px) { .match-fields { grid-template-columns:1fr; } }
