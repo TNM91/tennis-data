@@ -18,7 +18,9 @@ const result = await build({
 // A new dependency needs an explicit source review before it enters this package.
 const approvedInputs = [
  'lib/calendar-date.ts',
+ 'lib/contact-details.ts',
  'lib/level-up/level-up-cards.ts',
+ 'lib/offline-ios-privacy.ts',
  'mobile/src/first-party/app.css',
  'mobile/src/first-party/app.ts',
  'mobile/src/training-clock.ts',

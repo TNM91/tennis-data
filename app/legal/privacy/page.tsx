@@ -8,6 +8,7 @@ import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { APPLE_PURCHASE_PRIVACY_SUMMARY, ACCOUNT_BACKUP_RETENTION, ACCOUNT_DELETION_DETAILS, ACCOUNT_DELETION_SUMMARY, ACCOUNT_PRIVACY_SECTIONS } from '@/lib/account-privacy'
 import { CONTACT_EMAILS, PUBLIC_EMAIL_CONTACTS } from '@/lib/contact-details'
+import { OFFLINE_IOS_PRIVACY_PARAGRAPHS } from '@/lib/offline-ios-privacy'
 
 const privacySupportEmailHref = PUBLIC_EMAIL_CONTACTS.find(contact => contact.key === 'support')?.href
 
@@ -59,6 +60,13 @@ export default function PrivacyPage() {
           <h3 className="section-title" style={{ fontSize: '1.05rem' }}>Using the iPhone app</h3>
           {ACCOUNT_PRIVACY_SECTIONS.slice(0, 3).map(section => (
             <p key={section.title}>{section.body}</p>
+          ))}
+        </div>
+
+        <div id="offline-ios">
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Offline iOS edition</h2>
+          {OFFLINE_IOS_PRIVACY_PARAGRAPHS.map(paragraph => (
+            <p key={paragraph}>{paragraph}</p>
           ))}
         </div>
 

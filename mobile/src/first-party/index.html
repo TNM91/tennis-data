@@ -9,8 +9,16 @@
  <link rel="stylesheet" href="./app.css">
 </head>
 <body>
- <header class="brand-header"><img src="./brand/header-logo-transparent.png" alt="TenAceIQ"></header>
+ <header class="brand-header" id="my-lab" tabindex="-1">
+  <img src="./brand/header-logo-transparent.png" alt="TenAceIQ">
+  <a class="privacy-link" href="#offline-privacy">Privacy</a>
+ </header>
  <main>
+  <section id="offline-privacy" class="privacy-policy" aria-labelledby="privacy-title" tabindex="-1">
+   <h1 id="privacy-title">Privacy policy</h1>
+   <div id="privacy-copy"></div>
+   <a class="privacy-link" href="#my-lab">Back to My Lab</a>
+  </section>
   <header class="hero">
    <p class="eyebrow">My Lab</p>
    <h1>Build your game</h1>

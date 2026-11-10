@@ -1,7 +1,14 @@
 import {formatCalendarDay,isValidCalendarDate} from '../../../lib/calendar-date'
 import {LEVEL_UP_CARDS} from '../../../lib/level-up/level-up-cards'
+import {OFFLINE_IOS_PRIVACY_PARAGRAPHS} from '../../../lib/offline-ios-privacy'
 import {TrainingClock,trainingTime} from '../training-clock'
 import './app.css'
+
+document.querySelector('#privacy-copy')!.append(...OFFLINE_IOS_PRIVACY_PARAGRAPHS.map(copy=>{
+ const paragraph = document.createElement('p')
+ paragraph.textContent = copy
+ return paragraph
+}))
 
 const drills = [
  {id:'split-step-rhythm',label:'Footwork'},
