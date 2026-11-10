@@ -202,7 +202,7 @@ export function writeTiqAwardsRegistry(records: TiqAwardRecord[]) {
   window.localStorage.setItem(TIQ_AWARDS_REGISTRY_STORAGE_KEY, JSON.stringify(records))
 }
 
-export function upsertTiqAwardRecord(draft: TiqAwardDraft) {
+function prepareTiqAwardRecord(draft: TiqAwardDraft) {
   const registry = readTiqAwardsRegistry()
   const now = new Date().toISOString()
   const placement = normalizeTiqAwardPlacement(draft.placement)
@@ -232,31 +232,44 @@ export function upsertTiqAwardRecord(draft: TiqAwardDraft) {
 
   if (!nextRecord.sourceId || !nextRecord.sourceName || !nextRecord.recipientName) return null
 
-  writeTiqAwardsRegistry([nextRecord, ...registry.filter((record) => record.id !== id)])
   return nextRecord
 }
 
-export async function saveTiqAwardRecordForUser(draft: TiqAwardDraft, userId?: string | null) {
-  const record = upsertTiqAwardRecord(draft)
-  if (!record) return { data: null, error: null, source: 'local' as const }
+export function upsertTiqAwardRecord(draft: TiqAwardDraft) {
+  const record = prepareTiqAwardRecord(draft)
+  if (record) mergeLocalAwardRecord(record)
+  return record
+}
 
+export async function saveTiqAwardRecordForUser(draft: TiqAwardDraft, userId?: string | null) {
   if (!userId) {
-    return { data: record, error: null, source: 'local' as const }
+    return { data: upsertTiqAwardRecord(draft), error: null, source: 'local' as const }
   }
 
+  const record = prepareTiqAwardRecord(draft)
+  if (!record) return { data: null, error: null, source: 'local' as const }
   const result = await supabase
     .from('tiq_awards')
     .upsert(toCloudAwardPayload(record, userId), { onConflict: 'id' })
     .select('id,source_type,source_id,source_name,recipient_name,recipient_player_id,placement,title,subtitle,badge_label,badge_code,coordinator_name,notes,issued_at,created_at,updated_at')
     .maybeSingle()
 
-  if (result.error) {
-    return { data: record, error: new Error(result.error.message), source: 'local' as const }
+  if (result.error || !result.data) {
+    return { data: null, error: new Error(result.error?.message || 'Award was not confirmed.'), source: 'local' as const }
   }
 
   const nextRecord = mapCloudAwardRow(result.data as TiqAwardCloudRow)
   mergeLocalAwardRecord(nextRecord)
   return { data: nextRecord, error: null, source: 'cloud' as const }
+}
+
+export async function loadPublishedTiqAwardsForPlayer(playerId: string) {
+  const id = cleanText(playerId)
+  if (!id) return []
+  const result = await supabase.from('tiq_awards')
+    .select('id,source_type,source_id,source_name,recipient_name,recipient_player_id,placement,title,subtitle,badge_label,badge_code,coordinator_name,notes,issued_at,created_at,updated_at')
+    .eq('recipient_player_id', id).order('issued_at', { ascending: false }).order('id').limit(100)
+  return result.error ? [] : ((result.data || []) as TiqAwardCloudRow[]).map(mapCloudAwardRow)
 }
 
 export function readTiqAwardsForSource(sourceType: TiqAwardSourceType, sourceId: string) {

@@ -6,14 +6,13 @@ describe('My Lab trophy room', () => {
   it('syncs linked player tournament awards into the trophy room', () => {
     const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 
-    expect(source).toContain('loadTiqAwardsForPlayer')
-    expect(source).toContain('setTiqAwards([...byId.values()])')
+    expect(source).toContain('loadPublishedTiqAwardsForPlayer')
+    expect(source).toContain('award.recipientPlayerId === profileLink?.linked_player_id')
     expect(source).toContain('earnedAwardCards')
     expect(source).toContain('trophyRoomCards')
     expect(source).toContain('buildPlayerTrophyBadges')
     expect(source).toContain('Earned badges')
     expect(source).toContain('Next: {nextTrophyBadge.label}')
     expect(source).toContain('Tournament honors and best marks')
-    expect(source).toContain('readTiqAwardsRegistry')
   })
 })

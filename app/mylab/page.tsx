@@ -72,7 +72,7 @@ import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
-import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import { loadPublishedTiqAwardsForPlayer, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
 import { readMatchupPrepDraft } from '@/lib/matchup-prep-note'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
@@ -1238,17 +1238,6 @@ function MyLabPageInner() {
   }, [authResolved, session?.access_token])
 
   useEffect(() => {
-    setTiqAwards(readTiqAwardsRegistry())
-
-    function handleStorage() {
-      setTiqAwards(readTiqAwardsRegistry())
-    }
-
-    window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
-  }, [])
-
-  useEffect(() => {
     setLocalLevelUpCompletions(readLocalLevelUpCompletions())
 
     function handleStorage(event: StorageEvent) {
@@ -1307,25 +1296,18 @@ function MyLabPageInner() {
 
   useEffect(() => {
     const linkedPlayerId = profileLink?.linked_player_id || ''
-    const linkedPlayerName = profileLink?.linked_player_name || ''
-    if (!linkedPlayerId && !linkedPlayerName) return
-
+    setTiqAwards([])
+    if (!linkedPlayerId) return
     let active = true
 
-    void (async () => {
-      const result = await loadTiqAwardsForPlayer(linkedPlayerId, linkedPlayerName)
-      if (!active) return
-      const byId = new Map<string, TiqAwardRecord>()
-      for (const award of [...result.data, ...readTiqAwardsRegistry()]) {
-        byId.set(award.id, award)
-      }
-      setTiqAwards([...byId.values()])
-    })()
+    void loadPublishedTiqAwardsForPlayer(linkedPlayerId).then(awards => {
+      if (active) setTiqAwards(awards)
+    })
 
     return () => {
       active = false
     }
-  }, [profileLink?.linked_player_id, profileLink?.linked_player_name])
+  }, [profileLink?.linked_player_id, refreshTick])
 
   const refreshMyLab = useCallback(async () => {
     setLoading(true)
@@ -2874,15 +2856,8 @@ function MyLabPageInner() {
   )
   const courtModeHref = latestLevelUpProof?.nextHref || `/player-development/${fallbackLevelUpIdentitySlug}/level-up`
   const earnedAwardCards = useMemo(() => {
-    const profileNames = new Set(
-      [profileLink?.linked_player_name, linkedPlayer?.name]
-        .map((name) => cleanText(name || '').toLowerCase())
-        .filter(Boolean),
-    )
-    if (!profileNames.size) return []
-
     return tiqAwards
-      .filter((award) => profileNames.has(cleanText(award.recipientName).toLowerCase()))
+      .filter((award) => award.recipientPlayerId === profileLink?.linked_player_id)
       .slice(0, 4)
       .map((award) => ({
         label: award.badgeLabel,
@@ -2891,7 +2866,7 @@ function MyLabPageInner() {
         href: `/awards/${encodeURIComponent(award.id)}`,
         cta: 'Certificate',
       }))
-  }, [linkedPlayer?.name, profileLink?.linked_player_name, tiqAwards])
+  }, [profileLink?.linked_player_id, tiqAwards])
   const firstName = (profileLink?.linked_player_name || linkedPlayer?.name || '').split(' ')[0] || ''
   const welcomeLine = firstName ? `${firstName}, start with the next useful move.` : 'Start with the next useful move.'
   const myLabTitle = isProfileConfirmed ? welcomeLine : 'My Lab.'

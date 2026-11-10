@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buildTeamRoomScopeId, type TeamRoomScope } from './team-room'
+import { buildTeamRoomScopeId, canManageTeamRoom, type TeamRoomScope } from './team-room'
 
 export type ReviewedTeamRoom = TeamRoomScope & { roomId: string }
+type ReviewedTeamLink = ReviewedTeamRoom & { isCaptain: boolean }
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
 const membershipSources = ['manual_invite', 'tiq_entry']
 const scopeKey = ({ teamName, leagueName, flight }: TeamRoomScope) => JSON.stringify([teamName, leagueName, flight])
@@ -37,16 +38,18 @@ export function reviewedTeamRoom(rooms: ReadonlyMap<string, ReviewedTeamRoom>, s
 export async function loadReviewedTeamLinks(service: SupabaseClient, owner: string, rooms: ReadonlyMap<string, ReviewedTeamRoom>) {
   if (!rooms.size) return []
   const { data, error } = await service.from('team_profile_links')
-    .select('profile_user_id,team_name,league_name,flight,status,archived_at,source_type')
+    .select('profile_user_id,team_name,league_name,flight,status,archived_at,source_type,team_role,team_roles')
     .eq('profile_user_id', owner).eq('status', 'accepted').is('archived_at', null)
     .in('source_type', membershipSources).limit(51)
   if (error || !Array.isArray(data) || data.length > 50) throw Error('Team access unavailable')
-  const accepted = new Map<string, ReviewedTeamRoom>()
+  const accepted = new Map<string, ReviewedTeamLink>()
   for (const row of data) {
     if (row.profile_user_id !== owner || row.status !== 'accepted' || row.archived_at !== null ||
         !membershipSources.includes(row.source_type)) continue
     const room = reviewedTeamRoom(rooms, { teamName: row.team_name, leagueName: row.league_name, flight: row.flight || '' })
-    if (room) accepted.set(room.roomId, room)
+    if (room) accepted.set(room.roomId, { ...room,
+      isCaptain: canManageTeamRoom(row.team_roles ?? [row.team_role]),
+    })
   }
   return [...accepted.values()]
 }
