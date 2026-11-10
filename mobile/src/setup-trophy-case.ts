@@ -1,8 +1,11 @@
 import { CapacitorHttp } from '@capacitor/core'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { competitionPlacements, readCompetitionTrophies, type CompetitionTrophy } from '../../lib/competition-trophies'
 import { MEMBERSHIP_TIERS } from '../../lib/product-story'
 import { readSetupTracks, setupSteps, setupTracks, type SetupTrack } from '../../lib/setup-trophies'
 import { matchesTeamReleaseScope } from './first-party-team-transport'
+import { html } from './match-details'
+import { matchDate } from './recent-results'
 
 export type SetupAction = 'scorecard' | 'training' | 'coach-workspace' | 'chats'
 
@@ -25,12 +28,24 @@ function trackHtml(track: SetupTrack) {
   </article>`
 }
 
+function competitionHtml(trophies: CompetitionTrophy[] | null) {
+  return `<section aria-labelledby="lab-competition-trophies">
+    <h3 id="lab-competition-trophies">Competition honors</h3>
+    ${trophies === null ? '<p>Couldn’t check competition honors. Refresh to try again.</p>' :
+      trophies.length ? `<ul class="lab-competition-trophies">${trophies.map(trophy => `<li class="setup-trophy-card">
+        <small>${trophy.kind === 'league' ? 'League' : 'Tournament'} · ${competitionPlacements[trophy.placement]}</small>
+        <strong>${html(trophy.name)}</strong>
+        <small>${[trophy.division, matchDate(trophy.awardedOn)].filter(Boolean).map(html).join(' · ')}</small>
+      </li>`).join('')}</ul>` : '<p>League and tournament honors appear here when an organizer issues an award to your linked player profile.</p>'}
+  </section>`
+}
+
 export function mountSetupTrophyCase(
   host: HTMLElement, client: SupabaseClient, owner: string, current: () => boolean,
   openAction: (action: SetupAction, trigger: HTMLButtonElement) => void, reveal = false,
 ) {
   host.innerHTML = `<details class="lab-trophy-case" ${reveal ? 'open' : ''}>
-    <summary><strong>Trophy Case</strong><span>Complete your setup and earn trophies</span></summary>
+    <summary><strong>Trophy Case</strong><span>Competition honors and setup trophies</span></summary>
     <p role="status" data-setup-status></p><div data-setup-tracks></div>
     <button type="button" class="secondary" data-setup-refresh>Check setup progress</button>
   </details>`
@@ -58,7 +73,8 @@ export function mountSetupTrophyCase(
       const data = response.data
       if (response.status !== 200 || data?.ok !== true || !matchesTeamReleaseScope(data, owner)) throw Error('Setup unavailable')
       const tracks = readSetupTracks(data.tracks)
-      list.innerHTML = tracks.map(trackHtml).join('')
+      const trophies = data.competitionTrophies == null ? null : readCompetitionTrophies(data.competitionTrophies)
+      list.innerHTML = competitionHtml(trophies) + '<h3>Setup trophies</h3>' + tracks.map(trackHtml).join('')
       for (const button of list.querySelectorAll<HTMLButtonElement>('[data-setup-action]')) {
         button.onclick = () => { if (active()) openAction(button.dataset.setupAction as SetupAction, button) }
       }

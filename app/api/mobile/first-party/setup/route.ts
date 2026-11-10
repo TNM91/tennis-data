@@ -1,4 +1,5 @@
 import { loadFirstPartySetup } from '@/lib/first-party-setup'
+import { loadFirstPartyCompetitionTrophies } from '@/lib/first-party-competition-trophies'
 import { accountClient, accountResponse, verifiedAccount } from '@/lib/mobile-account-auth'
 import { loadPlayerAccess } from '@/lib/player-api-auth'
 import { supabaseKey } from '@/lib/supabase-public-config'
@@ -17,9 +18,12 @@ export async function GET(request: Request) {
     if (!key) return json({ ok: false }, 503)
     const owner = account.user.id
     const db = accountClient(supabaseKey, account.token)
-    const access = await loadPlayerAccess(db, owner)
-    const tracks = await loadFirstPartySetup(db, accountClient(key), owner, access)
-    return json({ ok: true, owner, tracks }, 200)
+    const service = accountClient(key)
+    const [tracks, competitionTrophies] = await Promise.all([
+      loadPlayerAccess(db, owner).then(access => loadFirstPartySetup(db, service, owner, access)),
+      loadFirstPartyCompetitionTrophies(db, service, owner).catch(() => null),
+    ])
+    return json({ ok: true, owner, tracks, competitionTrophies }, 200)
   } catch {
     return json({ ok: false }, 503)
   }

@@ -59,12 +59,7 @@ import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
-import {
-  loadTiqAwardsForPlayer,
-  readTiqAwardsForPlayerId,
-  readTiqAwardsForRecipient,
-  type TiqAwardRecord,
-} from '@/lib/tiq-awards-registry'
+import { loadPublishedTiqAwardsForPlayer, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import profileStory from './player-profile-story.module.css'
 import RatingJourneyExplorer from '@/app/components/rating-journey-explorer'
@@ -755,31 +750,22 @@ function PlayerProfileContent() {
   }, [playerId, loadPlayerProfile])
 
   useEffect(() => {
-    if (!player?.name) {
+    if (!playerId) {
       setPlayerAwards([])
       return
     }
 
     let active = true
 
-    void (async () => {
-      const result = await loadTiqAwardsForPlayer(playerId, player.name)
-      if (!active) return
-      const deduped = new Map<string, TiqAwardRecord>()
-      for (const award of [
-        ...result.data,
-        ...readTiqAwardsForPlayerId(playerId),
-        ...readTiqAwardsForRecipient(player.name),
-      ]) {
-        deduped.set(award.id, award)
-      }
-      setPlayerAwards([...deduped.values()])
-    })()
+    setPlayerAwards([])
+    void loadPublishedTiqAwardsForPlayer(playerId).then(awards => {
+      if (active) setPlayerAwards(awards)
+    })
 
     return () => {
       active = false
     }
-  }, [player?.name, playerId])
+  }, [playerId])
 
   useEffect(() => {
     if (!player?.name) {
@@ -2331,15 +2317,74 @@ function PlayerProfileContent() {
           <div className={profileStory.milestoneCopy}>
             <span>Milestones</span>
             <strong>{playerAwards.length} honor{playerAwards.length === 1 ? '' : 's'} earned</strong>
-            <small>Every verified honor stays connected to this player record.</small>
+            <small>League and tournament honors issued to this player.</small>
           </div>
             <div className={profileStory.awardLinks}>
+              <Link href="#profile-trophy-case">Trophy Case</Link>
               {playerAwards.slice(0, 3).map((award) => (
                 <Link key={award.id} href={`/awards/${encodeURIComponent(award.id)}`}>{award.badgeLabel}</Link>
               ))}
             </div>
         </article>
         ) : null}
+
+        <article id="profile-trophy-case" className={profileStory.anchorSection} style={panelCard}>
+          <div style={scorecardHeaderStyle}>
+            <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
+            <div style={panelHeadCopyStyle}>
+              <div style={sectionKicker}>Trophy case</div>
+              <h2 style={scorecardTitleStyle}>{playerAwards.length ? `${playerAwards.length} honor${playerAwards.length === 1 ? '' : 's'} earned.` : 'Honors will land here.'}</h2>
+            </div>
+          </div>
+
+          {playerAwards.length ? (
+            <>
+              <div style={trophyProofGridStyle} aria-label="Trophy case proof">
+                <div style={trophyProofItemStyle}>
+                  <span style={readinessDotReadyStyle} />
+                  <strong>Honors</strong>
+                  <em>{playerAwards.length}</em>
+                </div>
+                <div style={trophyProofItemStyle}>
+                  <span style={readinessDotReadyStyle} />
+                  <strong>Tournaments</strong>
+                  <em>{playerAwards.filter((award) => award.sourceType === 'tournament').length}</em>
+                </div>
+                <div style={trophyProofItemStyle}>
+                  <span style={readinessDotReadyStyle} />
+                  <strong>Leagues</strong>
+                  <em>{playerAwards.filter((award) => award.sourceType === 'league').length}</em>
+                </div>
+              </div>
+              <div style={trophyGridStyle}>
+                {playerAwards.map((award) => (
+                  <article key={award.id} style={trophyCardStyle}>
+                    <div style={trophyBadgeStyle}>{award.badgeCode}</div>
+                    <div style={trophyCopyStyle}>
+                      <strong>{award.badgeLabel}</strong>
+                      <span>{award.title} - {award.sourceName}</span>
+                      <small>{award.subtitle || 'More Tennis. One App.'}</small>
+                    </div>
+                    <div style={trophyActionRowStyle}>
+                      <MiniLink href={`/awards/${encodeURIComponent(award.id)}`}>Certificate</MiniLink>
+                      {award.sourceType === 'tournament' ? (
+                        <MiniLink href={`/tournaments/${encodeURIComponent(award.sourceId)}`}>Open event</MiniLink>
+                      ) : (
+                        <MiniLink href={`/explore/leagues/tiq/${encodeURIComponent(award.sourceId)}?league_id=${encodeURIComponent(award.sourceId)}`}>
+                          Open league
+                        </MiniLink>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p style={scorecardRailTextStyle}>
+              League and tournament organizers can publish awards to this player’s Trophy Case.
+            </p>
+          )}
+        </article>
       </section>
 
       <section style={{ display: 'none' }} aria-hidden="true">
@@ -2716,65 +2761,6 @@ function PlayerProfileContent() {
             </details>
           </div>
         </article>
-
-        <article id="profile-trophy-case" style={{ display: 'none' }} aria-hidden="true">
-          <div style={scorecardHeaderStyle}>
-            <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
-            <div style={panelHeadCopyStyle}>
-              <div style={sectionKicker}>Trophy case</div>
-              <h2 style={scorecardTitleStyle}>{playerAwards.length ? `${playerAwards.length} honor${playerAwards.length === 1 ? '' : 's'} earned.` : 'Honors will land here.'}</h2>
-            </div>
-          </div>
-
-          {playerAwards.length ? (
-            <>
-              <div style={trophyProofGridStyle} aria-label="Trophy case proof">
-                <div style={trophyProofItemStyle}>
-                  <span style={readinessDotReadyStyle} />
-                  <strong>Honors</strong>
-                  <em>{playerAwards.length}</em>
-                </div>
-                <div style={trophyProofItemStyle}>
-                  <span style={readinessDotReadyStyle} />
-                  <strong>Tournaments</strong>
-                  <em>{playerAwards.filter((award) => award.sourceType === 'tournament').length}</em>
-                </div>
-                <div style={trophyProofItemStyle}>
-                  <span style={readinessDotReadyStyle} />
-                  <strong>Certificates</strong>
-                  <em>Ready</em>
-                </div>
-              </div>
-              <div style={trophyGridStyle}>
-                {playerAwards.map((award) => (
-                  <article key={award.id} style={trophyCardStyle}>
-                    <div style={trophyBadgeStyle}>{award.badgeCode}</div>
-                    <div style={trophyCopyStyle}>
-                      <strong>{award.badgeLabel}</strong>
-                      <span>{award.title} - {award.sourceName}</span>
-                      <small>{award.subtitle || 'More Tennis. One App.'}</small>
-                    </div>
-                    <div style={trophyActionRowStyle}>
-                      <MiniLink href={`/awards/${encodeURIComponent(award.id)}`}>Certificate</MiniLink>
-                      {award.sourceType === 'tournament' ? (
-                        <MiniLink href={`/tournaments/${encodeURIComponent(award.sourceId)}`}>Open event</MiniLink>
-                      ) : (
-                        <MiniLink href={`/explore/leagues/tiq/${encodeURIComponent(award.sourceId)}?league_id=${encodeURIComponent(award.sourceId)}`}>
-                          Open league
-                        </MiniLink>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p style={scorecardRailTextStyle}>
-              Tournament awards attach here when a director creates TIQ profiles for entrants and issues branded awards.
-            </p>
-          )}
-        </article>
-
         {access.canUseAdvancedPlayerInsights ? (
           <details style={profileReadDetailsStyle}>
             <summary style={profileReadSummaryStyle}>

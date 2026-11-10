@@ -81,7 +81,11 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/first-party/setup'){
   setupFixture.requests++
   return Response.json({ok:true,owner:currentNavigationOwner(),releaseScope:'first-party',
-   tracks:[{tier:'free',done:['account']},{tier:'captain',done:setupFixture.done}]})
+   tracks:[{tier:'free',done:['account']},{tier:'captain',done:setupFixture.done}],
+   competitionTrophies:[
+    {id:'city-league-award',kind:'league',placement:'first',name:'City League',division:'Fall · 4.5',awardedOn:'2026-11-10'},
+    {id:'fall-open-award',kind:'tournament',placement:'first',name:'Fall Open',division:'Men’s 4.5',awardedOn:'2026-11-10'},
+   ]})
  }
  if(url.pathname==='/api/mobile/account'&&(!init?.method||init.method==='GET'))return Response.json({
   ok:true,email:'captain@example.test',fulfillment:'automated',reviewDays:7,verificationRequired:false,request:null,

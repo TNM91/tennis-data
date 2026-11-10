@@ -1633,9 +1633,10 @@ export function LeagueCoordinatorWorkspace() {
 
     setLeagueAwardRefresh((current) => current + 1)
     setStatus(
-      result.data
-        ? `${candidate.label} award created for ${candidate.recipientName}.`
-        : 'That league award could not be created yet.',
+      result.error || !result.data ? 'That league award could not be published. Check your organizer access and try again.'
+        : result.source === 'local' ? 'Certificate saved on this device. Sign in to publish the award.'
+        : result.data.recipientPlayerId ? `${candidate.label} published to ${candidate.recipientName}’s Trophy Case.`
+        : `${candidate.label} certificate published for ${candidate.recipientName}.`,
     )
   }
 
@@ -3934,6 +3935,9 @@ export function LeagueCoordinatorWorkspace() {
                                 <GhostLink href={`/players/${encodeURIComponent(issuedAward.recipientPlayerId)}#profile-trophy-case`}>
                                   Trophy case
                                 </GhostLink>
+                              ) : null}
+                              {candidate.recipientPlayerId && candidate.recipientPlayerId !== issuedAward.recipientPlayerId ? (
+                                <GhostBtn onClick={() => void issueLeagueAward(row.league, candidate)}>Publish to Trophy Case</GhostBtn>
                               ) : null}
                             </div>
                           ) : (
