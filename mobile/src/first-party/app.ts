@@ -3,48 +3,126 @@ import {LEVEL_UP_CARDS} from '../../../lib/level-up/level-up-cards'
 import {TrainingClock,trainingTime} from '../training-clock'
 import './app.css'
 
-const drill = LEVEL_UP_CARDS.find(card => card.id === 'split-step-rhythm')!
-document.querySelector('#drill-title')!.textContent = drill.title
-document.querySelector('#drill-cue')!.textContent = drill.cue
-for(const step of drill.routine){
- const item = document.createElement('li')
- item.textContent = step
- document.querySelector('#drill-steps')!.append(item)
-}
-
+const drills = [
+ {id:'split-step-rhythm',label:'Footwork'},
+ {id:'serve-target-call',label:'Serve'},
+ {id:'three-step-reset',label:'Reset'},
+].map(({id,label})=>({card:LEVEL_UP_CARDS.find(card=>card.id===id)!,label}))
+let drill = drills[0].card
+const drillPicker = document.querySelector('#drill-picker')!
+const drillTitle = document.querySelector('#drill-title')!
+const drillCue = document.querySelector('#drill-cue')!
+const drillDuration = document.querySelector('#drill-duration')!
+const drillSteps = document.querySelector('#drill-steps')!
+const drillLast = document.querySelector<HTMLElement>('#drill-last')!
+const drillStatus = document.querySelector('#drill-status')!
 const clock = new TrainingClock()
 const elapsed = document.querySelector('#elapsed')!
 const toggle = document.querySelector<HTMLButtonElement>('#timer-toggle')!
+const timerActions = document.querySelector<HTMLElement>('#timer-actions')!
 const finish = document.querySelector<HTMLButtonElement>('#timer-finish')!
-const drillStatus = document.querySelector('#drill-status')!
+const discard = document.querySelector<HTMLButtonElement>('#timer-discard')!
 let ticker: number | undefined
 const paintTime = () => {elapsed.textContent = trainingTime(clock.seconds())}
+const drillButtons = drills.map(({card,label})=>{
+ const button = document.createElement('button')
+ button.type = 'button'
+ button.className = 'secondary'
+ button.textContent = label
+ button.addEventListener('click',()=>{
+  if(card===drill)return
+  drill = card
+  drillStatus.textContent = ''
+  renderDrill()
+ })
+ drillPicker.append(button)
+ return button
+})
+
+type PracticeResult = {date:string;seconds:number}
+const practiceKey = () => `tenaceiq:first-party:last-practice:v1:${drill.id}`
+
+function readLastPractice(): PracticeResult | null {
+ try {
+  const practice = JSON.parse(localStorage.getItem(practiceKey()) ?? 'null') as Partial<PracticeResult> | null
+  if(typeof practice?.date==='string' && isValidCalendarDate(practice.date)
+   && typeof practice.seconds==='number' && Number.isInteger(practice.seconds)
+   && practice.seconds>0 && practice.seconds<=7200){
+   return {date:practice.date,seconds:practice.seconds}
+  }
+ } catch {
+  // An unreadable practice record does not prevent use of the drill.
+ }
+ return null
+}
+
+function renderLastPractice() {
+ const practice = readLastPractice()
+ drillLast.hidden = !practice
+ drillLast.textContent = practice?`Last practice · ${formatCalendarDay(practice.date,false)} · ${trainingTime(practice.seconds)}`:''
+}
+
+function renderDrill() {
+ drillButtons.forEach((button,index)=>button.setAttribute('aria-pressed',String(drills[index].card===drill)))
+ drillTitle.textContent = drill.title
+ drillCue.textContent = drill.cue
+ drillDuration.textContent = `About ${drill.durationMinutes} min`
+ drillSteps.replaceChildren(...drill.routine.map(step=>{
+  const item = document.createElement('li')
+  item.textContent = step
+  return item
+ }))
+ renderLastPractice()
+}
+
+function closeDrill() {
+ window.clearInterval(ticker)
+ clock.reset()
+ paintTime()
+ toggle.textContent = 'Start drill'
+ toggle.focus({preventScroll:true})
+ timerActions.hidden = true
+ drillButtons.forEach(button=>{button.disabled = false})
+}
+
+renderDrill()
 
 toggle.addEventListener('click', () => {
  if(clock.running()){
   clock.pause()
   window.clearInterval(ticker)
   paintTime()
-  toggle.textContent = 'Resume warm-up'
+  toggle.textContent = 'Resume drill'
   return
  }
- if(finish.hidden)clock.reset()
  clock.start()
  paintTime()
  ticker = window.setInterval(paintTime, 250)
- finish.hidden = false
- toggle.textContent = 'Pause warm-up'
+ timerActions.hidden = false
+ drillButtons.forEach(button=>{button.disabled = true})
+ toggle.textContent = 'Pause drill'
  drillStatus.textContent = ''
 })
 
 finish.addEventListener('click', () => {
- clock.pause()
- window.clearInterval(ticker)
- paintTime()
- drillStatus.textContent = `Warm-up complete · ${trainingTime(clock.seconds())}`
- toggle.textContent = 'Start warm-up'
- toggle.focus({preventScroll:true})
- finish.hidden = true
+ const seconds = clock.seconds()
+ closeDrill()
+ if(seconds===0){
+  drillStatus.textContent = 'Practice ended. No time was recorded.'
+  return
+ }
+ try {
+  localStorage.setItem(practiceKey(),JSON.stringify({date:today(),seconds}))
+  renderLastPractice()
+  drillStatus.textContent = 'Practice saved on this device.'
+ } catch {
+  drillStatus.textContent = `Practice ended after ${trainingTime(seconds)}. Couldn’t save it on this device.`
+ }
+})
+
+discard.addEventListener('click',()=>{
+ closeDrill()
+ drillStatus.textContent = 'Practice discarded.'
 })
 
 type MatchResult = {date:string;format:'Singles'|'Doubles';result:'Won'|'Lost';score:string}

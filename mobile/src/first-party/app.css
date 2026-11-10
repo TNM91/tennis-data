@@ -27,6 +27,17 @@ details { margin-block:12px;color:#dce9f9; }
 summary { cursor:pointer; }
 ol { padding-inline-start:1.3em;line-height:1.55; }
 .timer { display:flex;gap:8px;flex-wrap:wrap;align-items:center; }
+#timer-toggle,.timer-actions button { flex:1; }
+.timer-actions { flex-basis:100%;display:flex;gap:8px; }
+.drill-picker { display:flex;flex-wrap:wrap;gap:6px; }
+.drill-picker button { flex:1;min-inline-size:min-content;padding-inline:8px;font-size:.9rem; }
+.drill-picker button[aria-pressed="true"] {
+ border-color:#b5eb46;background:linear-gradient(160deg,#1b3f6b,#122944);color:#e0f4b9;
+ box-shadow:inset 0 1px #d9f8a127;
+}
+.drill-picker button:disabled { cursor:default; }
+.drill-picker button:disabled[aria-pressed="false"] { opacity:.6; }
+.drill-meta { margin-block-start:6px;font-size:.82rem; }
 .match-actions { display:flex;gap:8px;flex-wrap:wrap; }
 .match-actions button:first-child { flex:1; }
 #elapsed { font-variant-numeric:tabular-nums;font-weight:700; }

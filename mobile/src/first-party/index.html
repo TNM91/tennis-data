@@ -14,19 +14,26 @@
   <header class="hero">
    <p class="eyebrow">My Lab</p>
    <h1>Build your game</h1>
-   <p>Warm up with a tennis drill and keep a record of the matches you play.</p>
+   <p>Pick a drill and track the matches you play.</p>
   </header>
-  <section aria-labelledby="drill-title">
-   <p class="eyebrow">Practice</p>
-   <h2 id="drill-title">Split-Step Rhythm</h2>
+  <section aria-labelledby="practice-title">
+   <p class="eyebrow">Training</p>
+   <h2 id="practice-title">Practice</h2>
+   <div class="drill-picker" id="drill-picker" role="group" aria-label="Practice focus"></div>
+   <h3 id="drill-title">Split-Step Rhythm</h3>
    <p id="drill-cue"></p>
+   <p class="drill-meta" id="drill-duration"></p>
    <details><summary>Drill steps</summary><ol id="drill-steps"></ol></details>
    <div class="timer">
     <span id="elapsed" role="timer" aria-label="Elapsed time">0m 0s</span>
-    <button type="button" id="timer-toggle">Start warm-up</button>
-    <button type="button" id="timer-finish" class="secondary" hidden>Finish</button>
+    <button type="button" id="timer-toggle">Start drill</button>
+    <div class="timer-actions" id="timer-actions" hidden>
+     <button type="button" id="timer-finish" class="secondary">Finish &amp; save</button>
+     <button type="button" id="timer-discard" class="secondary">Discard</button>
+    </div>
    </div>
    <p class="notice" id="drill-status" role="status"></p>
+   <p class="drill-meta" id="drill-last" hidden></p>
   </section>
   <section aria-labelledby="match-title">
    <p class="eyebrow">Match log</p>

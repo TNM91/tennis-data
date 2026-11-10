@@ -75,7 +75,7 @@ npm --prefix mobile run prepare:ios:first-party
 npm --prefix mobile run check:ios:first-party
 ```
 
-The offline prototype packages its assets from `mobile/bundled-first-party/` into `mobile/ios/App/App.xcodeproj`. It includes the Split-Step Rhythm timer and a device-only match log. Its JavaScript has an explicit source allowlist and the WebView page blocks network connections. Confirm the exact bundled assets with the check command before opening the Xcode project.
+The offline prototype packages its assets from `mobile/bundled-first-party/` into `mobile/ios/App/App.xcodeproj`. It includes timed footwork, serve and between-point drills with the last saved session per drill, plus an editable match log with recent form. Practice and match records stay on the device. Its JavaScript has an explicit source allowlist and the WebView page blocks network connections. Confirm the exact bundled assets with the check command before opening the Xcode project.
 
 Before preparing an App Store candidate, verify the data provenance of any connected features, compile and test the selected package on an iPhone, and review the store listing and privacy disclosures against that package. The existing store preparation script requires the standard bundle.
 
