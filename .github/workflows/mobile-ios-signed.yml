@@ -25,6 +25,10 @@ on:
         type: choice
         default: standard
         options: [standard, first-party]
+      check_testflight:
+        description: Read App Store Connect status for the offline build 255
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -33,7 +37,7 @@ concurrency:
 jobs:
   signed:
     if: >-
-      github.repository == 'TNM91/tennis-data' &&
+      github.repository == 'TNM91/tennis-data' && !inputs.check_testflight &&
       ((inputs.profile == 'standard' &&
         (github.ref == 'refs/heads/master' || (github.ref == 'refs/heads/codex/apple-mobile-build' && inputs.distribution == 'internal')) &&
         (inputs.distribution == 'internal' || (inputs.distribution == 'app-store' && inputs.upload))) ||
@@ -182,4 +186,25 @@ jobs:
             rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$(cat "$RUNNER_TEMP/tiq-signing/uuid").mobileprovision"
           fi
           rm -rf "$RUNNER_TEMP/tiq-signing" "$RUNNER_TEMP/tiq-api" "$RUNNER_TEMP/tiq-ipa-validation"
+  check-offline-testflight:
+    if: >-
+      github.repository == 'TNM91/tennis-data' && github.ref == 'refs/heads/codex/ios-first-party-release' &&
+      inputs.profile == 'first-party' && inputs.distribution == 'internal' && inputs.build_number == '255' &&
+      inputs.check_testflight && !inputs.upload
+    environment: apple-testflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Read build 255 and its internal tester group
+        env:
+          API_KEY: ${{ secrets.APPLE_UPLOAD_API_KEY_P8_BASE64 }}
+          API_KEY_ID: ${{ secrets.APPLE_UPLOAD_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APPLE_UPLOAD_API_ISSUER_ID }}
+        run: node mobile/scripts/check-offline-testflight.mjs
 

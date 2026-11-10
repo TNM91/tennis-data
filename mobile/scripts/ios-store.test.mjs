@@ -143,6 +143,17 @@ test('the offline TestFlight upload reuses the approved build 255 IPA',async()=>
  }
 })
 
+test('the build 255 status check skips signing and upload',async()=>{
+ const workflow = load(await readFile(new URL('../../.github/workflows/mobile-ios-signed.yml',import.meta.url),'utf8'))
+ assert.equal(workflow.on.workflow_dispatch.inputs.check_testflight.default,false)
+ assert.match(workflow.jobs.signed.if,/!inputs\.check_testflight/)
+ const job = workflow.jobs['check-offline-testflight']
+ assert.equal(job.environment,'apple-testflight')
+ assert.equal(job['timeout-minutes'],5)
+ assert.match(job.if,/inputs\.build_number == '255' &&\s+inputs\.check_testflight && !inputs\.upload/)
+ assert.deepEqual(job.steps.filter(step=>step.run).map(step=>step.run),['node mobile/scripts/check-offline-testflight.mjs'])
+})
+
 test('camera purposes are top-level plist values even with nested scene dictionaries',()=>{
  const nested='<?xml version="1.0"?><plist version="1.0"><dict><key>UIApplicationSceneManifest</key><dict><key>Scene</key><array><dict><key>Name</key><string>Main</string></dict></array></dict></dict></plist>'
  const previous=nested.replace('</dict>',Object.entries(cameraPurposeStrings).map(([key,value])=>'<key>'+key+'</key><string>'+value+'</string>').join('')+'</dict>')
