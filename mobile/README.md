@@ -65,7 +65,25 @@ This is a Capacitor 8 development harness for testing the current Next.js applic
 
 Run `npm run doctor` in this directory to check Node, Java, API 36, build tools, ADB, connected devices, the local login route, and unauthenticated API rejection. A nonzero exit means setup is incomplete; the output names each missing prerequisite. The emulator URL is translated to loopback only for the host-side server check.
 
-## Offline iOS fallback
+## iOS launch tracks
+
+Both tracks use the existing TenAceIQ App Store record. In TestFlight, open TenAceIQ and choose **Previous Builds** to switch between the two betas. The selected build replaces the installed build on that device. [Apple TestFlight help](https://testflight.apple.com/)
+
+| Track | TestFlight baseline | Release condition |
+| --- | --- | --- |
+| Integrated TenAceIQ | [1.0 (254)](https://github.com/TNM91/tennis-data/actions/runs/42731383414), `codex/apple-mobile-build` | Obtain written permission covering the integrated data and verify that the candidate and store disclosures match that permission. |
+| First-party fallback | [1.0 (255)](https://github.com/TNM91/tennis-data/actions/runs/42754005907), `codex/ios-first-party-release` | Use TenAceIQ content and records the product can publish independently. Build 255 passed the owner's iPhone offline check and serves as the starting point for this track. |
+
+Both baselines are internal TestFlight builds. Submit the selected track from a separate App Store–eligible archive with matching screenshots, privacy disclosures, and App Review notes. [Apple distribution options](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases/)
+
+### First-party launch scope
+
+- **Available in build 255.** Offline drills, a timer, self-entered matches and recent form.
+- **Carry over first.** Start with TenAceIQ-created tournaments and their published draws and results. The native tournament loader already reads `tiq_tournaments`. Verify the provenance of event details, entrants and results before exposing them in the fallback. Apply the same checks to TenAceIQ leagues, including the season detail and entry paths that currently consult a linked player profile.
+- **Carry over after isolating connected reads.** Coach invites and direct coach-player messages have dedicated account-scoped routes. Team chat shares routes with fixtures and lineups. Keep first-party conversations and the existing safety controls, and scope fixture cards, profile lookups and roster data separately.
+- **Hold for verified rights and data scope.** External imports, imported directory and match history, and ratings computed from those records. The fallback bundle and its server endpoints should enforce the scope before returning data. Hiding a screen alone leaves other paths to the same data.
+
+### Offline baseline build
 
 Use a separate checkout for the first-party fallback because bundling writes the checkout's Capacitor configuration. From the repository root, with both dependency sets installed, run:
 
