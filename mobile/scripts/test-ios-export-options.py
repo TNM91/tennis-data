@@ -1,4 +1,5 @@
 import datetime
+import json
 import pathlib
 import plistlib
 import subprocess
@@ -64,5 +65,52 @@ class InternalBetaExport(unittest.TestCase):
                     result = subprocess.run([sys.executable, str(SCRIPTS/'validate-ios-distribution.py'),
                                              distribution, '226', str(root/'App.ipa'), str(root/'export.plist'), str(root)], capture_output=True)
                     self.assertEqual(result.returncode == 0, ok, result.stderr)
+
+    def test_offline_export_rejects_beta_resources_and_entitlements(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            assets = {name: b'checked asset' for name in ('index.html', 'app.js', 'app.css',
+                                                         'brand/header-logo-transparent.png', 'brand/court.png')}
+            assets['release-scope.json'] = b'{"profile":"first-party-offline","version":1}'
+            for name, data in assets.items():
+                asset = root / name
+                asset.parent.mkdir(parents=True, exist_ok=True)
+                asset.write_bytes(data)
+            settings = {'appId': 'com.tenaceiq.app', 'appName': 'TenAceIQ', 'webDir': 'bundled-first-party',
+                        'loggingBehavior': 'none', 'ios': {'path': 'ios-first-party', 'includePlugins': []},
+                        'packageClassList': []}
+            info = {'CFBundleIdentifier': 'com.tenaceiq.app', 'CFBundleShortVersionString': '1.0',
+                    'CFBundleVersion': '255', 'ITSAppUsesNonExemptEncryption': False}
+            (root/'export.plist').write_bytes(plistlib.dumps({'method': 'app-store-connect',
+                                                             'teamID': 'ABCDE12345', 'testFlightInternalTestingOnly': True}))
+            cases = {
+                'clean offline package': {},
+                'registered camera plugin': {'plugins': ['CAPCameraPlugin']},
+                'camera permission': {'info': {'NSCameraUsageDescription': 'Take a photo'}},
+                'StoreKit channel': {'info': {'TiqApplePurchaseChannel': 'TestFlightInternalSandbox'}},
+                'push entitlement': {'entitlements': {'aps-environment': 'production'}},
+                'universal link entitlement': {'entitlements': {'com.apple.developer.associated-domains': ['applinks:www.tenaceiq.com']}},
+                'extra resource': {'public': {'beta.js': b'Unexpected client code'}},
+                'modified shim': {'public': {'cordova.js': b'Unexpected Cordova code'}},
+                'changed bundle': {'public': {'app.js': b'Wrong client'}},
+                'public export': {'distribution': 'app-store'},
+            }
+            for name, case in cases.items():
+                with self.subTest(case=name):
+                    with zipfile.ZipFile(root/'App.ipa', 'w') as ipa:
+                        app = 'Payload/App.app/'
+                        ipa.writestr(app + 'Info.plist', plistlib.dumps({**info, **case.get('info', {})}))
+                        ipa.writestr(app + 'capacitor.config.json', json.dumps({**settings, 'packageClassList': case.get('plugins', [])}))
+                        public = {**assets, 'cordova.js': b'', 'cordova_plugins.js': b'', **case.get('public', {})}
+                        for path, data in public.items():
+                            ipa.writestr(app + 'public/' + path, data)
+                    entitlements = {'application-identifier': 'ABCDE12345.com.tenaceiq.app', 'get-task-allow': False,
+                                    **case.get('entitlements', {})}
+                    (root/'entitlements.plist').write_bytes(plistlib.dumps(entitlements))
+                    result = subprocess.run([sys.executable, str(SCRIPTS/'validate-ios-distribution.py'),
+                                             case.get('distribution', 'internal'), '255', str(root/'App.ipa'),
+                                             str(root/'export.plist'), str(root), '--first-party',
+                                             str(root/'entitlements.plist')], capture_output=True)
+                    self.assertEqual(result.returncode == 0, not case, result.stderr)
 
 if __name__=='__main__':unittest.main()

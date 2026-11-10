@@ -17,6 +17,7 @@ test('store preparation updates generated app identity and rejects unsafe input'
     await mkdir(join(root, 'ios/App/App'), {recursive:true})
     await copyFile(new URL('prepare-ios-store.mjs', import.meta.url), join(root, 'scripts/prepare-ios-store.mjs'))
     await copyFile(new URL('ios-push.mjs', import.meta.url), join(root, 'scripts/ios-push.mjs'))
+    await copyFile(new URL('first-party-bundle.mjs', import.meta.url), join(root, 'scripts/first-party-bundle.mjs'))
     const config = {appId:'com.tenaceiq.prototype', webDir:'bundled', loggingBehavior:'none'}
     const configPath = join(root, 'ios/App/App/capacitor.config.json')
     await writeFile(configPath, JSON.stringify(config))
@@ -50,14 +51,55 @@ test('store preparation updates generated app identity and rejects unsafe input'
   } finally { await rm(root, {recursive:true, force:true}) }
 })
 
+test('offline store preparation preserves the first-party scope and forbids public distribution', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'tiq-offline-store-'))
+  try {
+    const app = join(root, 'ios-first-party/App')
+    await mkdir(join(app, 'App.xcodeproj'), {recursive:true})
+    await mkdir(join(app, 'App'))
+    await mkdir(join(root, 'scripts'))
+    for(const file of ['prepare-ios-store.mjs','ios-push.mjs','first-party-bundle.mjs']){
+      await copyFile(new URL(file,import.meta.url),join(root,'scripts',file))
+    }
+    const config = {appId:'com.tenaceiq.prototype',appName:'TenAceIQ Prototype',webDir:'bundled-first-party',
+                    loggingBehavior:'none',ios:{path:'ios-first-party',includePlugins:[]},packageClassList:[]}
+    const projectPath = join(app,'App.xcodeproj/project.pbxproj')
+    const configPath = join(app,'App/capacitor.config.json')
+    const infoPath = join(app,'App/Info.plist')
+    const project = 'CODE_SIGN_STYLE = Automatic; PRODUCT_BUNDLE_IDENTIFIER = com.tenaceiq.prototype; CURRENT_PROJECT_VERSION = 1; MARKETING_VERSION = 1.0;\n'.repeat(2)
+    await writeFile(projectPath,project)
+    await writeFile(infoPath,'<key>CFBundleDisplayName</key><string>TenAceIQ Prototype</string>')
+    const run = distribution => spawnSync(process.execPath,[join(root,'scripts/prepare-ios-store.mjs'),'--first-party'],{
+      env:{...process.env,TIQ_BUILD_NUMBER:'255',TIQ_IOS_DISTRIBUTION:distribution},encoding:'utf8',
+    })
+    await writeFile(configPath,JSON.stringify({...config,packageClassList:['CAPCameraPlugin']}))
+    assert.notEqual(run('internal').status,0)
+    await writeFile(configPath,JSON.stringify(config))
+    assert.notEqual(run('app-store').status,0)
+    assert.equal(await readFile(projectPath,'utf8'),project)
+    const result = run('internal')
+    assert.equal(result.status,0,result.stderr)
+    const info = await readFile(infoPath,'utf8')
+    assert.match(info,/<key>CFBundleDisplayName<\/key>\s*<string>TenAceIQ<\/string>/)
+    assert.doesNotMatch(info,/TiqApplePurchaseChannel|UsageDescription/)
+    assert.doesNotMatch(await readFile(projectPath,'utf8'),/CODE_SIGN_ENTITLEMENTS|SystemCapabilities/)
+    assert.deepEqual(JSON.parse(await readFile(configPath,'utf8')),{...config,appId:'com.tenaceiq.app',appName:'TenAceIQ'})
+    await assert.rejects(readFile(join(app,'App/Push.entitlements')), {code:'ENOENT'})
+  }finally{
+    await rm(root,{recursive:true,force:true})
+  }
+})
+
 test('signed workflow restricts secret use and defaults to no upload', async () => {
   const workflow = load(await readFile(new URL('../../.github/workflows/mobile-ios-signed.yml',import.meta.url),'utf8'))
   assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch'])
   assert.equal(workflow.on.workflow_dispatch.inputs.upload.default, false)
   assert.equal(workflow.on.workflow_dispatch.inputs.distribution.default, 'internal')
+  assert.equal(workflow.on.workflow_dispatch.inputs.profile.default, 'standard')
   assert.equal(workflow.jobs.signed.environment, 'apple-testflight')
   assert.match(workflow.jobs.signed.if, /github\.repository == 'TNM91\/tennis-data'/)
   assert.match(workflow.jobs.signed.if, /inputs\.distribution == 'app-store' && inputs\.upload/)
+  assert.match(workflow.jobs.signed.if, /inputs\.profile == 'first-party' && github\.ref == 'refs\/heads\/codex\/ios-first-party-release' &&\s+inputs\.distribution == 'internal' && !inputs\.upload/)
   assert.deepEqual(workflow.permissions, {contents:'read'})
   assert.equal(workflow.concurrency['cancel-in-progress'], false)
   const steps = workflow.jobs.signed.steps
@@ -66,9 +108,11 @@ test('signed workflow restricts secret use and defaults to no upload', async () 
   assert.match(archive.run,/TIQ_APP_TEAM=\"\$TEAM\" TIQ_APP_PROFILE=\"\$UUID\" archive/)
   assert.doesNotMatch(archive.run,/\s(?:PROVISIONING_PROFILE_SPECIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY)=/)
   assert.match(archive.run,/validate-ios-distribution\.py/)
+  assert.match(archive.run,/codesign --display --entitlements - --xml "\$APP"/)
+  assert.match(archive.run,/mobile\/bundled-first-party --first-party/)
   assert.match(archive.run,/testFlightInternalTestingOnly/)
   const upload = steps.find(s=>s.name==='Upload to App Store Connect')
-  assert.equal(upload.if,'inputs.upload')
+  assert.equal(upload.if,"inputs.profile == 'standard' && inputs.upload")
   assert.match(upload.run, /--output-format json/)
   assert.match(upload.run, /validate-altool-upload\.py/)
   const artifact = steps.find(s=>s.uses?.startsWith('actions/upload-artifact@'))
