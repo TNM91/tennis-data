@@ -73,7 +73,8 @@ export function appHubHtml(hub:AppHub,{fromLab=false,browseFirst=false}={}){
  const title=hub==='compete'?'Compete':hub==='coach'?'Coach & training':'More'
  const note=discoveryFirst?'Find a league or tournament to play.':hub==='compete'?'Find events and follow your season.':'Lessons, practice and conversations.'
  if (firstPartyBuild) {
-  for (const group of groups) group.keys = group.keys.filter(key => key !== 'imports' && key !== 'tournamentEntries')
+  const unavailable = new Set(['imports','tournamentEntries','following','matchup'])
+  for (const group of groups) group.keys = group.keys.filter(key => !unavailable.has(key))
  }
  const total=groups.reduce((count,group)=>count+group.keys.length,0)
  const coachControls=hub==='coach'?`<div class="coach-hub-messages">${toolHtml(tools.coachMessages)}</div>

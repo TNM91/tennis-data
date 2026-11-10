@@ -86,6 +86,7 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
     const tournamentDecision=row.notificationType==='system'&&(row.title==='Tournament entry approved'||row.title==='Tournament entry update')
     if(firstPartyBuild&&tournamentDecision)return null
     const link=readAppLink(u.href)
+    if(firstPartyBuild&&link?.kind==='match')return null
     if(tournamentDecision&&link?.kind==='tournament')return {kind:'tournament-entry',division:link.id,label:'Open tournament entry'}
     if(tournamentDecision&&u.pathname==='/compete'&&!u.search&&u.hash==='#my-entries'){
       return {kind:'tool',destination:'tournament-entries',label:'Open tournament entries'}

@@ -5,6 +5,7 @@ import { html } from './match-details'
 import {showExploreSearchEmpty} from './explore-search-empty'
 import {bindAppDestinations,type AppDestination} from './app-navigation'
 import {labStarterActionsHtml,type LabProfile} from './lab-home'
+import {firstPartyBuild} from './build-scope'
 
 export type PlayerChoice = {id: string; name: string; location: string | null; flight: string | null}
 export type PlayerLink = {id:string;profile:LabProfile|null}
@@ -14,6 +15,7 @@ export function playerSearchTerm(value: string) {
   return term.replace(/[\\%_]/g, '\\$&')
 }
 export async function findPlayers(client: SupabaseClient, value: string): Promise<PlayerChoice[]> {
+  if(firstPartyBuild)throw Error('Player search is unavailable in this edition.')
   const term = playerSearchTerm(value)
   const {data, error} = await client.from('players').select('id,name,location,flight')
     .ilike('name', `%${term}%`).order('name', {ascending:true}).order('id', {ascending:true})
@@ -22,6 +24,7 @@ export async function findPlayers(client: SupabaseClient, value: string): Promis
   return (data || []) as PlayerChoice[]
 }
 export async function connectPlayer(client: SupabaseClient, playerId: string, userId: string, isCurrent: () => boolean, request: typeof CapacitorHttp.post = options => CapacitorHttp.post(options)):Promise<PlayerLink> {
+  if(firstPartyBuild)throw Error('Player linking is unavailable in this edition.')
   if (!playerId.trim()) throw new Error('Choose a player record first.')
   const {data, error} = await client.auth.getSession()
   if (error || !data.session || data.session.user.id !== userId || !isCurrent()) throw new Error('Sign in again before connecting your player.')

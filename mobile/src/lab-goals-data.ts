@@ -2,7 +2,10 @@ import {buildResumeMatchPrepHref} from '../../lib/resume-match-prep'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {canFollowPlayers} from './follows-data'
+import {firstPartyBuild} from './build-scope'
 export type GoalScope={owner:string;player:string}
+// The goals table enforces user_id ownership and stores independent notebooks by player_id.
+export const accountGoalScope=(owner:string):GoalScope=>({owner,player:'account:'+owner})
 export type GoalSnapshot={id:string;revision:string;goal:LabGoal;payload:Record<string,unknown>}
 export type GoalDraft={scope:GoalScope;id:string;expected:string|null;revision:string;payload:Record<string,unknown>;goal:LabGoal}
 export const goalFields=['goal','progressUpdate','doingWell','improveNext','notes'] as const
@@ -29,6 +32,8 @@ const stable=(v:unknown):string=>v&&typeof v==='object'?Array.isArray(v)?'['+v.m
 export function confirmsGoalDraft(draft:GoalDraft,row:unknown){try{const saved=parseGoalSnapshot(row);const fractional=saved.revision.match(/\.(\d+)(?:Z|[+-]\d\d:?\d\d)$/i)?.[1]||'';return !/[1-9]/.test(fractional.slice(3))&&saved.id===draft.id&&Date.parse(saved.revision)===Date.parse(draft.revision)&&stable(saved.payload)===stable(draft.payload)}catch{return false}}
 async function own(client:SupabaseClient,scope:GoalScope,current:()=>boolean){
  const {data,error}=await client.auth.getSession();if(error||!current()||data.session?.user.id!==scope.owner)throw Error('This notebook is no longer open.')
+ if(scope.player===accountGoalScope(scope.owner).player)return
+ if(firstPartyBuild)throw Error('Reopen your account notebook from My Lab.')
  const result=await client.from('profiles').select('linked_player_id').eq('id',scope.owner).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
  if(result.error||!current()||result.data?.linked_player_id!==scope.player)throw Error('Your linked player changed. Reopen My Lab.')
  const again=await client.auth.getSession();if(again.error||!current()||again.data.session?.user.id!==scope.owner)throw Error('This notebook is no longer open.')

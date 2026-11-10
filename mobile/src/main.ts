@@ -42,6 +42,7 @@ import {CALENDAR_WEEKLY_REP_CHANGED,type CalendarWeeklyRep,type CalendarWeeklyRe
 import {createCoachNextAssignment} from './coach-next-assignment'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
+import {accountGoalScope} from './lab-goals-data'
 import {loadTrainingHistory} from './level-up-data'
 import {labTrainingOverview} from './lab-training-overview'
 import {showExplore as showPlayerDetail} from './explore'
@@ -397,7 +398,7 @@ function openExplore(resume?:ExploreVisit) {
 }
 
 function openFollowing(){
-  if(!session || connection?.isSaving() || following)return
+  if(firstPartyBuild || !session || connection?.isSaving() || following)return
   guardNavigation(()=>{
     if(!session)return
     teamRoom?.dispose();teamRoom=null
@@ -410,7 +411,7 @@ function openFollowing(){
 }
 
 function openMatchup(){
-  if(!session || connection?.isSaving() || comparison)return
+  if(firstPartyBuild || !session || connection?.isSaving() || comparison)return
   guardNavigation(()=>{
     if(!session)return
     teamRoom?.dispose();teamRoom=null
@@ -607,23 +608,23 @@ async function lab(entry?:'coach'|PlayerLink) {
   details?.dispose();details=null
   const version = ++revision
   const link=typeof entry==='object'?entry:undefined
-  if(!link?.profile){
+  if(!firstPartyBuild&&!link?.profile){
     app.dataset.state = 'loading'
     app.innerHTML = linkedLabOwner===current.user.id
       ?labScoreboardHtml(null)
       :'<header class="tab-hero tab-hero-court"><small class="stat-eyebrow">Your game</small><h1>My Lab</h1><p role="status">Loading your player profile…</p></header>'
   }
-  const { data, error } = link?.profile
-    ? {data:link.profile,error:null}
-    : await (firstPartyBuild
-      ? client.from('profiles').select('linked_player_id,linked_player_name')
-      : client.from('profiles').select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
-    ).eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
+  const { data, error } = firstPartyBuild
+    ? {data:null,error:null}
+    : link?.profile ? {data:link.profile,error:null}
+    : await client.from('profiles').select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
+      .eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
   if (version !== revision || current.user.id !== session?.user.id) return
   app.dataset.state = error ? 'unavailable' : 'ready'
   const playerId=typeof data?.linked_player_id==='string'?data.linked_player_id:''
   if(!error)linkedLabOwner=playerId?current.user.id:undefined
-  const hasIdentity=Boolean(playerId&&data?.linked_player_name)
+  const hasIdentity=firstPartyBuild||Boolean(playerId&&data?.linked_player_name)
+  const goalScope=firstPartyBuild?accountGoalScope(current.user.id):playerId?{owner:current.user.id,player:playerId}:null
   const justConnected=hasIdentity&&link?.id===playerId
   const tools=error?'':labActionsHtml()+
     (firstPartyBuild?'':'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section>')+
@@ -631,7 +632,7 @@ async function lab(entry?:'coach'|PlayerLink) {
   const controls=`<button id="refresh">${error?'Try again':'Refresh profile'}</button><button class="secondary" id="logout">Log out</button><p role="alert" id="notice"></p>`
   const identity=error
     ? `<header class="tab-hero tab-hero-court"><h1 tabindex="-1">My Lab</h1><p role="alert">${link?'Your player record was connected. Try again to load My Lab.':'Can’t load your profile. Check your connection, then try again.'}</p></header>`
-    : `${playerId&&data?labScoreboardHtml(data,justConnected):''}<div id="lab-identity">${hasIdentity?labIdentityHtml(data):playerSetupHtml()}</div>`
+    : `${firstPartyBuild||playerId&&data?labScoreboardHtml(data,justConnected):''}<div id="lab-identity">${hasIdentity?labIdentityHtml(data):playerSetupHtml()}</div>`
   const trainingContent=!error&&hasIdentity?labTrainingActionsHtml()+
     '<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''
   const matches=!firstPartyBuild&&!error&&playerId?`<section id="recent-results" aria-labelledby="results-title">
@@ -641,21 +642,21 @@ async function lab(entry?:'coach'|PlayerLink) {
     </div>
     <div id="results-content" aria-live="polite"></div>
   </section>`:''
-  app.innerHTML=identity+trainingContent+(!error&&!playerId
+  app.innerHTML=identity+trainingContent+(!firstPartyBuild&&!error&&!playerId
     ?`<details class="lab-setup-utilities"><summary>More My Lab tools</summary>${tools}${controls}</details>`
     :tools+matches+controls)
 
   const labHeading=app.querySelector<HTMLElement>('h1')
-  if(labHeading){labHeading.tabIndex=-1;if(entry!=='coach'||!playerId)labHeading.focus({preventScroll:true})}
+  if(labHeading){labHeading.tabIndex=-1;if(entry!=='coach'||!(firstPartyBuild||playerId))labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
   const invite=app.querySelector<HTMLButtonElement>('[data-setup-team]')
   if(invite)invite.onclick=()=>launchTeamInvite('',invite)
   bindAppDestinations(app,openDestination)
   app.querySelectorAll<HTMLButtonElement>('[data-lab-goals]').forEach(button=>{button.onclick=()=>{
-    if(goals?.isOpen()||training?.isOpen()||!data?.linked_player_id)return
+    if(goals?.isOpen()||training?.isOpen()||!goalScope)return
     const active=()=>version===revision&&current.user.id===session?.user.id,heroTrigger=Boolean(button.closest('#lab-identity'))
-    goals=openLabGoals(client,{owner:current.user.id,player:data.linked_player_id},active,goal=>{
+    goals=openLabGoals(client,goalScope,active,goal=>{
       const host=app.querySelector<HTMLElement>('#goal-context-copy');if(!active()||!host)return;selectedLabGoal=goal
       host.innerHTML='<h3>'+escape(goal.goal)+'</h3><p>'+escape(goal.improveNext||goal.progressUpdate||'Review your notes before the next match or practice.')+'</p>'+goalReadinessHtml(goal)
     },()=>{if(!active()||!selectedLabGoal)return;const host=app.querySelector<HTMLElement>('#lab-identity');if(host){host.innerHTML=labIdentityHtml(data,undefined,selectedLabGoal);bindLabActions();if(heroTrigger)host.querySelector<HTMLElement>('[data-lab-goals]')?.focus({preventScroll:true})}})
@@ -729,7 +730,7 @@ async function lab(entry?:'coach'|PlayerLink) {
     try {await signOut(current.user.id)}
     catch {if(version!==revision||!button.isConnected)return;app.querySelector('#notice')!.textContent='Couldn’t log out. Check your connection and try again.';button.disabled=false}
   }
-  if (!error&&playerId) {
+  if (!error&&(firstPartyBuild||playerId)) {
     const shortcuts=document.createElement('div');shortcuts.innerHTML=homeShortcutsHtml()
     if(firstPartyBuild){
       calendar.after(shortcuts)

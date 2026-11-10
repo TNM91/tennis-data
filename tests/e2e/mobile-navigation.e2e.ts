@@ -47,6 +47,40 @@ async function useFirstPartyNavigation(page:Page) {
  await page.route(origin+'/app.js',route=>route.fulfill({contentType:'text/javascript',body:previewScript}))
 }
 
+test('first-party My Lab opens account notes and training without a linked player',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?unlinked=1')
+ await expect(page.getByRole('heading',{name:'My Lab',exact:true})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'Your training',exact:true})).toBeVisible()
+ await expect(page.locator('[data-connect-player], [data-lab-profile], [data-lab-screen="matchup"]')).toHaveCount(0)
+
+ await page.getByRole('button',{name:'Open goals and notes',exact:true}).click()
+ const notebook=page.getByRole('dialog',{name:'Training notes',exact:true})
+ await expect(notebook.getByText(/Training notes sync to your account/)).toBeVisible()
+ await expect(notebook.getByRole('button',{name:'Add goal',exact:true})).toBeEnabled()
+ await notebook.getByRole('button',{name:'Close training notes',exact:true}).click()
+
+ await page.getByRole('navigation',{name:'Play and improve'}).getByRole('button',{name:'Coach & training',exact:true}).click()
+ await expect(page.getByRole('heading',{name:'Coach & training',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:'Back to My Lab',exact:true}).click()
+ await expect(page.getByRole('navigation',{name:'Play and improve'}).getByRole('button',{name:'Coach & training',exact:true})).toBeFocused()
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'More',exact:true}).click()
+ await expect(page.locator('[data-app-destination="following"], [data-app-destination="matchup"]')).toHaveCount(0)
+ const reads=await page.evaluate(()=>(window as unknown as {labDataReads:typeof import('../fixtures/mobile-navigation-client').labDataReads}).labDataReads)
+ expect(reads).toEqual({linkedProfile:0,players:0,matches:0,goalScopes:['account:11111111-1111-4111-8111-111111111111']})
+})
+
+test('first-party scorecard links stop before loading the integrated match',async({page})=>{
+ await useFirstPartyNavigation(page)
+ const url='https://www.tenaceiq.com/matches/court-0?via=scorecard-share'
+ await page.goto(origin+'/?link='+encodeURIComponent(url))
+ const score=page.getByRole('dialog',{name:'Shared match scorecard',exact:true})
+ await expect(score.getByRole('heading',{name:'Scorecard unavailable',exact:true})).toBeFocused()
+ await expect(score.getByRole('button',{name:'Try again',exact:true})).toHaveCount(0)
+ const reads=await page.evaluate(()=>(window as unknown as {labDataReads:typeof import('../fixtures/mobile-navigation-client').labDataReads}).labDataReads)
+ expect(reads).toEqual({linkedProfile:0,players:0,matches:0,goalScopes:[]})
+})
+
 test('first-party preview keeps the app shell and uses only the scoped tournament feed', async ({page}) => {
  await useFirstPartyNavigation(page)
  await page.goto(origin)

@@ -1,7 +1,7 @@
 import {it,expect,vi,beforeEach} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {canFollowPlayers} from '../../mobile/src/follows-data'
-import {parseGoalSnapshot,freezeGoalDraft,confirmsGoalDraft,loadLabGoals,saveLabGoal,checkLabGoal,GoalConflict} from '../../mobile/src/lab-goals-data'
+import {accountGoalScope,parseGoalSnapshot,freezeGoalDraft,confirmsGoalDraft,loadLabGoals,saveLabGoal,checkLabGoal,GoalConflict} from '../../mobile/src/lab-goals-data'
 import {goalReadinessScoreFor} from '../my-lab-goal-readiness'
 vi.mock('../../mobile/src/follows-data',()=>({canFollowPlayers:vi.fn(async()=>true)}))
 const scope={owner:'owner',player:'player'},stamp='2026-10-25T10:00:00Z'
@@ -14,6 +14,22 @@ function fake(initial:ReturnType<typeof row>[]=[]) {
  return {client:client as unknown as SupabaseClient,rows,queries,get writes(){return writes},setOwner(v:string){owner=v},setPlayer(v:string){player=v},lose(){lost=true},race(){conflict=true},remove(){removeDuringWrite=true},fail(){fail=true}}
 }
 beforeEach(()=>vi.mocked(canFollowPlayers).mockResolvedValue(true))
+
+it('stores account notes in their own notebook without reading the player link',async()=>{
+ const f=fake()
+ const account=accountGoalScope(scope.owner)
+ const draft=freezeGoalDraft(account,null,{goal:'Practice crosscourt returns'},'native-goal-11111111-1111-4111-8111-111111111111')
+ expect((await saveLabGoal(f.client,draft,()=>true)).goal.goal).toBe('Practice crosscourt returns')
+ expect(await loadLabGoals(f.client,account,()=>true)).toHaveLength(1)
+ expect(f.queries.every(query=>query.table==='my_lab_goals')).toBe(true)
+ expect(f.queries.filter(query=>query.mode==='read').every(query=>
+  query.filters.user_id===scope.owner&&query.filters.player_id==='account:owner'
+ )).toBe(true)
+ f.setOwner('other')
+ f.queries.length=0
+ await expect(loadLabGoals(f.client,account,()=>true)).rejects.toThrow('no longer open')
+ expect(f.queries).toHaveLength(0)
+})
 it('validates complete goal records and preserves private unknown payload fields',()=>{const parsed=parseGoalSnapshot(row());expect(parsed.payload.extra).toEqual({keep:['private','context']});expect(()=>parseGoalSnapshot({...row(),payload:{...row().payload,id:'other'}})).toThrow();expect(()=>parseGoalSnapshot({...row(),payload:null})).toThrow();expect(()=>parseGoalSnapshot({...row(),payload:{...row().payload,notes:'x'.repeat(8001)}})).toThrow()})
 it('freezes only the reviewed goal and advances its revision while retaining unknown data',()=>{const base=parseGoalSnapshot(row()),draft=freezeGoalDraft(scope,base,{...base.goal,goal:'New focus'},base.id,new Date(stamp));expect(draft.revision).toBe('2026-10-25T10:00:00.001Z');expect(draft.payload.extra).toEqual(base.payload.extra);expect(Object.isFrozen(draft.payload.extra)).toBe(true);expect(()=>freezeGoalDraft(scope,null,{},'native-goal-123')).toThrow();expect(goalReadinessScoreFor({...base.goal,progressStatus:'completed'})).toBe(100)})
 it('confirms exact payload and timestamp across database timezone formatting, not merely similar text',()=>{const base=parseGoalSnapshot(row()),draft=freezeGoalDraft(scope,base,base.goal,base.id,new Date(stamp));const saved={goal_id:draft.id,payload:draft.payload,edited_at:draft.revision.replace('Z','+00:00')};expect(confirmsGoalDraft(draft,saved)).toBe(true);expect(confirmsGoalDraft(draft,{...saved,payload:{...draft.payload,notes:'changed'}})).toBe(false);expect(confirmsGoalDraft(draft,{...saved,edited_at:stamp})).toBe(false)})

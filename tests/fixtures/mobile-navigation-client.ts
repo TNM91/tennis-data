@@ -1,6 +1,7 @@
 import {competitionOwner} from './competitions-data'
 import {updatesQuery} from './mobile-updates-client'
 export const navigationOwner=competitionOwner
+export const labDataReads={linkedProfile:0,players:0,matches:0,goalScopes:[] as string[]}
 let user={id:navigationOwner,email:'preview@example.test'},signedIn=!new URL(location.href).searchParams.has('signedOut')
 let linked=!new URL(location.href).searchParams.has('unlinked')
 let listener:((event:string,session:unknown)=>void)|null=null
@@ -94,6 +95,9 @@ export function createClient(){return {
   return resolve(result)
  }};for(const method of ['eq','in','order','limit','abortSignal','maybeSingle','single','ilike','or','is','not','range','gte','lte','lt','neq'])chain[method]=()=>chain;chain.select=(fields:string,options?:{count?:string})=>{
   select=fields
+  if(table==='profiles'&&fields.includes('linked_player'))labDataReads.linkedProfile++
+  if(table==='players')labDataReads.players++
+  if(table==='matches')labDataReads.matches++
   counted=repeatOpponents&&options?.count==='exact'
   if(table==='matches'&&labSearchHistory&&fields.includes('participants:match_players'))result.data=labSearchMatches()
   if(table==='matches'&&fields.includes('participants:match_players')&&new URL(location.href).searchParams.has('lab-opponents')){
@@ -127,6 +131,7 @@ export function createClient(){return {
   }
   return chain
  };chain.eq=(field:string,value:string)=>{
+  if(table==='my_lab_goals'&&field==='player_id')labDataReads.goalScopes.push(value)
   if(exploreReturn&&table==='players'&&field==='id'&&select.includes('tiq_rating_status')){
    const choice=explorePlayers.find(row=>row.id===value)
    if(choice)result.data={...choice,tiq_rating_status:'current',tiq_rating_model:'fixture',tiq_rating_season:new Date().getUTCFullYear(),tiq_singles_matches:4,tiq_doubles_matches:6}

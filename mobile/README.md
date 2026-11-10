@@ -85,7 +85,9 @@ Both baselines are internal TestFlight builds. Submit the selected track from a 
 
 Explore and Compete share the reviewed TenAceIQ league feed. Guests can browse approved public leagues. Signed-in users can also see their own submissions and seasons they organize. Explore holds player search, team search and rankings until those views have first-party sources. League registration and League Office use separate routes.
 
-The full-app preview is for local verification with synthetic data. It has no signing target or workflow option. Before packaging it, scope linked player identity, the League Office and entry paths, team data and related links, then verify the network boundary on an iPhone. Build 255 remains the offline TestFlight baseline.
+My Lab opens from the signed-in account. Saved training, coaching and the private training notebook work without a linked player. New notebook goals stay in an account scope separate from existing player-linked goals. Following, Matchup and shared scorecards remain on hold until their data has a first-party source.
+
+The full-app preview is for local verification with synthetic data. It has no signing target or workflow option. Before packaging it, scope the League Office and entry paths, team data and related links, then verify the network boundary on an iPhone. Build 255 remains the offline TestFlight baseline.
 
 #### Approve a league season
 

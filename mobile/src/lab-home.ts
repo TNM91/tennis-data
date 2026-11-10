@@ -21,14 +21,18 @@ export function labTrainingActionsHtml(){
 }
 
 export function labScoreboardHtml(profile:LabProfile|null,justConnected=false){
+ if(firstPartyBuild)return `<section class="tab-hero lab-stat-panel lab-scoreboard" aria-labelledby="lab-ratings-title">
+  <header class="lab-scoreboard-intro"><div><small class="stat-eyebrow" id="lab-ratings-title">Your game</small>
+  <h1 tabindex="-1">My Lab</h1><p>Practice, coaching and competitions</p></div></header>
+ </section>`
  const name=profile?.linked_player_name
  return `<section class="tab-hero lab-stat-panel lab-scoreboard" aria-labelledby="lab-ratings-title">
   ${name||!profile?`<header class="lab-scoreboard-intro"><div>${justConnected?'<small class="stat-eyebrow lab-link-confirmed" id="lab-link-confirmed">Player record connected</small>':`<small class="stat-eyebrow">${name?'My Lab':'Your game'}</small>`}
-   <h1 tabindex="-1"${justConnected?' aria-describedby="lab-link-confirmed"':''}>${html(name||'My Lab')}</h1>${name?`<p>${html(firstPartyBuild?'Practice, coaching and competitions':profile?.linked_team_name||'Your tennis, in focus')}</p>`:'<span class="lab-profile-loading-line" aria-hidden="true"></span>'}</div>
-   ${name&&!firstPartyBuild?`<button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">${nativeActionIcon('profile')}</button>`:''}</header>`:''}
-  <h2 id="lab-ratings-title" class="sr-only">${firstPartyBuild?'Your game':'Your scoreboard'}</h2>
-  ${firstPartyBuild?'':`<div data-lab-ratings aria-live="polite">${profile?'':labRatingLoadingHtml('profile')}</div>`}
-  ${!firstPartyBuild&&name&&profile?.linked_player_id?`<button type="button" class="secondary lab-scorecard-jump" data-lab-scorecard-jump>
+   <h1 tabindex="-1"${justConnected?' aria-describedby="lab-link-confirmed"':''}>${html(name||'My Lab')}</h1>${name?`<p>${html(profile?.linked_team_name||'Your tennis, in focus')}</p>`:'<span class="lab-profile-loading-line" aria-hidden="true"></span>'}</div>
+   ${name?`<button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">${nativeActionIcon('profile')}</button>`:''}</header>`:''}
+  <h2 id="lab-ratings-title" class="sr-only">Your scoreboard</h2>
+  <div data-lab-ratings aria-live="polite">${profile?'':labRatingLoadingHtml('profile')}</div>
+  ${name&&profile?.linked_player_id?`<button type="button" class="secondary lab-scorecard-jump" data-lab-scorecard-jump>
    <span>Recent scorecards</span><span aria-hidden="true">↓</span>
   </button>`:''}
  </section>`
@@ -65,6 +69,7 @@ export function labFirstScorecardHtml(){
 export function labIdentityHtml(profile: LabProfile | null, overview?: LabTrainingOverview, focus?: LabGoal) {
  const name = profile?.linked_player_name || ''
  const linked = Boolean(profile?.linked_player_id && name)
+ const ready = firstPartyBuild || linked
  const values: Record<string, string> = {
   TIQ_FIRST_NAME: html(name.trim().split(/\s+/)[0] || ''),
   TIQ_PLAYER_NAME: html(name),
@@ -73,17 +78,20 @@ export function labIdentityHtml(profile: LabProfile | null, overview?: LabTraini
   TIQ_FOCUS_NOTE: html(focus?.improveNext || focus?.progressUpdate || 'Review your notes before the next match or practice.'),
   ...Object.fromEntries(Object.entries(overview?.text || {}).map(([key, value]) => [key, html(value)])),
  }
- let template = linked ? websiteUi.labLinked : websiteUi.labUnlinked.replaceAll('Active player', 'Player record')
- if (linked && overview) template = (overview.hasProof ? websiteUi.labProof : websiteUi.labProgress)[overview.completed]
- else if (linked && focus) template = websiteUi.labFocus
- const content = (firstPartyBuild?template.replace(/<button\b[^>]*data-native-ui-action="profile"[^>]*>[\s\S]*?<\/button>/g,''):template)
-  .replace(/<header\b[^>]*data-native-part="intro"[^>]*>[\s\S]*?<\/header>/g, header => linked ? '' : header)
+ let template = ready ? websiteUi.labLinked : websiteUi.labUnlinked.replaceAll('Active player', 'Player record')
+ if (ready && overview) template = (overview.hasProof ? websiteUi.labProof : websiteUi.labProgress)[overview.completed]
+ else if (ready && focus) template = websiteUi.labFocus
+ if(firstPartyBuild)template=template
+  .replace(/<article\b[^>]*data-native-part="matchCard"[^>]*>[\s\S]*?<\/article>/g,'')
+  .replace(/<button\b[^>]*data-native-ui-action="(?:profile|screen:matchup)"[^>]*>[\s\S]*?<\/button>/g,'')
+ const content = template
+  .replace(/<header\b[^>]*data-native-part="intro"[^>]*>[\s\S]*?<\/header>/g, header => ready ? '' : header)
   .replace(/<img\b[^>]*data-native-part="(?:ballImage|courtImage)"[^>]*>/g, '')
   .replaceAll('<span aria-hidden="true">→</span>', '<span aria-hidden="true">›</span>')
   .replace('TIQ_CARD_TITLE is in the books.', 'TIQ_CARD_TITLE')
-  .replace('aria-labelledby="my-lab-command-title"', linked ? 'aria-label="Your next tennis move for TIQ_PLAYER_NAME"' : 'aria-labelledby="my-lab-command-title"')
-  .replace(/<h1(\s[^>]*)?>/g, linked ? '<h2$1>' : '<h1$1>')
-  .replaceAll('</h1>', linked ? '</h2>' : '</h1>')
+  .replace('aria-labelledby="my-lab-command-title"', firstPartyBuild ? 'aria-label="Your next tennis move"' : linked ? 'aria-label="Your next tennis move for TIQ_PLAYER_NAME"' : 'aria-labelledby="my-lab-command-title"')
+  .replace(/<h1(\s[^>]*)?>/g, ready ? '<h2$1>' : '<h1$1>')
+  .replaceAll('</h1>', ready ? '</h2>' : '</h1>')
   .replace(/TIQ_[A-Z_]+/g, key => values[key] ?? key)
   .replace(/data-native-ui-action="training:([^"]+)"/g, (_, action) => {
    const target = `data-training="${action}"`
@@ -98,4 +106,14 @@ export function labIdentityHtml(profile: LabProfile | null, overview?: LabTraini
  const context = linked&&!firstPartyBuild ? `<p class="lab-context">${html(profile?.linked_team_name || 'No team linked')} · ${html(profile?.linked_league_name || 'No league linked')}</p>` : ''
  return `<div class="website-ui website-lab">${content}${context}</div>`
 }
-export function labActionsHtml(){const tools=[{kind:'screen',action:'competitions',icon:'compete',title:'Your competitions',detail:'TiQ leagues, schedules, results and standings.'},{kind:'training',action:'inbox',icon:'inbox',title:'Your training inbox',detail:'Saved weekly plans and coach assignments.'},{kind:'training',action:'progress',icon:'progress',title:'Your training progress',detail:'Review sessions saved to your account.'},{kind:'screen',action:'teams',icon:'teams',title:'Open Chats',detail:'Your teams, conversations and match week.'},{kind:'screen',action:'following',icon:'following',title:'Review Following',detail:'Players, teams and leagues you follow.'},{kind:'screen',action:'explore',icon:'explore',title:'Explore tennis',detail:'Find players, teams, leagues and rankings.'}];return `<section class="tennis-tools" aria-labelledby="lab-tools-title"><h2 id="lab-tools-title">Your player tools</h2><div class="tennis-tool-grid">${tools.map(t=>`<button type="button" class="secondary tennis-tool" ${t.kind==='training'?'data-training':'data-lab-screen'}="${t.action}"><span class="tool-icon" aria-hidden="true">${websiteUi.icons[t.icon as keyof typeof websiteUi.icons]}</span><span class="tool-copy"><strong>${t.title}</strong><span>${t.detail}</span></span><span aria-hidden="true" class="tool-arrow">→</span></button>`).join('')}</div></section>`}
+export function labActionsHtml(){
+ const tools=[
+  {kind:'screen',action:'competitions',icon:'compete',title:'Your competitions',detail:'TiQ leagues, schedules, results and standings.'},
+  {kind:'training',action:'inbox',icon:'inbox',title:'Your training inbox',detail:'Saved weekly plans and coach assignments.'},
+  {kind:'training',action:'progress',icon:'progress',title:'Your training progress',detail:'Review sessions saved to your account.'},
+  {kind:'screen',action:'teams',icon:'teams',title:'Open Chats',detail:'Your teams, conversations and match week.'},
+  {kind:'screen',action:'following',icon:'following',title:'Review Following',detail:'Players, teams and leagues you follow.'},
+  {kind:'screen',action:'explore',icon:'explore',title:'Explore tennis',detail:firstPartyBuild?'Find TenAceIQ leagues.':'Find players, teams, leagues and rankings.'},
+ ] as const
+ return `<section class="tennis-tools" aria-labelledby="lab-tools-title"><h2 id="lab-tools-title">Your player tools</h2><div class="tennis-tool-grid">${tools.filter(tool=>!firstPartyBuild||tool.action!=='following').map(t=>`<button type="button" class="secondary tennis-tool" ${t.kind==='training'?'data-training':'data-lab-screen'}="${t.action}"><span class="tool-icon" aria-hidden="true">${websiteUi.icons[t.icon]}</span><span class="tool-copy"><strong>${t.title}</strong><span>${t.detail}</span></span><span aria-hidden="true" class="tool-arrow">→</span></button>`).join('')}</div></section>`
+}

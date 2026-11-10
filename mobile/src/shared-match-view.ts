@@ -2,6 +2,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {createMatchDetails} from './match-details'
 import type {RecentMatchRow} from './recent-results'
 import {isValidCalendarDate} from '../../lib/calendar-date'
+import {firstPartyBuild} from './build-scope'
 
 export function readLinkedMatch(value:unknown,id:string,today:string):RecentMatchRow {
  if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Scorecard unavailable')
@@ -55,6 +56,10 @@ export function openSharedMatch(client:SupabaseClient,owner:string,current:()=>b
   }
  }
  closeButton.onclick=dispose
- dialog.oncancel=e=>{e.preventDefault();dispose()};document.body.append(dialog);dialog.showModal();void read()
+ dialog.oncancel=e=>{e.preventDefault();dispose()};document.body.append(dialog);dialog.showModal()
+ if(firstPartyBuild){
+  host.innerHTML='<h2 tabindex="-1">Scorecard unavailable</h2><p>Shared scorecards are unavailable in this edition.</p>'
+  host.querySelector('h2')?.focus({preventScroll:true})
+ }else void read()
  return {dispose,isOpen:()=>!disposed}
 }
