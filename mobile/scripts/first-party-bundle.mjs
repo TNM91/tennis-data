@@ -3,6 +3,11 @@ import {readFile,readdir} from 'node:fs/promises'
 import {join} from 'node:path'
 
 export const firstPartyWebDir = 'bundled-first-party'
+export const firstPartyIosDir = 'ios-first-party'
+export const firstPartyCapacitorConfig = {
+ appId:'com.tenaceiq.prototype',appName:'TenAceIQ Prototype',webDir:firstPartyWebDir,loggingBehavior:'none',
+ ios:{path:firstPartyIosDir,includePlugins:[]},
+}
 export const firstPartyAssets = [
  'app.js',
  'app.css',

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {copyFile,mkdir,writeFile} from 'node:fs/promises'
 import {fileURLToPath} from 'node:url'
 import {build} from 'esbuild'
-import {checkFirstPartyBundle,firstPartyWebDir} from './first-party-bundle.mjs'
+import {checkFirstPartyBundle,firstPartyCapacitorConfig,firstPartyWebDir} from './first-party-bundle.mjs'
 
 const root = new URL('../../',import.meta.url)
 const mobile = new URL('mobile/',root)
@@ -31,7 +31,5 @@ await copyFile(new URL('public/brand/web/header-logo-transparent.png',root),new 
 await copyFile(new URL('public/brand/courts/tiq-court-approved-20261024-v2.png',root),new URL('brand/court.png',output))
 await writeFile(new URL('release-scope.json',output),JSON.stringify({profile:'first-party-offline',version:1})+'\n')
 await checkFirstPartyBundle(fileURLToPath(output))
-await writeFile(new URL('capacitor.config.json',mobile),JSON.stringify({
- appId:'com.tenaceiq.prototype',appName:'TenAceIQ Prototype',webDir:firstPartyWebDir,loggingBehavior:'none',
-},null,2)+'\n')
+await writeFile(new URL('capacitor.config.json',mobile),JSON.stringify(firstPartyCapacitorConfig,null,2)+'\n')
 console.log('Built the first-party iOS prototype bundle in '+firstPartyWebDir+'.')

@@ -2,12 +2,13 @@ import {iosPurchaseSources,iosPurchaseSceneDelegate} from './ios-purchases.mjs'
 import {cameraPrivacyPlist} from './ios-camera.mjs'
 import {appLockPrivacyPlist,appLockPrivacyResource} from './ios-app-lock.mjs'
 import {iosPushSources,pushEntitlements} from './ios-push.mjs'
+import assert from 'node:assert/strict'
 import { readFile, writeFile, access, mkdir } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { iosIcon } from './ios-icon.mjs'
-import {checkFirstPartyBundle,firstPartyWebDir} from './first-party-bundle.mjs'
+import {checkFirstPartyBundle,firstPartyCapacitorConfig,firstPartyIosDir,firstPartyWebDir} from './first-party-bundle.mjs'
 
 const mobile = fileURLToPath(new URL('../', import.meta.url))
 const config = JSON.parse(await readFile(resolve(mobile, 'capacitor.config.json'), 'utf8'))
@@ -15,9 +16,14 @@ const firstParty = process.argv.includes('--first-party')
 if (config.webDir !== (firstParty ? firstPartyWebDir : 'bundled') || config.server || config.appId !== 'com.tenaceiq.prototype') {
   throw new Error('Build the selected bundle before preparing iOS.')
 }
-if(firstParty)await checkFirstPartyBundle(resolve(mobile,firstPartyWebDir))
+if(firstParty){
+  assert.deepEqual(config,firstPartyCapacitorConfig,'Unexpected Capacitor configuration for the offline build')
+  await checkFirstPartyBundle(resolve(mobile,firstPartyWebDir))
+}else if(config.ios?.path && config.ios.path!=='ios'){
+  throw new Error('The standard iOS bundle must use mobile/ios.')
+}
 const exists = async path => access(path).then(() => true, () => false)
-const ios = resolve(mobile, 'ios')
+const ios = resolve(mobile, firstParty ? firstPartyIosDir : 'ios')
 const hasProject = await exists(ios)
 if (hasProject && !await exists(resolve(ios, 'App/CapApp-SPM/Package.swift'))) {
   throw new Error('Existing iOS project is not the expected SPM template. Preserve it and review before regenerating.')
@@ -58,23 +64,24 @@ if (contents.images.length !== 1 || contents.images[0].size !== '1024x1024') {
 contents.images[0].filename = 'tenaceiq-app-icon.png'
 await writeFile(resolve(icons, 'tenaceiq-app-icon.png'), await iosIcon())
 await writeFile(resolve(icons, 'Contents.json'), JSON.stringify(contents, null, 2) + '\n')
-console.log('Prepared SPM iOS prototype and packaged the approved artwork on the opaque brand navy icon tile. Xcode compilation/signing is not verified on Windows.')
+if(!firstParty){
+  const delegatePath=resolve(ios,'App/App/AppDelegate.swift')
+  const pushSources=iosPushSources(await readFile(resolve(project,'project.pbxproj'),'utf8'),await readFile(delegatePath,'utf8'))
+  await writeFile(resolve(project,'project.pbxproj'),pushSources.project)
+  await writeFile(delegatePath,pushSources.delegate)
+  await writeFile(resolve(ios,'App/App/Push.entitlements'),pushEntitlements('development'))
 
-const delegatePath=resolve(ios,'App/App/AppDelegate.swift')
-const pushSources=iosPushSources(await readFile(resolve(project,'project.pbxproj'),'utf8'),await readFile(delegatePath,'utf8'))
-await writeFile(resolve(project,'project.pbxproj'),pushSources.project)
-await writeFile(delegatePath,pushSources.delegate)
-await writeFile(resolve(ios,'App/App/Push.entitlements'),pushEntitlements('development'))
+  const infoPath=resolve(ios,'App/App/Info.plist')
+  await writeFile(infoPath,appLockPrivacyPlist(cameraPrivacyPlist(await readFile(infoPath,'utf8'))))
 
-const infoPath=resolve(ios,'App/App/Info.plist')
-await writeFile(infoPath,appLockPrivacyPlist(cameraPrivacyPlist(await readFile(infoPath,'utf8'))))
-
-const storyboardPath=resolve(ios,'App/App/Base.lproj/Main.storyboard')
-const purchases=iosPurchaseSources(await readFile(resolve(project,'project.pbxproj'),'utf8'),await readFile(storyboardPath,'utf8'))
-const scenePath=resolve(ios,'App/App/SceneDelegate.swift')
-const sceneDelegate=iosPurchaseSceneDelegate(await readFile(scenePath,'utf8'))
-await writeFile(resolve(project,'project.pbxproj'),appLockPrivacyResource(purchases.project))
-await writeFile(storyboardPath,purchases.storyboard)
-await writeFile(scenePath,sceneDelegate)
-await writeFile(resolve(ios,'App/App/TenAceIQPurchases.swift'),await readFile(resolve(mobile,'native/TenAceIQPurchases.swift')))
-await writeFile(resolve(ios,'App/App/PrivacyInfo.xcprivacy'),await readFile(resolve(mobile,'native/PrivacyInfo.xcprivacy')))
+  const storyboardPath=resolve(ios,'App/App/Base.lproj/Main.storyboard')
+  const purchases=iosPurchaseSources(await readFile(resolve(project,'project.pbxproj'),'utf8'),await readFile(storyboardPath,'utf8'))
+  const scenePath=resolve(ios,'App/App/SceneDelegate.swift')
+  const sceneDelegate=iosPurchaseSceneDelegate(await readFile(scenePath,'utf8'))
+  await writeFile(resolve(project,'project.pbxproj'),appLockPrivacyResource(purchases.project))
+  await writeFile(storyboardPath,purchases.storyboard)
+  await writeFile(scenePath,sceneDelegate)
+  await writeFile(resolve(ios,'App/App/TenAceIQPurchases.swift'),await readFile(resolve(mobile,'native/TenAceIQPurchases.swift')))
+  await writeFile(resolve(ios,'App/App/PrivacyInfo.xcprivacy'),await readFile(resolve(mobile,'native/PrivacyInfo.xcprivacy')))
+}
+console.log(`Prepared the unsigned iOS project at ${project}.`)

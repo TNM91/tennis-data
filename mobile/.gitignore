@@ -2,6 +2,7 @@ node_modules/
 capacitor.config.json
 android/
 ios/
+ios-first-party/
 bundled/
 bundled-first-party/
 ios-build/
