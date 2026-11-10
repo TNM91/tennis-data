@@ -6,7 +6,9 @@ const opponent = '22222222-2222-4222-8222-222222222222'
 const match = { league: competitionLeague.id, fixture: captainFixtureId, date: '2026-11-06', teamA: 'Baseline Aces', teamB: 'Rally Crew' }
 const membersA = [{ id: competitionOwner, name: 'Jordan Lee' }, { id: '33333333-3333-4333-8333-333333333333', name: 'Alex Rally' }]
 const membersB = [{ id: opponent, name: 'Casey Serve' }, { id: '44444444-4444-4444-8444-444444444444', name: 'Taylor Volley' }]
-export const captainCourtsFixture = { enabled: new URL(location.href).searchParams.has('captain-courts'), courts: [] as CaptainCourt[] }
+const scenario = new URL(location.href).searchParams.get('captain-courts')
+let loseCorrectionReceipt = scenario === 'retry-correction'
+export const captainCourtsFixture = { enabled: scenario !== null, courts: [] as CaptainCourt[] }
 
 export function captainCourtPreview(url: URL, owner: string, body: unknown) {
   const response = { ok: true, owner, releaseScope: 'first-party' }
@@ -25,10 +27,16 @@ export function captainCourtPreview(url: URL, owner: string, body: unknown) {
   if (body) {
     const draft = readCourtSubmission(JSON.parse(String(body)))
     const prior = captainCourtsFixture.courts.find(row => row.court === draft.court)
-    if ((prior?.revision ?? null) !== draft.expected) return Response.json({ ok: false, releaseScope: 'first-party' }, { status: 409 })
     const court: CaptainCourt = { court: draft.court, format: draft.format, a: draft.a, b: draft.b,
       winner: draft.winner, score: draft.score, revision: draft.revision }
-    captainCourtsFixture.courts = [...captainCourtsFixture.courts.filter(row => row.court !== court.court), court]
+    if (JSON.stringify(prior) !== JSON.stringify(court)) {
+      if ((prior?.revision ?? null) !== draft.expected) return Response.json({ ok: false, releaseScope: 'first-party' }, { status: 409 })
+      captainCourtsFixture.courts = [...captainCourtsFixture.courts.filter(row => row.court !== court.court), court]
+      if (draft.expected && loseCorrectionReceipt) {
+        loseCorrectionReceipt = false
+        throw new TypeError('Connection lost after saving the court correction')
+      }
+    }
     return Response.json({ ...response, league: match.league, fixture: match.fixture, court })
   }
   const captain = owner === competitionOwner

@@ -267,9 +267,9 @@ test('first-party rematches leave the original calendar scorecard linked', async
  await expect(recentOpponents).toHaveCount(0)
 })
 
-test('first-party captain doubles corrections count once beside the player’s private entry', async ({page}) => {
+test('first-party captain doubles corrections survive a lost receipt and count once', async ({page}) => {
  await useFirstPartyNavigation(page)
- await page.goto(origin+'/?captain-courts=1')
+ await page.goto(origin+'/?captain-courts=retry-correction')
  const nav=page.getByRole('navigation',{name:'Main navigation'})
  const league=page.getByRole('dialog',{name:'Competitions',exact:true})
  const court=page.getByRole('dialog',{name:'Court scores',exact:true})
@@ -322,6 +322,9 @@ test('first-party captain doubles corrections count once beside the player’s p
  await setScores.fill('4-6 3-6')
  await expect(winner).toHaveValue('B')
  await court.getByRole('button',{name:'Update court score',exact:true}).click()
+ await expect(court.getByText(/Post unconfirmed/)).toBeVisible()
+ await expect(setScores).toBeDisabled()
+ await court.getByRole('button',{name:'Retry court score',exact:true}).click()
  await expect(court.getByText(/Score posted to the confirmed players/)).toBeVisible()
  await court.getByRole('button',{name:'Log my score in My Lab',exact:true}).click()
  await expect(posted.getByText('4-6 3-6',{exact:true})).toBeVisible()
