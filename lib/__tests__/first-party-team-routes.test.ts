@@ -36,6 +36,7 @@ const post = (body: object) => new Request(root, { method: 'POST', headers: { 'C
 
 let links: object[]
 let roomId: string | null
+let removed: boolean
 beforeEach(() => {
   vi.resetAllMocks()
   vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'test-service')
@@ -43,10 +44,17 @@ beforeEach(() => {
   auth.mockResolvedValue({ user: { id: owner }, token: 'verified' })
   links = [member]
   roomId = approved.roomId
+  removed = false
   from.mockImplementation((table: string) => {
     const result = { data: table === 'team_profile_links' ? links : roomId ? { id: roomId } : null, error: null }
+    const lists: Partial<Record<string, object[]>> = {
+      internal_conversations: roomId ? [{ id: roomId, related_entity_id: 'baseline aces__city league__4 0' }] : [],
+      internal_conversation_participants: [{ conversation_id: approved.roomId }],
+      team_room_member_removals: removed ? [{ conversation_id: approved.roomId }] : [],
+    }
+    const list = lists[table]
     const q = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), in: vi.fn(),
-      limit: vi.fn().mockResolvedValue(result), maybeSingle: vi.fn().mockResolvedValue(result) }
+      limit: vi.fn().mockResolvedValue(list ? { data: list, error: null } : result), maybeSingle: vi.fn().mockResolvedValue(result) }
     for (const method of [q.select, q.eq, q.is, q.in]) method.mockReturnValue(q)
     return q
   })
@@ -69,6 +77,37 @@ it('rejects foreign, archived and import-only links before invoking conversation
   expect((await room(new Request(root+query))).status).toBe(403)
   expect(from.mock.calls).toEqual([['team_profile_links']])
   expect(read).not.toHaveBeenCalled()
+})
+
+it('checks captain setup privately and never grants access or returns the unreviewed team', async () => {
+  const request = () => new Request(root + '?op=captain-setup')
+  expect((await room(new Request(root + '?op=captain-setup&team=Other'))).status).toBe(400)
+  auth.mockResolvedValueOnce(null)
+  expect((await room(request())).status).toBe(401)
+  access.mockResolvedValueOnce({ canUseCaptainWorkflow: false })
+  const noAccess = await room(request())
+  expect(noAccess.headers.get('cache-control')).toBe('private, no-store')
+  expect(await noAccess.json()).toEqual({ ok: true, owner, releaseScope: 'first-party', captainChatSetup: 'needs-captain-access' })
+  expect(from).not.toHaveBeenCalled()
+
+  access.mockResolvedValue({ canUseCaptainWorkflow: true })
+  links = [{ ...member, team_roles: ['captain'], source_type: 'data_assist_import' }, { ...member }]
+  expect(await (await room(request())).json()).toEqual({ ok: true, owner, releaseScope: 'first-party', captainChatSetup: 'needs-team' })
+  links = [{ ...member, team_roles: ['co_captain'], team_name: 'Unreviewed team' }]
+  expect(await (await room(request())).json()).toEqual({ ok: true, owner, releaseScope: 'first-party', captainChatSetup: 'needs-review' })
+  expect(from.mock.calls).toEqual([['team_profile_links'], ['team_profile_links']])
+
+  links = [{ ...member, team_roles: ['captain'] }]
+  removed = true
+  expect(await (await room(request())).json()).toEqual({ ok: true, owner, releaseScope: 'first-party', captainChatSetup: 'needs-room-access' })
+  removed = false
+  roomId = token
+  expect(await (await room(request())).json()).toMatchObject({ captainChatSetup: 'needs-room-access' })
+  roomId = approved.roomId
+  expect(await (await room(request())).json()).toEqual({ ok: true, owner, releaseScope: 'first-party', captainChatSetup: 'ready' })
+  expect(read).not.toHaveBeenCalled()
+  expect(save).not.toHaveBeenCalled()
+  expect(manage).not.toHaveBeenCalled()
 })
 
 it('requires one exact reviewed team and room for reads and writes', async () => {
