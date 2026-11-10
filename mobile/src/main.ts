@@ -329,7 +329,9 @@ function selectNavigation(screen:AppScreen,activeTab=currentTab(screen)) {
 function launchCompetitions(scope:'mine'|'discover'='mine',trigger?:HTMLElement,query?:string){
  if(!session||competitions?.isOpen()||accountSettings?.isOpen())return
  const owner=session.user.id,visit=revision
- competitions=openCompetitions(client,owner,()=>visit===revision&&owner===session?.user.id,scope,()=>navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')?.click(),undefined,trigger,'',undefined,query)
+ const current=()=>visit===revision&&owner===session?.user.id
+ competitions=openCompetitions(client,owner,current,scope,()=>navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')?.click(),undefined,trigger,'',undefined,query,
+  firstPartyBuild?scorecard=>guardNavigation(()=>{if(current())void lab({scorecard})}):undefined)
 }
 function openScheduledRep(owner:string,current:()=>boolean,button:HTMLElement,calendarRep:CalendarWeeklyRep,options?:{reviewRep:boolean;fromCalendar:true}){
  button.focus({preventScroll:true})

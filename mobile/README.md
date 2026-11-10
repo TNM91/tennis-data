@@ -91,7 +91,9 @@ My Lab opens from the signed-in account. Saved training, coaching and the privat
 
 The full-app match log uses account-owned `native_personal_matches` rows for manually entered scores and Recent Form. Reviewed calendar matches prefill the date and opponent, plus the format when the tournament division supplies it. Each account can save one linked scorecard per calendar match and reopen it from the same fixture. Manual entries without a fixture stay separate. The link supports future score reconciliation. These records are private.
 
-Before distributing a build with this log, apply `20261110000200_restore_updates_erasure_catalog.sql` and `20261110000300_native_personal_matches.sql` in order if pending. Verify the account-deletion catalog, then open, save, reopen, edit, and remove a calendar-linked scorecard with a QA account.
+Before distributing a build with this log, apply `20261110000200_restore_updates_erasure_catalog.sql`, `20261110000300_native_personal_matches.sql`, and `20261110000400_native_captain_court_results.sql` in order if pending. Verify the account-deletion catalog, then open, save, reopen, edit, and remove a calendar-linked scorecard with a QA account.
+
+For a reviewed TenAceIQ team fixture, open **Schedule → Open court scores**. Both teams need reviewed rooms and the court players must have active TenAceIQ team memberships. The captain posts the completed set score in team order. A signed-in participant sees the posted score in My Lab. A private entry started from the same court remains available from the captain scorecard and counts once in Recent Form. Private entries created without a court link stay separate. Test with a captain, both teams’ players, and an unrelated account before distribution.
 
 #### Calendar
 

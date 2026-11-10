@@ -19,6 +19,7 @@ import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coac
 import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
 import {trainingInboxPreview} from './mobile-training-inbox'
 import {personalMatchFixture} from './mobile-personal-matches'
+import {captainCourtPreview,captainCourtsFixture,captainFixtureId} from './mobile-captain-courts'
 import {shiftCalendarDay} from '../../mobile/src/calendar-data'
 const originalFetch=window.fetch.bind(window)
 const freeTraining=new URL(location.href).searchParams.has('free-training')
@@ -148,6 +149,7 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/captain')return Response.json({ok:true,scope:chatTeam,roster:[],matches:[],drafts:[]})
  if(url.pathname==='/api/mobile/calendar/practices'||url.pathname==='/api/mobile/practices')return calendarTeamPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/calendar'||url.pathname==='/api/mobile/first-party/calendar')return calendarPreview(init?.method||'GET',url,init?.body)
+ if(url.pathname==='/api/mobile/first-party/court-results')return captainCourtPreview(url,currentNavigationOwner(),init?.body)
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/messages'){
   const unreadReply=await coachUnreadMessages(currentNavigationOwner(),init?.method||'GET',url,init?.body);if(unreadReply)return unreadReply
@@ -187,6 +189,7 @@ window.fetch=async(input,init)=>{
   snapshot.scope=url.searchParams.get('scope')==='discover'?'discover':'mine'
   snapshot.query=url.searchParams.get('q')||''
   if(url.searchParams.get('league'))snapshot.detail=competitionDetail()
+  if(captainCourtsFixture.enabled&&snapshot.detail)snapshot.detail.fixtures[0].id=captainFixtureId
   if(audience==='public')snapshot.owner=publicCompetitionOwner
   const scoped=url.pathname==='/api/mobile/first-party/competitions'
   if(scoped&&(snapshot.scope==='discover'||snapshot.detail))snapshot.connections=[]

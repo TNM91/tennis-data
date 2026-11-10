@@ -61,7 +61,7 @@ export function mountLabRecentForm(host:HTMLElement,rows:RecentMatchRow[],player
  mountForm(host,rows,filter=>linkedSample(rows,playerId,filter),'loaded matches',current,open)
 }
 
-export function mountPersonalRecentForm(host:HTMLElement,rows:PersonalMatch[],current:()=>boolean,open:(row:PersonalMatch)=>void){
+export function mountPersonalRecentForm<T extends Pick<PersonalMatch,'match_date'|'outcome'|'format'>>(host:HTMLElement,rows:T[],current:()=>boolean,open:(row:T)=>void){
  mountForm(host,rows,filter=>rows.flatMap((match,index)=>filter==='all'||filter===match.format
   ?[{index,date:match.match_date,outcome:match.outcome,format:match.format}]:[]).slice(0,5),'match log',current,open)
 }

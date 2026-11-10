@@ -15,6 +15,10 @@ import {bindLeaguePlayerActions,openLeaguePlayerEvidence,restoreLeaguePlayerFocu
 import {bindLeagueTeamActions,openLeagueTeamEvidence,restoreLeagueTeamFocus} from './league-team-evidence'
 import {restoreLeagueEvidenceFocus as restoreListFocus} from './league-evidence-dialog'
 import {firstPartyBuild} from './build-scope'
+import {courtAccountId} from '../../lib/native-court-result-contract'
+import {openCaptainCourtScores} from './captain-court-view'
+import {localCalendarDate} from './calendar-data'
+import type {CalendarScorecardSeed} from './personal-match-data'
 type View='home'|'fixtures'|'results'|'standings'|'participants'
 type ReturnPosition={scroll:number}&({target:'league'|'league-entry';id:string}|{target:'registration'})
 const stateLabel=(v:string)=>(({draft:'Draft',registration_open:'Registration open',active:'In season',completed:'Completed',archived:'Past season'} as Record<string,string>)[v]||v.replaceAll('_',' '))
@@ -49,7 +53,7 @@ export function competitionSeasonHtml(d:OfficeDetail,view:View,today?:string,fil
  if(view==='participants')return leagueParticipantsViewHtml(d,listFilters,false)
  return leagueStandingsViewHtml(d,listFilters)
 }
-export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement,initialLeague='',calendarEntry?:{matchId?:string},initialQuery=''){
+export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement,initialLeague='',calendarEntry?:{matchId?:string},initialQuery='',openPersonal?:(seed:CalendarScorecardSeed)=>void){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog competitions-dialog';dialog.setAttribute('aria-label','Competitions')
  const guest=firstPartyBuild&&owner===publicCompetitionOwner
@@ -61,12 +65,14 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
  let teamEvidence:ReturnType<typeof openLeagueTeamEvidence>|null=null
  let entry:ReturnType<typeof openLeagueEntry>|null=null
  let tournaments:ReturnType<typeof openTournaments>|null=null
+ let courtDesk:ReturnType<typeof openCaptainCourtScores>|null=null
  const active=()=>!disposed&&current()
- const dispose=()=>{if(disposed)return;disposed=true;version++;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
+ const dispose=()=>{if(disposed)return;disposed=true;version++;courtDesk?.dispose();courtDesk=null;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const hidden=()=>{if(document.visibilityState==='hidden')dispose()}
  const focus=()=>dialog.querySelector<HTMLElement>(selected?'[data-competition-content] h3':'h2')?.focus({preventScroll:true})
  const back=()=>{
   if(!active()){dispose();return true}
+  if(courtDesk?.isOpen())return courtDesk.back()
   if(teamEvidence?.isOpen())return teamEvidence.back()
   if(tournaments?.isOpen())return tournaments.back()
   if(entry?.isOpen())return entry.back()
@@ -164,6 +170,20 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    if(teamEvidence?.isOpen())return;const scroll=dialog.scrollTop,id=d.league.id,chosenScope=scope,chosenQuery=query
    teamEvidence=openLeaguePlayerEvidence(d,name,active,async valid=>{try{const result=await loadCompetitions(client,owner,()=>active()&&valid(),chosenScope,chosenQuery,id,send);if(!valid()||!result.detail)throw Error('League changed');snapshot=result;notice='';return result.detail}catch(error){if(valid()){snapshot=null;notice='Couldn’t refresh this league. Refresh to try again.'}throw error}},()=>{teamEvidence=null;if(active()){render();restoreLeaguePlayerFocus(dialog,name,scroll)}},'← Players')
   })
+  if(firstPartyBuild&&!guest&&d?.league.format==='team'&&view==='fixtures'){
+   const today=localCalendarDate()
+   const fixtures=new Map(d.fixtures.filter(f=>courtAccountId(f.id)&&f.date<=today&&['confirmed','coordinator_set','completed'].includes(f.status)).map(f=>[f.id,f]))
+   dialog.querySelectorAll<HTMLElement>('[data-competition-schedule-match]').forEach(card=>{
+    const fixture=fixtures.get(card.dataset.competitionScheduleMatch||'')
+    if(!fixture)return
+    const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent='Open court scores'
+    button.onclick=()=>{
+     if(!active()||busy||courtDesk?.isOpen())return
+     courtDesk=openCaptainCourtScores(client,owner,active,button,{league:d.league.id,fixture:fixture.id},openPersonal?seed=>{dispose();openPersonal(seed)}:undefined)
+    }
+    card.append(button)
+   })
+  }
   bindLeagueListFinder(dialog,()=>active()&&!busy,next=>{if(view!=='participants'&&view!=='standings')return;lists[view]=next;render();dialog.querySelector<HTMLElement>('[data-league-list-summary]')?.focus()})
   bindLeagueMatchFinder(dialog,()=>active()&&!busy,next=>{
    if(view!=='fixtures'&&view!=='results')return

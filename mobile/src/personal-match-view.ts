@@ -3,10 +3,13 @@ import { localCalendarDate } from './calendar-data'
 import { mountPersonalRecentForm } from './lab-recent-form'
 import { html } from './match-details'
 import { matchDate } from './recent-results'
+import { loadCaptainScorecards } from './captain-court-data'
+import type { PostedCourtScorecard } from '../../lib/native-court-result-contract'
 import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, removePersonalMatch, savePersonalMatch,
   type CalendarScorecardSeed, type PersonalMatch, type PersonalMatchDraft } from './personal-match-data'
 
 const formatName = (format: PersonalMatch['format']) => format === 'singles' ? 'Singles' : 'Doubles'
+type LogScorecard = PersonalMatch | PostedCourtScorecard
 
 export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient, owner: string, current: () => boolean, seed?: CalendarScorecardSeed) {
   host.innerHTML = `<div class="lab-form-host" data-personal-form></div>
@@ -16,25 +19,32 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       <p>Your scores and recent form sync privately to your account.</p>
       <div data-personal-editor></div>
       <div data-personal-history></div>
+      <p role="status" data-captain-score-status hidden></p>
       <p role="status" data-personal-status></p>
     </section>`
   const formHost = host.querySelector<HTMLElement>('[data-personal-form]')!
   const editor = host.querySelector<HTMLElement>('[data-personal-editor]')!
   const history = host.querySelector<HTMLElement>('[data-personal-history]')!
   const status = host.querySelector<HTMLElement>('[data-personal-status]')!
+  const captainStatus = host.querySelector<HTMLElement>('[data-captain-score-status]')!
   const add = host.querySelector<HTMLButtonElement>('[data-log-match]')!
   const active = () => host.isConnected && current()
   let matches: PersonalMatch[] = []
+  let posted: PostedCourtScorecard[] = []
   let more = false, reading = false, writing = false
 
   function paintHistory() {
-    mountPersonalRecentForm(formHost, matches, active, showScorecard)
-    history.innerHTML = matches.length ? `<h3>Saved scorecards</h3><ol class="matches">${matches.map((match, index) =>
+    const linked = new Set(posted.map(card => card.calendar_match_id))
+    const scorecards: LogScorecard[] = [...posted, ...matches.filter(card => !card.calendar_match_id || !linked.has(card.calendar_match_id))]
+      .sort((a, b) => b.match_date.localeCompare(a.match_date))
+    mountPersonalRecentForm(formHost, scorecards, active, showScorecard)
+    history.innerHTML = scorecards.length ? `<h3>Saved scorecards</h3><ol class="matches">${scorecards.map((match, index) =>
       `<li><strong>${html(match.opponent)}</strong><p>${match.outcome} · ${formatName(match.format)} · ${html(matchDate(match.match_date))}</p>
-      <button type="button" class="secondary" data-open-scorecard="${index}">Open scorecard<span class="sr-only"> for ${html(match.opponent)}</span></button></li>`).join('')}</ol>` : ''
+      ${'scoreOrder' in match ? '<p>Captain posted · Court ' + match.court + '</p>' : ''}
+      <button type="button" class="secondary" data-open-scorecard="${index}" data-scorecard-id="${html(match.id)}">Open scorecard<span class="sr-only"> for ${html(match.opponent)}</span></button></li>`).join('')}</ol>` : ''
     if (more) history.insertAdjacentHTML('beforeend', '<button type="button" class="secondary" data-older-scorecards>Load older matches</button>')
     history.querySelectorAll<HTMLButtonElement>('[data-open-scorecard]').forEach(button => {
-      button.onclick = () => showScorecard(matches[Number(button.dataset.openScorecard)])
+      button.onclick = () => showScorecard(scorecards[Number(button.dataset.openScorecard)])
     })
     const older = history.querySelector<HTMLButtonElement>('[data-older-scorecards]')
     if (older) older.onclick = () => { void readHistory(true) }
@@ -50,12 +60,17 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     try {
       const page = await loadPersonalMatches(client, owner, active, older ? matches.at(-1) : undefined)
       if (!active()) return
-      const previousCount = matches.length
+      const previous = older ? new Set(matches.map(row => row.id)) : null
       matches = older ? [...new Map([...matches, ...page.matches].map(row => [row.id, row])).values()] : page.matches
       more = page.more
       paintHistory()
-      status.textContent = receipt || (matches.length ? '' : 'Your first scorecard will appear here.')
-      if (older) history.querySelectorAll<HTMLButtonElement>('[data-open-scorecard]')[previousCount]?.focus()
+      status.textContent = receipt || (matches.length || posted.length ? '' : 'Your first scorecard will appear here.')
+      if (previous) {
+        const appended = [...history.querySelectorAll<HTMLButtonElement>('[data-open-scorecard]')]
+          .find(button => page.matches.some(row => row.id === button.dataset.scorecardId && !previous.has(row.id)))
+        const nextFocus = appended ?? history.querySelector<HTMLButtonElement>('[data-older-scorecards]') ?? add
+        nextFocus.focus()
+      }
     } catch {
       if (!active()) return
       status.textContent = `${receipt ? receipt + ' ' : ''}Couldn’t load ${older ? 'older matches' : 'your match history'}.`
@@ -70,10 +85,24 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     }
   }
 
-  function showScorecard(match: PersonalMatch) {
+  function showScorecard(match: LogScorecard, ownEntry?: PersonalMatch | null) {
     if (!active() || writing || !match) return
     history.hidden = formHost.hidden = false
     add.disabled = reading
+    if ('scoreOrder' in match) {
+      const personal = ownEntry ?? matches.find(card => card.calendar_match_id === match.calendar_match_id)
+      editor.innerHTML = `<article class="lab-first-scorecard" aria-label="Captain scorecard">
+        <h3 tabindex="-1">${html(match.opponent)}</h3><p>Captain posted · Court ${match.court}</p>
+        <p>${html(matchDate(match.match_date))} · ${formatName(match.format)} · ${match.outcome}</p>
+        <p><strong>${html(match.score)}</strong><br>${html(match.scoreOrder)} score order</p>
+        ${personal ? '<button type="button" class="secondary" data-personal-copy>View your private entry</button>' : ''}
+        <button type="button" class="secondary" data-close-scorecard>Back to match log</button></article>`
+      editor.querySelector<HTMLElement>('h3')!.focus()
+      editor.querySelector<HTMLButtonElement>('[data-close-scorecard]')!.onclick = closeEditor
+      const copy = editor.querySelector<HTMLButtonElement>('[data-personal-copy]')
+      if (copy && personal) copy.onclick = () => showScorecard(personal)
+      return
+    }
     editor.innerHTML = `<article class="lab-first-scorecard" aria-label="Saved scorecard">
       <h3 tabindex="-1">${html(match.opponent)}</h3>
       <p>${html(matchDate(match.match_date))} · ${formatName(match.format)} · ${match.outcome}</p>
@@ -200,9 +229,12 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     status.textContent = 'Opening your calendar scorecard…'
     try {
       const saved = await loadCalendarScorecard(client, owner, calendarSeed, active)
+      if (calendarSeed.calendarMatchId.includes(':court:')) await captainLoad
       if (!active()) return
       status.textContent = ''
-      if (saved) { showScorecard(saved); void readHistory() }
+      const captain = posted.find(card => card.calendar_match_id === calendarSeed.calendarMatchId)
+      if (captain) { showScorecard(captain, saved); void readHistory() }
+      else if (saved) { showScorecard(saved); void readHistory() }
       else showEditor(null, calendarSeed)
     } catch {
       if (!active()) return
@@ -215,6 +247,17 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     }
   }
 
+  const captainLoad = loadCaptainScorecards(client, owner, active).then(cards => {
+    if (!active()) return
+    posted = cards
+    if (!posted.length) return
+    if (status.textContent === 'Your first scorecard will appear here.') status.textContent = ''
+    paintHistory()
+  }).catch(() => {
+    if (!active()) return
+    captainStatus.textContent = 'Captain scores couldn’t load.'
+    captainStatus.hidden = false
+  })
   add.onclick = () => showEditor(null)
   if (seed) void openCalendarMatch(seed)
   else void readHistory()
