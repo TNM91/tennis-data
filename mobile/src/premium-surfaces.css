@@ -491,6 +491,12 @@ body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.0
 [data-personal-editor]>:not(:empty) { margin-block:16px; }
 :is([data-match-editor],[data-court-form]) fieldset { border:0;min-inline-size:0;margin:0;padding:0; }
 :is([data-match-editor],[data-court-form]) select { display:block;inline-size:100%;min-block-size:50px;margin-block-start:8px;padding:12px;border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-surface);color:inherit;font:inherit; }
+.captain-court-progress {
+ display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px;
+ border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);
+}
+.captain-court-progress p { flex-basis:100%;margin:0;color:var(--premium-copy);font-size:.875rem; }
+.captain-court-progress button.secondary { inline-size:auto;max-inline-size:100%;min-block-size:44px;margin:0;padding:8px 10px;font-size:.875rem; }
 [data-recent-opponents] summary { min-block-size:44px;padding-block:10px;cursor:pointer; }
 [data-recent-opponents] button.secondary { overflow-wrap:anywhere; }
 .lab-saved-scorecards { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
