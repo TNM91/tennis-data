@@ -486,6 +486,10 @@ body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.0
 .lab-recent-heading button[hidden] { display:none; }
 .lab-first-scorecard p { margin:0 0 14px;color:var(--premium-copy);font-size:.875rem;line-height:1.5; }
 .lab-first-scorecard .native-entry-list button.app-tool { margin:0; }
+.lab-team-score-review { margin-block:0 12px;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.lab-team-score-review h4 { margin:0 0 6px;color:var(--premium-ice); }
+.lab-team-score-review p { margin:0; }
+.lab-team-score-review button.secondary { min-block-size:44px;margin:8px 0 0; }
 [data-log-match] { inline-size:auto;min-block-size:44px;margin:0; }
 [data-personal-editor] { overflow-wrap:anywhere; }
 [data-personal-editor]>:not(:empty) { margin-block:16px; }
@@ -1501,20 +1505,36 @@ body.native-chat-conversation .chat-room-header { border-color:var(--premium-lin
 }
 .chat-join-match>summary { min-block-size:44px;padding:10px 12px;cursor:pointer;color:var(--premium-lime); }
 .chat-join-match>div { padding:0 12px 12px; }
+.chat-team-results-link.secondary {
+ display:flex;align-items:center;justify-content:space-between;gap:8px;
+ min-inline-size:0;min-block-size:44px;margin:8px 0 0;padding:8px 12px;
+ text-align:start;font-size:.8125rem;color:var(--premium-lime);border-color:var(--premium-line);background:var(--premium-inset);
+}
+.team-result-filters { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-block:0 12px; }
+.team-result-filters button.secondary { min-inline-size:0;min-block-size:44px;margin:0;padding-inline:6px;white-space:normal; }
+.team-result-filters button[aria-pressed="true"] { border-color:var(--premium-lime);color:var(--premium-lime); }
 .team-result-list { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
 .team-result-list .team-invite-preview { margin:0; }
+.team-result-list .team-result-assignment-note { color:var(--premium-lime); }
+.team-result-own-score { display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;font-variant-numeric:tabular-nums; }
 .team-result-actions { display:flex;flex-wrap:wrap;gap:8px; }
 .team-result-actions button.secondary { inline-size:auto;max-inline-size:100%;margin:0; }
 .team-result-court-fields { display:grid;gap:8px; }
 .team-result-court-fields>div,.team-result-court-list li { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px; }
 .team-result-court-fields>div { align-items:end;padding:10px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.team-result-court-fields .team-result-locked-score { flex:1 0 100%;margin:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums; }
 .team-result-court-fields label { display:grid;gap:5px;flex:1 1 145px;min-width:0;margin:0; }
 .team-result-court-fields :is(input,select) { min-inline-size:0;margin:0; }
+.team-result-player-fields { display:flex;flex:1 0 100%;flex-wrap:wrap;gap:6px;min-inline-size:0; }
+.team-result-player-fields select[aria-invalid="true"] { border-color:#ffcabf; }
+#result-player-coverage.has-duplicate-players { color:#ffcabf; }
+#result-player-coverage:empty { display:none; }
 .team-result-court-fields button.secondary { inline-size:auto;margin:0; }
 .team-result-court-list { margin-block:4px 10px; }
 .team-result-court-list summary { min-block-size:44px;padding-block:9px;cursor:pointer; }
 .team-result-court-list ol { list-style:none;padding:0;margin:0; }
 .team-result-court-list li { padding:5px 0;overflow-wrap:anywhere; }
+.team-result-player-names { flex:1 0 100%;margin:0;overflow-wrap:anywhere; }
 .team-record { margin-block:0 12px;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
 .team-record h3 { margin:0 0 8px;font-size:1rem; }
 .team-record dl { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0; }

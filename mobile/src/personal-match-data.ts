@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isValidCalendarDate } from '../../lib/calendar-date'
 import type { NativeCalendarCompetition } from '../../lib/native-calendar-contract'
+import { isTeamResultScorecardKey, readTeamCourtScore } from '../../lib/team-results-contract'
 import { localCalendarDate } from './calendar-data'
 
 type MatchFields = {
@@ -12,9 +13,16 @@ type MatchFields = {
 }
 
 export type PersonalMatch = MatchFields & { id: string; revision: string; created_at: string; calendar_match_id: string | null }
+export type TeamScore = Pick<MatchFields, 'score' | 'outcome'>
 export type PersonalMatchDraft = MatchFields & { id: string; revision: string; expected: string | null; calendar_match_id: string | null }
-export type CalendarScorecardSeed = { calendarMatchId: string; date: string; opponent: string; format?: MatchFields['format'] }
+export type CalendarScorecardSeed = {
+  calendarMatchId: string; date: string; opponent: string; format?: MatchFields['format']; outcome?: MatchFields['outcome']; score?: string
+}
 export class MatchChanged extends Error {}
+
+export function teamScoreDiffers(saved: TeamScore, posted: TeamScore) {
+  return saved.outcome !== posted.outcome || readTeamCourtScore(saved.score)?.score !== posted.score
+}
 
 const table = 'native_personal_matches'
 const columns = 'owner_user_id,id,revision,calendar_match_id,match_date,opponent,format,outcome,score,created_at'
@@ -98,6 +106,27 @@ export function loadCalendarScorecard(client: SupabaseClient, owner: string, see
   return lookup(client, owner, 'calendar_match_id', seed.calendarMatchId, current)
 }
 
+export async function loadSavedTeamScores(client: SupabaseClient, owner: string, keys: string[], current: () => boolean) {
+  const requested = new Set(keys)
+  const scores = new Map<string, TeamScore | null>(keys.map(key => [key, null]))
+  if (!requested.size) return scores
+  if ([...requested].some(key => !isTeamResultScorecardKey(key))) throw Error('Invalid team scorecard key.')
+  await requireOwner(client, owner, current)
+  const { data, error } = await client.from(table).select('owner_user_id,calendar_match_id,score,outcome')
+    .eq('owner_user_id', owner).in('calendar_match_id', [...requested]).abortSignal(timeout()).retry(false)
+  await requireOwner(client, owner, current)
+  if (error || !Array.isArray(data) || data.length > requested.size) throw Error('Couldn’t check your saved team scores.')
+  for (const row of data) {
+    const key = row?.calendar_match_id
+    if (row?.owner_user_id !== owner || !requested.delete(key) || typeof row.score !== 'string' ||
+        !validText(row.score, 64) || (row.outcome !== 'Won' && row.outcome !== 'Lost')) {
+      throw Error('Invalid saved team score.')
+    }
+    scores.set(key, { score: row.score, outcome: row.outcome })
+  }
+  return scores
+}
+
 export async function savePersonalMatch(client: SupabaseClient, owner: string, draft: PersonalMatchDraft, current: () => boolean) {
   await requireOwner(client, owner, current)
   const { id, expected, calendar_match_id, ...values } = draft
@@ -112,6 +141,7 @@ export async function savePersonalMatch(client: SupabaseClient, owner: string, d
   if (saved?.id === id && saved.calendar_match_id === calendar_match_id &&
       Object.entries(values).every(([key, value]) => saved[key as keyof PersonalMatch] === value)) return saved
   if (!expected && calendar_match_id && saved?.calendar_match_id === calendar_match_id) {
+    if (isTeamResultScorecardKey(calendar_match_id)) throw new MatchChanged('You already saved this team scorecard. Open it again from Team results.')
     throw new MatchChanged('A scorecard is already saved for this calendar match. Open it again from your calendar.')
   }
   if ((saved?.revision ?? null) !== expected) throw new MatchChanged('This scorecard changed on another device. Reopen it to see the latest result.')

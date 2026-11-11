@@ -1,15 +1,22 @@
 import type { PersonalMatch } from '../../mobile/src/personal-match-data'
 
 type Row = PersonalMatch & { owner_user_id: string }
-export const personalMatchFixture = { rows: [] as Row[], writtenIds: [] as string[], loseReceipt: false }
+export const personalMatchFixture = { rows: [] as Row[], writtenIds: [] as string[], loseReceipt: false,
+  teamScoreReads: [] as { owner: string | undefined; keys: string[] }[], failTeamScoreRead: false }
 let missLookup = false
 
 export function personalMatchQuery() {
   const filters = new Map<string, string>()
   let action = 'read', values: Partial<Row> = {}, single = false, limit = 21
   let afterId: string | undefined
+  let teamScoreKeys: string[] | undefined
   const chain = {
     eq(key: string, value: string) { filters.set(key, value); return chain },
+    in(key: string, keys: string[]) {
+      if (key !== 'calendar_match_id') throw Error('Unexpected scorecard query.')
+      teamScoreKeys = keys
+      return chain
+    },
     or(value: string) { afterId = /,id\.lt\.([0-9a-f-]+)\)$/.exec(value)?.[1]; return chain },
     select() { return chain },
     order() { return chain },
@@ -22,8 +29,13 @@ export function personalMatchQuery() {
     delete() { action = 'delete'; return chain },
     then(resolve: (result: { data: unknown; error: { message: string } | null }) => void) {
       const fixture = personalMatchFixture
-      const selected = fixture.rows.filter(row => [...filters].every(([key, value]) => row[key as keyof Row] === value))
       const fail = (message: string) => resolve({ data: null, error: { message } })
+      if (teamScoreKeys) {
+        fixture.teamScoreReads.push({ owner: filters.get('owner_user_id'), keys: teamScoreKeys })
+        if (fixture.failTeamScoreRead) return fail('Saved team score check unavailable')
+      }
+      const selected = fixture.rows.filter(row => (!teamScoreKeys || row.calendar_match_id && teamScoreKeys.includes(row.calendar_match_id)) &&
+        [...filters].every(([key, value]) => row[key as keyof Row] === value))
       if (action === 'insert') {
         const row = { ...values, created_at: new Date().toISOString() } as Row
         fixture.writtenIds.push(row.id)

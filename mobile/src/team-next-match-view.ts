@@ -9,9 +9,9 @@ import {calendarMatchExport} from './calendar-data'
 import {exportCoachFile} from './native-coach-files'
 import {matchLineupFields,matchLineupMessage,plannedLineupHtml} from './team-match-lineup'
 import {saveTeamMatchLineupRequest,teamMatchRepliesRequest} from './team-match-replies-data'
-import {teamNextMatchRequest,TeamNextMatchError,type NativeTeamRoom,type TeamNextMatchSchedule} from './team-room-data'
+import {teamNextMatchRequest,TeamNextMatchError,type TeamMatchRoom,type TeamNextMatchSchedule} from './team-room-data'
 
-function nextMatchTime(match:ReviewedNextMatch){
+export function nextMatchTime(match:ReviewedNextMatch){
  const start=eventCalendarStart(match.date,match.time,match.timeZone)
  return start?new Intl.DateTimeFormat(undefined,{
   timeZone:match.timeZone,hour:'numeric',minute:'2-digit',timeZoneName:'short',
@@ -57,8 +57,8 @@ function matchRepliesHtml(replies:TeamMatchReplies,busy:boolean,pending:boolean,
  </section>`
 }
 
-export function openTeamNextMatch(client:SupabaseClient,owner:string,room:NativeTeamRoom,current:()=>boolean,
- onClose:(changed:boolean,message?:string,kind?:'lineup')=>void,canDraftUpdate:()=>boolean,previousMatch?:ReviewedNextMatch){
+export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMatchRoom,current:()=>boolean,
+ onClose:(changed:boolean,message?:string,kind?:'lineup')=>void,canDraftUpdate:()=>boolean,previousMatch?:ReviewedNextMatch,calendarRevision?:string){
  const dialog=document.createElement('dialog')
  dialog.className='team-invite-dialog team-next-match-dialog'
  dialog.setAttribute('aria-label','Next match')
@@ -90,6 +90,10 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:Native
   replies=null;draft=null;removing=false;schedule=null;notice='Loading your next match…';render()
   try{
    schedule=await teamNextMatchRequest(client,owner,active,room);notice=''
+   if(calendarRevision&&(schedule.revision!==calendarRevision||!schedule.nextMatch)){
+    changed=true
+    notice=schedule.nextMatch?'The team schedule changed. Review the latest match.':'This match is no longer upcoming.'
+   }
    if(startNew){
     startNew=false
     if(schedule.nextMatch)notice='Your next match is already scheduled.'

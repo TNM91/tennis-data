@@ -55,7 +55,8 @@ import {labIdentityHtml,labActionsHtml,labFirstScorecardHtml,labScoreboardHtml,l
 import {createNativePush} from './native-push'
 import {createCoachAlerts} from './coach-alerts'
 import {createCoachAlertHandoff} from './coach-alert-handoff'
-import { showTeamRoom } from './team-room-view'
+import { showTeamRoom,type TeamResultsReturn } from './team-room-view'
+import {createTeamScoreDraftSession,type TeamScoreDraftSession} from './team-score-drafts'
 import { showComparison } from './comparison-view'
 import { showFollowing } from './follows-view'
 import { showPlayerRatings } from './player-ratings-view'
@@ -94,8 +95,10 @@ accountEntry.onclick=()=>launchAccount(accountEntry)
 function launchAccount(trigger:HTMLButtonElement){
  if(!session||!trigger.isConnected||accountSettings?.isOpen()||competitions?.isOpen()||tournaments?.isOpen()||connection?.isSaving())return
  const owner=session.user.id,visit=revision
+ const scoreDrafts=teamScoreDrafts
  accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner),trigger,
-  firstPartyBuild?()=>{accountSettings?.dispose();accountSettings=null;guardNavigation(()=>{void lab('trophies')})}:undefined)
+  firstPartyBuild?()=>{accountSettings?.dispose();accountSettings=null;guardNavigation(()=>{void lab('trophies')})}:undefined,
+  scoreDrafts?.owner===owner?()=>scoreDrafts.clear():undefined)
 }
 let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof import('./data-imports-view').openDataImports>|null=null
@@ -116,6 +119,7 @@ let guest:ReturnType<typeof showGuestExplore>|null=null
 let storageUnavailable=false
 let session: Session | null = null
 let personalMatchForm:PersonalMatchFormSession={}
+let teamScoreDrafts:TeamScoreDraftSession|undefined
 let linkedLabOwner:string|undefined
 let exploreSearch:ExploreSearchState|undefined
 let guestExploreResume:{visit:ExploreVisit;owner?:string}|undefined
@@ -126,6 +130,8 @@ window.addEventListener(CALENDAR_WEEKLY_REP_CHANGED,event=>{
 })
 const coachNextAssignment=createCoachNextAssignment(client,()=>session?.user.id)
 let revision = 0
+let labTeamReturnVersion:number|undefined
+const inTeamScorecard=()=>labTeamReturnVersion===revision
 let profileOpen=false
 let connection: ReturnType<typeof showPlayerConnection> | null = null
 let details: ReturnType<typeof createMatchDetails> | null = null
@@ -430,8 +436,8 @@ function openMatchup(){
   })
 }
 
-function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeamDestination&{browseFirst?:boolean}){
-  if(coachWorkspace?.isOpen()){coachWorkspace.requestLeave(()=>{coachWorkspace=null;openTeamRoom(initialScope,fromCompete)});return}
+function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeamDestination&{browseFirst?:boolean},returnTo?:TeamResultsReturn){
+  if(coachWorkspace?.isOpen()){coachWorkspace.requestLeave(()=>{coachWorkspace=null;openTeamRoom(initialScope,fromCompete,returnTo)});return}
   if(comparison?.isNotebookOpen()){comparison.back();return}
   if(goals?.isOpen()){goals.back();return}
   if(!session || connection?.isSaving())return
@@ -445,6 +451,14 @@ function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeam
   teamRoom=showTeamRoom(app,client,userId,current,initialScope,{unread:()=>chatUnread.snapshot(),refresh:()=>{void chatUnread.refresh()},mountNotifications:host=>nativePush.mount(host)},fromCompete?{
    view:fromCompete.action,
    back:()=>{if(current())showHub('compete',{returnTeam:fromCompete,browseFirst:fromCompete.browseFirst})},
+  }:undefined,teamScoreDrafts?{
+   drafts:teamScoreDrafts,
+   onScheduleChanged:calendarHighlights.clear,
+   returnTo,
+   openScorecard:(scorecard,source)=>guardNavigation(()=>{
+    if(!current())return
+    void lab({scorecard,backToTeamResults:()=>openTeamRoom(source.scope,fromCompete,source)})
+   }),
   }:undefined)
   void chatUnread.refresh()
 }
@@ -589,10 +603,13 @@ const updatesCounter=createUpdatesCounter(client,count=>{
  const badge=updatesEntry.querySelector<HTMLElement>('.updates-header-badge')!;badge.hidden=count===null||count===0;badge.textContent=count===null?'':count>99?'99+':String(count)
 })
 const nativePurchases=applePurchases(client)
-const signOut=createNativeSignOut(client,owner=>nativePush.beforeSignOut(owner),()=>session?.user.id||null)
+const signOut=createNativeSignOut(client,async owner=>{
+ await nativePush.beforeSignOut(owner)
+ if(teamScoreDrafts?.owner===owner)await teamScoreDrafts.clear()
+},()=>session?.user.id||null)
 function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
-async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScorecardSeed}) {
+async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScorecardSeed;backToTeamResults?:()=>void}) {
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
@@ -616,7 +633,9 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
   details?.dispose();details=null
   const version = ++revision
   const link=typeof entry==='object'&&'profile' in entry?entry:undefined
-  const scorecard=typeof entry==='object'&&'scorecard' in entry?entry.scorecard:undefined
+  const scorecardEntry=typeof entry==='object'&&'scorecard' in entry?entry:undefined
+  const scorecard=scorecardEntry?.scorecard
+  labTeamReturnVersion=scorecardEntry?.backToTeamResults?version:undefined
   if(!firstPartyBuild&&!link?.profile){
     app.dataset.state = 'loading'
     app.innerHTML = linkedLabOwner===current.user.id
@@ -748,7 +767,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
       const matchLog = document.createElement('div')
       shortcuts.after(matchLog)
       const active = () => version===revision&&current.user.id===session?.user.id
-      mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,scorecard)
+      mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,scorecard,scorecardEntry?.backToTeamResults)
       const trophies = document.createElement('div')
       matchLog.after(trophies)
       mountSetupTrophyCase(trophies,client,current.user.id,active,(action,button)=>{
@@ -851,6 +870,7 @@ client.auth.onAuthStateChange((_event, next) => {
   if(next?.user.id!==session?.user.id){
     calendarHighlights.clear();coachNextAssignment.clear();linkedLabOwner=undefined;exploreSearch=undefined
     personalMatchForm={}
+    teamScoreDrafts=firstPartyBuild&&next?createTeamScoreDraftSession(next.user.id):undefined
     if(!session&&next&&_event==='SIGNED_IN'&&guestExploreResume)guestExploreResume.owner=next.user.id
     else guestExploreResume=undefined
   }
@@ -859,7 +879,7 @@ client.auth.onAuthStateChange((_event, next) => {
   // Keep the public visit and its sign-in handoff through late signed-out events.
   if(!next&&!session&&(guest||emailAuth||guestExploreResume)){setTimeout(()=>setNativeSession(null),0);return}
   if(next){guest?.dispose();guest=null}
-  if (next?.user.id === session?.user.id && (agenda?.isOpen() || updates?.isOpen() || sharedMatch?.isOpen() || teamInvite?.isOpen() || accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
+  if (next?.user.id === session?.user.id && (inTeamScorecard() || agenda?.isOpen() || updates?.isOpen() || sharedMatch?.isOpen() || teamInvite?.isOpen() || accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
   session = next
   const authRevision=++revision
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -881,7 +901,7 @@ client.auth.getSession().catch(() => {
   if(!session&&!guest)login()
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !agenda?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !inTeamScorecard() && !agenda?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
   else {if(!updates?.hasChild()){updates?.dispose();updates=null}labRatingTrends?.dispose();labRatingTrends=null;client.auth.stopAutoRefresh()}
 })
-window.addEventListener('online', () => { if (session && !agenda?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })
+window.addEventListener('online', () => { if (session && !inTeamScorecard() && !agenda?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })

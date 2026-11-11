@@ -17,6 +17,7 @@ export function parseReplacement(value:unknown):ReplacementRequest|null{const ro
 export type TeamMessage={mentions?:ChatMention[];editedAt?:string;canManageOwn?:boolean;response?:string;hasPhoto?:boolean;isGif?:boolean;reactions?:ChatReaction[];id:string;senderUserId:string;senderName:string;body:string;kind:string;createdAt:string;deletedAt:string;isMine:boolean;replyToMessageId:string;hasAttachment:boolean;card:{availabilityReady?:boolean;replacement?:ReplacementRequest|null;cardType?:string;lineupVersion?:number;acknowledged?:boolean;completed?:boolean;published?:boolean;arrivals?:{profileId:string;status:string;playerName:string;courtLabel:string}[];matchDate:string;opponent:string;facility:string;matchTime:string;state:string;lineup:{label:string;players:string[];defaulted:boolean}[]}|null}
 export type NativeTeamRoom=TeamScope & {chatRoom?:NamedChatRoom;canManage?:boolean;canInviteTeammates?:boolean;scheduleLinked?:boolean;manualFixture?:boolean;canScheduleMatch?:boolean;id:string;subject:string;messages:TeamMessage[];members:{id?:string;playerName?:string;name:string;roles:string[]}[];finalLineupReview?:{announcementMessageId:string;currentUserRequired:boolean;currentUserSeen:boolean}|null;nextMatch:{matchDate:string;matchTime:string;opponent:string;facility:string}|null;activeCardId:string;activeCard:TeamMessage|null;muted:boolean;chatReady:boolean;lastReadAt:string;blockedMembers:{id:string;name:string}[]}
 export type NativeTeamData={teams:TeamScope[];room:NativeTeamRoom|null;nextCursor?:string}
+export type TeamMatchRoom=Pick<NativeTeamRoom,'id'|'teamName'|'leagueName'|'leagueLabel'|'flight'|'scheduleLinked'|'manualFixture'|'canScheduleMatch'>
 const record=(value:unknown):Record<string,unknown>=>value && typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{}
 const str=(value:unknown)=>typeof value==='string'?value:''
 const array=(value:unknown)=>Array.isArray(value)?value:[]
@@ -69,7 +70,7 @@ export type TeamNextMatchSchedule={revision:string|null;nextMatch:ReviewedNextMa
 export class TeamNextMatchError extends Error {
  constructor(message:string,readonly uncertain=false,readonly status=0){super(message)}
 }
-export async function teamNextMatchRequest(client:SupabaseClient,userId:string,current:()=>boolean,room:NativeTeamRoom,change?:TeamNextMatchChange):Promise<TeamNextMatchSchedule> {
+export async function teamNextMatchRequest(client:SupabaseClient,userId:string,current:()=>boolean,room:TeamMatchRoom,change?:TeamNextMatchChange):Promise<TeamNextMatchSchedule> {
  const {data,error}=await client.auth.getSession()
  if(!firstPartyBuild||(!room.scheduleLinked&&!room.manualFixture)||error||data.session?.user.id!==userId||!current())
   throw new TeamNextMatchError('Sign in again to view the next match.')

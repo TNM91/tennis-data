@@ -15,10 +15,11 @@ import '../fixtures/mobile-chat-alert-cases'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
 import path from 'node:path'
+import type {TeamResultEntry} from '../../lib/team-results-contract'
 const origin='http://127.0.0.1:4283'
 let javascript='',stylesheet='',documentHtml=''
 test.describe.configure({retries:0,timeout:25000})
-const bundleNavigation=(firstParty=false)=>build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',define:{TIQ_FIRST_PARTY_BUILD:String(firstParty)},loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^\.\/native-push$/},args=>args.importer.replace(/\\/g,"/").endsWith("/mobile/src/main.ts")?{path:path.resolve("tests/fixtures/mobile-native-coach-alerts.ts")}:undefined);b.onResolve({filter:/^@capacitor\/app$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-app.ts')}));b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
+const bundleNavigation=(firstParty=false)=>build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',define:{TIQ_FIRST_PARTY_BUILD:String(firstParty)},loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^\.\.\/\.\.\/lib\/native-auth-storage$/},args=>args.importer.replace(/\\/g,'/').endsWith('/mobile/src/team-score-drafts.ts')?{path:path.resolve('tests/fixtures/mobile-native-draft-storage.ts')}:undefined);b.onResolve({filter:/^\.\/native-push$/},args=>args.importer.replace(/\\/g,"/").endsWith("/mobile/src/main.ts")?{path:path.resolve("tests/fixtures/mobile-native-coach-alerts.ts")}:undefined);b.onResolve({filter:/^@capacitor\/app$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-app.ts')}));b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
 test.beforeAll(async()=>{
  const bundle=await bundleNavigation()
  javascript=bundle.outputFiles.find(file=>file.path.endsWith('.js'))!.text
@@ -286,6 +287,42 @@ test('first-party calendar keeps personal, coach and reviewed match dates on the
  const paths=await page.evaluate(()=>(window as unknown as {calendarPaths:string[]}).calendarPaths)
  expect(paths.length).toBeGreaterThan(1)
  expect(new Set(paths)).toEqual(new Set(['/api/mobile/first-party/calendar']))
+})
+
+test('first-party calendar opens a captain-entered match and checks for schedule changes',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.clock.setFixedTime(new Date(2026,10,12,12))
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ const setSchedule=(revision:string,facility:string)=>page.evaluate(({revision,facility})=>{
+  const {manualScheduleFixture}=window as unknown as {manualScheduleFixture:object}
+  Object.assign(manualScheduleFixture,{captain:false,revision,loseNextReply:false,
+   nextMatch:{opponent:'Topspin Club',date:'2026-11-14',time:'18:00',facility,timeZone:'America/Chicago'}})
+ },{revision,facility})
+ await setSchedule('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Court 2')
+ await page.getByRole('button',{name:'More',exact:true}).click()
+ await page.locator('[data-app-destination="calendar"]').click()
+ const calendar=page.getByRole('dialog',{name:'Your calendar',exact:true})
+ const filter=calendar.getByRole('combobox',{name:'Show',exact:true})
+ await filter.selectOption({label:'Team matches'})
+ const row=calendar.locator('.cal-event.team')
+ await expect(row).toContainText('Baseline Aces vs Topspin Club')
+ await expect(row).toContainText('Court 2')
+ await expect(calendar.locator('.cal-event')).toHaveCount(1)
+ await row.click()
+ await expect(calendar.getByRole('heading',{name:'Team match',exact:true})).toBeFocused()
+ await expect(calendar.getByText(/6:00\s*PM CST/)).toBeVisible()
+ await setSchedule('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','Court 5')
+ await calendar.getByRole('button',{name:'Open match & availability',exact:true}).click()
+ const next=page.getByRole('dialog',{name:'Next match',exact:true})
+ await expect(next.getByRole('status')).toHaveText('The team schedule changed. Review the latest match.')
+ await expect(next.getByText('Court 5',{exact:true})).toBeVisible()
+ await next.getByRole('button',{name:'In',exact:true}).click()
+ await expect(next.getByRole('status')).toHaveText('Your reply is saved.')
+ await next.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(row).toContainText('Court 5')
+ await expect(row).toBeFocused()
+ expect(await calendar.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
 })
 
 test('first-party rematches leave the original calendar scorecard linked', async ({page}) => {
@@ -1055,10 +1092,286 @@ test('first-party captain saves a lineup and uses its court count for score entr
  await results.getByRole('button',{name:'Add court scores',exact:true}).click()
  await expect(results.getByLabel(/^Court \d score$/)).toHaveCount(2)
  await expect(results.getByText('Jordan & Casey',{exact:true})).toBeVisible()
+ const first=results.getByRole('combobox',{name:'Court 1 player 1',exact:true})
+ const second=results.getByRole('combobox',{name:'Court 2 player 1',exact:true})
+ const confirmPlayers=results.getByRole('button',{name:'Confirm who played',exact:true})
+ await results.getByRole('button',{name:'Remove court 1',exact:true}).click()
+ await results.getByRole('button',{name:'Add another court',exact:true}).click()
+ await confirmPlayers.click()
+ await expect(first.locator('option:checked')).toHaveText('Jordan')
+ await expect(second).toHaveValue('')
+ await results.getByRole('button',{name:'Discard changes',exact:true}).click()
+ await results.getByRole('button',{name:'Enter score vs Topspin Club',exact:true}).click()
+ await results.getByRole('button',{name:'Add court scores',exact:true}).click()
+ const coverage=results.locator('#result-player-coverage')
+ await expect(coverage).toHaveText('Players assigned on 0 of 2 played courts.')
+ await confirmPlayers.click()
+ await expect(first.locator('option:checked')).toHaveText('Morgan')
+ await expect(second.locator('option:checked')).toHaveText('Jordan')
+ await expect(coverage).toHaveText('Players assigned on 2 of 2 played courts.')
+ await first.selectOption('')
+ await expect(coverage).toHaveText('Players assigned on 1 of 2 played courts.')
+ await first.selectOption({label:'Jordan'})
+ await expect(coverage).toHaveText('Choose each teammate only once.')
+ await expect(first).toHaveAttribute('aria-invalid','true')
+ await expect(second).toHaveAttribute('aria-invalid','true')
+ await results.getByLabel('Court 1 score',{exact:true}).fill('6-3, 6-4')
+ await results.getByLabel('Court 2 score',{exact:true}).fill('4-6, 3-6')
+ await results.getByRole('button',{name:'Post team score',exact:true}).click()
+ expect(await page.evaluate(()=>(window as unknown as {teamResultFixture:{writes:string[]}}).teamResultFixture.writes)).toEqual([])
+ await first.selectOption({label:'Alex'})
+ await expect(first).not.toHaveAttribute('aria-invalid')
+ await expect(second).not.toHaveAttribute('aria-invalid')
+ const secondResult=results.getByRole('combobox',{name:'Court 2 result',exact:true})
+ await secondResult.selectOption({label:'Lost by default'})
+ await expect(coverage).toHaveText('Players assigned on 1 of 1 played court.')
+ await expect(second).toHaveCount(0)
+ await secondResult.selectOption({label:'Played'})
+ await expect(second.locator('option:checked')).toHaveText('Jordan')
+ await expect(coverage).toHaveText('Players assigned on 2 of 2 played courts.')
  expect(await results.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await results.getByRole('button',{name:'Post team score',exact:true}).click()
+ await results.getByRole('button',{name:'Retry same score',exact:true}).click()
+ await results.getByText('Court scores (2)',{exact:true}).click()
+ await expect(results.getByText('Alex',{exact:true})).toBeVisible()
+ await expect(results.getByText('Jordan & Casey',{exact:true})).toBeVisible()
+ await results.getByRole('button',{name:'Correct score vs Topspin Club',exact:true}).click()
+ const playerPreviews=results.locator('[data-result-form] .team-result-player-names')
+ await expect(playerPreviews).toHaveText(['Alex','Jordan & Casey'])
+ await expect(coverage).toHaveText('Players assigned on 2 of 2 played courts.')
+ await results.getByRole('button',{name:'Discard changes',exact:true}).click()
+ await results.getByRole('button',{name:'Close',exact:true}).click()
+ await page.evaluate(()=>{
+  (window as unknown as {manualScheduleFixture:{captain:boolean}}).manualScheduleFixture.captain=false
+ })
+ await page.getByRole('button',{name:'Refresh messages',exact:true}).click()
+ await page.locator('.chat-room-options > summary').click()
+ await page.locator('#chat-team-results').click()
+ await results.getByText('Court scores (2)',{exact:true}).click()
+ await expect(results.getByText('Alex',{exact:true})).toBeVisible()
+ await expect(results.getByText('Jordan & Casey',{exact:true})).toBeVisible()
+ await expect(results.getByRole('button',{name:/^Correct score/})).toHaveCount(0)
  const writes=await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites)
  expect(writes).toHaveLength(2)
  expect(writes[0]).toBe(writes[1])
+})
+
+test('first-party teammate logs their confirmed court in My Lab once',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.clock.setFixedTime(new Date(2026,10,12,12))
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ const seed=async(own:boolean,corrected:boolean)=>page.evaluate(({own,corrected})=>{
+  const state=window as unknown as {manualScheduleFixture:{captain:boolean};teamResultFixture:{score:unknown}}
+  state.manualScheduleFixture.captain=false
+  state.teamResultFixture.score={revision:corrected?'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb':'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   won:corrected?0:1,lost:corrected?1:0,courtScores:[corrected?'3-6, 4-6':'6-3, 6-4'],courtPlayers:[[
+    {id:own?'11111111-1111-4111-8111-111111111111':'55555555-5555-4555-8555-555555555555',name:'Alex'},
+    {id:'22222222-2222-4222-8222-222222222222',name:'Casey'},
+   ]]}
+ },{own,corrected})
+ await seed(false,false)
+ const open=async(withDraft=false)=>{
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+  await page.getByRole('button',{name:/^Baseline Aces/}).click()
+  if(withDraft)await page.getByRole('textbox',{name:'Message your team',exact:true}).fill('Court notes')
+  await page.locator('.chat-room-options > summary').click()
+  await page.locator('#chat-team-results').click()
+ }
+ await open(true)
+ const results=page.getByRole('dialog',{name:'Team results',exact:true})
+ const log=results.getByRole('button',{name:'Log my court in My Lab vs Topspin Club',exact:true})
+ await expect(results).toContainText('1–0 · Won')
+ await expect(log).toHaveCount(0)
+ const yourCourts=results.getByRole('button',{name:'Your courts',exact:true})
+ await yourCourts.click()
+ await expect(results.getByText('Ask your captain to add your name to the court you played.',{exact:true})).toBeVisible()
+ await results.getByRole('button',{name:'All matches',exact:true}).click()
+ await seed(true,false)
+ await results.getByRole('button',{name:'Reload results',exact:true}).click()
+ await expect(log).toBeVisible()
+ await yourCourts.click()
+ await seed(true,true)
+ await log.click()
+ await expect(results.getByRole('status')).toHaveText('Your court result changed. Review the latest score before opening it.')
+ await log.click()
+ await expect(results).toHaveCount(0)
+ const warning=page.getByRole('dialog',{name:'Leave My teams?',exact:true})
+ await expect(warning).toBeVisible()
+ expect(await page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.writtenIds)).toEqual([])
+ await warning.getByRole('button',{name:'Leave My teams',exact:true}).click()
+ await expect(page.getByRole('heading',{name:'Log a match',exact:true})).toBeFocused()
+ await expect(page.getByLabel('Match date',{exact:true})).toHaveValue('2026-11-01')
+ await expect(page.getByLabel('Opponent or doubles team',{exact:true})).toHaveValue('Topspin Club')
+ await expect(page.getByLabel('Format',{exact:true})).toHaveValue('doubles')
+ await expect(page.getByLabel('Score',{exact:true})).toHaveValue('3-6, 4-6')
+ await expect(page.getByLabel('Result',{exact:true})).toHaveValue('Lost')
+ const written=()=>page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.writtenIds)
+ const back=page.getByRole('button',{name:'Back to Team results',exact:true})
+ const opponent=page.getByLabel('Opponent or doubles team',{exact:true})
+ await opponent.fill('Riley & Taylor')
+ await page.evaluate(()=>{
+  const {refreshNavigationSession}=window as unknown as {refreshNavigationSession:()=>void}
+  window.dispatchEvent(new Event('online'))
+  refreshNavigationSession()
+ })
+ await expect(opponent).toHaveValue('Riley & Taylor')
+ await back.click()
+ await expect(yourCourts).toHaveAttribute('aria-pressed','true')
+ await expect(log).toBeFocused()
+ expect(await written()).toEqual([])
+ await log.click()
+ await expect(opponent).toHaveValue('Riley & Taylor')
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ await expect(page.getByText('Scorecard saved.',{exact:true})).toBeVisible()
+ await expect(page.getByText('From your team result',{exact:true})).toBeVisible()
+ await back.click()
+ await expect(yourCourts).toHaveAttribute('aria-pressed','true')
+ const savedAction=results.getByRole('button',{name:'View saved scorecard in My Lab vs Topspin Club',exact:true})
+ await expect(savedAction).toBeFocused()
+ await savedAction.click()
+ await expect(page.getByRole('article',{name:'Saved scorecard',exact:true}).getByText('3-6, 4-6',{exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'Save scorecard',exact:true})).toHaveCount(0)
+ expect(await written()).toHaveLength(1)
+})
+
+test('first-party teammate filters team results to their own courts',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.clock.setFixedTime(new Date(2026,10,12,12))
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ await page.evaluate(()=>{
+  const {manualScheduleFixture,teamResultFixture,personalMatchFixture}=window as unknown as
+   typeof import('../fixtures/mobile-personal-matches')&{manualScheduleFixture:{captain:boolean};
+    teamResultFixture:TeamResultEntry&{earlier:TeamResultEntry[]}}
+  const owner='11111111-1111-4111-8111-111111111111'
+  manualScheduleFixture.captain=false
+  teamResultFixture.score={revision:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',won:1,lost:1,
+   courtScores:['6-3, 6-4','3-6, 4-6'],courtPlayers:[[],[{id:owner,name:'Alex'}]]}
+  teamResultFixture.earlier.push(
+   {fixtureId:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    match:{...teamResultFixture.match,opponent:'Drop Shot Club',date:'2026-10-31'},
+    score:{revision:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',won:1,lost:0}},
+   {fixtureId:'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    match:{...teamResultFixture.match,opponent:'Break Point Club',date:'2026-10-30'},
+    score:{revision:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',won:1,lost:0,courtScores:['6-3, 6-4'],courtPlayers:[[{id:owner,name:'Alex'}]]}})
+  personalMatchFixture.rows.push({owner_user_id:'22222222-2222-4222-8222-222222222222',
+   id:'77777777-7777-4777-8777-777777777777',revision:'99999999-9999-4999-8999-999999999999',
+   created_at:'2026-11-02T12:00:00.000Z',match_date:'2026-11-01',opponent:'Private opponent',
+   calendar_match_id:`league:33333333-3333-4333-8333-333333333333:private-team-result:${teamResultFixture.fixtureId}`,
+   format:'singles',outcome:'Lost',score:'3-6, 4-6'})
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ await page.locator('.chat-room-options > summary').click()
+ await page.locator('#chat-team-results').click()
+ const results=page.getByRole('dialog',{name:'Team results',exact:true})
+ const all=results.getByRole('button',{name:'All matches',exact:true})
+ const mine=results.getByRole('button',{name:'Your courts',exact:true})
+ await expect(all).toHaveAttribute('aria-pressed','true')
+ await expect(results.getByText('vs Drop Shot Club',{exact:true})).toBeVisible()
+ await mine.click()
+ await expect(mine).toBeFocused()
+ await expect(mine).toHaveAttribute('aria-pressed','true')
+ const courts=results.getByRole('list',{name:'Your recent courts'})
+ await expect(courts.getByRole('listitem')).toHaveCount(2)
+ await expect(courts).toContainText('Court 2 · Lost')
+ await expect(courts).toContainText('3-6, 4-6')
+ await expect(courts.getByRole('button',{name:'Log my court in My Lab vs Topspin Club'})).toBeVisible()
+ await expect(courts.getByRole('button',{name:'Log my court in My Lab vs Break Point Club'})).toBeVisible()
+ await expect(results.getByText('vs Drop Shot Club',{exact:true})).toHaveCount(0)
+ await expect(results.getByRole('heading',{name:'Team record'})).toHaveCount(0)
+ expect(await results.evaluate(dialog=>dialog.scrollWidth)).toBeLessThanOrEqual(await results.evaluate(dialog=>dialog.clientWidth))
+ const reads=()=>page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.teamScoreReads)
+ const prefix='league:33333333-3333-4333-8333-333333333333:private-team-result:'
+ expect(await reads()).toEqual([{owner:'11111111-1111-4111-8111-111111111111',
+  keys:[prefix+'dddddddd-dddd-4ddd-8ddd-dddddddddddd',prefix+'ffffffff-ffff-4fff-8fff-ffffffffffff']}])
+
+ await page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.failTeamScoreRead=true)
+ await results.getByRole('button',{name:'Reload results',exact:true}).click()
+ await expect.poll(reads).toHaveLength(2)
+ await expect(courts.getByRole('button',{name:'Open in My Lab vs Topspin Club',exact:true})).toBeVisible()
+
+ await page.evaluate(()=>{
+  const {teamResultFixture}=window as unknown as {teamResultFixture:TeamResultEntry&{earlier:TeamResultEntry[]}}
+  for(const {score} of [teamResultFixture,...teamResultFixture.earlier])if(score)delete score.courtPlayers
+ })
+ await results.getByRole('button',{name:'Reload results',exact:true}).click()
+ await expect(results.getByText('No confirmed courts for you in these matches.')).toBeVisible()
+ await expect(mine).toHaveAttribute('aria-pressed','true')
+ await all.click()
+ await expect(results.getByRole('list',{name:'Recent team matches'}).getByRole('listitem')).toHaveCount(3)
+})
+
+test('first-party teammate reviews a corrected team score before updating a private scorecard',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.clock.setFixedTime(new Date(2026,10,12,12))
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ await page.evaluate(()=>{
+  const state=window as unknown as typeof import('../fixtures/mobile-personal-matches') &
+   {manualScheduleFixture:{captain:boolean};teamResultFixture:{fixtureId:string;score:unknown}}
+  const owner='11111111-1111-4111-8111-111111111111'
+  state.manualScheduleFixture.captain=false
+  state.teamResultFixture.score={revision:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',won:1,lost:0,courtScores:['6-3, 6-4'],
+   courtPlayers:[[{id:owner,name:'Alex'},{id:'22222222-2222-4222-8222-222222222222',name:'Casey'}]]}
+  state.personalMatchFixture.rows.push({owner_user_id:owner,id:'77777777-7777-4777-8777-777777777777',
+   revision:'99999999-9999-4999-8999-999999999999',created_at:'2026-11-02T12:00:00.000Z',match_date:'2026-11-01',
+   calendar_match_id:`league:33333333-3333-4333-8333-333333333333:private-team-result:${state.teamResultFixture.fixtureId}`,
+   opponent:'Riley & Taylor',format:'doubles',outcome:'Won',score:'6–3 6–4'})
+ })
+ const open=async(action:string)=>{
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+  await page.getByRole('button',{name:/^Baseline Aces/}).click()
+  await page.locator('.chat-room-options > summary').click()
+  await page.locator('#chat-team-results').click()
+  await page.getByRole('button',{name:`${action} vs Topspin Club`,exact:true}).click()
+ }
+ const saved=page.getByRole('article',{name:'Saved scorecard',exact:true})
+ const review=page.getByRole('button',{name:'Review team score',exact:true})
+ const rows=()=>page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.rows)
+ await open('View saved scorecard in My Lab')
+ await expect(saved).toContainText('6–3 6–4')
+ await expect(review).toHaveCount(0)
+ const [original]=await rows()
+ await page.evaluate(()=>{
+  const state=window as unknown as {teamResultFixture:{score:{revision:string;won:number;lost:number;courtScores:string[]}}}
+  Object.assign(state.teamResultFixture.score,{revision:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',won:0,lost:1,courtScores:['3-6, 4-6']})
+ })
+ await open('Review team score in My Lab')
+ const comparison=saved.getByRole('region',{name:'Team score',exact:true})
+ await expect(saved).toContainText('6–3 6–4')
+ await expect(comparison).toContainText('3-6, 4-6 · Lost')
+ expect(await comparison.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await review.click()
+ await expect(page.getByRole('heading',{name:'Review team score',exact:true})).toBeFocused()
+ await expect(page.getByLabel('Score',{exact:true})).toHaveValue('3-6, 4-6')
+ await expect(page.getByLabel('Result',{exact:true})).toHaveValue('Lost')
+ await expect(page.getByLabel('Opponent or doubles team',{exact:true})).toHaveValue('Riley & Taylor')
+ expect(await rows()).toEqual([original])
+ await page.getByRole('button',{name:'Cancel',exact:true}).click()
+ await expect(saved).toContainText('6–3 6–4')
+ await review.click()
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ await expect(page.getByText('Scorecard saved.',{exact:true})).toBeVisible()
+ await expect(review).toHaveCount(0)
+ await expect(saved).toContainText('3-6, 4-6')
+ const updated=await rows()
+ expect(updated).toHaveLength(1)
+ expect(updated[0]).toEqual({...original,revision:updated[0].revision,score:'3-6, 4-6',outcome:'Lost'})
+ expect(updated[0].revision).not.toBe(original.revision)
+ await open('View saved scorecard in My Lab')
+ await expect(saved).toContainText('3-6, 4-6')
+ await expect(review).toHaveCount(0)
+ await page.evaluate(()=>{
+  const {manualScheduleFixture}=window as unknown as {manualScheduleFixture:{enabled:boolean}}
+  manualScheduleFixture.enabled=false
+ })
+ await page.getByRole('button',{name:'Back to Team results',exact:true}).click()
+ await expect(page.getByRole('alert')).toContainText('Can’t open Team results.')
+ await expect(page.getByRole('dialog',{name:'Team results',exact:true})).toHaveCount(0)
+ await page.getByRole('button',{name:'Load my linked teams',exact:true}).click()
+ await expect(page.getByRole('button',{name:/^Baseline Aces/})).toBeVisible()
 })
 
 test('first-party captain posts and corrects a team score and teammates can review it',async({page})=>{
@@ -1107,6 +1420,164 @@ test('first-party captain posts and corrects a team score and teammates can revi
  expect(writes).toHaveLength(3)
  expect(writes[0]).toBe(writes[1])
  expect(writes[2]).not.toBe(writes[0])
+})
+
+test('first-party captain resumes a court score draft after leaving the team',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.goto(origin+'/?manual-team-schedule=1&large=1&secure-score-drafts=1')
+ const nav=page.getByRole('navigation',{name:'Main navigation'})
+ const open=async()=>{
+  await nav.getByRole('button',{name:/^Chats/}).click()
+  await page.getByRole('button',{name:/^Baseline Aces/}).click()
+  await page.locator('.chat-room-options > summary').click()
+  await page.locator('#chat-team-results').click()
+ }
+ await open()
+ const results=page.getByRole('dialog',{name:'Team results',exact:true})
+ const enter=results.getByRole('button',{name:'Enter score vs Topspin Club',exact:true})
+ const resume=results.getByRole('button',{name:'Resume score draft vs Topspin Club',exact:true})
+ const score=results.getByLabel('Court 1 score',{exact:true})
+ const player=results.getByRole('combobox',{name:'Court 1 player 1',exact:true})
+ const secondOutcome=results.getByRole('combobox',{name:'Court 2 result',exact:true})
+ await enter.click()
+ await results.getByRole('button',{name:'Add court scores',exact:true}).click()
+ await score.fill('6-4, 3-')
+ await results.getByRole('button',{name:'Confirm who played',exact:true}).click()
+ await player.selectOption({label:'Alex'})
+ await results.getByRole('button',{name:'Add another court',exact:true}).click()
+ await secondOutcome.selectOption({label:'Won by default'})
+ await results.getByRole('button',{name:'Close',exact:true}).click()
+ await page.getByRole('button',{name:'All team chats',exact:true}).click()
+ await nav.getByRole('button',{name:'My Lab',exact:true}).click()
+ await expect(page.getByRole('heading',{name:'Match log',exact:true})).toBeVisible()
+ await open()
+ await resume.click()
+ await expect(score).toHaveValue('6-4, 3-')
+ await expect(secondOutcome.locator('option:checked')).toHaveText('Won by default')
+ await expect(results.locator('[data-result-form] .team-result-player-names')).toHaveText(['Alex'])
+ await results.getByRole('button',{name:'Edit who played',exact:true}).click()
+ await expect(player.locator('option:checked')).toHaveText('Alex')
+ await score.fill('6-4, 4-')
+ const stored=()=>page.evaluate(()=>sessionStorage.getItem('synthetic-native:team-score-drafts:v1:11111111-1111-4111-8111-111111111111'))
+ await expect.poll(stored).toContain('6-4, 4-')
+ await page.reload()
+ await open()
+ await resume.click()
+ await expect(score).toHaveValue('6-4, 4-')
+ await expect(results.locator('[data-result-form] .team-result-player-names')).toHaveText(['Alex'])
+ await results.getByRole('button',{name:'Discard changes',exact:true}).click()
+ await expect(enter).toBeFocused()
+ await expect(resume).toHaveCount(0)
+ await expect.poll(stored).toBeNull()
+ expect(await page.evaluate(()=>(window as unknown as {teamResultFixture:{writes:string[]}}).teamResultFixture.writes)).toEqual([])
+})
+
+test('first-party captain resumes an unconfirmed score write and clears it after a confirmed result',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?manual-team-schedule=1')
+ await page.evaluate(()=>(window as unknown as {teamResultFixture:{failBeforeSave:boolean}}).teamResultFixture.failBeforeSave=true)
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ await page.locator('.chat-room-options > summary').click()
+ const open=()=>page.locator('#chat-team-results').click()
+ const results=page.getByRole('dialog',{name:'Team results',exact:true})
+ const close=results.getByRole('button',{name:'Close',exact:true})
+ const post=results.getByRole('button',{name:'Post team score',exact:true})
+ const retry=results.getByRole('button',{name:'Retry same score',exact:true})
+ const resume=results.getByRole('button',{name:'Resume score draft vs Topspin Club',exact:true})
+ const correct=results.getByRole('button',{name:'Correct score vs Topspin Club',exact:true})
+ await open()
+ await results.getByRole('button',{name:'Enter score vs Topspin Club',exact:true}).click()
+ await results.getByLabel('Courts won').fill('3')
+ await results.getByLabel('Courts lost').fill('2')
+ await post.click()
+ await expect(retry).toBeVisible()
+ await close.click()
+ await open()
+ await resume.click()
+ await expect(retry).toBeVisible()
+ await retry.click()
+ await expect(retry).toBeVisible()
+ await close.click()
+ await open()
+ await expect(results.getByRole('status')).toHaveText('Your score was posted for the team.')
+ await expect(results).toContainText('3–2 · Won')
+ await expect(resume).toHaveCount(0)
+ const writes=await page.evaluate(()=>(window as unknown as {teamResultFixture:{writes:string[]}}).teamResultFixture.writes)
+ expect(writes).toHaveLength(2)
+ expect(writes[0]).toBe(writes[1])
+
+ await correct.click()
+ await results.getByLabel('Courts won').fill('5')
+ await close.click()
+ await page.evaluate(()=>(window as unknown as {teamResultFixture:{score:unknown}}).teamResultFixture.score={
+  revision:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',won:1,lost:4,
+ })
+ await open()
+ await expect(results.getByRole('status')).toHaveText('A team score changed while you were editing. Review the latest result before making changes.')
+ await expect(resume).toHaveCount(0)
+ await correct.click()
+ await expect(results.getByLabel('Courts won')).toHaveValue('1')
+ await expect(results.getByLabel('Courts lost')).toHaveValue('4')
+})
+
+test('first-party captain adds players to a posted result without changing the scores',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.clock.setFixedTime(new Date(2026,10,12,12))
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ const courtScores=['6-3, 6-4','3-6, 4-6','W-DEFAULT']
+ await page.evaluate(courtScores=>{
+  const {manualScheduleFixture,teamResultFixture}=window as unknown as {
+   manualScheduleFixture:{extraPlayers:unknown[]};teamResultFixture:TeamResultEntry}
+  manualScheduleFixture.extraPlayers.push({id:'11111111-1111-4111-8111-111111111111',name:'Morgan',choice:'in'})
+  teamResultFixture.score={revision:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',won:2,lost:1,courtScores,
+   courtPlayers:[[{id:'10000000-0000-4000-8000-000000000001',name:'Alex'}],[],[]]}
+ },courtScores)
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ const tools=page.locator('.chat-room-options > summary')
+ await tools.click()
+ const open=()=>page.locator('#chat-team-results').click()
+ const results=page.getByRole('dialog',{name:'Team results',exact:true})
+ const close=results.getByRole('button',{name:'Close',exact:true})
+ const add=results.getByRole('button',{name:'Add players vs Topspin Club',exact:true})
+ const save=results.getByRole('button',{name:'Save player assignments',exact:true})
+ const courtTwo=results.getByRole('combobox',{name:'Court 2 player 1',exact:true})
+ await open()
+ await expect(results.getByText('1 played court needs players',{exact:true})).toBeVisible()
+ await add.click()
+ await expect(courtTwo).toBeFocused()
+ await expect(results.getByRole('combobox',{name:'Court 1 player 1',exact:true}).locator('option:checked')).toHaveText('Alex')
+ await expect(results.getByRole('combobox',{name:/^Court 3 player/})).toHaveCount(0)
+ await expect(results.getByRole('textbox')).toHaveCount(0)
+ await expect(results.getByText('Court 3 · Won by default',{exact:true})).toBeVisible()
+ await save.click()
+ await expect(results.getByRole('status')).toHaveText('Update a player assignment before saving.')
+ await courtTwo.selectOption({label:'Morgan'})
+ await close.click()
+ await open()
+ await results.getByRole('button',{name:'Resume player assignments vs Topspin Club',exact:true}).click()
+ await expect(courtTwo.locator('option:checked')).toHaveText('Morgan')
+ await expect(results.getByRole('textbox')).toHaveCount(0)
+ expect(await results.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await save.click()
+ await results.getByRole('button',{name:'Retry player assignments',exact:true}).click()
+ await expect(results.getByRole('status')).toHaveText('Player assignments saved.')
+ await expect(results).toContainText('2–1 · Won')
+ await expect(add).toHaveCount(0)
+ const saved=await page.evaluate(()=>(window as unknown as {teamResultFixture:TeamResultEntry}).teamResultFixture.score)
+ expect(saved).toMatchObject({courtScores,won:2,lost:1})
+ await close.click()
+ await tools.click()
+ await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{captain:boolean}}).manualScheduleFixture.captain=false)
+ await page.getByRole('button',{name:'Refresh messages',exact:true}).click()
+ await tools.click()
+ await open()
+ await results.getByRole('button',{name:'Your courts',exact:true}).click()
+ await expect(results.getByRole('list',{name:'Your recent courts'})).toContainText('Court 2 · Lost')
+ await expect(results.getByRole('button',{name:/^Log my court in My Lab/})).toBeVisible()
 })
 
 test('first-party captain enters court scores and the team tally follows the court winners',async({page})=>{
@@ -1192,6 +1663,7 @@ test('first-party captain records and corrects defaults without set scores',asyn
  await firstOutcome.selectOption({label:'Won by default'})
  await secondOutcome.selectOption({label:'Won by default'})
  await expect(results.getByRole('textbox')).toHaveCount(0)
+ await expect(results.locator('#result-player-coverage')).toBeHidden()
  await expect(results.getByText('Team tally 2–0',{exact:true})).toBeVisible()
  await results.getByRole('button',{name:'Post team score',exact:true}).click()
  await expect(results).toContainText('2–0 · Won')
@@ -1246,12 +1718,13 @@ test('first-party captain schedules the next match from a posted result',async({
  await expect(entry).toBeFocused()
 })
 
-test('first-party captain drafts only the reviewed team result and keeps an existing message',async({page})=>{
+test('first-party captain drafts a reviewed result that teammates can open from chat',async({page})=>{
  await useFirstPartyNavigation(page)
- await page.goto(origin+'/?manual-team-schedule=1')
- const setScore=(revision:string,won:number,lost:number)=>page.evaluate(score=>{
+ await page.setViewportSize({width:320,height:720})
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ const setScore=(revision:string,won:number,lost:number,courtScores?:string[])=>page.evaluate(score=>{
   (window as unknown as {teamResultFixture:{score:unknown}}).teamResultFixture.score=score
- },{revision,won,lost})
+ },{revision,won,lost,courtScores})
  await setScore('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',4,1)
  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
  await page.getByRole('button',{name:/^Baseline Aces/}).click()
@@ -1285,8 +1758,34 @@ test('first-party captain drafts only the reviewed team result and keeps an exis
  expect(await sent()).toEqual([])
  const message=await composer.inputValue()
  await page.getByRole('button',{name:'Send',exact:true}).click()
- await expect(page.getByText(message,{exact:true})).toBeVisible()
+ const shortcut=page.getByRole('button',{name:'View team result',exact:true})
+ await expect(shortcut).toBeVisible()
+ await expect(shortcut.locator('..').locator('.chat-message-text')).toHaveText('Baseline Aces lost 2–3 on courts vs Topspin Club on Sunday, November 1, 2026.')
  expect(await sent()).toEqual([message])
+
+ await setScore('cccccccc-cccc-4ccc-8ccc-cccccccccccc',1,1,['6-3, 6-4','3-6, 4-6'])
+ await page.evaluate(()=>{
+  const {manualScheduleFixture}=window as unknown as {manualScheduleFixture:{captain:boolean}}
+  manualScheduleFixture.captain=false
+ })
+ await page.getByRole('button',{name:'Refresh messages',exact:true}).click()
+ await composer.fill('Good match')
+ await shortcut.click()
+ const row=dialog.getByRole('listitem').filter({hasText:'vs Topspin Club'})
+ await expect(row).toBeFocused()
+ await expect(row).toContainText('1–1 · Tied')
+ await expect(row.getByText('6-3, 6-4',{exact:true})).toBeVisible()
+ await expect(dialog.getByRole('button',{name:/^Correct score/})).toHaveCount(0)
+ expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await close.click()
+ await expect(shortcut).toBeFocused()
+ await expect(composer).toHaveValue('Good match')
+ expect(await sent()).toEqual([message])
+
+ await page.evaluate(()=>(window as unknown as {teamResultFixture:{score:unknown}}).teamResultFixture.score=null)
+ await shortcut.click()
+ await expect(dialog.getByRole('heading',{name:'Team results',exact:true})).toBeFocused()
+ await expect(dialog.getByText('No team results yet.',{exact:true})).toBeVisible()
 })
 
 test('first-party preview keeps the app shell and uses only the scoped tournament feed', async ({page}) => {

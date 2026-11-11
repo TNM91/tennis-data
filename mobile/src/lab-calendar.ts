@@ -181,7 +181,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    title.textContent=match?.opponent?'vs '+match.opponent:event?.title??'Open Calendar'
    action.hidden=!event
    if(!event){details.textContent=incomplete?'Check your tennis dates.':skippedDone?'No other dates in the next 7 days.':'No events in the next 7 days.';return}
-   action.textContent=rep?'Open practice drill':matchOnly?'View match · '+event.readiness:event.source==='team'?'View practice':'View event'
+   action.textContent=rep?'Open practice drill':matchOnly?'View match · '+event.readiness:event.source==='team'?(event.kind==='match'?'View match':'View practice'):'View event'
    details.textContent=[match?.opponent?match.competitionName:'',highlightDateDetails(event,now)].filter(Boolean).join(' · ')
   }
   const refresh=()=>{

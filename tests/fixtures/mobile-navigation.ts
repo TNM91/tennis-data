@@ -21,6 +21,9 @@ import {trainingInboxPreview} from './mobile-training-inbox'
 import {personalMatchFixture} from './mobile-personal-matches'
 import {captainCourtPreview,captainCourtsFixture,captainFixtureId} from './mobile-captain-courts'
 import {shiftCalendarDay} from '../../mobile/src/calendar-data'
+import {calendarTeamMatchesHeader} from '../../lib/native-calendar-contract'
+import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
+import {teamResultOutcome,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
 const originalFetch=window.fetch.bind(window)
 const freeTraining=new URL(location.href).searchParams.has('free-training')
 const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false,unscopedLeagueReply:false,competitionReads:[] as {path:string;query:string;audience:string|null;authenticated:boolean}[]}
@@ -88,7 +91,9 @@ const manualLineupRoster=()=>[{id:'10000000-0000-4000-8000-000000000001',name:'A
 const teamResultFixture={
  fixtureId:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
  match:{opponent:'Topspin Club',date:'2026-11-01',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
- score:null as {revision:string;won:number;lost:number;courtScores?:string[]}|null,loseNextSave:true,writes:[] as string[],
+ score:null as TeamResultScore|null,
+ earlier:[] as TeamResultEntry[],
+ failBeforeSave:false,loseNextSave:true,writes:[] as string[],
 }
 let captainInvite:{id:string;token:string;expiresAt:string;revokedAt:string|null;acceptedCount:number;active:boolean}|null=null
 let firstPartyTeamJoined=false
@@ -144,13 +149,21 @@ window.fetch=async(input,init)=>{
      return Response.json({ok:false},{status:403})
     if(action.fixtureId!==fixture.fixtureId)return Response.json({ok:false},{status:409})
     fixture.writes.push(action.revision)
+    if(fixture.failBeforeSave){fixture.failBeforeSave=false;return Response.json({ok:false},{status:503})}
     if(action.revision!==fixture.score?.revision){
      if(action.expected!==(fixture.score?.revision??null))return Response.json({ok:false},{status:409})
+     const players=new Map(manualLineupRoster().map(({id,name})=>[id,{id,name}]))
+     const courtPlayers=Array.isArray(action.courtPlayerIds)?action.courtPlayerIds.map((ids:string[])=>ids.flatMap(id=>{
+      const player=players.get(id)
+      return player?[player]:[]
+     })):undefined
      fixture.score={revision:action.revision,won:action.won,lost:action.lost,
-      ...(Array.isArray(action.courtScores)?{courtScores:action.courtScores}:{})}
+      ...(Array.isArray(action.courtScores)?{courtScores:action.courtScores}:{}),
+      ...(courtPlayers?{courtPlayers}:{})}
      if(fixture.loseNextSave){fixture.loseNextSave=false;return Response.json({ok:false},{status:503})}
     }
-    return Response.json({...base,roomId:chatRoomId,fixtureId:fixture.fixtureId,score:fixture.score})
+    return Response.json({...base,roomId:chatRoomId,fixtureId:fixture.fixtureId,score:{...fixture.score,
+     ...(Array.isArray(action.courtPlayerIds)?{courtPlayerIds:action.courtPlayerIds}:{})}})
    }
    if(action.action==='create_private_team'){
     if(!privateTeamFlow||owner!==navigationOwner)return Response.json({ok:false},{status:403})
@@ -198,14 +211,24 @@ window.fetch=async(input,init)=>{
    return Response.json({...base,message})
   }
   const team=teams.find(item=>item.teamName===url.searchParams.get('team')&&item.leagueName===url.searchParams.get('league')&&item.flight===url.searchParams.get('flight'))
+  if(op==='result-roster'){
+   if(!team||!manualScheduleFixture.enabled||!manualScheduleFixture.captain||owner!==navigationOwner)return Response.json({ok:false},{status:403})
+   return Response.json({...base,roomId:chatRoomId,players:manualLineupRoster().map(({id,name})=>({id,name}))})
+  }
   if(op==='team-results'){
    if(!team||!manualScheduleFixture.enabled)return Response.json({ok:false},{status:403})
    const canEdit=manualScheduleFixture.captain&&owner===navigationOwner
-   const {fixtureId,match,score}=teamResultFixture
-   const plannedLineup=canEdit&&fixtureId===manualScheduleFixture.revision?manualScheduleFixture.savedLineup:null
-   const record={wins:Number(Boolean(score&&score.won>score.lost)),losses:Number(Boolean(score&&score.won<score.lost)),
-    ties:Number(Boolean(score&&score.won===score.lost))}
-   return Response.json({...base,roomId:chatRoomId,results:{canEdit,entries:canEdit||score?[{fixtureId,match,score,plannedLineup}]:[],more:false,record}})
+   const record={wins:0,losses:0,ties:0}
+   const entries=[teamResultFixture,...teamResultFixture.earlier].filter(({score})=>canEdit||score).map(({fixtureId,match,score:saved})=>{
+    const myCourt=(saved?.courtPlayers?.findIndex(players=>players.some(player=>player.id===owner))??-1)+1
+    const score=saved?{...saved,...(myCourt?{myCourt}:{}),...(saved.courtPlayers&&!canEdit?{
+     courtPlayers:saved.courtPlayers.map(players=>players.map(({name})=>({name}))),
+    }:{})}:null
+    const plannedLineup=canEdit&&fixtureId===manualScheduleFixture.revision?manualScheduleFixture.savedLineup:null
+    if(score)record[teamResultOutcome(score)]++
+    return {fixtureId,match,score,plannedLineup}
+   })
+   return Response.json({...base,roomId:chatRoomId,results:{canEdit,entries,more:false,record}})
   }
   if(op==='match-replies'){
    const fixture=manualScheduleFixture
@@ -295,7 +318,13 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/team-rooms/search')return Response.json({ok:true,chatSearch:1,roomId:'22222222-2222-4222-8222-222222222222',query:url.searchParams.get('q'),kind:url.searchParams.get('kind'),beforeCursor:'',nextCursor:'',results:[]})
  if(url.pathname==='/api/mobile/captain')return Response.json({ok:true,scope:chatTeam,roster:[],matches:[],drafts:[]})
  if(url.pathname==='/api/mobile/calendar/practices'||url.pathname==='/api/mobile/practices')return calendarTeamPreview(init?.method||'GET',url,init?.body)
- if(url.pathname==='/api/mobile/calendar'||url.pathname==='/api/mobile/first-party/calendar')return calendarPreview(init?.method||'GET',url,init?.body)
+ if(url.pathname==='/api/mobile/calendar'||url.pathname==='/api/mobile/first-party/calendar'){
+  const {enabled,revision,nextMatch}=manualScheduleFixture
+  const match=readReviewedNextMatch(nextMatch)
+  const include=new Headers(init?.headers).get(calendarTeamMatchesHeader)==='1'
+  const teamMatches=include&&enabled&&revision&&match?[{roomId:chatRoomId,revision,match,scope:chatTeam}]:undefined
+  return calendarPreview(init?.method||'GET',url,init?.body,teamMatches)
+ }
  if(url.pathname==='/api/mobile/first-party/court-results')return captainCourtPreview(url,currentNavigationOwner(),init?.body)
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/messages'){

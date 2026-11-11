@@ -7,8 +7,9 @@ import { matchDate } from './recent-results'
 import { loadCaptainScorecards } from './captain-court-data'
 import type { PostedCourtScorecard } from '../../lib/native-court-result-contract'
 import { inferTiqBestOfThreeWinner } from '../../lib/tiq-scoring'
-import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, removePersonalMatch, savePersonalMatch,
-  type CalendarScorecardSeed, type PersonalMatch, type PersonalMatchDraft } from './personal-match-data'
+import { isTeamResultScorecardKey } from '../../lib/team-results-contract'
+import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, removePersonalMatch, savePersonalMatch, teamScoreDiffers,
+  type CalendarScorecardSeed, type PersonalMatch, type PersonalMatchDraft, type TeamScore } from './personal-match-data'
 
 const formatName = (format: PersonalMatch['format']) => format === 'singles' ? 'Singles' : 'Doubles'
 type LogScorecard = PersonalMatch | PostedCourtScorecard
@@ -19,7 +20,8 @@ export type PersonalMatchFormSession = { unsubmitted?: UnsubmittedScorecard; cal
 function resumeCalendarScorecard(session: PersonalMatchFormSession, seed: CalendarScorecardSeed) {
   const cached = session.calendarDrafts?.get(seed.calendarMatchId)
   if (!cached) return
-  if (cached.seed.date === seed.date && cached.seed.opponent === seed.opponent && cached.seed.format === seed.format) return cached.fields
+  if (cached.seed.date === seed.date && cached.seed.opponent === seed.opponent && cached.seed.format === seed.format &&
+      cached.seed.outcome === seed.outcome && cached.seed.score === seed.score) return cached.fields
   session.calendarDrafts?.delete(seed.calendarMatchId)
 }
 
@@ -64,10 +66,13 @@ function recentOpponents(matches: PersonalMatch[]) {
 }
 
 export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient, owner: string, current: () => boolean,
-  formSession: PersonalMatchFormSession, seed?: CalendarScorecardSeed) {
+  formSession: PersonalMatchFormSession, seed?: CalendarScorecardSeed, backToTeamResults?: () => void) {
+  const teamScore = seed?.score && seed.outcome && isTeamResultScorecardKey(seed.calendarMatchId)
+    ? { key: seed.calendarMatchId, score: seed.score, outcome: seed.outcome } : undefined
   host.innerHTML = `<div class="lab-form-host" data-personal-form></div>
     <section aria-labelledby="personal-matches-title">
       <div class="lab-recent-heading"><h2 id="personal-matches-title" tabindex="-1">Match log</h2>
+        ${backToTeamResults ? '<button type="button" class="secondary" data-back-team-results>Back to Team results</button>' : ''}
         <button type="button" data-log-match>${formSession.unsubmitted ? 'Resume scorecard' : 'Log a match'}</button></div>
       <p>Your scores and recent form sync privately to your account.</p>
       <div data-personal-editor></div>
@@ -94,11 +99,18 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
   const status = host.querySelector<HTMLElement>('[data-personal-status]')!
   const captainStatus = host.querySelector<HTMLElement>('[data-captain-score-status]')!
   const add = host.querySelector<HTMLButtonElement>('[data-log-match]')!
+  const back = host.querySelector<HTMLButtonElement>('[data-back-team-results]')
   const active = () => host.isConnected && current()
   let matches: PersonalMatch[] = []
   let posted: PostedCourtScorecard[] = []
   let more = false, reading = false, writing = false
   let scorecardOrigin: { id: string; button: HTMLButtonElement } | undefined
+  if (back && backToTeamResults) back.onclick = () => { if (active() && !writing) backToTeamResults() }
+
+  function setWriting(pending: boolean) {
+    writing = pending
+    if (back) back.disabled = pending
+  }
 
   function findHistoryRow(id: string) {
     return [...history.querySelectorAll<HTMLButtonElement>('[data-scorecard-id]')].find(button => button.dataset.scorecardId === id)
@@ -140,8 +152,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     reading = value
     if (!active()) return
     add.disabled = value
-    const rematch = editor.querySelector<HTMLButtonElement>('[data-log-rematch]')
-    if (rematch) rematch.disabled = value
+    editor.querySelectorAll<HTMLButtonElement>('[data-log-rematch],[data-review-team-score]').forEach(button => { button.disabled = value })
   }
 
   async function readHistory(older = false, receipt = '') {
@@ -220,11 +231,17 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       if (copy && personal) copy.onclick = () => showScorecard(personal)
       return
     }
+    const postedScore = teamScore && teamScore.key === match.calendar_match_id && teamScoreDiffers(match, teamScore) ? teamScore : undefined
     editor.innerHTML = `<article class="lab-first-scorecard" aria-label="Saved scorecard">
       <h3 tabindex="-1">${html(match.opponent)}</h3>
       <p>${html(matchDate(match.match_date))} · ${formatName(match.format)} · ${match.outcome}</p>
-      ${match.calendar_match_id ? '<p>From your TenAceIQ calendar</p>' : ''}
-      <p><strong>${html(match.score)}</strong></p>
+      ${match.calendar_match_id ? `<p>${isTeamResultScorecardKey(match.calendar_match_id)?'From your team result':'From your TenAceIQ calendar'}</p>` : ''}
+      <p>${postedScore ? 'Your saved score<br>' : ''}<strong>${html(match.score)}</strong></p>
+      ${postedScore ? `<section class="lab-team-score-review" aria-labelledby="lab-team-score-title">
+        <h4 id="lab-team-score-title">Team score</h4>
+        <p><strong>${html(postedScore.score)}</strong> · ${postedScore.outcome}</p>
+        <button type="button" class="secondary" data-review-team-score ${reading ? 'disabled' : ''}>Review team score</button>
+      </section>` : ''}
       <button type="button" class="secondary" data-log-rematch ${reading ? 'disabled' : ''}>Log a rematch</button>
       ${scorecardCopyControls}
       <button type="button" class="secondary" data-edit-match>Edit scorecard</button>
@@ -232,6 +249,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       <button type="button" class="secondary" data-close-scorecard>Back to match log</button>
     </article>`
     bindScorecardActions(match)
+    const review = editor.querySelector<HTMLButtonElement>('[data-review-team-score]')
+    if (review && postedScore) review.onclick = () => showEditor(match, { teamScore: postedScore })
     editor.querySelector<HTMLButtonElement>('[data-log-rematch]')!.onclick = () => showEditor(null, { previous: match })
     editor.querySelector<HTMLButtonElement>('[data-edit-match]')!.onclick = () => showEditor(match)
     editor.querySelector<HTMLButtonElement>('[data-remove-match]')!.onclick = () => confirmRemoval(match)
@@ -248,19 +267,22 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     else add.focus({ preventScroll: true })
   }
 
-  function showEditor(match: PersonalMatch | null, seed?: CalendarScorecardSeed | { previous: PersonalMatch } | { resume: UnsubmittedScorecard }) {
+  function showEditor(match: PersonalMatch | null,
+    seed?: CalendarScorecardSeed | { previous: PersonalMatch } | { resume: UnsubmittedScorecard } | { teamScore: TeamScore }) {
     if (!active() || writing || reading) return
     const calendarSeed = seed && 'calendarMatchId' in seed ? seed : undefined
     const previous = seed && 'previous' in seed ? seed.previous : undefined
+    const correction = match && seed && 'teamScore' in seed ? seed.teamScore : undefined
     const resumed = calendarSeed ? resumeCalendarScorecard(formSession, calendarSeed) : seed && 'resume' in seed ? seed.resume : undefined
     const canResume = !match && !previous
     const prefill = match ?? calendarSeed ?? previous
     const recent = prefill ? [] : recentOpponents(matches)
-    const title = match ? 'Edit scorecard' : previous ? 'Log a rematch' : resumed ? 'Resume scorecard' : 'Log a match'
+    const title = correction ? 'Review team score' : match ? 'Edit scorecard' : previous ? 'Log a rematch' : resumed ? 'Resume scorecard' : 'Log a match'
     history.hidden = formHost.hidden = add.disabled = true
     editor.innerHTML = `<form class="lab-first-scorecard" data-match-editor>
       <h3 tabindex="-1">${title}</h3>
-      ${calendarSeed ? '<p>Match details from your TenAceIQ calendar.</p>' : ''}
+      ${correction ? '<p>Review the team score and result before saving them to your private scorecard.</p>' : ''}
+      ${calendarSeed ? `<p>${isTeamResultScorecardKey(calendarSeed.calendarMatchId)?'Review the details from your team result before saving.':'Match details from your TenAceIQ calendar.'}</p>` : ''}
       <fieldset>
         <legend class="sr-only">Match details</legend>
         <label>Match date <input type="date" name="match_date" required max="${localCalendarDate()}"></label>
@@ -286,7 +308,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     const cancel = form.querySelector<HTMLButtonElement>('[data-cancel-scorecard]')!
     for (const [field, value] of Object.entries(resumed ?? { match_date: match?.match_date ?? calendarSeed?.date ?? localCalendarDate(),
       opponent: prefill?.opponent ?? '', format: prefill?.format ?? '',
-      outcome: match?.outcome ?? '', score: match?.score ?? '' })) {
+      outcome: correction?.outcome ?? match?.outcome ?? calendarSeed?.outcome ?? '',
+      score: correction?.score ?? match?.score ?? calendarSeed?.score ?? '' })) {
       const input = form.elements.namedItem(field) as HTMLInputElement | HTMLSelectElement
       input.value = value
     }
@@ -363,7 +386,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       try { draft ??= personalMatchDraft(new FormData(form), match, calendarSeed) }
       catch (error) { feedback.textContent = error instanceof Error ? error.message : 'Check your scorecard.'; return }
       clearRemembered()
-      writing = fields.disabled = save.disabled = cancel.disabled = true
+      setWriting(true)
+      fields.disabled = save.disabled = cancel.disabled = true
       feedback.textContent = 'Saving your scorecard…'
       let saved: PersonalMatch | undefined
       try { saved = await savePersonalMatch(client, owner, draft, active) }
@@ -374,7 +398,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         save.textContent = 'Retry save'
         cancel.textContent = 'Back to match log'
       } finally {
-        writing = false
+        setWriting(false)
         if (active()) cancel.disabled = false
       }
       if (!saved || !active()) return
@@ -398,15 +422,16 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     keep.onclick = () => showScorecard(match)
     remove.onclick = async () => {
       if (!active() || writing || reading) return
-      writing = remove.disabled = keep.disabled = add.disabled = true
+      setWriting(true)
+      remove.disabled = keep.disabled = add.disabled = true
       let removed = false
       try { await removePersonalMatch(client, owner, match, active); removed = true }
       catch (error) {
         if (!active()) return
-        if (error instanceof MatchChanged) { closeEditor(); writing = false; void readHistory(false, error.message); return }
+        if (error instanceof MatchChanged) { closeEditor(); setWriting(false); void readHistory(false, error.message); return }
         editor.querySelector('[data-remove-feedback]')!.textContent = 'Removal unconfirmed. Try again.'
       } finally {
-        writing = false
+        setWriting(false)
         if (active()) remove.disabled = keep.disabled = add.disabled = false
       }
       if (!active() || !removed) return
@@ -421,7 +446,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     if (!active()) return
     add.disabled = true
     editor.replaceChildren()
-    status.textContent = 'Opening your calendar scorecard…'
+    const source = isTeamResultScorecardKey(calendarSeed.calendarMatchId)?'team':'calendar'
+    status.textContent = `Opening your ${source} scorecard…`
     try {
       const saved = await loadCalendarScorecard(client, owner, calendarSeed, active)
       if (calendarSeed.calendarMatchId.includes(':court:')) await captainLoad
@@ -435,8 +461,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     } catch {
       if (!active()) return
       add.disabled = false
-      status.textContent = 'Couldn’t check this calendar scorecard. Try again before logging it.'
-      editor.innerHTML = '<button type="button" class="secondary" data-retry-calendar-scorecard>Retry calendar scorecard</button>'
+      status.textContent = `Couldn’t check this ${source} scorecard. Try again before logging it.`
+      editor.innerHTML = `<button type="button" class="secondary" data-retry-calendar-scorecard>Retry ${source} scorecard</button>`
       const retry = editor.querySelector<HTMLButtonElement>('[data-retry-calendar-scorecard]')!
       retry.onclick = () => { void openCalendarMatch(calendarSeed) }
       retry.focus()

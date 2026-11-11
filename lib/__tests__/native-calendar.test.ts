@@ -1,7 +1,7 @@
 import {describe,it,expect,vi} from 'vitest'
 import {createClient} from '@supabase/supabase-js'
 import {calendarDraft,calendarIntent,calendarRange,personalDraft,type NativeCalendar} from '../native-calendar-contract'
-import {calendarWindow,calendarOccurrences,calendarExport,readCalendar,calendarRequest} from '../../mobile/src/calendar-data'
+import {calendarWindow,calendarOccurrences,calendarExport,readCalendar,calendarRequest,isCurrentCalendarOccurrence} from '../../mobile/src/calendar-data'
 import {writeCalendarPersonal,loadNativeCalendar,respondNativeCalendar} from '../native-calendar'
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222',stamp='2026-10-31T10:00:00.123456+00:00'
 const draft=()=>({id:'player-calendar-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',title:'Serve + first ball',date:'2026-10-31',time:'18:00',location:'Court 2',kind:'practice' as const,recurrenceRule:'' as const,availabilityStatus:'' as const,venueDirectoryId:'',venuePreferenceId:''})
@@ -38,6 +38,18 @@ describe('native calendar intent and recurrence',()=>{
  it('checks owner, range, unique records, revisions and source flags before display',()=>{
   const c=snapshot();expect(readCalendar({ok:true,...c},owner,c.range).personal).toHaveLength(1)
   for(const change of [{owner:other},{range:{from:'2020-01-01',to:'2020-02-01'}},{personal:[item(),item()]},{personal:[{...item(),updatedAt:'x'}]},{coach:[{id:'x',date:'2020-01-01'}]}])expect(()=>readCalendar({ok:true,...c,...change},owner,c.range)).toThrow()
+ })
+ it('uses the team venue time zone for match highlights and exports',()=>{
+  const c=snapshot()
+  c.teamMatches=[{roomId:'33333333-3333-4333-8333-333333333333',revision:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   scope:{teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},
+   match:{opponent:'Topspin Club',date:'2026-11-01',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'}}]
+  const match=calendarOccurrences(c).find(event=>event.key.startsWith('team-match:'))!
+  expect(isCurrentCalendarOccurrence(match,c,new Date('2026-11-01T23:59:00Z'))).toBe(true)
+  expect(isCurrentCalendarOccurrence(match,c,new Date('2026-11-02T00:01:00Z'))).toBe(false)
+  const feed=calendarExport([match],'America/Los_Angeles')
+  expect(feed).toContain('DTSTART:20261102T000000Z')
+  expect(feed).toContain('DTEND:20261102T013000Z')
  })
 })
 describe('calendar transport and owned writes',()=>{

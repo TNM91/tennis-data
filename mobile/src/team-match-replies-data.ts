@@ -3,9 +3,9 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {readTeamMatchReplies,type TeamMatchReplies,type TeamMatchReplyChange} from '../../lib/team-match-replies-contract'
 import {readSavedTeamLineup,type TeamLineupChange} from '../../lib/team-match-lineup-contract'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
-import {TeamNextMatchError,type NativeTeamRoom} from './team-room-data'
+import {TeamNextMatchError,type TeamMatchRoom} from './team-room-data'
 
-async function matchRequest(client:SupabaseClient,owner:string,current:()=>boolean,room:NativeTeamRoom,revision:string,
+async function matchRequest(client:SupabaseClient,owner:string,current:()=>boolean,room:TeamMatchRoom,revision:string,
  unavailable:()=>TeamNextMatchError,conflict:string,body?:Record<string,unknown>){
  const {data,error}=await client.auth.getSession()
  if(!room.manualFixture||error||data.session?.user.id!==owner||!current())throw new TeamNextMatchError('Your team access could not be confirmed.')
@@ -30,7 +30,7 @@ async function matchRequest(client:SupabaseClient,owner:string,current:()=>boole
 }
 
 export async function teamMatchRepliesRequest(client:SupabaseClient,owner:string,current:()=>boolean,
- room:NativeTeamRoom,revision:string,change?:TeamMatchReplyChange):Promise<TeamMatchReplies>{
+ room:TeamMatchRoom,revision:string,change?:TeamMatchReplyChange):Promise<TeamMatchReplies>{
  const unavailable=()=>new TeamNextMatchError(change?'Your reply could not be confirmed. Retry the same reply.':'Availability couldn’t load. Reload the match.',Boolean(change))
  const reply=await matchRequest(client,owner,current,room,revision,unavailable,'The match or your reply changed. Reload the match.',
   change?{action:'reply_next_match',...change}:undefined)
@@ -42,7 +42,7 @@ export async function teamMatchRepliesRequest(client:SupabaseClient,owner:string
  }catch{throw unavailable()}
 }
 
-export async function saveTeamMatchLineupRequest(client:SupabaseClient,owner:string,current:()=>boolean,room:NativeTeamRoom,change:TeamLineupChange){
+export async function saveTeamMatchLineupRequest(client:SupabaseClient,owner:string,current:()=>boolean,room:TeamMatchRoom,change:TeamLineupChange){
  const unavailable=()=>new TeamNextMatchError('The lineup save could not be confirmed. Retry the same lineup.',true)
  const reply=await matchRequest(client,owner,current,room,change.revision,unavailable,
   'The match, saved lineup, or availability changed. Reload the match before editing again.',{action:'save_match_lineup',...change})
