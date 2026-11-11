@@ -153,7 +153,7 @@ export function calendarMatchVenueHref({location,kind,detail}:{
  const parts=location.trim().split(' · ')
  const last=parts.at(-1)||''
  // Tournament schedules repeat the assigned court in the match detail.
- const assignedCourt=kind==='tournament'&&last.startsWith('Court ')&&detail?.endsWith(' · '+last)
+ const assignedCourt=kind==='tournament'&&last&&detail?.endsWith(' · '+last)
  if(assignedCourt||/^Courts?\s+#?(?:\d+[a-z]?|[a-z])$/i.test(last))parts.pop()
  return appleMapsVenueHref(parts.join(' · '))
 }

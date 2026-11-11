@@ -6,8 +6,8 @@ import Link from 'next/link'
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { ArrowRight, CalendarBlank, CheckCircle, Clock, WarningCircle } from '@phosphor-icons/react'
 import type { TiqTournamentRecord } from '@/lib/tiq-tournament-registry'
-import { buildEventDeskMatches, buildEventDivisionReadiness, findEventCourtOverlaps, isCompleteEventSlot, type EventDeskMatch } from '@/lib/tournament-event-desk'
-import { formatTournamentEventDate, formatTournamentEventTime } from '@/lib/tournament-event-presentation'
+import { buildEventDeskMatches, buildEventDivisionReadiness, findEventCourtOverlaps, isCompleteEventSlot, nextEventCourtTime, normalizeEventCourt, type EventDeskMatch } from '@/lib/tournament-event-desk'
+import { formatTournamentEventDate, formatTournamentEventTime, tournamentCourtLabel } from '@/lib/tournament-event-presentation'
 import styles from './tournament-event-desk.module.css'
 import TournamentEventPass from './tournament-event-pass'
 import TournamentEventChampionship from './tournament-event-championship'
@@ -35,9 +35,18 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
   const [slot, setSlot] = useState({ date: '', time: '', court: '' })
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [savedScheduleChange, setSavedScheduleChange] = useState(false)
   const [error, setError] = useState('')
   const editorRef = useRef<HTMLDivElement>(null)
   const matches = useMemo(() => buildEventDeskMatches(divisions), [divisions])
+  const eventCourts = useMemo(() => {
+    const courts = new Map<string, string>()
+    for (const match of matches) {
+      const court = normalizeEventCourt(match.court)
+      if (court && !courts.has(court)) courts.set(court, match.court)
+    }
+    return [...courts.values()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  }, [matches])
   const overlaps = useMemo(() => findEventCourtOverlaps(matches, windowMinutes), [matches, windowMinutes])
   const conflictKeys = new Set(overlaps.flatMap(pair => [pair.first.key, pair.second.key]))
   const completed = matches.filter(match => match.completed).length
@@ -50,11 +59,15 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
   const draft = editing ? { ...editing, ...slot, assigned: isCompleteEventSlot(slot) } : null
   const draftOverlaps = draft ? findEventCourtOverlaps(matches.map(match => match.key === draft.key ? draft : match), windowMinutes)
     .filter(pair => pair.first.key === draft.key || pair.second.key === draft.key) : []
+  const nextCourtTime = editing && draftOverlaps.length ? nextEventCourtTime(matches, slot, editing.key, windowMinutes) : ''
+  const venue = [event.eventDetails?.venueName || event.locationLabel, event.eventDetails?.venueAddress]
+    .filter((part, index, parts) => part && parts.indexOf(part) === index).join(' · ')
+  const timeZone = event.eventDetails?.timeZoneLabel || event.eventDetails?.timeZone || 'Event local time'
 
   function edit(match: EventDeskMatch) {
     setEditing(match)
     setSlot({ date: match.date || event.startsOn, time: match.time || event.eventDetails?.startsAt || '', court: match.court })
-    setMessage(''); setError('')
+    setMessage(''); setError(''); setSavedScheduleChange(false)
     window.requestAnimationFrame(() => {
       editorRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' })
       editorRef.current?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
@@ -62,9 +75,12 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
   }
 
   async function save(assignment: EventCourtAssignment) {
-    setSaving(true); setMessage(''); setError('')
+    const rescheduled = editing && !editing.completed && editing.assigned &&
+      (editing.date !== assignment.date || editing.time !== assignment.time || editing.court !== assignment.court)
+    setSaving(true); setMessage(''); setError(''); setSavedScheduleChange(false)
     try {
       setMessage(await onScheduleSave(assignment))
+      setSavedScheduleChange(Boolean(rescheduled))
       setEditing(null)
     } catch {
       setError('The court assignment could not be saved. Your changes are still here. Try again.')
@@ -130,7 +146,7 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
           {visible.map((match, index) => <div key={match.key}>
             {(index === 0 || (match.assigned ? match.date : '') !== (visible[index - 1].assigned ? visible[index - 1].date : '')) ? <h4 className={styles.dateHeading}>{match.assigned ? formatTournamentEventDate(match.date, true) : 'Awaiting assignment'}</h4> : null}
             <button type="button" disabled={saving} className={`${styles.match} ${editing?.key === match.key ? styles.selected : ''}`} onClick={() => edit(match)} aria-label={`Edit schedule for ${match.sideA} vs ${match.sideB} in ${match.divisionName}, ${match.label}`}>
-              <span className={styles.matchTime}>{match.assigned ? formatTournamentEventTime(match.time) : 'Not assigned'}<small>{match.court ? (/^court\b/i.test(match.court) ? match.court : `Court ${match.court}`) : 'Choose a court'}</small></span>
+              <span className={styles.matchTime}>{match.assigned ? formatTournamentEventTime(match.time) : 'Not assigned'}<small>{tournamentCourtLabel(match.court) || 'Choose a court'}</small></span>
               <span className={styles.matchDetails}><span className={styles.divisionName}>{match.divisionName} <span>· {match.label}</span></span><strong>{match.sideA} <span>vs</span> {match.sideB}</strong></span>
               <span className={conflictKeys.has(match.key) ? styles.warning : match.completed ? styles.ready : styles.matchAction}>{conflictKeys.has(match.key) ? <><WarningCircle aria-hidden="true" size={16} /> Overlap</> : match.completed ? <><CheckCircle aria-hidden="true" size={16} /> Complete</> : <><Clock aria-hidden="true" size={16} /> Edit slot</>}</span>
             </button>
@@ -140,17 +156,29 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
         <div ref={editorRef} className={styles.editor}>
           {editing ? <form onSubmit={submit}>
             <p className={styles.eyebrow}>Court assignment</p><h4>{editing.label}</h4><p className={styles.editorSubtitle}>{editing.divisionName}</p><p className={styles.pairing}>{editing.sideA} <span>vs</span> {editing.sideB}</p>
+            <p className={styles.editorNote}>{venue || 'Venue to be confirmed'} · {timeZone}</p>
             <label>Date<input type="date" value={slot.date} required disabled={saving} onChange={event => setSlot({ ...slot, date: event.target.value })} /></label>
             <label>Start time<input type="time" value={slot.time} required disabled={saving} onChange={event => setSlot({ ...slot, time: event.target.value })} /></label>
             <label>Court<input value={slot.court} maxLength={80} required disabled={saving} placeholder="e.g. 1 or Center Court" onChange={event => setSlot({ ...slot, court: event.target.value })} /></label>
+            {eventCourts.length ? (
+              <label>Courts already used<select value={eventCourts.includes(slot.court) ? slot.court : ''} disabled={saving}
+                onChange={event => { if (event.target.value) setSlot({ ...slot, court: event.target.value }) }}>
+                <option value="">Choose a court</option>
+                {eventCourts.map(court => <option key={court} value={court}>{court}</option>)}
+              </select></label>
+            ) : null}
             {draftOverlaps.length ? <div className={styles.overlapNotice} role="status"><strong><WarningCircle size={17} aria-hidden="true" /> This slot overlaps</strong>{draftOverlaps.map(pair => {
               const other = pair.first.key === editing.key ? pair.second : pair.first
               return <p key={other.key}>{other.divisionName} · {other.label} at {formatTournamentEventTime(other.time)}.</p>
-            })}<p>Choose another court or start time, or save this overlap for review.</p></div> : null}
+            })}{nextCourtTime ? <button type="button" className={styles.slotSuggestion} disabled={saving}
+              onClick={() => setSlot(current => ({ ...current, time: nextCourtTime }))}>
+              Use {formatTournamentEventTime(nextCourtTime)} on this court
+            </button> : <p>Choose another court or start time, or save this overlap for review.</p>}</div> : null}
             <button type="submit" className={styles.primary} disabled={saving}>{saving ? 'Saving…' : draftOverlaps.length ? 'Save overlapping slot' : 'Save court assignment'}</button>
             <div className={styles.editorActions}><button type="button" disabled={saving} onClick={() => { setEditing(null); setError('') }}>Cancel</button>{editing.date || editing.time || editing.court ? <button type="button" disabled={saving} onClick={() => void save({ divisionId: editing.divisionId, matchId: editing.matchId, date: '', time: '', court: '' })}>Clear assignment</button> : null}</div>
           </form> : <><p className={styles.eyebrow}>Quick assignment</p><h4>Keep play moving.</h4><p className={styles.editorSubtitle}>Select a match to change its court or start time. All divisions share this court plan.</p>{overlaps.length ? <button type="button" className={styles.primary} onClick={() => edit(overlaps[0].first)}>Review first overlap <ArrowRight size={16} aria-hidden="true" /></button> : matches.find(match => !match.assigned && !match.completed) ? <button type="button" className={styles.primary} onClick={() => edit(matches.find(match => !match.assigned && !match.completed)!)}>Assign next match <ArrowRight size={16} aria-hidden="true" /></button> : <p className={styles.editorNote}>{matches.length ? 'Court assignments are up to date.' : 'Matches appear after teams are confirmed.'}</p>}</>}
           {message ? <p role="status" className={styles.success}>{message}</p> : null}
+          {savedScheduleChange ? <a href="#tournament-schedule-changes" className={styles.primary}>Review schedule change <ArrowRight size={16} aria-hidden="true" /></a> : null}
           {error ? <p role="alert" className={styles.overlapNotice}>{error}{error === EVENT_COURT_ASSIGNMENT_LOCKED ? <> <a href="#event-next-on-court">Review court call</a></> : null}</p> : null}
         </div>
       </div>

@@ -4,8 +4,9 @@ import {eventCalendarStart,formatCalendarDay} from '../../lib/calendar-date'
 import {readTeamNextMatchChange,type ReviewedNextMatch,type TeamNextMatchChange} from '../../lib/team-fixtures-contract'
 import {maxTeamLineupCourts,readTeamLineupChange,type MatchLineupCourt,type TeamLineupChange} from '../../lib/team-match-lineup-contract'
 import {isTeamMatchChoice,teamReplyLabels,type TeamMatchReplies,type TeamMatchReplyChange} from '../../lib/team-match-replies-contract'
+import {todayDateKey} from '../../lib/team-room-match-flow'
 import {html} from './match-details'
-import {calendarMatchExport,calendarMatchVenueHref} from './calendar-data'
+import {calendarMatchExport,calendarMatchVenueHref,shiftCalendarDay} from './calendar-data'
 import {Browser} from './native-browser'
 import {exportCoachFile} from './native-coach-files'
 import {matchLineupFields,matchLineupMessage,plannedLineupHtml} from './team-match-lineup'
@@ -24,6 +25,10 @@ export function teamNextMatchHtml(match:ReviewedNextMatch){
   <p>${html(formatCalendarDay(match.date,false))} · ${html(nextMatchTime(match)||'Time to be confirmed')}</p>
   <p>${html(match.facility||'Court to be confirmed')}</p>`
 }
+
+const matchSlot=(match:ReviewedNextMatch)=>[
+ formatCalendarDay(match.date,false),nextMatchTime(match)||'Time to be confirmed',match.facility||'Court to be confirmed',
+].join(' · ')
 
 function matchReplyRosterHtml(replies:TeamMatchReplies,expanded:boolean,canRemind:boolean){
  if(!replies.team)return ''
@@ -59,9 +64,9 @@ function matchRepliesHtml(replies:TeamMatchReplies,busy:boolean,pending:boolean,
 }
 
 export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMatchRoom,current:()=>boolean,
- onClose:(changed:boolean,message?:string,kind?:'lineup')=>void,canDraftUpdate:()=>boolean,
- {previousMatch,calendarRevision,openResults}:{
-  previousMatch?:ReviewedNextMatch;calendarRevision?:string;openResults?:()=>void
+ onClose:(changed:boolean,message?:string,kind?:'lineup'|'schedule')=>void,canDraftUpdate:()=>boolean,
+ {previousMatch,calendarSchedule,openResults}:{
+  previousMatch?:ReviewedNextMatch;calendarSchedule?:TeamNextMatchSchedule;openResults?:()=>void
  }={}){
  const dialog=document.createElement('dialog')
  dialog.className='team-invite-dialog team-next-match-dialog'
@@ -73,6 +78,8 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let replies:TeamMatchReplies|null=null,pendingReply:TeamMatchReplyChange|null=null
  let lineup:MatchLineupCourt[]|null=null
  let pendingLineup:TeamLineupChange|null=null,lineupConflict=false
+ let previousSlot:ReviewedNextMatch|null=null
+ let scheduleAnnouncement:{revision:string;previous:ReviewedNextMatch}|null=null
  let rosterExpanded=false
  const active=()=>!disposed&&current()
  const dispose=()=>{disposed=true;dialog.remove()}
@@ -88,16 +95,20 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   try{replies=await teamMatchRepliesRequest(client,owner,active,room,snapshot.revision)}
   catch(cause){notice=cause instanceof TeamNextMatchError?cause.message:'Availability couldn’t load. Reload the match.'}
  }
+ const reviewScheduleChange=(before:TeamNextMatchSchedule|undefined,latest:TeamNextMatchSchedule)=>{
+  if(!before?.nextMatch||(before.revision===latest.revision&&latest.nextMatch))return
+  changed=true
+  previousSlot=latest.nextMatch?before.nextMatch:null
+  notice=latest.nextMatch?'The team schedule changed. Review the latest match.':'This match is no longer upcoming.'
+ }
  const load=async()=>{
   if(busy||!active())return
+  const before=schedule??calendarSchedule
   busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null
   replies=null;draft=null;removing=false;schedule=null;notice='Loading your next match…';render()
   try{
    schedule=await teamNextMatchRequest(client,owner,active,room);notice=''
-   if(calendarRevision&&(schedule.revision!==calendarRevision||!schedule.nextMatch)){
-    changed=true
-    notice=schedule.nextMatch?'The team schedule changed. Review the latest match.':'This match is no longer upcoming.'
-   }
+   reviewScheduleChange(before,schedule)
    if(startNew){
     startNew=false
     if(schedule.nextMatch)notice='Your next match is already scheduled.'
@@ -110,11 +121,14 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  }
  const save=async(change:TeamNextMatchChange)=>{
   if(busy||!active())return
+  const before=schedule?.nextMatch
   busy=true;pending=change;notice='Saving the team schedule…';render()
   try{
    schedule=await teamNextMatchRequest(client,owner,active,room,change)
    changed=true;pending=null;draft=null;removing=false
-   notice=change.nextMatch?'Match shared with your team.':'Match removed from the team schedule.'
+   previousSlot=change.nextMatch&&before?before:null
+   scheduleAnnouncement=previousSlot&&schedule.revision?{revision:schedule.revision,previous:previousSlot}:null
+   notice=change.nextMatch?(before?'Match updated. Teammates need to reply again.':'Match shared with your team.'):'Match removed from the team schedule.'
    await refreshReplies(schedule)
   }catch(cause){
    notice=cause instanceof TeamNextMatchError?cause.message:'The save could not be confirmed. Retry the same change.'
@@ -135,21 +149,36 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    if(refreshTeam)await refreshReplies(schedule)
   }catch(cause){
    notice=cause instanceof TeamNextMatchError?cause.message:'Your reply could not be confirmed. Retry the same reply.'
-   if(cause instanceof TeamNextMatchError&&!cause.uncertain){pendingReply=null;replies=null}
+   if(cause instanceof TeamNextMatchError&&!cause.uncertain){
+    pendingReply=null;replies=null
+    if(cause.status===409){
+     const before=schedule
+     try{
+      schedule=await teamNextMatchRequest(client,owner,active,room)
+      notice='Your reply changed. Review the latest reply.'
+      reviewScheduleChange(before,schedule)
+      await refreshReplies(schedule)
+     }catch{
+      schedule=null;notice='Couldn’t check the latest match. Reload the match.'
+     }
+    }
+   }
   }finally{if(active()){busy=false;render();focus('[role="status"]')}}
  }
- const draftReminder=async()=>{
-  if(!active()||!captain||busy||pendingReply||!schedule?.nextMatch||!schedule.revision||!replies?.awaitingTeammates)return
+ const draftAvailabilityMessage=async(kind:'reminder'|'schedule')=>{
+  if(!active()||!captain||busy||pendingReply||!schedule?.nextMatch||!schedule.revision)return
   const {nextMatch,revision}=schedule
-  const draftNotice='Finish your current chat draft before drafting a reminder.'
+  const previous=kind==='schedule'&&scheduleAnnouncement?.revision===revision?scheduleAnnouncement.previous:null
+  if(kind==='schedule'?!previous:!replies?.awaitingTeammates)return
+  const draftNotice=kind==='schedule'?'Finish your current chat draft before drafting a schedule update.':'Finish your current chat draft before drafting a reminder.'
   if(!canDraftUpdate()){notice=draftNotice;render();focusFeedback();return}
   busy=true;notice='Checking the latest replies…';render()
   try{
    const latest=await teamMatchRepliesRequest(client,owner,active,room,revision)
    if(!active())return
    replies=latest
-   if(!latest.team){notice='Captain access is required to draft this reminder.';return}
-   if(!latest.awaitingTeammates){
+   if(!latest.team){notice='Captain access is required to draft a team update.';return}
+   if(!previous&&!latest.awaitingTeammates){
     notice=latest.rosterComplete?'Your teammates have replied.':'The teammates shown here have replied.'
     return
    }
@@ -157,9 +186,11 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    const time=nextMatchTime(nextMatch)
    const when=formatCalendarDay(nextMatch.date,false)+(time?' at '+time:'')
    const where=nextMatch.facility?' ('+nextMatch.facility+')':''
-   const message=`Quick availability check for our match vs ${nextMatch.opponent} on ${when}${where}. If you haven’t replied yet, open Team → Next match and tap In, Maybe, or Out.`
+   const message=previous
+    ?`Match update vs ${nextMatch.opponent}\nPreviously · ${matchSlot(previous)}\nNow · ${matchSlot(nextMatch)}\nPlease open Team → Next match and confirm whether you can play.`
+    :`Quick availability check for our match vs ${nextMatch.opponent} on ${when}${where}. If you haven’t replied yet, open Team → Next match and tap In, Maybe, or Out.`
    dispose()
-   onClose(changed,message)
+   onClose(changed,message,previous?'schedule':undefined)
   }catch(cause){
    notice=cause instanceof TeamNextMatchError?cause.message:'Couldn’t check the latest replies. Reload the match.'
   }finally{if(active()){busy=false;render();focus('[role="status"]')}}
@@ -222,6 +253,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    if(!active())return
    if(!latest.nextMatch||latest.revision!==shown.revision||JSON.stringify(latest.nextMatch)!==JSON.stringify(shown.nextMatch)){
     schedule=latest
+    reviewScheduleChange(shown,latest)
     await refreshReplies(latest)
     notice=action==='maps'
      ?latest.nextMatch?'The match changed. Review the updated venue.':'There’s no upcoming match.'
@@ -254,6 +286,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   if(!active())return
   const zones=draft?[...new Set([draft.timeZone,localZone,'America/New_York','America/Chicago','America/Denver','America/Phoenix','America/Los_Angeles','America/Anchorage','Pacific/Honolulu'])]:[]
   const reusableVenue=draft&&!schedule?.nextMatch&&previousMatch?.facility?previousMatch:null
+  const reusableTime=draft&&!schedule?.nextMatch?previousMatch?.time:''
   const mapsUrl=schedule?.nextMatch&&calendarMatchVenueHref({location:schedule.nextMatch.facility})
   if(reusableVenue&&!zones.includes(reusableVenue.timeZone))zones.push(reusableVenue.timeZone)
   dialog.innerHTML=`<header class="team-invite-heading"><h2 tabindex="-1">Next match</h2></header>
@@ -273,19 +306,28 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
     </form>`:!pending&&draft?`<form data-match-form>
     <label>Opponent<input name="opponent" type="text" maxlength="120" required value="${html(draft.opponent)}"></label>
     <label>Match date<input name="date" type="date" required value="${html(draft.date)}"></label>
+    <div class="team-match-date-shortcuts" role="group" aria-label="Date shortcuts">
+     <button type="button" class="secondary" data-match-date-offset="0">Today</button>
+     <button type="button" class="secondary" data-match-date-offset="1">Tomorrow</button>
+     <button type="button" class="secondary" data-match-date-offset="7">In 7 days</button>
+    </div>
     <label>Start time<input name="time" type="time" value="${html(draft.time)}"></label>
+    ${reusableTime?'<button type="button" class="secondary" data-reuse-match-time>Use last start time</button>':''}
     <label>Venue time zone<select name="timeZone">${zones.map(zone=>`<option value="${html(zone)}" ${zone===draft?.timeZone?'selected':''}>${html(zone.replaceAll('_',' '))}</option>`).join('')}</select></label>
     <label>Court or facility<input name="facility" type="text" maxlength="160" value="${html(draft.facility)}"></label>
     ${reusableVenue?`<button type="button" class="secondary" data-reuse-match-venue>Use last venue<span class="sr-only"> (${html(reusableVenue.facility)})</span></button>`:''}
     ${schedule?.nextMatch?'<p>Saving changes asks teammates to reply again.</p>':''}
     <button type="submit">Save for team</button><button type="button" class="secondary" data-match-cancel>Cancel edit</button>
    </form>`:!pending&&schedule?`
-    ${schedule.nextMatch?`<div class="team-invite-preview">${teamNextMatchHtml(schedule.nextMatch)}</div>
+    ${schedule.nextMatch?`<div class="team-invite-preview">${teamNextMatchHtml(schedule.nextMatch)}
+     ${previousSlot?`<p>Previously · ${html(matchSlot(previousSlot))}</p>`:''}</div>
      ${mapsUrl&&!removing?`<button type="button" class="secondary" data-open-match-maps ${busy||pendingReply?'disabled':''}>Find in Apple Maps <span aria-hidden="true">↗</span></button>`:''}`:
      `<p>No upcoming match is scheduled.</p>
       ${captain&&openResults&&!busy?'<button type="button" class="secondary" data-match-open-results>Open team results</button>':''}`}
     ${replies&&!removing?matchRepliesHtml(replies,busy,Boolean(pendingReply),rosterExpanded,
      Boolean(captain&&!busy&&!pendingReply&&replies.awaitingTeammates)):''}
+    ${captain&&schedule.nextMatch&&scheduleAnnouncement?.revision===schedule.revision&&!removing?
+     `<button type="button" class="secondary" data-draft-match-change ${busy||pendingReply?'disabled':''}>Draft schedule update in chat</button>`:''}
     ${schedule.nextMatch&&!removing?`<button type="button" class="secondary" data-share-match-calendar ${busy||pendingReply?'disabled':''}>Share calendar file</button>
      <p class="rating-context">One-time copy. ${schedule.nextMatch.time?'Reserves 90 minutes.':'Adds an all-day entry.'}</p>`:''}
     ${!removing&&replies?.savedLineup?plannedLineupHtml(replies.savedLineup):''}
@@ -310,7 +352,8 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector<HTMLButtonElement>('[data-match-retry]')?.addEventListener('click',()=>{if(pending)void save(pending)})
   dialog.querySelector<HTMLButtonElement>('[data-match-reply-retry]')?.addEventListener('click',()=>{if(pendingReply)void reply(pendingReply)})
   dialog.querySelector('[data-match-lineup-retry]')?.addEventListener('click',()=>{if(pendingLineup)void saveLineup()})
-  dialog.querySelector<HTMLButtonElement>('[data-draft-match-reminder]')?.addEventListener('click',()=>{void draftReminder()})
+  dialog.querySelector<HTMLButtonElement>('[data-draft-match-reminder]')?.addEventListener('click',()=>{void draftAvailabilityMessage('reminder')})
+  dialog.querySelector<HTMLButtonElement>('[data-draft-match-change]')?.addEventListener('click',()=>{void draftAvailabilityMessage('schedule')})
   dialog.querySelector<HTMLButtonElement>('[data-open-match-maps]')?.addEventListener('click',()=>{void openMatchAction('maps')})
   dialog.querySelector<HTMLButtonElement>('[data-share-match-calendar]')?.addEventListener('click',()=>{void openMatchAction('calendar')})
   dialog.querySelector('[data-plan-lineup]')?.addEventListener('click',()=>{
@@ -363,6 +406,17 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    if(schedule?.revision)void save({expected:schedule.revision,revision:crypto.randomUUID(),nextMatch:null})
   })
   const form=dialog.querySelector<HTMLFormElement>('[data-match-form]')
+  form?.querySelectorAll<HTMLButtonElement>('[data-match-date-offset]').forEach(button=>{button.onclick=()=>{
+   const zone=form.querySelector<HTMLSelectElement>('[name="timeZone"]')!.value
+   const day=shiftCalendarDay(todayDateKey(new Date(),zone),Number(button.dataset.matchDateOffset))
+   form.querySelector<HTMLInputElement>('[name="date"]')!.value=day
+   dialog.querySelector('[role="status"]')!.textContent=formatCalendarDay(day)
+  }})
+  form?.querySelector<HTMLButtonElement>('[data-reuse-match-time]')?.addEventListener('click',()=>{
+   if(!reusableTime)return
+   form.querySelector<HTMLInputElement>('[name="time"]')!.value=reusableTime
+   dialog.querySelector('[role="status"]')!.textContent='Last start time filled in.'
+  })
   dialog.querySelector('[data-reuse-match-venue]')?.addEventListener('click',()=>{
    if(!form||!reusableVenue)return
    form.querySelector<HTMLInputElement>('[name="facility"]')!.value=reusableVenue.facility

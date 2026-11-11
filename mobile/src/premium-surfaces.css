@@ -1549,6 +1549,8 @@ body.native-chat-conversation .chat-room-header { border-color:var(--premium-lin
 .team-record dd { margin:0;font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums; }
 .team-record dl>div:first-child dd { color:var(--premium-lime); }
 .team-match-replies { margin-block:12px;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius); }
+.team-match-date-shortcuts { display:flex;flex-wrap:wrap;gap:6px;margin-block:6px 12px; }
+.team-match-date-shortcuts button.secondary { flex:1 0 auto;inline-size:auto;margin:0;padding-inline:8px;font-size:.8125rem; }
 .team-match-replies h3 { margin:0;font-size:1rem; }
 .team-match-reply-actions { display:flex;flex-wrap:wrap;gap:6px; }
 .team-match-reply-actions button.secondary { flex:1 1 0;inline-size:auto;min-inline-size:min-content;padding-inline:6px; }

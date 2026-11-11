@@ -1,5 +1,6 @@
 import type {TournamentMatch} from '../../lib/native-tournaments-contract'
 import {isValidCalendarDate} from '../../lib/calendar-date'
+import {tournamentCourtLabel} from '../../lib/tournament-event-presentation'
 import {competitionFiltersHtml} from './competition-filters'
 import {html} from './match-details'
 
@@ -8,11 +9,7 @@ export type TournamentMatchView='draw'|'schedule'|'results'
 export const emptyTournamentMatchFilters=():TournamentMatchFilters=>({query:'',day:'',court:'',round:''})
 const shortDay=(value:string)=>isValidCalendarDate(value)?new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric'}).format(new Date(value+'T12:00:00Z')):value
 const normalized=(value:string)=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase()
-export function tournamentCourtLabel(court:string) {
- const label=court.trim()
- const identifier=/^(?:court\s+)?(\d+[A-Z]?|[A-Z])$/i.exec(label)
- return identifier?'Court '+identifier[1].toUpperCase():label
-}
+export {tournamentCourtLabel} from '../../lib/tournament-event-presentation'
 export const tournamentScheduleDay=(match:TournamentMatch)=>isValidCalendarDate(match.date)?match.date:''
 const publishedFirst=(a:string,b:string)=>Number(!a)-Number(!b)
 export function tournamentScheduleTime(time:string) {

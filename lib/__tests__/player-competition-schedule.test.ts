@@ -80,7 +80,7 @@ describe('approved player competition schedule', () => {
         'g2-r3-m1': { sideA: 'Blair', sideB: 'Drew', winner: 'Blair', score: '6-4 6-4' },
       },
       schedule: {
-        'g1-r2-m1': { date: '2026-11-14', time: '10:00', court: '2' },
+        'g1-r2-m1': { date: '2026-11-14', time: '10:00', court: 'Court 2' },
         'p-r1-m1': { date: '2026-11-15', time: '13:00', court: '1' },
         'r1-m1': { date: '2026-11-14', time: '09:00', court: '4' },
       },
@@ -94,7 +94,7 @@ describe('approved player competition schedule', () => {
       responses: [{
         event_id: 'tournament:cup:g1-r2-m1',
         response: 'available',
-        event_snapshot: { date: '2026-11-14', time: '10:00', location: 'City Courts · Court 2' },
+        event_snapshot: { date: '2026-11-14', time: '10:00:00', location: 'City Courts · Court Court 2' },
       }],
     }
 

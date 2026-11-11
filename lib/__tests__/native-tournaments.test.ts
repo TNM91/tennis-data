@@ -95,6 +95,18 @@ describe('first-party tournament route', () => {
   expect(readTournamentSnapshot(await list.json(), owner).tournaments).toEqual([])
   expect((await firstPartyTournaments(request('?tournament=event-one'))).status).toBe(503)
  })
+
+ it('shows a rescheduled time and court after the new division revision is approved', async () => {
+  const f = fixture()
+  signedIn(f.db)
+  approve(f.root, f.division)
+  const url = '?tournament=event-one&division=division-one'
+  f.division.schedule = { 'r1-m2': { date: '2026-11-14', time: '19:00', court: 'Court 5' } }
+  expect((await firstPartyTournaments(request(url))).status).toBe(503)
+  approve(f.root, f.division)
+  const latest = readTournamentSnapshot(await (await firstPartyTournaments(request(url))).json(), owner, '', 'event-one', 'division-one')
+  expect(latest.detail?.matches.find(match => match.id === 'r1-m2')).toMatchObject({ time: '19:00', court: 'Court 5' })
+ })
 })
 
 describe('native public tournament browsing',()=>{

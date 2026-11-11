@@ -13,6 +13,7 @@ import SiteShell from '@/app/components/site-shell'
 import EntityDetailLink from '@/app/components/entity-detail-link'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LocationDirectionsLink from '@/app/components/location-directions-link'
+import VenueLocationPicker from '@/app/components/venue-location-picker'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
@@ -20,6 +21,9 @@ import { getCompetitionLayerLabel, getLeagueFormatLabel } from '@/lib/competitio
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { buildScopedLeagueEntityId } from '@/lib/entity-ids'
 import { appendMyLabEvents } from '@/lib/my-lab-events'
+import { buildTiqLeagueSeasonCalendarRows } from '@/lib/tiq-league-calendar'
+import { isValidCalendarDate } from '@/lib/calendar-date'
+import { sameCompetitionScheduleSnapshot } from '@/lib/competition-schedule-snapshot'
 import {
   listTiqIndividualLeagueResults,
   saveTiqIndividualLeagueResult,
@@ -427,6 +431,7 @@ function TiqLeagueDetailContent() {
     Array.isArray(params.league) ? params.league[0] || '' : (params.league as string) || '',
   )
   const leagueIdParam = searchParams.get('league_id') || ''
+  const openScheduleEditor = searchParams.get('edit_schedule') === '1'
   const suggestedResultPlayerA = searchParams.get('suggest_player_a') || ''
   const suggestedResultPlayerB = searchParams.get('suggest_player_b') || ''
 
@@ -487,6 +492,7 @@ function TiqLeagueDetailContent() {
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState('')
   const [scheduleFacility, setScheduleFacility] = useState('')
+  const [savingScheduleSite, setSavingScheduleSite] = useState('')
   const [scheduleNotes, setScheduleNotes] = useState('')
   const [scheduleEditingItemId, setScheduleEditingItemId] = useState('')
   const [scheduleDisplayMode, setScheduleDisplayMode] = useState<ScheduleDisplayMode>('calendar')
@@ -772,6 +778,24 @@ function TiqLeagueDetailContent() {
     setScheduleFacility(league.defaultFacility || '')
   }, [league])
 
+  const seasonMatchDates = useMemo(() => {
+    if (!league?.defaultMatchDay || !isValidCalendarDate(league.startsOn)) return []
+    return buildTiqLeagueSeasonCalendarRows(league).filter(({ date }) => !league.endsOn || date <= league.endsOn)
+  }, [league])
+  const scheduleSites = useMemo(() => [...new Set([
+    league?.defaultFacility || '',
+    ...scheduleItems.filter((item) => item.status !== 'cancelled').map((item) => item.facility),
+  ].filter(Boolean))].slice(0, 24), [league?.defaultFacility, scheduleItems])
+  const scheduleSiteKey = `${league?.id || ''}:${scheduleEditingItemId || 'new'}`
+  const scheduleSiteSaving = savingScheduleSite === scheduleSiteKey
+  const scheduleEditorReady = Boolean(league && canManageLeague)
+  useEffect(() => {
+    if (!openScheduleEditor || !scheduleEditorReady) return
+    const editor = document.getElementById('league-schedule-editor')
+    editor?.scrollIntoView({ block: 'start' })
+    editor?.focus({ preventScroll: true })
+  }, [openScheduleEditor, scheduleEditorReady, league?.id])
+
   async function handleExpandMatchEvent(eventId: string) {
     if (expandedMatchEventId === eventId) {
       setExpandedMatchEventId(null)
@@ -1026,6 +1050,9 @@ function TiqLeagueDetailContent() {
     scheduleParticipantOptions.find((option) => option.value === scheduleParticipantA) || null
   const scheduleParticipantBOption =
     scheduleParticipantOptions.find((option) => option.value === scheduleParticipantB) || null
+  const editingScheduleItem = scheduleItems.find(item => item.id === scheduleEditingItemId)
+  const canSaveSchedule = !scheduleSaving && !scheduleSiteSaving && Boolean(userId)
+    && (Boolean(editingScheduleItem) || scheduleParticipantOptions.length >= 2)
   const resultWinnerOptions = [resultPlayerAOption, resultPlayerBOption].filter(
     (option): option is ResultParticipantOption => Boolean(option),
   )
@@ -1909,14 +1936,23 @@ function TiqLeagueDetailContent() {
   }
 
   async function handleScheduleSubmit() {
-    if (!league) return
+    if (!league || scheduleSaving || scheduleSiteSaving) return
 
-    if (!scheduleParticipantAOption || !scheduleParticipantBOption) {
+    const previous = editingScheduleItem
+    if (scheduleEditingItemId && (!previous || !canManageLeague || previous.status === 'completed' || previous.status === 'cancelled')) {
+      setScheduleStatus('This match is no longer available to edit. Refresh the schedule and try again.')
+      return
+    }
+
+    const participants = scheduleParticipantAOption && scheduleParticipantBOption
+      ? { a: scheduleParticipantAOption, b: scheduleParticipantBOption }
+      : null
+    if (!previous && !participants) {
       setScheduleStatus('Choose both participants before scheduling this match.')
       return
     }
 
-    if (scheduleParticipantAOption.value === scheduleParticipantBOption.value) {
+    if (!previous && participants?.a.value === participants?.b.value) {
       setScheduleStatus('Choose two different participants before scheduling this match.')
       return
     }
@@ -1931,41 +1967,50 @@ function TiqLeagueDetailContent() {
       return
     }
 
+    const facility = scheduleFacility || league.defaultFacility
+    const changedSlot = previous && !sameCompetitionScheduleSnapshot({
+      date: previous.scheduledDate,
+      time: previous.scheduledTime,
+      location: previous.facility || league.defaultFacility || league.locationLabel,
+    }, { date: scheduleDate, time: scheduleTime, location: facility || league.locationLabel })
     setScheduleSaving(true)
     setScheduleStatus('')
 
     try {
-      const result = scheduleEditingItemId
+      const result = previous
         ? await updateTiqLeagueScheduleItem({
-            scheduleItemId: scheduleEditingItemId,
+            scheduleItemId: previous.id,
             scheduledDate: scheduleDate,
             scheduledTime: scheduleTime,
-            facility: scheduleFacility || league.defaultFacility,
+            facility,
             notes: scheduleNotes,
             status: league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
               ? 'coordinator_set'
               : undefined,
           })
-        : await saveTiqLeagueScheduleItem({
+        : participants ? await saveTiqLeagueScheduleItem({
             leagueId: league.id,
             leagueFormat: league.leagueFormat,
-            participantAName: scheduleParticipantAOption.playerName,
-            participantAId: scheduleParticipantAOption.playerId,
-            participantBName: scheduleParticipantBOption.playerName,
-            participantBId: scheduleParticipantBOption.playerId,
+            participantAName: participants.a.playerName,
+            participantAId: participants.a.playerId,
+            participantBName: participants.b.playerName,
+            participantBId: participants.b.playerId,
             scheduledDate: scheduleDate,
             scheduledTime: scheduleTime,
-            facility: scheduleFacility || league.defaultFacility,
+            facility,
             status: league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools ? 'coordinator_set' : 'proposed',
             notes: scheduleNotes,
-          })
+          }) : null
+      if (!result?.item) throw new Error('The match could not be saved. Check your connection and try again.')
 
       await refreshScheduleItems(league.id)
       setScheduleSource(result.source)
       setStorageWarning((current) => current || result.warning || '')
       setScheduleStatus(
-        scheduleEditingItemId
-          ? 'Updated this match. Players with an earlier reply will be asked again.'
+        result.source === 'local' ? 'Match saved on this device.' : previous
+          ? changedSlot && league.leagueFormat === 'individual'
+            ? 'Match updated. Players with earlier replies need to confirm the new details.'
+            : 'Match updated.'
           : league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
           ? 'Published this match slot to the league schedule.'
           : 'Proposed this match time. A coordinator or participant can confirm it.',
@@ -2002,7 +2047,9 @@ function TiqLeagueDetailContent() {
     setScheduleNotes(item.notes)
     setScheduleStatus('Update the date, time, or site, then save changes.')
     window.requestAnimationFrame(() => {
-      document.getElementById('league-schedule-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const editor = document.getElementById('league-schedule-editor')
+      editor?.scrollIntoView({ block: 'start' })
+      editor?.focus({ preventScroll: true })
     })
   }
 
@@ -2409,6 +2456,11 @@ function TiqLeagueDetailContent() {
           ? 'Completed'
           : item.status
     const isCompact = mode === 'calendar'
+    const currentSnapshot = {
+      date: item.scheduledDate,
+      time: item.scheduledTime,
+      location: item.facility || league.defaultFacility || league.locationLabel,
+    }
     const responseSummary = league.leagueFormat === 'individual'
       && canReviewScheduleResponses
       && item.status !== 'proposed'
@@ -2418,11 +2470,7 @@ function TiqLeagueDetailContent() {
           eventId: `league:${league.id}:${item.id}`,
           expectedPlayerNames: [item.participantAName, item.participantBName],
           responses: scheduleResponses,
-          currentSnapshot: {
-            date: item.scheduledDate,
-            time: item.scheduledTime,
-            location: item.facility || league.defaultFacility || league.locationLabel,
-          },
+          currentSnapshot,
         })
       : null
 
@@ -2450,8 +2498,8 @@ function TiqLeagueDetailContent() {
           ) : null}
           {responseSummary ? (
             <CompetitionResponseSummary
+              key={JSON.stringify(currentSnapshot)}
               summary={responseSummary}
-              onAdjust={() => handleAdjustScheduleItem(item)}
               onRemind={session?.access_token ? () => sendCompetitionScheduleReminders({
                 accessToken: session.access_token,
                 competitionKind: 'league',
@@ -2468,6 +2516,17 @@ function TiqLeagueDetailContent() {
           <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
             {statusLabel}
           </span>
+          {canManageLeague && item.status !== 'completed' && item.status !== 'cancelled' ? (
+            <button
+              type="button"
+              onClick={() => handleAdjustScheduleItem(item)}
+              disabled={scheduleSaving}
+              style={{ ...ghostActionButton, ...(scheduleSaving ? disabledButton : {}) }}
+              aria-label={`Edit match: ${item.participantAName} vs ${item.participantBName}`}
+            >
+              Edit match
+            </button>
+          ) : null}
           {item.status !== 'completed' ? (
             <GhostLink href={resultHref}>Log result</GhostLink>
           ) : null}
@@ -2979,7 +3038,7 @@ function TiqLeagueDetailContent() {
               </div>
 
               {(canManageLeague || league.schedulingMode === 'player_arranged') ? (
-              <div id="league-schedule-editor" style={scheduleActionPanelStyle}>
+              <div id="league-schedule-editor" tabIndex={-1} style={scheduleActionPanelStyle}>
                 <div style={leagueHubHeaderStyle}>
                   <div style={leagueHubHeaderCopyStyle}>
                   <div style={formatCalloutTitle}>
@@ -3009,7 +3068,7 @@ function TiqLeagueDetailContent() {
                       style={inputStyle}
                       disabled={scheduleSaving || Boolean(scheduleEditingItemId)}
                     >
-                      <option value="">Choose participant A</option>
+                      <option value="">{editingScheduleItem?.participantAName || 'Choose participant A'}</option>
                       {scheduleParticipantOptions.map((option) => (
                         <option key={`schedule-a-${option.value}`} value={option.value}>
                           {option.playerName}
@@ -3026,7 +3085,7 @@ function TiqLeagueDetailContent() {
                       style={inputStyle}
                       disabled={scheduleSaving || Boolean(scheduleEditingItemId)}
                     >
-                      <option value="">Choose participant B</option>
+                      <option value="">{editingScheduleItem?.participantBName || 'Choose participant B'}</option>
                       {scheduleParticipantOptions.map((option) => (
                         <option key={`schedule-b-${option.value}`} value={option.value}>
                           {option.playerName}
@@ -3034,6 +3093,24 @@ function TiqLeagueDetailContent() {
                       ))}
                     </select>
                   </label>
+
+                  {canManageLeague && league.schedulingMode === 'coordinator_fixed' && seasonMatchDates.length ? (
+                    <div style={fieldLabel}>
+                      <label htmlFor="league-match-week">Choose a season week</label>
+                      <select
+                        id="league-match-week"
+                        value={seasonMatchDates.some(({ date }) => date === scheduleDate) ? scheduleDate : ''}
+                        onChange={(event) => { if (event.target.value) setScheduleDate(event.target.value) }}
+                        style={inputStyle}
+                        disabled={scheduleSaving}
+                      >
+                        <option value="">Pick a week or enter a date</option>
+                        {seasonMatchDates.map(({ week, date }) => (
+                          <option key={date} value={date}>Week {week} · {formatLeagueDate(date)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
 
                   <label style={fieldLabel}>
                     <span>Date</span>
@@ -3047,7 +3124,7 @@ function TiqLeagueDetailContent() {
                   </label>
 
                   <label style={fieldLabel}>
-                    <span>Time</span>
+                    <span>Start time · {formatLeagueTimeZone(league.scheduleTimeZone)}</span>
                     <input
                       type="time"
                       value={scheduleTime}
@@ -3057,16 +3134,21 @@ function TiqLeagueDetailContent() {
                     />
                   </label>
 
-                  <label style={{ ...fieldLabel, gridColumn: '1 / -1' }}>
-                    <span>Site</span>
-                    <input
+                  <div style={{ ...fieldLabel, gridColumn: '1 / -1' }}>
+                    <label htmlFor="league-match-site">Site</label>
+                    <VenueLocationPicker
+                      key={scheduleSiteKey}
+                      inputId="league-match-site"
                       value={scheduleFacility}
-                      onChange={(event) => setScheduleFacility(event.target.value)}
-                      placeholder={league.defaultFacility || 'Club, park, or court block'}
-                      style={inputStyle}
+                      onChange={setScheduleFacility}
+                      context={`tiq-league:${league.id}`}
+                      token={session?.access_token || ''}
+                      knownOptions={scheduleSites}
                       disabled={scheduleSaving}
+                      onSavingChange={(saving) => setSavingScheduleSite((current) =>
+                        saving ? scheduleSiteKey : current === scheduleSiteKey ? '' : current)}
                     />
-                  </label>
+                  </div>
 
                   <label style={{ ...fieldLabel, gridColumn: '1 / -1' }}>
                     <span>Notes</span>
@@ -3080,16 +3162,16 @@ function TiqLeagueDetailContent() {
                   </label>
                 </div>
 
-                {scheduleStatus ? <div style={statusBanner}>{scheduleStatus}</div> : null}
+                {scheduleStatus ? <div style={statusBanner} role="status">{scheduleStatus}</div> : null}
 
                 <div style={actionRow}>
                   <button
                     type="button"
                     onClick={handleScheduleSubmit}
-                    disabled={scheduleSaving || !userId || scheduleParticipantOptions.length < 2}
+                    disabled={!canSaveSchedule}
                     style={{
                       ...primaryButton,
-                      ...(scheduleSaving || !userId || scheduleParticipantOptions.length < 2 ? disabledButton : {}),
+                      ...(!canSaveSchedule ? disabledButton : {}),
                     }}
                   >
                     {scheduleSaving

@@ -233,7 +233,8 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    if(!current())return
    if(changed)results?.onScheduleChanged()
    if(changed&&joinWelcome?.roomId===room.id)joinWelcome.nextMatch=undefined
-   if(message&&composeTeamUpdate(room,message,kind==='lineup'?'Review your lineup, then tap Send.':'Review your reminder, then tap Send.'))return
+   if(message&&composeTeamUpdate(room,message,kind==='lineup'?'Review your lineup, then tap Send.':
+    kind==='schedule'?'Review your schedule update, then tap Send.':'Review your reminder, then tap Send.'))return
    if(changed&&joinWelcome?.roomId===room.id){
     render()
     app.querySelector<HTMLElement>('.chat-room-options > summary')?.focus({preventScroll:true})

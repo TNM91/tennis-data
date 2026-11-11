@@ -1,4 +1,4 @@
-import { formatTournamentEventDate, formatTournamentEventTime } from './tournament-event-presentation'
+import { formatTournamentEventDate, formatTournamentEventTime, tournamentCourtLabel } from './tournament-event-presentation'
 import type { TiqTournamentMatchSchedule } from './tiq-tournament-registry'
 
 export type EventScheduleChange = {
@@ -28,7 +28,7 @@ export function recordEventScheduleChange(previous: TiqTournamentMatchSchedule |
 
 export function formatEventScheduleSlot(slot: { date: string; time: string; court: string }, zone = '') {
   if (!slot.date && !slot.time && !slot.court) return 'Assignment pending'
-  return [slot.date ? formatTournamentEventDate(slot.date, true) : 'Date pending', slot.time ? formatTournamentEventTime(slot.time) : 'Time pending', zone, slot.court || 'Court pending'].filter(Boolean).join(' · ')
+  return [slot.date ? formatTournamentEventDate(slot.date, true) : 'Date pending', slot.time ? formatTournamentEventTime(slot.time) : 'Time pending', zone, tournamentCourtLabel(slot.court) || 'Court pending'].filter(Boolean).join(' · ')
 }
 
 export function buildEventScheduleNoticeMessage(name: string, label: string, schedule: TiqTournamentMatchSchedule, zone = '') {

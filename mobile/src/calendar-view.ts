@@ -767,7 +767,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
      const context=focusFromEvent('team-match:'+team.roomId)
      panel='agenda';selected=null;void refresh(context)
     }else if(button.isConnected)button.focus({preventScroll:true})
-   },()=>false,{calendarRevision:team.revision})
+   },()=>false,{calendarSchedule:{revision:team.revision,nextMatch:team.match}})
   })
   on('[data-cal-agenda]',()=>{if(linkedPractice&&panel==='delete')back();else returnFromDetails()})
   on('[data-cal-my-event]',button=>{
