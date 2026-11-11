@@ -1,4 +1,5 @@
 import {CapacitorHttp} from '@capacitor/core'
+import {teamLeagueLabel} from '../../lib/private-team-contract'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {html} from './match-details'
 import type {TeamScope} from './team-room-data'
@@ -34,8 +35,9 @@ async function loadCompeteTeams(client:SupabaseClient,owner:string,current:()=>b
   const team=item as Partial<CompeteTeam>|null
   if(!team||typeof team.teamName!=='string'||!team.teamName.trim()||typeof team.leagueName!=='string'||!team.leagueName.trim()||typeof team.flight!=='string'||typeof team.canManage!=='boolean')throw Error('Team unavailable')
   const {teamName,leagueName,flight,canManage}=team
+  const leagueLabel=typeof team.leagueLabel==='string'?team.leagueLabel.slice(0,100):undefined
   const key=teamKey({teamName,leagueName,flight})
-  if(!teams.has(key))teams.set(key,{teamName,leagueName,flight,canManage})
+  if(!teams.has(key))teams.set(key,{teamName,leagueName,leagueLabel,flight,canManage})
  }
  return Array.from(teams.values())
 }
@@ -60,7 +62,7 @@ export function mountCompeteTeams(section:HTMLElement,client:SupabaseClient,owne
     return
    }
    list.innerHTML=teams.map((team,index)=>{
-    const caption=[team.leagueName,team.flight].filter(Boolean).join(' · ')
+    const caption=[teamLeagueLabel(team),team.flight].filter(Boolean).join(' · ')
     const teamActions:CompeteTeamAction[]=firstPartyBuild?['chat']:team.canManage?['match','plans','captain']:['match','plans']
     return `<article class="compete-team-card" aria-labelledby="compete-team-${index}">
      <h3 id="compete-team-${index}">${html(team.teamName)}</h3><p>${html(caption)}</p>

@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildTeamRoomScopeId, canManageTeamRoom, type TeamRoomScope } from './team-room'
+import { privateTeamLeagueKey, privateTeamRoomId, readPrivateTeamInput } from './private-team-contract'
 
-export type ReviewedTeamRoom = TeamRoomScope & { roomId: string }
+export type ReviewedTeamRoom = TeamRoomScope & { roomId: string; scheduleLeagueId?: string; leagueLabel?: string }
 type FirstPartyTeamLink = TeamRoomScope & { isCaptain: boolean }
 type ReviewedTeamLink = ReviewedTeamRoom & Pick<FirstPartyTeamLink, 'isCaptain'>
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i
@@ -22,8 +23,11 @@ export function readReviewedTeamRooms(config: string | undefined): ReadonlyMap<s
         !uuid.test(row.roomId) || [row.teamName, row.leagueName, row.flight].some(text => /[\u0000-\u001f\u007f]/.test(text))) {
       throw Error('Invalid reviewed team')
     }
-    const { teamName, leagueName, flight, roomId } = row
-    const room = { teamName, leagueName, flight, roomId: roomId.toLowerCase() }
+    const { teamName, leagueName, flight, roomId, scheduleLeagueId } = row
+    if (scheduleLeagueId !== undefined && (typeof scheduleLeagueId !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(scheduleLeagueId))) {
+      throw Error('Invalid reviewed team season')
+    }
+    const room = { teamName, leagueName, flight, roomId: roomId.toLowerCase(), ...(scheduleLeagueId ? { scheduleLeagueId } : {}) }
     const key = scopeKey(room)
     if (rooms.has(key) || ids.has(room.roomId)) throw Error('Ambiguous reviewed team')
     rooms.set(key, room)
@@ -34,6 +38,24 @@ export function readReviewedTeamRooms(config: string | undefined): ReadonlyMap<s
 
 export function reviewedTeamRoom(rooms: ReadonlyMap<string, ReviewedTeamRoom>, scope: TeamRoomScope) {
   return rooms.get(scopeKey(scope))
+}
+
+async function loadPrivateRooms(service: SupabaseClient, ids: string[]) {
+  if (!ids.length) return []
+  const { data, error } = await service.from('native_private_teams').select('room_id,team_name,league_label,flight').in('room_id', ids).limit(ids.length)
+  if (error || !Array.isArray(data)) throw Error('Private teams unavailable')
+  return data.flatMap(row => {
+    const team = readPrivateTeamInput({ id: row.room_id, teamName: row.team_name, leagueLabel: row.league_label, flight: row.flight })
+    if (!team || !ids.includes(team.id)) return []
+    return [{ roomId: team.id, teamName: team.teamName, leagueName: privateTeamLeagueKey(team.id), leagueLabel: team.leagueLabel, flight: team.flight }]
+  })
+}
+
+export async function resolveFirstPartyTeamRoom(service: SupabaseClient, rooms: ReadonlyMap<string, ReviewedTeamRoom>, scope: TeamRoomScope) {
+  const id = privateTeamRoomId(scope.leagueName)
+  if (!id) return reviewedTeamRoom(rooms, scope)
+  const [room] = await loadPrivateRooms(service, [id])
+  return room && scopeKey(room) === scopeKey(scope) ? room : undefined
 }
 
 async function loadFirstPartyTeamLinks(service: SupabaseClient, owner: string): Promise<FirstPartyTeamLink[]> {
@@ -51,18 +73,19 @@ async function loadFirstPartyTeamLinks(service: SupabaseClient, owner: string): 
   })
 }
 
-function matchReviewedTeamLinks(links: FirstPartyTeamLink[], rooms: ReadonlyMap<string, ReviewedTeamRoom>) {
+async function matchReviewedTeamLinks(service: SupabaseClient, links: FirstPartyTeamLink[], rooms: ReadonlyMap<string, ReviewedTeamRoom>) {
+  const privateIds = [...new Set(links.map(link => privateTeamRoomId(link.leagueName)).filter(Boolean))]
+  const privateRooms = new Map((await loadPrivateRooms(service, privateIds)).map(room => [scopeKey(room), room]))
   const accepted = new Map<string, ReviewedTeamLink>()
   for (const link of links) {
-    const room = reviewedTeamRoom(rooms, link)
+    const room = privateTeamRoomId(link.leagueName) ? privateRooms.get(scopeKey(link)) : reviewedTeamRoom(rooms, link)
     if (room) accepted.set(room.roomId, { ...room, isCaptain: link.isCaptain })
   }
   return [...accepted.values()]
 }
 
 export async function loadReviewedTeamLinks(service: SupabaseClient, owner: string, rooms: ReadonlyMap<string, ReviewedTeamRoom>) {
-  if (!rooms.size) return []
-  return matchReviewedTeamLinks(await loadFirstPartyTeamLinks(service, owner), rooms)
+  return matchReviewedTeamLinks(service, await loadFirstPartyTeamLinks(service, owner), rooms)
 }
 
 export async function loadEligibleCaptainRoomIds(service: SupabaseClient, owner: string, reviewed: ReviewedTeamLink[]) {
@@ -84,13 +107,16 @@ export async function loadEligibleCaptainRoomIds(service: SupabaseClient, owner:
     participating.has(link.roomId) && !removed.has(link.roomId)).map(link => link.roomId)
 }
 
-export async function loadCaptainChatSetupStatus(service: SupabaseClient, owner: string, rooms: ReadonlyMap<string, ReviewedTeamRoom>) {
+export async function loadCaptainChatSetup(service: SupabaseClient, owner: string, rooms: ReadonlyMap<string, ReviewedTeamRoom>) {
   const links = await loadFirstPartyTeamLinks(service, owner)
-  if (!links.some(link => link.isCaptain)) return 'needs-team' as const
-  const reviewed = matchReviewedTeamLinks(links, rooms).filter(link => link.isCaptain)
-  if (!reviewed.length) return 'needs-review' as const
-  const ready = await loadEligibleCaptainRoomIds(service, owner, reviewed)
-  return ready.length ? 'ready' as const : 'needs-room-access' as const
+  if (!links.some(link => link.isCaptain)) return { captainChatSetup: 'needs-team' }
+  const reviewed = (await matchReviewedTeamLinks(service, links, rooms)).filter(link => link.isCaptain)
+  if (!reviewed.length) return { captainChatSetup: 'needs-review' }
+  const eligible = new Set(await loadEligibleCaptainRoomIds(service, owner, reviewed))
+  if (!eligible.size) return { captainChatSetup: 'needs-room-access' }
+  const captainInviteTeams = reviewed.filter(link => eligible.has(link.roomId))
+    .map(({ teamName, leagueName, flight, leagueLabel }) => ({ teamName, leagueName, flight, leagueLabel }))
+  return { captainChatSetup: 'ready', captainInviteTeams }
 }
 
 export async function findReviewedTeamConversation(service: SupabaseClient, room: ReviewedTeamRoom) {

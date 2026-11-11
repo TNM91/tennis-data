@@ -2,23 +2,28 @@ import {namedChatRoomId,namedChatRoomName,type NamedChatRoom} from '../../lib/na
 import {readChatMentions,type ChatMention} from '../../lib/team-chat-mentions'
 import {readTeamChatCursor,teamChatMessageId} from '../../lib/team-chat-cursor'
 import {captainChatSetupMessages,type CaptainChatSetupStatus} from '../../lib/setup-trophies'
+import {fixtureId,readReviewedNextMatch,type ReviewedNextMatch,type TeamNextMatchChange} from '../../lib/team-fixtures-contract'
 import {parseChatReactions,type ChatReaction} from './chat-reactions'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {firstPartyBuild} from './build-scope'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 export class TeamRoomAccessError extends Error {}
-export type TeamScope={teamName:string;leagueName:string;flight:string;chatRoomId?:string}
-export type TeamChatDestination=TeamScope & {messageId?:string}
+export type TeamScope={teamName:string;leagueName:string;leagueLabel?:string;flight:string;chatRoomId?:string}
+export type CaptainChatSetup={status:CaptainChatSetupStatus;inviteTeams:TeamScope[]}
+export type TeamChatDestination=TeamScope & {messageId?:string;joinedRoomId?:string}
 export type ReplacementRequest={courtLabel:string;outgoingPlayerName:string;replacementPlayerName:string;afterPlayers:string[];response:'accepted'|'declined'|'';deadlineAt:string;token:string;canRespond:boolean}
 export function parseReplacement(value:unknown):ReplacementRequest|null{const row=record(value);if(!str(row.courtLabel)||!str(row.replacementPlayerName)||!Array.isArray(row.afterPlayers)||!/^[a-f0-9]{64}$/.test(str(row.token)))return null;const response=row.response==='accepted'||row.response==='declined'?row.response:'';return {courtLabel:str(row.courtLabel).slice(0,80),outgoingPlayerName:str(row.outgoingPlayerName).slice(0,120),replacementPlayerName:str(row.replacementPlayerName).slice(0,120),afterPlayers:row.afterPlayers.filter((v):v is string=>typeof v==='string').slice(0,4).map(v=>v.slice(0,120)),response,deadlineAt:str(row.deadlineAt).slice(0,40),token:str(row.token),canRespond:row.canRespond===true&&!response}}
 export type TeamMessage={mentions?:ChatMention[];editedAt?:string;canManageOwn?:boolean;response?:string;hasPhoto?:boolean;isGif?:boolean;reactions?:ChatReaction[];id:string;senderUserId:string;senderName:string;body:string;kind:string;createdAt:string;deletedAt:string;isMine:boolean;replyToMessageId:string;hasAttachment:boolean;card:{availabilityReady?:boolean;replacement?:ReplacementRequest|null;cardType?:string;lineupVersion?:number;acknowledged?:boolean;completed?:boolean;published?:boolean;arrivals?:{profileId:string;status:string;playerName:string;courtLabel:string}[];matchDate:string;opponent:string;facility:string;matchTime:string;state:string;lineup:{label:string;players:string[];defaulted:boolean}[]}|null}
-export type NativeTeamRoom=TeamScope & {chatRoom?:NamedChatRoom;canManage?:boolean;canInviteTeammates?:boolean;id:string;subject:string;messages:TeamMessage[];members:{id?:string;playerName?:string;name:string;roles:string[]}[];finalLineupReview?:{announcementMessageId:string;currentUserRequired:boolean;currentUserSeen:boolean}|null;nextMatch:{matchDate:string;matchTime:string;opponent:string;facility:string}|null;activeCardId:string;activeCard:TeamMessage|null;muted:boolean;chatReady:boolean;lastReadAt:string;blockedMembers:{id:string;name:string}[]}
+export type NativeTeamRoom=TeamScope & {chatRoom?:NamedChatRoom;canManage?:boolean;canInviteTeammates?:boolean;scheduleLinked?:boolean;manualFixture?:boolean;canScheduleMatch?:boolean;id:string;subject:string;messages:TeamMessage[];members:{id?:string;playerName?:string;name:string;roles:string[]}[];finalLineupReview?:{announcementMessageId:string;currentUserRequired:boolean;currentUserSeen:boolean}|null;nextMatch:{matchDate:string;matchTime:string;opponent:string;facility:string}|null;activeCardId:string;activeCard:TeamMessage|null;muted:boolean;chatReady:boolean;lastReadAt:string;blockedMembers:{id:string;name:string}[]}
 export type NativeTeamData={teams:TeamScope[];room:NativeTeamRoom|null;nextCursor?:string}
 const record=(value:unknown):Record<string,unknown>=>value && typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{}
 const str=(value:unknown)=>typeof value==='string'?value:''
 const array=(value:unknown)=>Array.isArray(value)?value:[]
-const scope=(value:unknown):TeamScope=>{const row=record(value);return {teamName:str(row.teamName),leagueName:str(row.leagueName),flight:str(row.flight)}}
+const scope=(value:unknown):TeamScope=>{
+ const row=record(value),leagueLabel=str(row.leagueLabel).slice(0,100)
+ return {teamName:str(row.teamName),leagueName:str(row.leagueName),...(leagueLabel?{leagueLabel}:{}),flight:str(row.flight)}
+}
 export function parseTeamData(value:unknown):NativeTeamData {
  const root=record(value)
  if(root.ok!==true || !Array.isArray(root.teams) || (root.room!==null && !root.room))throw Error('Invalid team response')
@@ -52,9 +57,61 @@ export async function loadTeamRoom(client:SupabaseClient,userId:string,isCurrent
  if(!firstPartyBuild||!parsed.room)return parsed
  const nextCursor=str(record(response.data).nextCursor)
  if(nextCursor&&!readTeamChatCursor(nextCursor))throw Error('Invalid conversation page')
+ const room=record(record(response.data).room)
+ if(room.scheduleLinked===true)parsed.room.scheduleLinked=true
+ if(room.manualFixture===true&&!parsed.room.scheduleLinked){
+  parsed.room.manualFixture=true
+  parsed.room.canScheduleMatch=room.canScheduleMatch===true
+ }
  return {...parsed,nextCursor}
 }
-export async function loadCaptainChatSetup(client:SupabaseClient,userId:string,isCurrent:()=>boolean):Promise<CaptainChatSetupStatus> {
+export type TeamNextMatchSchedule={revision:string|null;nextMatch:ReviewedNextMatch|null}
+export class TeamNextMatchError extends Error {
+ constructor(message:string,readonly uncertain=false,readonly status=0){super(message)}
+}
+export async function teamNextMatchRequest(client:SupabaseClient,userId:string,current:()=>boolean,room:NativeTeamRoom,change?:TeamNextMatchChange):Promise<TeamNextMatchSchedule> {
+ const {data,error}=await client.auth.getSession()
+ if(!firstPartyBuild||(!room.scheduleLinked&&!room.manualFixture)||error||data.session?.user.id!==userId||!current())
+  throw new TeamNextMatchError('Sign in again to view the next match.')
+ if(change&&!room.canScheduleMatch)throw new TeamNextMatchError('Captain access is required.')
+ const {teamName,leagueName,flight}=room
+ const query=new URLSearchParams({op:'next-match',team:teamName,league:leagueName,flight})
+ const headers={Authorization:`Bearer ${data.session.access_token}`}
+ const options={responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:15000}
+ const unavailable=()=>new TeamNextMatchError(change?'The save could not be confirmed. Retry the same change.':'Couldn’t load the next match. Try again.',Boolean(change))
+ let response
+ try{
+  response=change
+   ?await CapacitorHttp.post({...options,url:firstPartyTeamRooms,headers:{...headers,'Content-Type':'application/json'},
+    data:{action:'set_next_match',teamName,leagueName,flight,roomId:room.id,...change}})
+   :await CapacitorHttp.get({...options,url:firstPartyTeamRooms+'?'+query,headers})
+ }catch{throw unavailable()}
+ if(!current())throw unavailable()
+ if(response.status===409)throw new TeamNextMatchError('The match changed. Reload the latest match before editing.')
+ if(response.status===401||response.status===403)throw new TeamNextMatchError('Your team access could not be confirmed.')
+ if(response.status===400&&change)throw new TeamNextMatchError('Choose an upcoming match date and a valid venue time.',false,400)
+ const result=record(response.data)
+ if(response.status!==200||result.ok!==true||result.roomId!==room.id||!matchesTeamReleaseScope(result,userId))throw unavailable()
+ const revision=result.revision??null,nextMatch=readReviewedNextMatch(result.nextMatch)
+ if(revision!==null&&!fixtureId(revision)||result.nextMatch!==null&&!nextMatch||
+    change&&(revision!==change.revision||JSON.stringify(nextMatch)!==JSON.stringify(change.nextMatch)))throw unavailable()
+ return {revision,nextMatch}
+}
+function parseCaptainInviteTeams(value:unknown):TeamScope[] {
+ if(!Array.isArray(value)||value.length>50)return []
+ const teams:TeamScope[]=[],seen=new Set<string>()
+ for(const entry of value){
+  const row=record(entry),team=scope(row)
+  if(!team.teamName.trim()||team.teamName.length>160||!team.leagueName.trim()||team.leagueName.length>160||
+     typeof row.flight!=='string'||team.flight.length>80)return []
+  const key=JSON.stringify(team)
+  if(seen.has(key))return []
+  seen.add(key)
+  teams.push(team)
+ }
+ return teams
+}
+export async function loadCaptainChatSetup(client:SupabaseClient,userId:string,isCurrent:()=>boolean):Promise<CaptainChatSetup> {
  const {data,error}=await client.auth.getSession()
  if(!firstPartyBuild||error||data.session?.user.id!==userId||!isCurrent())throw Error('Captain chat access unavailable')
  const response=await CapacitorHttp.get({
@@ -64,7 +121,10 @@ export async function loadCaptainChatSetup(client:SupabaseClient,userId:string,i
  const status=response.data?.captainChatSetup
  if(!isCurrent()||response.status!==200||response.data?.ok!==true||!matchesTeamReleaseScope(response.data,userId)||
     typeof status!=='string'||!Object.hasOwn(captainChatSetupMessages,status))throw Error('Captain chat access unavailable')
- return status as CaptainChatSetupStatus
+ return {
+  status:status as CaptainChatSetupStatus,
+  inviteTeams:status==='ready'?parseCaptainInviteTeams(response.data.captainInviteTeams):[],
+ }
 }
 
 export async function loadTeamChatUpdate(client:SupabaseClient,userId:string,isCurrent:()=>boolean,selected:TeamScope,roomId:string,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options),before='',focus='') {

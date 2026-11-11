@@ -66,16 +66,34 @@ const matchDayFixture={enabled:new URL(location.href).searchParams.has('match-da
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
 const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
-const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false,captainChatSetup:'needs-review'}
+const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false,
+ captainChatSetup:'needs-review',captainInviteTeams:undefined as (typeof chatTeam)[]|undefined}
 const setupFixture={done:[] as string[],requests:0,competitionProfileLinked:undefined as boolean|undefined,
  competitionTrophies:[
   {id:'city-league-award',kind:'league',placement:'first',name:'City League',division:'Fall · 4.5',awardedOn:'2026-11-10'},
   {id:'fall-open-award',kind:'tournament',placement:'first',name:'Fall Open',division:'Men’s 4.5',awardedOn:'2026-11-10'},
  ] as unknown}
 const captainInvitesEnabled=new URL(location.href).searchParams.has('captain-invites')
+const privateTeamFlow=new URL(location.href).searchParams.has('create-team')
+let privateTeam:(typeof chatTeam&{id:string;leagueLabel:string})|null=null
+const linkedSchedule=new URL(location.href).searchParams.get('team-schedule')
+const manualScheduleFixture={enabled:new URL(location.href).searchParams.has('manual-team-schedule'),captain:true,
+ revision:null as string|null,nextMatch:null as Record<string,unknown>|null,loseNextSave:true,writes:[] as string[],
+ reply:null as {id:string;choice:string}|null,loseNextReply:true,replyWrites:[] as string[],
+ extraPlayers:[] as {id:string;name:string;choice:string|null}[],
+ savedLineup:null as {version:string;courts:{format:string;players:string[]}[];names:Record<string,string>}|null,
+ loseNextLineupSave:true,lineupWrites:[] as string[]}
+const manualLineupRoster=()=>[{id:'10000000-0000-4000-8000-000000000001',name:'Alex',choice:manualScheduleFixture.reply?.choice??null},
+ {id:'10000000-0000-4000-8000-000000000002',name:'Casey',choice:null},...manualScheduleFixture.extraPlayers]
+const teamResultFixture={
+ fixtureId:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+ match:{opponent:'Topspin Club',date:'2026-11-01',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
+ score:null as {revision:string;won:number;lost:number;courtScores?:string[]}|null,loseNextSave:true,writes:[] as string[],
+}
 let captainInvite:{id:string;token:string;expiresAt:string;revokedAt:string|null;acceptedCount:number;active:boolean}|null=null
+let firstPartyTeamJoined=false
 const firstPartyTeamMessages=[{id:'66666666-6666-4666-8666-666666666666',senderUserId:'77777777-7777-4777-8777-777777770E4A',senderName:'Teammate 0E4A',body:'Anyone up for a hit on Friday?',kind:'message',createdAt:'2026-11-06T10:00:00.000Z',isMine:false}]
-Object.assign(window,{firstPartyTeamFixture,setupFixture})
+Object.assign(window,{firstPartyTeamFixture,setupFixture,manualScheduleFixture,teamResultFixture})
 Object.assign(window,{chatUnreadFixture,matchDayFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPaths,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,firstPartyUpdatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture,labDataReads,personalMatchFixture})
 window.fetch=async(input,init)=>{
@@ -98,10 +116,80 @@ window.fetch=async(input,init)=>{
   firstPartyTeamFixture.requests.push(op)
   const base={ok:true,owner,releaseScope:firstPartyTeamFixture.unscoped?undefined:'first-party'}
   if(op==='unread')return Response.json({...base,total:0,teams:[],coach:coachUnreadCounts(owner)})
-  if(op==='captain-setup')return Response.json({...base,captainChatSetup:firstPartyTeamFixture.captainChatSetup})
-  const teams=chatTeams().map(team=>({...team,canManage:false}))
+  if(op==='captain-setup')return Response.json({...base,captainChatSetup:firstPartyTeamFixture.captainChatSetup,
+   captainInviteTeams:firstPartyTeamFixture.captainInviteTeams})
+  const teams=(privateTeamFlow?(privateTeam?[privateTeam]:[]):chatTeams()).map(team=>({...team,canManage:false}))
   if(init?.method==='POST'){
    const action=JSON.parse(String(init.body))
+   if(action.action==='save_match_lineup'){
+    const fixture=manualScheduleFixture
+    if(!fixture.captain||owner!==navigationOwner||action.roomId!==chatRoomId)return Response.json({ok:false},{status:403})
+    if(!fixture.nextMatch||action.revision!==fixture.revision)return Response.json({ok:false},{status:409})
+    fixture.lineupWrites.push(action.version)
+    if(action.version!==fixture.savedLineup?.version){
+     if(action.expected!==(fixture.savedLineup?.version??null))return Response.json({ok:false},{status:409})
+     const players=new Set<string>(action.courts.flatMap((court:{players:string[]})=>court.players))
+     const names=Object.fromEntries(manualLineupRoster().filter(player=>players.has(player.id)&&player.choice!=='out')
+      .map(player=>[player.id,player.name]))
+     if(Object.keys(names).length!==players.size)return Response.json({ok:false},{status:409})
+     fixture.savedLineup={version:action.version,courts:action.courts,names}
+     if(fixture.loseNextLineupSave){fixture.loseNextLineupSave=false;return Response.json({ok:false},{status:503})}
+    }
+    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,lineup:fixture.savedLineup})
+   }
+   if(action.action==='save_team_result'){
+    const fixture=teamResultFixture
+    if(!manualScheduleFixture.enabled||!manualScheduleFixture.captain||owner!==navigationOwner||action.roomId!==chatRoomId||
+       action.teamName!==chatTeam.teamName||action.leagueName!==chatTeam.leagueName||action.flight!==chatTeam.flight)
+     return Response.json({ok:false},{status:403})
+    if(action.fixtureId!==fixture.fixtureId)return Response.json({ok:false},{status:409})
+    fixture.writes.push(action.revision)
+    if(action.revision!==fixture.score?.revision){
+     if(action.expected!==(fixture.score?.revision??null))return Response.json({ok:false},{status:409})
+     fixture.score={revision:action.revision,won:action.won,lost:action.lost,
+      ...(Array.isArray(action.courtScores)?{courtScores:action.courtScores}:{})}
+     if(fixture.loseNextSave){fixture.loseNextSave=false;return Response.json({ok:false},{status:503})}
+    }
+    return Response.json({...base,roomId:chatRoomId,fixtureId:fixture.fixtureId,score:fixture.score})
+   }
+   if(action.action==='create_private_team'){
+    if(!privateTeamFlow||owner!==navigationOwner)return Response.json({ok:false},{status:403})
+    firstPartyTeamFixture.requests.push('create:'+action.id)
+    if(!privateTeam){
+     privateTeam={id:action.id,teamName:action.teamName,leagueName:'Private team '+action.id,leagueLabel:action.leagueLabel,flight:action.flight}
+     return Response.json({ok:false},{status:503})
+    }
+    if(action.id!==privateTeam.id)return Response.json({ok:false},{status:409})
+    return Response.json({...base,roomId:privateTeam.id,team:privateTeam})
+   }
+   if(action.action==='set_next_match'){
+    const fixture=manualScheduleFixture
+    if(!fixture.enabled||!fixture.captain||owner!==navigationOwner||action.roomId!==chatRoomId||
+       action.teamName!==chatTeam.teamName||action.leagueName!==chatTeam.leagueName||action.flight!==chatTeam.flight)
+     return Response.json({ok:false},{status:403})
+    fixture.writes.push(action.revision)
+    if(action.revision!==fixture.revision){
+     if(action.expected!==fixture.revision)return Response.json({ok:false},{status:409})
+     if(fixture.nextMatch?.opponent!==action.nextMatch?.opponent||fixture.nextMatch?.date!==action.nextMatch?.date)fixture.savedLineup=null
+     fixture.revision=action.revision
+     fixture.nextMatch=action.nextMatch
+     fixture.reply=null
+     if(fixture.loseNextSave){fixture.loseNextSave=false;return Response.json({ok:false},{status:503})}
+    }
+    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,nextMatch:fixture.nextMatch})
+   }
+   if(action.action==='reply_next_match'){
+    const fixture=manualScheduleFixture
+    if(!fixture.enabled||action.roomId!==chatRoomId||!fixture.nextMatch||fixture.revision!==action.revision)
+     return Response.json({ok:false},{status:409})
+    fixture.replyWrites.push(action.id)
+    if(fixture.reply?.id!==action.id){
+     if((fixture.reply?.id??null)!==action.expected)return Response.json({ok:false},{status:409})
+     fixture.reply={id:action.id,choice:action.choice}
+     if(fixture.loseNextReply){fixture.loseNextReply=false;return Response.json({ok:false},{status:503})}
+    }
+    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,reply:fixture.reply})
+   }
    if(action.action==='mark_chat_read')return Response.json(base)
    if(action.action!=='send')return Response.json({ok:false},{status:400})
    firstPartyTeamFixture.posts.push(action.body)
@@ -110,8 +198,35 @@ window.fetch=async(input,init)=>{
    return Response.json({...base,message})
   }
   const team=teams.find(item=>item.teamName===url.searchParams.get('team')&&item.leagueName===url.searchParams.get('league')&&item.flight===url.searchParams.get('flight'))
-  const room=team?{...team,id:chatRoomId,chatReady:true,canInviteTeammates:captainInvitesEnabled&&owner===navigationOwner,
-   lastReadAt:'2026-11-06T10:00:00.000Z',members:[],messages:firstPartyTeamMessages}:null
+  if(op==='team-results'){
+   if(!team||!manualScheduleFixture.enabled)return Response.json({ok:false},{status:403})
+   const canEdit=manualScheduleFixture.captain&&owner===navigationOwner
+   const {fixtureId,match,score}=teamResultFixture
+   const plannedLineup=canEdit&&fixtureId===manualScheduleFixture.revision?manualScheduleFixture.savedLineup:null
+   const record={wins:Number(Boolean(score&&score.won>score.lost)),losses:Number(Boolean(score&&score.won<score.lost)),
+    ties:Number(Boolean(score&&score.won===score.lost))}
+   return Response.json({...base,roomId:chatRoomId,results:{canEdit,entries:canEdit||score?[{fixtureId,match,score,plannedLineup}]:[],more:false,record}})
+  }
+  if(op==='match-replies'){
+   const fixture=manualScheduleFixture
+   if(!team||!fixture.enabled||!fixture.nextMatch||fixture.revision!==url.searchParams.get('revision'))return Response.json({ok:false},{status:409})
+   const lineupRoster=manualLineupRoster()
+   const teamReplies=lineupRoster.filter(player=>player.choice).map(({name,choice})=>({name,choice}))
+   const awaiting=lineupRoster.filter(player=>player.choice===null).map(player=>player.name)
+   return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,replies:{own:fixture.reply,
+    ...(fixture.captain&&owner===navigationOwner?{team:teamReplies,awaiting,awaitingTeammates:awaiting.length,rosterComplete:true,lineupRoster,
+     savedLineup:fixture.savedLineup}:{})}})
+  }
+  if(op==='next-match'){
+   if(team&&linkedSchedule)return Response.json({...base,roomId:chatRoomId,revision:null,
+    nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'}})
+   if(team&&manualScheduleFixture.enabled)return Response.json({...base,roomId:chatRoomId,
+    revision:manualScheduleFixture.revision,nextMatch:manualScheduleFixture.nextMatch})
+   return Response.json({ok:false},{status:403})
+  }
+  const room=team?{...team,id:privateTeam?.id??chatRoomId,chatReady:true,canInviteTeammates:(captainInvitesEnabled||privateTeamFlow)&&owner===navigationOwner,
+   scheduleLinked:Boolean(linkedSchedule),manualFixture:manualScheduleFixture.enabled,canScheduleMatch:manualScheduleFixture.captain&&owner===navigationOwner,
+   lastReadAt:'2026-11-06T10:00:00.000Z',members:[],messages:privateTeamFlow?[]:firstPartyTeamMessages}:null
   return Response.json({...base,teams,room,nextCursor:''})
  }
  // Track tool-driven traffic separately from the independent live unread counter.
@@ -122,10 +237,11 @@ window.fetch=async(input,init)=>{
   const release=url.pathname.includes('/first-party/')?{releaseScope:'first-party',owner:currentNavigationOwner()}:{}
   if(release.releaseScope)firstPartyTeamFixture.requests.push('invite:'+command.action)
   if(['list','create','revoke'].includes(command.action)){
-   if(!release.releaseScope||!captainInvitesEnabled||release.owner!==navigationOwner||
-    command.teamName!==chatTeam.teamName||command.leagueName!==chatTeam.leagueName||command.flight!==chatTeam.flight)
+   const inviteScope=privateTeam??chatTeam
+   if(!release.releaseScope||!(captainInvitesEnabled||privateTeamFlow)||release.owner!==navigationOwner||
+    command.teamName!==inviteScope.teamName||command.leagueName!==inviteScope.leagueName||command.flight!==inviteScope.flight)
     return Response.json({ok:false},{status:403})
-   const receipt={...release,ok:true,nativeCaptainInvites:1,action:command.action,scope:chatTeam}
+   const receipt={...release,ok:true,nativeCaptainInvites:1,action:command.action,scope:inviteScope}
    if(command.action==='list')return Response.json({...receipt,invites:captainInvite?[captainInvite]:[]})
    if(command.action==='create'&&!captainInvite)captainInvite={id:command.id,token:'44444444-4444-4444-8444-444444444444',
     expiresAt:'2030-01-01T00:00:00Z',revokedAt:null,acceptedCount:0,active:true}
@@ -137,9 +253,10 @@ window.fetch=async(input,init)=>{
   const expected={...scope,inviteId:'55555555-5555-4555-8555-555555555555',creatorId:navigationOwner}
   if(command.token!=='44444444-4444-4444-8444-444444444444')return Response.json({ok:false,message:'Invite unavailable.'},{status:404})
   fixtureState.teamInviteActions.push(command.action)
-  if(command.action==='preview')return Response.json({ok:true,nativeTeamInvite:1,review:{...scope,expected,linkVersion:'v1',alreadyJoined:false},...release})
+  if(command.action==='preview')return Response.json({ok:true,nativeTeamInvite:1,review:{...scope,expected,linkVersion:'v1',alreadyJoined:!!release.releaseScope&&firstPartyTeamJoined},...release})
   if(command.action!=='join'||JSON.stringify(command.expected)!==JSON.stringify({invite:expected,linkVersion:'v1'}))return Response.json({ok:false,message:'Invite changed.'},{status:409})
   chatUnreadFixture.detailed=true
+  if(release.releaseScope)firstPartyTeamJoined=true
   return Response.json({ok:true,nativeTeamInvite:1,joined:true,roomId:chatRoomId,scope,...release})
  }
  if(url.pathname==='/api/mobile/coach/alerts'){if(init?.method==='POST'){nativeCoachAlertFixture.enabled=JSON.parse(String(init.body)).enabled;nativeCoachAlertFixture.writes.push(nativeCoachAlertFixture.enabled)}return Response.json({ok:true,owner:currentNavigationOwner(),enabled:nativeCoachAlertFixture.enabled,available:true})}

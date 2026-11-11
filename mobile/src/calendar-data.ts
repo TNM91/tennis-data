@@ -4,7 +4,7 @@ import {calendarObject as obj,calendarText as text,calendarId as id,calendarDate
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 import type {PlayerCompetitionScheduleEvent} from '../../lib/player-competition-schedule'
 import {buildTennisCalendarFeed} from '../../lib/tiq-league-schedule-calendar'
-import {eventCalendarStart} from '../../lib/calendar-date'
+import {eventCalendarStart,isValidCalendarDate} from '../../lib/calendar-date'
 import {resolveCalendarLocation} from '../../lib/calendar-location'
 import {buildPracticeCalendarRange} from '../../lib/captain-practice-rsvp'
 import type {CalendarTeamPractice} from '../../lib/native-calendar-practices-contract'
@@ -112,11 +112,11 @@ export function calendarExport(entries:CalendarOccurrence[],zone:string){
  return buildTennisCalendarFeed(exportableCalendarOccurrences(entries).map(e=>{const range=e.source==='team'?buildPracticeCalendarRange(e.date,e.time,e.endTime):null,duration=range?(Number(range.end.slice(9,11))*60+Number(range.end.slice(11,13)))-(Number(range.start.slice(9,11))*60+Number(range.start.slice(11,13))):e.source==='coach'&&e.kind==='lesson'?60:90;return {id:e.key,title:e.title,date:e.date,time:e.time,location:e.location,description:[e.detail,e.readiness,e.recurring?'One occurrence from a repeating personal entry.':''].filter(Boolean).join('\n'),durationMinutes:duration}}),{calendarName:'TenAceIQ · Your tennis',timeZone:zone,includeEventUrls:false})
 }
 
-export function calendarMatchExport(event:CalendarOccurrence,zone:string){
+export function calendarMatchExport(event:Pick<CalendarOccurrence,'key'|'title'|'date'|'time'|'location'>,zone:string,{allowDateOnly=false}={}){
  const startsAt=eventCalendarStart(event.date,event.time.slice(0,5),zone)
- if(!startsAt)return null
+ if(!startsAt&&(!allowDateOnly||event.time||!isValidCalendarDate(event.date)))return null
  const {key:id,title,date,location}=event
- return buildTennisCalendarFeed([{id,title,date,location,startsAt}],{calendarName:'TenAceIQ · Your tennis',timeZone:zone,includeEventUrls:false})
+ return buildTennisCalendarFeed([{id,title,date,location,...(startsAt?{startsAt}:{})}],{calendarName:'TenAceIQ · Your tennis',timeZone:zone,includeEventUrls:false})
 }
 
 export function calendarMatchVenueHref(match:PlayerCompetitionScheduleEvent){

@@ -2,12 +2,21 @@ import {describe,it,expect,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {readCalendarPractices,type CalendarTeamPractice} from '../native-calendar-practices-contract'
 import {calendarPracticesRequest,loadCalendarSources} from '../../mobile/src/calendar-practices-data'
-import {calendarOccurrences,calendarExport,exportableCalendarOccurrences} from '../../mobile/src/calendar-data'
+import {calendarOccurrences,calendarExport,calendarMatchExport,exportableCalendarOccurrences} from '../../mobile/src/calendar-data'
 import type {NativeCalendar} from '../native-calendar-contract'
 const owner='11111111-1111-4111-8111-111111111111',range={from:'2026-10-26',to:'2026-11-01'}
 const practice:CalendarTeamPractice={id:'44444444-4444-4444-8444-444444444444',title:'Return + first ball',date:'2026-10-31',time:'18:00',endTime:'20:15',location:'Court 2',status:'confirmed',response:'waitlist',captainConfirmed:false,scope:{teamName:'Aces',leagueName:'City',flight:'4.0'}}
 const response=(practices:unknown[]=[practice])=>({ok:true,owner,range,practices})
 const calendar=():NativeCalendar=>({owner,range,personal:[],competitions:[],coach:[],warnings:[]})
+it('exports a date-only match when requested and rejects a start time that does not exist in the venue zone',()=>{
+ const match={key:'team-match-one',title:'Aces vs Topspin',date:'2026-03-08',time:'',location:'Court 4'}
+ expect(calendarMatchExport(match,'America/Chicago')).toBeNull()
+ const ics=calendarMatchExport(match,'America/Chicago',{allowDateOnly:true})
+ expect(ics).toContain('DTSTART;VALUE=DATE:20260308\r\nDTEND;VALUE=DATE:20260309')
+ expect(ics).toContain('LOCATION:Court 4')
+ expect(ics).not.toContain('\r\nURL:')
+ expect(calendarMatchExport({...match,time:'02:30'},'America/Chicago',{allowDateOnly:true})).toBeNull()
+})
 function session(){let who=owner;const client={auth:{getSession:vi.fn(async()=>({data:{session:{user:{id:who},access_token:'synthetic-token'}},error:null}))}} as unknown as SupabaseClient;return {client,switchOwner(){who='another-owner'}}}
 describe('team practice calendar transport and export',()=>{
  it('validates owner, date window, event uniqueness, exact scopes, times and response consistency',()=>{

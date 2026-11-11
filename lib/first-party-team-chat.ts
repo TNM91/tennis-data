@@ -11,7 +11,7 @@ import { markTeamChatRead } from './team-chat-read'
 
 const nameFor = (id: string, owner: string) => id === owner ? 'You' : `Teammate ${id.slice(-4).toUpperCase()}`
 const fault = (status: number) => ({ ok: false as const, status })
-const chatTeam = ({ teamName, leagueName, flight }: ReviewedTeamRoom) => ({ teamName, leagueName, flight, canManage: false })
+const chatTeam = ({ teamName, leagueName, leagueLabel, flight }: ReviewedTeamRoom) => ({ teamName, leagueName, leagueLabel, flight, canManage: false })
 export const reviewedTeamOptions = (teams: ReviewedTeamRoom[]) => teams.map(chatTeam)
 
 function chatPost(row: SentTeamMessage, owner: string) {

@@ -1,4 +1,5 @@
 import {coachId} from '../../lib/native-coach-contract'
+import {teamLeagueLabel} from '../../lib/private-team-contract'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
@@ -51,7 +52,7 @@ export function paintTeamUnread(host:HTMLElement,summary:ChatUnread|null,teams:T
  for(const button of host.querySelectorAll<HTMLElement>('[data-open-team-chat]')){
   const team=teams[Number(button.dataset.openTeamChat)],unread=team&&summary?.teams.find(item=>key(item)===key(team))?.unread
   const badge=button.querySelector<HTMLElement>('[data-team-unread]');if(badge){badge.hidden=!unread;badge.textContent=unread===100?'99+':String(unread||'')}
-  if(team)button.setAttribute('aria-label',[team.teamName,team.leagueName,team.flight].filter(Boolean).join(' · ')+(unread?', '+(unread===100?'99+':unread)+' unread messages':''))
+  if(team)button.setAttribute('aria-label',[team.teamName,teamLeagueLabel(team),team.flight].filter(Boolean).join(' · ')+(unread?', '+(unread===100?'99+':unread)+' unread messages':''))
  }
 }
 /** One content-free foreground subscription, burst coalescing, no polling or stored counts. */

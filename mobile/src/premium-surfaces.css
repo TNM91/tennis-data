@@ -502,6 +502,11 @@ body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.0
  border-radius:var(--premium-control-radius);background:var(--premium-inset);overflow-wrap:anywhere;
 }
 :is(.lab-trophy-case,.chat-team-setup)>summary { min-block-size:44px;padding-block:8px;cursor:pointer; }
+.chat-setup-invite-teams { list-style:none;margin:0;padding:0; }
+.chat-setup-invite-teams button.secondary {
+ min-block-size:44px;margin-block:0 8px;text-align:start;border-color:var(--premium-line);
+}
+.chat-setup-invite-teams small { display:block;margin-block-start:4px;color:var(--premium-copy); }
 .lab-trophy-case summary span,.setup-trophy-card li small { display:block;color:var(--premium-copy);font-size:.8125rem; }
 .setup-trophy-card { margin-block:12px;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius); }
 .setup-trophy-card h3,.setup-trophy-card p { margin-block:4px; }
@@ -1478,6 +1483,65 @@ body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-avatar {
 }
 body.native-chat-conversation main#app { background:var(--premium-page); }
 body.native-chat-conversation .chat-room-header { border-color:var(--premium-line); }
+.chat-join-welcome {
+ display:flex;flex-wrap:wrap;align-items:center;flex:none;gap:8px 16px;
+ margin-block:4px 8px;padding:10px 12px;overflow-wrap:anywhere;
+ border:1px solid var(--premium-line);border-inline-start:2px solid var(--premium-lime);
+ border-radius:var(--premium-control-radius);background:var(--premium-surface);
+}
+.chat-join-welcome>div:first-child { flex:1 1 210px;min-inline-size:0; }
+.chat-join-welcome h2 { margin:0;font-size:1rem; }
+.chat-join-welcome p { margin:4px 0 0;font-size:.8125rem;color:var(--premium-copy); }
+.chat-join-actions { display:flex;flex-wrap:wrap;gap:8px; }
+.chat-join-actions button.secondary { inline-size:auto;min-block-size:44px;margin:0;padding:6px 12px;font-size:.8125rem; }
+.chat-join-actions [data-join-hello].secondary { border-color:var(--premium-lime); }
+.chat-join-match {
+ flex:1 0 100%;min-inline-size:0;border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-inset);
+}
+.chat-join-match>summary { min-block-size:44px;padding:10px 12px;cursor:pointer;color:var(--premium-lime); }
+.chat-join-match>div { padding:0 12px 12px; }
+.team-result-list { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
+.team-result-list .team-invite-preview { margin:0; }
+.team-result-actions { display:flex;flex-wrap:wrap;gap:8px; }
+.team-result-actions button.secondary { inline-size:auto;max-inline-size:100%;margin:0; }
+.team-result-court-fields { display:grid;gap:8px; }
+.team-result-court-fields>div,.team-result-court-list li { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px; }
+.team-result-court-fields>div { align-items:end;padding:10px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.team-result-court-fields label { display:grid;gap:5px;flex:1 1 145px;min-width:0;margin:0; }
+.team-result-court-fields :is(input,select) { min-inline-size:0;margin:0; }
+.team-result-court-fields button.secondary { inline-size:auto;margin:0; }
+.team-result-court-list { margin-block:4px 10px; }
+.team-result-court-list summary { min-block-size:44px;padding-block:9px;cursor:pointer; }
+.team-result-court-list ol { list-style:none;padding:0;margin:0; }
+.team-result-court-list li { padding:5px 0;overflow-wrap:anywhere; }
+.team-record { margin-block:0 12px;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.team-record h3 { margin:0 0 8px;font-size:1rem; }
+.team-record dl { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0; }
+.team-record dl>div { display:grid;gap:3px;min-width:0;padding:6px;text-align:center;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius); }
+.team-record dt { color:var(--premium-copy);font-size:.75rem;overflow-wrap:anywhere; }
+.team-record dd { margin:0;font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums; }
+.team-record dl>div:first-child dd { color:var(--premium-lime); }
+.team-match-replies { margin-block:12px;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius); }
+.team-match-replies h3 { margin:0;font-size:1rem; }
+.team-match-reply-actions { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px; }
+.team-match-reply-actions button.secondary { padding-inline:4px;min-inline-size:0; }
+.team-match-reply-actions button[aria-pressed="true"] { border-color:var(--premium-lime);color:var(--premium-lime); }
+.team-match-replies summary { min-block-size:44px;padding-block:10px;cursor:pointer; }
+.team-match-replies ul { margin:0;padding:0;list-style:none; }
+.team-match-replies li { display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;padding:6px 0;overflow-wrap:anywhere; }
+.team-match-reply-roster { margin-block-start:14px; }
+.team-match-reply-roster h4 { margin:0 0 8px;font-size:.875rem; }
+.team-match-replies .team-match-reply-counts { display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:6px; }
+.team-match-reply-counts li {
+ justify-content:center;align-items:center;padding:6px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);color:var(--premium-copy);font-size:.75rem;
+}
+.team-match-reply-counts strong { font-size:1rem;color:inherit; }
+.team-lineup-editor { min-inline-size:0;margin:0;padding:0;border:0; }
+.team-lineup-editor .lineup-court { margin:0 0 12px;padding:0 12px 12px;border-color:var(--premium-line); }
+.team-lineup-editor legend { padding-inline:6px;color:var(--premium-lime);font-weight:650; }
+.team-lineup-editor .team-result-actions { margin-block-end:8px; }
 body.native-chat-conversation .team-bubble:not(.team-bubble-mine):not(.team-bubble-match) { background:var(--premium-surface);border:1px solid var(--premium-line); }
 body.native-chat-conversation .team-bubble-mine { background:linear-gradient(130deg,#254478,var(--premium-raised));border:1px solid #45689b; }
 body.native-chat-conversation .team-bubble p { font-size:1rem;line-height:1.55; }

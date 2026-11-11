@@ -1,8 +1,9 @@
 import {html} from './match-details'
-import type {NativeTeamData,TeamScope} from './team-room-data'
+import {teamLeagueLabel} from '../../lib/private-team-contract'
+import type {CaptainChatSetup,NativeTeamData,TeamScope} from './team-room-data'
 import {paintTeamUnread,type ChatUnread} from './chat-unread'
 import {firstPartyBuild} from './build-scope'
-import {captainChatSetupMessages,setupSteps,type CaptainChatSetupStatus} from '../../lib/setup-trophies'
+import {captainChatSetupMessages,setupSteps} from '../../lib/setup-trophies'
 import websiteUi from '../generated/website-ui.json'
 
 export type ChatsInboxFilter={query:string;unreadOnly:boolean;filtersOpen:boolean}
@@ -14,6 +15,7 @@ const inboxShortcuts=[
  {target:'chats-coach-inbox',label:'Coach & player',description:'Private chats',icon:websiteUi.icons.coach},
 ] as const
 const chatStartActions={
+ create:{title:'Create a team',detail:'Start a private team chat and invite your players.',icon:websiteUi.icons.teams},
  team:{title:firstPartyBuild?'Join team':'Use a team invite',detail:'Use the link from your captain.',icon:websiteUi.icons.teams},
  coach:{title:'Accept coach invitation',detail:'Start a private chat with your coach.',icon:websiteUi.icons.coach},
 } as const
@@ -41,7 +43,7 @@ export function chatsFilterStatus(kind:'team'|'coach',query:string,unreadOnly:bo
 export function chatsStartActionHtml(kind:keyof typeof chatStartActions){
  const action=chatStartActions[kind],id='chats-'+kind+'-start'
  return `<div class="native-entry-list chats-start-action">
-  <button type="button" class="secondary app-tool${kind==='team'?' native-entry-featured':''}" ${kind==='team'?'id="join-team"':'data-chats-coach-invite'}
+  <button type="button" class="secondary app-tool${kind==='create'||kind==='team'&&!firstPartyBuild?' native-entry-featured':''}" ${kind==='create'?'id="create-private-team"':kind==='team'?'id="join-team"':'data-chats-coach-invite'}
    aria-labelledby="${id}-title" aria-describedby="${id}-detail">
    <span class="app-tool-icon" aria-hidden="true">${action.icon}</span>
    <span class="app-tool-copy"><strong id="${id}-title">${action.title}</strong><span id="${id}-detail">${action.detail}</span></span>
@@ -58,6 +60,7 @@ export function chatsInboxHtml(data:NativeTeamData){
    <span class="chats-shortcut-copy"><strong>${html(label)}</strong><small data-chats-jump-status>${description}</small></span>
   </button>`).join('')}</div>
  <section id="chats-team-inbox" aria-labelledby="chats-teams-title"><div class="chats-section-heading"><h2 id="chats-teams-title" tabindex="-1">Your teams</h2>${data.teams.length?'<button type="button" class="secondary" id="join-team">Join team</button>':''}</div>
+ ${firstPartyBuild?chatsStartActionHtml('create'):''}
  <details class="chats-filter-drawer" data-team-chat-filters ${data.teams.length?'':'hidden'}>
   <summary>Search &amp; filter teams<span class="chats-filter-active" data-team-filter-active hidden>Active</span></summary>
   <div class="chats-inbox-tools">
@@ -66,10 +69,11 @@ export function chatsInboxHtml(data:NativeTeamData){
   </div>
  </details>
  ${chatsFilterFeedbackHtml('team')}
- ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}"><span class="chats-team-avatar" aria-hidden="true">${html(team.teamName.trim().slice(0,1).toUpperCase())}</span><span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(team.leagueName)}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:chatsStartActionHtml('team')}
- ${firstPartyBuild?`<details class="chat-team-setup"><summary>Set up a team as captain</summary>
+ ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}"><span class="chats-team-avatar" aria-hidden="true">${html(team.teamName.trim().slice(0,1).toUpperCase())}</span><span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(teamLeagueLabel(team))}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:chatsStartActionHtml('team')}
+ ${firstPartyBuild?`<details class="chat-team-setup"><summary>Team setup help</summary>
   <button type="button" class="secondary" data-check-captain-setup>Check captain chat access</button>
   <p role="status" data-captain-setup-status></p>
+  <ul class="chat-setup-invite-teams" aria-label="Teams ready for invites" data-captain-setup-invites hidden></ul>
   <ol>${[setupSteps.team,setupSteps.invite,setupSteps.teammate].map(step=>`<li><strong>${html(step.title)}</strong><p>${html(step.detail)}</p></li>`).join('')}</ol>
   <p class="rating-context">Track these steps toward your Team Rally trophy in My Lab.</p>
  </details>`:''}
@@ -77,7 +81,7 @@ export function chatsInboxHtml(data:NativeTeamData){
 }
 
 /** Filters and room jumps use the current authorized count snapshot; opening still reloads room access. */
-export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsInboxFilter,initial:ChatUnread|null,onOpen:(scope:TeamScope)=>void,current:()=>boolean,readCaptainSetup:()=>Promise<CaptainChatSetupStatus>){
+export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsInboxFilter,initial:ChatUnread|null,onOpen:(scope:TeamScope)=>void,current:()=>boolean,readCaptainSetup:()=>Promise<CaptainChatSetup>,onInvite:(scope:TeamScope,trigger:HTMLButtonElement)=>void){
  let summary=initial,disposed=false
  const events=new AbortController(),search=host.querySelector<HTMLInputElement>('#chats-team-search')!
  const filters=host.querySelector<HTMLDetailsElement>('[data-team-chat-filters]')!
@@ -91,13 +95,31 @@ export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsIn
  const active=()=>!disposed&&current()&&host.isConnected
  const check=host.querySelector<HTMLButtonElement>('[data-check-captain-setup]')
  const setupStatus=host.querySelector<HTMLElement>('[data-captain-setup-status]')
- if(check&&setupStatus)check.addEventListener('click',async()=>{
+ const inviteList=host.querySelector<HTMLUListElement>('[data-captain-setup-invites]')
+ if(check&&setupStatus&&inviteList)check.addEventListener('click',async()=>{
   if(!active()||check.disabled)return
   check.disabled=true
+  inviteList.hidden=true
+  inviteList.replaceChildren()
   setupStatus.textContent='Checking your captain chat access…'
   try{
-   const state=await readCaptainSetup()
-   if(active())setupStatus.textContent=captainChatSetupMessages[state]
+   const {status,inviteTeams}=await readCaptainSetup()
+   if(!active()||!check.isConnected)return
+   setupStatus.textContent=inviteTeams.length?'Your captain chat is ready.':captainChatSetupMessages[status]
+   for(const team of inviteTeams){
+    const item=document.createElement('li'),button=document.createElement('button'),detail=document.createElement('small')
+    const label=[team.teamName,teamLeagueLabel(team),team.flight].filter(Boolean).join(' · ')
+    button.type='button'
+    button.className='secondary'
+    button.textContent='Invite teammates'
+    button.setAttribute('aria-label','Invite teammates to '+label)
+    detail.textContent=label
+    button.append(detail)
+    button.onclick=()=>{if(active()&&button.isConnected)onInvite(team,button)}
+    item.append(button)
+    inviteList.append(item)
+   }
+   inviteList.hidden=!inviteTeams.length
   }catch{
    if(active())setupStatus.textContent='Couldn’t check captain chat access. Try again.'
   }finally{
@@ -136,7 +158,7 @@ export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsIn
   for(const button of host.querySelectorAll<HTMLButtonElement>('[data-chats-filter]'))button.setAttribute('aria-pressed',String((button.dataset.chatsFilter==='unread')===filter.unreadOnly))
   for(const row of host.querySelectorAll<HTMLElement>('[data-chat-team-row]')){
    const team=teams[Number(row.dataset.chatTeamRow)],teamCounts=counts(team),card=row.querySelector<HTMLButtonElement>('[data-open-team-chat]')!,rooms=row.querySelector<HTMLUListElement>('[data-unread-rooms]')!
-   const matches=findText([team.teamName,team.leagueName,team.flight].join(' ')).includes(query)
+   const matches=findText([team.teamName,teamLeagueLabel(team),team.flight].join(' ')).includes(query)
    if(matches){matched++;unknown||=!teamCounts}
    const shown=matches&&(!filter.unreadOnly||Boolean(teamCounts?.unread))
    const wasFocused=row.contains(document.activeElement);row.hidden=!shown;if(shown)visible++
@@ -149,7 +171,7 @@ export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsIn
      button.addEventListener('click',()=>{const latest=counts(team);if(room.id?latest?.rooms?.some(value=>value.id===room.id&&value.unread>0):latest?.generalUnread)open(team,room.id||undefined)},{signal:events.signal})
     }
     button.querySelector('[data-room-label]')!.textContent=room.name;button.querySelector('[data-room-count]')!.textContent=room.unread===100?'99+':String(room.unread)
-    button.setAttribute('aria-label',room.name+', '+unreadLabel(room.unread)+', '+[team.teamName,team.leagueName,team.flight].filter(Boolean).join(' · '))
+    button.setAttribute('aria-label',room.name+', '+unreadLabel(room.unread)+', '+[team.teamName,teamLeagueLabel(team),team.flight].filter(Boolean).join(' · '))
    }
    rooms.hidden=!destinations.length
    if(wasFocused&&!shown){
