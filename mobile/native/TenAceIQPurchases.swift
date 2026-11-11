@@ -29,7 +29,7 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
 public final class TenAceIQCourtLocation: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     public let identifier = "TenAceIQCourtLocation"
     public let jsName = "TiqCourtLocation"
-    public let pluginMethods = [CAPPluginMethod(name: "current", returnType: CAPPluginReturnPromise)]
+    public let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "current", returnType: CAPPluginReturnPromise)]
     private var pending: CAPPluginCall?
     private var manager: CLLocationManager?
     private var requestedPermission = false
