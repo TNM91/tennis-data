@@ -1,8 +1,9 @@
 import { verifiedAccount, accountClient, accountResponse, readAccountJson } from './mobile-account-auth'
 import { supabaseKey } from './supabase-public-config'
-import { calendarId, calendarIntent, calendarRange, firstPartyPersonalCalendarId } from './native-calendar-contract'
+import { calendarId, calendarIntent, calendarRange, calendarTeamMatchesHeader, firstPartyPersonalCalendarId, TEAM_MATCH_DATES_UNAVAILABLE } from './native-calendar-contract'
 import { CalendarFault, calendarPersonal, loadNativeCalendar, respondNativeCalendar, writeCalendarPersonal } from './native-calendar'
 import { loadFirstPartyCalendarCompetitions } from './first-party-calendar'
+import { loadCalendarTeamMatches } from './first-party-team-schedule'
 
 export async function handleNativeCalendar(request: Request, write: boolean, firstParty = false) {
   const json = (body: object, status = 200) => accountResponse(
@@ -40,9 +41,16 @@ export async function handleNativeCalendar(request: Request, write: boolean, fir
     }
     if (intent) return json({ ok: true, owner, ...await writeCalendarPersonal(client, owner, intent) })
     if (id) return json({ ok: true, owner, item: await calendarPersonal(client, owner, id) })
-    const result = firstParty
-      ? await loadNativeCalendar(client, owner, range!, loadFirstPartyCalendarCompetitions)
-      : await loadNativeCalendar(client, owner, range!)
+    if (!firstParty) return json({ ok: true, ...await loadNativeCalendar(client, owner, range!) })
+    const [result, teamMatches] = await Promise.all([
+      loadNativeCalendar(client, owner, range!, loadFirstPartyCalendarCompetitions),
+      request.headers.get(calendarTeamMatchesHeader) === '1' ? (async () => {
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+        return key ? loadCalendarTeamMatches(accountClient(key), owner, range!) : null
+      })().catch(() => null) : undefined,
+    ])
+    if (teamMatches === null) result.warnings = [...result.warnings, TEAM_MATCH_DATES_UNAVAILABLE]
+    if (teamMatches) result.teamMatches = teamMatches
     return json({ ok: true, ...result })
   } catch (error) {
     return json({ ok: false, message: error instanceof CalendarFault ? error.message : 'The calendar result couldn’t be confirmed. Refresh before trying again.' },
