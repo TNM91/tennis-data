@@ -1513,6 +1513,8 @@ body.native-chat-conversation .chat-room-header { border-color:var(--premium-lin
 .team-result-filters { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-block:0 12px; }
 .team-result-filters button.secondary { min-inline-size:0;min-block-size:44px;margin:0;padding-inline:6px;white-space:normal; }
 .team-result-filters button[aria-pressed="true"] { border-color:var(--premium-lime);color:var(--premium-lime); }
+.team-result-queue { margin-block:0 12px; }
+.team-result-queue h3 { margin:0 0 8px;font-size:1rem; }
 .team-result-list { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
 .team-result-list .team-invite-preview { margin:0; }
 .team-result-list .team-result-assignment-note { color:var(--premium-lime); }
@@ -1522,6 +1524,10 @@ body.native-chat-conversation .chat-room-header { border-color:var(--premium-lin
 .team-result-court-fields { display:grid;gap:8px; }
 .team-result-court-fields>div,.team-result-court-list li { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px; }
 .team-result-court-fields>div { align-items:end;padding:10px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.team-result-set-grid { display:grid;grid-template-columns:auto repeat(2,minmax(0,1fr));align-items:center;gap:6px;flex:1 0 100%;min-inline-size:0; }
+.team-result-set-grid span { color:var(--premium-copy);font-size:.8125rem; }
+.team-result-set-side { text-align:center; }
+.team-result-set-grid input { min-inline-size:0;text-align:center;font-variant-numeric:tabular-nums; }
 .team-result-court-fields .team-result-locked-score { flex:1 0 100%;margin:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums; }
 .team-result-court-fields label { display:grid;gap:5px;flex:1 1 145px;min-width:0;margin:0; }
 .team-result-court-fields :is(input,select) { min-inline-size:0;margin:0; }
@@ -1544,8 +1550,8 @@ body.native-chat-conversation .chat-room-header { border-color:var(--premium-lin
 .team-record dl>div:first-child dd { color:var(--premium-lime); }
 .team-match-replies { margin-block:12px;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius); }
 .team-match-replies h3 { margin:0;font-size:1rem; }
-.team-match-reply-actions { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px; }
-.team-match-reply-actions button.secondary { padding-inline:4px;min-inline-size:0; }
+.team-match-reply-actions { display:flex;flex-wrap:wrap;gap:6px; }
+.team-match-reply-actions button.secondary { flex:1 1 0;inline-size:auto;min-inline-size:min-content;padding-inline:6px; }
 .team-match-reply-actions button[aria-pressed="true"] { border-color:var(--premium-lime);color:var(--premium-lime); }
 .team-match-replies summary { min-block-size:44px;padding-block:10px;cursor:pointer; }
 .team-match-replies ul { margin:0;padding:0;list-style:none; }

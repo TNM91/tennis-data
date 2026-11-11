@@ -9,6 +9,7 @@ import {createCalendarFinder} from './calendar-finder'
 import {CALENDAR_WEEKLY_REP_CHANGED,readCalendarWeeklyReps,saveCalendarWeeklyRep,type CalendarWeeklyRep,type CalendarWeeklyRepChange} from './calendar-weekly-reps'
 import {openPlayerPractices} from './player-practices-view'
 import {nextMatchTime,openTeamNextMatch} from './team-next-match-view'
+import {teamNextMatchRequest} from './team-room-data'
 import {openCompetitions} from './competitions-view'
 import {openTournaments} from './tournaments-view'
 import {openTournamentEntry} from './tournament-entry-view'
@@ -116,6 +117,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const exportableMatch=()=>scheduledMatch()&&selected?.time?selected:null
  const venueHref=()=>{
+  const team=selectedTeamMatch()
+  if(team)return calendarMatchVenueHref({location:team.match.facility})
   const match=scheduledMatch()
   return match&&match.date>=localCalendarDate()?calendarMatchVenueHref(match):''
  }
@@ -454,7 +457,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
     <div><dt>Time</dt><dd>${html(time||missingTime)}</dd></div>
     <div><dt>Location</dt><dd>${html(event.location||'Location not set')}</dd></div>
    </dl>
-   ${showVenueSearch?'<button type="button" class="secondary cal-venue-link" data-cal-venue>Find venue in Apple Maps <span aria-hidden="true">↗</span></button><p class="cal-venue-status" role="status"></p>':''}
+   ${showVenueSearch?`<button type="button" class="secondary cal-venue-link" data-cal-venue>${'source' in event&&event.source==='team'?'Find in Apple Maps':'Find venue in Apple Maps'} <span aria-hidden="true">↗</span></button><p class="cal-venue-status" role="status"></p>`:''}
   </div>`
  }
  const availabilityControls=(match:MatchAvailability,readiness:string)=>{
@@ -559,7 +562,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(panel==='delete'&&selected)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Delete ${selected.recurring?'repeating series':'personal event'}?</h2>${details(selected,'All day')}<p>${selected.recurring?'Every occurrence from this personal series will be removed.':'This removes this personal event from your saved calendar.'}</p><button data-cal-delete ${busy?'disabled':''}>Delete ${selected.recurring?'whole series':'event'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Keep event</button></section>`
   if(panel==='respond'&&selected?.source==='team'){
    const team=selectedTeamMatch()
-   if(team)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Team match</h2>${details(selected,'Time to be confirmed',false,nextMatchTime(team.match))}<button type="button" data-cal-team-match ${busy?'disabled':''}>Open match & availability</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
+   if(team)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Team match</h2>${details(selected,'Time to be confirmed',Boolean(venueHref()),nextMatchTime(team.match))}<button type="button" data-cal-team-match ${busy?'disabled':''}>Open match & availability</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
    const closed=selected.teamStatus==='cancelled'||selected.teamStatus==='completed'
    return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Team practice</h2>${details(selected,'Time to be confirmed')}<p class="cal-event-readiness">${html(selected.readiness)}</p><p>${closed?'See the saved practice details and your reply.':'Open the practice to check the latest details and your place, then review your RSVP.'}</p><button data-cal-practice ${busy?'disabled':''}>${closed?'View practice':'Open practice & RSVP'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
   }
@@ -764,7 +767,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
      const context=focusFromEvent('team-match:'+team.roomId)
      panel='agenda';selected=null;void refresh(context)
     }else if(button.isConnected)button.focus({preventScroll:true})
-   },()=>false,undefined,team.revision)
+   },()=>false,{calendarRevision:team.revision})
   })
   on('[data-cal-agenda]',()=>{if(linkedPractice&&panel==='delete')back();else returnFromDetails()})
   on('[data-cal-my-event]',button=>{
@@ -822,10 +825,35 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const url=venueHref()
    if(!url||button.disabled)return
    const message=dialog.querySelector<HTMLElement>('.cal-venue-status')!
-   message.textContent='';button.disabled=true
-   try{await Browser.open({url})}
-   catch{if(active()&&button.isConnected)message.textContent='Couldn’t open Apple Maps. Try again.'}
-   finally{if(active()&&button.isConnected)button.disabled=false}
+   const team=selectedTeamMatch()
+   const matchButton=team&&dialog.querySelector<HTMLButtonElement>('[data-cal-team-match]')
+   const stillOpen=()=>active()&&button.isConnected
+   let checkingVenue=Boolean(team)
+   button.disabled=true
+   if(matchButton)matchButton.disabled=true
+   try{
+    if(team){
+     message.textContent='Checking the latest venue…'
+     const latest=await teamNextMatchRequest(client,owner,stillOpen,{...team.scope,id:team.roomId,manualFixture:true})
+     if(!stillOpen())return
+     if(latest.revision!==team.revision||latest.nextMatch?.facility!==team.match.facility){
+      const context=focusFromEvent('team-match:'+team.roomId)
+      panel='agenda';selected=null
+      await refresh({...context,message:'The team schedule changed. Open the match to check the latest venue.'})
+      return
+     }
+    }
+    checkingVenue=false
+    message.textContent=''
+    await Browser.open({url})
+   }catch{
+    if(stillOpen())message.textContent=checkingVenue?'Couldn’t check the latest venue. Try again.':'Couldn’t open Apple Maps. Try again.'
+   }finally{
+    if(stillOpen()){
+     button.disabled=false
+     if(matchButton)matchButton.disabled=false
+    }
+   }
   })
   on('[data-cal-match-export-review]',()=>{
    if(!exportableMatch())return

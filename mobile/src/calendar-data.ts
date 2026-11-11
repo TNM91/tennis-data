@@ -147,11 +147,13 @@ export function calendarMatchExport(event:Pick<CalendarOccurrence,'key'|'title'|
  return buildTennisCalendarFeed([{id,title,date,location,...(startsAt?{startsAt}:{})}],{calendarName:'TenAceIQ · Your tennis',timeZone:zone,includeEventUrls:false})
 }
 
-export function calendarMatchVenueHref(match:PlayerCompetitionScheduleEvent){
- const parts=match.location.trim().split(' · ')
+export function calendarMatchVenueHref({location,kind,detail}:{
+ location:string;kind?:PlayerCompetitionScheduleEvent['kind'];detail?:string
+}){
+ const parts=location.trim().split(' · ')
  const last=parts.at(-1)||''
  // Tournament schedules repeat the assigned court in the match detail.
- const assignedCourt=match.kind==='tournament'&&last.startsWith('Court ')&&match.detail.endsWith(' · '+last)
+ const assignedCourt=kind==='tournament'&&last.startsWith('Court ')&&detail?.endsWith(' · '+last)
  if(assignedCourt||/^Courts?\s+#?(?:\d+[a-z]?|[a-z])$/i.test(last))parts.pop()
  return appleMapsVenueHref(parts.join(' · '))
 }

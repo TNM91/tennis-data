@@ -5,7 +5,8 @@ import {readTeamNextMatchChange,type ReviewedNextMatch,type TeamNextMatchChange}
 import {maxTeamLineupCourts,readTeamLineupChange,type MatchLineupCourt,type TeamLineupChange} from '../../lib/team-match-lineup-contract'
 import {isTeamMatchChoice,teamReplyLabels,type TeamMatchReplies,type TeamMatchReplyChange} from '../../lib/team-match-replies-contract'
 import {html} from './match-details'
-import {calendarMatchExport} from './calendar-data'
+import {calendarMatchExport,calendarMatchVenueHref} from './calendar-data'
+import {Browser} from './native-browser'
 import {exportCoachFile} from './native-coach-files'
 import {matchLineupFields,matchLineupMessage,plannedLineupHtml} from './team-match-lineup'
 import {saveTeamMatchLineupRequest,teamMatchRepliesRequest} from './team-match-replies-data'
@@ -58,7 +59,10 @@ function matchRepliesHtml(replies:TeamMatchReplies,busy:boolean,pending:boolean,
 }
 
 export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMatchRoom,current:()=>boolean,
- onClose:(changed:boolean,message?:string,kind?:'lineup')=>void,canDraftUpdate:()=>boolean,previousMatch?:ReviewedNextMatch,calendarRevision?:string){
+ onClose:(changed:boolean,message?:string,kind?:'lineup')=>void,canDraftUpdate:()=>boolean,
+ {previousMatch,calendarRevision,openResults}:{
+  previousMatch?:ReviewedNextMatch;calendarRevision?:string;openResults?:()=>void
+ }={}){
  const dialog=document.createElement('dialog')
  dialog.className='team-invite-dialog team-next-match-dialog'
  dialog.setAttribute('aria-label','Next match')
@@ -209,20 +213,30 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    if(cause instanceof TeamNextMatchError&&!cause.uncertain){pendingLineup=null;lineupConflict=true}
   }finally{if(active()){busy=false;render();focusFeedback()}}
  }
- const shareCalendar=async()=>{
+ const openMatchAction=async(action:'maps'|'calendar')=>{
   if(!active()||busy||pendingReply||!schedule?.nextMatch)return
   const shown=schedule
-  busy=true;notice='Checking the match before sharing…';render()
+  busy=true;notice=action==='maps'?'Checking the latest venue…':'Checking the match before sharing…';render()
   try{
    const latest=await teamNextMatchRequest(client,owner,active,room)
    if(!active())return
    if(!latest.nextMatch||latest.revision!==shown.revision||JSON.stringify(latest.nextMatch)!==JSON.stringify(shown.nextMatch)){
     schedule=latest
     await refreshReplies(latest)
-    notice=latest.nextMatch?'The match changed. Review the updated details before sharing.':'There’s no upcoming match to export.'
+    notice=action==='maps'
+     ?latest.nextMatch?'The match changed. Review the updated venue.':'There’s no upcoming match.'
+     :latest.nextMatch?'The match changed. Review the updated details before sharing.':'There’s no upcoming match to export.'
     return
    }
    const match=latest.nextMatch
+   if(action==='maps'){
+    const url=calendarMatchVenueHref({location:match.facility})
+    if(!url){notice='The venue is still to be confirmed.';return}
+    notice=''
+    try{await Browser.open({url})}
+    catch{notice='Couldn’t open Apple Maps. Try again.'}
+    return
+   }
    const fingerprint=new TextEncoder().encode(JSON.stringify([room.id,match.date,match.opponent]))
    const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',fingerprint))
    const key='team-match-'+Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('')
@@ -233,13 +247,14 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    await exportCoachFile(owner,active,new Blob([ics],{type:'text/calendar'}),'TenAceIQ-team-match.ics')
    if(active())notice='Calendar file prepared. Add it to your preferred calendar.'
   }catch{
-   if(active())notice='Couldn’t share the calendar file. Try again.'
-  }finally{if(active()){busy=false;render();focus('[role="status"]')}}
+   if(active())notice=action==='maps'?'Couldn’t check the latest venue. Try again.':'Couldn’t share the calendar file. Try again.'
+  }finally{if(active()){busy=false;render();focus(notice?'[role="status"]':'[data-open-match-maps]')}}
  }
  const render=()=>{
   if(!active())return
   const zones=draft?[...new Set([draft.timeZone,localZone,'America/New_York','America/Chicago','America/Denver','America/Phoenix','America/Los_Angeles','America/Anchorage','Pacific/Honolulu'])]:[]
   const reusableVenue=draft&&!schedule?.nextMatch&&previousMatch?.facility?previousMatch:null
+  const mapsUrl=schedule?.nextMatch&&calendarMatchVenueHref({location:schedule.nextMatch.facility})
   if(reusableVenue&&!zones.includes(reusableVenue.timeZone))zones.push(reusableVenue.timeZone)
   dialog.innerHTML=`<header class="team-invite-heading"><h2 tabindex="-1">Next match</h2></header>
    <p>${html(room.teamName)} · ${html(teamLeagueLabel(room))}${room.flight?' · '+html(room.flight):''}</p>
@@ -266,10 +281,13 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
     <button type="submit">Save for team</button><button type="button" class="secondary" data-match-cancel>Cancel edit</button>
    </form>`:!pending&&schedule?`
     ${schedule.nextMatch?`<div class="team-invite-preview">${teamNextMatchHtml(schedule.nextMatch)}</div>
-     ${removing?'':`<button type="button" class="secondary" data-share-match-calendar ${busy||pendingReply?'disabled':''}>Share calendar file</button>
-      <p class="rating-context">One-time copy. ${schedule.nextMatch.time?'Reserves 90 minutes.':'Adds an all-day entry.'}</p>`}`:'<p>No upcoming match is scheduled.</p>'}
+     ${mapsUrl&&!removing?`<button type="button" class="secondary" data-open-match-maps ${busy||pendingReply?'disabled':''}>Find in Apple Maps <span aria-hidden="true">↗</span></button>`:''}`:
+     `<p>No upcoming match is scheduled.</p>
+      ${captain&&openResults&&!busy?'<button type="button" class="secondary" data-match-open-results>Open team results</button>':''}`}
     ${replies&&!removing?matchRepliesHtml(replies,busy,Boolean(pendingReply),rosterExpanded,
      Boolean(captain&&!busy&&!pendingReply&&replies.awaitingTeammates)):''}
+    ${schedule.nextMatch&&!removing?`<button type="button" class="secondary" data-share-match-calendar ${busy||pendingReply?'disabled':''}>Share calendar file</button>
+     <p class="rating-context">One-time copy. ${schedule.nextMatch.time?'Reserves 90 minutes.':'Adds an all-day entry.'}</p>`:''}
     ${!removing&&replies?.savedLineup?plannedLineupHtml(replies.savedLineup):''}
     ${captain&&!busy&&!pendingReply&&!removing&&(replies?.savedLineup||replies?.lineupRoster?.some(player=>player.choice!=='out'))?
      `<button type="button" class="secondary" data-plan-lineup>${replies?.savedLineup?'Edit saved lineup':'Plan lineup'}</button>`:''}
@@ -283,12 +301,18 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    ${!busy&&!draft&&(!lineup||pendingLineup||lineupConflict)?'<button type="button" class="secondary" data-match-load>Reload match</button>':''}
    ${!lineup?`<button type="button" class="secondary" data-match-close ${busy?'disabled':''}>Close</button>`:''}`
   dialog.querySelector('[data-match-close]')?.addEventListener('click',close)
+  dialog.querySelector('[data-match-open-results]')?.addEventListener('click',()=>{
+   if(!active()||busy||!openResults)return
+   close()
+   openResults()
+  })
   dialog.querySelector<HTMLButtonElement>('[data-match-load]')?.addEventListener('click',()=>{void load()})
   dialog.querySelector<HTMLButtonElement>('[data-match-retry]')?.addEventListener('click',()=>{if(pending)void save(pending)})
   dialog.querySelector<HTMLButtonElement>('[data-match-reply-retry]')?.addEventListener('click',()=>{if(pendingReply)void reply(pendingReply)})
   dialog.querySelector('[data-match-lineup-retry]')?.addEventListener('click',()=>{if(pendingLineup)void saveLineup()})
   dialog.querySelector<HTMLButtonElement>('[data-draft-match-reminder]')?.addEventListener('click',()=>{void draftReminder()})
-  dialog.querySelector<HTMLButtonElement>('[data-share-match-calendar]')?.addEventListener('click',()=>{void shareCalendar()})
+  dialog.querySelector<HTMLButtonElement>('[data-open-match-maps]')?.addEventListener('click',()=>{void openMatchAction('maps')})
+  dialog.querySelector<HTMLButtonElement>('[data-share-match-calendar]')?.addEventListener('click',()=>{void openMatchAction('calendar')})
   dialog.querySelector('[data-plan-lineup]')?.addEventListener('click',()=>{
    lineup=structuredClone(replies?.savedLineup?.courts??[]);notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
   })

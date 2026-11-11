@@ -7,6 +7,7 @@ export type CourtDraft = { score: string; outcome: 'played' | TeamCourtDefault; 
 export type ScoreDraft = {
   expected: string | null; lineupVersion?: string; won: string; lost: string; courts: CourtDraft[] | null
   assigningPlayers: boolean; confirmedPlayers: boolean; players: TeamResultPlayer[]; pending: TeamResultChange | null
+  scoreBySet?: boolean
 }
 
 function readDraft(key: string, value: unknown): ScoreDraft | undefined {
@@ -16,6 +17,7 @@ function readDraft(key: string, value: unknown): ScoreDraft | undefined {
   if (!draft || (draft.expected !== null && !fixtureId(draft.expected)) ||
       (draft.lineupVersion !== undefined && !fixtureId(draft.lineupVersion)) ||
       typeof draft.won !== 'string' || typeof draft.lost !== 'string' ||
+      (draft.scoreBySet !== undefined && typeof draft.scoreBySet !== 'boolean') ||
       typeof draft.assigningPlayers !== 'boolean' || typeof draft.confirmedPlayers !== 'boolean') return
   const courts = draft.courts
   if (courts !== null && (!Array.isArray(courts) || !courts.length || courts.length > maxTeamResultCourts ||
@@ -27,7 +29,7 @@ function readDraft(key: string, value: unknown): ScoreDraft | undefined {
   if (draft.pending !== null && (!pending || pending.fixtureId !== key.split(':').at(-1) || pending.expected !== draft.expected)) return
   try {
     return { expected: draft.expected, lineupVersion: draft.lineupVersion, won: draft.won, lost: draft.lost, courts,
-      assigningPlayers: draft.assigningPlayers, confirmedPlayers: draft.confirmedPlayers,
+      assigningPlayers: draft.assigningPlayers, confirmedPlayers: draft.confirmedPlayers, ...(draft.scoreBySet ? { scoreBySet: true } : {}),
       players: readTeamResultPlayers(draft.players, true), pending }
   } catch { return }
 }

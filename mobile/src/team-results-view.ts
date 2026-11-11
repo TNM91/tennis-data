@@ -84,7 +84,31 @@ function courtScoreList(courts:string[]|undefined,players:TeamResultPlayer[][]|u
  </details>`
 }
 
-function courtFields(courts:CourtDraft[],roster:TeamResultPlayer[],showPlayers:boolean,assigningPlayers:boolean){
+function scorePairs(score:string):[string,string][]|null{
+ const sets=score.trim().split(/[,\s]+/).filter(Boolean)
+ if(sets.length>3)return null
+ const pairs:[string,string][]=[]
+ for(const set of sets){
+  const pair=/^(\d{0,2})[-–](\d{0,2})$/.exec(set)
+  if(!pair)return null
+  pairs.push([pair[1],pair[2]])
+ }
+ while(pairs.length<3)pairs.push(['',''])
+ return pairs
+}
+
+function courtScoreFields(index:number,score:string,bySet:boolean){
+ const court='Court '+(index+1),pairs=bySet?scorePairs(score):null
+ if(!pairs)return `<label>${court} score<input type="text" data-court-score="${index}" maxlength="64" required value="${html(score)}"></label>`
+ return `<div class="team-result-set-grid" role="group" aria-label="${court} set scores">
+  <span aria-hidden="true"></span><span class="team-result-set-side" aria-hidden="true">Us</span><span class="team-result-set-side" aria-hidden="true">Them</span>
+  ${pairs.map((pair,set)=>`<span aria-hidden="true">Set ${set+1}</span>${pair.map((value,side)=>
+   `<input type="text" inputmode="numeric" autocomplete="off" maxlength="2"
+    aria-label="${court} set ${set+1}, ${side===0?'your team':'opponent'}" data-court-set="${index}:${set}:${side}" value="${value}">`).join('')}`).join('')}
+ </div>`
+}
+
+function courtFields(courts:CourtDraft[],roster:TeamResultPlayer[],showPlayers:boolean,assigningPlayers:boolean,bySet:boolean){
  const nameCounts=new Map<string,number>()
  const names=new Map(roster.map(({id,name})=>[id,name]))
  for(const player of roster){const key=player.name.toLowerCase();nameCounts.set(key,(nameCounts.get(key)??0)+1)}
@@ -92,7 +116,7 @@ function courtFields(courts:CourtDraft[],roster:TeamResultPlayer[],showPlayers:b
   ${assigningPlayers?`<p class="team-result-locked-score"><strong>Court ${index+1}</strong> · ${outcome==='played'?html(score):teamCourtDefaults[outcome]}</p>`:`
   <label>Court ${index+1} result<select data-court-outcome="${index}">${Object.entries(courtOutcomeLabels).map(([value,label])=>
    `<option value="${value}" ${outcome===value?'selected':''}>${label}</option>`).join('')}</select></label>
-  ${outcome==='played'?`<label>Court ${index+1} score<input type="text" data-court-score="${index}" maxlength="64" required value="${html(score)}"></label>`:''}`}
+  ${outcome==='played'?courtScoreFields(index,score,bySet):''}`}
   ${outcome==='played'&&showPlayers?`<div class="team-result-player-fields">${[0,1].map(seat=>`
    <label>Court ${index+1} player ${seat+1}<select data-result-player="${index}:${seat}"><option value="">No player selected</option>
     ${roster.map(player=>`<option value="${html(player.id!)}" ${players[seat]===player.id?'selected':''}>${html(player.name)}${nameCounts.get(player.name.toLowerCase())!>1?' ('+html(player.id!.slice(-4).toUpperCase())+')':''}</option>`).join('')}
@@ -137,21 +161,19 @@ function teamRecordHtml(record:TeamRecord|undefined){
 }
 
 function teamResultsListHtml(data:TeamResults,filter:ResultFilter,busy:boolean,canOpenPersonal:boolean,getDraft:(entry:TeamResultEntry)=>ScoreDraft|undefined){
- const rows=data.entries.map((entry,index)=>({entry,index,court:myPlayedCourt(entry.score)}))
+ const rows=data.entries.map((entry,index)=>({entry,index,court:myPlayedCourt(entry.score),draft:data.canEdit?getDraft(entry):undefined}))
  const mine=filter==='mine'
  const visible=mine?rows.filter(row=>row.court):rows
  const hasResults=rows.some(({entry})=>entry.score)
  const canFilter=mine||hasResults
  const today=canOpenPersonal?localCalendarDate():''
- return `${canFilter?`<div class="team-result-filters" role="group" aria-label="Results view">
-  ${Object.entries(resultFilters).map(([key,label])=>`<button type="button" class="secondary" data-result-filter="${key}"
-   aria-pressed="${filter===key}" ${busy?'disabled':''}>${label}</button>`).join('')}
- </div>`:''}
- ${mine?'':teamRecordHtml(data.record)}
- <ul class="team-result-list" role="list" aria-label="${mine?'Your recent courts':'Recent team matches'}">${visible.map(({entry,index,court})=>{
+ const captainView=!mine&&data.canEdit
+ const unfinished=captainView?visible.filter(({entry,draft})=>draft||!entry.score)
+  .sort((a,b)=>Number(Boolean(b.draft))-Number(Boolean(a.draft))):[]
+ const history=captainView?visible.filter(({entry,draft})=>entry.score&&!draft):visible
+ const renderRow=({entry,index,court,draft}:typeof rows[number])=>{
   const {match,score,fixtureId}=entry
   const canLog=canOpenPersonal&&court&&match.date<=today
-  const draft=data.canEdit?getDraft(entry):undefined
   const unassigned=data.canEdit&&!mine?score?.courtScores?.filter((value,position)=>!isTeamCourtDefault(value)&&!score.courtPlayers?.[position].length).length??0:0
   return `<li class="team-invite-preview" data-result-fixture="${fixtureId}" tabindex="-1">${teamNextMatchHtml(match)}
    ${mine&&court?`<p class="team-result-own-score"><strong>Court ${court.number} · ${court.outcome}</strong><span>${html(court.score)}</span></p>`:
@@ -161,9 +183,20 @@ function teamResultsListHtml(data:TeamResults,filter:ResultFilter,busy:boolean,c
    ${!busy&&(data.canEdit||canLog)?`<div class="team-result-actions">
     ${canLog?`<button type="button" class="secondary" data-log-court="${fixtureId}"><span>${openInLab}</span><span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
     ${unassigned&&!draft?`<button type="button" class="secondary" data-result-edit="${index}" data-result-assign>Add players<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
-    ${data.canEdit?`<button type="button" class="secondary" data-result-edit="${index}">${draft?(draft.assigningPlayers?'Resume player assignments':'Resume score draft'):score?'Correct score':'Enter score'}<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
+    ${data.canEdit?`<button type="button" ${score&&!draft?'class="secondary" ':''}data-result-edit="${index}">${draft?(draft.assigningPlayers?'Resume player assignments':'Resume score draft'):score?'Correct score':'Enter score'}<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
     ${data.canEdit&&score?`<button type="button" class="secondary" data-result-draft="${index}">Draft result in chat<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
-   </div>`:''}</li>`}).join('')}</ul>
+   </div>`:''}</li>`
+ }
+ return `${canFilter?`<div class="team-result-filters" role="group" aria-label="Results view">
+  ${Object.entries(resultFilters).map(([key,label])=>`<button type="button" class="secondary" data-result-filter="${key}"
+   aria-pressed="${filter===key}" ${busy?'disabled':''}>${label}</button>`).join('')}
+ </div>`:''}
+ ${unfinished.length?`<div class="team-result-queue">
+  <h3 id="team-scores-to-finish">Scores to finish</h3>
+  <ul class="team-result-list" role="list" aria-labelledby="team-scores-to-finish">${unfinished.map(renderRow).join('')}</ul>
+ </div>`:''}
+ ${mine?'':teamRecordHtml(data.record)}
+ ${history.length?`<ul class="team-result-list" role="list" aria-label="${mine?'Your recent courts':'Recent team matches'}">${history.map(renderRow).join('')}</ul>`:''}
  ${visible.length?'':mine?`<p>No confirmed courts for you in these matches.</p>${hasResults?'<p>Ask your captain to add your name to the court you played.</p>':''}`:'<p>No team results yet.</p>'}
  ${data.more?`<p>${mine?'Showing your courts from the 20 most recent matches.':'Showing the 20 most recent matches.'}</p>`:''}`
 }
@@ -214,7 +247,7 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
  let won='',lost=''
  let courts:CourtDraft[]|null=null
  let roster:TeamResultPlayer[]|null=null,showPlayers=false,loadingPlayers=false,confirmedPlayers=false
- let assigningPlayers=false
+ let assigningPlayers=false,scoreBySet=false
  let restoredPlayers:TeamResultPlayer[]=[],dirty=false
  let plannedLineupExpanded=false
  let postedMatch:ReviewedNextMatch|null=null
@@ -235,7 +268,8 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
   if(!edit||!dirty)return
   const selected=new Set(courts?.flatMap(court=>court.players))
   drafts.set(draftKey(edit),{expected:edit.score?.revision??null,lineupVersion:edit.plannedLineup?.version,won,lost,
-   courts:courts&&structuredClone(courts),assigningPlayers,confirmedPlayers,players:availablePlayers().filter(player=>selected.has(player.id!)),pending})
+   courts:courts&&structuredClone(courts),assigningPlayers,confirmedPlayers,players:availablePlayers().filter(player=>selected.has(player.id!)),pending,
+   ...(scoreBySet?{scoreBySet:true}:{})})
  }
  const changed=()=>{dirty=true;remember()}
  const paintScorecardLabels=()=>{
@@ -417,10 +451,13 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
    ${!pending&&edit?`<div class="team-invite-preview">${teamNextMatchHtml(edit.match)}
     ${edit.plannedLineup?plannedLineupHtml(edit.plannedLineup,plannedLineupExpanded):''}</div>
     <form data-result-form>
-     ${courts?`${assigningPlayers?'':'<p>Enter your team’s score first in each set. Use completed best-of-three scores like 6-4, 4-6, 10-8.</p>'}
+     ${courts?`${assigningPlayers?'':`<div class="team-result-filters" role="group" aria-label="Score entry">
+      <button type="button" class="secondary" data-score-entry="text" aria-pressed="${!scoreBySet}">Type score</button>
+      <button type="button" class="secondary" data-score-entry="sets" aria-pressed="${scoreBySet}">By set</button>
+     </div><p>${scoreBySet?'Use Set 3 for a deciding set or match tiebreak.':'Enter your team’s score first in each set. Use completed best-of-three scores like 6-4, 4-6, 10-8.'}</p>`}
       ${hasPlayedCourt?`<p>Assign players so they can find their scores under Your courts.${showPlayers?' Leave player 2 empty for singles.':''}</p>
        ${showPlayers?'':`<button type="button" class="secondary" data-result-players ${loadingPlayers?'disabled':''}>${confirmedPlayers||edit.score?.courtPlayers?'Edit who played':'Confirm who played'}</button>`}`:''}
-      <div class="team-result-court-fields">${courtFields(courts,availablePlayers(),showPlayers,assigningPlayers)}</div>
+      <div class="team-result-court-fields">${courtFields(courts,availablePlayers(),showPlayers,assigningPlayers,scoreBySet)}</div>
       <p data-court-tally aria-live="polite">${courtTallyText(courts)}</p>
       <p id="result-player-coverage" aria-live="polite"></p>
       ${assigningPlayers?'':`${courts.length<maxTeamResultCourts?'<button type="button" class="secondary" data-add-result-court>Add another court</button>':''}
@@ -440,9 +477,17 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
   const plannedLineup=dialog.querySelector<HTMLDetailsElement>('[data-planned-lineup]')
   if(plannedLineup)plannedLineup.ontoggle=()=>{if(plannedLineup.isConnected)plannedLineupExpanded=plannedLineup.open}
   const focusCourt=(index:number)=>{
-   const field=courts?.[index]?.outcome==='played'?'score':'outcome'
-   focus(`[data-court-${field}="${index}"]`)
+   focus(courts?.[index]?.outcome==='played'
+    ?`[data-court-score="${index}"],[data-court-set="${index}:0:0"]`
+    :`[data-court-outcome="${index}"]`)
   }
+  dialog.querySelectorAll<HTMLButtonElement>('[data-score-entry]').forEach(button=>{button.onclick=()=>{
+   const bySet=button.dataset.scoreEntry==='sets'
+   if(bySet===scoreBySet)return
+   scoreBySet=bySet
+   remember()
+   render();focus(`[data-score-entry="${bySet?'sets':'text'}"]`)
+  }})
   dialog.querySelector('[data-schedule-next-match]')?.addEventListener('click',()=>{
    if(!active()||busy||!postedMatch)return
    const previous=postedMatch
@@ -479,6 +524,7 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
    plannedLineupExpanded=false
    const draft=currentDraft(edit)
    assigningPlayers=draft?.assigningPlayers??button.hasAttribute('data-result-assign')
+   scoreBySet=draft?.scoreBySet??false
    showPlayers=false
    confirmedPlayers=draft?.confirmedPlayers??false
    restoredPlayers=draft?.players??[]
@@ -541,13 +587,27 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
    changed()
    paintPlayerCoverage(form,courts)
   }})
-  dialog.querySelectorAll<HTMLInputElement>('[data-court-score]').forEach(input=>{input.oninput=()=>{
+  const updateCourtScore=(index:number,value:string)=>{
    if(!courts)return
-   courts[Number(input.dataset.courtScore)].score=input.value
+   courts[index].score=value
    changed()
    const tally=dialog.querySelector('[data-court-tally]')!
    const text=courtTallyText(courts)
    if(tally.textContent!==text)tally.textContent=text
+  }
+  dialog.querySelectorAll<HTMLInputElement>('[data-court-score]').forEach(input=>{
+   input.oninput=()=>updateCourtScore(Number(input.dataset.courtScore),input.value)
+  })
+  dialog.querySelectorAll<HTMLInputElement>('[data-court-set]').forEach(input=>{input.oninput=()=>{
+   if(!courts)return
+   const [index,set,side]=input.dataset.courtSet!.split(':').map(Number)
+   const pairs=scorePairs(courts[index].score)
+   if(!pairs)return
+   const value=input.value.replace(/[^0-9]/g,'').slice(0,2)
+   if(input.value!==value)input.value=value
+   pairs[set][side]=value
+   while(pairs.length&&pairs.at(-1)?.every(game=>!game))pairs.pop()
+   updateCourtScore(index,pairs.map(pair=>pair.join('-')).join(', '))
   }})
   form?.querySelectorAll<HTMLInputElement>('input[name="won"],input[name="lost"]').forEach(input=>{input.oninput=()=>{
    if(input.name==='won')won=input.value

@@ -312,6 +312,7 @@ test('first-party calendar opens a captain-entered match and checks for schedule
  await row.click()
  await expect(calendar.getByRole('heading',{name:'Team match',exact:true})).toBeFocused()
  await expect(calendar.getByText(/6:00\s*PM CST/)).toBeVisible()
+ await expect(calendar.getByRole('button',{name:'Find in Apple Maps',exact:true})).toHaveCount(0)
  await setSchedule('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','Court 5')
  await calendar.getByRole('button',{name:'Open match & availability',exact:true}).click()
  const next=page.getByRole('dialog',{name:'Next match',exact:true})
@@ -323,6 +324,68 @@ test('first-party calendar opens a captain-entered match and checks for schedule
  await expect(row).toContainText('Court 5')
  await expect(row).toBeFocused()
  expect(await calendar.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+})
+
+test('first-party Calendar and Next match open the latest team venue in Apple Maps',async({page},info)=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.clock.setFixedTime(new Date(2026,10,12,12))
+ const errors:string[]=[],opened:string[]=[]
+ page.on('pageerror',error=>errors.push(error.message))
+ await page.exposeFunction('recordTeamVenue',(url:string)=>opened.push(url))
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ await page.evaluate(()=>{
+  const record=(window as unknown as {recordTeamVenue:(url:string)=>void}).recordTeamVenue
+  window.open=url=>{record(String(url));return null}
+ })
+ const setSchedule=(revision:string,facility:string)=>page.evaluate(({revision,facility})=>{
+  const {manualScheduleFixture}=window as unknown as {manualScheduleFixture:object}
+  Object.assign(manualScheduleFixture,{captain:false,revision,
+   nextMatch:{opponent:'Topspin Club',date:'2026-11-14',time:'18:00',facility,timeZone:'America/Chicago'}})
+ },{revision,facility})
+ await setSchedule('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Northside Tennis Center · Court 2')
+ await page.getByRole('button',{name:'More',exact:true}).click()
+ await page.locator('[data-app-destination="calendar"]').click()
+ const calendar=page.getByRole('dialog',{name:'Your calendar',exact:true})
+ await calendar.getByRole('combobox',{name:'Show',exact:true}).selectOption({label:'Team matches'})
+ const row=calendar.locator('.cal-event.team')
+ await row.click()
+ const mapsName={name:'Find in Apple Maps',exact:true}
+ const calendarMaps=calendar.getByRole('button',mapsName)
+ await expect(calendarMaps).toBeVisible()
+ await setSchedule('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','Park & Pine Racquet Club · Court 5')
+ await calendarMaps.click()
+ await expect(row).toContainText('Park & Pine Racquet Club')
+ await expect(row).toBeFocused()
+ expect(opened).toEqual([])
+ await row.click()
+ await expect(calendar.getByRole('heading',{name:'Team match',exact:true})).toBeFocused()
+ await page.screenshot({path:info.outputPath('team-calendar-maps.png')})
+ await calendarMaps.click()
+ await expect.poll(()=>opened.length).toBe(1)
+ await expect(calendarMaps).toBeEnabled()
+ await calendar.getByRole('button',{name:'Open match & availability',exact:true}).click()
+ const next=page.getByRole('dialog',{name:'Next match',exact:true})
+ const nextMaps=next.getByRole('button',mapsName)
+ await expect(nextMaps).toBeVisible()
+ await expect(next.getByRole('heading',{name:'Can you play?',exact:true})).toBeInViewport()
+ expect(await next.getByRole('button',{name:'Maybe',exact:true}).evaluate(button=>{
+  const label=document.createRange()
+  label.selectNodeContents(button)
+  const text=label.getBoundingClientRect(),bounds=button.getBoundingClientRect()
+  return text.left>=bounds.left&&text.right<=bounds.right
+ })).toBe(true)
+ await page.screenshot({path:info.outputPath('team-next-match-maps.png')})
+ await nextMaps.click()
+ await expect.poll(()=>opened.length).toBe(2)
+ await expect(nextMaps).toBeFocused()
+ for(const value of opened){
+  const destination=new URL(value)
+  expect(destination.origin).toBe('https://maps.apple.com')
+  expect([...destination.searchParams]).toEqual([['q','Park & Pine Racquet Club']])
+ }
+ expect(await next.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ expect(errors).toEqual([])
 })
 
 test('first-party rematches leave the original calendar scorecard linked', async ({page}) => {
@@ -1374,7 +1437,7 @@ test('first-party teammate reviews a corrected team score before updating a priv
  await expect(page.getByRole('button',{name:/^Baseline Aces/})).toBeVisible()
 })
 
-test('first-party captain posts and corrects a team score and teammates can review it',async({page})=>{
+test('first-party captain posts and corrects a team score and teammates can review it',async({page},info)=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:720})
  await page.goto(origin+'/?manual-team-schedule=1&large=1')
@@ -1382,19 +1445,27 @@ test('first-party captain posts and corrects a team score and teammates can revi
  await page.getByRole('button',{name:/^Baseline Aces/}).click()
  const teamTools=page.locator('.chat-room-options > summary')
  const entry=page.getByRole('button',{name:/^Team results/})
+ const nextMatch=page.locator('#chat-next-match')
+ const schedule=page.getByRole('dialog',{name:'Next match',exact:true})
  const dialog=page.getByRole('dialog',{name:'Team results',exact:true})
+ const queue=dialog.getByRole('list',{name:'Scores to finish',exact:true})
  const open=async()=>{await teamTools.click();await entry.click()}
- await open()
- await expect(dialog.getByText('Score pending',{exact:true})).toBeVisible()
+ await teamTools.click()
+ await nextMatch.click()
+ await schedule.getByRole('button',{name:'Open team results',exact:true}).click()
+ await expect(schedule).toHaveCount(0)
+ await expect(queue.getByText('Score pending',{exact:true})).toBeVisible()
+ await page.screenshot({path:info.outputPath('team-scores-to-finish.png')})
  await expect(dialog.getByRole('button',{name:/^Draft result in chat/})).toHaveCount(0)
- await dialog.getByRole('button',{name:'Enter score vs Topspin Club',exact:true}).click()
+ await queue.getByRole('button',{name:'Enter score vs Topspin Club',exact:true}).click()
  await dialog.getByLabel('Courts won').fill('4')
  await dialog.getByLabel('Courts lost').fill('1')
  expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
  await dialog.getByRole('button',{name:'Post team score',exact:true}).click()
  await dialog.getByRole('button',{name:'Retry same score',exact:true}).click()
  await expect(dialog.getByRole('status')).toHaveText('Result posted for your team.')
- await expect(dialog).toContainText('4–1 · Won')
+ await expect(queue).toHaveCount(0)
+ await expect(dialog.getByRole('list',{name:'Recent team matches',exact:true})).toContainText('4–1 · Won')
  const record=dialog.getByRole('region',{name:'Team record',exact:true})
  await expect(record.locator('dd')).toHaveText(['1','0','0'])
  await dialog.getByRole('button',{name:'Correct score vs Topspin Club',exact:true}).click()
@@ -1405,7 +1476,7 @@ test('first-party captain posts and corrects a team score and teammates can revi
  await expect(dialog).toContainText('2–3 · Lost')
  await expect(record.locator('dd')).toHaveText(['0','1','0'])
  await dialog.getByRole('button',{name:'Close',exact:true}).click()
- await expect(entry).toBeFocused()
+ await expect(nextMatch).toBeFocused()
  await page.evaluate(()=>{
   (window as unknown as {manualScheduleFixture:{captain:boolean}}).manualScheduleFixture.captain=false
  })
@@ -1413,6 +1484,7 @@ test('first-party captain posts and corrects a team score and teammates can revi
  await page.getByRole('button',{name:'Refresh messages',exact:true}).click()
  await open()
  await expect(dialog).toContainText('2–3 · Lost')
+ await expect(queue).toHaveCount(0)
  await expect(record.locator('dd')).toHaveText(['0','1','0'])
  await expect(dialog.getByRole('button',{name:/^Correct score/})).toHaveCount(0)
  await expect(dialog.getByRole('button',{name:/^Draft result in chat/})).toHaveCount(0)
@@ -1451,7 +1523,23 @@ test('first-party captain resumes a court score draft after leaving the team',as
  await page.getByRole('button',{name:'All team chats',exact:true}).click()
  await nav.getByRole('button',{name:'My Lab',exact:true}).click()
  await expect(page.getByRole('heading',{name:'Match log',exact:true})).toBeVisible()
+ await page.evaluate(()=>{
+  const {teamResultFixture}=window as unknown as {teamResultFixture:TeamResultEntry&{earlier:TeamResultEntry[]}}
+  teamResultFixture.earlier.push({
+   fixtureId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   match:{...teamResultFixture.match,opponent:'Drop Shot Club',date:'2026-11-03'},score:null,
+  },{
+   fixtureId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+   match:{...teamResultFixture.match,opponent:'Break Point Club',date:'2026-10-24'},
+   score:{revision:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',won:3,lost:2},
+  })
+ })
  await open()
+ const queue=results.getByRole('list',{name:'Scores to finish',exact:true})
+ await expect(queue.getByRole('listitem')).toHaveCount(2)
+ await expect(queue.getByRole('listitem').first()).toContainText('Resume score draft')
+ await expect(queue.getByRole('listitem').last()).toContainText('Drop Shot Club')
+ await expect(results.getByRole('list',{name:'Recent team matches',exact:true})).toContainText('Break Point Club')
  await resume.click()
  await expect(score).toHaveValue('6-4, 3-')
  await expect(secondOutcome.locator('option:checked')).toHaveText('Won by default')
@@ -1459,12 +1547,21 @@ test('first-party captain resumes a court score draft after leaving the team',as
  await results.getByRole('button',{name:'Edit who played',exact:true}).click()
  await expect(player.locator('option:checked')).toHaveText('Alex')
  await score.fill('6-4, 4-')
+ const bySet=results.getByRole('button',{name:'By set',exact:true})
+ const partial=results.getByRole('textbox',{name:'Court 1 set 2, your team',exact:true})
+ await bySet.click()
+ await expect(partial).toHaveValue('4')
+ await partial.fill('5')
  const stored=()=>page.evaluate(()=>sessionStorage.getItem('synthetic-native:team-score-drafts:v1:11111111-1111-4111-8111-111111111111'))
- await expect.poll(stored).toContain('6-4, 4-')
+ await expect.poll(stored).toContain('6-4, 5-')
  await page.reload()
  await open()
  await resume.click()
- await expect(score).toHaveValue('6-4, 4-')
+ await expect(bySet).toHaveAttribute('aria-pressed','true')
+ await expect(partial).toHaveValue('5')
+ await expect(results.getByRole('textbox',{name:'Court 1 set 2, opponent',exact:true})).toHaveValue('')
+ await results.getByRole('button',{name:'Type score',exact:true}).click()
+ await expect(score).toHaveValue('6-4, 5-')
  await expect(results.locator('[data-result-form] .team-result-player-names')).toHaveText(['Alex'])
  await results.getByRole('button',{name:'Discard changes',exact:true}).click()
  await expect(enter).toBeFocused()
@@ -1580,7 +1677,7 @@ test('first-party captain adds players to a posted result without changing the s
  await expect(results.getByRole('button',{name:/^Log my court in My Lab/})).toBeVisible()
 })
 
-test('first-party captain enters court scores and the team tally follows the court winners',async({page})=>{
+test('first-party captain enters court scores and the team tally follows the court winners',async({page},info)=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:720})
  await page.goto(origin+'/?manual-team-schedule=1&large=1')
@@ -1596,9 +1693,29 @@ test('first-party captain enters court scores and the team tally follows the cou
  await courtOne.fill('6-4')
  await dialog.getByRole('button',{name:'Post team score',exact:true}).click()
  await expect(dialog.getByRole('status')).toHaveText('Enter a completed best-of-three score or choose a default for each court.')
- await courtOne.fill('6-4, 4-6, 10-8')
+ const bySet=dialog.getByRole('button',{name:'By set',exact:true})
+ const set=(number:number,side:'your team'|'opponent')=>dialog.getByRole('textbox',{name:`Court 1 set ${number}, ${side}`,exact:true})
+ await bySet.click()
+ await expect(set(1,'your team')).toHaveValue('6')
+ await expect(set(1,'opponent')).toHaveValue('4')
+ await expect(set(2,'your team')).toHaveAttribute('inputmode','numeric')
+ await set(2,'your team').fill('4')
+ await set(2,'opponent').fill('6')
+ await set(3,'your team').fill('10')
+ await dialog.getByRole('button',{name:'Post team score',exact:true}).click()
+ await expect(dialog.getByRole('status')).toHaveText('Enter a completed best-of-three score or choose a default for each court.')
+ await set(3,'opponent').fill('8')
+ await expect(dialog.getByText('Team tally 1–0',{exact:true})).toBeVisible()
+ await dialog.getByRole('group',{name:'Court 1 set scores',exact:true}).scrollIntoViewIfNeeded()
+ await page.screenshot({path:info.outputPath('team-score-by-set.png')})
  await dialog.getByRole('button',{name:'Add another court',exact:true}).click()
- await dialog.getByLabel('Court 2 score',{exact:true}).fill('3-6 4-6')
+ await expect(dialog.getByRole('textbox',{name:'Court 2 set 1, your team',exact:true})).toBeFocused()
+ await dialog.getByRole('button',{name:'Type score',exact:true}).click()
+ await expect(courtOne).toHaveValue('6-4, 4-6, 10-8')
+ const courtTwo=dialog.getByLabel('Court 2 score',{exact:true})
+ await courtTwo.fill('3-6 6-7(5)')
+ await bySet.click()
+ await expect(courtTwo).toHaveValue('3-6 6-7(5)')
  await expect(dialog.getByText('Team tally 1–1',{exact:true})).toBeVisible()
  expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
  await dialog.getByRole('button',{name:'Post team score',exact:true}).click()
@@ -1606,7 +1723,8 @@ test('first-party captain enters court scores and the team tally follows the cou
  await expect(dialog).toContainText('1–1 · Tied')
  await dialog.getByText('Court scores (2)',{exact:true}).click()
  await expect(dialog.getByText('Court 1 · Won',{exact:true})).toBeVisible()
- await expect(dialog.getByText('3-6, 4-6',{exact:true})).toBeVisible()
+ await expect(dialog.getByText('6-4, 4-6, 10-8',{exact:true})).toBeVisible()
+ await expect(dialog.getByText('3-6, 6-7(5)',{exact:true})).toBeVisible()
  await page.evaluate(()=>{
   const fixture=(window as unknown as {manualScheduleFixture:{revision:string;nextMatch:unknown}}).manualScheduleFixture
   fixture.revision='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'

@@ -238,7 +238,9 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
     render()
     app.querySelector<HTMLElement>('.chat-room-options > summary')?.focus({preventScroll:true})
    }else if(trigger.isConnected)trigger.focus({preventScroll:true})
-  },()=>current()&&canDraftTeamUpdate(room),previousMatch)
+  },()=>current()&&canDraftTeamUpdate(room),{
+   previousMatch,openResults:results?()=>openResults(room,trigger):undefined,
+  })
  }
  const openResults=(room:NativeTeamRoom,trigger:HTMLButtonElement,entryPoint?:TeamResultsEntryPoint)=>{
   if(!results||!valid()||teamDialog?.isOpen()||snapshot?.room?.id!==room.id||!snapshot.room.manualFixture)return
