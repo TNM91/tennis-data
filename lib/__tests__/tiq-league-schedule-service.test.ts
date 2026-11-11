@@ -138,7 +138,7 @@ describe('tiq league schedule service', () => {
     expect(canChangeTiqLeagueScheduleStatus(published, 'coordinator', 'coordinator')).toBe(true)
     const proposal = scheduleItem({ status: 'proposed', proposedByUserId: 'proposer', createdByUserId: 'legacy-creator' })
     expect(canChangeTiqLeagueScheduleStatus(proposal, 'proposer', 'coordinator')).toBe(true)
-    expect(canChangeTiqLeagueScheduleStatus(proposal, 'legacy-creator', 'coordinator')).toBe(true)
+    expect(canChangeTiqLeagueScheduleStatus(proposal, 'legacy-creator', undefined)).toBe(true)
     expect(canChangeTiqLeagueScheduleStatus({ ...proposal, status: 'completed' }, 'coordinator', 'coordinator')).toBe(false)
     expect(canChangeTiqLeagueScheduleStatus({ ...proposal, status: 'cancelled' }, 'proposer', 'coordinator')).toBe(false)
   })

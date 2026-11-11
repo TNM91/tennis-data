@@ -34,7 +34,7 @@ export type TiqLeagueScheduleItem = {
 export function canChangeTiqLeagueScheduleStatus(
   item: Pick<TiqLeagueScheduleItem, 'status' | 'proposedByUserId' | 'createdByUserId'>,
   userId: string | null | undefined,
-  leagueOwnerId: string,
+  leagueOwnerId: string | null | undefined,
 ) {
   return Boolean(userId && item.status !== 'completed' && item.status !== 'cancelled'
     && (userId === leagueOwnerId || userId === item.proposedByUserId || userId === item.createdByUserId))
