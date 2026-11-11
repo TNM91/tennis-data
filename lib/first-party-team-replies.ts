@@ -5,7 +5,7 @@ import { isTeamMatchChoice, type TeamLineupPlayer, type TeamMatchReplyChange, ty
 
 const rosterLimit = 100
 
-async function loadAvailabilityRoster(service: SupabaseClient, room: ReviewedTeamRoom, owner: string) {
+export async function loadEligibleTeamRoster(service: SupabaseClient, room: ReviewedTeamRoom, owner: string) {
   const participants = await service.from('internal_conversation_participants').select('profile_id')
     .eq('conversation_id', room.roomId).order('profile_id').limit(rosterLimit + 1)
   if (participants.error || !Array.isArray(participants.data) ||
@@ -27,7 +27,7 @@ async function loadAvailabilityRoster(service: SupabaseClient, room: ReviewedTea
 }
 
 export async function loadTeamMatchReplies(service: SupabaseClient, room: ReviewedTeamRoom, owner: string, revision: string, captain: boolean): Promise<TeamMatchReplies> {
-  const roster = captain ? await loadAvailabilityRoster(service, room, owner) : null
+  const roster = captain ? await loadEligibleTeamRoster(service, room, owner) : null
   if (roster && !roster.ids.length) return { own: null, team: [], awaiting: [], awaitingTeammates: 0, rosterComplete: roster.rosterComplete, lineupRoster: [] }
 
   const query = service.from('native_team_fixture_replies').select('profile_id,operation_id,choice')

@@ -1,6 +1,7 @@
 import {expect,it} from 'vitest'
 import {PGlite} from '@electric-sql/pglite'
 import {readFile} from 'node:fs/promises'
+import {teamResultScorecardKey} from '../team-results-contract'
 type Result={ok:boolean;blocked?:string;job:{id:string;account_id:string;lease_token:string}|null;objects?:unknown[];request?:{id:string}}
 const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',room='33333333-3333-4333-8333-333333333333',message='44444444-4444-4444-8444-444444444444'
 it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure across the audited FK graph (%s checkout)',async newline=>{
@@ -10,7 +11,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.exec(await readSql(new URL('./fixtures/account-erasure-audited-schema.sql',import.meta.url)))
   await db.exec("create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$")
   await db.exec('create unique index fixture_participant_key on public.internal_conversation_participants(conversation_id,profile_id)')
-  for(const file of ['20261028000100_native_account_requests.sql','20261028000200_automated_account_erasure.sql','20261028000300_apple_purchase_records.sql','20261028000400_apple_purchase_erasure_guard.sql','20261030000100_native_tournament_registration.sql','20261031000100_native_coach_alert_preferences.sql','20261110000100_native_first_party_updates.sql','20261110000200_restore_updates_erasure_catalog.sql','20261110000300_native_personal_matches.sql','20261110000400_native_captain_court_results.sql','20261110000700_native_team_next_fixtures.sql','20261110000800_native_private_teams.sql','20261110000900_native_team_erasure_catalog.sql'])await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
+  for(const file of ['20261028000100_native_account_requests.sql','20261028000200_automated_account_erasure.sql','20261028000300_apple_purchase_records.sql','20261028000400_apple_purchase_erasure_guard.sql','20261030000100_native_tournament_registration.sql','20261031000100_native_coach_alert_preferences.sql','20261110000100_native_first_party_updates.sql','20261110000200_restore_updates_erasure_catalog.sql','20261110000300_native_personal_matches.sql','20261110000400_native_captain_court_results.sql','20261110000700_native_team_next_fixtures.sql','20261110000800_native_private_teams.sql','20261110000900_native_team_erasure_catalog.sql','20261110001000_native_team_result_players.sql'])await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
 
   await db.query('insert into internal_notification_preferences(profile_id,native_coach_alerts_enabled) values($1,true),($2,false)',[a,b])
@@ -36,10 +37,10 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
 
   await db.exec('grant usage on schema auth to authenticated; set role authenticated')
   const matchId = '22222222-aaaa-4222-8222-222222222222'
-  const fixtureId = 'league:city-league:match-one'
+  const scorecardKey = teamResultScorecardKey(room, matchId)
   const insertMatch = (owner:string,id=matchId) => db.query(`insert into native_personal_matches
     (owner_user_id,id,revision,calendar_match_id,match_date,opponent,format,outcome,score)
-    values ($1,$2,gen_random_uuid(),$3,current_date,'Practice partner','singles','Won','6-4 6-3')`, [owner,id,fixtureId])
+    values ($1,$2,gen_random_uuid(),$3,current_date,'Practice partner','singles','Won','6-4 6-3')`, [owner,id,scorecardKey])
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[a])
   await insertMatch(a)
   await expect(insertMatch(a)).rejects.toMatchObject({code:'23505'})
@@ -63,7 +64,9 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.query(`insert into native_team_next_fixtures(room_id,revision,fixture,lineup) values
     ($1,$3,'{}',$4::jsonb),($2,$3,'{}',$5::jsonb)`,[roomA,roomB,courtFixture,erasedLineup,retainedLineup])
   await db.query(`insert into native_team_fixture_history(room_id,fixture_id,fixture,match_date,result_revision,won,lost,court_scores,lineup)
-    values($1,$2,'{}',current_date,$3,1,0,'["W-DEFAULT"]',$4)`,[roomA,courtFixture,roomA,erasedLineup])
+    values($1,$2,'{}',current_date,$3,1,0,'["6-4, 6-3"]',$4)`,[roomA,courtFixture,roomA,erasedLineup])
+  await db.query(`insert into native_team_result_players(room_id,fixture_id,result_revision,court_number,seat,profile_id)
+    values($1,$2,$1,1,1,$3),($1,$2,$1,1,2,$4)`,[roomA,courtFixture,a,b])
   await db.exec('alter table profiles disable trigger native_team_lineup_profile_erasure')
   expect((await db.query<{ok:boolean}>('select account_erasure_catalog_ready() ok')).rows[0].ok).toBe(false)
   await db.exec('alter table profiles enable trigger native_team_lineup_profile_erasure')
@@ -80,6 +83,8 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
 
   for(const role of ['anon','authenticated']){
    await db.exec('set role '+role)
+   await expect(db.query('select profile_id from native_team_result_players')).rejects.toThrow()
+   await expect(db.query('select read_native_team_result_players($1,$2)',[roomA,[courtFixture]])).rejects.toThrow()
    await expect(db.query('select automated_account_erasure($1)',['claim'])).rejects.toThrow()
    await expect(db.query('select account_erasure_blocker($1,$2)',[a,'a@example.test'])).rejects.toThrow()
    await expect(db.query('select * from account_deletion_requests')).rejects.toThrow()
@@ -122,7 +127,8 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   expect((await db.query('select lineup from native_team_next_fixtures order by room_id')).rows)
    .toEqual([{lineup:null},{lineup:retainedLineup}])
   expect((await db.query('select won,lost,court_scores,lineup from native_team_fixture_history')).rows)
-   .toEqual([{won:1,lost:0,court_scores:['W-DEFAULT'],lineup:null}])
+   .toEqual([{won:1,lost:0,court_scores:['6-4, 6-3'],lineup:null}])
+  expect((await db.query('select profile_id,seat from native_team_result_players')).rows).toEqual([{profile_id:b,seat:2}])
   expect((await db.query('select owner_user_id from native_personal_matches')).rows).toEqual([{owner_user_id:b}])
   expect((await db.query('select a1,b1,posted_by from native_captain_court_results')).rows).toEqual([{a1:null,b1:b,posted_by:null}])
   expect((await db.query('select body from internal_messages order by body')).rows).toEqual([{body:'Keep my message'},{body:'Keep this reply'}])

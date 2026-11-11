@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { eventCalendarStart } from './calendar-date'
-import type { ReviewedTeamRoom } from './first-party-team-scopes'
+import { loadActiveReviewedTeamRoomIds, loadReviewedTeamLinks, readReviewedTeamRooms, type ReviewedTeamRoom } from './first-party-team-scopes'
+import { readCalendarTeamMatches, type CalendarRange } from './native-calendar-contract'
 import { loadFirstPartyNativeCompetitions } from './native-competitions'
 import { fixtureId, readReviewedNextMatch, type ReviewedNextMatch, type TeamNextMatchChange } from './team-fixtures-contract'
 import { readSavedTeamLineup } from './team-match-lineup-contract'
@@ -32,6 +33,24 @@ export async function loadManualTeamFixture(service: SupabaseClient, room: Revie
 export async function loadManualTeamNextMatch(service: SupabaseClient, room: ReviewedTeamRoom, includeLineup = false) {
   const { revision, match, lineup } = await loadManualTeamFixture(service, room, includeLineup)
   return { revision, nextMatch: match && upcomingTeamMatch(match) ? match : null, ...(lineup ? { lineup } : {}) }
+}
+
+export async function loadCalendarTeamMatches(service: SupabaseClient, owner: string, range: CalendarRange, now = new Date()) {
+  const links = (await loadReviewedTeamLinks(service, owner, readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)))
+    .filter(room => !room.scheduleLeagueId)
+  const ids = await loadActiveReviewedTeamRoomIds(service, owner, links)
+  if (!ids.length) return []
+  const scopes = new Map(links.map(({ roomId, teamName, leagueName, leagueLabel, flight }) => [roomId, { teamName, leagueName, leagueLabel, flight }]))
+  const { data, error } = await service.from('native_team_next_fixtures').select('room_id,revision,fixture')
+    .in('room_id', ids).limit(ids.length)
+  if (error || !Array.isArray(data) || data.some(row => !ids.includes(row.room_id))) throw Error('Team match dates unavailable')
+  return readCalendarTeamMatches(data.flatMap(({ room_id: roomId, revision, fixture }) => {
+    if (fixture === null) return []
+    const match = readReviewedNextMatch(fixture)
+    if (!match) throw Error('Invalid team match')
+    return match.date >= range.from && match.date <= range.to && upcomingTeamMatch(match, now)
+      ? [{ roomId, revision, match, scope: scopes.get(roomId) }] : []
+  }), range)
 }
 
 export async function saveManualTeamNextMatch(service: SupabaseClient, owner: string, room: ReviewedTeamRoom, change: TeamNextMatchChange) {

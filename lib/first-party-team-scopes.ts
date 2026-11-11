@@ -89,7 +89,10 @@ export async function loadReviewedTeamLinks(service: SupabaseClient, owner: stri
 }
 
 export async function loadEligibleCaptainRoomIds(service: SupabaseClient, owner: string, reviewed: ReviewedTeamLink[]) {
-  const links = reviewed.filter(link => link.isCaptain)
+  return loadActiveReviewedTeamRoomIds(service, owner, reviewed.filter(link => link.isCaptain))
+}
+
+export async function loadActiveReviewedTeamRoomIds(service: SupabaseClient, owner: string, links: ReviewedTeamRoom[]) {
   if (!links.length) return []
   const ids = links.map(link => link.roomId)
   const [rooms, members, removals] = await Promise.all([
@@ -99,7 +102,7 @@ export async function loadEligibleCaptainRoomIds(service: SupabaseClient, owner:
     service.from('team_room_member_removals').select('conversation_id').in('conversation_id', ids).eq('profile_id', owner).limit(50),
   ])
   if (rooms.error || members.error || removals.error || !Array.isArray(rooms.data) ||
-      !Array.isArray(members.data) || !Array.isArray(removals.data)) throw Error('Captain chat access unavailable')
+      !Array.isArray(members.data) || !Array.isArray(removals.data)) throw Error('Team chat access unavailable')
   const open = new Map(rooms.data.map(room => [room.id, room.related_entity_id]))
   const participating = new Set(members.data.map(row => row.conversation_id))
   const removed = new Set(removals.data.map(row => row.conversation_id))

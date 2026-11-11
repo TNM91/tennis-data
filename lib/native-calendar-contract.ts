@@ -2,13 +2,35 @@ import {isValidCalendarDate} from './calendar-date'
 import {buildPlayerCalendarItemPayload,type PlayerCalendarItem,type PlayerCalendarItemInput} from './player-calendar-items'
 import type {PlayerCompetitionScheduleEvent} from './player-competition-schedule'
 import type {CalendarTeamPractice} from './native-calendar-practices-contract'
+import {fixtureId,readReviewedNextMatch,type ReviewedNextMatch} from './team-fixtures-contract'
+import type {TeamRoomScope} from './team-room'
 
 export type CalendarRange={from:string;to:string}
 export type CalendarSharedDate={id:string;title:string;date:string;time:string;location:string;detail:string;kind:'lesson'|'reminder'}
 export type CalendarCompetitionView={id:string;divisionId?:string}
 export type NativeCalendarCompetition=PlayerCompetitionScheduleEvent&{publishedView?:CalendarCompetitionView;scorecardFormat?:'singles'|'doubles'}
-export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:NativeCalendarCompetition[];coach:CalendarSharedDate[];practices?:CalendarTeamPractice[];practicesUnavailable?:boolean;warnings:string[]}
+export type CalendarTeamMatch={roomId:string;revision:string;match:ReviewedNextMatch;scope:TeamRoomScope&{leagueLabel?:string}}
+export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:NativeCalendarCompetition[];coach:CalendarSharedDate[];practices?:CalendarTeamPractice[];practicesUnavailable?:boolean;teamMatches?:CalendarTeamMatch[];warnings:string[]}
 export const COMPETITION_DATES_UNAVAILABLE='League and tournament dates couldn’t load. Refresh to check them.'
+export const TEAM_MATCH_DATES_UNAVAILABLE='Team match dates couldn’t load. Refresh to check them.'
+export const calendarTeamMatchesHeader='X-TenAceIQ-Team-Matches'
+
+export function readCalendarTeamMatches(value:unknown,range:CalendarRange):CalendarTeamMatch[]{
+ if(!Array.isArray(value)||value.length>50)throw Error(TEAM_MATCH_DATES_UNAVAILABLE)
+ const seen=new Set<string>()
+ return value.map(raw=>{
+  const {roomId,revision,match:fixture,scope:team}=calendarObject(raw),scope=calendarObject(team)
+  const match=readReviewedNextMatch(fixture)
+  if(!fixtureId(roomId)||!fixtureId(revision)||seen.has(roomId)||!match||match.date<range.from||match.date>range.to||
+    /\p{Cc}/u.test(match.opponent+match.facility))throw Error(TEAM_MATCH_DATES_UNAVAILABLE)
+  const {teamName,leagueName,flight,leagueLabel}=scope
+  if(typeof teamName!=='string'||!calendarText(teamName,160)||typeof leagueName!=='string'||!calendarText(leagueName,160)||
+    typeof flight!=='string'||flight.length>80||(leagueLabel!==undefined&&(typeof leagueLabel!=='string'||leagueLabel.length>160))||
+    /\p{Cc}/u.test(teamName+leagueName+flight+(leagueLabel??'')))throw Error(TEAM_MATCH_DATES_UNAVAILABLE)
+  seen.add(roomId)
+  return {roomId,revision,match,scope:{teamName,leagueName,flight,...(leagueLabel?{leagueLabel}:{})}}
+ })
+}
 export function readCalendarCompetitionView(event:PlayerCompetitionScheduleEvent,value:unknown):CalendarCompetitionView|undefined{
  if(!value||typeof value!=='object')return
  const {id,divisionId}=value as Record<string,unknown>
