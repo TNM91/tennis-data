@@ -78,7 +78,7 @@ if(firstParty){
   assert.match(await read('App/AppDelegate.swift'), /capacitorDidRegisterForRemoteNotifications/)
   assert.equal((project.match(/CODE_SIGN_ENTITLEMENTS = App\/Push.entitlements;/g) || []).length,2)
 
-  const privacy=spawnSync(process.platform==='win32'?'python':'python3',[fileURLToPath(new URL('scripts/validate-ios-privacy.py',root)),fileURLToPath(new URL('App/Info.plist',ios))],{encoding:'utf8'})
+  const privacy=spawnSync(process.platform==='win32'?'python':'python3',[fileURLToPath(new URL('scripts/validate-ios-privacy.py',root)),fileURLToPath(new URL('App/Info.plist',ios)),...(fullApp?['--first-party-full']:[])],{encoding:'utf8'})
   assert.equal(privacy.status,0,privacy.stderr || privacy.error?.message || 'Camera privacy plist validation failed')
   console.log(privacy.stdout.trim())
 

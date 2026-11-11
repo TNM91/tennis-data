@@ -1,5 +1,6 @@
 import {iosPurchaseSources,iosPurchaseSceneDelegate} from './ios-purchases.mjs'
 import {cameraPrivacyPlist} from './ios-camera.mjs'
+import {courtLocationPrivacyPlist} from './ios-court-location.mjs'
 import {appLockPrivacyPlist,appLockPrivacyResource} from './ios-app-lock.mjs'
 import {iosPushSources,pushEntitlements} from './ios-push.mjs'
 import assert from 'node:assert/strict'
@@ -72,7 +73,9 @@ if(!firstParty){
   await writeFile(resolve(ios,'App/App/Push.entitlements'),pushEntitlements('development'))
 
   const infoPath=resolve(ios,'App/App/Info.plist')
-  await writeFile(infoPath,appLockPrivacyPlist(cameraPrivacyPlist(await readFile(infoPath,'utf8'))))
+  const privacy = appLockPrivacyPlist(cameraPrivacyPlist(await readFile(infoPath,'utf8')))
+  const courtPilot = await exists(resolve(mobile,'bundled/release-scope.json'))
+  await writeFile(infoPath,courtLocationPrivacyPlist(privacy,courtPilot))
 
   const storyboardPath=resolve(ios,'App/App/Base.lproj/Main.storyboard')
   const purchases=iosPurchaseSources(await readFile(resolve(project,'project.pbxproj'),'utf8'),await readFile(storyboardPath,'utf8'))

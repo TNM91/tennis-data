@@ -21,9 +21,12 @@ export function showGuestExplore(app:HTMLElement,current:()=>boolean,signIn:(vis
  app.innerHTML='<div class="public-explore-toolbar"><button type="button" class="secondary" data-public-back>Back</button><span>Public Explore</span><button type="button" class="secondary" data-public-sign-in>Sign in</button></div><div data-public-explore></div>'
  const content=app.querySelector<HTMLElement>('[data-public-explore]')!
  const client=publicClient??=createPublicBrowseClient()
- const directory=showExplore(content,client,valid,{access,onCompetitions:firstPartyBuild?(trigger,query)=>{
-  if(!competitions?.isOpen())competitions=openCompetitions(client,publicCompetitionOwner,valid,'discover',undefined,undefined,trigger,'',undefined,query)
- }:undefined})
+ const directory=showExplore(content,client,valid,{access,...(firstPartyBuild?{
+  nearby:{owner:publicCompetitionOwner,onTournaments:()=>{if(valid())signIn({...directory.visit(),destination:'tournaments'})}},
+  onCompetitions:(trigger,query,id)=>{
+   if(!competitions?.isOpen())competitions=openCompetitions(client,publicCompetitionOwner,valid,'discover',undefined,undefined,trigger,id,undefined,query)
+  },
+ }:{})})
  const back=()=>{if(!valid())return false;if(competitions?.isOpen())return competitions.back();if(!directory.back())backToWelcome();return true}
  app.querySelector<HTMLButtonElement>('[data-public-back]')!.onclick=back
  app.querySelector<HTMLButtonElement>('[data-public-sign-in]')!.onclick=()=>access.signIn()

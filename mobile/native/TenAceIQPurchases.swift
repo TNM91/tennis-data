@@ -1,5 +1,6 @@
 import Foundation
 import CoreFoundation
+import CoreLocation
 import UIKit
 import Capacitor
 import StoreKit
@@ -17,6 +18,88 @@ final class TenAceIQBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(TenAceIQNotifications())
         bridge?.registerPluginInstance(TenAceIQBiometricSignIn())
         bridge?.registerPluginInstance(TenAceIQFiles())
+        if Bundle.main.object(forInfoDictionaryKey: "NSLocationWhenInUseUsageDescription") != nil {
+            bridge?.registerPluginInstance(TenAceIQCourtLocation())
+        }
+    }
+}
+
+/// A single foreground location for court sorting. No location is retained.
+@objc(TenAceIQCourtLocation)
+public final class TenAceIQCourtLocation: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
+    public let identifier = "TenAceIQCourtLocation"
+    public let jsName = "TiqCourtLocation"
+    public let pluginMethods = [CAPPluginMethod(name: "current", returnType: CAPPluginReturnPromise)]
+    private var pending: CAPPluginCall?
+    private var manager: CLLocationManager?
+    private var requestedPermission = false
+    private var timeout: DispatchWorkItem?
+
+    @objc func current(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard self.pending == nil, UIApplication.shared.applicationState == .active else {
+                call.reject("Location is unavailable.", "location_unavailable")
+                return
+            }
+            let manager = CLLocationManager()
+            self.pending = call
+            self.manager = manager
+            manager.desiredAccuracy = kCLLocationAccuracyKilometer
+            manager.delegate = self
+            self.advance(manager)
+        }
+    }
+
+    private func advance(_ manager: CLLocationManager) {
+        guard self.manager === manager, pending != nil else { return }
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            if !requestedPermission {
+                requestedPermission = true
+                manager.requestWhenInUseAuthorization()
+            }
+        case .authorizedWhenInUse, .authorizedAlways:
+            guard timeout == nil else { return }
+            let expiry = DispatchWorkItem { [weak self, weak manager] in
+                guard let self, let manager, self.manager === manager else { return }
+                self.finish(error: "location_unavailable")
+            }
+            timeout = expiry
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15, execute: expiry)
+            manager.requestLocation()
+        case .denied, .restricted:
+            finish(error: "location_denied")
+        @unknown default:
+            finish(error: "location_unavailable")
+        }
+    }
+
+    private func finish(coordinate: CLLocationCoordinate2D? = nil, error: String = "location_unavailable") {
+        let call = pending
+        pending = nil
+        timeout?.cancel()
+        timeout = nil
+        manager?.delegate = nil
+        manager = nil
+        requestedPermission = false
+        if let coordinate {
+            call?.resolve(["lat": (coordinate.latitude * 1_000).rounded() / 1_000,
+                           "lon": (coordinate.longitude * 1_000).rounded() / 1_000])
+        } else {
+            call?.reject("Location is unavailable.", error)
+        }
+    }
+
+    public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) { advance(manager) }
+
+    public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard self.manager === manager else { return }
+        finish(coordinate: locations.last(where: { $0.horizontalAccuracy >= 0 && CLLocationCoordinate2DIsValid($0.coordinate) })?.coordinate)
+    }
+
+    public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        guard self.manager === manager else { return }
+        finish(error: (error as? CLError)?.code == .denied ? "location_denied" : "location_unavailable")
     }
 }
 

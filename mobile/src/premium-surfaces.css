@@ -723,6 +723,76 @@ body[data-screen] button.explore-competitions.secondary { margin-block:12px 0;ba
 @container (max-width:17em) {
  .explore-search-panel .explore-categories { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+.native-explore-hero.explore-nearby {
+ display:grid;gap:20px;padding:0;border:0;background:none;box-shadow:none;
+}
+body[data-screen] .explore-nearby .explore-spotlight { margin:0;padding:18px 16px 16px; }
+.explore-nearby-area {
+ display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:15px 0 0;
+ color:var(--premium-copy);font-size:.8125rem;font-weight:650;
+}
+.explore-picker { position:relative;max-inline-size:100%; }
+.explore-picker select {
+ appearance:none;min-block-size:44px;inline-size:auto;max-inline-size:100%;margin:0;padding:5px 32px 5px 10px;
+ border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-inset);color:var(--premium-white);font:inherit;font-size:max(16px,.8125rem);
+}
+.explore-picker>svg {
+ position:absolute;inset-block-start:50%;inset-inline-end:10px;inline-size:14px;block-size:14px;
+ color:var(--premium-ice);transform:translateY(-50%);pointer-events:none;
+}
+.explore-nearby .explore-nearby-section { min-inline-size:0;margin:0;padding:0;background:transparent;border:0;box-shadow:none; }
+.explore-nearby-section h2 { margin:0 0 8px;color:var(--premium-white);font-size:1.125rem;line-height:1.25; }
+.explore-nearby-section-heading { display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:2px 10px;margin-block-end:8px; }
+.explore-nearby-section-heading h2 { margin:0; }
+.explore-nearby-section-heading span { color:var(--premium-copy);font-size:.75rem; }
+.explore-event-list,.explore-court-list { display:grid;gap:6px;list-style:none;margin:0;padding:0; }
+.explore-nearby button.explore-event.secondary {
+ display:grid;grid-template-columns:minmax(2.5rem,auto) minmax(0,1fr) auto;align-items:center;gap:10px;
+ margin:0;padding:10px 11px;text-align:start;border-color:var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-surface);
+}
+.explore-event-list li:first-child button.explore-event.secondary { border-color:transparent;background:var(--premium-court-inlay); }
+.explore-event time {
+ display:grid;gap:2px;justify-items:center;padding:5px 6px;border-radius:9px;background:var(--premium-inset);
+ color:var(--premium-lime);font-size:.68rem;font-weight:700;line-height:1.15;text-transform:uppercase;
+}
+.explore-event time strong { color:var(--premium-white);font-size:1.125rem;font-variant-numeric:tabular-nums; }
+.explore-event-copy { display:grid;gap:2px;color:var(--premium-copy);font-size:.75rem;font-weight:550;line-height:1.3;overflow-wrap:anywhere; }
+.explore-event-copy strong { color:var(--premium-white);font-size:.9375rem; }
+.explore-event-arrow { color:var(--premium-ice);font-size:1.4rem; }
+.explore-nearby-message {
+ margin:0;padding:10px 12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
+ background:var(--premium-surface);color:var(--premium-copy);font-size:.8125rem;line-height:1.45;
+}
+[data-explore-event-list]:not(:empty)+.explore-nearby-message,.explore-court-list+.explore-nearby-message { margin-block-start:8px; }
+.explore-nearby-actions { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr));gap:7px;margin-block-start:8px; }
+.explore-nearby-actions button.secondary,.explore-nearby button.explore-nearby-followup.secondary {
+ display:flex;justify-content:center;align-items:center;gap:6px;min-block-size:44px;margin:0;padding:7px 8px;
+ border-color:var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface);
+ color:var(--premium-white);font-size:.75rem;line-height:1.2;overflow-wrap:anywhere;
+}
+.explore-nearby-actions button.secondary>span { display:grid;place-items:center;flex:none; }
+.explore-nearby button.explore-nearby-followup.secondary { inline-size:auto;margin-block-start:5px;color:var(--premium-lime); }
+.explore-court-list {
+ gap:0;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-surface);
+}
+.explore-court-list li {
+ display:flex;justify-content:space-between;flex-wrap:wrap;align-items:center;gap:0 8px;padding:8px 12px;
+}
+.explore-court-list li+li { border-block-start:1px solid var(--premium-line); }
+.explore-court-list h3 { margin:0;font-size:.9rem;line-height:1.3;overflow-wrap:anywhere; }
+.explore-court-list p { margin:1px 0 0;color:var(--premium-copy);font-size:.75rem;line-height:1.3; }
+.explore-court-links { display:flex;flex-wrap:wrap;align-items:center;gap:0 12px; }
+.explore-court-links a { display:inline-flex;align-items:center;gap:3px;min-block-size:44px;font-size:.75rem;font-weight:700; }
+.explore-court-links a:first-child { color:var(--premium-copy); }
+.explore-nearby button.explore-hit-invite.secondary {
+ display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:9px;
+ min-block-size:48px;margin:8px 0 0;padding:9px 12px;text-align:start;font-size:.875rem;
+ border-color:transparent;border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);
+}
+.explore-hit-invite>span:first-child { display:grid;place-items:center; }
+.explore-nearby button.explore-find-courts.secondary { margin:0 0 8px; }
 #app button.explore-back.secondary { inline-size:auto;min-block-size:44px;margin:0 0 12px;padding:8px 14px; }
 .explore-back[hidden],
 .explore-back:has(+ #explore-content :is(#directory-detail,#explore-player):not([hidden])) { display:none!important; }
@@ -1737,6 +1807,62 @@ dialog.shared-match-dialog[open] {
 .scorecard-share-actions button:not(.secondary) { background:var(--premium-action);color:var(--premium-page); }
 .scorecard-share-dialog [data-close].secondary { background:transparent;border-color:var(--premium-line); }
 .scorecard-share-dialog :is(summary,button,[role="status"]):focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
+.court-invite-heading {
+ display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-block-end:12px;
+}
+.court-invite-heading h2 { margin:0;font-size:1.2rem;line-height:1.25; }
+.court-invite-heading button.secondary {
+ inline-size:auto;min-block-size:44px;margin:0;padding:7px 11px;color:var(--premium-ice);font-size:.8125rem;
+}
+.court-invite-dialog .court-invite-fields {
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:10px;
+ min-inline-size:0;margin:0;padding:0;border:0;
+}
+.court-invite-fields label:first-of-type { grid-column:1/-1; }
+.court-invite-preferences {
+ display:flex;flex-wrap:wrap;gap:6px;grid-column:1/-1;
+}
+.court-invite-preferences button.secondary {
+ inline-size:auto;min-block-size:44px;margin:0;padding:6px 10px;font-size:.8125rem;
+}
+.court-invite-preferences button.secondary[aria-pressed="true"] {
+ border-color:transparent;background:var(--premium-court-inlay);color:var(--premium-lime);
+}
+.court-invite-dialog label { min-inline-size:0;margin:0;color:var(--premium-copy);font-size:.8125rem; }
+.court-invite-dialog :is(input,select,textarea) {
+ min-inline-size:0;max-inline-size:100%;margin:0;border-color:var(--premium-line);
+ background:var(--premium-inset);font-size:max(16px,.875rem);
+}
+.court-invite-fields .explore-picker select { inline-size:100%;padding-inline-end:32px; }
+.court-invite-dialog input:disabled { opacity:.55; }
+.court-invite-preview {
+ margin-block-start:14px;padding:12px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius);background:var(--premium-card);
+}
+.court-invite-preview p { margin:0 0 5px;color:var(--premium-white);font-size:.875rem;line-height:1.45; }
+.court-invite-preview small,.court-invite-status { color:var(--premium-copy);font-size:.75rem; }
+.court-invite-preview .court-invite-private-address { color:var(--premium-ice);font-size:.8125rem; }
+.court-invite-status { margin:6px 0 0; }
+.court-invite-dialog [data-invite-manual][hidden] { display:none; }
+.court-invite-dialog .scorecard-share-actions button { flex-basis:7rem; }
+.court-finder-search { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end; }
+.court-finder-dialog label { min-inline-size:0;margin:0;color:var(--premium-copy);font-size:.8125rem; }
+.court-finder-search label { grid-column:1/-1; }
+.court-finder-dialog input { min-inline-size:0;margin:0;background:var(--premium-inset);font-size:max(16px,.875rem); }
+.court-finder-search button,.court-finder-dialog button.court-finder-locate.secondary,.court-finder-dialog button.court-finder-more.secondary {
+ inline-size:auto;min-block-size:44px;margin:0;padding:7px 10px;font-size:.8125rem;
+}
+.court-finder-dialog button.court-finder-locate.secondary,.court-finder-dialog button.court-finder-more.secondary { margin-block-start:8px; }
+.court-finder-count { margin:12px 0 5px;color:var(--premium-copy);font-size:.8125rem; }
+.court-finder-results:empty { display:none; }
+.court-finder-dialog .court-finder-links button.secondary { inline-size:auto;min-block-size:44px;margin:0;padding:4px 8px;font-size:.75rem; }
+.court-finder-source { display:block;margin-block-start:10px;color:var(--premium-ice);font-size:.75rem; }
+.court-finder-private-form { margin-block-start:10px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);padding:0 10px; }
+.court-finder-private-form summary { display:list-item;min-block-size:44px;padding-block:10px;color:var(--premium-ice);font-weight:650;cursor:pointer; }
+.court-finder-private-form form { display:grid;gap:8px;padding-block-end:10px; }
+.court-finder-private-form button { min-block-size:44px;margin:0;font-size:.8125rem; }
+.court-finder-address { display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1.25fr);gap:6px;align-items:end; }
+.court-finder-dialog [data-finder-saved] h3 { margin:12px 0 6px;font-size:.9375rem; }
 
 /* Competition detail sheets use the same restrained lighting as the main cards. */
 .competitions-dialog { --competition-accent:var(--premium-ice);--competition-edge:var(--premium-line); }

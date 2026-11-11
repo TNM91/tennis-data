@@ -6,6 +6,7 @@ import { showDirectory } from './directory-view'
 import { showRankings } from './rankings-view'
 import type {RatingView} from '../../lib/player-rating-display'
 import {firstPartyBuild} from './build-scope'
+import {mountNearbyExplore,nearbyAreaHtml,nearbySectionsHtml,type NearbyExploreOptions} from './explore-nearby'
 
 const searchModes={
  Players:{label:'Player name',placeholder:'Search by tennis name',required:true},
@@ -16,21 +17,23 @@ const searchModes={
 type ExploreCategory=keyof typeof searchModes
 export type ExploreSearchState={category:ExploreCategory;term:string}
 export type ExploreResultPosition={key?:string;view?:RatingView}
-export type ExploreVisit=ExploreSearchState & {results?:ExploreResultPosition}
+export type ExploreVisit=ExploreSearchState & {results?:ExploreResultPosition;destination?:'tournaments'}
 type ExploreOptions={
  access?:PublicBrowseAccess
- onCompetitions?:(trigger:HTMLElement,query?:string)=>void
+ onCompetitions?:(trigger:HTMLElement,query?:string,id?:string)=>void
+ nearby?:NearbyExploreOptions
  search?:ExploreSearchState
  resume?:ExploreVisit
  onLeave?:(state:ExploreSearchState)=>void
 }
-function exploreHomeHtml(competitions:boolean){
- return `<div class="native-explore-hero">
-  <header class="tab-hero tab-hero-court explore-spotlight"><small class="stat-eyebrow">Explore</small><h1 tabindex="-1">${firstPartyBuild?'Find your next league.':'Find players, teams, leagues.'}</h1></header>
+function exploreHomeHtml(competitions:boolean,guest:boolean){
+ return `<div class="native-explore-hero${firstPartyBuild?' explore-nearby':''}">
+  <header class="tab-hero tab-hero-court explore-spotlight"><small class="stat-eyebrow">Explore</small><h1 tabindex="-1">${firstPartyBuild?'Play near you':'Find players, teams, leagues.'}</h1>${firstPartyBuild?nearbyAreaHtml():''}</header>
+  ${firstPartyBuild?nearbySectionsHtml(guest):''}
   <div class="explore-search-panel">
-   <div class="explore-categories" role="group" aria-label="Explore categories">
-    ${(firstPartyBuild?['Leagues']:Object.keys(searchModes)).map(category=>`<button type="button" data-category="${category}">${category}</button>`).join('')}
-   </div>
+   ${firstPartyBuild?'':`<div class="explore-categories" role="group" aria-label="Explore categories">
+    ${Object.keys(searchModes).map(category=>`<button type="button" data-category="${category}">${category}</button>`).join('')}
+   </div>`}
    <form id="native-search" role="search" aria-label="Explore tennis">
     <label for="native-search-term"></label>
     <input id="native-search-term" type="search" autocomplete="off" minlength="2" maxlength="80">
@@ -44,17 +47,18 @@ function exploreHomeHtml(competitions:boolean){
   </button>`:''}
  </div>`
 }
-export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,{access,onCompetitions,search,resume,onLeave}:ExploreOptions={}) {
+export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,{access,onCompetitions,nearby,search,resume,onLeave}:ExploreOptions={}) {
   let disposed=false
   let category:ExploreCategory=firstPartyBuild?'Leagues':(resume??search)?.category??'Players'
   let active:ReturnType<typeof showPlayers>|ReturnType<typeof showDirectory>|ReturnType<typeof showRankings>|null=null
+  let nearbyView:ReturnType<typeof mountNearbyExplore>|undefined
   let overviewScroll=0
   app.dataset.state='explore'
   app.innerHTML='<button type="button" class="secondary explore-back" hidden>Back to Explore</button><div id="explore-content"></div>'
   const backButton=app.querySelector<HTMLButtonElement>('.explore-back')!
   const content=app.querySelector<HTMLElement>('#explore-content')!
   const template=document.createElement('template')
-  template.innerHTML=exploreHomeHtml(Boolean(onCompetitions)&&!(firstPartyBuild&&access))
+  template.innerHTML=exploreHomeHtml(!firstPartyBuild&&Boolean(onCompetitions),Boolean(access))
   const overview=template.content.firstElementChild as HTMLElement
   const categoryButtons=overview.querySelectorAll<HTMLButtonElement>('[data-category]')
   const form=overview.querySelector<HTMLFormElement>('#native-search')!
@@ -116,10 +120,16 @@ export function showExplore(app:HTMLElement,client:SupabaseClient,isCurrent:()=>
   selectMode(category)
   if(!firstPartyBuild&&resume?.results)openResults(resume.term,resume.results)
   else showOverview()
+  if(firstPartyBuild&&nearby&&onCompetitions){
+    nearbyView=mountNearbyExplore(overview,client,overviewActive,nearby,(trigger,id)=>onCompetitions(trigger,undefined,id))
+    const tournamentButton=overview.querySelector<HTMLButtonElement>('[data-nearby-tournaments]')
+    if(resume?.destination==='tournaments'&&tournamentButton)nearby.onTournaments(tournamentButton)
+  }
   return {visit,dispose:()=>{
     if(valid()&&onLeave){const {category,term}=visit();onLeave({category,term})}
-    disposed=true;active?.dispose()
+    disposed=true;active?.dispose();nearbyView?.dispose()
   },back:()=>{
+    if(nearbyView?.back())return true
     if(!valid()||overview.isConnected)return false
     if(!active?.back())showOverview(true)
     return true

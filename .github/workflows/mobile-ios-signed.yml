@@ -87,7 +87,7 @@ jobs:
         run: |
           npm ci
           npm ci --prefix mobile
-          node --test mobile/scripts/ios-purchases.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs mobile/scripts/ios-push.test.mjs
+          node --test mobile/scripts/ios-purchases.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs mobile/scripts/ios-push.test.mjs mobile/scripts/ios-court-location.test.mjs
           python3 mobile/scripts/test-altool-upload.py
           python3 mobile/scripts/test-ios-export-options.py
           if test "$TIQ_IOS_PROFILE" = first-party; then
@@ -158,7 +158,7 @@ jobs:
             codesign --display --entitlements - --xml "$APP" > "$RUNNER_TEMP/tiq-signing/offline-entitlements.plist"
             python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$IPA" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled-first-party --first-party "$RUNNER_TEMP/tiq-signing/offline-entitlements.plist"
           elif test "$TIQ_IOS_PROFILE" = first-party-full; then
-            python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist"
+            python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist" --first-party-full
             python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$IPA" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled --first-party-full
           else
             python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist"

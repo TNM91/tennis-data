@@ -26,6 +26,7 @@ import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {teamResultOutcome,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
 const originalFetch=window.fetch.bind(window)
 const freeTraining=new URL(location.href).searchParams.has('free-training')
+const nearbyExplore=new URL(location.href).searchParams.get('nearby-explore')
 const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false,unscopedLeagueReply:false,competitionReads:[] as {path:string;query:string;audience:string|null;authenticated:boolean}[]}
 const tournamentShortcutFixture={enabled:new URL(location.href).searchParams.has('tournament-shortcut-review'),approved:true,entryReads:[] as string[]}
 const myEntriesFixture={
@@ -365,6 +366,11 @@ window.fetch=async(input,init)=>{
   snapshot.scope=url.searchParams.get('scope')==='discover'?'discover':'mine'
   snapshot.query=url.searchParams.get('q')||''
   if(url.searchParams.get('league'))snapshot.detail=competitionDetail()
+  if(nearbyExplore){
+   const upcoming={...snapshot.leagues[0],location:nearbyExplore==='away'?'Kansas City, MO':'Saint Louis, MO',startsOn:'2026-11-13'}
+   snapshot.leagues=[upcoming,{...upcoming,id:'past-season',name:'Past season',startsOn:'2026-10-01'}]
+   if(snapshot.detail)snapshot.detail.league=upcoming
+  }
   if(captainCourtsFixture.enabled&&snapshot.detail)snapshot.detail.fixtures[0].id=captainFixtureId
   if(audience==='public')snapshot.owner=publicCompetitionOwner
   const scoped=url.pathname==='/api/mobile/first-party/competitions'
@@ -402,6 +408,10 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/tournaments'||url.pathname==='/api/mobile/first-party/tournaments'){
   fixtureState.tournamentReads.push(url.pathname)
   const snapshot=tournamentSnapshot(url.searchParams.get('tournament')||'',url.searchParams.get('division')||'')
+  if(nearbyExplore){
+   snapshot.tournaments[0].location='Kansas City, MO'
+   if(snapshot.detail)snapshot.detail.root.location='Kansas City, MO'
+  }
   snapshot.owner=navigationOwner;snapshot.query=url.searchParams.get('q')||''
   if((tournamentShortcutFixture.enabled||myEntriesFixture.enabled)&&snapshot.detail?.active){
    const match=snapshot.detail.matches.find(match=>match.id==='r2-m1')!

@@ -335,12 +335,20 @@ function selectNavigation(screen:AppScreen,activeTab=currentTab(screen)) {
     else button.removeAttribute('aria-current')
   })
 }
-function launchCompetitions(scope:'mine'|'discover'='mine',trigger?:HTMLElement,query?:string){
+function launchCompetitions(scope:'mine'|'discover'='mine',trigger?:HTMLElement,query?:string,id?:string){
  if(!session||competitions?.isOpen()||accountSettings?.isOpen())return
  const owner=session.user.id,visit=revision
  const current=()=>visit===revision&&owner===session?.user.id
- competitions=openCompetitions(client,owner,current,scope,()=>navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')?.click(),undefined,trigger,'',undefined,query,
+ competitions=openCompetitions(client,owner,current,scope,()=>navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')?.click(),undefined,trigger,id,undefined,query,
   firstPartyBuild?scorecard=>guardNavigation(()=>{if(current())void lab({scorecard})}):undefined)
+}
+function launchTournaments(trigger:HTMLElement,id?:string,entries=false){
+ if(!session||tournaments?.isOpen()||competitions?.isOpen()||accountSettings?.isOpen())return
+ const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
+ const onClose=()=>{tournaments=null}
+ tournaments=entries
+  ?openMyTournamentEntries(client,owner,current,onClose,trigger)
+  :openTournaments(client,owner,current,onClose,undefined,trigger,'Close',id)
 }
 function openScheduledRep(owner:string,current:()=>boolean,button:HTMLElement,calendarRep:CalendarWeeklyRep,options?:{reviewRep:boolean;fromCalendar:true}){
  button.focus({preventScroll:true})
@@ -406,7 +414,8 @@ function openExplore(resume?:ExploreVisit) {
       search:exploreSearch,
       resume,
       onLeave:state=>{exploreSearch=state},
-      onCompetitions:(trigger,query)=>launchCompetitions('discover',trigger,query),
+      onCompetitions:(trigger,query,id)=>launchCompetitions('discover',trigger,query,id),
+      nearby:firstPartyBuild?{owner:userId,onTournaments:launchTournaments}:undefined,
     })
   })
 }
@@ -485,12 +494,7 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='leagues'||destination==='browse-leagues'){launchCompetitions(destination==='browse-leagues'?'discover':'mine',trigger);return}
  if(firstPartyBuild&&destination==='tournament-entries')return
  if(destination==='tournaments'||destination==='tournament-entries'){
-  if(tournaments?.isOpen()||competitions?.isOpen()||accountSettings?.isOpen())return
-  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
-  const onClose=()=>{tournaments=null}
-  tournaments=destination==='tournament-entries'
-   ?openMyTournamentEntries(client,owner,current,onClose,trigger)
-   :openTournaments(client,owner,current,onClose,undefined,trigger,'Close')
+  launchTournaments(trigger,undefined,destination==='tournament-entries')
   return
  }
  if(destination==='following'){openFollowing();return}
