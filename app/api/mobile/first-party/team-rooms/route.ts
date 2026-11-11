@@ -1,7 +1,7 @@
 import { accountClient, accountResponse, readAccountJson, verifiedAccount } from '@/lib/mobile-account-auth'
 import { countFirstPartyChats, readFirstPartyChat, reviewedTeamOptions, writeFirstPartyChat } from '@/lib/first-party-team-chat'
 import { loadTeamMatchReplies, saveTeamMatchReply } from '@/lib/first-party-team-replies'
-import { loadTeamResults, saveTeamResult } from '@/lib/first-party-team-results'
+import { loadTeamResultRoster, loadTeamResults, saveTeamResult } from '@/lib/first-party-team-results'
 import { findReviewedTeamConversation, loadCaptainChatSetup, loadReviewedTeamLinks, readReviewedTeamRooms } from '@/lib/first-party-team-scopes'
 import { loadManualTeamNextMatch, loadReviewedTeamNextMatch, saveManualTeamNextMatch, upcomingTeamMatch } from '@/lib/first-party-team-schedule'
 import { nativeCoachChatUnread } from '@/lib/native-coach-chat-unread'
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams
     const op = params.get('op') ?? 'room'
     const fields = op === 'updates' ? ['before', 'focus'] : op === 'message' ? ['message', 'view'] : op === 'match-replies' ? ['revision'] : []
-    const scopedOps = ['updates', 'message', 'next-match', 'match-replies', 'team-results']
+    const scopedOps = ['updates', 'message', 'next-match', 'match-replies', 'team-results', 'result-roster']
     const allowed = ['op', ...fields, ...(op === 'room' || scopedOps.includes(op) ? scopeKeys : [])]
     const selecting = scopeKeys.some(key => params.has(key)) || scopedOps.includes(op)
     if (!['room', 'teams', 'unread', 'captain-setup', ...scopedOps].includes(op) ||
@@ -63,12 +63,16 @@ export async function GET(request: Request) {
     const selected = teams.find(team => team.teamName === params.get('team') &&
       team.leagueName === params.get('league') && team.flight === params.get('flight'))
     if (!selected || !await findReviewedTeamConversation(service, selected)) return denied(403)
-    if (op === 'team-results') {
+    if (op === 'team-results' || op === 'result-roster') {
       if (selected.scheduleLeagueId) return denied(403)
       const access = await checkTeamChatAccess(service, owner, selected.roomId, false)
       if (!access.ok) return denied(access.status)
       const canEdit = selected.isCaptain && (await loadPlayerAccess(accountClient(supabaseKey, account.token), owner)).canUseCaptainWorkflow
-      return json({ ok: true, owner, roomId: selected.roomId, results: await loadTeamResults(service, selected, canEdit) })
+      if (op === 'result-roster') {
+        if (!canEdit) return denied(403)
+        return json({ ok: true, owner, roomId: selected.roomId, players: await loadTeamResultRoster(service, selected, owner) })
+      }
+      return json({ ok: true, owner, roomId: selected.roomId, results: await loadTeamResults(service, selected, owner, canEdit) })
     }
     if (op === 'match-replies') {
       if (selected.scheduleLeagueId) return denied(403)
@@ -155,14 +159,15 @@ export async function POST(request: Request) {
     if (body.action === 'save_team_result') {
       if (selected.scheduleLeagueId || selected.roomId !== body.roomId || !selected.isCaptain) return denied(403)
       const change = readTeamResultChange(body)
-      if (!change || Object.keys(body).length !== (change.courtScores === undefined ? 10 : 11)) return denied(400)
+      if (!change || Object.keys(body).length !== 10 + Number(change.courtScores !== undefined) + Number(change.courtPlayerIds !== undefined)) return denied(400)
       const access = await loadPlayerAccess(accountClient(supabaseKey, account.token), owner)
       if (!access.canUseCaptainWorkflow) return denied(403)
       const status = await saveTeamResult(service, selected, owner, change)
       if (status !== 200) return denied(status)
       return json({ ok: true, owner, roomId: selected.roomId, fixtureId: change.fixtureId,
         score: { revision: change.revision, won: change.won, lost: change.lost,
-          ...(change.courtScores === undefined ? {} : { courtScores: change.courtScores }) } })
+          ...(change.courtScores === undefined ? {} : { courtScores: change.courtScores }),
+          ...(change.courtPlayerIds === undefined ? {} : { courtPlayerIds: change.courtPlayerIds }) } })
     }
     if (body.action === 'reply_next_match') {
       if (selected.scheduleLeagueId || selected.roomId !== body.roomId) return denied(403)

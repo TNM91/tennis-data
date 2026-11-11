@@ -1,16 +1,20 @@
-import {beforeEach,describe,it,expect,vi} from 'vitest'
+import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest'
 const state=vi.hoisted(()=>({verified:true,owner:'11111111-1111-4111-8111-111111111111',client:{}}))
 vi.mock('../mobile-account-auth',async original=>({...await original<typeof import('../mobile-account-auth')>(),verifiedAccount:async()=>state.verified?{user:{id:state.owner},token:'test-token'}:null,accountClient:()=>state.client}))
 vi.mock('../supabase-public-config',()=>({supabaseKey:'test-key'}))
 vi.mock('../native-calendar',async original=>({...await original<typeof import('../native-calendar')>(),loadNativeCalendar:vi.fn(),calendarPersonal:vi.fn(),writeCalendarPersonal:vi.fn(),respondNativeCalendar:vi.fn()}))
+vi.mock('../first-party-team-schedule',()=>({loadCalendarTeamMatches:vi.fn()}))
 import {GET,POST} from '../../app/api/mobile/calendar/route'
 import {GET as scopedGet,POST as scopedPost} from '../../app/api/mobile/first-party/calendar/route'
 import {CalendarFault,loadNativeCalendar,calendarPersonal,writeCalendarPersonal,respondNativeCalendar} from '../native-calendar'
 import {loadFirstPartyCalendarCompetitions} from '../first-party-calendar'
+import {loadCalendarTeamMatches} from '../first-party-team-schedule'
+import {calendarTeamMatchesHeader,TEAM_MATCH_DATES_UNAVAILABLE} from '../native-calendar-contract'
 const base='https://synthetic.invalid/api/mobile/calendar',window='?from=2026-10-26&to=2026-11-01'
 const draft={id:'player-calendar-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',title:'Practice',date:'2026-10-31',time:'',location:'',kind:'practice',recurrenceRule:'',availabilityStatus:'',venueDirectoryId:'',venuePreferenceId:''}
 const post=(body:unknown,query='',type='application/json')=>new Request(base+query,{method:'POST',headers:{'Content-Type':type},body:JSON.stringify(body)})
 beforeEach(()=>{state.verified=true;vi.clearAllMocks();vi.mocked(loadNativeCalendar).mockResolvedValue({owner:state.owner,range:{from:'2026-10-26',to:'2026-11-01'},personal:[],competitions:[],coach:[],warnings:[]});vi.mocked(calendarPersonal).mockResolvedValue(null);vi.mocked(writeCalendarPersonal).mockResolvedValue({item:null})})
+afterEach(()=>vi.unstubAllEnvs())
 describe('native calendar API boundaries',()=>{
  it('requires a verified account for reads and writes and makes private responses non-cacheable',async()=>{
   state.verified=false
@@ -47,4 +51,18 @@ it('uses the signed-in first-party calendar loader and blocks access to copied s
  const reply={action:'respond',eventId:'league:reviewed:match',response:'available',snapshot:{title:'Match',date:'2026-10-31',time:'18:00',location:'Court 2'},expectedResponseUpdatedAt:'',requestId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'}
  expect((await scopedPost(post(reply))).status).toBe(200)
  expect(respondNativeCalendar).toHaveBeenCalledWith(state.client,state.owner,reply,loadFirstPartyCalendarCompetitions)
+})
+
+it('loads private team dates only for opted-in first-party range reads and keeps other dates on failure',async()=>{
+ const scoped='https://synthetic.invalid/api/mobile/first-party/calendar'
+ const headers={[calendarTeamMatchesHeader]:'1'}
+ vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','test-service-role')
+ vi.mocked(loadCalendarTeamMatches).mockResolvedValueOnce([])
+ expect((await GET(new Request(base+window,{headers}))).status).toBe(200)
+ expect((await scopedGet(new Request(scoped+window))).status).toBe(200)
+ expect(loadCalendarTeamMatches).not.toHaveBeenCalled()
+ expect(await (await scopedGet(new Request(scoped+window,{headers}))).json()).toMatchObject({owner:state.owner,teamMatches:[]})
+ expect(loadCalendarTeamMatches).toHaveBeenCalledWith(state.client,state.owner,{from:'2026-10-26',to:'2026-11-01'})
+ vi.mocked(loadCalendarTeamMatches).mockRejectedValueOnce(Error('private fixture data'))
+ expect(await (await scopedGet(new Request(scoped+window,{headers}))).json()).toMatchObject({ok:true,personal:[],warnings:[TEAM_MATCH_DATES_UNAVAILABLE]})
 })

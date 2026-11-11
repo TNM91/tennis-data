@@ -64,6 +64,9 @@ it('connects first-party invites, Team Rally, and captain fixtures to real team 
   await sql(readFileSync('supabase/migrations/20261110000500_native_first_party_captain_invites.sql', 'utf8'))
   await sql(readFileSync('supabase/migrations/20261110000700_native_team_next_fixtures.sql', 'utf8'))
   await sql(readFileSync('supabase/migrations/20261110000800_native_private_teams.sql', 'utf8'))
+  // This fixture exercises runtime permissions. The audited erasure fixture applies the complete migration.
+  const resultPlayersSql = readFileSync('supabase/migrations/20261110001000_native_team_result_players.sql', 'utf8')
+  await sql(resultPlayersSql.slice(resultPlayersSql.indexOf('create table'), resultPlayersSql.indexOf('do $catalog$')))
   expect((await db.query(`select has_table_privilege('authenticated','native_team_next_fixtures','select') as reading,
     has_function_privilege('authenticated','set_native_team_next_fixture(uuid,uuid,text,text,text,uuid,uuid,jsonb,boolean)','execute') as writing,
     has_function_privilege('authenticated','save_native_team_lineup(uuid,uuid,text,text,text,uuid,uuid,uuid,jsonb)','execute') as lineup_writing`)).rows)
@@ -236,12 +239,38 @@ it('connects first-party invites, Team Rally, and captain fixtures to real team 
     const detailed = { ...corrected, expected: correctedRevision, revision: courtsRevision, courtScores }
     expect((await publish(captainToken, { ...detailed, courtScores: [...courtScores.slice(0, 4), 'DEFAULT'] })).status).toBe(400)
     expect((await publish(captainToken, { ...detailed, won: 4, lost: 1 })).status).toBe(400)
-    expect((await publish(captainToken, detailed)).status).toBe(200)
-    expect((await publish(captainToken, detailed)).status).toBe(200)
+    const courtPlayerIds = [[owner, waiting], [], [], [captain], []]
+    const confirmed = { ...detailed, courtPlayerIds }
+    expect((await publish(captainToken, { ...confirmed, courtPlayerIds: [[owner, removedMember], [], [], [captain], []] })).status).toBe(409)
+    expect((await results(captainToken)).results.entries[0].score.revision).toBe(correctedRevision)
+    expect((await publish(captainToken, { ...confirmed, courtPlayerIds: [[owner], [], [waiting], [captain], []] })).status).toBe(400)
+    expect((await publish(captainToken, confirmed)).status).toBe(200)
+    expect((await publish(captainToken, confirmed)).status).toBe(200)
+    expect((await publish(captainToken, { ...confirmed, courtPlayerIds: [[waiting], [], [], [captain], []] })).status).toBe(409)
+    expect((await results(captainToken)).results.entries[0].score.courtPlayers).toEqual([
+      [{ id: owner, name: 'Alex' }, { id: waiting, name: 'Casey' }], [], [], [{ id: captain, name: 'Captain' }], [],
+    ])
+    expect((await results(captainToken)).results.entries[0].score.myCourt).toBe(4)
     expect((await results(teammateToken)).results).toMatchObject({ entries: [
       { fixtureId: played, score: { won: 3, lost: 2, revision: courtsRevision, courtScores } },
     ] })
+    expect((await results(teammateToken)).results.entries[0].score.courtPlayers).toEqual([
+      [{ name: 'Alex' }, { name: 'Casey' }], [], [], [{ name: 'Captain' }], [],
+    ])
+    expect((await results(teammateToken)).results.entries[0].score.myCourt).toBe(1)
+    const resultRosterUrl = fixtureUrl.replace('next-match', 'result-roster')
+    expect((await teamRooms(request(resultRosterUrl, teammateToken))).status).toBe(403)
+    expect((await (await teamRooms(request(resultRosterUrl, captainToken))).json()).players).toEqual([
+      { id: owner, name: 'Alex' }, { id: captain, name: 'Captain' }, { id: waiting, name: 'Casey' },
+    ])
     expect((await publish(captainToken, { ...corrected, expected: courtsRevision, revision: resultRevision, won: 4, lost: 1 })).status).toBe(409)
+    const legacyRevision = '35353535-3535-4535-8535-353535353535'
+    expect((await publish(captainToken, { ...detailed, expected: courtsRevision, revision: legacyRevision })).status).toBe(200)
+    expect((await results(teammateToken)).results.entries[0].score.courtPlayers[0]).toEqual([{ name: 'Alex' }, { name: 'Casey' }])
+    const clearedRevision = '46464646-4646-4646-8646-464646464646'
+    expect((await publish(captainToken, { ...detailed, expected: legacyRevision, revision: clearedRevision, courtPlayerIds: [[], [], [], [], []] })).status).toBe(200)
+    expect((await results(teammateToken)).results.entries[0].score).not.toHaveProperty('courtPlayers')
+    expect((await results(teammateToken)).results.entries[0].score).not.toHaveProperty('myCourt')
     expect(await match()).toMatchObject({ nextMatch: fixture, revision: upcoming })
     expect((await publish(captainToken, { ...lineup, revision: upcoming })).status).toBe(200)
     await db.query("update native_team_next_fixtures set fixture = jsonb_set(fixture,'{date}','\"2020-02-01\"'::jsonb) where room_id=$1", [room])
@@ -314,7 +343,9 @@ async function firstPartyFixtureFetch(input: RequestInfo | URL, options?: Reques
       : name === 'reply_to_native_team_fixture' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_expected', 'p_operation', 'p_choice']
       : name === 'save_native_team_lineup' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_expected', 'p_version', 'p_courts']
       : name === 'save_native_team_result' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_fixture', 'p_expected', 'p_revision', 'p_won', 'p_lost', 'p_allow_current', 'p_court_scores']
+      : name === 'save_native_team_result_with_players' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_fixture', 'p_expected', 'p_revision', 'p_won', 'p_lost', 'p_allow_current', 'p_court_scores', 'p_court_players']
       : name === 'read_native_team_results' ? ['p_room', 'p_can_edit']
+      : name === 'read_native_team_result_players' ? ['p_room', 'p_fixtures']
       : name === 'create_native_private_team' ? ['p_owner', 'p_id', 'p_team', 'p_label', 'p_flight'] : []
     if (!keys.length) throw Error('Unexpected fixture RPC')
     const args = JSON.parse(String(options.body))
