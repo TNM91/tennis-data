@@ -5,7 +5,7 @@ export function nativeInviteToken(value:unknown):string{
  try{const url=new URL(text);if(url.protocol!=='https:' || !['tenaceiq.com','www.tenaceiq.com'].includes(url.hostname) || url.port || url.username || url.password || url.hash || url.pathname!=='/team-room/join' || url.searchParams.getAll('token').length!==1)return '';const token=url.searchParams.get('token')||'';return uuid.test(token)?token.toLowerCase():''}catch{return ''}
 }
 export type InviteExpected={invite:Record<string,unknown>;linkVersion:string}
-export type NativeInviteReview={teamName:string;leagueName:string;flight:string;roomId:string;expiresAt:string;alreadyJoined:boolean;expected:InviteExpected}
+export type NativeInviteReview={teamName:string;leagueName:string;leagueLabel?:string;flight:string;roomId:string;expiresAt:string;alreadyJoined:boolean;expected:InviteExpected}
 export function nativeInviteReview(value:unknown):NativeInviteReview{
  if(!value || typeof value!=='object')throw Error('Invite unavailable')
  const row=value as Record<string,unknown>,expected=row.expected as Record<string,unknown>
@@ -13,5 +13,6 @@ export function nativeInviteReview(value:unknown):NativeInviteReview{
  if(!row.teamName || !row.leagueName || !uuid.test(String(row.roomId)) || !Number.isFinite(Date.parse(String(row.expiresAt))) || !expected || typeof expected!=='object' || Array.isArray(expected) || JSON.stringify(expected).length>1800 || typeof row.alreadyJoined!=='boolean')throw Error('Invite unavailable')
  for(const key of ['teamName','leagueName','flight','roomId','expiresAt'])if(expected[key]!==row[key])throw Error('Invite scope mismatch')
  if(!uuid.test(String(expected.inviteId)) || !uuid.test(String(expected.creatorId)))throw Error('Invite unavailable')
- return {teamName:String(row.teamName),leagueName:String(row.leagueName),flight:String(row.flight),roomId:String(row.roomId),expiresAt:String(row.expiresAt),alreadyJoined:row.alreadyJoined,expected:{invite:expected,linkVersion:String(row.linkVersion)}}
+ const leagueLabel=typeof row.leagueLabel==='string'&&row.leagueLabel.length<=100?row.leagueLabel:undefined
+ return {teamName:String(row.teamName),leagueName:String(row.leagueName),...(leagueLabel?{leagueLabel}:{}),flight:String(row.flight),roomId:String(row.roomId),expiresAt:String(row.expiresAt),alreadyJoined:row.alreadyJoined,expected:{invite:expected,linkVersion:String(row.linkVersion)}}
 }
