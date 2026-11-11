@@ -2,8 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { POST as invite } from '../../app/api/mobile/first-party/team-invites/route'
 import { GET as room, POST as write } from '../../app/api/mobile/first-party/team-rooms/route'
 
-const { auth, from, act, read, save, access, manage } = vi.hoisted(() => ({
-  auth: vi.fn(), from: vi.fn(), act: vi.fn(), read: vi.fn(), save: vi.fn(), access: vi.fn(), manage: vi.fn(),
+const { auth, from, act, read, save, access, manage, schedule } = vi.hoisted(() => ({
+  auth: vi.fn(), from: vi.fn(), act: vi.fn(), read: vi.fn(), save: vi.fn(), access: vi.fn(), manage: vi.fn(), schedule: vi.fn(),
 }))
 vi.mock('@/lib/mobile-account-auth', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/mobile-account-auth')>(),
@@ -14,6 +14,7 @@ vi.mock('@/lib/native-team-invites', () => ({ actOnNativeInvite: act }))
 vi.mock('@/lib/native-captain-invites', () => ({ actOnCaptainInvite: manage }))
 vi.mock('@/lib/player-api-auth', () => ({ loadPlayerAccess: access }))
 vi.mock('@/lib/native-coach-chat-unread', () => ({ nativeCoachChatUnread: vi.fn() }))
+vi.mock('@/lib/first-party-team-schedule', () => ({ loadReviewedTeamNextMatch: schedule }))
 vi.mock('@/lib/first-party-team-chat', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/first-party-team-chat')>(),
   readFirstPartyChat: read,
@@ -53,22 +54,24 @@ beforeEach(() => {
       team_room_member_removals: removed ? [{ conversation_id: approved.roomId }] : [],
     }
     const list = lists[table]
+    const single = table === 'team_room_member_removals' ? { data: removed ? { profile_id: owner } : null, error: null } : result
     const q = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), in: vi.fn(),
-      limit: vi.fn().mockResolvedValue(list ? { data: list, error: null } : result), maybeSingle: vi.fn().mockResolvedValue(result) }
+      limit: vi.fn().mockResolvedValue(list ? { data: list, error: null } : result), maybeSingle: vi.fn().mockResolvedValue(single) }
     for (const method of [q.select, q.eq, q.is, q.in]) method.mockReturnValue(q)
     return q
   })
 })
 afterEach(() => vi.unstubAllEnvs())
 
-it('returns an empty private feed without reading team data when approval is absent', async () => {
+it('checks only first-party links when the reviewed list is empty and rejects an unregistered invite', async () => {
   vi.stubEnv('TIQ_FIRST_PARTY_TEAM_ROOMS', '')
   const result = await room(new Request(root))
   expect(result.headers.get('cache-control')).toBe('private, no-store')
   expect(await result.json()).toEqual({ ok: true, owner, releaseScope: 'first-party', room: null, teams: [] })
-  expect(from).not.toHaveBeenCalled()
+  expect(from.mock.calls).toEqual([['team_profile_links']])
+  act.mockResolvedValueOnce(preview)
   expect((await invite(post({ action: 'preview', token }))).status).toBe(404)
-  expect(act).not.toHaveBeenCalled()
+  expect(act).toHaveBeenCalledOnce()
 })
 
 it('rejects foreign, archived and import-only links before invoking conversation reads', async () => {
@@ -104,7 +107,13 @@ it('checks captain setup privately and never grants access or returns the unrevi
   roomId = token
   expect(await (await room(request())).json()).toMatchObject({ captainChatSetup: 'needs-room-access' })
   roomId = approved.roomId
-  expect(await (await room(request())).json()).toEqual({ ok: true, owner, releaseScope: 'first-party', captainChatSetup: 'ready' })
+  const otherLeague = { ...approved, leagueName: 'Evening League', roomId: token }
+  vi.stubEnv('TIQ_FIRST_PARTY_TEAM_ROOMS', JSON.stringify([approved, otherLeague]))
+  links.push({ ...member, team_roles: ['captain'], league_name: otherLeague.leagueName },
+    { ...member, team_roles: ['captain'], team_name: 'Unreviewed team' })
+  expect(await (await room(request())).json()).toEqual({
+    ok: true, owner, releaseScope: 'first-party', captainChatSetup: 'ready', captainInviteTeams: [scope],
+  })
   expect(read).not.toHaveBeenCalled()
   expect(save).not.toHaveBeenCalled()
   expect(manage).not.toHaveBeenCalled()
@@ -149,6 +158,30 @@ it('offers invite management only to entitled captains of the reviewed room', as
   expect(manage).toHaveBeenCalledOnce()
   expect(manage).toHaveBeenCalledWith(expect.anything(), owner, command, approved.roomId)
   expect(act).not.toHaveBeenCalled()
+})
+
+it('loads a linked next match only for a current member who asks for the exact team', async () => {
+  const linked = { ...approved, scheduleLeagueId: 'city-league-spring' }
+  vi.stubEnv('TIQ_FIRST_PARTY_TEAM_ROOMS', JSON.stringify([linked]))
+  read.mockResolvedValue({ ok: true, room: { id: roomId } })
+  expect(await (await room(new Request(root + query))).json()).toMatchObject({ room: { scheduleLinked: true } })
+  expect(schedule).not.toHaveBeenCalled()
+
+  const request = () => new Request(root + query + '&op=next-match')
+  expect((await room(new Request(root + '?op=next-match'))).status).toBe(400)
+  expect((await room(new Request(request().url + '&season=other'))).status).toBe(400)
+  expect((await room(new Request(request().url.replace('flight=4.0', 'flight=4.5')))).status).toBe(403)
+  removed = true
+  expect((await room(request())).status).toBe(403)
+  expect(schedule).not.toHaveBeenCalled()
+
+  removed = false
+  const nextMatch = { opponent: 'Topspin Club', date: '2026-12-01', time: '18:00', facility: 'Court 2', timeZone: 'America/Chicago' }
+  schedule.mockResolvedValueOnce(nextMatch)
+  const response = await room(request())
+  expect(response.headers.get('cache-control')).toBe('private, no-store')
+  expect(await response.json()).toEqual({ ok: true, releaseScope: 'first-party', owner, roomId, revision: null, nextMatch })
+  expect(schedule).toHaveBeenCalledWith(expect.anything(), owner, expect.objectContaining(linked))
 })
 
 it('rejects an unreviewed invite or changed fingerprint before any join and accepts the original fingerprint', async () => {
