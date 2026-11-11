@@ -70,7 +70,7 @@
 .editorSubtitle { font-size: 13px; color: #b6c9cb; margin: 0 0 20px; line-height: 1.7; }
 .pairing { font-size: 13px; font-weight: 650; line-height: 1.6; margin: 0 0 20px; padding-bottom: 18px; border-bottom: 1px solid #3b5555; overflow-wrap: anywhere; }
 .editor label { display: grid; gap: 7px; font-size: 12px; color: #d1dfdf; margin-bottom: 15px; }
-.editor input { width: 100%; }
+.editor input, .editor select { width: 100%; min-width: 0; }
 .primary { display: inline-flex; align-items: center; justify-content: center; gap: 9px; width: 100%; border: 1px solid #d3e5ab; border-radius: 9px; background: #d3e5ab; color: #182d23; padding: 13px 12px; min-height: 46px; font-size: 12px; font-weight: 750; }
 .editorActions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; margin-top: 10px; }
 .editorActions button { border: 0; background: transparent; color: #d2dfe0; padding: 10px 0; font-size: 11px; min-height: 38px; }
@@ -78,6 +78,7 @@
 .overlapNotice { border: 1px solid #b38663; border-radius: 8px; background: #493327; padding: 12px; margin-bottom: 15px; color: #ffe0bf; font-size: 12px; line-height: 1.6; }
 .overlapNotice strong { display: flex; gap: 8px; align-items: center; }
 .overlapNotice p { margin: 8px 0 0; }
+.slotSuggestion { width: 100%; min-height: 44px; margin-top: 8px; border: 1px solid #b38663; border-radius: 8px; background: transparent; color: inherit; padding: 8px 12px; font: inherit; font-weight: 750; }
 .success { font-size: 12px; color: #e1f4b5; margin-top: 16px; line-height: 1.6; }
 .empty { border: 1px dashed #3d5966; border-radius: 12px; padding: 26px 20px; color: #c0cfd5; }
 .empty h4 { margin: 13px 0 8px; font-size: 17px; color: var(--ink); }

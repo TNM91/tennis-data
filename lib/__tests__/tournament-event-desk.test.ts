@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildEventDeskMatches, buildEventDivisionReadiness, findEventCourtOverlaps, isCompleteEventSlot } from '../tournament-event-desk'
+import { buildEventDeskMatches, buildEventDivisionReadiness, findEventCourtOverlaps, isCompleteEventSlot, nextEventCourtTime } from '../tournament-event-desk'
 import type { TiqTournamentRecord } from '../tiq-tournament-registry'
 
 function division(id = '40'): TiqTournamentRecord {
@@ -32,6 +32,24 @@ describe('event organizer readiness and court planning', () => {
     second.schedule['r1-m1'].time = '00:15'
     first.results = { 'r1-m1': { winner: 'Team A', score: '6-4', updatedAt: '' } }
     expect(findEventCourtOverlaps(buildEventDeskMatches([first, second]))).toEqual([])
+  })
+
+  it('suggests a free time after adjacent bookings on the same court', () => {
+    const date = '2026-10-17'
+    const matches = buildEventDeskMatches([
+      { ...division('first'), schedule: { 'r1-m1': slot(date, '17:30', 'Court 01') } },
+      { ...division('second'), schedule: { 'r1-m1': slot(date, '18:30', '1') } },
+      { ...division('other'), schedule: { 'r1-m1': slot(date, '19:30', '2') } },
+    ])
+    expect(nextEventCourtTime(matches, slot(date, '17:00', '1'), 'new', 60)).toBe('19:30')
+    expect(nextEventCourtTime(matches, slot(date, '18:30', '1'), 'second:r1-m1', 60)).toBe('18:30')
+    expect(nextEventCourtTime(matches, slot(date, '17:00', '1'), 'new', 30)).toBe('17:00')
+  })
+
+  it('accounts for overnight overlap without suggesting a different date', () => {
+    const matches = buildEventDeskMatches([{ ...division(), schedule: { 'r1-m1': slot('2026-10-17', '23:45') } }])
+    expect(nextEventCourtTime(matches, slot('2026-10-17', '23:30'), 'new', 60)).toBe('')
+    expect(nextEventCourtTime(matches, slot('2026-10-18', '00:15'), 'new', 60)).toBe('00:45')
   })
   it('moves the next action from teams to courts to scores to awards', () => {
     const record = division()

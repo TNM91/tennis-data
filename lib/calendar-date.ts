@@ -6,6 +6,13 @@ export function isValidCalendarDate(value: string) {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
+export function formatCalendarDay(value: string, includeYear = true) {
+  if (!isValidCalendarDate(value)) return 'Date to be confirmed'
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric', year: includeYear ? 'numeric' : undefined,
+  }).format(new Date(`${value}T12:00:00Z`))
+}
+
 // Match offsets on either side of the date to handle daylight saving transitions.
 export function eventCalendarStart(date: string, time: string, zone: string): Date | null {
   if (!isValidCalendarDate(date) || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time) || !zone) return null

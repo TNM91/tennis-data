@@ -1,6 +1,7 @@
 import type { TiqTournamentRecord } from './tiq-tournament-registry'
 import { buildTournamentEventPass } from './tournament-event-pass'
 import { escapeIcsText, foldIcsLine } from './tiq-league-schedule-calendar'
+import { tournamentCourtLabel } from './tournament-event-presentation'
 
 // Resolve the event's wall time using its configured zone, never the player's device zone.
 // Matching candidate offsets also handles DST transitions and rejects nonexistent times.
@@ -36,7 +37,7 @@ export function buildTournamentNextMatchCalendar(event: TiqTournamentRecord, div
   const saved = new Date(division.schedule[match.matchId]?.updatedAt || '')
   const modified = Number.isFinite(saved.getTime()) ? saved : now
   const url = `https://www.tenaceiq.com/tournaments/${encodeURIComponent(event.id)}#event-pass`
-  const location = [event.eventDetails?.venueName || event.locationLabel, event.eventDetails?.venueAddress, /^court\b/i.test(match.court) ? match.court : `Court ${match.court}`].filter(Boolean).join(' · ')
+  const location = [event.eventDetails?.venueName || event.locationLabel, event.eventDetails?.venueAddress, tournamentCourtLabel(match.court)].filter(Boolean).join(' · ')
   const description = [`${division.name} · ${match.label}`, `${match.sideA} vs ${match.sideB}`, `Event time zone: ${event.eventDetails?.timeZone}`, 'Start-time reminder. Match length may vary.', 'This is a saved snapshot. Schedule changes do not sync automatically. Refresh your event pass before heading to court.', url].join('\n')
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//TenAceIQ//Tournament Event Pass//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
     `UID:event-${encodeURIComponent(event.id)}-${encodeURIComponent(division.id)}-${encodeURIComponent(match.matchId)}@tenaceiq.com`,

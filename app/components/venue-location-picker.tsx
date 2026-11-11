@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   isStreetLocation,
   venueLocation,
@@ -21,6 +21,7 @@ export default function VenueLocationPicker({
   disabled = false,
   knownOptions = [],
   inputId = 'venue-location',
+  onSavingChange,
 }: {
   value: string
   onChange: (value: string) => void
@@ -29,6 +30,7 @@ export default function VenueLocationPicker({
   disabled?: boolean
   knownOptions?: string[]
   inputId?: string
+  onSavingChange?: (saving: boolean) => void
 }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -38,11 +40,15 @@ export default function VenueLocationPicker({
   const [state, setState] = useState('')
   const [street, setStreet] = useState('')
   const [message, setMessage] = useState('')
+  const activeRequest = useRef<AbortController | null>(null)
+  useEffect(() => () => activeRequest.current?.abort(), [context, token])
   const name = facilityName(value)
   const addressReady = Boolean(name && value.includes('—') && isStreetLocation(value))
 
   async function search() {
-    if (!name || !token || disabled || loading) return
+    if (!name || !token || disabled || loading || saving) return
+    const request = new AbortController()
+    activeRequest.current = request
     setLoading(true)
     setMessage('')
     try {
@@ -50,13 +56,14 @@ export default function VenueLocationPicker({
       const response = await fetch(`/api/player/venue-locations?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(30000)]),
       })
       const result = await response.json() as {
         message?: string
         venues?: VerifiedVenue[]
         preference?: VenuePreference | null
       }
+      if (request.signal.aborted) return
       if (!response.ok) throw new Error(result.message || 'Sites could not be loaded.')
       const matches = result.venues || []
       setVenues(matches)
@@ -68,6 +75,7 @@ export default function VenueLocationPicker({
       setOpen(true)
       setMessage(matches.length ? 'Choose the correct site and address.' : 'No verified match yet. Confirm the address below.')
     } catch (cause) {
+      if (request.signal.aborted) return
       setOpen(true)
       setMessage(cause instanceof Error ? cause.message : 'Sites could not be loaded.')
     } finally {
@@ -76,14 +84,17 @@ export default function VenueLocationPicker({
   }
 
   async function choose(venue?: VerifiedVenue) {
-    if (!name || !token || disabled || saving) return
+    if (!name || !token || disabled || saving || loading) return
+    const request = new AbortController()
+    activeRequest.current = request
     setSaving(true)
+    onSavingChange?.(true)
     setMessage('')
     try {
       const response = await fetch('/api/player/venue-locations', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(30000)]),
         body: JSON.stringify({
           facilityName: name,
           context,
@@ -98,14 +109,17 @@ export default function VenueLocationPicker({
         directory?: VerifiedVenue | null
         preference?: VenuePreference
       }
+      if (request.signal.aborted) return
       if (!response.ok || !result.preference) throw new Error(result.message || 'The site address could not be saved.')
       onChange(venueLocation(result.directory || result.preference))
       setOpen(false)
       setMessage('Correct site saved. GPS directions are ready.')
     } catch (cause) {
+      if (request.signal.aborted) return
       setMessage(cause instanceof Error ? cause.message : 'The site address could not be saved.')
     } finally {
       setSaving(false)
+      onSavingChange?.(false)
     }
   }
 
@@ -119,9 +133,13 @@ export default function VenueLocationPicker({
           id={inputId}
           list={`${inputId}-options`}
           value={value}
-          disabled={disabled}
+          disabled={disabled || loading || saving}
           onChange={(event) => {
             onChange(event.target.value)
+            setOpen(false)
+            setCity('')
+            setState('')
+            setStreet('')
             setMessage('')
           }}
           placeholder="Search a club or enter an address"
@@ -131,7 +149,7 @@ export default function VenueLocationPicker({
         <datalist id={`${inputId}-options`}>
           {knownOptions.map((option) => <option key={option} value={option} />)}
         </datalist>
-        <button type="button" disabled={disabled || loading || !name || !token} onClick={() => void search()} style={secondaryButtonStyle}>
+        <button type="button" disabled={disabled || loading || saving || !name || !token} onClick={() => void search()} style={secondaryButtonStyle}>
           {loading ? 'Searching…' : 'Find correct site'}
         </button>
       </div>
@@ -144,7 +162,7 @@ export default function VenueLocationPicker({
       {open ? (
         <div style={resultsStyle}>
           {venues.map((venue) => (
-            <button key={venue.id} type="button" disabled={saving || disabled} onClick={() => void choose(venue)} style={venueButtonStyle}>
+            <button key={venue.id} type="button" disabled={saving || loading || disabled} onClick={() => void choose(venue)} style={venueButtonStyle}>
               <strong>{venue.facility_name}</strong>
               <span>{venue.street_address}, {venue.city}, {venue.state_code}</span>
             </button>
@@ -155,7 +173,7 @@ export default function VenueLocationPicker({
             <label style={fieldStyle}><span>State</span><input value={state} maxLength={2} placeholder="MO" onChange={(event) => setState(event.target.value.toUpperCase())} style={inputStyle} /></label>
           </div>
           <label style={fieldStyle}><span>Street address</span><input value={street} maxLength={160} placeholder="123 Main St" onChange={(event) => setStreet(event.target.value)} style={inputStyle} /></label>
-          <button type="button" disabled={saving || disabled || !canConfirmManual} onClick={() => void choose()} style={primaryButtonStyle}>
+          <button type="button" disabled={saving || loading || disabled || !canConfirmManual} onClick={() => void choose()} style={primaryButtonStyle}>
             {saving ? 'Saving…' : 'Use this address'}
           </button>
         </div>

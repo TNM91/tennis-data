@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TennisCalendarEvent } from '@/lib/tiq-league-schedule-calendar'
 import type { TiqTournamentMatchResult } from './tiq-tournament-registry'
 import { buildTournamentGroupChampionship } from './tournament-draw'
+import { sameCompetitionScheduleSnapshot } from './competition-schedule-snapshot'
+import { tournamentCourtLabel } from './tournament-event-presentation'
 
 export type PlayerCompetitionScheduleEvent = {
   id: string
@@ -277,7 +279,7 @@ export function mapApprovedCompetitionSchedule(input: {
     for (const match of scheduledMatches) {
       const isSideA = normalizeName(match.sideA) === playerName
       const opponent = isSideA ? match.sideB : match.sideA
-      const court = cleanText(match.schedule?.court)
+      const court = tournamentCourtLabel(cleanText(match.schedule?.court))
       events.push({
         id: tournamentCalendarMatchId(competitionId, match.id),
         kind: 'tournament',
@@ -287,9 +289,9 @@ export function mapApprovedCompetitionSchedule(input: {
         title: `${competitionName}: ${cleanText(opponent) ? `vs ${opponent}` : match.label}`,
         date: cleanText(match.schedule?.date),
         time: cleanText(match.schedule?.time),
-        location: [cleanText(tournament.location_label), court ? `Court ${court}` : ''].filter(Boolean).join(' · '),
+        location: [cleanText(tournament.location_label), court].filter(Boolean).join(' · '),
         opponent: cleanText(opponent),
-        detail: [match.label, court ? `Court ${court}` : ''].filter(Boolean).join(' · '),
+        detail: [match.label, court].filter(Boolean).join(' · '),
         href: `/tournaments/${encodeURIComponent(competitionId)}`,
         status: match.completed ? 'Completed' : 'Scheduled',
       })
@@ -377,11 +379,7 @@ export function applyCompetitionScheduleResponses<T extends PlayerCompetitionSch
     const responseStatus = response?.response === 'available' || response?.response === 'unavailable'
       ? response.response
       : ''
-    const responseIsStale = Boolean(responseStatus) && (
-      cleanText(snapshot.date) !== event.date
-      || cleanText(snapshot.time) !== event.time
-      || cleanText(snapshot.location) !== event.location
-    )
+    const responseIsStale = Boolean(responseStatus) && !sameCompetitionScheduleSnapshot(snapshot, event, event.kind === 'tournament')
 
     return {
       ...event,

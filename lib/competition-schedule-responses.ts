@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from './supabase'
+import { sameCompetitionScheduleSnapshot } from './competition-schedule-snapshot'
 
 export type CompetitionScheduleResponseState = 'available' | 'unavailable' | 'waiting' | 'changed'
 
@@ -83,9 +84,7 @@ export function buildCompetitionScheduleResponseSummary(input: {
     const response = responsesByPlayer.get(normalizeName(playerName))
     if (!response) return { playerName, state: 'waiting' as const, updatedAt: '' }
 
-    const changed = response.eventSnapshot.date !== cleanText(input.currentSnapshot.date)
-      || response.eventSnapshot.time !== cleanText(input.currentSnapshot.time)
-      || response.eventSnapshot.location !== cleanText(input.currentSnapshot.location)
+    const changed = !sameCompetitionScheduleSnapshot(response.eventSnapshot, input.currentSnapshot, input.eventId.startsWith('tournament:'))
 
     return {
       playerName,

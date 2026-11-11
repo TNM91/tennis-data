@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import TournamentEventDesk, { type EventCourtAssignment } from '@/app/components/tournament-event-desk'
-import { normalizeTournamentEventDetails, type TournamentEventDetails } from '@/lib/tournament-event-presentation'
+import { normalizeTournamentEventDetails, tournamentCourtLabel, type TournamentEventDetails } from '@/lib/tournament-event-presentation'
 import { buildTournamentDivisionDraft, getTournamentEventContext, getTournamentEventRoots, getTournamentEventDivisions } from '@/lib/tournament-events'
 import ClubContextBanner from '@/app/components/club-context-banner'
 import CompetitionResponseSummary from '@/app/components/competition-response-summary'
@@ -2425,6 +2425,11 @@ export default function TournamentBuilderWorkspace() {
                   : canRecord
                     ? 'Record winner'
                     : 'Await players'
+              const currentSnapshot = {
+                date: match.schedule?.date || '',
+                time: match.schedule?.time || '',
+                location: [selectedRecord.locationLabel, tournamentCourtLabel(match.schedule?.court || '')].filter(Boolean).join(' · '),
+              }
               const responseSummary = selectedRecord.entrantType === 'players'
                 && canReviewScheduleResponses
                 && canRecord
@@ -2433,14 +2438,7 @@ export default function TournamentBuilderWorkspace() {
                     eventId: `tournament:${selectedRecord.id}:${match.id}`,
                     expectedPlayerNames: [match.sideA, match.sideB],
                     responses: scheduleResponses,
-                    currentSnapshot: {
-                      date: match.schedule?.date || '',
-                      time: match.schedule?.time || '',
-                      location: [
-                        selectedRecord.locationLabel,
-                        match.schedule?.court ? `Court ${match.schedule.court}` : '',
-                      ].filter(Boolean).join(' · '),
-                    },
+                    currentSnapshot,
                   })
                 : null
               return (
@@ -2466,6 +2464,7 @@ export default function TournamentBuilderWorkspace() {
                   </div>
                   {responseSummary ? (
                     <CompetitionResponseSummary
+                      key={JSON.stringify(currentSnapshot)}
                       summary={responseSummary}
                       adjustHref={`#tournament-schedule-${match.id}`}
                       onRemind={session?.access_token ? () => sendCompetitionScheduleReminders({

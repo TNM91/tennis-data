@@ -33,6 +33,24 @@ export function isCompleteEventSlot(slot: { date: string; time: string; court: s
   return calendarDate(slot.date) && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(slot.time) && Boolean(normalizeEventCourt(slot.court))
 }
 
+const eventWindow = (minutes: number) => [30, 45, 60, 90].includes(minutes) ? minutes : 60
+const slotMinute = ({ date, time }: { date: string; time: string }) => Date.parse(`${date}T${time}:00Z`) / 60000
+
+export function nextEventCourtTime(matches: EventDeskMatch[], slot: { date: string; time: string; court: string }, editingKey: string, windowMinutes: number) {
+  if (!isCompleteEventSlot(slot)) return ''
+  const duration = eventWindow(windowMinutes)
+  const court = normalizeEventCourt(slot.court)
+  const occupied = matches.filter(match => match.assigned && !match.completed && match.key !== editingKey && normalizeEventCourt(match.court) === court)
+    .map(slotMinute).sort((a, b) => a - b)
+  let start = slotMinute(slot)
+  for (const other of occupied) {
+    if (start + duration <= other) break
+    if (start < other + duration) start = other + duration
+  }
+  const next = new Date(start * 60000).toISOString()
+  return next.slice(0, 10) === slot.date ? next.slice(11, 16) : ''
+}
+
 export function buildEventDeskMatches(divisions: TiqTournamentRecord[]): EventDeskMatch[] {
   return divisions.flatMap(division => division.entrants.length < 2 ? [] : buildTournamentPreview(division)
     .filter(match => match.sideA !== 'Bye' && match.sideB !== 'Bye')
@@ -47,15 +65,14 @@ export function buildEventDeskMatches(divisions: TiqTournamentRecord[]): EventDe
 }
 
 export function findEventCourtOverlaps(matches: EventDeskMatch[], windowMinutes = 60) {
-  const duration = [30, 45, 60, 90].includes(windowMinutes) ? windowMinutes : 60
+  const duration = eventWindow(windowMinutes)
   const assigned = matches.filter(match => match.assigned && !match.completed)
   const overlaps: Array<{ first: EventDeskMatch; second: EventDeskMatch }> = []
   for (let i = 0; i < assigned.length; i++) {
     for (let j = i + 1; j < assigned.length; j++) {
       const first = assigned[i], second = assigned[j]
       if (normalizeEventCourt(first.court) !== normalizeEventCourt(second.court)) continue
-      const minute = (match: EventDeskMatch) => Date.parse(`${match.date}T${match.time}:00Z`) / 60000
-      if (Math.abs(minute(first) - minute(second)) < duration) overlaps.push({ first, second })
+      if (Math.abs(slotMinute(first) - slotMinute(second)) < duration) overlaps.push({ first, second })
     }
   }
   return overlaps
