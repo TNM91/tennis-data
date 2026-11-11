@@ -26,8 +26,18 @@ export type TiqLeagueScheduleItem = {
   notes: string
   proposedByUserId: string
   confirmedByUserId: string
+  createdByUserId?: string
   createdAt: string
   updatedAt: string
+}
+
+export function canChangeTiqLeagueScheduleStatus(
+  item: Pick<TiqLeagueScheduleItem, 'status' | 'proposedByUserId' | 'createdByUserId'>,
+  userId: string | null | undefined,
+  leagueOwnerId: string,
+) {
+  return Boolean(userId && item.status !== 'completed' && item.status !== 'cancelled'
+    && (userId === leagueOwnerId || userId === item.proposedByUserId || userId === item.createdByUserId))
 }
 
 export type TiqLeagueBatchMatch = LeagueDraftMatch & { id: string }
@@ -80,6 +90,7 @@ type TiqLeagueScheduleRow = {
   notes?: string | null
   proposed_by_user_id?: string | null
   confirmed_by_user_id?: string | null
+  created_by_user_id?: string | null
   created_at?: string | null
   updated_at?: string | null
 }
@@ -125,6 +136,7 @@ function normalizeRow(row: TiqLeagueScheduleRow): TiqLeagueScheduleItem | null {
     notes: cleanText(row.notes),
     proposedByUserId: cleanText(row.proposed_by_user_id),
     confirmedByUserId: cleanText(row.confirmed_by_user_id),
+    createdByUserId: cleanText(row.created_by_user_id),
     createdAt: cleanText(row.created_at),
     updatedAt: cleanText(row.updated_at),
   }
@@ -151,6 +163,7 @@ function readLocalScheduleItems() {
         notes: row.notes,
         proposed_by_user_id: row.proposedByUserId,
         confirmed_by_user_id: row.confirmedByUserId,
+        created_by_user_id: row.createdByUserId,
         created_at: row.createdAt,
         updated_at: row.updatedAt,
       }))
@@ -186,7 +199,7 @@ export async function listTiqLeagueScheduleItems(
   try {
     const { data, error } = await supabase
       .from(TIQ_LEAGUE_SCHEDULE_TABLE)
-      .select('id, league_id, league_format, participant_a_name, participant_a_id, participant_b_name, participant_b_id, scheduled_date, scheduled_time, facility, status, notes, proposed_by_user_id, confirmed_by_user_id, created_at, updated_at')
+      .select('id, league_id, league_format, participant_a_name, participant_a_id, participant_b_name, participant_b_id, scheduled_date, scheduled_time, facility, status, notes, proposed_by_user_id, confirmed_by_user_id, created_by_user_id, created_at, updated_at')
       .eq('league_id', normalizedLeagueId)
       .neq('status', 'cancelled')
       .order('scheduled_date', { ascending: true })
@@ -245,6 +258,7 @@ export async function saveTiqLeagueScheduleItem(input: {
     notes: cleanText(input.notes),
     proposedByUserId: userId,
     confirmedByUserId: input.status === 'confirmed' || input.status === 'coordinator_set' ? userId : '',
+    createdByUserId: userId,
     createdAt: now,
     updatedAt: now,
   }

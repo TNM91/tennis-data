@@ -11,6 +11,7 @@ vi.mock('@/lib/supabase', () => ({
 import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import {
+  canChangeTiqLeagueScheduleStatus,
   listTiqLeagueScheduleItems,
   saveTiqLeagueScheduleItem,
   updateTiqLeagueScheduleStatus,
@@ -107,6 +108,7 @@ describe('tiq league schedule service', () => {
           scheduled_date: '2026-02-01',
           scheduled_time: '09:00',
           status: 'unknown',
+          created_by_user_id: 'legacy-creator',
         },
       ],
       error: null,
@@ -124,8 +126,21 @@ describe('tiq league schedule service', () => {
         participantAName: 'Alice',
         participantBName: 'Bob',
         status: 'proposed',
+        createdByUserId: 'legacy-creator',
       }),
     ])
+  })
+
+  it('offers status actions only to the league owner or the account that posted the fixture', () => {
+    const published = scheduleItem({ status: 'coordinator_set', proposedByUserId: 'coordinator' })
+    expect(canChangeTiqLeagueScheduleStatus(published, 'approved-player', 'coordinator')).toBe(false)
+    expect(canChangeTiqLeagueScheduleStatus(published, null, 'coordinator')).toBe(false)
+    expect(canChangeTiqLeagueScheduleStatus(published, 'coordinator', 'coordinator')).toBe(true)
+    const proposal = scheduleItem({ status: 'proposed', proposedByUserId: 'proposer', createdByUserId: 'legacy-creator' })
+    expect(canChangeTiqLeagueScheduleStatus(proposal, 'proposer', 'coordinator')).toBe(true)
+    expect(canChangeTiqLeagueScheduleStatus(proposal, 'legacy-creator', 'coordinator')).toBe(true)
+    expect(canChangeTiqLeagueScheduleStatus({ ...proposal, status: 'completed' }, 'coordinator', 'coordinator')).toBe(false)
+    expect(canChangeTiqLeagueScheduleStatus({ ...proposal, status: 'cancelled' }, 'proposer', 'coordinator')).toBe(false)
   })
 
   it('falls back to sorted local schedule items when Supabase is unavailable', async () => {

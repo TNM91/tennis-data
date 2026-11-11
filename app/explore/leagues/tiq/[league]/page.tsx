@@ -97,6 +97,7 @@ import {
   type TiqTeamStandingRow,
 } from '@/lib/tiq-team-results-service'
 import {
+  canChangeTiqLeagueScheduleStatus,
   listTiqLeagueScheduleItems,
   publishTiqLeagueScheduleBatch,
   saveTiqLeagueScheduleItem,
@@ -833,7 +834,7 @@ function TiqLeagueDetailContent() {
     ? [
         getTiqLeagueSchedulingModeDescription(league.schedulingMode),
         league.defaultMatchDay || league.defaultMatchTime || league.defaultFacility
-          ? `Default: ${[league.defaultMatchDay, league.defaultMatchTime, league.defaultFacility].filter(Boolean).join(', ')}.`
+          ? `Default: ${[league.defaultMatchDay, league.defaultMatchTime ? formatLeagueTime(league.defaultMatchTime) : '', league.defaultFacility].filter(Boolean).join(', ')}.`
           : '',
         league.schedulingNotes,
       ].filter(Boolean).join(' ')
@@ -2123,24 +2124,28 @@ function TiqLeagueDetailContent() {
 
   async function handleScheduleStatusChange(
     scheduleItemId: string,
-    status: 'confirmed' | 'completed' | 'cancelled',
+    status: 'confirmed' | 'cancelled',
   ) {
-    if (!league) return
+    if (!league || scheduleSaving) return
+    const item = scheduleItems.find((row) => row.id === scheduleItemId)
+    if (!item || !canChangeTiqLeagueScheduleStatus(item, userId, league.createdByUserId)
+      || (status === 'confirmed' && item.status !== 'proposed')) return
 
     setScheduleSaving(true)
     setScheduleStatus('')
 
     try {
       const result = await updateTiqLeagueScheduleStatus({ scheduleItemId, status })
+      if (!result.item) throw new Error('The match could not be updated. Refresh the schedule and try again.')
       await refreshScheduleItems(league.id)
       setScheduleSource(result.source)
       setStorageWarning((current) => current || result.warning || '')
       setScheduleStatus(
-        status === 'confirmed'
-          ? 'Confirmed this match time.'
-          : status === 'completed'
-            ? 'Marked this scheduled match complete.'
-            : 'Cancelled this schedule item.',
+        result.source === 'local'
+          ? 'Match updated on this device.'
+          : status === 'confirmed'
+            ? 'Confirmed this match time.'
+            : 'Cancelled this match.',
       )
     } catch (error) {
       setScheduleStatus(error instanceof Error ? error.message : 'Unable to update this schedule item.')
@@ -2524,6 +2529,7 @@ function TiqLeagueDetailContent() {
           ? 'Completed'
           : item.status
     const isCompact = mode === 'calendar'
+    const canChangeStatus = canChangeTiqLeagueScheduleStatus(item, userId, league.createdByUserId)
     const currentSnapshot = {
       date: item.scheduledDate,
       time: item.scheduledTime,
@@ -2550,9 +2556,9 @@ function TiqLeagueDetailContent() {
           </div>
           <div style={listMeta}>
             {[
-              isCompact ? null : item.scheduledDate,
-              item.scheduledTime,
-              item.facility,
+              !isCompact && item.scheduledDate ? formatLeagueDate(item.scheduledDate) : '',
+              item.scheduledTime ? formatLeagueTime(item.scheduledTime) : '',
+              item.facility || league.defaultFacility,
               item.notes,
             ]
               .filter(Boolean)
@@ -2619,7 +2625,7 @@ function TiqLeagueDetailContent() {
             entityType="tiq_schedule_item"
             entityId={item.id}
           />
-          {item.status === 'proposed' ? (
+          {canChangeStatus && item.status === 'proposed' ? (
             <button
               type="button"
               onClick={() => void handleScheduleStatusChange(item.id, 'confirmed')}
@@ -2632,7 +2638,7 @@ function TiqLeagueDetailContent() {
               Confirm
             </button>
           ) : null}
-          {item.status !== 'completed' ? (
+          {canChangeStatus ? (
             <button
               type="button"
               onClick={() => void handleScheduleStatusChange(item.id, 'cancelled')}
@@ -2642,7 +2648,7 @@ function TiqLeagueDetailContent() {
                 ...(scheduleSaving || !userId ? disabledButton : {}),
               }}
             >
-              Cancel
+              Cancel match
             </button>
           ) : null}
         </div>
@@ -3021,7 +3027,11 @@ function TiqLeagueDetailContent() {
                           <div style={leagueHubHeaderCopyStyle}>
                             <strong>{item.participantAName} vs {item.participantBName}</strong>
                             <span>
-                              {[item.scheduledDate, item.scheduledTime, item.facility || league.defaultFacility]
+                            {[
+                              item.scheduledDate ? formatLeagueDate(item.scheduledDate) : '',
+                              item.scheduledTime ? formatLeagueTime(item.scheduledTime) : '',
+                              item.facility || league.defaultFacility,
+                            ]
                                 .filter(Boolean)
                                 .join(' | ') || 'Time and site TBD'}
                             </span>
