@@ -3343,6 +3343,8 @@ export function LeagueCoordinatorWorkspace() {
                           <LocationDirectionsLink location={record.defaultFacility || record.locationLabel} style={registryDirectionsStyle} />
                           {record.weeklySettings.enabled ? (
                             <GhostLink href={`/league-coordinator/weekly?leagueId=${encodeURIComponent(record.id)}`}>Run this week</GhostLink>
+                          ) : isLeagueOwner ? (
+                            <GhostLink href={`${buildTiqLeaguePageHref(record)}&edit_schedule=1#league-schedule-editor`}>Schedule matches</GhostLink>
                           ) : null}
                           {isLeagueOwner ? <GhostBtn onClick={() => startEditing(record, { scrollToForm: true })}>Edit setup</GhostBtn> : null}
                           {isLeagueOwner ? <GhostBtn onClick={() => startRenewing(record)}>Renew season</GhostBtn> : null}

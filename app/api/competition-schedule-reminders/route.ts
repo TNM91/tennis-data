@@ -1,4 +1,6 @@
 import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
+import { sameCompetitionScheduleSnapshot } from '@/lib/competition-schedule-snapshot'
+import { tournamentCourtLabel } from '@/lib/tournament-event-presentation'
 import {
   COMPETITION_REMINDER_COOLDOWN_HOURS,
   splitCompetitionReminderTargetsByCooldown,
@@ -21,6 +23,7 @@ type OwnerRow = {
   entrants?: string[] | null
   schedule?: Record<string, { date?: string | null; time?: string | null; court?: string | null }> | null
   location_label?: string | null
+  default_facility?: string | null
 }
 
 type LeagueScheduleRow = {
@@ -64,16 +67,6 @@ function uniqueNames(value: unknown) {
   return Array.from(new Set(value.map(cleanText).filter(Boolean))).slice(0, 8)
 }
 
-function sameSnapshot(snapshot: Record<string, unknown> | null | undefined, current: {
-  date: string
-  time: string
-  location: string
-}) {
-  return cleanText(snapshot?.date) === current.date
-    && cleanText(snapshot?.time) === current.time
-    && cleanText(snapshot?.location) === current.location
-}
-
 export async function POST(request: Request) {
   const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth.response
@@ -100,7 +93,7 @@ export async function POST(request: Request) {
 
   const competitionTable = competitionKind === 'league' ? 'tiq_leagues' : 'tiq_tournaments'
   const competitionSelect = competitionKind === 'league'
-    ? 'created_by_user_id,league_name'
+    ? 'created_by_user_id,league_name,default_facility,location_label'
     : 'created_by_user_id,name,entrants,schedule,location_label'
   const { data: ownerData, error: ownerError } = await auth.supabase
     .from(competitionTable)
@@ -132,7 +125,7 @@ export async function POST(request: Request) {
     currentSnapshot = {
       date: cleanText(item.scheduled_date),
       time: cleanText(item.scheduled_time),
-      location: cleanText(item.facility),
+      location: cleanText(item.facility) || cleanText(owner?.default_facility) || cleanText(owner?.location_label),
     }
   } else {
     const schedule = owner?.schedule?.[eventRecordId]
@@ -141,11 +134,11 @@ export async function POST(request: Request) {
     }
     const entrantNames = new Set((owner?.entrants ?? []).map(normalizeName).filter(Boolean))
     expectedNames = requestedNames.filter((name) => entrantNames.has(normalizeName(name)))
-    const court = cleanText(schedule.court)
+    const court = tournamentCourtLabel(cleanText(schedule.court))
     currentSnapshot = {
       date: cleanText(schedule.date),
       time: cleanText(schedule.time),
-      location: [cleanText(owner?.location_label), court ? `Court ${court}` : ''].filter(Boolean).join(' · '),
+      location: [cleanText(owner?.location_label), court].filter(Boolean).join(' · '),
     }
   }
 
@@ -195,7 +188,7 @@ export async function POST(request: Request) {
   )
   const pendingReminderTargets = targets.filter((target) => {
     const response = responseByUserId.get(target.playerUserId)
-    return !response || !sameSnapshot(response.event_snapshot, currentSnapshot)
+    return !response || !sameCompetitionScheduleSnapshot(response.event_snapshot, currentSnapshot, competitionKind === 'tournament')
   })
   if (!pendingReminderTargets.length) {
     return Response.json({ ok: true, sentCount: 0, message: 'Everyone has replied to the current match time.' })

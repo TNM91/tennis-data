@@ -2,6 +2,7 @@
 
 import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import type { LeagueDraftMatch } from './tiq-league-match-draft'
 
 const TIQ_LEAGUE_SCHEDULE_TABLE = 'tiq_league_schedule_items'
 const TIQ_LEAGUE_SCHEDULE_STORAGE_KEY = 'tenaceiq_tiq_league_schedule_items'
@@ -27,6 +28,41 @@ export type TiqLeagueScheduleItem = {
   confirmedByUserId: string
   createdAt: string
   updatedAt: string
+}
+
+export type TiqLeagueBatchMatch = LeagueDraftMatch & { id: string }
+export type TiqLeagueBatchResult = { ok: true; ids: string[] } | { ok: false; status: number; message: string }
+
+export async function publishTiqLeagueScheduleBatch(
+  leagueId: string,
+  matches: TiqLeagueBatchMatch[],
+  matchesPerStart: number,
+): Promise<TiqLeagueBatchResult> {
+  const { data, error } = await supabase.rpc('publish_tiq_league_schedule_batch', {
+    target_league_id: leagueId,
+    matches_per_start: matchesPerStart,
+    matches: matches.map((match) => ({
+      id: match.id,
+      participant_a_name: match.a.playerName,
+      participant_a_id: match.a.playerId || null,
+      participant_b_name: match.b.playerName,
+      participant_b_id: match.b.playerId || null,
+      scheduled_date: match.date,
+      scheduled_time: match.time,
+      facility: match.facility.trim(),
+    })),
+  })
+  if (error?.code === 'PGRST202' || error?.code === '42883') {
+    return { ok: false, status: 503, message: 'Batch publishing is unavailable right now.' }
+  }
+  if (error) throw new Error('Batch publish response could not be confirmed.')
+  const result = data as TiqLeagueBatchResult | null
+  if (result?.ok === false && typeof result.message === 'string' && Number.isInteger(result.status)) return result
+  if (result?.ok && Array.isArray(result.ids)) {
+    const saved = new Set(result.ids)
+    if (result.ids.length === matches.length && saved.size === matches.length && matches.every(({ id }) => saved.has(id))) return result
+  }
+  throw new Error('Batch publish response could not be confirmed.')
 }
 
 type TiqLeagueScheduleRow = {

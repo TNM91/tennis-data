@@ -1,3 +1,5 @@
+import { sameCompetitionScheduleSnapshot } from './competition-schedule-snapshot'
+
 export const COMPETITION_REMINDER_COOLDOWN_HOURS = 24
 export const COMPETITION_REMINDER_COOLDOWN_MS = COMPETITION_REMINDER_COOLDOWN_HOURS * 60 * 60 * 1000
 
@@ -13,19 +15,6 @@ export type CompetitionReminderHistoryRow = {
   sentAt: string
 }
 
-function cleanText(value: unknown) {
-  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
-}
-
-export function sameCompetitionScheduleSnapshot(
-  snapshot: CompetitionReminderHistoryRow['eventSnapshot'],
-  current: CompetitionReminderHistoryRow['eventSnapshot'],
-) {
-  return cleanText(snapshot.date) === cleanText(current.date)
-    && cleanText(snapshot.time) === cleanText(current.time)
-    && cleanText(snapshot.location) === cleanText(current.location)
-}
-
 export function splitCompetitionReminderTargetsByCooldown(input: {
   eventId: string
   targets: CompetitionReminderTarget[]
@@ -36,7 +25,8 @@ export function splitCompetitionReminderTargetsByCooldown(input: {
   const nowMs = Date.parse(input.now || new Date().toISOString())
   const historyByPlayer = new Map<string, CompetitionReminderHistoryRow[]>()
   for (const row of input.history) {
-    if (row.eventId !== input.eventId || !sameCompetitionScheduleSnapshot(row.eventSnapshot, input.currentSnapshot)) continue
+    if (row.eventId !== input.eventId ||
+      !sameCompetitionScheduleSnapshot(row.eventSnapshot, input.currentSnapshot, input.eventId.startsWith('tournament:'))) continue
     const rows = historyByPlayer.get(row.playerUserId) ?? []
     rows.push(row)
     historyByPlayer.set(row.playerUserId, rows)

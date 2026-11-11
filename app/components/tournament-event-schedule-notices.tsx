@@ -17,7 +17,7 @@ export default function TournamentEventScheduleNotices({ event, divisions }: { e
       ? [{ match, schedule, key: `${match.key}:${change.changedAt}` }] : []
   })
   if (!notices.length) return null
-  return <section className={styles.panel} aria-label="Schedule change notices">
+  return <section id="tournament-schedule-changes" tabIndex={-1} className={styles.panel} aria-label="Schedule change notices">
     <header><div><p>Schedule updates</p><h2>Keep players in the loop</h2></div><span>{notices.length} updated match{notices.length === 1 ? '' : 'es'}</span></header>
     <p>Review the latest change for each match, then copy the message to share with the affected teams. Player passes show the saved assignment. Live SMS is unavailable.</p>
     {notices.map(({ match, schedule, key }) => {

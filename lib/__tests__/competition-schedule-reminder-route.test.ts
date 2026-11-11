@@ -4,6 +4,8 @@ const insertedNotifications: Array<Record<string, unknown>> = []
 const insertedReminderHistory: Array<Record<string, unknown>> = []
 let responseRows: Array<Record<string, unknown>> = []
 let reminderHistoryRows: Array<Record<string, unknown>> = []
+let leagueFacility = 'Court 5'
+let leagueStart = '19:00'
 
 function resolvedQuery(data: unknown) {
   const query = {
@@ -27,15 +29,15 @@ function resolvedQuery(data: unknown) {
 const organizerSupabase = {
   from(table: string) {
     if (table === 'tiq_leagues') {
-      return resolvedQuery({ created_by_user_id: 'organizer-1', league_name: 'Monday Singles' })
+      return resolvedQuery({ created_by_user_id: 'organizer-1', league_name: 'Monday Singles', default_facility: 'Court 5' })
     }
     if (table === 'tiq_league_schedule_items') {
       return resolvedQuery({
         participant_a_name: 'Taylor Player',
         participant_b_name: 'Jordan Player',
         scheduled_date: '2026-09-03',
-        scheduled_time: '19:00',
-        facility: 'Court 5',
+        scheduled_time: leagueStart,
+        facility: leagueFacility,
         status: 'confirmed',
       })
     }
@@ -85,9 +87,13 @@ describe('competition schedule reminder route', () => {
     insertedReminderHistory.length = 0
     responseRows = []
     reminderHistoryRows = []
+    leagueFacility = 'Court 5'
+    leagueStart = '19:00'
   })
 
   it('reminds linked players who have not replied to the current match', async () => {
+    leagueFacility = ''
+    leagueStart = '19:00:00'
     responseRows = [{
       player_user_id: 'player-1',
       response: 'available',

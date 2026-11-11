@@ -71,6 +71,12 @@ export function formatTournamentEventTime(value?: string) {
   return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
+export function tournamentCourtLabel(court: string) {
+  const label = court.trim()
+  const identifier = /^(?:court\s+)?(\d+[A-Z]?|[A-Z])$/i.exec(label)
+  return identifier ? 'Court ' + identifier[1].toUpperCase() : label
+}
+
 export function formatTournamentEventFee(amount: number | undefined, currency = 'USD') {
   if (amount === undefined) return ''
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: amount % 1 ? 2 : 0 }).format(amount)

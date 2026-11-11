@@ -69,4 +69,20 @@ describe('competition schedule response summaries', () => {
     expect(summary.waitingCount).toBe(1)
     expect(summary.needsAction).toBe(true)
   })
+
+  it('asks again only when the actual tournament start or court changes', () => {
+    const eventId = 'tournament:event-1:r1-m1'
+    const response = {
+      eventId, playerName: 'Avery Stone', response: 'available' as const,
+      eventSnapshot: { date: '2026-08-15', time: '18:00:00', location: 'Northside · Court Court 5' },
+      updatedAt: '2026-08-10T12:00:00Z',
+    }
+    const current = { date: '2026-08-15', time: '18:00', location: 'Northside · Court 5' }
+    const summarize = (currentSnapshot: typeof current) => buildCompetitionScheduleResponseSummary({
+      eventId, expectedPlayerNames: ['Avery Stone'], responses: [response], currentSnapshot,
+    })
+    expect(summarize(current)).toMatchObject({ availableCount: 1, changedCount: 0 })
+    expect(summarize({ ...current, time: '19:00' })).toMatchObject({ availableCount: 0, changedCount: 1 })
+    expect(summarize({ ...current, location: 'Northside · Court 6' })).toMatchObject({ availableCount: 0, changedCount: 1 })
+  })
 })
