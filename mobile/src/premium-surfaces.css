@@ -1002,6 +1002,10 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 .comparison-fold-body>section { margin:12px 0;padding:14px;background:var(--premium-inset);border-color:var(--premium-line);box-shadow:none; }
 .comparison-fold-body>h2 { margin:18px 0 0; }
 .training-dialog:is(.training-inbox-screen,.coach-check-in-screen,.training-week-change-screen,.training-drill-screen,.training-session-screen,.training-progress-screen,.training-catalog-screen,.training-scorecard-screen,.training-modules-screen,.training-direction-screen) {
+ --training-top-clearance:max(20px,calc(env(safe-area-inset-top,0px) + 8px));
+ --training-bottom-clearance:max(20px,calc(env(safe-area-inset-bottom,0px) + 8px));
+ inset-block:var(--training-top-clearance) var(--training-bottom-clearance);
+ max-height:calc(100dvh - var(--training-top-clearance) - var(--training-bottom-clearance));
  padding:16px;border-color:var(--premium-line);background:var(--premium-page);overflow-wrap:anywhere;
 }
 .training-dialog.training-drill-screen[open] { display:flex;flex-direction:column;overflow:hidden; }

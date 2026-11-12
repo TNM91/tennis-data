@@ -4701,6 +4701,33 @@ test('Coach lesson preview falls back to the filtered calendar after the lesson 
  await expect(calendar.getByRole('combobox',{name:'Show',exact:true})).toHaveValue('coach')
  await expect(calendar.locator('[data-cal-results]')).toContainText('Follow-up: Jordan Lee')
 })
+test('First-party Training Inbox keeps its close button below the iPhone status bar',async({page,browserName})=>{
+ test.skip(browserName!=='chromium','Safe-area inset emulation requires Chromium')
+ await page.setViewportSize({width:390,height:844})
+ const safeArea={top:62,bottom:34,left:0,right:0}
+ const session=await page.context().newCDPSession(page)
+ await session.send('Emulation.setSafeAreaInsetsOverride',{insets:safeArea})
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?unlinked=1&training-inbox-review=1')
+ await page.getByRole('button',{name:'More',exact:true}).click()
+ await page.locator('[data-app-destination="coach"]').click()
+ const entry=page.locator('[data-coach-next-assignment] button')
+ await entry.click()
+
+ const inbox=page.getByRole('dialog',{name:'Level Up training',exact:true})
+ const close=inbox.getByRole('button',{name:'Close Level Up',exact:true})
+ await expect(inbox.getByRole('heading',{name:'Training inbox',exact:true})).toBeVisible()
+ const bounds=await inbox.boundingBox()
+ expect(bounds!.y).toBeGreaterThanOrEqual(safeArea.top)
+ expect(bounds!.y+bounds!.height).toBeLessThanOrEqual(844-safeArea.bottom)
+
+ await inbox.evaluate(dialog=>{dialog.scrollTop=dialog.scrollHeight})
+ expect((await close.boundingBox())!.y).toBeGreaterThanOrEqual(safeArea.top)
+ await close.click()
+ await expect(inbox).toHaveCount(0)
+ await expect(entry).toBeFocused()
+})
+
 for(const width of [320,390])test('Coach hub opens the next assignment and advances after a confirmed check-in at '+width+'px',async({page},info)=>{
  await page.setViewportSize({width,height:844})
  await page.goto(origin+'/?large=1&training-inbox-review=1')
