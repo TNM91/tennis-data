@@ -1,4 +1,4 @@
-import { fixtureId, readReviewedNextMatch, type ReviewedNextMatch } from './team-fixtures-contract'
+import { fixtureDate, fixtureId, readReviewedNextMatch, type ReviewedNextMatch } from './team-fixtures-contract'
 import { inferTiqBestOfThreeWinner } from './tiq-scoring'
 import { readSavedTeamLineup, type SavedTeamLineup } from './team-match-lineup-contract'
 
@@ -29,6 +29,16 @@ export function teamResultOutcome(score: TeamResultScore): keyof TeamRecord {
 }
 
 export const maxTeamResultCourts = 30
+export const teamScorecardsHeader = 'X-TenAceIQ-Team-Scorecards'
+export const teamScorecardLimit = 20
+export type TeamCourtScorecard = {
+  calendarMatchId: string; date: string; opponent: string; teamCourt: number
+  score: string; outcome: 'Won' | 'Lost'; format?: 'doubles'
+}
+
+const teamCourtNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= maxTeamResultCourts
+
 export const teamCourtDefaults = { 'W-DEFAULT': 'Won by default', 'L-DEFAULT': 'Lost by default' } as const
 export type TeamCourtDefault = keyof typeof teamCourtDefaults
 export const isTeamCourtDefault = (value: unknown): value is TeamCourtDefault =>
@@ -40,6 +50,28 @@ export function readTeamCourtScore(value: unknown) {
   const score = value.trim().replace(/–/g, '-').split(/[,\s]+/).filter(Boolean).join(', ')
   const winner = score.length <= 64 ? inferTiqBestOfThreeWinner(score) : undefined
   return winner ? { score, won: winner === 'A', defaulted: false } as const : null
+}
+
+export function readTeamCourtScorecard(value: unknown): TeamCourtScorecard | undefined {
+  if (!value || typeof value !== 'object') return
+  const { calendarMatchId, date, opponent, teamCourt, score, outcome: postedOutcome, format } = value as Record<string, unknown>
+  const court = readTeamCourtScore(score)
+  const outcome = court?.won ? 'Won' : 'Lost'
+  if (typeof calendarMatchId !== 'string' || !isTeamResultScorecardKey(calendarMatchId) || !fixtureDate(date) ||
+      typeof opponent !== 'string' || !opponent.trim() || opponent.length > 100 || /\p{Cc}/u.test(opponent) ||
+      !teamCourtNumber(teamCourt) || !court || court.defaulted || postedOutcome !== outcome ||
+      format !== undefined && format !== 'doubles') return
+  return { calendarMatchId, date, opponent, teamCourt, score: court.score, outcome, ...(format ? { format } : {}) }
+}
+
+export function teamCourtScorecard(roomId: string, entry: Pick<TeamResultEntry, 'fixtureId' | 'match'>,
+  courtNumber: number, court: NonNullable<ReturnType<typeof readTeamCourtScore>>, seats: number) {
+  return readTeamCourtScorecard({
+    calendarMatchId: teamResultScorecardKey(roomId, entry.fixtureId), date: entry.match.date,
+    opponent: entry.match.opponent.replace(/\p{Cc}/gu, '').trim().slice(0, 100),
+    teamCourt: courtNumber, score: court.score, outcome: court.won ? 'Won' : 'Lost',
+    ...(seats === 2 ? { format: 'doubles' } : {}),
+  })
 }
 
 export function readTeamCourtTally(value: unknown) {
