@@ -7,11 +7,11 @@ export async function chooseChatPhoto(source:'camera'|'library'):Promise<ChatPho
  if(!localCameraSource(media.webPath,location.href))throw Error('Photo source unavailable.')
  return resizeChatPhoto(media.webPath)
 }
-export async function resizeChatPhoto(source:string):Promise<ChatPhoto>{
+export async function resizeChatPhoto(source:string,maxDimension=1600):Promise<ChatPhoto>{
  const image=new Image()
  await new Promise<void>((resolve,reject)=>{const timer=setTimeout(()=>{image.onload=null;image.onerror=null;reject(Error('Photo could not be opened.'))},12000);image.onload=()=>{clearTimeout(timer);resolve()};image.onerror=()=>{clearTimeout(timer);reject(Error('Photo could not be opened.'))};image.src=source})
  if(!image.naturalWidth || !image.naturalHeight || image.naturalWidth*image.naturalHeight>64000000)throw Error('Choose a smaller photo.')
- const scale=Math.min(1,1600/image.naturalWidth,1600/image.naturalHeight),canvas=document.createElement('canvas')
+ const scale=Math.min(1,maxDimension/image.naturalWidth,maxDimension/image.naturalHeight),canvas=document.createElement('canvas')
  canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale))
  const context=canvas.getContext('2d');if(!context)throw Error('Photo preview unavailable.')
  context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(image,0,0,canvas.width,canvas.height)

@@ -1621,6 +1621,13 @@ body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-avatar {
 }
 body.native-chat-conversation main#app { background:var(--premium-page); }
 body.native-chat-conversation .chat-room-header { border-color:var(--premium-line); }
+.chats-team-avatar { position:relative;overflow:hidden; }
+.chats-team-avatar img { position:absolute;inset:0;width:100%;height:100%;object-fit:cover; }
+.chat-room-identity { display:flex;align-items:center;gap:8px;min-inline-size:0; }
+.chat-room-identity .chats-team-avatar { flex:none;inline-size:34px;block-size:34px; }
+.chat-room-identity h1 { min-inline-size:0; }
+.team-chat-icon-dialog [data-team-icon-preview] { display:flex;justify-content:center;margin-block:16px; }
+.team-chat-icon-dialog .chats-team-avatar { inline-size:80px;block-size:80px;background:var(--premium-royal-deep);border:1px solid var(--premium-line); }
 .chat-safety-dialog {
  box-sizing:border-box;max-block-size:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
  background:var(--premium-card);border-color:var(--premium-line);color:var(--premium-white);

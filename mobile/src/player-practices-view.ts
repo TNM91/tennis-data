@@ -1,3 +1,4 @@
+import {teamLeagueLabel} from '../../lib/private-team-contract'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 import {requestPlayerPractices,PlayerPracticeError,type PlayerPractice,type PlayerPracticeReply} from './player-practices-data'
@@ -61,7 +62,7 @@ export function openPlayerPractices(client:SupabaseClient,owner:string,scope:Tea
   dialog.innerHTML=`<header class="player-practice-header">
    <h1 tabindex="-1">Team practices</h1>
    <button type="button" class="secondary" data-close aria-label="${html(backLabel)}" ${busy?'disabled':''}>Back</button>
-   <p>${html([scope.teamName,scope.leagueName,scope.flight].filter(Boolean).join(' · '))}</p>
+   <p>${html([scope.teamName,teamLeagueLabel(scope),scope.flight].filter(Boolean).join(' · '))}</p>
   </header>
   <p role="status">${html(notice)}</p>
   ${p?`${!invite&&!initialEventId?'<button type="button" class="secondary" data-list>Back to practices</button>':''}

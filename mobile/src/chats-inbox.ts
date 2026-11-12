@@ -3,6 +3,7 @@ import {teamLeagueLabel} from '../../lib/private-team-contract'
 import type {CaptainChatSetup,NativeTeamData,TeamScope} from './team-room-data'
 import {paintTeamUnread,type ChatUnread} from './chat-unread'
 import {firstPartyBuild} from './build-scope'
+import {bindTeamChatAvatars,teamChatAvatarHtml} from './team-chat-icon'
 import {captainChatSetupMessages,setupSteps} from '../../lib/setup-trophies'
 import websiteUi from '../generated/website-ui.json'
 
@@ -69,7 +70,7 @@ export function chatsInboxHtml(data:NativeTeamData){
   </div>
  </details>
  ${chatsFilterFeedbackHtml('team')}
- ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}"><span class="chats-team-avatar" aria-hidden="true">${html(team.teamName.trim().slice(0,1).toUpperCase())}</span><span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(teamLeagueLabel(team))}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:chatsStartActionHtml('team')}
+ ${data.teams.length?`<ul class="chats-team-list">${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}">${teamChatAvatarHtml(team.teamName,team.teamLogoUrl)}<span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(teamLeagueLabel(team))}${team.flight?' · '+html(team.flight):''}</span><span class="chats-room-name">Team rooms</span></span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button><ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:chatsStartActionHtml('team')}
  ${firstPartyBuild?`<details class="chat-team-setup"><summary>Team setup help</summary>
   <button type="button" class="secondary" data-check-captain-setup>Check captain chat access</button>
   <p role="status" data-captain-setup-status></p>
@@ -82,6 +83,7 @@ export function chatsInboxHtml(data:NativeTeamData){
 
 /** Filters and room jumps use the current authorized count snapshot; opening still reloads room access. */
 export function bindChatsInbox(host:HTMLElement,teams:TeamScope[],filter:ChatsInboxFilter,initial:ChatUnread|null,onOpen:(scope:TeamScope)=>void,current:()=>boolean,readCaptainSetup:()=>Promise<CaptainChatSetup>,onInvite:(scope:TeamScope,trigger:HTMLButtonElement)=>void){
+ bindTeamChatAvatars(host)
  let summary=initial,disposed=false
  const events=new AbortController(),search=host.querySelector<HTMLInputElement>('#chats-team-search')!
  const filters=host.querySelector<HTMLDetailsElement>('[data-team-chat-filters]')!

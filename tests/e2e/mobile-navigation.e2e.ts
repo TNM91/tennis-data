@@ -1030,6 +1030,72 @@ test('first-party captain creates a private team and opens its invite controls',
  expect(requests).not.toContain('captain-setup')
 })
 
+test('first-party captain can create a practice RSVP list and update their team chat icon',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:390,height:844})
+ await page.goto(origin+'/?private-team-tools=captain')
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ const team=page.getByRole('button',{name:/Baseline Aces.*Weekend Tennis/})
+ await team.click()
+ const tools=page.locator('.chat-room-options>summary')
+ await tools.click()
+ await page.locator('#chat-practices').click()
+ const practices=page.getByRole('dialog',{name:'Captain practices',exact:true})
+ await practices.getByRole('button',{name:'Create practice',exact:true}).click()
+ const create=page.getByRole('dialog',{name:'Create practice',exact:true})
+ await create.getByLabel('Date').fill('2030-06-09')
+ await create.getByLabel('Start time').fill('18:00')
+ await create.getByLabel('Location').fill('Court 3')
+ await create.getByLabel('Capacity').fill('2')
+ await create.getByRole('button',{name:'Review practice',exact:true}).click()
+ await create.getByText('RSVP roster · 2 players',{exact:true}).click()
+ await expect(create.getByText('Alex',{exact:true})).toBeVisible()
+ await create.getByRole('button',{name:'Create practice',exact:true}).click()
+ await expect(create.getByRole('heading',{name:'Practice created',exact:true})).toBeVisible()
+ await expect(create.getByRole('button',{name:'Share RSVP link',exact:true})).toBeEnabled()
+ await create.getByRole('button',{name:'Open practice',exact:true}).click()
+ await expect(practices.getByText(/Court 3/)).toBeVisible()
+ await practices.getByRole('button',{name:'Back to chat',exact:true}).click()
+
+ const image=await page.evaluate(()=>{
+  const canvas=document.createElement('canvas')
+  canvas.width=canvas.height=96
+  const context=canvas.getContext('2d')!
+  context.fillStyle='#3a5de2'
+  context.fillRect(0,0,96,96)
+  return canvas.toDataURL('image/png').split(',')[1]
+ })
+ const buffer=Buffer.from(image,'base64')
+ await page.route('https://pwxppfazbyourjrsutgx.supabase.co/storage/v1/object/sign/team-room-files/team-logos/**',
+  route=>route.fulfill({contentType:'image/png',body:buffer}))
+ if(!await page.locator('.chat-room-options').evaluate(element=>(element as HTMLDetailsElement).open))await tools.click()
+ await page.getByRole('button',{name:/Add team icon/}).click()
+ const icon=page.getByRole('dialog',{name:'Team chat icon'})
+ await icon.getByLabel('Choose a photo').setInputFiles({name:'team.png',mimeType:'image/png',buffer})
+ await expect(icon.getByRole('status')).toHaveText('Photo ready to save.')
+ await icon.getByRole('button',{name:'Save team icon',exact:true}).click()
+ await expect(icon).toHaveCount(0)
+ await expect(page.locator('.chat-room-identity img')).toBeVisible()
+ await page.getByRole('button',{name:'All team chats',exact:true}).click()
+ await expect(team.locator('img')).toBeVisible()
+ await team.click()
+ await tools.click()
+ await page.getByRole('button',{name:/Change team icon/}).click()
+ await icon.getByRole('button',{name:'Remove team icon',exact:true}).click()
+ await expect(page.locator('.chat-room-identity img')).toHaveCount(0)
+})
+
+test('first-party teammate can open practices from Chats',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?private-team-tools=player')
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/Baseline Aces.*Weekend Tennis/}).click()
+ await page.locator('.chat-room-options>summary').click()
+ await expect(page.locator('#chat-team-icon')).toHaveCount(0)
+ await page.locator('#chat-practices').click()
+ await expect(page.getByRole('dialog',{name:'Team practices',exact:true})).toContainText('Weekend Tennis')
+})
+
 test('first-party captain chat setup gives the next action without checking until asked',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?captain-invites=1')
