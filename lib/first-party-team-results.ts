@@ -1,8 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { loadEligibleTeamRoster } from './first-party-team-replies'
-import type { ReviewedTeamRoom } from './first-party-team-scopes'
+import { loadActiveReviewedTeamRoomIds, loadReviewedTeamLinks, readReviewedTeamRooms, type ReviewedTeamRoom } from './first-party-team-scopes'
 import { loadManualTeamFixture, teamMatchHasStarted } from './first-party-team-schedule'
-import { readTeamRecord, readTeamResultEntry, readTeamResultPlayers, type TeamResultChange, type TeamResultEntry, type TeamResults } from './team-results-contract'
+import { fixtureId, readReviewedNextMatch } from './team-fixtures-contract'
+import { readTeamCourtScore, readTeamRecord, readTeamResultEntry, readTeamResultPlayers, teamCourtScorecard, teamScorecardLimit,
+  type TeamCourtScorecard, type TeamResultChange, type TeamResultEntry, type TeamResults } from './team-results-contract'
 
 export async function loadTeamResultRoster(service: SupabaseClient, room: ReviewedTeamRoom, owner: string) {
   const { ids } = await loadEligibleTeamRoster(service, room, owner)
@@ -45,6 +47,32 @@ export async function loadTeamResults(service: SupabaseClient, room: ReviewedTea
   const visible = entries.slice(0, 20)
   await attachTeamResultPlayers(service, room, owner, visible, canEdit)
   return { canEdit, entries: visible, more: entries.length > 20, record }
+}
+
+export async function loadPrivateTeamScorecards(service: SupabaseClient, owner: string, now = new Date()): Promise<TeamCourtScorecard[]> {
+  const links = await loadReviewedTeamLinks(service, owner, readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS))
+  const roomIds = await loadActiveReviewedTeamRoomIds(service, owner, links.filter(room => !room.scheduleLeagueId))
+  if (!roomIds.length) return []
+
+  const { data, error } = await service.from('native_team_fixture_history')
+    .select(`room_id,fixture_id,fixture,match_date,result_revision,court_scores,
+      own:native_team_result_players!inner(profile_id,result_revision,court_number),
+      seats:native_team_result_players(result_revision,court_number)`)
+    .in('room_id', roomIds).eq('own.profile_id', owner)
+    .order('match_date', { ascending: false }).order('fixture_id').order('room_id').limit(teamScorecardLimit)
+  if (error || !Array.isArray(data) || data.length > teamScorecardLimit) throw Error('Team court scores unavailable')
+
+  return data.flatMap(row => {
+    const own = Array.isArray(row.own) && row.own.length === 1 ? row.own[0] : undefined
+    if (!roomIds.includes(row.room_id) || !fixtureId(row.fixture_id) || !fixtureId(row.result_revision) ||
+        own?.profile_id !== owner || own.result_revision !== row.result_revision) return []
+    const match = readReviewedNextMatch(row.fixture)
+    const court = Array.isArray(row.court_scores) ? readTeamCourtScore(row.court_scores[own.court_number - 1]) : null
+    if (!court || court.defaulted || !match || match.date !== row.match_date || !teamMatchHasStarted(match, now)) return []
+    const seats = (row.seats ?? []).filter(seat => seat.result_revision === row.result_revision && seat.court_number === own.court_number)
+    const card = teamCourtScorecard(row.room_id, { fixtureId: row.fixture_id, match }, own.court_number, court, seats.length)
+    return card ? [card] : []
+  })
 }
 
 export async function saveTeamResult(service: SupabaseClient, room: ReviewedTeamRoom, owner: string, change: TeamResultChange) {
