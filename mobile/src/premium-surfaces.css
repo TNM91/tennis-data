@@ -2369,6 +2369,14 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
 .team-match-ticket button[data-team-match-next] span { flex:none;font-size:1.125rem; }
 .team-match-ticket :is(button[hidden],[role="status"]:empty),.team-match-tools [role="status"]:empty { display:none; }
 #team-panel>:is(.team-match-replies,.team-match-court-plan,.team-match-tools) { overflow-wrap:anywhere; }
+#team-chat-display-name {
+ display:grid;gap:8px;margin-block:12px;padding:14px;
+ border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);
+}
+#team-chat-display-name label { margin:0;font-weight:700;color:var(--premium-white); }
+#team-chat-display-name p { margin:0;color:var(--premium-copy);font-size:.875rem;line-height:1.45; }
+#team-chat-display-name :is(input,button) { box-sizing:border-box;min-block-size:44px;min-inline-size:0;margin:0; }
+#team-chat-display-name [role="status"]:empty { display:none; }
 .team-match-tools .team-hub-shortcuts { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:8px; }
 .team-match-tools .team-hub-shortcuts button.secondary { margin:0;min-inline-size:0;min-block-size:44px;font-size:.8125rem; }
 

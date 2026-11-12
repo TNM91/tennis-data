@@ -12,7 +12,7 @@ import {openTeamPoll} from './team-polls-view'
 import {pastedChatGif} from './chat-gif-paste'
 import {gifFileData} from './chat-gifs'
 import {openCaptainPractices} from './captain-practices-view'
-import {chatRoomHeaderHtml,bindTeamToolsClose} from './chat-room-chrome'
+import {chatRoomHeaderHtml,bindTeamToolsClose,firstPartyChatSettingsHtml} from './chat-room-chrome'
 import {nativeActionIcon as actionIcon} from './native-action-icons'
 import {openChatRooms} from './named-chat-rooms'
 import {isTeamChatReaction} from '../../lib/team-chat-reaction-kinds'
@@ -57,6 +57,7 @@ import {loadCaptainChatSetup,loadTeamRoom,teamNextMatchRequest,loadTeamChatUpdat
 import type {CompeteTeamAction} from './compete-teams'
 import {ChatActionError,TeamChatDraft,postTeamChat,type ChatAction} from './team-chat-send'
 import {html} from './match-details'
+import {readTeamChatDisplayName,teamChatDisplayNameLimit} from '../../lib/team-chat-display-name'
 
 function messageTime(value:string) {
  const date=new Date(value)
@@ -123,6 +124,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  let announcementView:ReturnType<typeof openAnnouncement>|null=null,chatFilter:ChatFilter='all',findOpen=false
  let searchText='',postEditor:ReturnType<typeof openChatPostEditor>|null=null
  let muteSending=false,mutePending:boolean|null=null,muteNotice=''
+ let chatNameSaving=false
  let mentionDialog:HTMLDialogElement|null=null
  const closeMentions=()=>{mentionDialog?.remove();mentionDialog=null}
  let gifChooser:AbortController|null=null
@@ -639,7 +641,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const panel=app.querySelector<HTMLElement>('#team-panel')!
   const blockedMessages=room.blockedMembers.length?`<section><h${firstPartyBuild?3:2}>Blocked chat posts</h${firstPartyBuild?3:2}><p>These members’ posts are hidden from your team conversations. Blocking does not remove anyone from the team. Your posts remain visible to the group.</p><ul class="team-members">${room.blockedMembers.map(member=>`<li>${html(member.name)}<button type="button" class="secondary" data-chat-unblock="${html(member.id)}" ${busy?'disabled':''}>Unblock chat posts</button></li>`).join('')}</ul></section>`:firstPartyBuild?'<section><h3>Blocked chat posts</h3><p>You haven’t blocked anyone.</p></section>':''
   if(tab==='Captain' && !room.canManage)tab='Conversation'
-  panel.innerHTML=tab==='Captain'?'':tab==='Match day'?teamMatchDayHtml(room,userId):tab==='Conversation'?teamConversationHtml(room,Boolean(historyBefore),userId):firstPartyBuild?'<section><h2>Chat safety</h2><p>Use a message’s menu to report a concern or block the sender’s posts.</p></section>'+blockedMessages:`<section aria-label="${room.chatRoom?'Room alert settings':'Team alert settings'}"><h2>${room.chatRoom?'Room alerts':'Team alerts'}</h2>${room.chatRoom?.teamMuted?'<p>Your team is muted. Open General → Members to turn team alerts on. Your room preference stays saved.</p>':''}<p>${room.muted?(room.chatRoom?'Alerts for this room are muted. Open Conversation whenever you want to catch up.':'Alerts for this team are muted. Open Conversation whenever you want to catch up.'):(room.chatRoom?'Receive posts in this room when team alerts and iPhone notifications are on.':'Receive new team posts and match-day reminders when iPhone notifications are enabled. Mentions use these same team alert settings.')}</p><button type="button" class="secondary" id="chat-mute" ${muteSending || busy?'disabled':''}>${muteSending?'Saving…':mutePending!==null?'Retry same alert setting':room.muted?(room.chatRoom?'Turn room alerts on':'Turn team alerts on'):(room.chatRoom?'Mute room alerts':'Mute team alerts')}</button><p role="status" id="chat-mute-status">${html(muteNotice)}</p><p class="rating-context">This setting applies only to ${html(room.chatRoom?.name||room.teamName)} across your devices. ${room.chatRoom?'Other rooms and General keep their own preferences. Team mute silences every room.':'It also silences this team’s match-day reminders. Other teams keep their own settings.'}</p></section><section><h2>Team members</h2><ul class="team-members">${room.members.map(member=>`<li><strong>${html(member.name)}</strong><span>${member.roles.includes('captain')?'Captain':member.roles.includes('co_captain')?'Co-captain':'Player'}</span></li>`).join('')}</ul></section>${blockedMessages}`
+  panel.innerHTML=tab==='Captain'?'':tab==='Match day'?teamMatchDayHtml(room,userId):tab==='Conversation'?teamConversationHtml(room,Boolean(historyBefore),userId):firstPartyBuild?firstPartyChatSettingsHtml(room.chatDisplayName)+blockedMessages:`<section aria-label="${room.chatRoom?'Room alert settings':'Team alert settings'}"><h2>${room.chatRoom?'Room alerts':'Team alerts'}</h2>${room.chatRoom?.teamMuted?'<p>Your team is muted. Open General → Members to turn team alerts on. Your room preference stays saved.</p>':''}<p>${room.muted?(room.chatRoom?'Alerts for this room are muted. Open Conversation whenever you want to catch up.':'Alerts for this team are muted. Open Conversation whenever you want to catch up.'):(room.chatRoom?'Receive posts in this room when team alerts and iPhone notifications are on.':'Receive new team posts and match-day reminders when iPhone notifications are enabled. Mentions use these same team alert settings.')}</p><button type="button" class="secondary" id="chat-mute" ${muteSending || busy?'disabled':''}>${muteSending?'Saving…':mutePending!==null?'Retry same alert setting':room.muted?(room.chatRoom?'Turn room alerts on':'Turn team alerts on'):(room.chatRoom?'Mute room alerts':'Mute team alerts')}</button><p role="status" id="chat-mute-status">${html(muteNotice)}</p><p class="rating-context">This setting applies only to ${html(room.chatRoom?.name||room.teamName)} across your devices. ${room.chatRoom?'Other rooms and General keep their own preferences. Team mute silences every room.':'It also silences this team’s match-day reminders. Other teams keep their own settings.'}</p></section><section><h2>Team members</h2><ul class="team-members">${room.members.map(member=>`<li><strong>${html(member.name)}</strong><span>${member.roles.includes('captain')?'Captain':member.roles.includes('co_captain')?'Co-captain':'Player'}</span></li>`).join('')}</ul></section>${blockedMessages}`
   if(tab==='Captain'){const epoch=reactionEpoch;captainView=showCaptainWorkspace(panel,client,userId,{...currentScope()},()=>valid() && epoch===reactionEpoch && tab==='Captain',()=>{matchDetailsDirty=true;void refreshLive().catch(()=>{})},()=>{void load(true)},room.id)}
   if(tab==='Match day'){
    const nextAction=panel.querySelector<HTMLButtonElement>('[data-team-match-next]')
@@ -856,6 +858,43 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    catch{if(valid() && epoch===reactionEpoch)muteNotice='Couldn’t confirm your alert setting. Retry saves the same choice.'}
    finally{if(valid() && epoch===reactionEpoch){muteSending=false;render()}}
   })()})
+  const chatNameForm=panel.querySelector<HTMLFormElement>('#team-chat-display-name')
+  if(chatNameForm){
+   const input=chatNameForm.querySelector('input')!,status=chatNameForm.querySelector('[role="status"]')!
+   const button=chatNameForm.querySelector('button')!
+   button.disabled=chatNameSaving
+   chatNameForm.onsubmit=async event=>{
+    event.preventDefault()
+    if(chatNameSaving||!valid()||snapshot?.room?.id!==room.id)return
+    const name=readTeamChatDisplayName(input.value)
+    if(name===undefined){
+     status.textContent=`Use up to ${teamChatDisplayNameLimit} characters and leave out email addresses.`
+     input.focus()
+     return
+    }
+    const epoch=reactionEpoch,{id:roomId,teamName,leagueName,flight}=room
+    const current=()=>valid()&&epoch===reactionEpoch&&snapshot?.room?.id===roomId
+    chatNameSaving=true
+    button.disabled=true
+    input.readOnly=true
+    status.textContent='Saving chat name…'
+    try{
+     await postTeamChat(client,userId,current,{teamName,leagueName,flight},{action:'set_chat_display_name',roomId,displayName:name})
+     if(!current()||!snapshot?.room)return
+     snapshot.room.chatDisplayName=name
+     const currentInput=app.querySelector<HTMLInputElement>('#chat-display-name')
+     if(currentInput)currentInput.value=name
+     status.textContent=name?'Chat name saved.':'Using your teammate alias.'
+    }catch{
+     if(current())status.textContent='Couldn’t confirm your chat name. Refresh to check or try again.'
+    }finally{
+     chatNameSaving=false
+     input.readOnly=false
+     const currentButton=app.querySelector<HTMLButtonElement>('#team-chat-display-name button')
+     if(currentButton)currentButton.disabled=false
+    }
+   }
+  }
   bindMessageActions(room)
   app.querySelectorAll<HTMLButtonElement>('[data-chat-unblock]').forEach(button=>{button.onclick=async()=>{
    if(busy||draft.sending)return

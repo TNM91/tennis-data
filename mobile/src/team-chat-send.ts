@@ -15,6 +15,7 @@ export type ChatAction =
   | {action:'set_arrival_status';messageId:string;arrivalStatus:'on_my_way'|'here'|'running_late'}
   | {action:'ack_final_lineup';messageId:string}
   | {action:'set_chat_mute';conversationId:string;muted:boolean}
+  | {action:'set_chat_display_name';roomId:string;displayName:string}
   | {action:'read_chat_photo';messageId:string;photoPreview?:boolean}
   | {action:'send_chat_photo';clientMessageId:string;body:string;replyToMessageId:string;photoBase64:string;photoMimeType?:'image/gif'}
   | {action:'set_chat_reaction';messageId:string;reaction:TeamChatReactionKind;active:boolean}
@@ -47,6 +48,7 @@ export async function postTeamChat(client:SupabaseClient,userId:string,isCurrent
  if(action.action==='set_arrival_status' && response.data.checkIn?.status!==action.arrivalStatus)throw new ChatActionError('Couldn’t confirm your arrival.',true)
  if(action.action==='ack_final_lineup' && response.data.seen!==true)throw new ChatActionError('Couldn’t confirm the final lineup.',true)
  if(action.action==='set_chat_mute' && (response.data.conversationId!==action.conversationId || response.data.muted!==action.muted))throw new ChatActionError('Couldn’t confirm your team alerts. Retry the same setting.',true)
+ if(action.action==='set_chat_display_name' && (response.data.roomId!==action.roomId || response.data.chatDisplayName!==action.displayName))throw new ChatActionError('Couldn’t confirm your chat name.',true)
  if(action.action==='read_chat_photo' && response.data.messageId!==action.messageId)throw new ChatActionError('Photo unavailable. Close and try again.',false)
  if(action.action==='set_chat_reaction' && (response.data.messageId!==action.messageId || response.data.reaction!==action.reaction || response.data.active!==action.active))throw new ChatActionError('Couldn’t confirm this reaction. Retry the same choice.',true)
  if(action.action==='send_chat_photo' && response.data.message?.attachment?.mimeType!==(action.photoMimeType || 'image/jpeg'))throw new ChatActionError('Couldn’t confirm your photo. Retry the same send.',true)

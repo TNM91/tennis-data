@@ -99,6 +99,8 @@ const teamResultFixture={
 let captainInvite:{id:string;token:string;expiresAt:string;revokedAt:string|null;acceptedCount:number;active:boolean}|null=null
 let firstPartyTeamJoined=false
 const firstPartyTeamMessages=[{id:'66666666-6666-4666-8666-666666666666',senderUserId:'77777777-7777-4777-8777-777777770E4A',senderName:'Teammate 0E4A',body:'Anyone up for a hit on Friday?',kind:'message',createdAt:'2026-11-06T10:00:00.000Z',isMine:false}]
+const chatNamesEnabled=new URL(location.href).searchParams.has('chat-display-name')
+const chatNames=new Map([[firstPartyTeamMessages[0].senderUserId,'Sam']])
 const chatSafetyFixture={actions:[] as Record<string,string>[],failNextReport:false,failNextBlock:false,blocked:false}
 Object.assign(window,{chatSafetyFixture})
 Object.assign(window,{firstPartyTeamFixture,setupFixture,manualScheduleFixture,teamResultFixture})
@@ -129,6 +131,11 @@ window.fetch=async(input,init)=>{
   const teams=(privateTeamFlow?(privateTeam?[privateTeam]:[]):chatTeams()).map(team=>({...team,canManage:false}))
   if(init?.method==='POST'){
    const action=JSON.parse(String(init.body))
+   if(action.action==='set_chat_display_name'){
+    if(!chatNamesEnabled||action.roomId!==chatRoomId)return Response.json({ok:false},{status:403})
+    chatNames.set(owner,action.displayName)
+    return Response.json({...base,roomId:chatRoomId,chatDisplayName:action.displayName})
+   }
    if(action.action==='report_chat_message'){
     if(action.messageId!==firstPartyTeamMessages[0].id)return Response.json({ok:false},{status:404})
     chatSafetyFixture.actions.push(action)
@@ -266,8 +273,11 @@ window.fetch=async(input,init)=>{
   const room=team?{...team,id:privateTeam?.id??chatRoomId,chatReady:true,canInviteTeammates:(captainInvitesEnabled||privateTeamFlow)&&owner===navigationOwner,
    scheduleLinked:Boolean(linkedSchedule),manualFixture:manualScheduleFixture.enabled,canScheduleMatch:manualScheduleFixture.captain&&owner===navigationOwner,
    lastReadAt:'2026-11-06T10:00:00.000Z',members:[],
+   ...(chatNamesEnabled?{chatDisplayName:chatNames.get(owner)||''}:{}),
    blockedMembers:chatSafetyFixture.blocked?[{id:firstPartyTeamMessages[0].senderUserId,name:firstPartyTeamMessages[0].senderName}]:[],
-   messages:privateTeamFlow?[]:firstPartyTeamMessages.map((message,index)=>chatSafetyFixture.blocked&&index===0?{...message,body:'',deletedAt:'1970-01-01T00:00:00.000Z'}:message)}:null
+   messages:privateTeamFlow?[]:firstPartyTeamMessages.map((message,index)=>chatSafetyFixture.blocked&&index===0
+    ?{...message,body:'',deletedAt:'1970-01-01T00:00:00.000Z'}
+    :chatNamesEnabled&&!message.isMine?{...message,senderName:chatNames.get(message.senderUserId)||message.senderName}:message)}:null
   return Response.json({...base,teams,room,nextCursor:''})
  }
  // Track tool-driven traffic separately from the independent live unread counter.

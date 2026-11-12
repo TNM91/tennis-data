@@ -873,6 +873,38 @@ test('first-party team chat keeps the existing inbox and uses only scoped routes
  await expect(page.getByRole('textbox',{name:'Message your team',exact:true})).toHaveCount(0)
 })
 
+test('first-party team chat lets a teammate set and clear their name',async({page},info)=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:800})
+ await page.goto(origin+'/?chat-display-name=1&large=1')
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ await expect(page.getByText('Sam',{exact:true})).toBeVisible()
+ const settings=async()=>{
+  await page.locator('.chat-room-options > summary').click()
+  await page.getByRole('button',{name:/^Chat settings/}).click()
+  await expect(page.getByRole('heading',{name:'Chat settings',exact:true})).toBeVisible()
+ }
+ await settings()
+ const name=page.getByRole('textbox',{name:'Your chat name',exact:true})
+ const save=page.getByRole('button',{name:'Save chat name',exact:true})
+ await expect(name).toHaveValue('')
+ await name.fill('name@example.test')
+ await save.click()
+ await expect(page.locator('#team-chat-display-name [role="status"]')).toContainText('leave out email addresses')
+ await name.fill('Jordan')
+ await save.click()
+ await expect(page.getByText('Chat name saved.',{exact:true})).toBeVisible()
+ await bounded(page)
+ await page.screenshot({path:info.outputPath('team-chat-settings.png')})
+ await page.getByRole('button',{name:'Refresh messages',exact:true}).click()
+ await expect(page.getByText('Chat name saved.',{exact:true})).toHaveCount(0)
+ await expect(name).toHaveValue('Jordan')
+ await name.fill('')
+ await save.click()
+ await expect(page.getByText('Using your teammate alias.',{exact:true})).toBeVisible()
+})
+
 test('first-party team chat lets a player report privately and retry a separate block',async({page},info)=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:740})

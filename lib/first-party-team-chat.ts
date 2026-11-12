@@ -8,15 +8,32 @@ import { loadNativeReactionSummary, setNativeChatReaction } from './native-chat-
 import { changeNativePost } from './native-chat-message-tools'
 import { chatSafetyAction, loadChatBlocks } from './team-chat-safety'
 import { markTeamChatRead } from './team-chat-read'
+import { readTeamChatDisplayName } from './team-chat-display-name'
 
-const nameFor = (id: string, owner: string) => id === owner ? 'You' : `Teammate ${id.slice(-4).toUpperCase()}`
+const nameFor = (id: string, owner: string, names?: Map<string, string> | null) =>
+  id === owner ? 'You' : names?.get(id) || `Teammate ${id.slice(-4).toUpperCase()}`
 const fault = (status: number) => ({ ok: false as const, status })
 const chatTeam = ({ teamName, leagueName, leagueLabel, flight }: ReviewedTeamRoom) => ({ teamName, leagueName, leagueLabel, flight, canManage: false })
 export const reviewedTeamOptions = (teams: ReviewedTeamRoom[]) => teams.map(chatTeam)
 
-function chatPost(row: SentTeamMessage, owner: string) {
+async function loadChatDisplayNames(service: SupabaseClient, roomId: string, profileIds: string[]) {
+  const ids = [...new Set(profileIds.filter(teamChatMessageId))]
+  if (!ids.length) return new Map<string, string>()
+  const { data, error } = await service.from('team_room_member_preferences')
+    .select('profile_id,chat_display_name').eq('conversation_id', roomId).in('profile_id', ids).limit(ids.length)
+  // Older schemas and temporary name lookup failures still allow chat with aliases.
+  if (error || !Array.isArray(data)) return null
+  const names = new Map<string, string>()
+  for (const row of data) {
+    const name = readTeamChatDisplayName(row.chat_display_name)
+    if (name) names.set(row.profile_id, name)
+  }
+  return names
+}
+
+function chatPost(row: SentTeamMessage, owner: string, names?: Map<string, string> | null) {
   return {
-    id: row.id, senderUserId: row.sender_user_id, senderName: nameFor(row.sender_user_id, owner),
+    id: row.id, senderUserId: row.sender_user_id, senderName: nameFor(row.sender_user_id, owner, row.deleted_at ? null : names),
     body: row.deleted_at ? '' : row.body, kind: 'message', createdAt: row.created_at || '',
     editedAt: row.edited_at || '', deletedAt: row.deleted_at || '',
     isMine: row.sender_user_id === owner, canManageOwn: row.sender_user_id === owner && !row.deleted_at,
@@ -30,9 +47,11 @@ export async function readFirstPartyChat(service: SupabaseClient, owner: string,
     const messageId = params.get('message') || '', view = params.get('view') || ''
     const result = await loadTeamChatMessage(service, owner, roomId, messageId, view, true)
     if (!result.ok) return result
+    const sender = result.row.sender_user_id
+    const names = await loadChatDisplayNames(service, roomId, sender === owner ? [] : [sender])
     return {
       ok: true as const, messageView: 1, roomId, requestedId: messageId, view: result.view,
-      message: publicChatMessage(result.row, nameFor(result.row.sender_user_id, owner), false),
+      message: publicChatMessage(result.row, nameFor(sender, owner, names), false),
     }
   }
   const updates = params.get('op') === 'updates'
@@ -40,8 +59,13 @@ export async function readFirstPartyChat(service: SupabaseClient, owner: string,
   const focus = updates ? params.get('focus') || '' : ''
   const result = await loadTeamChatRows(service, owner, roomId, false, before, focus, true)
   if (!result.ok) return result
-  const reactions = await loadNativeReactionSummary(service, owner, roomId, result.rows.filter(row => !row.deleted_at).map(row => row.id))
-  const messages = result.rows.map(row => ({ ...chatPost(row, owner), reactions: reactions.get(row.id) || [] }))
+  const visible = result.rows.filter(row => !row.deleted_at)
+  const senders = visible.filter(row => row.sender_user_id !== owner).map(row => row.sender_user_id)
+  const [reactions, names] = await Promise.all([
+    loadNativeReactionSummary(service, owner, roomId, visible.map(row => row.id)),
+    loadChatDisplayNames(service, roomId, updates ? senders : [owner, ...senders]),
+  ])
+  const messages = result.rows.map(row => ({ ...chatPost(row, owner, names), reactions: reactions.get(row.id) || [] }))
   const chat = { id: roomId, messages, lastReadAt: result.lastReadAt }
   if (updates) {
     return {
@@ -54,6 +78,7 @@ export async function readFirstPartyChat(service: SupabaseClient, owner: string,
     ok: true as const, nextCursor: result.nextCursor,
     room: {
       ...chat, ...chatTeam(room), subject: room.teamName, chatReady: true, members: [],
+      ...(names ? { chatDisplayName: names.get(owner) || '' } : {}),
       activeCardId: '', nextScheduledMatch: null,
       blockedMembers: result.blockedUserIds.map(id => ({ id, name: nameFor(id, owner) })),
     },
@@ -93,6 +118,16 @@ export async function writeFirstPartyChat(service: SupabaseClient, owner: string
   const access = await checkTeamChatAccess(service, owner, roomId, false)
   if (!access.ok) return access
   const action = body.action
+  if (action === 'set_chat_display_name') {
+    if (body.roomId !== roomId) return fault(403)
+    const name = readTeamChatDisplayName(body.displayName)
+    if (name === undefined || Object.keys(body).length !== 6) return fault(400)
+    const { data, error } = await service.from('team_room_member_preferences').upsert({
+      conversation_id: roomId, profile_id: owner, chat_display_name: name || null,
+    }, { onConflict: 'conversation_id,profile_id' }).select('chat_display_name').single()
+    if (error || !data || data.chat_display_name !== (name || null)) return fault(503)
+    return { ok: true as const, status: 200, roomId, chatDisplayName: name }
+  }
   if (action === 'send') {
     const text = typeof body.body === 'string' ? body.body.trim() : ''
     const clientMessageId = parseTeamMessageSendId(body.clientMessageId)

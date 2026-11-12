@@ -7,6 +7,7 @@ import {parseChatReactions,type ChatReaction} from './chat-reactions'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {firstPartyBuild} from './build-scope'
+import {readTeamChatDisplayName} from '../../lib/team-chat-display-name'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 export class TeamRoomAccessError extends Error {}
 export type TeamScope={teamName:string;leagueName:string;leagueLabel?:string;flight:string;chatRoomId?:string}
@@ -15,7 +16,7 @@ export type TeamChatDestination=TeamScope & {messageId?:string;joinedRoomId?:str
 export type ReplacementRequest={courtLabel:string;outgoingPlayerName:string;replacementPlayerName:string;afterPlayers:string[];response:'accepted'|'declined'|'';deadlineAt:string;token:string;canRespond:boolean}
 export function parseReplacement(value:unknown):ReplacementRequest|null{const row=record(value);if(!str(row.courtLabel)||!str(row.replacementPlayerName)||!Array.isArray(row.afterPlayers)||!/^[a-f0-9]{64}$/.test(str(row.token)))return null;const response=row.response==='accepted'||row.response==='declined'?row.response:'';return {courtLabel:str(row.courtLabel).slice(0,80),outgoingPlayerName:str(row.outgoingPlayerName).slice(0,120),replacementPlayerName:str(row.replacementPlayerName).slice(0,120),afterPlayers:row.afterPlayers.filter((v):v is string=>typeof v==='string').slice(0,4).map(v=>v.slice(0,120)),response,deadlineAt:str(row.deadlineAt).slice(0,40),token:str(row.token),canRespond:row.canRespond===true&&!response}}
 export type TeamMessage={mentions?:ChatMention[];editedAt?:string;canManageOwn?:boolean;response?:string;hasPhoto?:boolean;isGif?:boolean;reactions?:ChatReaction[];id:string;senderUserId:string;senderName:string;body:string;kind:string;createdAt:string;deletedAt:string;isMine:boolean;replyToMessageId:string;hasAttachment:boolean;card:{availabilityReady?:boolean;replacement?:ReplacementRequest|null;cardType?:string;lineupVersion?:number;acknowledged?:boolean;completed?:boolean;published?:boolean;arrivals?:{profileId:string;status:string;playerName:string;courtLabel:string}[];matchDate:string;opponent:string;facility:string;matchTime:string;state:string;lineup:{label:string;players:string[];defaulted:boolean}[]}|null}
-export type NativeTeamRoom=TeamScope & {chatRoom?:NamedChatRoom;canManage?:boolean;canInviteTeammates?:boolean;scheduleLinked?:boolean;manualFixture?:boolean;canScheduleMatch?:boolean;id:string;subject:string;messages:TeamMessage[];members:{id?:string;playerName?:string;name:string;roles:string[]}[];finalLineupReview?:{announcementMessageId:string;currentUserRequired:boolean;currentUserSeen:boolean}|null;nextMatch:{matchDate:string;matchTime:string;opponent:string;facility:string}|null;activeCardId:string;activeCard:TeamMessage|null;muted:boolean;chatReady:boolean;lastReadAt:string;blockedMembers:{id:string;name:string}[]}
+export type NativeTeamRoom=TeamScope & {chatRoom?:NamedChatRoom;canManage?:boolean;canInviteTeammates?:boolean;scheduleLinked?:boolean;manualFixture?:boolean;canScheduleMatch?:boolean;chatDisplayName?:string;id:string;subject:string;messages:TeamMessage[];members:{id?:string;playerName?:string;name:string;roles:string[]}[];finalLineupReview?:{announcementMessageId:string;currentUserRequired:boolean;currentUserSeen:boolean}|null;nextMatch:{matchDate:string;matchTime:string;opponent:string;facility:string}|null;activeCardId:string;activeCard:TeamMessage|null;muted:boolean;chatReady:boolean;lastReadAt:string;blockedMembers:{id:string;name:string}[]}
 export type NativeTeamData={teams:TeamScope[];room:NativeTeamRoom|null;nextCursor?:string}
 export type TeamMatchRoom=Pick<NativeTeamRoom,'id'|'teamName'|'leagueName'|'leagueLabel'|'flight'|'scheduleLinked'|'manualFixture'|'canScheduleMatch'>
 const record=(value:unknown):Record<string,unknown>=>value && typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{}
@@ -59,6 +60,7 @@ export async function loadTeamRoom(client:SupabaseClient,userId:string,isCurrent
  const nextCursor=str(record(response.data).nextCursor)
  if(nextCursor&&!readTeamChatCursor(nextCursor))throw Error('Invalid conversation page')
  const room=record(record(response.data).room)
+ parsed.room.chatDisplayName=readTeamChatDisplayName(room.chatDisplayName)
  if(room.scheduleLinked===true)parsed.room.scheduleLinked=true
  if(room.manualFixture===true&&!parsed.room.scheduleLinked){
   parsed.room.manualFixture=true
