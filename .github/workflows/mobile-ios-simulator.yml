@@ -1,219 +1,47 @@
 name: Mobile iOS simulator build
-
-# Manual dispatch or an explicit PR label; never run on pushes or PR updates.
 on:
   workflow_dispatch:
-    inputs:
-      profile:
-        description: App profile to compile and launch
-        type: choice
-        default: standard
-        options: [standard, first-party]
-      device_only:
-        description: Compile the first-party Release target with the iPhone SDK and skip the simulator
-        type: boolean
-        default: false
-  pull_request:
-    types: [labeled]
-
 permissions:
   contents: read
-
-concurrency:
-  group: mobile-ios-simulator-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  simulator:
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'ios-simulator'
+  listing-captures:
+    if: github.repository == 'TNM91/tennis-data' && github.ref == 'refs/heads/codex/ios-listing-capture-273'
     runs-on: macos-15
-    timeout-minutes: 25
+    timeout-minutes: 20
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-      TIQ_SIMULATOR_PROJECT: ${{ inputs.profile == 'first-party' && 'mobile/ios-first-party/App/App.xcodeproj' || 'mobile/ios/App/App.xcodeproj' }}
     steps:
-      - name: Validate requested target
-        if: inputs.device_only && inputs.profile != 'first-party'
-        run: |
-          echo '::error::The unsigned device compile requires the first-party profile.'
-          exit 1
-      - name: Check out repository
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: |
             package-lock.json
             mobile/package-lock.json
-      - name: Check Xcode
-        run: xcodebuild -version
-      - name: Check standard export tooling
-        if: inputs.profile != 'first-party'
-        run: |
-          xcodebuild -help > "$RUNNER_TEMP/tiq-xcode-help.txt" 2>&1
-          python3 -c 'import pathlib,sys; assert "testFlightInternalTestingOnly" in pathlib.Path(sys.argv[1]).read_text(), "Xcode internal-only export option unavailable"' "$RUNNER_TEMP/tiq-xcode-help.txt"
-      - name: Install locked dependencies
+      - name: Prepare and verify the first-party app
         run: |
           npm ci
           npm ci --prefix mobile
-      - name: Check bundled client
-        if: inputs.profile != 'first-party'
-        run: |
-          python3 mobile/scripts/test-ios-export-options.py
-          npx vitest run lib/__tests__/mobile-account-links.test.ts lib/__tests__/mobile-match-details.test.ts lib/__tests__/mobile-recent-results.test.ts lib/__tests__/mobile-recent-form.test.ts lib/__tests__/mobile-player-connection.test.ts lib/__tests__/native-auth-storage.test.ts
-          node --test mobile/scripts/ios-app-lock.test.mjs mobile/scripts/ios-purchases.test.mjs mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-icon.test.mjs
-      - name: Bundle and generate iOS project
-        if: inputs.profile != 'first-party'
-        run: |
-          npm run build:bundled --prefix mobile
+          npm run build:bundled --prefix mobile -- --first-party-full
           npm run prepare:ios --prefix mobile
-          npm run check:ios --prefix mobile
-      - name: Bundle and verify first-party iOS project
-        if: inputs.profile == 'first-party'
-        run: |
-          npm run build:ios:first-party --prefix mobile
-          npm run prepare:ios:first-party --prefix mobile
-          npm run check:ios:first-party --prefix mobile
-      - name: Compile and verify first-party iPhone target
-        if: inputs.profile == 'first-party' && inputs.device_only
-        timeout-minutes: 10
+          npm run check:ios --prefix mobile -- --first-party-full
+      - name: Compile the unsigned screenshot app with isolated sample data
         run: |
           set -euo pipefail
-          TIQ_BUILD_NUMBER=1 TIQ_IOS_DISTRIBUTION=internal node mobile/scripts/prepare-ios-store.mjs --first-party
-          BUILD_DIR="$RUNNER_TEMP/tiq-iphone-build"
-          xcodebuild -project "$TIQ_SIMULATOR_PROJECT" -scheme App \
-            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
-            -derivedDataPath "$BUILD_DIR" CODE_SIGNING_ALLOWED=NO build
-          APP="$BUILD_DIR/Build/Products/Release-iphoneos/App.app"
-          INFO="$APP/Info.plist"
-          EXECUTABLE=$(plutil -extract CFBundleExecutable raw -o - "$INFO")
-          test "$(plutil -extract CFBundleIdentifier raw -o - "$INFO")" = com.tenaceiq.app
-          test "$(plutil -extract DTPlatformName raw -o - "$INFO")" = iphoneos
-          test "$(xcrun lipo -archs "$APP/$EXECUTABLE")" = arm64
-          test ! -f "$APP/embedded.mobileprovision"
-          cmp "$APP/capacitor.config.json" mobile/ios-first-party/App/App/capacitor.config.json
-          diff -qr "$APP/public" mobile/ios-first-party/App/App/public
-          echo 'Verified the unsigned arm64 iPhone Release build and its exact offline assets.'
-      - name: Add unsigned Debug runtime probe
-        if: inputs.profile != 'first-party'
-        run: node mobile/scripts/ios-purchases-runtime-smoke.mjs --prepare mobile/ios/App/App/TenAceIQPurchases.swift
-      - name: Boot iPhone simulator before compiling
-        if: inputs.profile != 'first-party'
-        timeout-minutes: 4
-        run: |
-          set -euo pipefail
-          xcrun simctl list devices available --json > "$RUNNER_TEMP/tiq-simulators.json"
-          DEVICE=$(python3 -c 'import json,sys; devices=json.load(open(sys.argv[1]))["devices"]; phones=[d for runtime in sorted(devices, reverse=True) for d in devices[runtime] if d["name"].startswith("iPhone")]; assert phones, "No iPhone simulator available"; latest=[d for d in devices[next(r for r in sorted(devices,reverse=True) if any(p["name"].startswith("iPhone") for p in devices[r]))] if d["name"].startswith("iPhone")]; print(next((d["udid"] for d in latest if d["name"]=="iPhone 16e"), latest[0]["udid"]))' "$RUNNER_TEMP/tiq-simulators.json")
-          xcrun simctl boot "$DEVICE"
-          xcrun simctl bootstatus "$DEVICE" -b
-          echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
-      - name: Compile simulator app without signing
-        if: '!inputs.device_only'
-        run: |
-          xcodebuild -project "$TIQ_SIMULATOR_PROJECT" -scheme App \
-            -configuration Debug -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath mobile/ios-build \
-            CODE_SIGNING_ALLOWED=NO build
-      - name: Verify the launched StoreKit bridge
-        if: inputs.profile != 'first-party'
-        timeout-minutes: 6
-        run: |
-          set -euo pipefail
-          DEVICE="$TIQ_SIMULATOR_UDID"
-          test -n "$DEVICE"
-          xcrun simctl install "$DEVICE" mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
-          xcrun simctl launch --terminate-running-process "$DEVICE" com.tenaceiq.prototype --tiq-storekit-smoke
-          CONTAINER=$(xcrun simctl get_app_container "$DEVICE" com.tenaceiq.prototype data)
-          for attempt in $(seq 1 45); do
-            test -f "$CONTAINER/Documents/tiq-storekit-smoke.json" && break
-            sleep 1
-          done
-          if ! test -f "$CONTAINER/Documents/tiq-storekit-smoke.json"; then
-            test ! -f "$CONTAINER/Documents/tiq-storekit-smoke.json.started" || cat "$CONTAINER/Documents/tiq-storekit-smoke.json.started"
-            xcrun simctl spawn "$DEVICE" log show --style compact --last 2m --predicate 'process == "App"' | tail -n 100
-          fi
-          node mobile/scripts/ios-purchases-runtime-smoke.mjs --verify "$CONTAINER/Documents/tiq-storekit-smoke.json"
-          cp "$CONTAINER/Documents/tiq-storekit-smoke.json" mobile/ios-storekit-smoke.json
-          xcrun simctl shutdown "$DEVICE"
-      - name: Capture simulator diagnostics
-        timeout-minutes: 2
-        if: always() && inputs.profile != 'first-party' && !inputs.device_only
-        run: |
-          mkdir -p mobile/ios-smoke-diagnostics
-          xcrun simctl io booted screenshot mobile/ios-smoke-diagnostics/simulator.png || true
-          cp mobile/ios/App/App/SceneDelegate.swift mobile/ios/App/App/TenAceIQPurchases.swift mobile/ios-smoke-diagnostics/
-          xcrun simctl list devices available --json > mobile/ios-smoke-diagnostics/devices.json
-          for device in $(xcrun simctl list devices booted --json | python3 -c 'import json,sys; print(" ".join(d["udid"] for g in json.load(sys.stdin)["devices"].values() for d in g if d["state"]=="Booted"))'); do
-            container=$(xcrun simctl get_app_container "$device" com.tenaceiq.prototype data)
-            cp "$container"/Documents/tiq-storekit-smoke.json* mobile/ios-smoke-diagnostics/ 2>/dev/null || true
-          done
-      - name: Package simulator app
-        if: always() && inputs.profile != 'first-party' && !inputs.device_only
-        run: |
-          test -d mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
-          ditto -c -k --sequesterRsrc --keepParent \
-            mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app \
-            mobile/ios-simulator.zip
-          test ! -f mobile/ios-storekit-smoke.json || zip -j mobile/ios-simulator.zip mobile/ios-storekit-smoke.json
-          zip -j mobile/ios-simulator.zip mobile/ios-smoke-diagnostics/*
-      - name: Save simulator artifact
-        if: always() && inputs.profile != 'first-party' && !inputs.device_only
+          node mobile/scripts/prepare-ios-listing-captures.mjs mobile/ios/App/App
+          xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/tiq-listing" CODE_SIGNING_ALLOWED=NO build -quiet
+      - name: Capture Team Chat and Coach & Training on a large iPhone
+        timeout-minutes: 7
+        run: bash mobile/scripts/capture-ios-listing.sh
+      - name: Retain only the sample screenshots
         uses: actions/upload-artifact@v6
         with:
-          name: tenaceiq-ios-simulator-${{ github.sha }}
-          path: mobile/ios-simulator.zip
+          name: tenaceiq-first-party-iphone-listing-273
+          path: ${{ runner.temp }}/tiq-listing-screens/*.jpg
           if-no-files-found: error
-          retention-days: 3
-      - name: Package first-party simulator app
-        if: inputs.profile == 'first-party' && !inputs.device_only
-        run: |
-          OUTPUT="$RUNNER_TEMP/tiq-first-party-simulator"
-          mkdir -p "$OUTPUT"
-          ditto -c -k --sequesterRsrc --keepParent \
-            mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app \
-            "$OUTPUT/first-party-simulator.zip"
-      - name: Boot a fresh first-party iPhone simulator
-        if: inputs.profile == 'first-party' && !inputs.device_only
-        timeout-minutes: 5
-        run: |
-          set -euo pipefail
-          RUNTIME=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(r for r in sorted(devices, reverse=True) if r.startswith("com.apple.CoreSimulator.SimRuntime.iOS-") and any(d["name"] == "iPhone 16e" for d in devices[r])))')
-          DEVICE=$(xcrun simctl create 'TenAceIQ Offline' com.apple.CoreSimulator.SimDeviceType.iPhone-16e "$RUNTIME")
-          xcrun simctl boot "$DEVICE"
-          xcrun simctl bootstatus "$DEVICE" -b
-          echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
-      - name: Install first-party simulator app
-        if: inputs.profile == 'first-party' && !inputs.device_only
-        timeout-minutes: 2
-        run: xcrun simctl install "$TIQ_SIMULATOR_UDID" mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
-      - name: Launch and capture first-party simulator app
-        if: inputs.profile == 'first-party' && !inputs.device_only
-        timeout-minutes: 3
-        run: |
-          set -euo pipefail
-          DEVICE="$TIQ_SIMULATOR_UDID"
-          SCREENSHOT="$RUNNER_TEMP/tiq-first-party-simulator/first-party-launch.png"
-          xcrun simctl launch --terminate-running-process "$DEVICE" com.tenaceiq.prototype
-          for attempt in {1..10}; do
-            sleep 5
-            xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT"
-            if node mobile/scripts/check-ios-first-party-launch.mjs "$SCREENSHOT"; then
-              exit 0
-            fi
-          done
-          xcrun simctl spawn "$DEVICE" log show --style compact --last 2m --predicate 'process == "App"' | tail -n 80 || true
-          echo '::error::The offline practice card did not render before the simulator deadline.'
-          exit 1
-      - name: Save first-party simulator artifact
-        if: (success() || failure()) && inputs.profile == 'first-party' && !inputs.device_only
-        uses: actions/upload-artifact@v6
-        with:
-          name: tenaceiq-first-party-simulator-${{ github.sha }}
-          path: ${{ runner.temp }}/tiq-first-party-simulator
-          if-no-files-found: warn
           retention-days: 3
