@@ -3,35 +3,19 @@ import {Share} from '@capacitor/share'
 import {eventCalendarStart,formatCalendarDay,isValidCalendarDate} from '../../lib/calendar-date'
 import {todayDateKey} from '../../lib/team-room-match-flow'
 import websiteUi from '../generated/website-ui.json'
-import type {ExploreCourt} from './explore-court-catalog'
+import {stLouisHittingClubs,type ExploreCourt} from './explore-court-catalog'
+import {courtDirections} from './explore-court-directions'
+import {readSavedCourts,toggleSavedCourt,type CourtPreference} from './explore-saved-courts'
 import {html} from './match-details'
 
-type SavedCourts={home:string;favorites:string[]}
 const courtTimeZone='America/Chicago'
 const courtTimeFormat=new Intl.DateTimeFormat('en-US',{timeZone:courtTimeZone,hour:'numeric',minute:'2-digit',timeZoneName:'short'})
+const courtsById=new Map(stLouisHittingClubs.map(court=>[court.id,court]))
 
-export function courtDirectionsHref(court:ExploreCourt){
- return `https://maps.apple.com/?${new URLSearchParams({daddr:court.destination})}`
-}
-
-function googleCourtDirectionsHref(court:ExploreCourt){
- return `https://www.google.com/maps/dir/?${new URLSearchParams({api:'1',destination:court.destination})}`
-}
-
-export function openCourtInvite(courts:readonly ExploreCourt[],trigger:HTMLElement,current:()=>boolean,owner?:string,selectedCourt?:string){
+export function openCourtInvite(trigger:HTMLElement,current:()=>boolean,owner?:string,selectedCourt?:string,onSaved?:()=>void){
  const dialog=document.createElement('dialog')
- const courtsById=new Map(courts.map(court=>[court.id,court]))
- const storageKey=owner?`tiq.explore.saved-courts:${owner}`:''
- let saved:SavedCourts={home:'',favorites:[]}
- if(storageKey){
-  try{
-   const stored=JSON.parse(localStorage.getItem(storageKey)??'null')
-   saved={
-    home:courtsById.has(stored?.home)?stored.home:'',
-    favorites:Array.isArray(stored?.favorites)?stored.favorites.filter((id:unknown):id is string=>typeof id==='string'&&courtsById.has(id)):[],
-   }
-  }catch{ /* The court picker still works without storage. */ }
- }
+ let saved=readSavedCourts(owner)
+ let preferencesChanged=false
  dialog.className='captain-lineup-dialog scorecard-share-dialog court-invite-dialog'
  dialog.setAttribute('aria-labelledby','court-invite-title')
  dialog.innerHTML=`<div class="court-invite-heading">
@@ -41,7 +25,7 @@ export function openCourtInvite(courts:readonly ExploreCourt[],trigger:HTMLEleme
   <form>
    <fieldset class="court-invite-fields">
     <legend class="sr-only">Hitting invite details</legend>
-    <label>Court<span class="explore-picker"><select name="court"></select>${websiteUi.actionIcons.down}</span></label>
+    <label>Tennis club<span class="explore-picker"><select name="court"></select>${websiteUi.actionIcons.down}</span></label>
     ${owner?`<div class="court-invite-preferences" role="group" aria-label="Save this court">
      <button type="button" class="secondary" data-invite-favorite aria-pressed="false">Favorite</button>
      <button type="button" class="secondary" data-invite-home aria-pressed="false">Home court</button>
@@ -50,8 +34,9 @@ export function openCourtInvite(courts:readonly ExploreCourt[],trigger:HTMLEleme
     <label>Central time (optional)<input type="time" name="time" disabled></label>
    </fieldset>
    <div class="court-invite-preview" role="group" aria-label="Invite preview">
-    <p data-invite-preview></p><p class="court-invite-private-address" data-invite-address hidden></p><small>Includes Apple Maps and Google Maps directions</small>
+    <p data-invite-preview></p><small>Includes Apple Maps and Google Maps directions</small>
    </div>
+   <p class="court-invite-help">Meet during staffed hours and tell someone you trust your plans.</p>
    <p class="court-invite-status" role="status"></p>
    <label data-invite-manual hidden>Invite text<textarea readonly></textarea></label>
    <div class="scorecard-share-actions">
@@ -65,7 +50,6 @@ export function openCourtInvite(courts:readonly ExploreCourt[],trigger:HTMLEleme
  const day=form.querySelector<HTMLInputElement>('[name="date"]')!
  const time=form.querySelector<HTMLInputElement>('[name="time"]')!
  const preview=form.querySelector<HTMLElement>('[data-invite-preview]')!
- const address=form.querySelector<HTMLElement>('[data-invite-address]')!
  const status=form.querySelector<HTMLElement>('[role="status"]')!
  const manual=form.querySelector<HTMLLabelElement>('[data-invite-manual]')!
  const textBox=manual.querySelector('textarea')!
@@ -78,53 +62,49 @@ export function openCourtInvite(courts:readonly ExploreCourt[],trigger:HTMLEleme
  const dispose=()=>{
   if(!dialog.open)return
   dialog.close();dialog.remove()
-  if(current()&&trigger.isConnected)trigger.focus({preventScroll:true})
+  if(current()){
+   if(trigger.isConnected)trigger.focus({preventScroll:true})
+   if(preferencesChanged)onSaved?.()
+  }
  }
 
  function renderCourts(selected:string){
   const option=(court:ExploreCourt)=>`<option value="${html(court.id)}">${html(court.name)}</option>`
-  const home=courts.filter(court=>court.id===saved.home)
-  const favorites=courts.filter(court=>court.id!==saved.home&&saved.favorites.includes(court.id))
-  const others=courts.filter(court=>court.id!==saved.home&&!saved.favorites.includes(court.id))
-  const privateCourts=others.filter(court=>court.access==='private')
-  const groups:[string,ExploreCourt[]][]=[['Home court',home],['Favorites',favorites],['My private courts',privateCourts],['Other courts',others.filter(court=>court.access!=='private')]]
-  courtField.innerHTML=home.length||favorites.length||privateCourts.length?groups.map(([label,list])=>
-   list.length?`<optgroup label="${label}">${list.map(option).join('')}</optgroup>`:'').join(''):courts.map(option).join('')
+  const home=stLouisHittingClubs.filter(court=>court.id===saved.home)
+  const favorites=stLouisHittingClubs.filter(court=>court.id!==saved.home&&saved.favorites.includes(court.id))
+  const others=stLouisHittingClubs.filter(court=>court.id!==saved.home&&!saved.favorites.includes(court.id))
+  const groups:[string,ExploreCourt[]][]=[['Home court',home],['Favorites',favorites],['Other clubs',others]]
+  courtField.innerHTML=home.length||favorites.length?groups.map(([label,list])=>
+   list.length?`<optgroup label="${label}">${list.map(option).join('')}</optgroup>`:'').join(''):stLouisHittingClubs.map(option).join('')
   courtField.value=selected
  }
 
- function toggleSaved(home:boolean){
-  if(!active()||busy||!storageKey)return
+ function toggleSaved(preference:CourtPreference){
+  if(!active()||busy||!owner)return
   const id=courtField.value
   if(!courtsById.has(id))return
-  const wasSaved=home?saved.home===id:saved.favorites.includes(id)
-  const next=home?{...saved,home:wasSaved?'':id}:
-   {...saved,favorites:wasSaved?saved.favorites.filter(favorite=>favorite!==id):[...saved.favorites,id]}
-  try{localStorage.setItem(storageKey,JSON.stringify(next))}
-  catch{status.textContent='Couldn’t save the court on this device. Try again.';return}
-  saved=next
-  renderCourts(id)
-  update()
-  status.textContent=home?(wasSaved?'Home court cleared.':'Home court saved on this device.'):
-   (wasSaved?'Court removed from favorites.':'Court added to favorites on this device.')
+  try{
+   const result=toggleSavedCourt(owner,id,preference)
+   saved=result.saved;preferencesChanged=true
+   renderCourts(id);update()
+   status.textContent=result.message
+  }catch{status.textContent='Couldn’t save the court on this device. Try again.'}
  }
 
  function message(){
-  const court=courtsById.get(courtField.value)??courts[0]
+  const court=courtsById.get(courtField.value)??stLouisHittingClubs[0]
   const date=isValidCalendarDate(day.value)?formatCalendarDay(day.value):''
   const start=day.value&&time.value?eventCalendarStart(day.value,time.value,courtTimeZone):null
   const when=date?` on ${date}${start?' at '+courtTimeFormat.format(start):''}`:''
-  const directions=`Apple Maps: ${courtDirectionsHref(court)}\nGoogle Maps: ${googleCourtDirectionsHref(court)}`
-  return {body:`Want to hit at ${court.name}${when}?${start?'':' What time works for you?'}`,directions,start,privateAddress:court.access==='private'?court.destination:''}
+  const {apple,google}=courtDirections(court)
+  const directions=`Apple Maps: ${apple}\nGoogle Maps: ${google}`
+  return {body:`Want to hit at ${court.name}${when}?${start?'':' What time works for you?'}`,directions,start}
  }
 
  function update(){
   time.disabled=!day.value
   if(!day.value)time.value=''
-  const {body,privateAddress}=message()
-  preview.textContent=body
-  address.hidden=!privateAddress
-  address.textContent=privateAddress
+  preview.textContent=message().body
   favoriteButton?.setAttribute('aria-pressed',String(saved.favorites.includes(courtField.value)))
   homeButton?.setAttribute('aria-pressed',String(saved.home===courtField.value))
   status.textContent=''
@@ -171,11 +151,11 @@ export function openCourtInvite(courts:readonly ExploreCourt[],trigger:HTMLEleme
  form.onsubmit=event=>{event.preventDefault();void deliver(share)}
  share.onclick=()=>{void deliver(share)}
  copy.onclick=()=>{void deliver(copy)}
- if(favoriteButton)favoriteButton.onclick=()=>toggleSaved(false)
- if(homeButton)homeButton.onclick=()=>toggleSaved(true)
+ if(favoriteButton)favoriteButton.onclick=()=>toggleSaved('favorite')
+ if(homeButton)homeButton.onclick=()=>toggleSaved('home')
  dialog.querySelector<HTMLButtonElement>('[data-invite-close]')!.onclick=dispose
  dialog.oncancel=event=>{event.preventDefault();dispose()}
- const defaultCourt=saved.home||courts.find(court=>saved.favorites.includes(court.id))?.id||courts[0].id
+ const defaultCourt=courtsById.get(saved.home)?.id||stLouisHittingClubs.find(court=>saved.favorites.includes(court.id))?.id||stLouisHittingClubs[0].id
  renderCourts(selectedCourt&&courtsById.has(selectedCourt)?selectedCourt:defaultCourt)
  update()
  document.body.append(dialog);dialog.showModal()

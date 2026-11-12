@@ -6,10 +6,11 @@ import websiteUi from '../generated/website-ui.json'
 import {loadCompetitions} from './competitions-data'
 import {stLouisCourts} from './explore-court-catalog'
 import {openCourtFinder} from './explore-court-finder'
-import {courtDirectionsHref,openCourtInvite} from './explore-court-invite'
+import {openCourtDirections} from './explore-court-directions'
+import {openCourtInfo} from './explore-court-info'
+import {openCourtInvite} from './explore-court-invite'
 import {createPrivateCourtStore} from './explore-private-courts'
 import {html} from './match-details'
-import {Browser} from './native-browser'
 import {loadTournaments} from './tournaments-data'
 
 type OpenEvent=(trigger:HTMLElement,id?:string)=>void
@@ -48,12 +49,11 @@ export function nearbySectionsHtml(guest:boolean){
   <ul class="explore-court-list">${stLouisCourts.slice(0,3).map(court=>`<li>
    <div><h3>${html(court.name)}</h3><p>${html(court.area)}</p></div>
    <div class="explore-court-links">
-    <a data-explore-court-link href="${html(court.source)}" aria-label="Court info for ${html(court.name)}">Court info</a>
-    <a data-explore-court-link href="${html(courtDirectionsHref(court))}" aria-label="Directions to ${html(court.name)}">Directions <span aria-hidden="true">↗</span></a>
+    <button class="secondary explore-court-info" type="button" data-nearby-court-info="${html(court.id)}" aria-label="Court info for ${html(court.name)}" aria-haspopup="dialog">Court info</button>
+    <button class="secondary explore-court-directions" type="button" data-nearby-directions="${html(court.id)}" aria-label="Directions to ${html(court.name)}" aria-haspopup="dialog">Directions</button>
    </div>
   </li>`).join('')}</ul>
   <button type="button" class="secondary explore-hit-invite" data-nearby-invite><span aria-hidden="true">${websiteUi.icons.teams}</span>Invite to hit<span class="explore-event-arrow" aria-hidden="true">›</span></button>
-  <p class="explore-nearby-message" data-explore-court-status role="status" hidden></p>
  </section>`
 }
 
@@ -76,13 +76,13 @@ export function mountNearbyExplore(overview:HTMLElement,client:SupabaseClient,cu
  const upcoming=overview.querySelector<HTMLElement>('[data-explore-event-list]')!
  const eventStatus=overview.querySelector<HTMLElement>('[data-explore-event-status]')!
  const followups=overview.querySelector<HTMLElement>('[data-explore-followups]')!
- const courtStatus=overview.querySelector<HTMLElement>('[data-explore-court-status]')!
  let events:ExploreEvent[]=[]
  let loading=true
  let failed=false
  let invite:ReturnType<typeof openCourtInvite>|undefined
  let finder:ReturnType<typeof openCourtFinder>|undefined
- let openingInvite=false
+ let directions:ReturnType<typeof openCourtDirections>|undefined
+ let info:ReturnType<typeof openCourtInfo>
 
  try { if(localStorage.getItem(areaPreference)==='stl')picker.value='stl' } catch { /* Storage is optional. */ }
 
@@ -129,30 +129,26 @@ export function mountNearbyExplore(overview:HTMLElement,client:SupabaseClient,cu
   else if(target.dataset.exploreKind==='league')onLeagues(target,target.dataset.exploreId)
   else if(target.dataset.exploreKind==='tournament')onTournaments(target,target.dataset.exploreId)
   else if(target.matches('[data-nearby-find]')){
-   if(!finder?.isOpen()&&!openingInvite)finder=openCourtFinder(target,current,privateCourts,signedInOwner)
-  }else if(target.matches('[data-nearby-invite]')&&!invite?.isOpen()&&!openingInvite){
-   openingInvite=true
-   void privateCourts.list().catch(()=>[]).then(saved=>{
-    if(current())invite=openCourtInvite([...stLouisCourts,...saved],target,current,signedInOwner)
-   }).finally(()=>{openingInvite=false})
-  }
-  else if(target.matches('[data-nearby-widen]')){
+   if(!finder?.isOpen())finder=openCourtFinder(target,current,privateCourts,signedInOwner)
+  }else if(target.matches('[data-nearby-invite]')&&!invite?.isOpen()){
+   invite=openCourtInvite(target,current,signedInOwner)
+  }else if(target.dataset.nearbyCourtInfo&&!info?.isOpen()){
+   const court=stLouisCourts.find(venue=>venue.id===target.dataset.nearbyCourtInfo)
+   if(court)info=openCourtInfo(court,target,current)
+  }else if(target.dataset.nearbyDirections&&!directions?.isOpen()){
+   const court=stLouisCourts.find(venue=>venue.id===target.dataset.nearbyDirections)
+   if(court)directions=openCourtDirections(court,target,current)
+  }else if(target.matches('[data-nearby-widen]')){
    picker.value='all';picker.focus({preventScroll:true});changeArea()
   }else if(target.matches('[data-nearby-retry]')){
    picker.focus({preventScroll:true});void load()
-  }else if(target instanceof HTMLAnchorElement&&target.hasAttribute('data-explore-court-link')){
-   event.preventDefault()
-   courtStatus.hidden=true
-   void Browser.open({url:target.href}).catch(()=>{
-    if(!current())return
-    courtStatus.textContent='Couldn’t open the link. Try again.'
-    courtStatus.hidden=false
-   })
   }
  }
  void load()
- return {dispose:()=>{invite?.dispose();finder?.dispose()},back:()=>{
+ return {dispose:()=>{invite?.dispose();finder?.dispose();directions?.dispose();info?.dispose()},back:()=>{
   if(finder?.isOpen())return finder.back()
+  if(info?.isOpen()){info.dispose();return true}
+  if(directions?.isOpen()){directions.dispose();return true}
   if(!invite?.isOpen())return false
   invite.dispose();return true
  }}

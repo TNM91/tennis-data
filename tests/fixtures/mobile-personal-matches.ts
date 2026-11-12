@@ -1,6 +1,7 @@
 import type { PersonalMatch } from '../../mobile/src/personal-match-data'
 
-type Row = PersonalMatch & { owner_user_id: string }
+type Row = Omit<PersonalMatch, 'court_venue_key' | 'court_feedback'> &
+  Partial<Pick<PersonalMatch, 'court_venue_key' | 'court_feedback'>> & { owner_user_id: string }
 export const personalMatchFixture = { rows: [] as Row[], writtenIds: [] as string[], loseReceipt: false,
   teamScoreReads: [] as { owner: string | undefined; keys: string[] }[], failTeamScoreRead: false }
 let missLookup = false
@@ -45,7 +46,10 @@ export function personalMatchQuery() {
         if (fixture.loseReceipt) { fixture.loseReceipt = false; missLookup = true; return fail('Receipt unavailable') }
         return resolve({ data: row, error: null })
       }
-      if (action === 'update') selected.forEach(row => Object.assign(row, values))
+      if (action === 'update') {
+        selected.forEach(row => Object.assign(row, values))
+        if (selected.length && fixture.loseReceipt) { fixture.loseReceipt = false; missLookup = true; return fail('Receipt unavailable') }
+      }
       if (action === 'delete') fixture.rows = fixture.rows.filter(row => !selected.includes(row))
       if (action === 'read' && filters.has('id') && missLookup) { missLookup = false; return fail('Lookup unavailable') }
       selected.sort((a, b) => b.match_date.localeCompare(a.match_date) || b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))

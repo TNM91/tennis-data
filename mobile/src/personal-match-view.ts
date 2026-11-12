@@ -4,16 +4,21 @@ import { localCalendarDate } from './calendar-data'
 import { mountPersonalRecentForm } from './lab-recent-form'
 import { html } from './match-details'
 import { matchDate } from './recent-results'
+import { listedExploreCourt, stLouisCourts, type ExploreCourt } from './explore-court-catalog'
+import { readSavedCourts } from './explore-saved-courts'
 import { loadCaptainScorecards } from './captain-court-data'
 import type { PostedCourtScorecard } from '../../lib/native-court-result-contract'
 import { inferTiqBestOfThreeWinner } from '../../lib/tiq-scoring'
 import { isTeamResultScorecardKey } from '../../lib/team-results-contract'
-import { loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, removePersonalMatch, savePersonalMatch, teamScoreDiffers,
-  type CalendarScorecardSeed, type PersonalMatch, type PersonalMatchDraft, type TeamScore } from './personal-match-data'
+import { courtFeedbackKeys, loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, personalMatchFeedbackDraft,
+  removePersonalMatch, savePersonalMatch, teamScoreDiffers, type CalendarScorecardSeed, type CourtFeedback, type PersonalMatch,
+  type PersonalMatchDraft, type TeamScore } from './personal-match-data'
 
 const formatName = (format: PersonalMatch['format']) => format === 'singles' ? 'Singles' : 'Doubles'
+const courtFeedbackLabels = { surface: 'Surface condition', lighting: 'Lighting', court_time: 'Ease of getting court time' }
+const starLabel = (stars: number) => stars === 1 ? '1 star' : `${stars} stars`
 type LogScorecard = PersonalMatch | PostedCourtScorecard
-type UnsubmittedScorecard = { match_date: string; opponent: string; format: string; outcome: string; score: string }
+type UnsubmittedScorecard = { match_date: string; opponent: string; format: string; outcome: string; score: string; court_venue_key: string }
 type CalendarScorecardDraft = { seed: CalendarScorecardSeed; fields: UnsubmittedScorecard }
 export type PersonalMatchFormSession = { unsubmitted?: UnsubmittedScorecard; calendarDrafts?: Map<string, CalendarScorecardDraft> }
 
@@ -36,12 +41,14 @@ function scorecardCopyText(match: LogScorecard) {
 
 function savedScorecardRow(match: LogScorecard, index: number) {
   const captain = 'scoreOrder' in match
+  const venue = captain ? undefined : listedExploreCourt(match.court_venue_key)
   return `<li><button type="button" class="secondary lab-saved-scorecard" data-open-scorecard="${index}" data-scorecard-id="${html(match.id)}"
     aria-label="Open scorecard for ${html(match.opponent)}" aria-describedby="lab-scorecard-meta-${index} lab-scorecard-result-${index}">
     <span class="lab-saved-scorecard-copy">
       <strong>${html(match.opponent)}</strong>
       <span id="lab-scorecard-meta-${index}">
         <small class="lab-saved-scorecard-meta"><span>${formatName(match.format)}</span> <span>${html(matchDate(match.match_date))}</span></small>
+        ${venue ? `<small class="lab-saved-scorecard-meta">${html(venue.name)}</small>` : ''}
         ${captain ? `<small class="lab-saved-scorecard-meta"><span>Captain posted</span> <span>Court ${match.court}</span></small>` : ''}
       </span>
     </span>
@@ -52,6 +59,22 @@ function savedScorecardRow(match: LogScorecard, index: number) {
     </span>
     <span class="lab-saved-scorecard-chevron" aria-hidden="true">›</span>
   </button></li>`
+}
+
+function scorecardVenueOptions(owner: string, existingKey: string) {
+  const saved = readSavedCourts(owner)
+  const savedKeys = new Set([saved.home, ...saved.favorites])
+  const savedCourts = [...savedKeys].map(listedExploreCourt).filter(court => court !== undefined)
+  const others = stLouisCourts.filter(court => !savedKeys.has(court.id))
+  const groups: [string, ExploreCourt[]][] = [
+    ['Saved courts', savedCourts],
+    ['Tennis clubs', others.filter(court => court.access === 'club')],
+    ['Public courts', others.filter(court => court.access === 'public')],
+  ]
+  return '<option value="">No venue selected</option>' +
+    (existingKey && !listedExploreCourt(existingKey) ? `<option value="${html(existingKey)}">Court no longer listed</option>` : '') +
+    groups.map(([label, courts]) => courts.length ? `<optgroup label="${label}">${courts.map(court =>
+      `<option value="${html(court.id)}">${html(court.name)}</option>`).join('')}</optgroup>` : '').join('')
 }
 
 function recentOpponents(matches: PersonalMatch[]) {
@@ -152,7 +175,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     reading = value
     if (!active()) return
     add.disabled = value
-    editor.querySelectorAll<HTMLButtonElement>('[data-log-rematch],[data-review-team-score]').forEach(button => { button.disabled = value })
+    editor.querySelectorAll<HTMLButtonElement>('[data-log-rematch],[data-review-team-score],[data-edit-court-feedback]').forEach(button => { button.disabled = value })
   }
 
   async function readHistory(older = false, receipt = '') {
@@ -232,15 +255,27 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       return
     }
     const postedScore = teamScore && teamScore.key === match.calendar_match_id && teamScoreDiffers(match, teamScore) ? teamScore : undefined
+    const venue = listedExploreCourt(match.court_venue_key)
+    const venueName = match.court_venue_key ? venue?.name ?? 'Court no longer listed' : ''
+    const courtRatings = courtFeedbackKeys.flatMap(key => {
+      const rating = match.court_feedback?.[key]
+      return rating ? [`<div><dt>${courtFeedbackLabels[key]}</dt><dd><span aria-hidden="true">${'★'.repeat(rating)}${'☆'.repeat(5-rating)}</span><span class="sr-only">${rating} out of 5 stars</span></dd></div>`] : []
+    }).join('')
     editor.innerHTML = `<article class="lab-first-scorecard" aria-label="Saved scorecard">
       <h3 tabindex="-1">${html(match.opponent)}</h3>
       <p>${html(matchDate(match.match_date))} · ${formatName(match.format)} · ${match.outcome}</p>
+      ${venueName ? `<p>${html(venueName)}</p>` : ''}
       ${match.calendar_match_id ? `<p>${isTeamResultScorecardKey(match.calendar_match_id)?'From your team result':'From your TenAceIQ calendar'}</p>` : ''}
       <p>${postedScore ? 'Your saved score<br>' : ''}<strong>${html(match.score)}</strong></p>
       ${postedScore ? `<section class="lab-team-score-review" aria-labelledby="lab-team-score-title">
         <h4 id="lab-team-score-title">Team score</h4>
         <p><strong>${html(postedScore.score)}</strong> · ${postedScore.outcome}</p>
         <button type="button" class="secondary" data-review-team-score ${reading ? 'disabled' : ''}>Review team score</button>
+      </section>` : ''}
+      ${venue ? `<section class="lab-court-feedback" aria-labelledby="lab-court-feedback-title">
+        <h4 id="lab-court-feedback-title">Court ratings</h4>
+        ${courtRatings ? `<dl>${courtRatings}</dl>` : ''}
+        <button type="button" class="secondary" data-edit-court-feedback ${reading ? 'disabled' : ''}>${courtRatings ? 'Edit court ratings' : 'Rate this court'}</button>
       </section>` : ''}
       <button type="button" class="secondary" data-log-rematch ${reading ? 'disabled' : ''}>Log a rematch</button>
       ${scorecardCopyControls}
@@ -251,9 +286,88 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     bindScorecardActions(match)
     const review = editor.querySelector<HTMLButtonElement>('[data-review-team-score]')
     if (review && postedScore) review.onclick = () => showEditor(match, { teamScore: postedScore })
+    const rate = editor.querySelector<HTMLButtonElement>('[data-edit-court-feedback]')
+    if (rate && venue) rate.onclick = () => showCourtFeedbackEditor(match, venue.name)
     editor.querySelector<HTMLButtonElement>('[data-log-rematch]')!.onclick = () => showEditor(null, { previous: match })
     editor.querySelector<HTMLButtonElement>('[data-edit-match]')!.onclick = () => showEditor(match)
     editor.querySelector<HTMLButtonElement>('[data-remove-match]')!.onclick = () => confirmRemoval(match)
+  }
+
+  function showCourtFeedbackEditor(match: PersonalMatch, venueName: string) {
+    if (!active() || writing || reading) return
+    const original: CourtFeedback = match.court_feedback ?? { surface: null, lighting: null, court_time: null }
+    const ratings = { ...original }
+    history.hidden = formHost.hidden = add.disabled = true
+    editor.innerHTML = `<form class="lab-first-scorecard lab-court-feedback-editor">
+      <h3 tabindex="-1">Rate this court</h3><p>${html(venueName)}</p>
+      <p>Rate any category. Tap the selected star again to clear it. Your ratings are private.</p>
+      <fieldset class="lab-court-rating-groups">
+        <legend class="sr-only">Court ratings</legend>
+        ${courtFeedbackKeys.map(key => `<fieldset><legend>${courtFeedbackLabels[key]}</legend>
+          <div class="lab-court-stars">${[1,2,3,4,5].map(value => `<button type="button" class="secondary" data-rating-key="${key}" data-rating-value="${value}"
+            aria-label="${starLabel(value)}" aria-pressed="false"><span aria-hidden="true">☆</span></button>`).join('')}</div>
+        </fieldset>`).join('')}
+      </fieldset>
+      <p role="status" data-rating-status></p>
+      <button type="submit">Save court ratings</button>
+      <button type="button" class="secondary" data-cancel-ratings>Cancel</button>
+    </form>`
+    const form = editor.querySelector('form')!
+    const fields = form.querySelector('fieldset')!
+    const save = form.querySelector<HTMLButtonElement>('button[type="submit"]')!
+    const cancel = form.querySelector<HTMLButtonElement>('[data-cancel-ratings]')!
+    const notice = form.querySelector<HTMLElement>('[data-rating-status]')!
+    const stars = [...form.querySelectorAll<HTMLButtonElement>('[data-rating-value]')].map(button => ({
+      button, key: button.dataset.ratingKey as keyof CourtFeedback, value: Number(button.dataset.ratingValue),
+    }))
+    let draft: PersonalMatchDraft | undefined
+    const update = () => {
+      for (const { button, key, value } of stars) {
+        const filled = value <= (ratings[key] ?? 0)
+        button.setAttribute('aria-pressed', String(ratings[key] === value))
+        button.querySelector('span')!.textContent = filled ? '★' : '☆'
+        button.dataset.filled = String(filled)
+      }
+      save.disabled = !courtFeedbackKeys.some(key => ratings[key] !== original[key])
+    }
+    for (const { button, key, value } of stars) button.onclick = () => {
+      ratings[key] = ratings[key] === value ? null : value
+      update()
+    }
+    cancel.onclick = () => {
+      if (writing) return
+      if (draft) { closeEditor(); void readHistory(); return }
+      showScorecard(match)
+      editor.querySelector<HTMLElement>('[data-edit-court-feedback]')?.focus()
+    }
+    form.onsubmit = async event => {
+      event.preventDefault()
+      if (!active() || writing || save.disabled) return
+      try { draft ??= personalMatchFeedbackDraft(match, courtFeedbackKeys.some(key => ratings[key] !== null) ? ratings : null) }
+      catch (error) { notice.textContent = error instanceof Error ? error.message : 'Check your court ratings.'; return }
+      setWriting(true)
+      fields.disabled = save.disabled = cancel.disabled = true
+      notice.textContent = 'Saving court ratings…'
+      let saved: PersonalMatch | undefined
+      try { saved = await savePersonalMatch(client, owner, draft, active) }
+      catch (error) {
+        if (!active()) return
+        notice.textContent = error instanceof MatchChanged ? error.message : 'Save unconfirmed. Retry the same court ratings.'
+        save.disabled = error instanceof MatchChanged
+        save.textContent = 'Retry save'
+        cancel.textContent = 'Back to match log'
+      } finally {
+        setWriting(false)
+        if (active()) cancel.disabled = false
+      }
+      if (!saved || !active()) return
+      matches = matches.map(row => row.id === saved.id ? saved : row)
+      paintHistory()
+      showScorecard(saved)
+      status.textContent = saved.court_feedback ? 'Court ratings saved.' : 'Court ratings cleared.'
+    }
+    update()
+    form.querySelector('h3')!.focus()
   }
 
   function closeEditor() {
@@ -296,6 +410,9 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         <button type="button" class="secondary" data-use-score-result hidden></button>
         <label for="personal-match-outcome">Result</label>
         <select id="personal-match-outcome" name="outcome" required><option value="">Choose result</option><option>Won</option><option>Lost</option></select>
+        <label for="personal-match-venue">Venue (optional)</label>
+        <select id="personal-match-venue" name="court_venue_key">${scorecardVenueOptions(owner, match?.court_venue_key ?? '')}</select>
+        ${match?.court_feedback ? '<p>Changing the venue clears this match’s court ratings.</p>' : ''}
       </fieldset>
       <p role="status" data-match-feedback></p>
       <button type="submit" data-save-scorecard>Save scorecard</button>
@@ -309,7 +426,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     for (const [field, value] of Object.entries(resumed ?? { match_date: match?.match_date ?? calendarSeed?.date ?? localCalendarDate(),
       opponent: prefill?.opponent ?? '', format: prefill?.format ?? '',
       outcome: correction?.outcome ?? match?.outcome ?? calendarSeed?.outcome ?? '',
-      score: correction?.score ?? match?.score ?? calendarSeed?.score ?? '' })) {
+      score: correction?.score ?? match?.score ?? calendarSeed?.score ?? '', court_venue_key: match?.court_venue_key ?? '' })) {
       const input = form.elements.namedItem(field) as HTMLInputElement | HTMLSelectElement
       input.value = value
     }
@@ -319,7 +436,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       const formValues = new FormData(form)
       const value = (name: keyof UnsubmittedScorecard) => String(formValues.get(name) ?? '')
       const draftFields = { match_date: value('match_date'), opponent: value('opponent'), format: value('format'),
-        outcome: value('outcome'), score: value('score') }
+        outcome: value('outcome'), score: value('score'), court_venue_key: value('court_venue_key') }
       if (calendarSeed) {
         formSession.calendarDrafts ??= new Map()
         formSession.calendarDrafts.set(calendarSeed.calendarMatchId, { seed: calendarSeed, fields: draftFields })

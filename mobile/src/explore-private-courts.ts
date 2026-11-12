@@ -20,6 +20,7 @@ export function createPrivateCourtStore(owner?:string){
  const key=`explore-private-courts:v1:${owner??''}`
  const storage=owner?getNativeAuthStorage():undefined
  let reading:Promise<PrivateAddress[]>|undefined
+ let pending=Promise.resolve()
 
  async function load(){
   if(!owner)return []
@@ -50,16 +51,27 @@ export function createPrivateCourtStore(owner?:string){
   return rows.map(courtOf)
  }
 
+ function enqueueChange<T>(save:(rows:PrivateAddress[])=>Promise<T>){
+  const result=pending.then(async()=>save(await load()))
+  pending=result.then(()=>{},()=>{})
+  return result
+ }
+
  return {
-  list:async()=> (await load()).map(courtOf),
-  async add(input:Record<string,unknown>){
-   const entry=privateAddress(`private-${crypto.randomUUID()}`,input)
-   if(!entry)throw Error('invalid_address')
-   const rows=await load()
-   if(rows.some(row=>courtOf(row).destination.toLowerCase()===courtOf(entry).destination.toLowerCase()&&row.facilityName.toLowerCase()===entry.facilityName.toLowerCase()))throw Error('duplicate_court')
-   if(rows.length>=maxPrivateCourts)throw Error('private_limit')
-   return {id:entry.id,courts:await write([...rows,entry])}
+  async list(){await pending;return (await load()).map(courtOf)},
+  async details(id:string){await pending;return (await load()).find(row=>row.id===id)},
+  save(input:Record<string,unknown>,id?:string){
+   return enqueueChange(async rows=>{
+    const entry=privateAddress(id??`private-${crypto.randomUUID()}`,input)
+    if(!entry)throw Error('invalid_address')
+    if(id&&!rows.some(row=>row.id===id))throw Error('missing_court')
+    const destination=courtOf(entry).destination.toLowerCase(),name=entry.facilityName.toLowerCase()
+    if(rows.some(row=>row.id!==id&&row.facilityName.toLowerCase()===name&&courtOf(row).destination.toLowerCase()===destination))throw Error('duplicate_court')
+    if(!id&&rows.length>=maxPrivateCourts)throw Error('private_limit')
+    const next=id?rows.map(row=>row.id===id?entry:row):[...rows,entry]
+    return {id:entry.id,courts:await write(next)}
+   })
   },
-  async remove(id:string){return write((await load()).filter(row=>row.id!==id))},
+  remove(id:string){return enqueueChange(rows=>write(rows.filter(row=>row.id!==id)))},
  }
 }

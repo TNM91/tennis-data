@@ -45,6 +45,7 @@ import {chatGifPlayback} from './chat-gif-playback'
 import {teamChatCursor} from '../../lib/team-chat-cursor'
 import {showCaptainWorkspace} from './captain-view'
 import {openChatPostEditor} from './chat-post-editor'
+import {openChatSafety} from './chat-safety-dialog'
 import {TeamMatchActions,matchActionsHtml,type MatchAction} from './team-match-actions'
 import {chatPhotoPreviews} from './chat-photo-previews'
 import {chooseChatPhoto,privatePhotoData} from './chat-photos'
@@ -108,7 +109,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  let chatMatchNoticeId='',hubOpen=false,reviewNeedsRefresh=false,matchEssentialsVersion=0
  let matchReview:ReturnType<typeof openMatchReplyReview>|null=null,matchShare:ReturnType<typeof openMatchPlanShare>|null=null
  let teamDialog:ReturnType<typeof openTeamInvite>|null=null,teamDialogNeedsRefresh=false
- let busy=false,safetyNotice='',safetyChoice:{kind:'report'|'block';id:string;name:string}|null=null
+ let busy=false,safetyNotice='',safetyView:ReturnType<typeof openChatSafety>|null=null
  let live:ReturnType<typeof watchTeamChat>|null=null,watchedRoomId='',liveStatus:TeamLiveStatus='connecting',readRoomId='',matchDetailsDirty=false,readThrough='',lastAckAttempt='',readNotice='',historyScroll=0,needsLiveRefresh=false
  let historyBefore='',historyNext='',historyLoading=false,historyNotice=''
  let focusPending=false,focusAttempt=0
@@ -163,7 +164,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const nearLatest=()=>{const list=app.querySelector<HTMLElement>('.team-conversation');return Boolean(list && list.scrollHeight-list.scrollTop-list.clientHeight<40)}
  const markLatest=()=>{
   const room=snapshot?.room,list=app.querySelector<HTMLElement>('.team-conversation')
-  if(inbox || teamDialog?.isOpen() || findOpen || pressActions?.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || fixturesView?.isOpen() || historySearch?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || app.querySelector('.team-hub[open]') || mentionDialog || catchingUp || messageView?.isOpen() || linkView?.isOpen() || chatFilter!=='all' || app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]') || announcementView?.isOpen() || historyBefore || historyLoading || searchText.trim() || postEditor?.isOpen() || photoDialog || !room || !room.chatReady || !selected || !valid() || document.visibilityState!=='visible' || live && !live.isForeground() || tab!=='Conversation' || !list || !nearLatest())return
+  if(inbox || safetyView?.isOpen() || teamDialog?.isOpen() || findOpen || pressActions?.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || fixturesView?.isOpen() || historySearch?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || app.querySelector('.team-hub[open]') || mentionDialog || catchingUp || messageView?.isOpen() || linkView?.isOpen() || chatFilter!=='all' || app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]') || announcementView?.isOpen() || historyBefore || historyLoading || searchText.trim() || postEditor?.isOpen() || photoDialog || !room || !room.chatReady || !selected || !valid() || document.visibilityState!=='visible' || live && !live.isForeground() || tab!=='Conversation' || !list || !nearLatest())return
   const latest=room.messages.at(-1)
   if(!latest)return
   if(newerChatTime(latest.createdAt,readThrough))readThrough=latest.createdAt
@@ -214,7 +215,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    app.querySelector<HTMLButtonElement>('[data-hub-announcement]')?.addEventListener('click',event=>{const id=(event.currentTarget as HTMLButtonElement).dataset.hubAnnouncement||'',epoch=reactionEpoch,scope={...currentScope()};messageView?.dispose();messageView=openChatMessage(scope,'message',active=>readChatMessage(client,userId,()=>valid()&&epoch===reactionEpoch&&active(),scope,room.id,id,'message'),()=>valid()&&epoch===reactionEpoch)})
  }
  const canDraftTeamUpdate=(room:NativeTeamRoom)=>Boolean(valid()&&snapshot?.room?.id===room.id&&snapshot.room.chatReady&&snapshot.room.canScheduleMatch&&
-  !draft.text&&!draft.reply&&!draft.photo&&!draft.pending&&!draft.sending&&!busy&&!photoChoosing&&!safetyChoice)
+  !draft.text&&!draft.reply&&!draft.photo&&!draft.pending&&!draft.sending&&!busy&&!photoChoosing&&!safetyView?.isOpen())
  const composeTeamUpdate=(room:NativeTeamRoom,message:string,notice:string)=>{
   if(!canDraftTeamUpdate(room))return false
   tab='Conversation';findOpen=false;chatFilter='all';searchText=''
@@ -320,7 +321,30 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    })()}
   })
   app.querySelectorAll<HTMLButtonElement>('[data-chat-reply]').forEach(button=>{button.disabled=Boolean(draft.pending || draft.sending || busy);button.onclick=()=>{const message=room.messages.find(message=>message.id===button.dataset.chatReply);if(!message || draft.pending || draft.sending)return;closeMessageMenus();draft.reply={id:message.id,name:message.senderName,body:message.body,senderUserId:message.senderUserId};render();app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus()}})
-  app.querySelectorAll<HTMLButtonElement>('[data-chat-report],[data-chat-block]').forEach(button=>{button.disabled=busy || draft.sending;button.onclick=()=>{if(busy || draft.sending)return;const report=button.dataset.chatReport;const message=room.messages.find(message=>report?message.id===report:message.senderUserId===button.dataset.chatBlock);if(!message)return;closeMessageMenus();safetyChoice={kind:report?'report':'block',id:report || message.senderUserId,name:message.senderName};render();app.querySelector<HTMLElement>('[aria-label="Chat safety"]')?.scrollIntoView({block:'nearest'})}})
+  app.querySelectorAll<HTMLButtonElement>('[data-chat-report],[data-chat-block]').forEach(button=>{
+   button.disabled=busy||draft.sending
+   button.onclick=()=>{
+    if(!valid()||busy||draft.sending||safetyView?.isOpen())return
+    const id=button.dataset.chatReport??button.dataset.chatBlock
+    const message=room.messages.find(item=>item.id===id&&!item.deletedAt&&!item.isMine)
+    if(!message)return
+    closeMessageMenus()
+    const epoch=reactionEpoch
+    const current=()=>valid()&&epoch===reactionEpoch&&snapshot?.room?.id===room.id
+    safetyView=openChatSafety(message,button.hasAttribute('data-chat-report'),saveChatSafety,current,()=>{
+     safetyView=null
+     if(!current())return
+     const focus=()=>{
+      if(!current())return
+      const row=Array.from(app.querySelectorAll<HTMLElement>('[data-chat-message]')).find(item=>item.dataset.chatMessage===id)
+      const target=row?.querySelector<HTMLElement>('[data-open-message-actions]')??app.querySelector<HTMLElement>('.team-conversation')
+      target?.focus({preventScroll:true})
+     }
+     focus()
+     if(needsLiveRefresh){needsLiveRefresh=false;void refreshLive().catch(()=>{}).then(focus)}
+    })
+   }
+  })
   const pressEpoch=reactionEpoch
   pressActions=bindChatMessagePress(app,{
    current:()=>valid()&&pressEpoch===reactionEpoch&&snapshot?.room===room&&tab==='Conversation'&&document.visibilityState==='visible',
@@ -351,7 +375,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  }
  const refreshLive=async()=>{
   if(!snapshot?.room || !selected || !valid())return
-  if(pressActions?.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || fixturesView?.isOpen() || historySearch?.isOpen() || matchReview?.isOpen() || historyLoading || busy || reactionSending || draft.sending || fullLoads>0 || app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]')){needsLiveRefresh=true;return}
+  if(safetyView?.isOpen() || pressActions?.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || fixturesView?.isOpen() || historySearch?.isOpen() || matchReview?.isOpen() || historyLoading || busy || reactionSending || draft.sending || fullLoads>0 || app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]')){needsLiveRefresh=true;return}
   const room=snapshot.room,scope={...selected},version=++revision,followLatest=!findOpen&&!searchText.trim()&&chatFilter==='all'&&!catchingUp && tab==='Conversation' && nearLatest()
   try{
    const update=await loadTeamChatUpdate(client,userId,valid,scope,room.id,undefined,historyFocusId?'':historyBefore,historyFocusId)
@@ -359,7 +383,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    historyNext=update.nextCursor
    const {blockedUserIds,...fields}=update,blocked=new Set(blockedUserIds)
    if(draft.reply && blocked.has(draft.reply.senderUserId || ''))draft.reply=null
-   snapshot={...snapshot,room:{...room,...fields,activeCard:room.activeCard && !blocked.has(room.activeCard.senderUserId)?room.activeCard:null,blockedMembers:blockedUserIds.map(id=>({id,name:room.messages.find(message=>message.senderUserId===id)?.senderName || room.blockedMembers.find(member=>member.id===id)?.name || 'Team member'}))}};matchDetailsDirty=true;if(viewedPhotoId && !snapshot.room!.messages.some(message=>message.id===viewedPhotoId && !message.deletedAt && message.hasPhoto))closePhoto();reconcileReactions(snapshot.room!);updateUnread(snapshot.room!);if(!inbox && !pressActions?.isOpen() && !roomPicker?.isOpen() && tab==='Conversation' && !(availabilityView?.isOpen() || pollView?.isOpen()) && !practicesView?.isOpen() && !fixturesView?.isOpen() && !historySearch?.isOpen() && !matchReview?.isOpen() && !safetyChoice&&!app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]'))renderLiveHistory(snapshot.room!,followLatest);else{if(pressActions?.isOpen()||(availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen()||fixturesView?.isOpen()||historySearch?.isOpen()||matchReview?.isOpen()||app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]'))needsLiveRefresh=true;updateLabels()}
+   snapshot={...snapshot,room:{...room,...fields,activeCard:room.activeCard && !blocked.has(room.activeCard.senderUserId)?room.activeCard:null,blockedMembers:blockedUserIds.map(id=>({id,name:room.messages.find(message=>message.senderUserId===id)?.senderName || room.blockedMembers.find(member=>member.id===id)?.name || 'Team member'}))}};matchDetailsDirty=true;if(viewedPhotoId && !snapshot.room!.messages.some(message=>message.id===viewedPhotoId && !message.deletedAt && message.hasPhoto))closePhoto();reconcileReactions(snapshot.room!);updateUnread(snapshot.room!);if(!inbox && !pressActions?.isOpen() && !roomPicker?.isOpen() && tab==='Conversation' && !(availabilityView?.isOpen() || pollView?.isOpen()) && !practicesView?.isOpen() && !fixturesView?.isOpen() && !historySearch?.isOpen() && !matchReview?.isOpen() && !safetyView?.isOpen()&&!app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]'))renderLiveHistory(snapshot.room!,followLatest);else{if(safetyView?.isOpen()||pressActions?.isOpen()||(availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen()||fixturesView?.isOpen()||historySearch?.isOpen()||matchReview?.isOpen()||app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]'))needsLiveRefresh=true;updateLabels()}
   }catch(cause){
    if(valid() && version===revision && cause instanceof TeamRoomAccessError){teamDialog?.dispose();teamDialog=null;freshDraft();snapshot=null;document.body.classList.remove('native-chat-conversation');app.innerHTML='<h1>Team unavailable</h1><p role="alert">Your team access changed. Open My teams again to check your connections.</p>'}
    if(valid() && version===revision){liveStatus='paused';updateLabels()}
@@ -396,7 +420,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const currentScope=():TeamScope=>{if(!selected)throw Error('Open a team first.');return {...selected}}
  let draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))
  let matchActions=new TeamMatchActions(action=>postTeamChat(client,userId,valid,currentScope(),action))
- const freshDraft=()=>{joinWelcome=null;replyReturn=null;focusAttempt++;focusPending=false;pressActions?.dispose();pressActions=null;initialMessageId='';historyFocusId='';alertFocusId='';roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchEssentialsVersion++;chatMatchNoticeId='';hubOpen=false;reviewNeedsRefresh=false;matchReview?.dispose();matchReview=null;matchShare?.dispose();matchShare=null;closeMentions();gifChooser?.abort();gifChooser=null;gifs.clear();historyBefore='';historyNext='';historyNotice='';historyLoading=false;captainView?.dispose();captainView=null;messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;chatFilter='all';findOpen=false;searchText='';postEditor?.dispose();postEditor=null;matchActions.dispose();matchActions=new TeamMatchActions(action=>postTeamChat(client,userId,valid,currentScope(),action));muteSending=false;mutePending=null;muteNotice='';previews.clear();closePhoto();photoChoosing=false;reactionEpoch++;reactionSending=false;reactionNotice='';pendingReactions.clear();live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';catchingUp=false;catchupStart='';initialCatchup=false;savedReadThrough='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
+ const freshDraft=()=>{safetyView?.dispose();safetyView=null;joinWelcome=null;replyReturn=null;focusAttempt++;focusPending=false;pressActions?.dispose();pressActions=null;initialMessageId='';historyFocusId='';alertFocusId='';roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchEssentialsVersion++;chatMatchNoticeId='';hubOpen=false;reviewNeedsRefresh=false;matchReview?.dispose();matchReview=null;matchShare?.dispose();matchShare=null;closeMentions();gifChooser?.abort();gifChooser=null;gifs.clear();historyBefore='';historyNext='';historyNotice='';historyLoading=false;captainView?.dispose();captainView=null;messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;chatFilter='all';findOpen=false;searchText='';postEditor?.dispose();postEditor=null;matchActions.dispose();matchActions=new TeamMatchActions(action=>postTeamChat(client,userId,valid,currentScope(),action));muteSending=false;mutePending=null;muteNotice='';previews.clear();closePhoto();photoChoosing=false;reactionEpoch++;reactionSending=false;reactionNotice='';pendingReactions.clear();live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';catchingUp=false;catchupStart='';initialCatchup=false;savedReadThrough='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
  const focusChatMessage=async(id:string,source:'alert'|'search'|'reply'|'return'='alert',recheck=false,returning?:ChatReplyReturn)=>{
   if(historyLoading||busy||draft.sending||photoChoosing||tab!=='Conversation'||!valid()||!snapshot?.room||!selected||source==='return'&&(!returning||replyReturn!==returning))return
   const room=snapshot.room,scope={...selected},epoch=reactionEpoch,version=revision,attempt=++focusAttempt
@@ -472,12 +496,28 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    if(entry||returnToResults)app.querySelector<HTMLElement>('h1')?.focus()
   }finally{fullLoads--;if(fullLoads===0 && needsLiveRefresh && valid() && snapshot?.room && !busy && !draft.sending){needsLiveRefresh=false;void refreshLive().catch(()=>{})}}
  }
- const safetyAction=async(action:ChatAction)=>{
-  if(busy || draft.sending)return
-  busy=true;safetyNotice='Saving…';render()
-  try{await postTeamChat(client,userId,valid,currentScope(),action);if(!valid())return;safetyChoice=null;if(action.action==='block_chat_member' && draft.reply?.senderUserId===action.memberId)draft.reply=null;safetyNotice=action.action==='report_chat_message'?'Report saved for review.':action.action==='block_chat_member'?'Chat posts blocked. Your team still sees your posts.':'Chat posts unblocked.';await load(true)}
-  catch{if(valid()){safetyNotice='Couldn’t confirm this action. Try again.';render()}}
-  finally{busy=false;if(valid()){render();if(needsLiveRefresh){needsLiveRefresh=false;void refreshLive().catch(()=>{})}}}
+ async function saveChatSafety(action:ChatAction){
+  if(busy||draft.sending||!valid())throw Error('Chat safety is unavailable.')
+  const epoch=reactionEpoch
+  const current=()=>valid()&&epoch===reactionEpoch
+  busy=true
+  try{
+   await postTeamChat(client,userId,current,currentScope(),action)
+   if(!current()||action.action==='report_chat_message')return
+   if(action.action==='block_chat_member'&&snapshot?.room){
+    const room=snapshot.room,{memberId}=action
+    const name=room.messages.find(message=>message.senderUserId===memberId)?.senderName||'Team member'
+    room.messages=room.messages.filter(message=>message.senderUserId!==memberId)
+    if(room.activeCard?.senderUserId===memberId)room.activeCard=null
+    if(draft.reply?.senderUserId===memberId)draft.reply=null
+    if(!room.blockedMembers.some(member=>member.id===memberId))room.blockedMembers.push({id:memberId,name})
+    render()
+   }
+   await load(true)
+  }finally{
+   busy=false
+   if(current()&&action.action==='block_chat_member')render()
+  }
  }
  const openInvite=(event:MouseEvent)=>{
   if(!valid()||teamDialog?.isOpen())return
@@ -500,7 +540,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   })
  }
  const openInbox=()=>{
-  if(!valid()||inbox||roomPicker?.isOpen()||draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending||(availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen()||fixturesView?.isOpen()||historySearch?.isOpen()||matchReview?.isOpen()||matchShare?.isOpen()||teamDialog?.isOpen()||messageView?.isOpen()||linkView?.isOpen()||announcementView?.isOpen()||postEditor?.isOpen()||photoDialog||mentionDialog)return
+  if(!valid()||inbox||safetyView?.isOpen()||roomPicker?.isOpen()||draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending||(availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen()||fixturesView?.isOpen()||historySearch?.isOpen()||matchReview?.isOpen()||matchShare?.isOpen()||teamDialog?.isOpen()||messageView?.isOpen()||linkView?.isOpen()||announcementView?.isOpen()||postEditor?.isOpen()||photoDialog||mentionDialog)return
   if((draft.text.trim()||draft.photo)&&!window.confirm('Return to Chats? Your unfinished message will be discarded.'))return
   if(entry){entry.back();return}
   freshDraft();inbox=true;render()
@@ -597,9 +637,9 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   }
 
   const panel=app.querySelector<HTMLElement>('#team-panel')!
-  const blockedMessages=room.blockedMembers.length?`<section><h2>Blocked chat posts</h2><p>These members’ posts are hidden from your team conversations. Blocking does not remove anyone from the team. Your posts remain visible to the group.</p><ul class="team-members">${room.blockedMembers.map(member=>`<li>${html(member.name)}<button type="button" class="secondary" data-chat-unblock="${html(member.id)}" ${busy?'disabled':''}>Unblock chat posts</button></li>`).join('')}</ul></section>`:firstPartyBuild?'<section><h2>Blocked messages</h2><p>You haven’t blocked anyone.</p></section>':''
+  const blockedMessages=room.blockedMembers.length?`<section><h${firstPartyBuild?3:2}>Blocked chat posts</h${firstPartyBuild?3:2}><p>These members’ posts are hidden from your team conversations. Blocking does not remove anyone from the team. Your posts remain visible to the group.</p><ul class="team-members">${room.blockedMembers.map(member=>`<li>${html(member.name)}<button type="button" class="secondary" data-chat-unblock="${html(member.id)}" ${busy?'disabled':''}>Unblock chat posts</button></li>`).join('')}</ul></section>`:firstPartyBuild?'<section><h3>Blocked chat posts</h3><p>You haven’t blocked anyone.</p></section>':''
   if(tab==='Captain' && !room.canManage)tab='Conversation'
-  panel.innerHTML=tab==='Captain'?'':tab==='Match day'?teamMatchDayHtml(room,userId):tab==='Conversation'?teamConversationHtml(room,Boolean(historyBefore),userId):firstPartyBuild?blockedMessages:`<section aria-label="${room.chatRoom?'Room alert settings':'Team alert settings'}"><h2>${room.chatRoom?'Room alerts':'Team alerts'}</h2>${room.chatRoom?.teamMuted?'<p>Your team is muted. Open General → Members to turn team alerts on. Your room preference stays saved.</p>':''}<p>${room.muted?(room.chatRoom?'Alerts for this room are muted. Open Conversation whenever you want to catch up.':'Alerts for this team are muted. Open Conversation whenever you want to catch up.'):(room.chatRoom?'Receive posts in this room when team alerts and iPhone notifications are on.':'Receive new team posts and match-day reminders when iPhone notifications are enabled. Mentions use these same team alert settings.')}</p><button type="button" class="secondary" id="chat-mute" ${muteSending || busy?'disabled':''}>${muteSending?'Saving…':mutePending!==null?'Retry same alert setting':room.muted?(room.chatRoom?'Turn room alerts on':'Turn team alerts on'):(room.chatRoom?'Mute room alerts':'Mute team alerts')}</button><p role="status" id="chat-mute-status">${html(muteNotice)}</p><p class="rating-context">This setting applies only to ${html(room.chatRoom?.name||room.teamName)} across your devices. ${room.chatRoom?'Other rooms and General keep their own preferences. Team mute silences every room.':'It also silences this team’s match-day reminders. Other teams keep their own settings.'}</p></section><section><h2>Team members</h2><ul class="team-members">${room.members.map(member=>`<li><strong>${html(member.name)}</strong><span>${member.roles.includes('captain')?'Captain':member.roles.includes('co_captain')?'Co-captain':'Player'}</span></li>`).join('')}</ul></section>${blockedMessages}`
+  panel.innerHTML=tab==='Captain'?'':tab==='Match day'?teamMatchDayHtml(room,userId):tab==='Conversation'?teamConversationHtml(room,Boolean(historyBefore),userId):firstPartyBuild?'<section><h2>Chat safety</h2><p>Use a message’s menu to report a concern or block the sender’s posts.</p></section>'+blockedMessages:`<section aria-label="${room.chatRoom?'Room alert settings':'Team alert settings'}"><h2>${room.chatRoom?'Room alerts':'Team alerts'}</h2>${room.chatRoom?.teamMuted?'<p>Your team is muted. Open General → Members to turn team alerts on. Your room preference stays saved.</p>':''}<p>${room.muted?(room.chatRoom?'Alerts for this room are muted. Open Conversation whenever you want to catch up.':'Alerts for this team are muted. Open Conversation whenever you want to catch up.'):(room.chatRoom?'Receive posts in this room when team alerts and iPhone notifications are on.':'Receive new team posts and match-day reminders when iPhone notifications are enabled. Mentions use these same team alert settings.')}</p><button type="button" class="secondary" id="chat-mute" ${muteSending || busy?'disabled':''}>${muteSending?'Saving…':mutePending!==null?'Retry same alert setting':room.muted?(room.chatRoom?'Turn room alerts on':'Turn team alerts on'):(room.chatRoom?'Mute room alerts':'Mute team alerts')}</button><p role="status" id="chat-mute-status">${html(muteNotice)}</p><p class="rating-context">This setting applies only to ${html(room.chatRoom?.name||room.teamName)} across your devices. ${room.chatRoom?'Other rooms and General keep their own preferences. Team mute silences every room.':'It also silences this team’s match-day reminders. Other teams keep their own settings.'}</p></section><section><h2>Team members</h2><ul class="team-members">${room.members.map(member=>`<li><strong>${html(member.name)}</strong><span>${member.roles.includes('captain')?'Captain':member.roles.includes('co_captain')?'Co-captain':'Player'}</span></li>`).join('')}</ul></section>${blockedMessages}`
   if(tab==='Captain'){const epoch=reactionEpoch;captainView=showCaptainWorkspace(panel,client,userId,{...currentScope()},()=>valid() && epoch===reactionEpoch && tab==='Captain',()=>{matchDetailsDirty=true;void refreshLive().catch(()=>{})},()=>{void load(true)},room.id)}
   if(tab==='Match day'){
    const nextAction=panel.querySelector<HTMLButtonElement>('[data-team-match-next]')
@@ -689,7 +729,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
     app.querySelector<HTMLButtonElement>('[data-chat-availability]')?.addEventListener('click',()=>{if(!valid()||room.chatRoom||draft.pending||draft.sending||busy||photoChoosing)return;if(room.canManage){openAvailability();return}tab='Match day';render();if(matchDetailsDirty)void load(true);app.querySelector<HTMLElement>('#team-panel h2')?.focus({preventScroll:true})})
     bindChatAttachmentClose(app)
     const textarea=app.querySelector<HTMLTextAreaElement>('#chat-draft')!
-    if(joinWelcome?.roomId===room.id&&!findOpen&&!safetyChoice){
+    if(joinWelcome?.roomId===room.id&&!findOpen&&!safetyView?.isOpen()){
      const joined=joinWelcome
      const welcome=document.createElement('section')
      welcome.className='chat-join-welcome'
@@ -806,13 +846,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    app.querySelector<HTMLButtonElement>('#chat-back-reply')!.onclick=()=>{if(replyReturn)void focusChatMessage(replyReturn.messageId,'return',true,replyReturn)}
    app.querySelector<HTMLButtonElement>('#chat-latest')!.onclick=()=>{if(historyBefore)void navigateHistory('');else{replyReturn=null;if(readNotice)lastAckAttempt='';catchingUp=false;catchupStart='';findOpen=false;chatFilter='all';searchText='';render(true);app.querySelector<HTMLButtonElement>('#chat-latest')?.focus({preventScroll:true})}}
   }
-  if(safetyChoice){
-   const choice=safetyChoice
-   panel.insertAdjacentHTML('beforeend',`<section aria-label="Chat safety"><h2>${choice.kind==='report'?'Report message':'Block chat posts'}</h2><p>${choice.kind==='report'?'Send this message to TenAceIQ’s moderation queue. The report is private.':`Hide ${html(choice.name)}’s posts from your team conversations. The group can still see your posts. Match updates outside chat may still arrive.`}</p>${choice.kind==='report'?'<label>Reason<select id="chat-report-reason"><option value="harassment">Harassment or bullying</option><option value="spam">Spam</option><option value="inappropriate">Inappropriate content</option><option value="other">Other concern</option></select></label>':''}<button type="button" id="chat-safety-confirm" ${busy?'disabled':''}>${choice.kind==='report'?'Submit report':'Block chat posts'}</button><button type="button" class="secondary" id="chat-safety-cancel" ${busy?'disabled':''}>Cancel</button></section>`)
-   app.querySelector<HTMLButtonElement>('#chat-safety-confirm')!.onclick=()=>{void safetyAction(choice.kind==='report'?{action:'report_chat_message',messageId:choice.id,reason:app.querySelector<HTMLSelectElement>('#chat-report-reason')!.value as 'harassment'|'spam'|'inappropriate'|'other'}:{action:'block_chat_member',memberId:choice.id})}
-   app.querySelector<HTMLButtonElement>('#chat-safety-cancel')!.onclick=()=>{safetyChoice=null;render()}
-  }
-  app.querySelector<HTMLSelectElement>('#linked-team')!.onchange=event=>{const choice=snapshot?.teams[Number((event.currentTarget as HTMLSelectElement).value)];if(!choice || draft.pending || busy || draft.sending || photoChoosing || muteSending || matchActions.sending)return;freshDraft();selected=choice;tab='Conversation';safetyChoice=null;safetyNotice='';void load()}
+  app.querySelector<HTMLSelectElement>('#linked-team')!.onchange=event=>{const choice=snapshot?.teams[Number((event.currentTarget as HTMLSelectElement).value)];if(!choice || draft.pending || busy || draft.sending || photoChoosing || muteSending || matchActions.sending)return;freshDraft();selected=choice;tab='Conversation';safetyNotice='';void load()}
   app.querySelectorAll<HTMLButtonElement>('[data-team-tab]').forEach(button=>{button.onclick=()=>{if(focusPending){focusAttempt++;focusPending=false;historyLoading=false;historyNotice=''}practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchEssentialsVersion++;matchReview?.dispose();matchReview=null;matchShare?.dispose();matchShare=null;linkView?.dispose();linkView=null;tab=button.dataset.teamTab as typeof tab;render();if(tab==='Match day' && matchDetailsDirty)void load(true);const heading=app.querySelector<HTMLElement>('#team-panel h1,#team-panel h2,.chat-room-heading h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}}})
   app.querySelector<HTMLButtonElement>('#chat-mute')?.addEventListener('click',()=>{void (async()=>{
    if(muteSending || busy || !valid())return
@@ -823,7 +857,18 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    finally{if(valid() && epoch===reactionEpoch){muteSending=false;render()}}
   })()})
   bindMessageActions(room)
-  app.querySelectorAll<HTMLButtonElement>('[data-chat-unblock]').forEach(button=>{button.onclick=()=>{void safetyAction({action:'unblock_chat_member',memberId:button.dataset.chatUnblock!})}})
+  app.querySelectorAll<HTMLButtonElement>('[data-chat-unblock]').forEach(button=>{button.onclick=async()=>{
+   if(busy||draft.sending)return
+   button.disabled=true
+   try{
+    await saveChatSafety({action:'unblock_chat_member',memberId:button.dataset.chatUnblock!})
+    safetyNotice='Chat posts unblocked.'
+   }catch{safetyNotice='Couldn’t confirm the unblock. Try again.'}
+   if(!valid())return
+   render()
+   const heading=app.querySelector<HTMLElement>('#team-panel h2')
+   if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}
+  }})
   app.querySelector<HTMLButtonElement>('#refresh-team')!.onclick=()=>{safetyNotice='';readNotice='';lastAckAttempt='';if(liveStatus==='offline' || liveStatus==='paused')live?.retry();void load(true,tab==='Conversation' && nearLatest())}
   app.querySelectorAll<HTMLDetailsElement>('.chat-room-options,.chat-attachment-picker,.chat-emoji-picker').forEach(menu=>{menu.ontoggle=()=>{if(!menu.isConnected)return;if(menu.open){gifs.clear();closeMessageMenus();app.querySelectorAll<HTMLDetailsElement>('.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]').forEach(other=>{if(other!==menu)other.open=false})}else if(needsLiveRefresh&&valid()){needsLiveRefresh=false;void refreshLive().catch(()=>{})}}})
   updateLabels()
@@ -837,8 +882,8 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    openResults(room,teamResults,{position})
   }
   markLatest()
-  if(needsLiveRefresh&&!busy&&!draft.sending&&fullLoads===0&&!app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]')){needsLiveRefresh=false;void refreshLive().catch(()=>{})}
+  if(needsLiveRefresh&&!safetyView?.isOpen()&&!busy&&!draft.sending&&fullLoads===0&&!app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]')){needsLiveRefresh=false;void refreshLive().catch(()=>{})}
  }
  void load()
- return {openInbox,refreshUnread:()=>{if(valid()&&inbox){inboxView?.update(alerts?.unread()??null);coachInbox.update(alerts?.unread()??null)}},hasDraft:()=>Boolean(coachInbox.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || teamDialog?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{replyReturn=null;coachInbox.dispose();inboxView?.dispose();inboxView=null;pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;teamDialog?.dispose();teamDialog=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(coachInbox.back())return true;if(teamDialog?.isOpen()){teamDialog.close();return true}if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
+ return {openInbox,refreshUnread:()=>{if(valid()&&inbox){inboxView?.update(alerts?.unread()??null);coachInbox.update(alerts?.unread()??null)}},hasDraft:()=>Boolean(safetyView?.isOpen() || coachInbox.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || teamDialog?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{safetyView?.dispose();safetyView=null;replyReturn=null;coachInbox.dispose();inboxView?.dispose();inboxView=null;pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;teamDialog?.dispose();teamDialog=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(safetyView?.isOpen()){safetyView.close();return true}if(coachInbox.back())return true;if(teamDialog?.isOpen()){teamDialog.close();return true}if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
 }

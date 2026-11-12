@@ -3,6 +3,7 @@ import { isValidCalendarDate } from '../../lib/calendar-date'
 import type { NativeCalendarCompetition } from '../../lib/native-calendar-contract'
 import { isTeamResultScorecardKey, readTeamCourtScore } from '../../lib/team-results-contract'
 import { localCalendarDate } from './calendar-data'
+import { listedExploreCourt } from './explore-court-catalog'
 
 type MatchFields = {
   match_date: string
@@ -12,9 +13,12 @@ type MatchFields = {
   score: string
 }
 
-export type PersonalMatch = MatchFields & { id: string; revision: string; created_at: string; calendar_match_id: string | null }
+export const courtFeedbackKeys = ['surface', 'lighting', 'court_time'] as const
+export type CourtFeedback = Record<typeof courtFeedbackKeys[number], number | null>
+type MatchVenue = { court_venue_key: string | null; court_feedback: CourtFeedback | null }
+export type PersonalMatch = MatchFields & MatchVenue & { id: string; revision: string; created_at: string; calendar_match_id: string | null }
 export type TeamScore = Pick<MatchFields, 'score' | 'outcome'>
-export type PersonalMatchDraft = MatchFields & { id: string; revision: string; expected: string | null; calendar_match_id: string | null }
+export type PersonalMatchDraft = MatchFields & MatchVenue & { id: string; revision: string; expected: string | null; calendar_match_id: string | null }
 export type CalendarScorecardSeed = {
   calendarMatchId: string; date: string; opponent: string; format?: MatchFields['format']; outcome?: MatchFields['outcome']; score?: string
 }
@@ -25,10 +29,11 @@ export function teamScoreDiffers(saved: TeamScore, posted: TeamScore) {
 }
 
 const table = 'native_personal_matches'
-const columns = 'owner_user_id,id,revision,calendar_match_id,match_date,opponent,format,outcome,score,created_at'
+const columns = 'owner_user_id,id,revision,calendar_match_id,match_date,opponent,format,outcome,score,created_at,court_venue_key,court_feedback'
 const pageSize = 20
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const calendarMatchId = /^(?:league|tournament):[a-zA-Z0-9_-]{1,80}:[a-zA-Z0-9_:-]{1,120}$/
+const courtVenueKey = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/
 const text = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 const validText = (value: string, max: number) => value !== '' && [...value].length <= max && !/\p{Cc}/u.test(value)
@@ -57,17 +62,42 @@ function matchFields(input: Record<string, unknown>): MatchFields {
 export function personalMatchDraft(form: FormData, match: PersonalMatch | null, seed?: CalendarScorecardSeed): PersonalMatchDraft {
   const fields = matchFields(Object.fromEntries(form))
   if (fields.match_date > localCalendarDate()) throw Error('Choose a date for a match you’ve already played.')
+  const venue = text(form.get('court_venue_key'))
+  if (venue && venue !== match?.court_venue_key && !listedExploreCourt(venue)) throw Error('Choose a listed venue for this scorecard.')
   return { ...fields, id: match?.id ?? crypto.randomUUID(), revision: crypto.randomUUID(), expected: match?.revision ?? null,
-    calendar_match_id: match?.calendar_match_id ?? seed?.calendarMatchId ?? null }
+    calendar_match_id: match?.calendar_match_id ?? seed?.calendarMatchId ?? null, court_venue_key: venue || null,
+    court_feedback: venue && venue === match?.court_venue_key ? match.court_feedback : null }
+}
+
+function readCourtFeedback(value: unknown, venue: string | null): CourtFeedback | null {
+  if (value === null || value === undefined) return null
+  if (!venue || typeof value !== 'object' || Array.isArray(value)) throw Error('Court ratings unavailable.')
+  const row = value as Record<string, unknown>
+  if (Object.keys(row).length !== courtFeedbackKeys.length || !courtFeedbackKeys.every(key => {
+    const rating = row[key]
+    return rating === null || typeof rating === 'number' && Number.isInteger(rating) && rating >= 1 && rating <= 5
+  }) ||
+    courtFeedbackKeys.every(key => row[key] === null)) throw Error('Court ratings unavailable.')
+  return {surface:row.surface as number | null,lighting:row.lighting as number | null,court_time:row.court_time as number | null}
+}
+
+export function personalMatchFeedbackDraft(match: PersonalMatch, feedback: CourtFeedback | null): PersonalMatchDraft {
+  if (!listedExploreCourt(match.court_venue_key)) throw Error('Choose a listed venue before rating the court.')
+  return { ...matchFields(match), id: match.id, expected: match.revision, revision: crypto.randomUUID(),
+    calendar_match_id: match.calendar_match_id, court_venue_key: match.court_venue_key,
+    court_feedback: readCourtFeedback(feedback, match.court_venue_key) }
 }
 
 function readMatch(value: unknown, owner: string): PersonalMatch {
   const row = value as Record<string, unknown> | null
+  const venue = row?.court_venue_key ?? null
   if (!row || row.owner_user_id !== owner || typeof row.id !== 'string' || !uuid.test(row.id) ||
       typeof row.revision !== 'string' || !uuid.test(row.revision) || typeof row.created_at !== 'string' ||
       !(row.calendar_match_id === null || typeof row.calendar_match_id === 'string' && calendarMatchId.test(row.calendar_match_id)) ||
+      !(venue === null || typeof venue === 'string' && venue.length <= 80 && courtVenueKey.test(venue) && !venue.startsWith('private-')) ||
       !timestamp.test(row.created_at) || !Number.isFinite(Date.parse(row.created_at))) throw Error('Match record unavailable.')
-  return { ...matchFields(row), id: row.id, revision: row.revision, created_at: row.created_at, calendar_match_id: row.calendar_match_id }
+  return { ...matchFields(row), id: row.id, revision: row.revision, created_at: row.created_at, calendar_match_id: row.calendar_match_id,
+    court_venue_key: venue, court_feedback: readCourtFeedback(row.court_feedback, venue) }
 }
 
 async function requireOwner(client: SupabaseClient, owner: string, current: () => boolean) {
@@ -138,8 +168,10 @@ export async function savePersonalMatch(client: SupabaseClient, owner: string, d
   const saved = result.data ? readMatch(result.data, owner) : !expected && calendar_match_id
     ? await lookup(client, owner, 'calendar_match_id', calendar_match_id, current)
     : await lookup(client, owner, 'id', id, current)
+  const { court_feedback, ...scorecardValues } = values
   if (saved?.id === id && saved.calendar_match_id === calendar_match_id &&
-      Object.entries(values).every(([key, value]) => saved[key as keyof PersonalMatch] === value)) return saved
+      Object.entries(scorecardValues).every(([key, value]) => saved[key as keyof PersonalMatch] === value) &&
+      courtFeedbackKeys.every(key => (saved.court_feedback?.[key] ?? null) === (court_feedback?.[key] ?? null))) return saved
   if (!expected && calendar_match_id && saved?.calendar_match_id === calendar_match_id) {
     if (isTeamResultScorecardKey(calendar_match_id)) throw new MatchChanged('You already saved this team scorecard. Open it again from Team results.')
     throw new MatchChanged('A scorecard is already saved for this calendar match. Open it again from your calendar.')
