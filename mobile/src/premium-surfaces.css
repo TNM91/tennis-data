@@ -114,6 +114,11 @@ button.native-entry-back { inline-size:auto;min-block-size:44px;margin:0 0 12px;
 #lab-identity:has(>.player-setup) { margin-block-start:0; }
 #lab-identity .player-setup { margin:0;padding:0;border:0;background:transparent; }
 body[data-screen="lab"] .player-setup .native-entry-hero h1 { max-inline-size:14ch;font-size:clamp(1.625rem,7vw,2.375rem); }
+@media (max-width:360px) {
+ body[data-screen="lab"] .player-setup .native-entry-hero.tab-hero-court { padding-block:16px;margin-block-end:12px; }
+ .player-setup>.native-entry-list { gap:8px; }
+ .player-setup>.native-entry-list>button.app-tool.secondary { min-block-size:68px;padding-block:8px; }
+}
 .lab-setup-utilities { margin-block-start:14px;padding-inline:14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface); }
 .lab-setup-utilities>summary { min-block-size:44px;padding-block:12px;color:var(--premium-copy);font-size:.8125rem;font-weight:650; }
 .lab-setup-utilities[open] { padding-block-end:14px; }
@@ -1953,10 +1958,11 @@ dialog.shared-match-dialog[open] {
 .court-invite-calendar [hidden] { display:none; }
 .court-finder-search { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end; }
 .court-finder-filters {
- display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1fr) minmax(0,1.1fr);gap:6px;margin-block-end:14px;
+ display:flex;flex-wrap:wrap;gap:6px;margin-block-end:14px;
 }
 .court-finder-filters button.secondary {
- min-inline-size:0;min-block-size:44px;margin:0;padding:6px 4px;
+ flex:1 0 auto;inline-size:auto;min-inline-size:0;max-inline-size:100%;
+ min-block-size:44px;margin:0;padding:6px 4px;
  font-size:.75rem;line-height:1.25;overflow-wrap:anywhere;
 }
 .court-finder-filters button.secondary[aria-pressed="true"] {

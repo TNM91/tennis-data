@@ -640,6 +640,33 @@ const signOut=createNativeSignOut(client,async owner=>{
 },()=>session?.user.id||null)
 function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
+function focusLabCoachShortcut(shortcuts: HTMLElement, ...sectionsAbove: HTMLElement[]) {
+  const shortcut = shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')
+  if (!shortcut) return
+  shortcut.focus({ preventScroll: true })
+  shortcut.scrollIntoView({ block: 'center' })
+
+  const interaction = new AbortController()
+  const layout = new ResizeObserver(() => {
+    if (!shortcut.isConnected || document.activeElement !== shortcut) {
+      stop()
+      return
+    }
+    shortcut.scrollIntoView({ block: 'center' })
+  })
+  function stop() {
+    layout.disconnect()
+    interaction.abort()
+  }
+
+  // Keep focus visible through async layout changes until the player interacts again.
+  for (const section of sectionsAbove) layout.observe(section)
+  shortcut.addEventListener('blur', stop, { once: true, signal: interaction.signal })
+  for (const event of ['pointerdown', 'wheel', 'keydown']) {
+    window.addEventListener(event, stop, { capture: true, once: true, passive: true, signal: interaction.signal })
+  }
+}
+
 async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScorecardSeed;backToTeamResults?:()=>void}) {
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
@@ -816,7 +843,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
         else if(action==='scorecard')matchLog.querySelector<HTMLButtonElement>('[data-log-match]')?.click()
         else openDestination(action,button)
       },entry==='trophies')
-      if(entry==='coach')shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')?.focus()
+      if(entry==='coach')focusLabCoachShortcut(shortcuts,calendar)
       return
     }
     const active = () => version===revision && current.user.id===session?.user.id
@@ -849,20 +876,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
     const trendSection=document.createElement('section')
     const formSection=document.createElement('div');formSection.className='lab-form-host'
     calendar.after(formSection,shortcuts,trendSection)
-    if(entry==='coach'){
-      const shortcut=shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')!
-      shortcut.focus({preventScroll:true})
-      shortcut.scrollIntoView({block:'center'})
-      let scrollY=window.scrollY
-      // Ratings and recent form can expand above the shortcut after My Lab returns.
-      const layout=new ResizeObserver(()=>{
-        if(!shortcut.isConnected||document.activeElement!==shortcut||Math.abs(window.scrollY-scrollY)>1){layout.disconnect();return}
-        shortcut.scrollIntoView({block:'center'})
-        scrollY=window.scrollY
-      })
-      for(const section of [ratingsSection,calendar,formSection])layout.observe(section)
-      shortcut.addEventListener('blur',()=>layout.disconnect(),{once:true})
-    }
+    if(entry==='coach')focusLabCoachShortcut(shortcuts,ratingsSection,calendar,formSection)
     labRatingTrends=mountLabRatingTrends(trendSection,client,playerId,()=>version===revision&&current.user.id===session?.user.id)
     bindLabActions()
     const pathSection=document.createElement('div');pathSection.className='lab-next-band';app.querySelector('#recent-results')!.after(pathSection)

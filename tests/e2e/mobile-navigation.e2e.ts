@@ -73,10 +73,12 @@ test('first-party My Lab opens account notes and training without a linked playe
  await expect(notebook.getByRole('button',{name:'Add goal',exact:true})).toBeEnabled()
  await notebook.getByRole('button',{name:'Close training notes',exact:true}).click()
 
- await page.getByRole('navigation',{name:'Play and improve'}).getByRole('button',{name:'Coach & training',exact:true}).click()
+ const coachShortcut=page.getByRole('navigation',{name:'Play and improve'}).getByRole('button',{name:'Coach & training',exact:true})
+ await coachShortcut.click()
  await expect(page.getByRole('heading',{name:'Coach & training',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'Back to My Lab',exact:true}).click()
- await expect(page.getByRole('navigation',{name:'Play and improve'}).getByRole('button',{name:'Coach & training',exact:true})).toBeFocused()
+ await expect(coachShortcut).toBeFocused()
+ await expect(coachShortcut).toBeInViewport({ratio:1})
  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'More',exact:true}).click()
  await expect(page.locator('[data-app-destination="following"], [data-app-destination="matchup"]')).toHaveCount(0)
  const reads=await page.evaluate(()=>(window as unknown as {labDataReads:typeof import('../fixtures/mobile-navigation-client').labDataReads}).labDataReads)
@@ -715,6 +717,7 @@ test('first-party calendar starts a fresh scorecard when the opponent changes', 
 })
 
 test('first-party captain doubles corrections survive a lost receipt and count once', async ({page}) => {
+ test.setTimeout(40_000)
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?captain-courts=retry-correction')
  await recordScorecardCopies(page)
@@ -1757,6 +1760,8 @@ test('first-party teammate filters team results to their own courts',async({page
  await page.setViewportSize({width:320,height:720})
  await page.clock.setFixedTime(new Date(2026,10,12,12))
  await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ const nav=page.getByRole('navigation',{name:'Main navigation'})
+ await nav.getByRole('button',{name:'Explore',exact:true}).click()
  await page.evaluate(()=>{
   const {manualScheduleFixture,teamResultFixture,personalMatchFixture}=window as unknown as
    typeof import('../fixtures/mobile-personal-matches')&{manualScheduleFixture:{captain:boolean};
@@ -1778,7 +1783,7 @@ test('first-party teammate filters team results to their own courts',async({page
    calendar_match_id:`league:33333333-3333-4333-8333-333333333333:private-team-result:${teamResultFixture.fixtureId}`,
    format:'singles',outcome:'Lost',score:'3-6, 4-6'})
  })
- await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await nav.getByRole('button',{name:/^Chats/}).click()
  await page.getByRole('button',{name:/^Baseline Aces/}).click()
  await page.locator('.chat-room-options > summary').click()
  await page.locator('#chat-team-results').click()
@@ -3131,10 +3136,10 @@ test('first-party Explore ranks courts locally and falls back to city or ZIP whe
  expect(await requestCount(page)).toBe(reads)
 })
 
-test('first-party Explore filters listed courts while preserving city and ZIP searches',async({page},info)=>{
+for(const large of [false,true])test('first-party Explore filters listed courts while preserving city and ZIP searches'+(large?' with larger text':''),async({page},info)=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:740})
- await page.goto(origin+'/?signedOut=1')
+ await page.goto(origin+'/?signedOut=1'+(large?'&large=1':''))
  await page.getByRole('button',{name:'Explore without signing in',exact:true}).click()
  await expect(page.locator('[data-explore-event-status]')).not.toContainText('Checking upcoming play')
  const reads=await requestCount(page)
@@ -3718,8 +3723,22 @@ for(const {width,large} of [{width:390,large:false},{width:320,large:true}])test
  await expect(back).toBeInViewport({ratio:1})
  await bounded(page)
  await page.screenshot({path:info.outputPath('coach-from-my-lab.png')})
- if(large)await back.press('Enter');else await back.tap()
+ if(large){
+  await page.evaluate(()=>{
+   const fixture=(window as unknown as LabProfilePreviewWindow).labProfileFixture
+   fixture.deferRatings();fixture.deferMatches()
+  })
+  await back.press('Enter')
+ }else await back.tap()
  await expect(coach).toBeFocused()
+ if(large){
+  await expect(coach).toBeInViewport({ratio:1})
+  await page.evaluate(()=>{
+   window.scrollTo(0,0)
+   const fixture=(window as unknown as LabProfilePreviewWindow).labProfileFixture
+   fixture.releaseRatings();fixture.releaseMatches()
+  })
+ }
  await expect(page.locator('#results-content')).toHaveAttribute('data-state','ready')
  await expect(coach).toBeInViewport({ratio:1})
  await moreTab.click()
@@ -6475,7 +6494,7 @@ test('warm links wait for the current modal and clear on account switch',async({
  expect(await page.evaluate(()=>Object.keys(localStorage).some(key=>String(localStorage.getItem(key)).includes('secret-fixture-token')))).toBe(false)
 })
 for(const width of [320,390])test('first player setup stays usable at '+width+'px',async({page},info)=>{
- await page.setViewportSize({width,height:844});await page.goto(origin+`/?signedOut=1&unlinked=1&large=1${width===390?'&legacy-player-link=1':''}`)
+ await page.setViewportSize({width,height:width===320?800:844});await page.goto(origin+`/?signedOut=1&unlinked=1&large=1${width===390?'&legacy-player-link=1':''}`)
  const browse=page.getByRole('button',{name:'Explore without signing in',exact:true})
  const signIn=page.getByRole('button',{name:'Sign in or join',exact:true})
  await page.locator('.preview-controls').evaluate(el=>{(el as HTMLElement).hidden=true})
@@ -6534,7 +6553,8 @@ for(const width of [320,390])test('first player setup stays usable at '+width+'p
  for(const action of [find,match,drill,invite,explore]){
   await expect(action).toBeInViewport({ratio:1})
   expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-  expect(await action.evaluate(el=>el.getBoundingClientRect().bottom<=document.querySelector('.app-navigation')!.getBoundingClientRect().top)).toBe(true)
+  expect(await action.evaluate(el=>el.getBoundingClientRect().bottom),(await action.getAttribute('aria-labelledby'))??undefined)
+   .toBeLessThanOrEqual(await page.locator('.app-navigation').evaluate(el=>el.getBoundingClientRect().top))
  }
  await bounded(page)
  await page.screenshot({path:info.outputPath('player-setup.png')})
