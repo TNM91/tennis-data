@@ -84,6 +84,7 @@ export function listedExploreCourt(id:string|null|undefined){
 }
 
 export function hittingPlanLocation(court:ExploreCourt){return `${court.name} — ${court.destination}`}
+export function hittingPlanTitle(court:ExploreCourt){return `Hit at ${court.name}`}
 
 export function hittingPlanCourt(entry:{location:string;hittingPlan?:HittingPlan}){
  return stLouisHittingClubs.find(court=>court.id===entry.hittingPlan?.clubId&&entry.location===hittingPlanLocation(court))

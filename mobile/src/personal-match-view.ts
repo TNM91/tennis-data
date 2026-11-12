@@ -11,7 +11,7 @@ import { loadCaptainScorecards } from './captain-court-data'
 import type { PostedCourtScorecard } from '../../lib/native-court-result-contract'
 import { inferTiqBestOfThreeWinner } from '../../lib/tiq-scoring'
 import { isTeamResultScorecardKey } from '../../lib/team-results-contract'
-import { courtFeedbackKeys, loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, personalMatchFeedbackDraft,
+import { courtFeedbackKeys, latestScorecardDate, loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, personalMatchFeedbackDraft,
   removePersonalMatch, savePersonalMatch, teamScoreDiffers, type CalendarScorecardSeed, type CourtFeedback, type PersonalMatch,
   type PersonalMatchDraft, type TeamScore } from './personal-match-data'
 
@@ -419,7 +419,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       ${calendarSeed ? `<p>${isTeamResultScorecardKey(calendarSeed.calendarMatchId)?'Review the details from your team result before saving.':'Match details from your TenAceIQ calendar.'}</p>` : ''}
       <fieldset>
         <legend class="sr-only">Match details</legend>
-        <label>Match date <input type="date" name="match_date" required max="${localCalendarDate()}"></label>
+        <label>Match date <input type="date" name="match_date" required max="${latestScorecardDate(match, calendarSeed)}"></label>
         ${recent.length ? `<details data-recent-opponents><summary>Recent opponents</summary>${recent.map(saved =>
           `<button type="button" class="secondary" data-reuse-opponent>${html(saved.opponent)} · ${formatName(saved.format)}</button>`).join('')}</details>` : ''}
         <label>Opponent or doubles team <input name="opponent" maxlength="100" required></label>

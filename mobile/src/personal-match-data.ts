@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isValidCalendarDate } from '../../lib/calendar-date'
-import { hittingPlanConfirmed, hittingPlanStart } from '../../lib/hitting-plan'
+import { hittingPlanConfirmed, hittingPlanStart, hittingPlanTimeZone } from '../../lib/hitting-plan'
 import type { NativeCalendarCompetition } from '../../lib/native-calendar-contract'
 import { isTeamResultScorecardKey, readTeamCourtScore } from '../../lib/team-results-contract'
+import { todayDateKey } from '../../lib/team-room-match-flow'
 import { localCalendarDate, type CalendarOccurrence } from './calendar-data'
 import { hittingPlanCourt, listedExploreCourt } from './explore-court-catalog'
 
@@ -60,6 +61,12 @@ export function hittingPlanScorecardSeed(event: CalendarOccurrence | null | unde
   return { calendarMatchId: `hitting:${event.id}`, date: event.date, opponent: '', courtVenueKey: venue.id }
 }
 
+export function latestScorecardDate(match: PersonalMatch | null, seed?: CalendarScorecardSeed) {
+  const now = new Date()
+  return match?.hitting_calendar_id || hittingIdFromSeed(seed)
+    ? todayDateKey(now, hittingPlanTimeZone) : localCalendarDate(now)
+}
+
 function matchFields(input: Record<string, unknown>): MatchFields {
   const date = text(input.match_date)
   const opponent = text(input.opponent)
@@ -74,7 +81,7 @@ function matchFields(input: Record<string, unknown>): MatchFields {
 
 export function personalMatchDraft(form: FormData, match: PersonalMatch | null, seed?: CalendarScorecardSeed): PersonalMatchDraft {
   const fields = matchFields(Object.fromEntries(form))
-  if (fields.match_date > localCalendarDate()) throw Error('Choose a date for a match you’ve already played.')
+  if (fields.match_date > latestScorecardDate(match, seed)) throw Error('Choose a date for a match you’ve already played.')
   const venue = text(form.get('court_venue_key'))
   if (venue && venue !== match?.court_venue_key && !listedExploreCourt(venue)) throw Error('Choose a listed venue for this scorecard.')
   const hittingId = match?.hitting_calendar_id ?? hittingIdFromSeed(seed)

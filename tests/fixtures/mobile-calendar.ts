@@ -18,7 +18,11 @@ export async function calendarPreview(method:string,url:URL,body:unknown,teamMat
     match.responseStatus=action.response;match.responseIsStale=false;match.responseUpdatedAt=new Date().toISOString()
    }
   }
-  else if(action.action==='delete')calendarFixture.personal=calendarFixture.personal.filter(p=>p.id!==action.id)
+  else if(action.action==='delete'){
+   const saved=calendarFixture.personal.find(item=>item.id===action.id)
+   if(saved&&saved.updatedAt!==action.expectedUpdatedAt)return Response.json({ok:false},{status:409})
+   calendarFixture.personal=calendarFixture.personal.filter(item=>item.id!==action.id)
+  }
   else{const p=calendarFixture.personal.find(p=>p.id===action.item.id);if(action.action==='update'&&!p)return Response.json({ok:false},{status:409});if(p&&p.updatedAt!==action.expectedUpdatedAt&&JSON.stringify(personalDraft(p))!==JSON.stringify(action.item))return Response.json({ok:false},{status:409});const value={...action.item,createdAt:p?.createdAt||updated,updatedAt:new Date().toISOString()};calendarFixture.personal=[...calendarFixture.personal.filter(p=>p.id!==action.item.id),value]}
   if(calendarFixture.loseWrite){calendarFixture.loseWrite=false;throw Error('Synthetic lost response')}
   if(action.action==='respond'){const e=calendarFixture.competitions.find(e=>e.id===action.eventId)!;return Response.json({ok:true,owner,...scope,eventId:e.id,response:e.responseStatus,updatedAt:e.responseUpdatedAt,warning:''})}

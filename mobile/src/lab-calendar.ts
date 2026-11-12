@@ -11,6 +11,7 @@ import {calendarScorecardSeed,hittingPlanScorecardSeed,type CalendarScorecardSee
 import {hittingPlanTimeZone} from '../../lib/hitting-plan'
 import {todayDateKey} from '../../lib/team-room-match-flow'
 import {hittingPlanCourt} from './explore-court-catalog'
+import {firstPartyBuild} from './build-scope'
 import websiteUi from '../generated/website-ui.json'
 export type CourtEvent={id:string;source:'personal'|'competition';title:string;date:string;time:string;location:string;detail:string;kind:string;readiness:string;recurrence:string}
 export type CourtCalendar={events:CourtEvent[];competitionUnavailable:boolean}
@@ -62,16 +63,18 @@ type CalendarHighlightShortcuts={
 }
 export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>string|undefined){
  let version=0
- let cached:{owner:string;date:string;expires:number;read:Promise<NativeCalendar|null>}|null=null
+ let cached:{owner:string;from:string;today:string;expires:number;read:Promise<NativeCalendar|null>}|null=null
  const clear=()=>{version++;cached=null}
  let refreshPractice=(calendarChanged:boolean)=>{if(calendarChanged)clear()}
  const readWeek=(owner:string)=>{
-  const today=localCalendarDate()
-  if(cached?.owner===owner&&cached.date===today&&Date.now()<cached.expires)return cached.read
+  const now=new Date(),today=localCalendarDate(now)
+  const clubYesterday=firstPartyBuild?shiftCalendarDay(todayDateKey(now,hittingPlanTimeZone),-1):today
+  const from=clubYesterday<today?clubYesterday:today
+  if(cached?.owner===owner&&cached.from===from&&cached.today===today&&Date.now()<cached.expires)return cached.read
   const request=++version
   const active=()=>request===version&&currentOwner()===owner
-  const read=loadCalendarSources(client,owner,active,{from:today,to:shiftCalendarDay(today,6)}).catch(()=>null)
-  cached={owner,date:today,expires:Date.now()+5*60_000,read}
+  const read=loadCalendarSources(client,owner,active,{from,to:shiftCalendarDay(today,6)}).catch(()=>null)
+  cached={owner,from,today,expires:Date.now()+5*60_000,read}
   void read.then(value=>{if(active()&&cached&&(!value||value.warnings.length))cached.expires=Date.now()+30_000})
   return read
  }
@@ -127,14 +130,17 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
      return seed?[seed]:[]
     })
     const clubToday=todayDateKey(now,hittingPlanTimeZone)
+    const clubYesterday=shiftCalendarDay(clubToday,-1)
     const hittingScorecard=completed.length===1?undefined:events.reduce<{title:string;seed:CalendarScorecardSeed}|undefined>((latest,item)=>{
-     const seed=item.date===clubToday?hittingPlanScorecardSeed(item,now):undefined
+     const seed=item.date===clubToday||item.date===clubYesterday?hittingPlanScorecardSeed(item,now):undefined
      return seed?{title:item.title,seed}:latest
     },undefined)
     completedScorecard=completed.length===1?completed[0]:hittingScorecard?.seed
     if(!completedScorecard&&document.activeElement===scorecardButton)button.focus({preventScroll:true})
     scorecardButton.hidden=!completedScorecard
-    scorecardButton.querySelector<HTMLElement>('[data-scorecard-kicker]')!.textContent=hittingScorecard?'Earlier today':'Completed today'
+    const hitDay=hittingScorecard?.seed.date===clubToday?'Earlier today':'Yesterday'
+    scorecardButton.querySelector<HTMLElement>('[data-scorecard-kicker]')!.textContent=hittingScorecard
+     ?hitDay+(clubToday!==today?' · CT':''):'Completed today'
     scorecardButton.querySelector<HTMLElement>('[data-scorecard-opponent]')!.textContent=hittingScorecard?hittingScorecard.title:completedScorecard?.opponent
      ?'vs '+completedScorecard.opponent:'Tournament match'
    }

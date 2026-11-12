@@ -134,9 +134,14 @@ export function isCurrentCalendarOccurrence(event:CalendarOccurrence,calendar:Na
  return event.date>today||!event.time||event.time.slice(0,5)>=now.toTimeString().slice(0,5)||isPracticeInProgress(event,now)
 }
 
-export const exportableCalendarOccurrences=(entries:CalendarOccurrence[])=>entries.filter(e=>e.source!=='team'||
- (e.kind==='match'?(!e.time||Boolean(e.timeZone&&eventCalendarStart(e.date,e.time,e.timeZone))):
-  e.teamStatus!=='cancelled'&&(!e.time||Boolean(buildPracticeCalendarRange(e.date,e.time,e.endTime)))))
+export const isExportableHittingPlan=(event:CalendarOccurrence|null)=>Boolean(event?.hittingPlan&&event.time&&event.timeZone&&hittingPlanConfirmed(event))
+
+export const exportableCalendarOccurrences=(entries:CalendarOccurrence[])=>entries.filter(event=>{
+ if(event.hittingPlan)return isExportableHittingPlan(event)
+ if(event.source!=='team')return true
+ if(event.kind==='match')return !event.time||Boolean(event.timeZone&&eventCalendarStart(event.date,event.time,event.timeZone))
+ return event.teamStatus!=='cancelled'&&(!event.time||Boolean(buildPracticeCalendarRange(event.date,event.time,event.endTime)))
+})
 export function calendarExport(entries:CalendarOccurrence[],zone:string){
  if(entries.length>10000||!zone||zone.length>80)throw Error('Choose a smaller calendar export.')
  try{new Intl.DateTimeFormat('en-US',{timeZone:zone}).format()}catch{throw Error('Choose a valid time zone.')}

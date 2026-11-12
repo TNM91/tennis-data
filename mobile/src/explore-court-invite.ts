@@ -8,10 +8,10 @@ import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 import {todayDateKey} from '../../lib/team-room-match-flow'
 import websiteUi from '../generated/website-ui.json'
 import {calendarRequest,readCalendarItem,shiftCalendarDay} from './calendar-data'
-import {clubBookingPhone,hittingPlanLocation,stLouisHittingClubs,type ExploreCourt} from './explore-court-catalog'
+import {clubBookingPhone,hittingPlanLocation,hittingPlanTitle,stLouisHittingClubs} from './explore-court-catalog'
+import {hittingClubOptions} from './hitting-club-picker'
 import {courtInviteMessage} from './court-invite-message'
 import {readSavedCourts,toggleSavedCourt,type CourtPreference} from './explore-saved-courts'
-import {html} from './match-details'
 
 const courtsById=new Map(stLouisHittingClubs.map(court=>[court.id,court]))
 export type CourtInviteCalendar={client:SupabaseClient;changed:()=>void;open:(saved:PlayerCalendarItem)=>void}
@@ -98,14 +98,7 @@ export function openCourtInvite(trigger:HTMLElement,current:()=>boolean,owner?:s
  }
 
  function renderCourts(selected:string){
-  const option=(court:ExploreCourt)=>`<option value="${html(court.id)}">${html(court.name)}</option>`
-  const home=stLouisHittingClubs.filter(court=>court.id===saved.home)
-  const favorites=stLouisHittingClubs.filter(court=>court.id!==saved.home&&saved.favorites.includes(court.id))
-  const others=stLouisHittingClubs.filter(court=>court.id!==saved.home&&!saved.favorites.includes(court.id))
-  const groups:[string,ExploreCourt[]][]=[['Home court',home],['Favorites',favorites],['Other clubs',others]]
-  courtField.innerHTML=home.length||favorites.length?groups.map(([label,list])=>
-   list.length?`<optgroup label="${label}">${list.map(option).join('')}</optgroup>`:'').join(''):stLouisHittingClubs.map(option).join('')
-  courtField.value=selected
+  courtField.innerHTML=hittingClubOptions(saved,selected)
  }
 
  function toggleSaved(preference:CourtPreference){
@@ -167,7 +160,7 @@ export function openCourtInvite(trigger:HTMLElement,current:()=>boolean,owner?:s
   const id=planIds.get(key)??'player-calendar-'+crypto.randomUUID()
   planIds.set(key,id)
   let draft:CalendarDraft
-  try{draft=calendarDraft({id,title:`Hit at ${court.name}`,date:day.value,time:time.value,location:hittingPlanLocation(court),
+  try{draft=calendarDraft({id,title:hittingPlanTitle(court),date:day.value,time:time.value,location:hittingPlanLocation(court),
    kind:'match',recurrenceRule:'',availabilityStatus:'',venueDirectoryId:'',venuePreferenceId:'',hittingPlan:{clubId:court.id}})}
   catch(error){status.textContent=error instanceof Error?error.message:'Check the date and time for this hit.';return}
   busy=true;fields.disabled=true;share.disabled=true;copy.disabled=true;save.disabled=true

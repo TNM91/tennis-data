@@ -366,7 +366,11 @@ function openScorecardPractice(owner:string,current:()=>boolean,matchDate:string
  return training
 }
 function openPlayerCalendar(owner:string,current:()=>boolean,trigger:HTMLElement,initial?:CalendarStart){
- return openCalendar(client,owner,current,trigger,initial,(practice,button,active,reviewRep)=>openScheduledPractice(owner,active,button,practice,{reviewRep,fromCalendar:true}),
+ const start=typeof initial==='object'?initial:{
+  ...(initial==='coach'?{filter:'coach' as const}:{}),
+  onClose:(changed:boolean)=>{if(changed)calendarHighlights.refreshPractice(true)},
+ }
+ return openCalendar(client,owner,current,trigger,start,(practice,button,active,reviewRep)=>openScheduledPractice(owner,active,button,practice,{reviewRep,fromCalendar:true}),
   firstPartyBuild?scorecard=>guardNavigation(()=>{if(current())void lab({scorecard})}):undefined)
 }
 function launchCalendar(trigger:HTMLElement,initial:CalendarStart='all'){

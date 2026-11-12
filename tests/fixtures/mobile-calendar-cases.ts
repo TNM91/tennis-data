@@ -490,6 +490,67 @@ test('Calendar finder: export reviews the query and includes only matching loade
  expect(await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.length)).toBe(before)
 })
 
+test('Calendar finder: hitting plans are searchable and only confirmed hits export',async({page},info)=>{
+ await page.clock.setFixedTime(new Date('2026-11-11T19:00:00Z'))
+ const calendar=await calendarScreen(page,320)
+ await page.evaluate(()=>{
+  const {calendarFixture}=window as unknown as typeof import('./mobile-calendar')
+  const date=calendarFixture.competitions[0].date
+  const hit={...calendarFixture.personal[0],date,kind:'match' as const,recurrenceRule:'' as const,
+   location:'Vetta Sunset — 10911 Gravois Industrial Ct, St. Louis, MO 63128'}
+  calendarFixture.personal.push(
+   {...hit,id:'player-calendar-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',title:'Afternoon doubles hit',
+    time:'17:00',hittingPlan:{clubId:'vetta-sunset'}},
+   {...hit,id:'player-calendar-cccccccc-cccc-4ccc-8ccc-cccccccccccc',title:'Evening singles hit',
+    time:'18:30',hittingPlan:{clubId:'vetta-sunset',confirmedFor:date+'T18:30'}},
+  )
+ })
+ await calendar.getByRole('button',{name:'Refresh',exact:true}).click()
+ const rows=calendar.locator('.cal-event')
+ await expect(rows).toHaveCount(5)
+ const requests=()=>page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.requests.length)
+ const before=await requests()
+ const filter=calendar.getByRole('combobox',{name:'Show',exact:true})
+ await filter.selectOption({label:'Hitting plans'})
+ await expect(rows).toHaveCount(2)
+ await expect(rows.last()).toContainText('6:30 PM CT')
+ const search=calendar.getByRole('searchbox',{name:'Find a date',exact:true})
+ const exportButton=calendar.getByRole('button',{name:'Export',exact:true})
+ await search.fill('hitting plan')
+ await expect(rows).toHaveCount(2)
+ await search.fill('proposed')
+ await expect(rows).toHaveCount(1)
+ await expect(rows.first()).toContainText('Afternoon doubles hit')
+ await expect(exportButton).toBeDisabled()
+ await calendar.getByRole('button',{name:'Clear calendar search',exact:true}).click()
+ await filter.scrollIntoViewIfNeeded()
+ expect(await calendar.locator('.cal-body').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await page.screenshot({path:info.outputPath('calendar-hitting-plans.png')})
+ await exportButton.click()
+ await expect(calendar).toContainText('1 date')
+ await expect(calendar).toContainText('Confirm the proposed hit to include it in a future export.')
+ await expect(calendar.getByRole('combobox')).toHaveCount(0)
+ const downloading=page.waitForEvent('download')
+ await calendar.getByRole('button',{name:'Share calendar file',exact:true}).click()
+ const file=await downloading,stream=await file.createReadStream(),chunks:Buffer[]=[]
+ for await(const chunk of stream!)chunks.push(chunk)
+ const ics=Buffer.concat(chunks).toString('utf8')
+ expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(1)
+ expect(ics).toContain('SUMMARY:Evening singles hit')
+ expect(ics).toContain('DTSTART:20261112T003000Z')
+ expect(ics).toContain('DTEND:20261112T020000Z')
+ expect(ics).not.toContain('Afternoon doubles hit')
+ await calendar.getByRole('button',{name:'Back to calendar',exact:true}).click()
+ await expect(exportButton).toBeFocused()
+ expect(await requests()).toBe(before)
+ await rows.filter({hasText:'Afternoon doubles hit'}).click()
+ await calendar.getByRole('button',{name:'Confirm plan',exact:true}).click()
+ await expect(calendar.getByText('Confirmed',{exact:true})).toBeVisible()
+ await calendar.getByRole('button',{name:'Back to calendar',exact:true}).click()
+ await expect(filter).toHaveValue('hitting-plans')
+ await expect(rows).toHaveCount(2)
+})
+
 test('Calendar finder: a failed or held refresh clears stale dates and keeps unknown counts distinct from no matches',async({page})=>{
  const d=await calendarScreen(page),input=d.getByRole('searchbox',{name:'Find a date',exact:true});await input.fill('Riverside');await page.evaluate(()=>{(window as unknown as CalendarWindow).calendarFixture.fail=true});await d.getByRole('button',{name:'Refresh',exact:true}).click()
  const today=d.locator('[data-cal-day][aria-current="date"]')
@@ -499,6 +560,81 @@ test('Calendar finder: a failed or held refresh clears stale dates and keeps unk
  await expect(today).toHaveAttribute('aria-label',/1 matching event$/)
  await page.evaluate(()=>{(window as unknown as CalendarWindow).calendarFixture.defer=true});await d.getByRole('button',{name:'Refresh',exact:true}).click();await expect(d.locator('.cal-event')).toHaveCount(0);await expect(input).toBeDisabled()
  await page.evaluate(()=>(window as unknown as CalendarWindow).switchNavigationOwner());await expect(d).toHaveCount(0);await page.evaluate(()=>(window as unknown as CalendarWindow).calendarFixture.release());await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('Calendar: cancellation shares the reviewed hit and checks for changes before removing it',async({page},info)=>{
+ await page.clock.setFixedTime(new Date('2026-11-11T19:00:00Z'))
+ const calendar=await calendarScreen(page,320)
+ const id='player-calendar-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+ type CancellationWindow=Window&typeof import('./mobile-calendar')&{cancellationCopies:string[];cancellationShares:ShareData[]}
+ await page.evaluate(hitId=>{
+  const state=window as unknown as CancellationWindow
+  const {calendarFixture}=state
+  const date=calendarFixture.competitions[0].date
+  calendarFixture.personal.push({...calendarFixture.personal[0],id:hitId,date,title:'Private match notes',
+   kind:'match',recurrenceRule:'',time:'18:30',location:'Vetta Sunset — 10911 Gravois Industrial Ct, St. Louis, MO 63128',
+   hittingPlan:{clubId:'vetta-sunset',confirmedFor:date+'T18:30'}})
+  state.cancellationCopies=[]
+  state.cancellationShares=[]
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{state.cancellationCopies.push(text)}}})
+  Object.defineProperty(navigator,'share',{configurable:true,value:async(data:ShareData)=>{state.cancellationShares.push(data)}})
+ },id)
+ await calendar.getByRole('button',{name:'Refresh',exact:true}).click()
+ const filter=calendar.getByRole('combobox',{name:'Show',exact:true})
+ await filter.selectOption('hitting-plans')
+ const row=calendar.locator('.cal-event').filter({hasText:'Private match notes'})
+ await row.click()
+ const cancel=calendar.getByRole('button',{name:'Cancel plan',exact:true})
+ await cancel.click()
+ await expect(calendar.getByRole('heading',{name:'Cancel hitting plan?',exact:true})).toBeFocused()
+ await calendar.getByRole('button',{name:'Keep plan',exact:true}).click()
+ await expect(cancel).toBeFocused()
+ await cancel.click()
+ const message='Our tennis hit at Vetta Sunset on Wednesday, November 11, 2026 at 6:30 PM CST is canceled.'
+ await expect(calendar.getByText(message,{exact:true})).toBeVisible()
+ expect(await calendar.locator('.cal-body').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await page.screenshot({path:info.outputPath('cancel-hitting-plan.png')})
+ await calendar.getByRole('button',{name:'Copy message',exact:true}).click()
+ await expect(calendar.getByText('Cancellation copied.',{exact:true})).toBeVisible()
+ await calendar.getByRole('button',{name:'Share cancellation',exact:true}).click()
+ await expect(calendar.getByText('Share sheet closed.',{exact:true})).toBeVisible()
+ const sent=await page.evaluate(()=>{
+  const {calendarFixture,cancellationCopies,cancellationShares}=window as unknown as CancellationWindow
+  return {cancellationCopies,cancellationShares,writes:calendarFixture.requests.filter(item=>item.method==='POST')}
+ })
+ expect(sent.cancellationCopies).toEqual([message])
+ expect(sent.cancellationShares.map(item=>item.text)).toEqual([message])
+ expect(sent.writes).toHaveLength(0)
+
+ const revisions=await page.evaluate(hitId=>{
+  const {calendarFixture}=window as unknown as CancellationWindow
+  const hit=calendarFixture.personal.find(item=>item.id===hitId)!
+  const before=hit.updatedAt
+  hit.time='18:45';hit.updatedAt='2026-11-11T19:01:00.000Z'
+  hit.hittingPlan={clubId:'vetta-sunset',confirmedFor:hit.date+'T18:45'}
+  return {before,after:hit.updatedAt}
+ },id)
+ const remove=calendar.getByRole('button',{name:'Remove from TenAceIQ',exact:true})
+ const check=calendar.getByRole('button',{name:'Check saved entry',exact:true})
+ await remove.click()
+ await check.click()
+ await expect(calendar.getByText('The plan is still saved. Review the latest details before removing it.',{exact:true})).toBeVisible()
+ await expect(calendar).toContainText('6:45 PM CT')
+ await cancel.click()
+ await expect(calendar).toContainText('6:45 PM CST is canceled.')
+ await page.evaluate(()=>{(window as unknown as CancellationWindow).calendarFixture.loseWrite=true})
+ await remove.click()
+ await check.click()
+ await expect(calendar.getByText('Hitting plan removed.',{exact:true})).toBeVisible()
+ await expect(filter).toHaveValue('hitting-plans')
+ await expect(filter).toBeFocused()
+ await expect(row).toHaveCount(0)
+ const writes=await page.evaluate(()=>(window as unknown as CancellationWindow).calendarFixture.requests
+  .filter(item=>item.method==='POST').map(item=>item.body))
+ expect(writes).toEqual([
+  {action:'delete',id,expectedUpdatedAt:revisions.before},
+  {action:'delete',id,expectedUpdatedAt:revisions.after},
+ ])
 })
 
 test('Calendar finder: search sees dates beyond the first page and Show more restores keyboard focus',async({page})=>{

@@ -5,8 +5,8 @@ import {html} from './match-details'
 import {COMPETITION_DATES_UNAVAILABLE,calendarDraft,personalDraft,sameCalendarDraft,type CalendarDraft,type CalendarIntent,type NativeCalendar} from '../../lib/native-calendar-contract'
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
-import {hittingPlanConfirmed} from '../../lib/hitting-plan'
-import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,calendarTournamentEntry,exportableCalendarOccurrences,personalCalendarOccurrence,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence,type CalendarPractice} from './calendar-data'
+import {hittingPlanConfirmed,hittingPlanTimeZone} from '../../lib/hitting-plan'
+import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,calendarTournamentEntry,exportableCalendarOccurrences,isExportableHittingPlan,personalCalendarOccurrence,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence,type CalendarPractice} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
 import {createCalendarFinder} from './calendar-finder'
 import {CALENDAR_WEEKLY_REP_CHANGED,notifyCalendarWeeklyRepChange,readCalendarWeeklyReps,saveCalendarWeeklyRep,type CalendarWeeklyRep,type CalendarWeeklyRepChange} from './calendar-weekly-reps'
@@ -20,9 +20,11 @@ import {exportCoachFile,cancelCoachFile} from './native-coach-files'
 import {Browser} from './native-browser'
 import {firstPartyBuild} from './build-scope'
 import {calendarScorecardSeed,hittingPlanScorecardSeed,type CalendarScorecardSeed} from './personal-match-data'
-import {clubBookingPhone,hittingPlanCourt} from './explore-court-catalog'
+import {clubBookingPhone,hittingPlanCourt,hittingPlanLocation,hittingPlanTitle,stLouisHittingClubs} from './explore-court-catalog'
 import {openCourtDirections} from './explore-court-directions'
-import {courtInviteMessage} from './court-invite-message'
+import {courtCancellationMessage,courtInviteMessage} from './court-invite-message'
+import {hittingClubOptions} from './hitting-club-picker'
+import {readSavedCourts} from './explore-saved-courts'
 import websiteUi from '../generated/website-ui.json'
 
 const label=(day:string)=>new Date(day+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})
@@ -36,7 +38,7 @@ function previousMatchSchedule(before:Pick<CalendarOccurrence,'date'|'time'>&{lo
 }
 const repeatNames:Record<string,string>={'':'Does not repeat','FREQ=DAILY':'Every day','FREQ=WEEKLY':'Every week','FREQ=MONTHLY':'Every month on this day'}
 const calendarSources=['personal','competition','coach','team'] as const
-const calendarFilters={all:'All types',personal:'Personal',competition:'Competitions','needs-reply':'Needs reply',coach:'Coach',team:firstPartyBuild?'Team matches':'Team practices'} as const
+const calendarFilters={all:'All types',personal:'Personal','hitting-plans':'Hitting plans',competition:'Competitions','needs-reply':'Needs reply',coach:'Coach',team:firstPartyBuild?'Team matches':'Team practices'} as const
 const calendarFilterOptions=Object.entries(calendarFilters).map(([value,label])=>`<option value="${value}">${label}</option>`).join('')
 type CalendarFilter=keyof typeof calendarFilters
 const groupByDate=(events:CalendarOccurrence[])=>{
@@ -114,6 +116,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const now=new Date()
    return events.filter(event=>needsMatchReply(event,now))
   }
+  if(filter==='hitting-plans')return events.filter(event=>event.hittingPlan)
   return filter==='all'?events:events.filter(event=>event.source===filter)
  }
  const visible=(events=matchingEvents())=>day?events.filter(event=>event.date===day):events
@@ -124,10 +127,15 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const match=selectedMatch()
   return match&&isScheduledCompetitionMatch(match)?match:null
  }
- const exportableHit=()=>selected?.hittingPlan&&selected.timeZone&&hittingPlanConfirmed(selected)?selected:null
+ const exportableHit=()=>isExportableHittingPlan(selected)?selected:null
  const hitMessage=()=>{
   const court=selected&&hittingPlanCourt(selected)
   if(!selected||!court)return
+  if(panel==='delete'){
+   const text=courtCancellationMessage(court,selected)
+   if(text)return {body:text,address:'',text}
+   return
+  }
   const {body,directions,start}=courtInviteMessage(court,selected)
   if(start)return {body,address:court.destination,text:`${body}\n${court.destination}\n\n${directions}`}
  }
@@ -138,7 +146,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const match=scheduledMatch()
   return match&&match.date>=localCalendarDate()?calendarMatchVenueHref(match):''
  }
- const exportZone=()=>panel==='match-export'?exportableHit()?.timeZone??matchExportZone:zone
+ const exportZone=()=>panel==='match-export'?exportableHit()?.timeZone??matchExportZone:filter==='hitting-plans'?hittingPlanTimeZone:zone
  const exportEvents=()=>{
   if(panel!=='match-export')return exportableCalendarOccurrences(visible())
   const event=exportableMatch()
@@ -151,7 +159,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const canConfirmReply=(match:MatchAvailability)=>!busy&&!pending&&match.status!=='Completed'&&replyChanged(match)
  const focus=()=>{
-  const step=schedulingRep||linkedPractice?dialog.querySelector<HTMLElement>('.cal-body h2[tabindex]'):null
+  const step=schedulingRep||linkedPractice||draft?.hittingPlan?dialog.querySelector<HTMLElement>('.cal-body h2[tabindex]'):null
   const heading=step??dialog.querySelector<HTMLElement>('h2, h1')
   heading?.focus({preventScroll:true})
  }
@@ -209,6 +217,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   dialog.querySelector<HTMLElement>(control)?.focus()
  }
  const returnToHit=()=>returnToMatch('[data-cal-hit-share-review]')
+ const keepHit=()=>returnToMatch('[data-cal-hit-cancel-review]')
  const back=()=>{
   if(courtDirections?.isOpen()){courtDirections.dispose();return true}
   if(practiceDrillView?.isOpen()){practiceDrillView.back();return true}
@@ -222,6 +231,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(panel==='hit-share'){returnToHit();return true}
   if(linkedPractice&&(panel==='linked-practice'||panel==='editor'&&draft&&draftStart&&sameCalendarDraft(draft,draftStart))){dispose();return true}
   if(pending||panel==='editor'||panel==='review'||hasReplyChanges()){confirmDiscard('close');return true}
+  if(panel==='delete'&&selected?.hittingPlan){keepHit();return true}
   if(linkedPractice&&panel==='delete'){panel='editor';render();focus();return true}
   if(tournamentShortcut){dispose();return true}
   if(panel!=='agenda'){returnAgenda();return true}
@@ -381,9 +391,10 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(saved){
    anchor=saved.date
    day=''
-   filter='all'
+   const hit=hittingPlanCourt(saved)
+   if(filter!=='hitting-plans'||!hit)filter='all'
    query=''
-   if(hittingPlanCourt(saved)||saved.practiceFocus)initialEvent=personalCalendarOccurrence(saved)
+   if(hit||saved.practiceFocus)initialEvent=personalCalendarOccurrence(saved)
   }
   if(loaded){
    calendar=loaded
@@ -399,6 +410,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   const message=warning||(intent.response==='available'?'Saved your “I can play” reply.':'Saved your “I can’t play” reply.')
   return {message,...focusFromEvent('competition:'+intent.eventId),focusControl:filter==='needs-reply'?'[data-cal-filter]':'[data-cal-refresh]'}
  }
+ const hitRemoved={message:'Hitting plan removed.',focusControl:'[data-cal-filter]'}
  const perform=async(intent:CalendarIntent)=>{
   if(!active()||busy||pending)return
   busy=true;pending=intent;notice='Saving your calendar change…';render()
@@ -411,6 +423,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    else{
     const saved=readCalendarItem(result.item)
     if(intent.action==='delete'?saved!==null:!saved||!sameCalendarDraft(personalDraft(saved),intent.item))throw Error()
+    if(intent.action==='delete'&&selected?.hittingPlan){await confirmed(hitRemoved);return}
     const message=intent.action==='delete'?'Personal event deleted.':saved?.hittingPlan
      ?hittingPlanConfirmed(saved)?'Hitting plan confirmed.':'Hitting plan saved.':'Personal event saved.'
     await confirmed({message},{saved})
@@ -455,12 +468,21 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
     notice='The current reply differs or this date moved. Open the date to review its latest schedule.'
    }else{
     const id=intent.action==='delete'?intent.id:intent.item.id,result=await calendarRequest(client,owner,active,{item:id}),saved=readCalendarItem(result.item);if(!active())return
-   if(linkedPractice&&saved&&saved.id!==id)throw Error()
+    const removingHit=intent.action==='delete'&&Boolean(selected?.hittingPlan)
+    if((linkedPractice||removingHit)&&saved&&saved.id!==id)throw Error()
     if(intent.action==='delete'&&!saved||intent.action!=='delete'&&saved&&sameCalendarDraft(personalDraft(saved),intent.item)){
-     await confirmed({message:intent.action==='delete'?'Deletion confirmed.':'Your personal event is saved.'},{saved})
+     await confirmed(removingHit?hitRemoved:{message:intent.action==='delete'?'Deletion confirmed.':'Your personal event is saved.'},{saved})
      return
     }
     pending=null
+    if(removingHit&&saved){
+     changed=changed||saved.updatedAt!==intent.expectedUpdatedAt
+     const latest=personalCalendarOccurrence(saved)
+     selected=null;panel='agenda';initialEvent=latest;anchor=saved.date;day='';query=''
+     if(!latest.hittingPlan&&filter==='hitting-plans')filter='all'
+     await refresh({message:'The plan is still saved. Review the latest details before removing it.',focusKey:latest.key})
+     return
+    }
    if(linkedPractice&&(!saved||saved.kind!=='practice'||saved.recurrenceRule)){missingLinkedPractice(id);return}
    if(linkedPractice&&saved)selected=personalCalendarOccurrence(saved)
     if(saved){draft=personalDraft(saved);draftStart=draft;baseline=saved.updatedAt;schedulingRep=false;panel='editor';notice='The saved entry differs. Review this latest version before making a change.'}
@@ -511,6 +533,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(!calendar)return busy?'Loading…':'Unavailable'
   if(competitionDatesUnavailable()||filter==='team'&&calendar.practicesUnavailable)return 'Unavailable'
   if(filter==='needs-reply')return `${list.length} ${list.length===1?'match needs':'matches need'} a reply`
+  if(filter==='hitting-plans')return `${list.length} ${list.length===1?'plan':'plans'}`
   return list.length+' '+(query.trim()?'matching ':'')+(list.length===1?'date':'dates')
  }
  const agendaHighlight=(list:CalendarOccurrence[],now=new Date())=>{
@@ -521,7 +544,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(event)eyebrow=isPracticeInProgress(event,now)?'Scheduled now':event.date===today?'Today':'Next in this view'
   const top=`<div class="cal-hero-top"><small class="stat-eyebrow">${eyebrow}</small><span aria-hidden="true">${websiteUi.icons.leagues}</span></div>`
   if(!event)return top+'<h2>Your tennis calendar</h2><p>Personal plans and shared dates.</p>'
-  const time=event.time?event.time.slice(0,5)+(event.endTime?' – '+event.endTime:''):''
+  const time=event.hittingPlan?formatCaptainPracticeTimeRange(event.time)+' CT':event.time?event.time.slice(0,5)+(event.endTime?' – '+event.endTime:''):''
   const dateAndTime=[event.date===today?'':label(event.date),time].filter(Boolean).join(' · ')
   const replyStatus=event.matchNeedsReply||event.hittingPlan?`<p id="cal-highlight-reply"${event.matchNeedsReply?' data-cal-reply-needed':''}>${html(event.readiness)}</p>`:''
   const details=`<button type="button" class="secondary" data-cal-open-event="${html(event.key)}" aria-describedby="cal-highlight-title${replyStatus?' cal-highlight-reply':''}">Open event</button>`
@@ -534,18 +557,19 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(competitionDatesUnavailable())return '<div class="cal-empty"><h3>Competition dates are unavailable.</h3><p>Refresh to check your league and tournament dates.</p></div>'
   if(!list.length&&filter==='needs-reply'&&!query.trim())return '<div class="cal-empty"><h3>No matches need a reply here.</h3><p>Check another date or switch to All types to see more of your calendar.</p></div>'
   if(!list.length&&filter==='competition'&&!query.trim())return '<div class="cal-empty"><h3>No competition dates here.</h3><p>Check another week or month for your league and tournament dates.</p></div>'
+  if(!list.length&&filter==='hitting-plans'&&!query.trim())return '<div class="cal-empty"><h3>No hitting plans here.</h3><p>Check another date or plan a hit from Tennis clubs in Explore.</p></div>'
   if(!list.length)return filter==='team'&&calendar.practicesUnavailable?'<div class="cal-empty"><h3>Team practices are unavailable.</h3><p>Refresh to check your current invitations.</p></div>':query.trim()?'<div class="cal-empty"><h3>No matching dates loaded.</h3><p>Try another name or venue, clear search, or choose another week or month.</p></div>':'<div class="cal-empty"><h3>No dates in this view.</h3><p>Try all dates, another type or add a personal plan.</p></div>'
   let last=''
   const now=new Date()
   return list.slice(0,shown).map(e=>{
    const heading=e.date!==last?'<h3 class="cal-date">'+html(label(e.date))+'</h3>':''
    last=e.date
-   const time=e.time?e.time.slice(0,5):e.source==='team'?'TBD':'All day'
+   const time=e.hittingPlan?formatCaptainPracticeTimeRange(e.time):e.time?e.time.slice(0,5):e.source==='team'?'TBD':'All day'
    const type=e.hittingPlan?'Hitting plan':e.practiceFocus?'Practice':e.source==='competition'?e.kind:e.source==='coach'?'Coach':e.source==='team'?(e.kind==='match'?'Team match':'Team practice · '+(calendar?.practices?.find(p=>p.id===e.id)?.scope.teamName||'')):'Personal'
    const readiness=e.readiness?`<span${needsMatchReply(e,now)?' data-cal-reply-needed':''}>${html(e.readiness)}</span>`:''
    const scheduled=canOpenPractice(e)
    const titleId='cal-scheduled-rep-'+html(e.id)
-   const row=`<button type="button" class="cal-event ${e.source}" data-cal-event="${html(e.key)}"><span class="cal-event-time">${html(time)}</span><span class="cal-event-copy"><small>${html(type)}${e.recurring?' · Repeats':''}</small><strong${scheduled?` id="${titleId}"`:''}>${html(e.title)}</strong>${e.location?'<span>'+html(e.location)+'</span>':''}${readiness}${scheduled?practiceStatus(e.id):''}</span><span aria-hidden="true">›</span></button>`
+   const row=`<button type="button" class="cal-event ${e.source}" data-cal-event="${html(e.key)}"><span class="cal-event-time"${e.hittingPlan?' data-cal-hit-time':''}>${html(time)}${e.hittingPlan?' <small>CT</small>':''}</span><span class="cal-event-copy"><small>${html(type)}${e.recurring?' · Repeats':''}</small><strong${scheduled?` id="${titleId}"`:''}>${html(e.title)}</strong>${e.location?'<span>'+html(e.location)+'</span>':''}${readiness}${scheduled?practiceStatus(e.id):''}</span><span aria-hidden="true">›</span></button>`
    return heading+(scheduled?`<div class="cal-scheduled-rep">${row}${practiceButton(e,titleId)}</div>`:row)
   }).join('')+(list.length>shown?'<button class="secondary" data-cal-more>Show more dates</button>':'')
  }
@@ -570,6 +594,10 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   }).join('')
   return `<section class="cal-hero"><div data-cal-highlight>${agendaHighlight(list,now)}</div></section><div class="cal-toolbar"><div class="cal-switch" role="group" aria-label="Calendar view">${(['week','month'] as const).map(m=>'<button data-cal-mode="'+m+'" aria-pressed="'+(mode===m)+'" '+(busy?'disabled':'')+'>'+m[0].toUpperCase()+m.slice(1)+'</button>').join('')}</div><button class="secondary" data-cal-today ${busy?'disabled':''}>Today</button></div><div class="cal-period"><button class="secondary" data-cal-step="-1" aria-label="Previous ${mode}" ${busy?'disabled':''}>‹</button><h3>${html(period)}</h3><button class="secondary" data-cal-step="1" aria-label="Next ${mode}" ${busy?'disabled':''}>›</button></div><div class="cal-grid" aria-label="Choose a date">${['M','T','W','T','F','S','S'].map(d=>'<span class="cal-weekday" aria-hidden="true">'+d+'</span>').join('')}${'<span></span>'.repeat(lead)}${days}</div><div class="cal-legend"><span>● Personal</span><span>● Competition</span><span>● Coach</span><span>● ${firstPartyBuild?'Team match':'Team practice'}</span></div><div class="cal-toolbar cal-filter-toolbar"><button class="secondary" data-cal-all aria-pressed="${!day}" ${busy?'disabled':''}>All dates</button><label class="cal-type"><span>Show</span><select data-cal-filter ${busy?'disabled':''}>${calendarFilterOptions}</select></label></div><div class="cal-search"><label for="cal-search">Find a date</label><div class="cal-search-field"><input id="cal-search" data-cal-query type="search" maxlength="160" autocomplete="off" placeholder="Match, practice, lesson or venue" aria-describedby="cal-search-help" value="${html(query)}" ${busy?'disabled':''}><button type="button" class="secondary" data-cal-clear aria-label="Clear calendar search" ${query?'':'hidden'} ${busy?'disabled':''}>Clear</button></div><p class="cal-search-help" id="cal-search-help">Search names, opponents and venues in this ${mode}.</p></div>${calendar?.warnings.map(w=>'<p class="cal-warning" role="alert">'+html(w)+'</p>').join('')||''}<div class="cal-agenda-title"><h2 tabindex="-1">${day?html(label(day)):'Your agenda'}</h2><span data-cal-count role="status" aria-live="polite" aria-atomic="true">${agendaCount(list)}</span></div><div data-cal-results>${agendaRows(list)}</div><p class="cal-footnote">Competition dates come from your approved entries. ${firstPartyBuild?'':'Team practices appear when you’re invited and have current team access. '}Personal availability notes don’t send an RSVP.</p>`
  }
+ const hitMessageActions=(text:string,canceling=false)=>`
+  ${manualHitCopy?`<label class="cal-hit-message">${canceling?'Cancellation message':'Plan message'}<textarea readonly rows="${canceling?3:5}" data-cal-hit-message>${html(text)}</textarea></label>`:''}
+  <div class="cal-hitting-actions"><button type="button"${canceling?' class="secondary"':''} data-cal-hit-send ${busy?'disabled':''}>${canceling?'Share cancellation':'Share message'}</button>
+  <button type="button" class="secondary" data-cal-hit-copy ${busy?'disabled':''}>Copy message</button></div>`
  const content=()=>{
   if(panel==='agenda')return agenda()
   if(panel==='leave'&&returnPanel==='respond'&&selected?.source==='competition'&&!pending)return `<section class="cal-panel"><h2 tabindex="-1">Leave this availability reply?</h2><p>Your unsaved choice will be discarded.</p><button data-cal-stay>Keep reply</button><button class="secondary" data-cal-discard>${discardDestination==='agenda'?'Discard reply':'Discard and close'}</button></section>`
@@ -577,21 +605,40 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(panel==='leave')return `<section class="cal-panel"><h2 tabindex="-1">Leave this calendar change?</h2><p>${pending?'The saved result is still unconfirmed. Your calendar will need a fresh check when you return.':'Your unsaved changes will be discarded.'}</p><button data-cal-stay>Keep reviewing</button><button class="secondary" data-cal-discard>Discard and close</button></section>`
   if(panel==='recovery')return '<section class="cal-panel"><h2 tabindex="-1">Check the saved result</h2><p>The connection ended before we could confirm your change. Check your saved calendar before trying again.</p><button data-cal-recover '+(busy?'disabled':'')+'>Check saved entry</button></section>'
   if(panel==='linked-practice')return `<section class="cal-panel"><h2 tabindex="-1">Saved practice</h2>${practiceLookupFailed?'<button type="button" data-cal-practice-retry>Retry practice lookup</button>':''}</section>`
-  if(panel==='editor'&&draft)return `<form class="cal-form"${draft.practiceFocus?' data-cal-practice-focus':''}>
+  if(panel==='editor'&&draft)return `<form class="cal-form"${draft.hittingPlan?' data-cal-hitting-plan':draft.practiceFocus?' data-cal-practice-focus':''}>
    <h2 tabindex="-1">${draft.hittingPlan?'Edit hitting plan':schedulingRep?'Schedule practice':linkedPractice||draft.practiceFocus?'Edit practice date':baseline?'Edit personal event':'Add personal event'}</h2>
    ${field('title','Title',draft.title)}
    <div class="cal-form-pair">${field('date','Date',draft.date,'date')}${field('time',draft.hittingPlan?'Central time':schedulingRep&&!draft.practiceFocus?'Time':'Time (optional)',draft.time,'time')}</div>
-   ${draft.hittingPlan?`<p>${html(draft.location)}</p><p>Changing the date or time returns the plan to Proposed.</p>`:draft.practiceFocus?`${field('location','Location (optional)',draft.location)}<p><strong>Practice target</strong><br>${html(draft.practiceFocus.target)}</p>`:schedulingRep?'<p>Save a private practice on your calendar. Leave the time blank for an all-day entry.</p>':`
+   ${draft.hittingPlan?`<label class="cal-type"><span>Tennis club</span><select name="club" required aria-describedby="cal-hit-address">${hittingClubOptions(readSavedCourts(owner),draft.hittingPlan.clubId)}</select></label>
+    <p id="cal-hit-address" aria-live="polite">${html(hittingPlanCourt(draft)?.destination??draft.location)}</p>
+    <p>Changing the club, date or time returns the plan to Proposed.</p>`:draft.practiceFocus?`${field('location','Location (optional)',draft.location)}<p><strong>Practice target</strong><br>${html(draft.practiceFocus.target)}</p>`:schedulingRep?'<p>Save a private practice on your calendar. Leave the time blank for an all-day entry.</p>':`
     ${field('location','Location (optional)',draft.location)}
     <label>Type<select name="kind">${['practice','match','lesson','reminder','availability'].map(k=>'<option value="'+k+'" '+(draft!.kind===k?'selected':'')+'>'+k[0].toUpperCase()+k.slice(1)+'</option>').join('')}</select></label>
     <label>Repeat<select name="recurrenceRule">${Object.entries(repeatNames).map(([k,v])=>'<option value="'+k+'" '+(draft!.recurrenceRule===k?'selected':'')+'>'+v+'</option>').join('')}</select></label>
     <label data-cal-availability ${draft.kind==='availability'?'':'hidden'}>Personal availability<select name="availabilityStatus"><option value="available" ${draft.availabilityStatus==='available'?'selected':''}>Available</option><option value="unavailable" ${draft.availabilityStatus==='unavailable'?'selected':''}>Unavailable</option></select></label>
     <p>${draft.recurrenceRule?'Edits apply to the whole repeating series. Monthly dates skip months without that day.':'Leave time empty for an all-day entry.'} Personal events don’t book a court, send a team message or reply to a competition.</p>`}
-   <button type="submit">${schedulingRep||draft.practiceFocus?'Review practice':'Review event'}</button>
-   ${baseline&&selected?'<button type="button" class="secondary" data-cal-delete-review>'+(selected.recurring?'Delete repeating series':'Delete event')+'</button>':''}
+   <button type="submit">${draft.hittingPlan?'Review plan':schedulingRep||draft.practiceFocus?'Review practice':'Review event'}</button>
+   ${baseline&&selected&&!draft.hittingPlan?'<button type="button" class="secondary" data-cal-delete-review>'+(selected.recurring?'Delete repeating series':'Delete event')+'</button>':''}
    <button type="button" class="secondary" data-cal-cancel>Cancel</button>
   </form>`
+  if(panel==='review'&&draft?.hittingPlan){
+   const confirmed=hittingPlanConfirmed(draft)
+   return `<section class="cal-panel cal-event-panel"><div class="cal-hitting-heading"><h2 tabindex="-1">Review hitting plan</h2>
+    <p class="cal-event-readiness" data-tone="${confirmed?'available':'changed'}">${confirmed?'Confirmed':'Proposed'}</p></div>
+    ${details(draft,'Time to be confirmed')}
+    <button type="button" data-cal-save ${busy?'disabled':''}>${baseline?'Save changes':'Save plan'}</button>
+    <button type="button" class="secondary" data-cal-edit ${busy?'disabled':''}>Keep editing</button></section>`
+  }
   if(panel==='review'&&draft)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">${schedulingRep||draft.practiceFocus?'Review practice':'Review personal event'}</h2>${details(draft,'All day')}${draft.practiceFocus?`<p><strong>Practice target</strong><br>${html(draft.practiceFocus.target)}</p>`:`<p>${html(draft.kind)} · ${html(repeatNames[draft.recurrenceRule])}</p>`}${draft.kind==='availability'?'<p>Personal note: '+html(draft.availabilityStatus)+'. No competition reply is sent.</p>':''}${draft.recurrenceRule?'<p>This saves the whole repeating series.</p>':''}<button data-cal-save ${busy?'disabled':''}>${schedulingRep?'Save private practice':baseline?'Save changes':'Save personal event'}</button><button class="secondary" data-cal-edit ${busy?'disabled':''}>Keep editing</button></section>`
+  if(panel==='delete'&&selected?.hittingPlan){
+   const message=hitMessage()
+   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Cancel hitting plan?</h2>
+    ${message?`<div class="cal-event-summary"><h3>Cancellation message</h3><p>${html(message.body)}</p></div>
+    ${hitMessageActions(message.text,true)}`:details(selected,'Time to be confirmed')}
+    <p>Remove the plan from TenAceIQ, then update any copy in your phone calendar.</p>
+    <button type="button" class="secondary cal-hit-remove" data-cal-remove-hit ${busy?'disabled':''}>Remove from TenAceIQ</button>
+    <button type="button" class="secondary" data-cal-keep-hit ${busy?'disabled':''}>Keep plan</button></section>`
+  }
   if(panel==='delete'&&selected)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Delete ${selected.recurring?'repeating series':'personal event'}?</h2>${details(selected,'All day')}<p>${selected.recurring?'Every occurrence from this personal series will be removed.':'This removes this personal event from your saved calendar.'}</p><button data-cal-delete ${busy?'disabled':''}>Delete ${selected.recurring?'whole series':'event'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Keep event</button></section>`
   if(panel==='respond'&&selected?.source==='team'){
    const team=selectedTeamMatch()
@@ -613,7 +660,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
     <div class="cal-hitting-actions">${hitMessage()?'<button type="button" class="secondary" data-cal-hit-share-review>Share plan</button>':''}
     <button type="button" class="secondary" data-cal-edit-hit>Edit plan</button></div>
     ${exportableHit()?'<button type="button" class="secondary" data-cal-match-export-review>Export to calendar</button>':''}
-    <button type="button" class="secondary" data-cal-agenda>Back to calendar</button></section>`
+    <div class="cal-hitting-actions"><button type="button" class="secondary" data-cal-agenda>Back to calendar</button>
+    <button type="button" class="secondary" data-cal-hit-cancel-review>Cancel plan</button></div></section>`
   }
   if(panel==='hit-share'){
    const message=hitMessage()
@@ -621,9 +669,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Share hitting plan</h2>
     <div class="cal-event-summary"><h3>Message preview</h3><p>${html(message.body)}</p>
     <p>${html(message.address)}</p><p>Includes Apple Maps and Google Maps directions.</p></div>
-    ${manualHitCopy?`<label class="cal-hit-message">Plan message<textarea readonly rows="5" data-cal-hit-message>${html(message.text)}</textarea></label>`:''}
-    <div class="cal-hitting-actions"><button type="button" data-cal-hit-send ${busy?'disabled':''}>Share message</button>
-    <button type="button" class="secondary" data-cal-hit-copy ${busy?'disabled':''}>Copy message</button></div>
+    ${hitMessageActions(message.text)}
     <button type="button" class="secondary" data-cal-hit-back ${busy?'disabled':''}>Back to hitting plan</button></section>`
   }
   if(panel==='respond'&&selected?.practiceFocus){
@@ -647,14 +693,21 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(panel==='export'||panel==='match-export'){
    const single=panel==='match-export',list=exportEvents(),selectedZone=exportZone()
    const hit=single&&exportableHit()
+   const onlyHits=!single&&filter==='hitting-plans'
+   const includesHits=list.some(event=>event.hittingPlan)
+   const omittedHits=single?0:visible().filter(event=>event.hittingPlan&&!hittingPlanConfirmed(event)).length
+   const venueTimeNote=firstPartyBuild
+    ?`${includesHits?'Hitting plans and team matches':'Team matches'} use their venue time zone. Choose a zone for your other dates.`
+    :includesHits?'Hitting plans use their club’s time zone. Choose a zone for your other dates.':'Choose the zone where these events take place.'
    const zones=[...new Set(['America/Chicago',Intl.DateTimeFormat().resolvedOptions().timeZone,'America/New_York','America/Denver','America/Los_Angeles','Pacific/Honolulu','America/Anchorage'])]
    return `<section class="cal-panel${single?' cal-event-panel':''}"><h2 tabindex="-1">${hit?'Export this hit':single?'Export this match':'Export these dates'}</h2>
     ${single&&selected?details(selected,'Time to be confirmed'):`<p>${list.length} ${list.length===1?'date':'dates'} · ${day?html(label(day)):html(label(range().from)+' – '+label(range().to))} · ${calendarFilters[filter]}</p>${query.trim()?'<p>Search: '+html(query)+'</p>':''}`}
-    ${hit?'':`<label${single?' class="cal-type"':''}><span>${single?'Venue time zone':'Times are in'}</span><select data-cal-zone ${busy?'disabled':''}>
+    ${hit||onlyHits?'':`<label${single?' class="cal-type"':''}><span>${single?'Venue time zone':includesHits?'Time zone for other dates':'Times are in'}</span><select data-cal-zone ${busy?'disabled':''}>
      ${single?'<option value="" disabled>Choose a time zone</option>':''}
      ${zones.map(z=>`<option value="${html(z)}" ${z===selectedZone?'selected':''}>${html(z.replaceAll('_',' '))}</option>`).join('')}
     </select></label>`}
-    ${hit?'<p>The file reserves 90 minutes for this hit. Export it again after a schedule change.</p>':single?'<p>The file reserves 90 minutes for this match. Later schedule changes won’t sync.</p>':`<p>${firstPartyBuild?'Team matches use their venue time zone. Choose a zone for your other dates.':'Choose the zone where these events take place.'} ${firstPartyBuild?'Timed events':'Team practices use their recorded end time when available. Other timed events'} use 90-minute slots; Coach lessons use 60 minutes. Dates without a time export as all day.</p><p>${firstPartyBuild?'':'Cancelled team practices and invalid time ranges are excluded. '}This is a one-time calendar file for the dates, type and search shown. Repeating entries export only occurrences in this view. Later changes won’t sync.</p>`}
+    ${hit?'<p>The file reserves 90 minutes for this hit. Export it again after a schedule change.</p>':single?'<p>The file reserves 90 minutes for this match. Later schedule changes won’t sync.</p>':onlyHits?'<p>Each confirmed hit exports as a 90-minute event in its club’s time zone. Export again after a schedule change.</p>':`<p>${venueTimeNote} ${firstPartyBuild?'Timed events':'Team practices use their recorded end time when available. Other timed events'} use 90-minute slots; Coach lessons use 60 minutes. Dates without a time export as all day.</p><p>${firstPartyBuild?'':'Cancelled team practices and invalid time ranges are excluded. '}This is a one-time calendar file for the dates, type and search shown. Repeating entries export only occurrences in this view. Later changes won’t sync.</p>`}
+    ${omittedHits?`<p>Confirm ${omittedHits===1?'the proposed hit to include it':`the ${omittedHits} proposed hits to include them`} in a future export.</p>`:''}
     ${!single&&calendar?.warnings.length?'<p class="cal-warning">Some sources are unavailable. This file includes only the dates that loaded.</p>':''}
     <button data-cal-export ${busy||!list.length||!selectedZone?'disabled':''}>Share calendar file</button>
     <button class="secondary" ${single?'data-cal-match-back':'data-cal-agenda'} ${busy?'disabled':''}>${hit?'Back to hitting plan':single?'Back to match':'Back to calendar'}</button>
@@ -871,18 +924,29 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    dialog.querySelector<HTMLElement>('.cal-body h2')?.focus()
   })
   on('[data-cal-hit-back]',returnToHit)
+  on('[data-cal-hit-cancel-review]',()=>{
+   if(!selectedPersonal()?.hittingPlan)return
+   panel='delete';manualHitCopy=false;notice='';render()
+   dialog.querySelector<HTMLElement>('.cal-body h2')?.focus()
+  })
+  on('[data-cal-keep-hit]',keepHit)
+  on('[data-cal-remove-hit]',()=>{
+   const plan=selectedPersonal()
+   if(plan?.hittingPlan)void perform({action:'delete',id:plan.id,expectedUpdatedAt:plan.updatedAt})
+  })
   on('[data-cal-hit-send],[data-cal-hit-copy]',async button=>{
    const message=hitMessage()
    if(!message)return
    const copy=button.hasAttribute('data-cal-hit-copy')
+   const canceling=panel==='delete'
    busy=true;manualHitCopy=false;notice='';render()
    try{
     if(copy)await Clipboard.write({string:message.text})
-    else await Share.share({title:'Tennis hitting plan',text:message.text,dialogTitle:'Share hitting plan'})
-    notice=copy?'Plan copied.':'Share sheet closed.'
+    else await Share.share({title:canceling?'Tennis cancellation':'Tennis hitting plan',text:message.text,dialogTitle:canceling?'Share cancellation':'Share hitting plan'})
+    notice=copy?(canceling?'Cancellation copied.':'Plan copied.'):'Share sheet closed.'
    }catch(error){
     manualHitCopy=copy
-    if(copy)notice='Select and copy the plan message below.'
+    if(copy)notice=canceling?'Select and copy the cancellation below.':'Select and copy the plan message below.'
     else if(!(error instanceof Error&&(error.name==='AbortError'||error.message==='Share canceled')))notice='Couldn’t open sharing. You can copy the message instead.'
    }finally{
     busy=false
@@ -907,22 +971,37 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   })
   const form=dialog.querySelector<HTMLFormElement>('form')
   if(form&&draft){
+   const titleField=form.querySelector<HTMLInputElement>('[name="title"]')!
+   const address=form.querySelector<HTMLElement>('#cal-hit-address')
    const sync=()=>{
-    const data=new FormData(form),location=String(data.get('location')??draft!.location),kind=String(data.get('kind')??draft!.kind) as CalendarDraft['kind']
-    draft={...draft!,title:String(data.get('title')||''),date:String(data.get('date')||''),time:String(data.get('time')||''),location,kind,recurrenceRule:String(data.get('recurrenceRule')??draft!.recurrenceRule) as CalendarDraft['recurrenceRule'],availabilityStatus:kind==='availability'?String(data.get('availabilityStatus')||'available') as CalendarDraft['availabilityStatus']:'',...(location!==draft!.location?{venueDirectoryId:'',venuePreferenceId:''}:{})}
+    const current=draft!,data=new FormData(form)
+    const date=String(data.get('date')||''),time=String(data.get('time')||'')
+    const kind=String(data.get('kind')??current.kind) as CalendarDraft['kind']
+    const recurrenceRule=String(data.get('recurrenceRule')??current.recurrenceRule) as CalendarDraft['recurrenceRule']
+    const availabilityStatus=kind==='availability'?String(data.get('availabilityStatus')||'available') as CalendarDraft['availabilityStatus']:''
+    const clubId=data.get('club'),club=clubId?stLouisHittingClubs.find(club=>club.id===clubId):undefined
+    const location=club?hittingPlanLocation(club):String(data.get('location')??current.location)
+    let hittingPlan=current.hittingPlan
+    if(club){
+     const previous=hittingPlanCourt(current)
+     if(previous&&previous.id!==club.id&&titleField.value===hittingPlanTitle(previous))titleField.value=hittingPlanTitle(club)
+     const saved=draftStart?.id===current.id?draftStart:current
+     hittingPlan=saved.hittingPlan?.clubId===club.id&&saved.date===date&&saved.time===time
+      ?saved.hittingPlan:{clubId:club.id}
+     if(address&&address.textContent!==club.destination)address.textContent=club.destination
+    }
+    draft={...current,title:titleField.value,date,time,location,kind,recurrenceRule,availabilityStatus,
+     ...(hittingPlan?{hittingPlan}:{}),...(location!==current.location?{venueDirectoryId:'',venuePreferenceId:''}:{})}
     const availability=form.querySelector<HTMLElement>('[data-cal-availability]')
     if(availability)availability.hidden=kind!=='availability'
    }
    form.oninput=sync;form.onchange=sync;form.onsubmit=e=>{
     e.preventDefault();sync()
-    if(draft?.hittingPlan&&draftStart&&(draft.date!==draftStart.date||draft.time!==draftStart.time)){
-     draft={...draft,hittingPlan:{clubId:draft.hittingPlan.clubId}}
-    }
     try{draft=calendarDraft(draft);panel='review';notice='';render();focus()}
     catch(error){notice=error instanceof Error?error.message:'Review this event.';status()}
    }
   }
-  on('[data-cal-edit]',()=>{panel='editor';render();if(schedulingRep||linkedPractice)focus()});on('[data-cal-delete-review]',()=>{panel='delete';render();focus()})
+  on('[data-cal-edit]',()=>{panel='editor';render();if(schedulingRep||linkedPractice||draft?.hittingPlan)focus()});on('[data-cal-delete-review]',()=>{panel='delete';render();focus()})
   on('[data-cal-save]',()=>{if(draft)void perform({action:baseline?'update':'create',item:draft,expectedUpdatedAt:baseline})})
   on('[data-cal-delete]',()=>{if(selected)void perform({action:'delete',id:selected.id,expectedUpdatedAt:baseline})})
   const replySelect=dialog.querySelector<HTMLSelectElement>('[data-cal-reply]')
