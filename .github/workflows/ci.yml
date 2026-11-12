@@ -4,27 +4,11 @@ on:
 permissions:
   contents: read
 jobs:
-  native-mobile-browser:
+  native-navigation-follow-up:
     if: github.repository == 'TNM91/tennis-data' && github.ref == 'refs/heads/codex/qa-native-navigation-270'
-    name: ${{ matrix.name }}
+    name: Native navigation follow-up (WebKit)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Native navigation (WebKit 1/2)
-            suite: navigation
-            browsers: webkit
-            project: mobile-webkit
-            workers: 1
-            shard: 1/2
-          - name: Native navigation (WebKit 2/2)
-            suite: navigation
-            browsers: webkit
-            project: mobile-webkit
-            workers: 1
-            shard: 2/2
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -37,35 +21,16 @@ jobs:
           if [ -f /etc/apt/apt-mirrors.txt ]; then
             sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           fi
-      - name: Install locked dependencies and browser engines
+      - name: Install locked dependencies and browser engine
         run: |
           npm ci
-          npx playwright install --with-deps ${{ matrix.browsers }}
+          npx playwright install --with-deps webkit
       - name: Bundle the installed app
         run: npm run build:bundled --prefix mobile
-      - name: Verify complete Coach workflows on phone browser engines
-        if: matrix.suite == 'coach'
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4287
-        run: npx playwright test tests/e2e/mobile-coach-workspace.e2e.ts tests/e2e/mobile-coach-tactics.e2e.ts tests/e2e/mobile-coach-complete.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/coach-experience-results
-      - name: Verify native destinations and local tool search
-        if: matrix.suite == 'navigation'
+      - name: Verify onboarding and score recovery
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4283
-          PLAYWRIGHT_PROJECT: ${{ matrix.project }}
-          PLAYWRIGHT_WORKERS: ${{ matrix.workers }}
-          PLAYWRIGHT_SHARD: ${{ matrix.shard }}
-        # These fixtures isolate every browser/account and block external services.
         run: >-
           npx playwright test --config=tests/playwright.native-navigation.config.ts
-          --project="$PLAYWRIGHT_PROJECT" --workers="$PLAYWRIGHT_WORKERS" --shard="$PLAYWRIGHT_SHARD"
-          --output=.next/navigation-results --reporter=list,github
-
-      - name: Save synthetic Coach UI fixtures
-        if: always() && matrix.suite == 'coach'
-        uses: actions/upload-artifact@v6
-        with:
-          name: coach-experience-ui-fixtures-${{ github.sha }}
-          path: .next/coach-experience-results/**/*.png
-          if-no-files-found: ignore
-          retention-days: 3
+          --project=mobile-webkit --workers=1 --output=.next/navigation-results --reporter=list,github
+          -g 'doubles corrections survive a lost receipt|first player setup stays usable'

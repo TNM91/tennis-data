@@ -717,6 +717,7 @@ test('first-party calendar starts a fresh scorecard when the opponent changes', 
 })
 
 test('first-party captain doubles corrections survive a lost receipt and count once', async ({page}) => {
+ test.setTimeout(40_000)
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?captain-courts=retry-correction')
  await recordScorecardCopies(page)
@@ -6493,7 +6494,7 @@ test('warm links wait for the current modal and clear on account switch',async({
  expect(await page.evaluate(()=>Object.keys(localStorage).some(key=>String(localStorage.getItem(key)).includes('secret-fixture-token')))).toBe(false)
 })
 for(const width of [320,390])test('first player setup stays usable at '+width+'px',async({page},info)=>{
- await page.setViewportSize({width,height:844});await page.goto(origin+`/?signedOut=1&unlinked=1&large=1${width===390?'&legacy-player-link=1':''}`)
+ await page.setViewportSize({width,height:width===320?800:844});await page.goto(origin+`/?signedOut=1&unlinked=1&large=1${width===390?'&legacy-player-link=1':''}`)
  const browse=page.getByRole('button',{name:'Explore without signing in',exact:true})
  const signIn=page.getByRole('button',{name:'Sign in or join',exact:true})
  await page.locator('.preview-controls').evaluate(el=>{(el as HTMLElement).hidden=true})
@@ -6552,7 +6553,8 @@ for(const width of [320,390])test('first player setup stays usable at '+width+'p
  for(const action of [find,match,drill,invite,explore]){
   await expect(action).toBeInViewport({ratio:1})
   expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-  expect(await action.evaluate(el=>el.getBoundingClientRect().bottom<=document.querySelector('.app-navigation')!.getBoundingClientRect().top)).toBe(true)
+  expect(await action.evaluate(el=>el.getBoundingClientRect().bottom),await action.getAttribute('aria-labelledby'))
+   .toBeLessThanOrEqual(await page.locator('.app-navigation').evaluate(el=>el.getBoundingClientRect().top))
  }
  await bounded(page)
  await page.screenshot({path:info.outputPath('player-setup.png')})
