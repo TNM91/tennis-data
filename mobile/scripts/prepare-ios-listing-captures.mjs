@@ -47,6 +47,11 @@ await build({
           'for(const [id,name] of '+JSON.stringify(names)+')chatNames.set(id,name)\n'
         return {contents:source.replace(marker,seed+marker).replace('2026-11-06T10:05:00.000Z','2026-11-06T17:05:00.000Z'),loader:'ts'}
       })
+      builder.onLoad({filter:/[\\/]tests[\\/]fixtures[\\/]mobile-training-inbox\.ts$/},async args=>{
+        const source=await readFile(args.path,'utf8')
+        return {contents:source.replace('dueDate:shiftCalendarDay(today,1)','dueDate:shiftCalendarDay(today,4)')
+          .replace('dueDate:shiftCalendarDay(today,-1)','dueDate:shiftCalendarDay(today,2)'),loader:'ts'}
+      })
     },
   }],
 })
@@ -81,7 +86,8 @@ const hook = [
   '            try? await Task.sleep(nanoseconds: 250_000_000)',
   '        }',
   '        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)',
-  '        try? Data(result.utf8).write(to: ready, options: .atomic)',
+  '        let marker = result == screen ? ready : ready.appendingPathExtension("failed")',
+  '        try? Data(result.utf8).write(to: marker, options: .atomic)',
   '    }',
   '}',
   '#endif',

@@ -28,8 +28,6 @@ jobs:
           npm run build:bundled --prefix mobile -- --first-party-full
           npm run prepare:ios --prefix mobile
           npm run check:ios --prefix mobile -- --first-party-full
-      - name: Start the large iPhone before compiling
-        run: bash mobile/scripts/capture-ios-listing.sh boot
       - name: Compile the unsigned screenshot app with isolated sample data
         run: |
           set -euo pipefail
@@ -37,21 +35,13 @@ jobs:
           xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/tiq-listing" CODE_SIGNING_ALLOWED=NO build -quiet
-      - name: Capture Team Chat and Coach & Training on a large iPhone
+      - name: Capture Coach & Training on a large iPhone
         timeout-minutes: 10
         run: bash mobile/scripts/capture-ios-listing.sh
       - name: Retain only the sample screenshots
         uses: actions/upload-artifact@v6
         with:
-          name: tenaceiq-first-party-iphone-listing-273
+          name: tenaceiq-first-party-iphone-coach-273
           path: ${{ runner.temp }}/tiq-listing-screens/*.jpg
           if-no-files-found: error
           retention-days: 3
-      - name: Retain simulator diagnostics if a capture fails
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: tenaceiq-first-party-iphone-capture-diagnostics
-          path: ${{ runner.temp }}/tiq-listing-diagnostics/*.jpg
-          if-no-files-found: ignore
-          retention-days: 2
