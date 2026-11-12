@@ -8,13 +8,14 @@ type Result={ok:boolean;status:number;eventId:string;publicToken:string;roster:{
 const sql=(s:string)=>db.exec(s)
 async function call(action='preview',changes:Record<string,unknown>={}){const a={owner,team:'Aces',league:'City',flight:'4.0',action,id,fields,capacity:2,roster:[{id:rosterId,playerId:player,name:'Jordan Sample'}],...changes};return (await db.query<{r:Result}>('select native_create_practice($1,$2,$3,$4,$5,$6,$7,$8,$9) r',[a.owner,a.team,a.league,a.flight,a.action,a.id,a.fields,a.capacity,a.roster])).rows[0].r}
 beforeAll(async()=>{db=new PGlite();await sql(`create role anon;create role authenticated;create role service_role;
-create table profiles(id uuid primary key,linked_player_id uuid,message_search_enabled boolean default true);
+create table profiles(id uuid primary key,linked_player_id uuid,message_search_enabled boolean default true,message_display_name text);
 create view internal_message_directory as select id,linked_player_id from profiles where message_search_enabled;
-create table team_profile_links(id uuid primary key default gen_random_uuid(),profile_user_id uuid,normalized_team_name text,league_name text,flight text,status text,archived_at timestamptz,team_role text,team_roles text[]);
+create table team_profile_links(id uuid primary key default gen_random_uuid(),profile_user_id uuid,normalized_team_name text,league_name text,flight text,status text,archived_at timestamptz,team_role text,team_roles text[],team_name text,source_type text);
 create table team_roster_members(id uuid primary key,player_id uuid,player_name text,normalized_team_name text,league_name text,flight text);
 create table internal_conversations(id uuid primary key default gen_random_uuid(),conversation_type text,subject text,status text default 'open',created_by_user_id uuid,related_entity_type text,related_entity_id text,metadata jsonb default '{}');
 create table internal_conversation_participants(conversation_id uuid references internal_conversations,profile_id uuid references profiles,participant_role text,primary key(conversation_id,profile_id));
 create table team_room_member_removals(conversation_id uuid,profile_id uuid);
+create table native_private_teams(room_id uuid references internal_conversations,team_name text,league_label text,flight text);
 create table internal_schedule_events(id uuid primary key default gen_random_uuid(),conversation_id uuid references internal_conversations,event_type text,title text,scheduled_date date,scheduled_time text,facility text,recurrence_rule text,status text,source_entity_type text,source_entity_id text,created_by_user_id uuid,metadata jsonb default '{}',updated_at timestamptz default now());
 create table captain_practice_invites(id uuid primary key default gen_random_uuid(),event_id uuid unique references internal_schedule_events,public_token uuid default gen_random_uuid(),capacity smallint check(capacity between 1 and 100),created_by_user_id uuid);
 create table captain_practice_invitees(id uuid primary key default gen_random_uuid(),invite_id uuid references captain_practice_invites,event_id uuid references internal_schedule_events,player_id text,profile_id uuid references profiles,player_name text,normalized_name text,response_status text,responded_at timestamptz,unique(invite_id,normalized_name));
@@ -22,15 +23,42 @@ create table internal_schedule_event_responses(event_id uuid references internal
 create table internal_messages(id uuid primary key default gen_random_uuid(),conversation_id uuid references internal_conversations,sender_user_id uuid,body text,message_kind text);
 create table internal_notifications(id uuid primary key default gen_random_uuid());
 create function normalize_team_membership_text(text) returns text language sql immutable as $$select lower(regexp_replace(regexp_replace(btrim($1),'[[:space:]]*/[[:space:]]*','/','g'),'[[:space:]]+',' ','g'))$$;
-`);await sql(readFileSync('supabase/migrations/20261025000100_native_practice_create.sql','utf8'))},30000)
+`);await sql(readFileSync('supabase/migrations/20261025000100_native_practice_create.sql','utf8'))
+await sql(readFileSync('supabase/migrations/20261112000600_native_private_team_practice_roster.sql','utf8'))},30000)
 beforeEach(async()=>{await sql(`truncate profiles,team_profile_links,team_roster_members,internal_conversations,internal_conversation_participants,team_room_member_removals,internal_schedule_events,captain_practice_invites,captain_practice_invitees,internal_schedule_event_responses,internal_messages,internal_notifications cascade;
-insert into profiles values('${owner}',null,true),('${player}','${player}',true);
+insert into profiles(id,linked_player_id,message_search_enabled) values('${owner}',null,true),('${player}','${player}',true);
 insert into internal_conversations(id,related_entity_type,related_entity_id,status) values('${room}','team_room','aces__city__4 0','open');
 insert into team_profile_links(profile_user_id,normalized_team_name,league_name,flight,status,team_role,team_roles) values('${owner}','aces','City','4.0','accepted','captain',array['captain']);
 insert into internal_conversation_participants values('${room}','${owner}','member');
 insert into team_roster_members values('${rosterId}','${player}','Jordan Sample','aces','City','4.0');`)})
 afterAll(async()=>{await db?.close()})
 it('previews only exact scoped roster without any practice or message write',async()=>{const r=await call();expect(r.ok).toBe(true);expect(r.roster).toEqual([{id:rosterId,playerId:player,name:'Jordan Sample'}]);expect((await db.query('select * from internal_schedule_events')).rows).toHaveLength(0);expect((await db.query('select * from internal_messages')).rows).toHaveLength(0)})
+
+it('creates the same RSVP list for a private team using active manual memberships',async()=>{
+ const league='Private team '+room
+ const removed='77777777-7777-4777-8777-777777777777'
+ await sql(`update internal_conversations set related_entity_id='aces__private team ${room.replaceAll('-',' ')}__4 0';
+  insert into native_private_teams values('${room}','Aces','Weekend Tennis','4.0');
+  update profiles set message_display_name='Sam' where id='${owner}';
+  update profiles set message_display_name='Alex' where id='${player}';
+  insert into profiles(id,message_display_name) values('${removed}','Removed player');
+  update team_profile_links set league_name='${league}',team_name='Aces',source_type='manual_invite';
+  insert into team_profile_links(profile_user_id,normalized_team_name,league_name,flight,status,team_role,team_name,source_type)
+    values('${player}','aces','${league}','4.0','accepted','player','Aces','manual_invite'),
+      ('${removed}','aces','${league}','4.0','accepted','player','Aces','manual_invite');
+  insert into internal_conversation_participants values('${room}','${player}','member'),('${room}','${removed}','member');
+  insert into team_room_member_removals values('${room}','${removed}');
+  insert into team_roster_members values(gen_random_uuid(),null,'Imported Player','aces','${league}','4.0');`)
+ const preview=await call('preview',{league})
+ expect(preview.roster).toEqual([{id:owner,playerId:'',name:'Sam'},{id:player,playerId:'',name:'Alex'}])
+ expect((await call('preview',{owner:player,league})).status).toBe(403)
+ const first=await call('create',{league,roster:preview.roster})
+ expect(first).toMatchObject({ok:true,eventId:id,publicToken:expect.any(String)})
+ expect(await call('create',{league,roster:preview.roster})).toEqual(first)
+ expect((await db.query('select profile_id,player_name,response_status from captain_practice_invitees order by profile_id')).rows)
+  .toEqual([{profile_id:owner,player_name:'Sam',response_status:'in'},{profile_id:player,player_name:'Alex',response_status:'unanswered'}])
+ expect((await db.query<{label:string}>(`select metadata->>'leagueLabel' label from internal_schedule_events`)).rows[0].label).toBe('Weekend Tennis')
+})
 it('creates the complete room/event/RSVP roster atomically and replays without duplicate writes or changed RSVPs',async()=>{const first=await call('create');expect(first.ok).toBe(true);expect(first.eventId).toBe(id);const message=(await db.query<{body:string}>('select body from internal_messages')).rows[0].body;for(const line of ['League: City','Flight: 4.0','Repeats: weekly','Spots: 2'])expect(message).toContain(line);expect(first.publicToken).toMatch(/^[0-9a-f-]{36}$/);await sql(`update captain_practice_invitees set response_status='in'`);expect(await call('create')).toEqual(first);expect(await call('lookup')).toEqual(first);for(const table of ['internal_schedule_events','captain_practice_invites','captain_practice_invitees','internal_messages'])expect((await db.query('select * from '+table)).rows).toHaveLength(1);expect((await db.query('select response_status from captain_practice_invitees')).rows[0]).toEqual({response_status:'in'});expect((await db.query('select * from internal_notifications')).rows).toHaveLength(0);expect((await db.query('select * from internal_schedule_event_responses')).rows).toHaveLength(2)})
 it('never writes on lookup of an uncommitted operation',async()=>{expect((await call('lookup')).status).toBe(404);expect((await db.query('select * from internal_schedule_events')).rows).toHaveLength(0)})
 it.each(['archived','player','removed','closed','missing participant'])('denies %s captain access before writes',async change=>{const commands:Record<string,string>={archived:'update team_profile_links set archived_at=now()',player:"update team_profile_links set team_roles=array['player']",removed:`insert into team_room_member_removals values('${room}','${owner}')`,closed:"update internal_conversations set status='closed'",'missing participant':'delete from internal_conversation_participants'};await sql(commands[change]);expect((await call('create')).status).toBe(403);expect((await db.query('select * from internal_schedule_events')).rows).toHaveLength(0)})

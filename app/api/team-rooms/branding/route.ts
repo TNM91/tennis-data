@@ -1,12 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
-  buildTeamLogoStoragePath,
   inspectTeamLogoImage,
   validateTeamLogoDimensions,
   validateTeamLogoFile,
 } from '@/lib/team-branding'
 import { buildTeamRoomScopeId, canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
+import { saveTeamLogo } from '@/lib/team-branding-storage'
 
 export const runtime = 'nodejs'
 
@@ -75,35 +75,12 @@ export async function POST(request: Request) {
     .maybeSingle()
   if (!participant) return Response.json({ ok: false, message: 'You no longer have access to this Team Chat.' }, { status: 403 })
 
-  const path = buildTeamLogoStoragePath(conversation.id, file.type, crypto.randomUUID())
-  const upload = await auth.service.storage.from('team-room-files').upload(path, bytes, {
-    cacheControl: '31536000',
-    contentType: file.type,
-    upsert: false,
+  const status = await saveTeamLogo(auth.service, conversation.id, conversation.metadata, {
+    ...dimensions, bytes, mimeType: file.type,
   })
-  if (upload.error) return Response.json({ ok: false, message: upload.error.message }, { status: 500 })
-
-  const previousMetadata = conversation.metadata && typeof conversation.metadata === 'object' && !Array.isArray(conversation.metadata)
-    ? conversation.metadata as Record<string, unknown>
-    : {}
-  const previousLogo = readTeamLogo(previousMetadata)
-  const metadata = {
-    ...previousMetadata,
-    teamLogo: { bucket: 'team-room-files', path, mimeType: file.type, ...dimensions },
-  }
-  const { error: updateError } = await auth.service
-    .from('internal_conversations')
-    .update({ metadata, updated_at: new Date().toISOString() })
-    .eq('id', conversation.id)
-  if (updateError) {
-    await auth.service.storage.from('team-room-files').remove([path])
-    return Response.json({ ok: false, message: updateError.message }, { status: 500 })
-  }
-  if (previousLogo?.path && previousLogo.path !== path) {
-    await auth.service.storage.from(previousLogo.bucket).remove([previousLogo.path])
-  }
-
-  return Response.json({ ok: true })
+  if (status === 200) return Response.json({ ok: true })
+  return Response.json({ ok: false, message: status === 409
+    ? 'The team changed. Refresh it before updating the logo.' : 'The team logo could not be saved.' }, { status })
 }
 
 async function loadSelectedTeamLink(service: SupabaseClient, userId: string, scope: {
@@ -142,15 +119,6 @@ async function getTeamBrandingAuth(request: Request) {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     }),
   }
-}
-
-function readTeamLogo(metadata: Record<string, unknown>) {
-  const raw = metadata.teamLogo
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
-  const logo = raw as Record<string, unknown>
-  const bucket = cleanText(logo.bucket)
-  const path = cleanText(logo.path)
-  return bucket === 'team-room-files' && path ? { bucket, path } : null
 }
 
 function teamRoles(link: TeamLinkRow) {

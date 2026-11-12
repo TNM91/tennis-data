@@ -1,4 +1,5 @@
 import { getCaptainAvailabilityServiceClient } from '@/lib/captain-availability-request-server'
+import { privateTeamRoomId } from '@/lib/private-team-contract'
 import {
   assignPracticeDisplayStatuses,
   normalizePracticeName,
@@ -172,11 +173,13 @@ async function loadPractice(rawToken: string): Promise<
 function buildPayload(invite: InviteRow, invitees: InviteeRow[], selectedId = '') {
   const event = invite.internal_schedule_events
   const metadata = event?.metadata ?? {}
+  const leagueName = cleanMetadata(metadata.leagueName)
+  const privateTeam = Boolean(privateTeamRoomId(leagueName))
   const roster = assignPracticeDisplayStatuses(
     invitees.map((row) => ({
       id: row.id,
       playerName: row.player_name,
-      isTeamRoster: Boolean(row.player_id),
+      isTeamRoster: Boolean(row.player_id) || (privateTeam && Boolean(row.profile_id)),
       responseStatus: row.response_status,
       respondedAt: row.responded_at || '',
       captainConfirmedAt: row.captain_confirmed_at || '',
@@ -189,7 +192,7 @@ function buildPayload(invite: InviteRow, invitees: InviteeRow[], selectedId = ''
     ok: true,
     practice: {
       teamName: cleanMetadata(metadata.teamName) || event?.title.replace(/ practice$/i, '') || 'Team',
-      leagueName: cleanMetadata(metadata.leagueName),
+      leagueName: cleanMetadata(metadata.leagueLabel) || leagueName,
       scheduledDate: event?.scheduled_date || '',
       scheduledTime: event?.scheduled_time || '',
       scheduledEndTime: cleanMetadata(metadata.practiceEndTime),
