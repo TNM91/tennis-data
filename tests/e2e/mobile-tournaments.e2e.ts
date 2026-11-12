@@ -150,7 +150,7 @@ test('tournament search lets players edit or broaden an empty result in place',a
  expect(await titleFits()).toBe(true)
  const largerText=await page.addStyleTag({content:':root{font-size:28px!important}'})
  expect(await titleFits()).toBe(true)
- await largerText.evaluate(el=>el.remove())
+ await largerText.evaluate(el=>{el.parentNode?.removeChild(el)})
  await expect(dialog.getByRole('button',{name:'Clear search',exact:true})).toHaveCount(0)
  await dialog.getByRole('button',{name:'Edit search',exact:true}).click()
  await expect(search).toBeFocused();await expect(search).toHaveValue('nothing')
