@@ -20,6 +20,14 @@ on:
         options:
           - internal
           - app-store
+      check_testflight:
+        description: Check App Store Connect for a build that was already uploaded
+        type: boolean
+        default: false
+      assign_previous_group:
+        description: Assign an already uploaded build to the existing internal group
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -28,12 +36,12 @@ concurrency:
 jobs:
   signed:
     if: >-
-      github.repository == 'TNM91/tennis-data' &&
+      github.repository == 'TNM91/tennis-data' && !inputs.check_testflight && !inputs.assign_previous_group &&
       (github.ref == 'refs/heads/master' || (github.ref == 'refs/heads/codex/apple-mobile-build' && inputs.distribution == 'internal')) &&
       (inputs.distribution == 'internal' || (inputs.distribution == 'app-store' && inputs.upload))
     environment: apple-testflight
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 55
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       TIQ_IOS_DISTRIBUTION: ${{ inputs.distribution }}
@@ -128,6 +136,18 @@ jobs:
           path: ${{ runner.temp }}/tiq-export/App.ipa
           if-no-files-found: error
           retention-days: 3
+      - name: Assign the uploaded TestFlight build and verify install access
+        if: inputs.upload && inputs.distribution == 'internal'
+        timeout-minutes: 23
+        env:
+          API_KEY: ${{ secrets.APPLE_UPLOAD_API_KEY_P8_BASE64 }}
+          API_KEY_ID: ${{ secrets.APPLE_UPLOAD_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APPLE_UPLOAD_API_ISSUER_ID }}
+          TIQ_ASSIGN_PREVIOUS_GROUP: 'true'
+          TIQ_CHECK_BUILD_NUMBER: ${{ inputs.build_number }}
+          TIQ_TESTFLIGHT_GROUP_ID: ${{ vars.TIQ_TESTFLIGHT_GROUP_ID }}
+          TIQ_TESTFLIGHT_WAIT_MINUTES: '20'
+        run: node mobile/scripts/check-offline-testflight.mjs
       - name: Clean up signing material
         if: always()
         run: |
@@ -136,4 +156,27 @@ jobs:
             rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$(cat "$RUNNER_TEMP/tiq-signing/uuid").mobileprovision"
           fi
           rm -rf "$RUNNER_TEMP/tiq-signing" "$RUNNER_TEMP/tiq-api"
-
+  check-offline-testflight:
+    if: >-
+      github.repository == 'TNM91/tennis-data' && inputs.distribution == 'internal' &&
+      inputs.check_testflight && !inputs.upload &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/codex/apple-mobile-build')
+    environment: apple-testflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Check the build and its internal tester group
+        env:
+          API_KEY: ${{ secrets.APPLE_UPLOAD_API_KEY_P8_BASE64 }}
+          API_KEY_ID: ${{ secrets.APPLE_UPLOAD_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APPLE_UPLOAD_API_ISSUER_ID }}
+          TIQ_ASSIGN_PREVIOUS_GROUP: ${{ inputs.assign_previous_group }}
+          TIQ_CHECK_BUILD_NUMBER: ${{ inputs.build_number }}
+          TIQ_TESTFLIGHT_GROUP_ID: ${{ vars.TIQ_TESTFLIGHT_GROUP_ID }}
+        run: node mobile/scripts/check-offline-testflight.mjs
