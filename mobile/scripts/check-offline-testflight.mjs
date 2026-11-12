@@ -72,6 +72,22 @@ async function groupContainsBuild(groupId,buildId){
  return links.data.some(link=>link.type==='builds' && link.id===buildId)
 }
 
+async function readUploadStatus(){
+ const uploads=await read(`/v1/apps/${encodeURIComponent(app.id)}/buildUploads`,{
+  'filter[cfBundleVersion]':buildNumber,
+  'fields[buildUploads]':'cfBundleShortVersionString,cfBundleVersion,platform,state,uploadedDate',
+  limit:'10',
+ })
+ const matching=uploads.data.map(row=>row.attributes).filter(row=>
+  row?.cfBundleVersion===buildNumber&&row.cfBundleShortVersionString==='1.0'&&row.platform==='IOS')
+ const latest=matching.sort((a,b)=>String(b.uploadedDate||'').localeCompare(String(a.uploadedDate||'')))[0]
+ const status=latest?.state
+ const state=typeof status==='string'?status:status?.state
+ const errorCodes=Array.isArray(status?.errors)?status.errors.map(error=>error?.code)
+  .filter(code=>typeof code==='string'&&/^[A-Z0-9_.-]{1,48}$/.test(code)).slice(0,10):[]
+ return {uploadRecords:matching.length,uploadState:typeof state==='string'&&/^[A-Z_]{1,40}$/.test(state)?state:null,errorCodes}
+}
+
 const previous = await readBuild(previousBuildNumber)
 if(!previous.id || previous.processing!=='VALID')throw new Error('Could not verify the prior iOS build 254.')
 const groups = await read(`/v1/apps/${encodeURIComponent(app.id)}/betaGroups`,{'fields[betaGroups]':'isInternalGroup',limit:'200'})
@@ -114,6 +130,10 @@ for(let attempt=0;attempt<6;attempt++){
   continue
  }
  if(attempt<5)await sleep(20000)
+}
+if(result.processing==='AWAITING_PROCESSING'){
+ const upload=await readUploadStatus().catch(()=>({uploadStatusAvailable:false}))
+ result={...result,...upload}
 }
 console.log(JSON.stringify(result))
 if(shouldAssign && !result.sameGroupAs254)throw new Error(`Apple did not confirm build ${buildNumber} in the same group as build 254.`)
