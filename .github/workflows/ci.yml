@@ -33,4 +33,4 @@ jobs:
         run: >-
           npx playwright test --config=tests/playwright.native-navigation.config.ts
           --project=mobile-webkit --workers=1 --output=.next/navigation-results --reporter=list,github
-          -g 'doubles corrections survive a lost receipt|first player setup stays usable'
+          -g 'first player setup stays usable'

@@ -13,7 +13,6 @@ export function playerSetupHtml(){
   <header class="native-entry-hero tab-hero tab-hero-court">
    <small class="stat-eyebrow">My Lab</small>
    <h1 id="player-setup-title" tabindex="-1">Your tennis starts here.</h1>
-   <p>Find your record or get on court.</p>
   </header>
   <div class="native-entry-list">${setupActions.map(action=>`
    <button type="button" class="secondary app-tool${action.key==='player'?' native-entry-featured':''}" ${action.attribute} aria-labelledby="setup-${action.key}-title" aria-describedby="setup-${action.key}-detail">

@@ -6553,7 +6553,7 @@ for(const width of [320,390])test('first player setup stays usable at '+width+'p
  for(const action of [find,match,drill,invite,explore]){
   await expect(action).toBeInViewport({ratio:1})
   expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-  expect(await action.evaluate(el=>el.getBoundingClientRect().bottom),await action.getAttribute('aria-labelledby'))
+  expect(await action.evaluate(el=>el.getBoundingClientRect().bottom),(await action.getAttribute('aria-labelledby'))??undefined)
    .toBeLessThanOrEqual(await page.locator('.app-navigation').evaluate(el=>el.getBoundingClientRect().top))
  }
  await bounded(page)
