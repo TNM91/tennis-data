@@ -3,6 +3,7 @@ import {summarizeCaptainLineupDraft} from './captain-lineup-draft-summary'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {canManageTeamRoom,normalizeTeamRoomKey,buildTeamRoomScopeId,type TeamRoomScope} from './team-room'
 import {checkTeamChatAccess} from './team-chat-updates'
+import {privateTeamRoomId} from './private-team-contract'
 import {loadSeasonRoster,seasonToday} from './season-kickoff-server'
 const text=(value:unknown,max=160)=>typeof value==='string'?value.trim().slice(0,max):''
 /** Caller verifies Captain account entitlement. All service-role reads stay within an accepted exact captain team. */
@@ -14,7 +15,7 @@ export async function authorizeNativeCaptainScope(service:SupabaseClient,owner:s
  const conversation=await service.from('internal_conversations').select('id').eq('related_entity_type','team_room').eq('related_entity_id',buildTeamRoomScopeId(scope)).maybeSingle()
  if(conversation.error)return {ok:false as const,status:503}
  if(!conversation.data)return {ok:false as const,status:403}
- const access=await checkTeamChatAccess(service,owner,conversation.data.id,true)
+ const access=await checkTeamChatAccess(service,owner,conversation.data.id,!privateTeamRoomId(scope.leagueName))
  if(!access.ok)return access
  return {ok:true as const,status:200}
 }

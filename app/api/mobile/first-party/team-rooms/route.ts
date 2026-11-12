@@ -2,17 +2,18 @@ import { accountClient, accountResponse, readAccountJson, verifiedAccount } from
 import { countFirstPartyChats, readFirstPartyChat, reviewedTeamOptions, writeFirstPartyChat } from '@/lib/first-party-team-chat'
 import { loadTeamMatchReplies, saveTeamMatchReply } from '@/lib/first-party-team-replies'
 import { loadTeamResultRoster, loadTeamResults, saveTeamResult } from '@/lib/first-party-team-results'
-import { findReviewedTeamConversation, loadCaptainChatSetup, loadReviewedTeamLinks, readReviewedTeamRooms } from '@/lib/first-party-team-scopes'
+import { findReviewedTeamConversation, loadActiveReviewedTeamRoomIds, loadCaptainChatSetup, loadReviewedTeamLinks, readReviewedTeamRooms } from '@/lib/first-party-team-scopes'
 import { loadManualTeamNextMatch, loadReviewedTeamNextMatch, saveManualTeamNextMatch, upcomingTeamMatch } from '@/lib/first-party-team-schedule'
 import { nativeCoachChatUnread } from '@/lib/native-coach-chat-unread'
 import { loadPlayerAccess } from '@/lib/player-api-auth'
-import { privateTeamLeagueKey, readPrivateTeamInput } from '@/lib/private-team-contract'
+import { privateTeamLeagueKey, privateTeamRoomId, readPrivateTeamInput } from '@/lib/private-team-contract'
 import { supabaseKey } from '@/lib/supabase-public-config'
 import { fixtureId, readTeamNextMatchChange } from '@/lib/team-fixtures-contract'
 import { readSavedTeamLineup, readTeamLineupChange } from '@/lib/team-match-lineup-contract'
 import { readTeamMatchReplyChange } from '@/lib/team-match-replies-contract'
 import { readTeamResultChange } from '@/lib/team-results-contract'
 import { checkTeamChatAccess } from '@/lib/team-chat-updates'
+import { loadTeamLogoUrls } from '@/lib/team-branding-storage'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -59,7 +60,14 @@ export async function GET(request: Request) {
       return json({ ok: true, ...counts, coach })
     }
     const options = reviewedTeamOptions(teams)
-    if (!selecting) return json({ ok: true, owner, teams: options, room: null })
+    if (!selecting) {
+      const logos = await loadActiveReviewedTeamRoomIds(service, owner, teams)
+        .then(ids => loadTeamLogoUrls(service, ids)).catch(() => new Map<string, string>())
+      return json({ ok: true, owner, teams: options.map((team, index) => {
+        const teamLogoUrl = logos.get(teams[index].roomId)
+        return teamLogoUrl ? { ...team, teamLogoUrl } : team
+      }), room: null })
+    }
     const selected = teams.find(team => team.teamName === params.get('team') &&
       team.leagueName === params.get('league') && team.flight === params.get('flight'))
     if (!selected || !await findReviewedTeamConversation(service, selected)) return denied(403)
@@ -96,12 +104,18 @@ export async function GET(request: Request) {
     const result = await readFirstPartyChat(service, owner, selected, params)
     if (!result.ok) return json(result, result.status)
     if (op === 'room' && 'room' in result) {
-      const access = selected.isCaptain
-        ? await loadPlayerAccess(accountClient(supabaseKey, account.token), owner).catch(() => null)
-        : null
+      const [access, logos] = await Promise.all([
+        selected.isCaptain ? loadPlayerAccess(accountClient(supabaseKey, account.token), owner).catch(() => null) : null,
+        loadTeamLogoUrls(service, [selected.roomId]).catch(() => new Map<string, string>()),
+      ])
+      const canManage = access?.canUseCaptainWorkflow === true
+      const teamLogoUrl = logos.get(selected.roomId)
+      const teamPractices = privateTeamRoomId(selected.leagueName) === selected.roomId
       return json({ ...result, owner, teams: options, room: {
         ...result.room,
-        ...(selected.isCaptain ? { canInviteTeammates: access?.canUseCaptainWorkflow === true } : {}),
+        ...(teamLogoUrl ? { teamLogoUrl } : {}),
+        ...(selected.isCaptain ? { canInviteTeammates: canManage, canManageTeamLogo: canManage } : {}),
+        ...(teamPractices ? { teamPractices: true, canPlanPractice: canManage } : {}),
         ...(selected.scheduleLeagueId ? { scheduleLinked: true } : {}),
         ...(!selected.scheduleLeagueId ? { manualFixture: true, canScheduleMatch: access?.canUseCaptainWorkflow === true } : {}),
       } })

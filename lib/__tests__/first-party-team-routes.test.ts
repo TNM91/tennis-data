@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { POST as invite } from '../../app/api/mobile/first-party/team-invites/route'
 import { GET as room, POST as write } from '../../app/api/mobile/first-party/team-rooms/route'
+import { POST as brand } from '../../app/api/mobile/first-party/team-rooms/branding/route'
 
-const { auth, from, act, read, save, access, manage, schedule } = vi.hoisted(() => ({
-  auth: vi.fn(), from: vi.fn(), act: vi.fn(), read: vi.fn(), save: vi.fn(), access: vi.fn(), manage: vi.fn(), schedule: vi.fn(),
+const { auth, from, act, read, save, access, manage, schedule, saveLogo } = vi.hoisted(() => ({
+  auth: vi.fn(), from: vi.fn(), act: vi.fn(), read: vi.fn(), save: vi.fn(), access: vi.fn(), manage: vi.fn(), schedule: vi.fn(), saveLogo: vi.fn(),
 }))
 vi.mock('@/lib/mobile-account-auth', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/mobile-account-auth')>(),
@@ -14,6 +15,10 @@ vi.mock('@/lib/native-team-invites', () => ({ actOnNativeInvite: act }))
 vi.mock('@/lib/native-captain-invites', () => ({ actOnCaptainInvite: manage }))
 vi.mock('@/lib/player-api-auth', () => ({ loadPlayerAccess: access }))
 vi.mock('@/lib/native-coach-chat-unread', () => ({ nativeCoachChatUnread: vi.fn() }))
+vi.mock('@/lib/team-branding-storage', async importOriginal => ({
+  ...await importOriginal<typeof import('@/lib/team-branding-storage')>(),
+  saveTeamLogo: saveLogo,
+}))
 vi.mock('@/lib/first-party-team-schedule', () => ({ loadReviewedTeamNextMatch: schedule }))
 vi.mock('@/lib/first-party-team-chat', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/first-party-team-chat')>(),
@@ -134,6 +139,26 @@ it('requires one exact reviewed team and room for reads and writes', async () =>
   const result = await room(new Request(root+query))
   expect(await result.json()).toMatchObject({ ok: true, owner, releaseScope: 'first-party', teams: [{ ...scope, canManage: false }] })
   expect(read).toHaveBeenCalledWith(expect.anything(), owner, expect.objectContaining(approved), new URLSearchParams(query))
+})
+
+it('allows only a current entitled captain to manage the exact team chat icon', async () => {
+  const change = { ...scope, roomId: approved.roomId, photo: null }
+  expect((await brand(post(change))).status).toBe(403)
+  links = [{ ...member, team_roles: ['co_captain'] }]
+  access.mockResolvedValue({ canUseCaptainWorkflow: true })
+  expect((await brand(post({ ...change, roomId: token }))).status).toBe(403)
+  removed = true
+  expect((await brand(post(change))).status).toBe(403)
+  removed = false
+  access.mockResolvedValueOnce({ canUseCaptainWorkflow: false })
+  expect((await brand(post(change))).status).toBe(403)
+  expect((await brand(post({ ...change, photo: 'YWJjZA==' }))).status).toBe(400)
+  expect(saveLogo).not.toHaveBeenCalled()
+  saveLogo.mockResolvedValue(200)
+  expect(await (await brand(post(change))).json()).toEqual({
+    ok: true, owner, roomId: approved.roomId, releaseScope: 'first-party', hasLogo: false,
+  })
+  expect(saveLogo).toHaveBeenCalledOnce()
 })
 
 it('offers invite management only to entitled captains of the reviewed room', async () => {
