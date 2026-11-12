@@ -1499,7 +1499,7 @@ test('first-party captain saves a lineup and uses its court count for score entr
  expect(writes[0]).toBe(writes[1])
 })
 
-test('first-party teammate logs their confirmed court in My Lab once',async({page})=>{
+test('first-party teammate views their confirmed court and saves one private scorecard in My Lab',async({page},info)=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:720})
  await page.clock.setFixedTime(new Date(2026,10,12,12))
@@ -1523,7 +1523,7 @@ test('first-party teammate logs their confirmed court in My Lab once',async({pag
  }
  await open(true)
  const results=page.getByRole('dialog',{name:'Team results',exact:true})
- const log=results.getByRole('button',{name:'Log my court in My Lab vs Topspin Club',exact:true})
+ const log=results.getByRole('button',{name:'View court scorecard in My Lab vs Topspin Club',exact:true})
  await expect(results).toContainText('1–0 · Won')
  await expect(log).toHaveCount(0)
  const yourCourts=results.getByRole('button',{name:'Your courts',exact:true})
@@ -1543,6 +1543,20 @@ test('first-party teammate logs their confirmed court in My Lab once',async({pag
  await expect(warning).toBeVisible()
  expect(await page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.writtenIds)).toEqual([])
  await warning.getByRole('button',{name:'Leave My teams',exact:true}).click()
+ const preview=page.getByRole('article',{name:'Team court scorecard',exact:true})
+ const reviewAndSave=preview.getByRole('button',{name:'Review and save',exact:true})
+ await expect(preview.getByRole('heading',{name:'vs Topspin Club',exact:true})).toBeFocused()
+ await expect(preview).toContainText('Captain posted · Court 1')
+ await expect(preview).toContainText('3-6, 4-6')
+ await expect(preview).toContainText('Doubles')
+ await expect(preview.getByRole('group',{name:'Court score',exact:true})).toContainText('Lost')
+ await expect(page.getByLabel('Score',{exact:true})).toHaveCount(0)
+ expect(await preview.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await preview.screenshot({path:info.outputPath('private-team-court-scorecard.png')})
+ await reviewAndSave.click()
+ await page.getByRole('button',{name:'Cancel',exact:true}).click()
+ await expect(preview).toBeVisible()
+ await reviewAndSave.click()
  await expect(page.getByRole('heading',{name:'Log a match',exact:true})).toBeFocused()
  await expect(page.getByLabel('Match date',{exact:true})).toHaveValue('2026-11-01')
  await expect(page.getByLabel('Opponent or doubles team',{exact:true})).toHaveValue('Topspin Club')
@@ -1576,6 +1590,166 @@ test('first-party teammate logs their confirmed court in My Lab once',async({pag
  await expect(page.getByRole('article',{name:'Saved scorecard',exact:true}).getByText('3-6, 4-6',{exact:true})).toBeVisible()
  await expect(page.getByRole('button',{name:'Save scorecard',exact:true})).toHaveCount(0)
  expect(await written()).toHaveLength(1)
+})
+
+test('first-party player opens their captain-posted courts directly from My Lab',async({page},info)=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.clock.setFixedTime(new Date(2026,10,12,12))
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ const nav=page.getByRole('navigation',{name:'Main navigation'})
+ await nav.getByRole('button',{name:/^Explore/}).click()
+ await page.evaluate(()=>{
+  const {teamResultFixture}=window as unknown as {teamResultFixture:TeamResultEntry&{earlier:TeamResultEntry[]}}
+  const owner={id:'11111111-1111-4111-8111-111111111111',name:'Alex'}
+  const partner={id:'55555555-5555-4555-8555-555555555555',name:'Casey'}
+  teamResultFixture.score={revision:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',won:1,lost:1,
+   courtScores:['6-3, 6-4','3-6, 4-6'],courtPlayers:[[],[owner,partner]]}
+  teamResultFixture.earlier.push({
+   fixtureId:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+   match:{...teamResultFixture.match,opponent:'Break Point Club',date:'2026-10-30'},
+   score:{revision:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',won:1,lost:0,courtScores:['6-3, 6-4'],courtPlayers:[[owner]]},
+  })
+ })
+ await nav.getByRole('button',{name:'My Lab',exact:true}).click()
+ const courts=page.getByRole('region',{name:'Your team court scores',exact:true})
+ const latest=courts.getByRole('button',{name:'Open team court scorecard vs Topspin Club',exact:true})
+ const earlier=courts.getByRole('button',{name:'Open team court scorecard vs Break Point Club',exact:true})
+ await expect(latest).toContainText('Court 2')
+ await expect(latest).toContainText('3-6, 4-6')
+ await expect(earlier).toBeHidden()
+ expect(await courts.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await courts.screenshot({path:info.outputPath('my-lab-team-court-scores.png')})
+ await courts.getByText('Earlier scores',{exact:true}).click()
+ await earlier.click()
+ const preview=page.getByRole('article',{name:'Team court scorecard',exact:true})
+ await expect(preview.getByRole('heading',{name:'vs Break Point Club',exact:true})).toBeFocused()
+ await expect(preview.getByRole('group',{name:'Court score'})).toContainText('Won')
+ await preview.getByRole('button',{name:'Back to match log',exact:true}).click()
+ await expect(earlier).toBeFocused()
+ await latest.click()
+ await expect(preview.getByRole('heading',{name:'vs Topspin Club',exact:true})).toBeFocused()
+ const written=()=>page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.writtenIds)
+ expect(await written()).toEqual([])
+ await preview.getByRole('button',{name:'Review and save',exact:true}).click()
+ await expect(page.getByLabel('Format',{exact:true})).toHaveValue('doubles')
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ const saved=page.getByRole('article',{name:'Saved scorecard',exact:true})
+ await expect(saved).toContainText('3-6, 4-6')
+ await saved.getByRole('button',{name:'Back to match log',exact:true}).click()
+ await expect(latest).toBeFocused()
+ await latest.click()
+ await expect(saved).toContainText('3-6, 4-6')
+ expect(await written()).toHaveLength(1)
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+ await expect(page.getByRole('button',{name:'Log a match',exact:true})).toBeEnabled()
+ await expect(courts).toHaveCount(0)
+ await expect(saved).toHaveCount(0)
+})
+
+test('first-party My Lab flags a changed team score outside the loaded match history',async({page},info)=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.clock.setFixedTime(new Date(2026,10,12,12))
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ const nav=page.getByRole('navigation',{name:'Main navigation'})
+ await nav.getByRole('button',{name:/^Explore/}).click()
+ await page.evaluate(()=>{
+  const {teamResultFixture,personalMatchFixture}=window as unknown as
+   typeof import('../fixtures/mobile-personal-matches')&{teamResultFixture:TeamResultEntry&{earlier:TeamResultEntry[]}}
+  const owner={id:'11111111-1111-4111-8111-111111111111',name:'Alex'}
+  const earlierId='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+  const key='league:33333333-3333-4333-8333-333333333333:private-team-result:'
+  const revision='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  teamResultFixture.score={revision,won:0,lost:1,courtScores:['3-6, 4-6'],courtPlayers:[[owner]]}
+  teamResultFixture.earlier.push({fixtureId:earlierId,match:{...teamResultFixture.match,opponent:'Break Point Club',date:'2026-10-30'},
+   score:{revision,won:1,lost:0,courtScores:['6-3, 6-4'],courtPlayers:[[owner]]}})
+  const saved={owner_user_id:owner.id,revision,created_at:'2026-11-02T12:00:00.000Z',
+   match_date:'2026-11-01',opponent:'Topspin Club',format:'singles',outcome:'Lost',score:'3–6 4–6'} as const
+  personalMatchFixture.rows.push({...saved,id:'77777777-7777-4777-8777-777777777777',calendar_match_id:key+teamResultFixture.fixtureId},
+   {...saved,id:'88888888-8888-4888-8888-888888888888',match_date:'2026-10-30',opponent:'Break Point Club',calendar_match_id:key+earlierId})
+  for(let index=1;index<=19;index++){
+   const id='aaaaaaaa-aaaa-4aaa-8aaa-'+String(index).padStart(12,'0')
+   personalMatchFixture.rows.push({...saved,id,opponent:'Practice match '+index,calendar_match_id:null})
+  }
+ })
+ await nav.getByRole('button',{name:'My Lab',exact:true}).click()
+ const courts=page.getByRole('region',{name:'Your team court scores',exact:true})
+ const latest=courts.getByRole('button',{name:'Open team court scorecard vs Topspin Club',exact:true})
+ const earlier=courts.getByRole('button',{name:'Open team court scorecard vs Break Point Club',exact:true})
+ const disclosure=courts.locator('summary')
+ const shortcut=page.getByRole('button',{name:'1 team score to review vs Break Point Club',exact:true})
+ await expect(latest).toHaveAccessibleDescription(/Saved/)
+ await expect(shortcut).toBeVisible()
+ expect(await shortcut.evaluate(button=>Boolean(button.compareDocumentPosition(document.querySelector('#personal-matches-title')!)&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true)
+ await expect(disclosure).toHaveText('Earlier scores · 1 to review')
+ await expect(earlier).toBeHidden()
+ await expect(page.getByRole('button',{name:'Open scorecard for Break Point Club',exact:true})).toHaveCount(0)
+ const read=await page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.teamScoreReads)
+ expect(read).toEqual([{owner:'11111111-1111-4111-8111-111111111111',keys:[
+  'league:33333333-3333-4333-8333-333333333333:private-team-result:dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  'league:33333333-3333-4333-8333-333333333333:private-team-result:eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+ ]}])
+ await shortcut.screenshot({path:info.outputPath('my-lab-score-review-shortcut.png')})
+ await shortcut.click()
+ const saved=page.getByRole('article',{name:'Saved scorecard',exact:true})
+ await expect(saved.getByRole('heading',{name:'Break Point Club',exact:true})).toBeFocused()
+ await expect(earlier).toHaveAccessibleDescription(/Review team score/)
+ expect(await courts.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await expect(saved.getByRole('region',{name:'Team score',exact:true})).toContainText('6-3, 6-4 · Won')
+ const review=saved.getByRole('button',{name:'Review team score',exact:true})
+ await review.click()
+ await expect(shortcut).toBeHidden()
+ await page.getByRole('button',{name:'Cancel',exact:true}).click()
+ await expect(shortcut).toBeVisible()
+ await expect(disclosure).toHaveText('Earlier scores · 1 to review')
+ await review.click()
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ await expect(page.getByText('Scorecard saved.',{exact:true})).toBeVisible()
+ await expect(shortcut).toBeHidden()
+ await expect(disclosure).toHaveText('Earlier scores')
+ await expect(earlier).toHaveAccessibleDescription(/Saved/)
+ await saved.getByRole('button',{name:'Back to match log',exact:true}).click()
+ await expect(earlier).toBeFocused()
+ await earlier.click()
+ await expect(saved).toContainText('6-3, 6-4')
+ await expect(review).toHaveCount(0)
+
+ await page.evaluate(()=>{
+  const {teamResultFixture}=window as unknown as {teamResultFixture:TeamResultEntry&{earlier:TeamResultEntry[]}}
+  Object.assign(teamResultFixture.score!,{revision:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',won:1,lost:0,courtScores:['6-2, 6-2']})
+  Object.assign(teamResultFixture.earlier[0].score!,{revision:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',won:0,lost:1,courtScores:['2-6, 2-6']})
+ })
+ await nav.getByRole('button',{name:/^Explore/}).click()
+ await nav.getByRole('button',{name:'My Lab',exact:true}).click()
+ const multiple=page.getByRole('button',{name:'2 team scores to review',exact:true})
+ await multiple.click()
+ await expect(latest).toBeFocused()
+ await expect(earlier).toBeVisible()
+ await expect(earlier).toHaveAccessibleDescription(/Review team score/)
+ await expect(saved).toHaveCount(0)
+ await latest.click()
+ await expect(saved.getByRole('region',{name:'Team score',exact:true})).toContainText('6-2, 6-2 · Won')
+ await review.click()
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ const nextReview=saved.getByRole('button',{name:'Review next team score',exact:true})
+ await expect(nextReview).toBeVisible()
+ await nextReview.screenshot({path:info.outputPath('my-lab-next-team-score.png')})
+ await nextReview.click()
+ await expect(saved.getByRole('heading',{name:'Break Point Club',exact:true})).toBeFocused()
+ await expect(saved.getByText('6-3, 6-4',{exact:true})).toBeVisible()
+ await expect(saved.getByRole('region',{name:'Team score',exact:true})).toContainText('2-6, 2-6 · Lost')
+ await expect(nextReview).toBeHidden()
+ await review.click()
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ await expect(saved.getByText('2-6, 2-6',{exact:true})).toBeVisible()
+ await expect(review).toBeHidden()
+ await expect(nextReview).toBeHidden()
+ await expect(earlier).toHaveAccessibleDescription(/Saved/)
+ await expect(latest).toHaveAccessibleDescription(/Saved/)
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+ await expect(page.getByRole('button',{name:'Log a match',exact:true})).toBeEnabled()
+ await expect(multiple).toBeHidden()
 })
 
 test('first-party teammate filters team results to their own courts',async({page})=>{
@@ -1620,8 +1794,8 @@ test('first-party teammate filters team results to their own courts',async({page
  await expect(courts.getByRole('listitem')).toHaveCount(2)
  await expect(courts).toContainText('Court 2 · Lost')
  await expect(courts).toContainText('3-6, 4-6')
- await expect(courts.getByRole('button',{name:'Log my court in My Lab vs Topspin Club'})).toBeVisible()
- await expect(courts.getByRole('button',{name:'Log my court in My Lab vs Break Point Club'})).toBeVisible()
+ await expect(courts.getByRole('button',{name:'View court scorecard in My Lab vs Topspin Club'})).toBeVisible()
+ await expect(courts.getByRole('button',{name:'View court scorecard in My Lab vs Break Point Club'})).toBeVisible()
  await expect(results.getByText('vs Drop Shot Club',{exact:true})).toHaveCount(0)
  await expect(results.getByRole('heading',{name:'Team record'})).toHaveCount(0)
  expect(await results.evaluate(dialog=>dialog.scrollWidth)).toBeLessThanOrEqual(await results.evaluate(dialog=>dialog.clientWidth))
@@ -1956,7 +2130,7 @@ test('first-party captain adds players to a posted result without changing the s
  await open()
  await results.getByRole('button',{name:'Your courts',exact:true}).click()
  await expect(results.getByRole('list',{name:'Your recent courts'})).toContainText('Court 2 · Lost')
- await expect(results.getByRole('button',{name:/^Log my court in My Lab/})).toBeVisible()
+ await expect(results.getByRole('button',{name:/^View court scorecard in My Lab/})).toBeVisible()
 })
 
 test('first-party captain enters court scores and the team tally follows the court winners',async({page},info)=>{

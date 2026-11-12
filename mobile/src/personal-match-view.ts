@@ -8,10 +8,11 @@ import { matchDate } from './recent-results'
 import { listedExploreCourt, stLouisCourts, stLouisHittingClubs, type ExploreCourt } from './explore-court-catalog'
 import { readSavedCourts } from './explore-saved-courts'
 import { loadCaptainScorecards } from './captain-court-data'
+import websiteUi from '../generated/website-ui.json'
 import type { PostedCourtScorecard } from '../../lib/native-court-result-contract'
 import { inferTiqBestOfThreeWinner } from '../../lib/tiq-scoring'
-import { isTeamResultScorecardKey } from '../../lib/team-results-contract'
-import { courtFeedbackKeys, latestScorecardDate, loadCalendarScorecard, loadPersonalMatches, MatchChanged, personalMatchDraft, personalMatchFeedbackDraft,
+import { isTeamResultScorecardKey, type TeamCourtScorecard } from '../../lib/team-results-contract'
+import { courtFeedbackKeys, latestScorecardDate, loadCalendarScorecard, loadPersonalMatches, loadSavedTeamScores, MatchChanged, personalMatchDraft, personalMatchFeedbackDraft,
   removePersonalMatch, savePersonalMatch, teamScoreDiffers, type CalendarScorecardSeed, type CourtFeedback, type PersonalMatch,
   type PersonalMatchDraft, type TeamScore } from './personal-match-data'
 
@@ -26,7 +27,8 @@ function resumeCalendarScorecard(session: PersonalMatchFormSession, seed: Calend
   const cached = session.calendarDrafts?.get(seed.calendarMatchId)
   if (!cached) return
   if (cached.seed.date === seed.date && cached.seed.opponent === seed.opponent && cached.seed.format === seed.format &&
-      cached.seed.outcome === seed.outcome && cached.seed.score === seed.score && cached.seed.courtVenueKey === seed.courtVenueKey) return cached.fields
+      cached.seed.outcome === seed.outcome && cached.seed.score === seed.score && cached.seed.courtVenueKey === seed.courtVenueKey &&
+      cached.seed.teamCourt === seed.teamCourt) return cached.fields
   session.calendarDrafts?.delete(seed.calendarMatchId)
 }
 
@@ -61,6 +63,23 @@ function savedScorecardRow(match: LogScorecard, index: number) {
   </button></li>`
 }
 
+function teamScorecardButton(card: TeamCourtScorecard, index: number) {
+  return `<button type="button" class="secondary lab-saved-scorecard" data-open-team-court="${index}"
+    aria-label="Open team court scorecard vs ${html(card.opponent)}"
+    aria-describedby="lab-team-court-meta-${index} lab-team-court-score-${index} lab-team-court-status-${index}">
+    <span class="lab-saved-scorecard-copy">
+      <strong>${html(card.opponent)}</strong>
+      <small class="lab-saved-scorecard-meta" id="lab-team-court-meta-${index}"><span>Court ${card.teamCourt}</span> <span>${html(matchDate(card.date))}</span></small>
+      <span class="lab-team-court-status" id="lab-team-court-status-${index}" data-team-court-status hidden></span>
+    </span>
+    <span class="lab-saved-scorecard-result" id="lab-team-court-score-${index}">
+      <span class="${card.outcome === 'Won' ? 'result-won' : 'result-lost'}">${card.outcome}</span>
+      <strong>${html(card.score)}</strong>
+    </span>
+    <span class="lab-saved-scorecard-chevron" aria-hidden="true">›</span>
+  </button>`
+}
+
 function scorecardVenueOptions(owner: string, existingKey: string) {
   const saved = readSavedCourts(owner)
   const savedKeys = new Set([saved.home, ...saved.favorites])
@@ -91,14 +110,20 @@ function recentOpponents(matches: PersonalMatch[]) {
 type PersonalMatchLogOptions = {
   seed?: CalendarScorecardSeed
   backToTeamResults?: () => void
+  scoreReviewShortcut?: HTMLElement
   openPractice: (match: PersonalMatch, current: () => boolean) => void
   openRematchInvite: (clubId: string, trigger: HTMLButtonElement, current: () => boolean) => void
 }
 
 export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient, owner: string, current: () => boolean,
-  formSession: PersonalMatchFormSession, {seed, backToTeamResults, openPractice, openRematchInvite}: PersonalMatchLogOptions) {
-  const teamScore = seed?.score && seed.outcome && isTeamResultScorecardKey(seed.calendarMatchId)
-    ? { key: seed.calendarMatchId, score: seed.score, outcome: seed.outcome } : undefined
+  formSession: PersonalMatchFormSession, {seed, backToTeamResults, scoreReviewShortcut, openPractice, openRematchInvite}: PersonalMatchLogOptions) {
+  if (scoreReviewShortcut) {
+    scoreReviewShortcut.innerHTML = `<button type="button" class="secondary app-tool" aria-controls="lab-team-scorecards">
+      <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.tournaments}</span>
+      <span class="app-tool-copy"><strong></strong><span data-review-opponent hidden></span></span>
+      <span class="app-tool-arrow" aria-hidden="true">›</span>
+    </button>`
+  }
   host.innerHTML = `<div class="lab-form-host" data-personal-form></div>
     <section aria-labelledby="personal-matches-title">
       <div class="lab-recent-heading"><h2 id="personal-matches-title" tabindex="-1">Match log</h2>
@@ -107,6 +132,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       <p>Your scores and recent form sync privately to your account.</p>
       <div data-personal-editor></div>
       <div data-personal-history>
+        <div class="lab-team-scorecards" id="lab-team-scorecards" role="region" aria-labelledby="lab-team-scorecards-title" hidden></div>
         <div data-scorecard-search hidden>
           <h3>Saved scorecards</h3>
           <label>Search loaded scorecards <input type="search" name="scorecard-opponent" maxlength="100" autocomplete="off" placeholder="Opponent name"></label>
@@ -121,6 +147,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
   const formHost = host.querySelector<HTMLElement>('[data-personal-form]')!
   const editor = host.querySelector<HTMLElement>('[data-personal-editor]')!
   const history = host.querySelector<HTMLElement>('[data-personal-history]')!
+  const teamScoresHost = history.querySelector<HTMLElement>('#lab-team-scorecards')!
+  const reviewButton = scoreReviewShortcut?.querySelector<HTMLButtonElement>('button')
   const searchBox = history.querySelector<HTMLElement>('[data-scorecard-search]')!
   const search = searchBox.querySelector<HTMLInputElement>('input')!
   const noResults = history.querySelector<HTMLElement>('[data-scorecard-no-results]')!
@@ -133,8 +161,12 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
   const active = () => host.isConnected && current()
   let matches: PersonalMatch[] = []
   let posted: PostedCourtScorecard[] = []
+  let teamCards: TeamCourtScorecard[] = []
+  const savedTeamScores = new Map<string, TeamScore | null>()
+  let teamReviewCount = 0
   let more = false, reading = false, writing = false
-  let scorecardOrigin: { id: string; button: HTMLButtonElement } | undefined
+  let openingScorecard = false
+  let scorecardOrigin: { id?: string; button: HTMLButtonElement } | undefined
   if (back && backToTeamResults) back.onclick = () => { if (active() && !writing) backToTeamResults() }
 
   function setWriting(pending: boolean) {
@@ -142,14 +174,102 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     if (back) back.disabled = pending
   }
 
+  function showMatchHistory(visible: boolean) {
+    history.hidden = formHost.hidden = !visible
+    add.disabled = !visible || reading
+    if (scoreReviewShortcut) scoreReviewShortcut.hidden = !visible || teamReviewCount === 0
+  }
+
   function findHistoryRow(id: string) {
     return [...history.querySelectorAll<HTMLButtonElement>('[data-scorecard-id]')].find(button => button.dataset.scorecardId === id)
   }
 
   function openScorecard(match: LogScorecard, button: HTMLButtonElement) {
-    if (!active() || writing || !match) return
+    if (!active() || writing || openingScorecard || !match) return
     scorecardOrigin = { id: match.id, button }
     showScorecard(match)
+  }
+
+  function paintTeamScorecards(cards: TeamCourtScorecard[]) {
+    teamCards = cards
+    teamScoresHost.hidden = !cards.length
+    if (!cards.length) return
+    const [latest, ...earlier] = cards
+    teamScoresHost.innerHTML = `<h3 id="lab-team-scorecards-title">Your team court scores</h3>
+      ${teamScorecardButton(latest, 0)}
+      ${earlier.length ? `<details><summary>Earlier scores <span data-earlier-score-review hidden></span></summary>
+        <ol class="lab-saved-scorecards" role="list">${earlier.map((card, index) => `<li>${teamScorecardButton(card, index + 1)}</li>`).join('')}</ol>
+      </details>` : ''}`
+    teamScoresHost.querySelectorAll<HTMLButtonElement>('[data-open-team-court]').forEach(button => {
+      button.onclick = () => { void openCalendarMatch(cards[Number(button.dataset.openTeamCourt)], button) }
+    })
+    paintTeamScoreStatus()
+    void checkSavedTeamScores(cards)
+  }
+
+  function paintTeamScoreStatus() {
+    let earlierToReview = 0
+    let firstReview: HTMLButtonElement | undefined
+    teamReviewCount = 0
+    for (const button of teamScoresHost.querySelectorAll<HTMLButtonElement>('[data-open-team-court]')) {
+      const index = Number(button.dataset.openTeamCourt)
+      const card = teamCards[index]
+      const saved = savedTeamScores.get(card.calendarMatchId)
+      const needsReview = Boolean(saved && teamScoreDiffers(saved, card))
+      if (needsReview) {
+        firstReview ??= button
+        teamReviewCount++
+        if (index > 0) earlierToReview++
+      }
+      const label = button.querySelector<HTMLElement>('[data-team-court-status]')!
+      label.hidden = !saved
+      label.textContent = needsReview ? 'Review team score' : saved ? 'Saved' : ''
+      label.toggleAttribute('data-needs-review', needsReview)
+    }
+    const earlier = teamScoresHost.querySelector<HTMLElement>('[data-earlier-score-review]')
+    if (earlier) {
+      earlier.hidden = earlierToReview === 0
+      earlier.textContent = earlierToReview ? ` · ${earlierToReview} to review` : ''
+    }
+    const nextReview = editor.querySelector<HTMLButtonElement>('[data-next-team-review]')
+    if (nextReview) nextReview.hidden = teamReviewCount === 0
+    if (scoreReviewShortcut && reviewButton) {
+      scoreReviewShortcut.hidden = history.hidden || !firstReview
+      if (!firstReview) { reviewButton.onclick = null; return }
+      const target = firstReview
+      const singleReview = teamReviewCount === 1
+      reviewButton.querySelector('strong')!.textContent = `${teamReviewCount} team score${singleReview ? '' : 's'} to review`
+      const opponent = reviewButton.querySelector<HTMLElement>('[data-review-opponent]')!
+      opponent.hidden = !singleReview
+      opponent.textContent = singleReview ? `vs ${teamCards[Number(target.dataset.openTeamCourt)].opponent}` : ''
+      reviewButton.onclick = () => {
+        if (!active() || writing || openingScorecard || history.hidden) return
+        const details = teamScoresHost.querySelector('details')
+        if (details && earlierToReview > 0) details.open = true
+        if (singleReview) target.click()
+        else target.focus()
+      }
+    }
+  }
+
+  async function checkSavedTeamScores(cards: TeamCourtScorecard[]) {
+    const keys = cards.map(card => card.calendarMatchId).filter(key => !savedTeamScores.has(key))
+    if (!keys.length) return
+    try {
+      const checked = await loadSavedTeamScores(client, owner, keys, active)
+      if (!active()) return
+      // An exact lookup or a save may have completed while this batch was in flight.
+      for (const [key, score] of checked) if (!savedTeamScores.has(key)) savedTeamScores.set(key, score)
+      paintTeamScoreStatus()
+    } catch {
+      // Scorecards can still be opened individually when the batch status is unavailable.
+    }
+  }
+
+  function rememberTeamScore(key: string | null, score: TeamScore | null) {
+    if (!key || !isTeamResultScorecardKey(key)) return
+    savedTeamScores.set(key, score)
+    paintTeamScoreStatus()
   }
 
   function paintHistory() {
@@ -181,8 +301,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
   function setReading(value: boolean) {
     reading = value
     if (!active()) return
-    add.disabled = value
-    editor.querySelectorAll<HTMLButtonElement>('[data-log-rematch],[data-review-team-score],[data-edit-court-feedback]').forEach(button => { button.disabled = value })
+    add.disabled = value || openingScorecard || history.hidden
+    editor.querySelectorAll<HTMLButtonElement>('[data-log-rematch],[data-review-team-score],[data-edit-court-feedback],[data-save-scorecard]').forEach(button => { button.disabled = value })
   }
 
   async function readHistory(older = false, receipt = '') {
@@ -200,7 +320,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       if (!matches.length && !posted.length) search.value = ''
       history.querySelector('[data-refresh-matches]')?.remove()
       paintHistory()
-      status.textContent = receipt || (matches.length || posted.length ? '' : 'Your first scorecard will appear here.')
+      status.textContent = receipt || (matches.length || posted.length || teamCards.length ? '' : 'Your first scorecard will appear here.')
       if (previous) {
         const appended = [...history.querySelectorAll<HTMLButtonElement>('[data-open-scorecard]')]
           .find(button => page.matches.some(row => row.id === button.dataset.scorecardId && !previous.has(row.id)))
@@ -243,10 +363,10 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     }
   }
 
-  function showScorecard(match: LogScorecard, ownEntry?: PersonalMatch | null) {
+  function showScorecard(match: LogScorecard,
+    { ownEntry, offerNextTeamReview = false }: { ownEntry?: PersonalMatch | null; offerNextTeamReview?: boolean } = {}) {
     if (!active() || writing || !match) return
-    history.hidden = formHost.hidden = false
-    add.disabled = reading
+    showMatchHistory(true)
     if ('scoreOrder' in match) {
       const personal = ownEntry ?? matches.find(card => card.calendar_match_id === match.calendar_match_id)
       editor.innerHTML = `<article class="lab-first-scorecard" aria-label="Captain scorecard">
@@ -261,7 +381,11 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       if (copy && personal) copy.onclick = () => showScorecard(personal)
       return
     }
-    const postedScore = teamScore && teamScore.key === match.calendar_match_id && teamScoreDiffers(match, teamScore) ? teamScore : undefined
+    const teamScore = teamCards.find(card => card.calendarMatchId === match.calendar_match_id) ??
+      (seed?.calendarMatchId === match.calendar_match_id ? seed : undefined)
+    const postedScore = teamScore?.score && teamScore.outcome && isTeamResultScorecardKey(teamScore.calendarMatchId) &&
+      teamScoreDiffers(match, { score: teamScore.score, outcome: teamScore.outcome })
+      ? { score: teamScore.score, outcome: teamScore.outcome } : undefined
     const venue = listedExploreCourt(match.court_venue_key)
     const club = stLouisHittingClubs.find(court => court.id === venue?.id)
     const venueName = match.court_venue_key ? venue?.name ?? 'Court no longer listed' : ''
@@ -277,6 +401,9 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         <p><strong>${html(postedScore.score)}</strong> · ${postedScore.outcome}</p>
         <button type="button" class="secondary" data-review-team-score ${reading ? 'disabled' : ''}>Review team score</button>
       </section>` : ''}
+      ${offerNextTeamReview && !postedScore ? `<button type="button" class="secondary" data-next-team-review ${teamReviewCount ? '' : 'hidden'}>
+        Review next team score <span aria-hidden="true">›</span>
+      </button>` : ''}
       ${matchPracticeButtonHtml}
       ${venue ? `<section class="lab-court-feedback" aria-labelledby="lab-court-feedback-title">
         <h4 id="lab-court-feedback-title">Court ratings</h4>
@@ -301,6 +428,14 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     }
     const review = editor.querySelector<HTMLButtonElement>('[data-review-team-score]')
     if (review && postedScore) review.onclick = () => showEditor(match, { teamScore: postedScore })
+    const nextReview = editor.querySelector<HTMLButtonElement>('[data-next-team-review]')
+    if (nextReview) nextReview.onclick = () => {
+      if (!active() || writing || openingScorecard || nextReview.hidden) return
+      const target = teamScoresHost.querySelector('[data-needs-review]')?.closest<HTMLButtonElement>('[data-open-team-court]')
+      const earlier = target?.closest('details')
+      if (earlier) earlier.open = true
+      target?.click()
+    }
     const rate = editor.querySelector<HTMLButtonElement>('[data-edit-court-feedback]')
     if (rate && venue) rate.onclick = () => showCourtFeedbackEditor(match, venue.name)
     const plan = editor.querySelector<HTMLButtonElement>('[data-plan-rematch]')
@@ -317,7 +452,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     if (!active() || writing || reading) return
     const original: CourtFeedback = match.court_feedback ?? { surface: null, lighting: null, court_time: null }
     const ratings = { ...original }
-    history.hidden = formHost.hidden = add.disabled = true
+    showMatchHistory(false)
     editor.innerHTML = `<form class="lab-first-scorecard lab-court-feedback-editor">
       <h3 tabindex="-1">Rate this court</h3><p>${html(venueName)}</p>
       <p>Rate any category. Tap the selected star again to clear it. Your ratings are private.</p>
@@ -392,19 +527,39 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
 
   function closeEditor() {
     editor.replaceChildren()
-    history.hidden = formHost.hidden = false
-    add.disabled = reading
+    showMatchHistory(true)
     const origin = scorecardOrigin
     scorecardOrigin = undefined
-    const target = origin && (origin.button.isConnected ? origin.button : findHistoryRow(origin.id))
+    const target = origin && (origin.button.isConnected ? origin.button : origin.id ? findHistoryRow(origin.id) : undefined)
     if (target) target.focus()
     else add.focus({ preventScroll: true })
   }
 
+  function showTeamCourtPreview(seed: CalendarScorecardSeed) {
+    const { score, outcome, teamCourt } = seed
+    if (!active() || writing || !score || !outcome || !teamCourt) return
+    showMatchHistory(false)
+    editor.innerHTML = `<article class="lab-first-scorecard" aria-label="Team court scorecard">
+      <h3 tabindex="-1">vs ${html(seed.opponent)}</h3>
+      <p>Captain posted · Court ${teamCourt}</p>
+      <p>${html(matchDate(seed.date))}${seed.format ? ' · ' + formatName(seed.format) : ''}</p>
+      <div class="lab-team-score-review lab-posted-court-score" role="group" aria-label="Court score"><strong>${html(score)}</strong>
+        <span class="${outcome === 'Won' ? 'result-won' : 'result-lost'}">${outcome}</span></div>
+      <button type="button" data-review-posted-court>Review and save</button>
+      <button type="button" class="secondary" data-close-scorecard>Back to match log</button>
+    </article>`
+    editor.querySelector<HTMLElement>('h3')!.focus()
+    editor.querySelector<HTMLButtonElement>('[data-review-posted-court]')!.onclick = () => showEditor(null, seed)
+    editor.querySelector<HTMLButtonElement>('[data-close-scorecard]')!.onclick = () => {
+      closeEditor()
+      void readHistory()
+    }
+  }
+
   function showEditor(match: PersonalMatch | null,
     seed?: CalendarScorecardSeed | { previous: PersonalMatch } | { resume: UnsubmittedScorecard } | { teamScore: TeamScore }) {
-    if (!active() || writing || reading) return
     const calendarSeed = seed && 'calendarMatchId' in seed ? seed : undefined
+    if (!active() || writing || reading && !calendarSeed) return
     const previous = seed && 'previous' in seed ? seed.previous : undefined
     const correction = match && seed && 'teamScore' in seed ? seed.teamScore : undefined
     const resumed = calendarSeed ? resumeCalendarScorecard(formSession, calendarSeed) : seed && 'resume' in seed ? seed.resume : undefined
@@ -412,7 +567,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     const prefill = match ?? calendarSeed ?? previous
     const recent = prefill ? [] : recentOpponents(matches)
     const title = correction ? 'Review team score' : match ? 'Edit scorecard' : previous ? 'Log a rematch' : resumed ? 'Resume scorecard' : 'Log a match'
-    history.hidden = formHost.hidden = add.disabled = true
+    showMatchHistory(false)
     editor.innerHTML = `<form class="lab-first-scorecard" data-match-editor>
       <h3 tabindex="-1">${title}</h3>
       ${correction ? '<p>Review the team score and result before saving them to your private scorecard.</p>' : ''}
@@ -442,6 +597,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     const fields = form.querySelector<HTMLFieldSetElement>('fieldset')!
     const feedback = form.querySelector<HTMLElement>('[data-match-feedback]')!
     const save = form.querySelector<HTMLButtonElement>('[data-save-scorecard]')!
+    save.disabled = reading
     const cancel = form.querySelector<HTMLButtonElement>('[data-cancel-scorecard]')!
     for (const [field, value] of Object.entries(resumed ?? { match_date: match?.match_date ?? calendarSeed?.date ?? localCalendarDate(),
       opponent: prefill?.opponent ?? '', format: prefill?.format ?? '',
@@ -513,6 +669,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     cancel.onclick = () => {
       if (writing) return
       clearRemembered()
+      if (!draft && calendarSeed?.teamCourt) { showTeamCourtPreview(calendarSeed); return }
       if (draft || calendarSeed) { closeEditor(); void readHistory(); return }
       const returnTo = match ?? previous
       if (returnTo) showScorecard(returnTo)
@@ -540,9 +697,10 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         if (active()) cancel.disabled = false
       }
       if (!saved || !active()) return
+      rememberTeamScore(saved.calendar_match_id, saved)
       matches = matches.filter(row => row.id !== saved.id)
       paintHistory()
-      showScorecard(saved)
+      showScorecard(saved, { offerNextTeamReview: Boolean(correction && !teamScoreDiffers(saved, correction)) })
       void readHistory(false, 'Scorecard saved.')
     }
     form.querySelector<HTMLElement>('h3')!.focus()
@@ -573,6 +731,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         if (active()) remove.disabled = keep.disabled = add.disabled = false
       }
       if (!active() || !removed) return
+      rememberTeamScore(match.calendar_match_id, null)
       matches = matches.filter(row => row.id !== match.id)
       paintHistory()
       closeEditor()
@@ -580,8 +739,10 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     }
   }
 
-  async function openCalendarMatch(calendarSeed: CalendarScorecardSeed) {
-    if (!active()) return
+  async function openCalendarMatch(calendarSeed: CalendarScorecardSeed, trigger?: HTMLButtonElement) {
+    if (!active() || writing || openingScorecard) return
+    openingScorecard = true
+    if (trigger) scorecardOrigin = { button: trigger }
     add.disabled = true
     editor.replaceChildren()
     const source = isTeamResultScorecardKey(calendarSeed.calendarMatchId)?'team':'calendar'
@@ -591,27 +752,34 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       if (calendarSeed.calendarMatchId.includes(':court:')) await captainLoad
       if (!active()) return
       status.textContent = ''
+      rememberTeamScore(calendarSeed.calendarMatchId, saved)
       const captain = posted.find(card => card.calendar_match_id === calendarSeed.calendarMatchId)
       if (captain || saved) formSession.calendarDrafts?.delete(calendarSeed.calendarMatchId)
-      if (captain) { showScorecard(captain, saved); void readHistory() }
+      if (captain) { showScorecard(captain, { ownEntry: saved }); void readHistory() }
       else if (saved) { showScorecard(saved); void readHistory() }
+      else if (calendarSeed.teamCourt && !resumeCalendarScorecard(formSession, calendarSeed)) showTeamCourtPreview(calendarSeed)
       else showEditor(null, calendarSeed)
     } catch {
       if (!active()) return
-      add.disabled = false
+      add.disabled = reading
       status.textContent = `Couldn’t check this ${source} scorecard. Try again before logging it.`
       editor.innerHTML = `<button type="button" class="secondary" data-retry-calendar-scorecard>Retry ${source} scorecard</button>`
       const retry = editor.querySelector<HTMLButtonElement>('[data-retry-calendar-scorecard]')!
       retry.onclick = () => { void openCalendarMatch(calendarSeed) }
       retry.focus()
-    }
+    } finally { openingScorecard = false }
   }
 
-  const captainLoad = loadCaptainScorecards(client, owner, active).then(cards => {
+  const captainLoad = loadCaptainScorecards(client, owner, active).then(({ scorecards, teamCards }) => {
     if (!active()) return
-    posted = cards
+    posted = scorecards
+    if (teamCards) paintTeamScorecards(teamCards)
+    else {
+      captainStatus.textContent = 'Team court scores couldn’t load. Refresh My Lab to try again.'
+      captainStatus.hidden = false
+    }
+    if ((posted.length || teamCards?.length) && status.textContent === 'Your first scorecard will appear here.') status.textContent = ''
     if (!posted.length) return
-    if (status.textContent === 'Your first scorecard will appear here.') status.textContent = ''
     paintHistory()
   }).catch(() => {
     if (!active()) return
@@ -619,6 +787,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     captainStatus.hidden = false
   })
   add.onclick = () => {
+    if (openingScorecard) return
     scorecardOrigin = undefined
     const resume = formSession.unsubmitted
     showEditor(null, resume ? { resume } : undefined)

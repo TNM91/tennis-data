@@ -23,7 +23,7 @@ import {captainCourtPreview,captainCourtsFixture,captainFixtureId} from './mobil
 import {shiftCalendarDay} from '../../mobile/src/calendar-data'
 import {calendarTeamMatchesHeader} from '../../lib/native-calendar-contract'
 import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
-import {teamResultOutcome,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
+import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLimit,teamScorecardsHeader,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
 const originalFetch=window.fetch.bind(window)
 const freeTraining=new URL(location.href).searchParams.has('free-training')
 const nearbyExplore=new URL(location.href).searchParams.get('nearby-explore')
@@ -343,7 +343,20 @@ window.fetch=async(input,init)=>{
   const teamMatches=include&&enabled&&revision&&match?[{roomId:chatRoomId,revision,match,scope:chatTeam}]:undefined
   return calendarPreview(init?.method||'GET',url,init?.body,teamMatches)
  }
- if(url.pathname==='/api/mobile/first-party/court-results')return captainCourtPreview(url,currentNavigationOwner(),init?.body)
+ if(url.pathname==='/api/mobile/first-party/court-results'){
+  const owner=currentNavigationOwner()
+  const include=!url.search&&new Headers(init?.headers).get(teamScorecardsHeader)==='1'
+  const cards=include&&manualScheduleFixture.enabled?[teamResultFixture,...teamResultFixture.earlier]
+   .sort((a,b)=>b.match.date.localeCompare(a.match.date))
+   .flatMap(entry=>{
+    const index=entry.score?.courtPlayers?.findIndex(players=>players.some(player=>player.id===owner))??-1
+    if(index<0)return []
+    const court=readTeamCourtScore(entry.score?.courtScores?.[index])
+    const card=court&&teamCourtScorecard(chatRoomId,entry,index+1,court,entry.score?.courtPlayers?.[index]?.length??0)
+    return card?[card]:[]
+   }).slice(0,teamScorecardLimit):undefined
+  return captainCourtPreview(url,owner,init?.body,cards)
+ }
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/messages'){
   const unreadReply=await coachUnreadMessages(currentNavigationOwner(),init?.method||'GET',url,init?.body);if(unreadReply)return unreadReply

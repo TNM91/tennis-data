@@ -4,7 +4,7 @@ import {teamLeagueLabel} from '../../lib/private-team-contract'
 import {formatCalendarDay} from '../../lib/calendar-date'
 import type {ReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {isTeamCourtDefault,maxTeamResultCourts,readTeamCourtScore,readTeamCourtTally,readTeamResults,readTeamResultChange,readTeamResultPlayers,
- teamCourtDefaults,teamResultOutcome,teamResultScorecardKey,type TeamRecord,type TeamResultChange,type TeamResultEntry,
+ teamCourtDefaults,teamCourtScorecard,teamResultOutcome,teamResultScorecardKey,type TeamRecord,type TeamResultChange,type TeamResultEntry,
  type TeamResultPlayer,type TeamResultScore,type TeamResults} from '../../lib/team-results-contract'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 import {localCalendarDate} from './calendar-data'
@@ -45,12 +45,11 @@ function myPlayedCourt(score:TeamResultScore|null){
 }
 
 function myCourtScorecard(roomId:string,entry:TeamResultEntry):CalendarScorecardSeed|undefined{
- const {fixtureId,match,score}=entry
- const court=myPlayedCourt(score)
- if(!court||match.date>localCalendarDate())return
- return {calendarMatchId:teamResultScorecardKey(roomId,fixtureId),date:match.date,
-  opponent:[...match.opponent.replace(/\p{Cc}/gu,'').trim()].slice(0,100).join(''),
-  format:score?.courtPlayers?.[court.number-1].length===2?'doubles':undefined,score:court.score,outcome:court.outcome}
+ const {match,score}=entry
+ const number=score?.myCourt
+ if(!number||match.date>localCalendarDate())return
+ const court=readTeamCourtScore(score.courtScores?.[number-1])
+ if(court&&!court.defaulted)return teamCourtScorecard(roomId,entry,number,court,score.courtPlayers?.[number-1]?.length??0)
 }
 const resultChatMatchLabel=(match:ReviewedNextMatch)=>`${match.opponent} on ${formatCalendarDay(match.date)}`
 export function sharedTeamResult(body:string,teamName:string){
@@ -278,7 +277,7 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
    if(!entry)continue
    const court=myPlayedCourt(entry.score)
    const saved=savedScores?.get(teamResultScorecardKey(room.id,entry.fixtureId))
-   button.firstElementChild!.textContent=saved===null?'Log my court in My Lab':
+   button.firstElementChild!.textContent=saved===null?'View court scorecard in My Lab':
     saved&&court?(teamScoreDiffers(saved,court)?'Review team score in My Lab':'View saved scorecard in My Lab'):openInLab
   }
  }

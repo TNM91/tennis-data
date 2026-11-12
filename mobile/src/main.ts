@@ -794,12 +794,18 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
     const shortcuts=document.createElement('div');shortcuts.innerHTML=homeShortcutsHtml()
     if(firstPartyBuild){
       calendar.after(shortcuts)
+      const scoreReviewShortcut = !entry ? document.createElement('div') : undefined
+      if (scoreReviewShortcut) {
+        scoreReviewShortcut.className = 'lab-up-next lab-score-review-shortcut'
+        scoreReviewShortcut.hidden = true
+        shortcuts.before(scoreReviewShortcut)
+      }
       bindAppDestinations(shortcuts,openDestination)
       const matchLog = document.createElement('div')
       shortcuts.after(matchLog)
       const active = () => version===revision&&current.user.id===session?.user.id
       mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
-        seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,
+        seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,scoreReviewShortcut,
         openPractice:(match,currentMatch)=>openScorecardPractice(current.user.id,currentMatch,match.match_date,match.format==='doubles'),
         openRematchInvite:(clubId,trigger,currentMatch)=>openScorecardInvite(current.user.id,clubId,trigger,currentMatch),
       })

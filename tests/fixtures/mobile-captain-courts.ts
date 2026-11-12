@@ -1,4 +1,5 @@
 import { courtScorecardKey, readCourtSubmission, type CaptainCourt } from '../../lib/native-court-result-contract'
+import type { TeamCourtScorecard } from '../../lib/team-results-contract'
 import { competitionLeague, competitionOwner } from './competitions-data'
 
 export const captainFixtureId = '55555555-5555-4555-8555-555555555555'
@@ -10,10 +11,10 @@ const scenario = new URL(location.href).searchParams.get('captain-courts')
 let loseCorrectionReceipt = scenario === 'retry-correction'
 export const captainCourtsFixture = { enabled: scenario !== null, courts: [] as CaptainCourt[] }
 
-export function captainCourtPreview(url: URL, owner: string, body: unknown) {
+export function captainCourtPreview(url: URL, owner: string, body: unknown, teamScorecards?: TeamCourtScorecard[]) {
   const response = { ok: true, owner, releaseScope: 'first-party' }
   const active = captainCourtsFixture.enabled
-  if (!url.search) return Response.json({ ...response, scorecards: !active ? [] : captainCourtsFixture.courts.flatMap(row => {
+  if (!url.search) return Response.json({ ...response, teamScorecards, scorecards: !active ? [] : captainCourtsFixture.courts.flatMap(row => {
     const side = row.a.includes(owner) ? 'A' : row.b.includes(owner) ? 'B' : ''
     if (!side) return []
     const id = courtScorecardKey(match.league, match.fixture, row.court)

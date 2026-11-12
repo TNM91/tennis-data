@@ -24,7 +24,7 @@ export type PersonalMatch = MatchFields & MatchVenue & MatchCalendarLink & { id:
 export type TeamScore = Pick<MatchFields, 'score' | 'outcome'>
 export type PersonalMatchDraft = MatchFields & MatchVenue & MatchCalendarLink & { id: string; revision: string; expected: string | null }
 export type CalendarScorecardSeed = {
-  calendarMatchId: string; date: string; opponent: string; format?: MatchFields['format']; outcome?: MatchFields['outcome']; score?: string; courtVenueKey?: string
+  calendarMatchId: string; date: string; opponent: string; format?: MatchFields['format']; outcome?: MatchFields['outcome']; score?: string; courtVenueKey?: string; teamCourt?: number
 }
 export class MatchChanged extends Error {}
 

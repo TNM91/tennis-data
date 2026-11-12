@@ -2,6 +2,7 @@ import { CapacitorHttp } from '@capacitor/core'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { courtAccountId, courtDate, courtNumber, type CourtDesk, type CourtMember, type CaptainCourt,
   type CourtSubmission, type PostedCourtScorecard } from '../../lib/native-court-result-contract'
+import { readTeamCourtScorecard, teamScorecardLimit, teamScorecardsHeader, type TeamCourtScorecard } from '../../lib/team-results-contract'
 
 const endpoint = 'https://www.tenaceiq.com/api/mobile/first-party/court-results'
 const format = (value: unknown) => value === 'singles' || value === 'doubles'
@@ -24,6 +25,7 @@ async function request(client: SupabaseClient, owner: string, current: () => boo
   const signedIn = await session()
   const url = endpoint + (context ? '?' + new URLSearchParams(context) : '')
   const options = { url, headers: { Authorization: 'Bearer ' + signedIn.access_token, 'Cache-Control': 'no-store',
+    ...(!context ? { [teamScorecardsHeader]: '1' } : {}),
     ...(input ? { 'Content-Type': 'application/json' } : {}) }, disableRedirects: true, responseType: 'json' as const,
   webFetchExtra: { cache: 'no-store' as const }, connectTimeout: 10000, readTimeout: 30000 }
   const response = input ? await CapacitorHttp.post({ ...options, data: input }) : await CapacitorHttp.get(options)
@@ -56,12 +58,22 @@ export async function postCourt(client: SupabaseClient, owner: string, current: 
 }
 
 export async function loadCaptainScorecards(client: SupabaseClient, owner: string, current: () => boolean) {
-  const { scorecards } = await request(client, owner, current) as { scorecards: PostedCourtScorecard[] }
+  const { scorecards, teamScorecards } = await request(client, owner, current) as { scorecards: PostedCourtScorecard[]; teamScorecards?: unknown }
   if (!Array.isArray(scorecards) || scorecards.length > 30 || new Set(scorecards.map(card => card?.id)).size !== scorecards.length ||
       scorecards.some(card => !card || !/^league:[A-Za-z0-9_-]{1,80}:[a-f0-9-]{36}:court:\d{1,2}$/.test(card.id) ||
         card.calendar_match_id !== card.id || !courtDate(card.match_date) || !format(card.format) || !courtNumber(card.court) ||
         !safeText(card.opponent, 160) || !safeText(card.scoreOrder, 323) || !safeText(card.score, 64) || !['Won', 'Lost'].includes(card.outcome))) {
     throw Error('The captain scorecards could not be confirmed.')
   }
-  return scorecards
+  const teamCards: TeamCourtScorecard[] = []
+  if (teamScorecards === undefined) return { scorecards, teamCards }
+  if (!Array.isArray(teamScorecards) || teamScorecards.length > teamScorecardLimit) return { scorecards, teamCards: null }
+  const keys = new Set<string>()
+  for (const value of teamScorecards) {
+    const card = readTeamCourtScorecard(value)
+    if (!card || keys.has(card.calendarMatchId)) return { scorecards, teamCards: null }
+    keys.add(card.calendarMatchId)
+    teamCards.push(card)
+  }
+  return { scorecards, teamCards }
 }
