@@ -223,7 +223,7 @@ jobs:
        (inputs.profile == 'first-party-full' && inputs.distribution == 'internal' && inputs.check_testflight && !inputs.upload))
     environment: apple-testflight
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v7
         with:

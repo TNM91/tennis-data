@@ -108,7 +108,8 @@ const [previousGroup] = previousGroups
 
 let result
 let assignmentAttempted = false
-for(let attempt=0;attempt<6;attempt++){
+const attempts=shouldAssign?10:6
+for(let attempt=0;attempt<attempts;attempt++){
  const current = await readBuild(buildNumber)
  const assigned = current.groupIds.has(previousGroup.id) || Boolean(current.id && current.processing==='VALID'
   && await groupContainsBuild(previousGroup.id,current.id))
@@ -121,7 +122,7 @@ for(let attempt=0;attempt<6;attempt++){
  }
  if(result.processing==='FAILED' || result.processing==='INVALID')break
  if(result.processing==='VALID' && assigned && (!shouldAssign || result.internalState==='IN_BETA_TESTING'))break
- if(shouldAssign && !assignmentAttempted && attempt<5 && result.processing==='VALID' && !assigned){
+ if(shouldAssign && !assignmentAttempted && attempt<attempts-1 && result.processing==='VALID' && !assigned){
   if(result.audience!=='INTERNAL_ONLY' || !['READY_FOR_BETA_TESTING','IN_BETA_TESTING'].includes(result.internalState)){
    throw new Error(`Build ${buildNumber} is outside the approved internal testing scope.`)
   }
@@ -129,7 +130,7 @@ for(let attempt=0;attempt<6;attempt++){
   assignmentAttempted = true
   continue
  }
- if(attempt<5)await sleep(20000)
+ if(attempt<attempts-1)await sleep(shouldAssign?60000:20000)
 }
 if(result.processing==='AWAITING_PROCESSING'){
  const upload=await readUploadStatus().catch(error=>({
@@ -139,4 +140,6 @@ if(result.processing==='AWAITING_PROCESSING'){
  result={...result,...upload}
 }
 console.log(JSON.stringify(result))
-if(shouldAssign && !result.sameGroupAs254)throw new Error(`Apple did not confirm build ${buildNumber} in the same group as build 254.`)
+if(shouldAssign && (result.processing!=='VALID'||!result.sameGroupAs254||result.internalState!=='IN_BETA_TESTING')){
+ throw new Error(`Apple did not confirm build ${buildNumber} is available to the same group as build 254.`)
+}

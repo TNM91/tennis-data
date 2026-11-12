@@ -150,7 +150,7 @@ test('the build 255 status check skips signing and upload',async()=>{
  assert.match(workflow.jobs.signed.if,/!inputs\.check_testflight && !inputs\.assign_previous_group/)
  const job = workflow.jobs['check-offline-testflight']
  assert.equal(job.environment,'apple-testflight')
- assert.equal(job['timeout-minutes'],5)
+ assert.equal(job['timeout-minutes'],12)
  assert.match(job.if,/inputs\.build_number == '255' &&\s+inputs\.check_testflight && !inputs\.upload/)
  assert.deepEqual(job.steps.filter(step=>step.run).map(step=>step.run),['node mobile/scripts/check-offline-testflight.mjs'])
  assert.equal(job.steps.find(step=>step.run).env.TIQ_ASSIGN_PREVIOUS_GROUP,'${{ inputs.assign_previous_group }}')
