@@ -2,11 +2,14 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {mapPlayerCalendarItemRow,type PlayerCalendarItemRow} from './player-calendar-items'
 import {playerCalendarSelect} from './player-calendar-storage'
 import {applyCalendarVenueLocations} from './venue-calendar-storage'
+import {hittingPlanStart,isHittingPlanEntry} from './hitting-plan'
+import {isScorecardPracticeEntry} from './level-up/scorecard-practice'
 import {mapApprovedCompetitionSchedule} from './player-competition-schedule'
 import {mapCoachAssignmentRow,type CoachAssignmentRow} from './coach-storage'
 import {buildCoachStudentCalendarEvents} from './coach-calendar'
 import {COMPETITION_DATES_UNAVAILABLE,calendarPayload,firstPartyPersonalCalendarId,personalDraft,readCalendarCompetitionView,sameCalendarDraft,type CalendarIntent,type CalendarRange,type NativeCalendar,type CalendarSharedDate} from './native-calendar-contract'
 
+const nativeCalendarSelect=`${playerCalendarSelect},hitting_plan,practice_focus` as const
 export class CalendarFault extends Error {constructor(public status:number,message:string){super(message)}}
 const conflict=()=>new CalendarFault(409,'This date changed. Refresh and review it before saving again.')
 const stamp=(previous:string)=>new Date(Math.max(Date.now(),Date.parse(previous)+1)).toISOString()
@@ -14,7 +17,7 @@ const inRange=(date:string,range:CalendarRange)=>date>=range.from&&date<=range.t
 function rows<T>(result:{data:T[]|null;error:unknown},limit=500):T[]{if(result.error||!Array.isArray(result.data)||result.data.length>limit)throw Error('Calendar source unavailable');return result.data}
 
 export async function calendarPersonal(client:SupabaseClient,owner:string,id:string){
- const found=await client.from('player_calendar_items').select(playerCalendarSelect).eq('player_user_id',owner).eq('id',id).maybeSingle()
+ const found=await client.from('player_calendar_items').select(nativeCalendarSelect).eq('player_user_id',owner).eq('id',id).maybeSingle()
  if(found.error)throw Error('Calendar read unavailable')
  if(!found.data)return null
  if(found.data.player_user_id!==owner||found.data.id!==id)throw Error('Calendar owner changed')
@@ -63,7 +66,7 @@ async function calendarCoach(client:SupabaseClient,owner:string,range:CalendarRa
 type CalendarCompetitionLoader=(client:SupabaseClient,owner:string)=>Promise<NativeCalendar['competitions']>
 export async function loadNativeCalendar(client:SupabaseClient,owner:string,range:CalendarRange,scopedCompetitions?:CalendarCompetitionLoader):Promise<NativeCalendar>{
  const firstParty=Boolean(scopedCompetitions)
- const personal=client.from('player_calendar_items').select(playerCalendarSelect).eq('player_user_id',owner).lte('scheduled_date',range.to)
+ const personal=client.from('player_calendar_items').select(nativeCalendarSelect).eq('player_user_id',owner).lte('scheduled_date',range.to)
  if(firstParty)personal.not('id','like','team-schedule-*').not('id','like','message-calendar-*')
  const [p,c,h]=await Promise.allSettled([
   personal.or('scheduled_date.gte.'+range.from+',recurrence_rule.in.(FREQ=DAILY,FREQ=WEEKLY,FREQ=MONTHLY)').order('scheduled_date').order('id').limit(501).then(async result=>{const found=rows(result);if(found.some(r=>r.player_user_id!==owner))throw Error();const allowed=firstParty?found.filter(row=>firstPartyPersonalCalendarId(row.id)):found;return (await applyCalendarVenueLocations(client,owner,allowed as PlayerCalendarItemRow[])).map(mapPlayerCalendarItemRow)}),
@@ -85,15 +88,23 @@ export async function writeCalendarPersonal(client:SupabaseClient,owner:string,i
   if(await calendarPersonal(client,owner,id))throw conflict()
   return {item:null}
  }
- if(before&&sameCalendarDraft(personalDraft(before),intent.item))return {item:before}
+ // Older clients omit the private details when editing a personal date.
+ const draft={...intent.item}
+ if(intent.action==='update'&&before){
+  if(before.hittingPlan&&!draft.hittingPlan&&draft.location===before.location&&isHittingPlanEntry(draft)&&hittingPlanStart(draft)){
+   draft.hittingPlan=before.date===draft.date&&before.time===draft.time?before.hittingPlan:{clubId:before.hittingPlan.clubId}
+  }
+  if(before.practiceFocus&&!draft.practiceFocus&&isScorecardPracticeEntry(draft))draft.practiceFocus=before.practiceFocus
+ }
+ if(before&&sameCalendarDraft(personalDraft(before),draft))return {item:before}
  if(intent.action==='create'&&before||intent.action==='update'&&(!before||before.updatedAt!==intent.expectedUpdatedAt))throw conflict()
- const raw=calendarPayload(intent.item,owner)
+ const raw={...calendarPayload(draft,owner),hitting_plan:draft.hittingPlan??null,practice_focus:draft.practiceFocus??null}
  const [payload]=await applyCalendarVenueLocations(client,owner,[raw as PlayerCalendarItemRow])
  const result=intent.action==='create'?await client.from('player_calendar_items').insert(payload):await client.from('player_calendar_items').update({...payload,updated_at:stamp(before!.updatedAt)}).eq('player_user_id',owner).eq('id',id).eq('updated_at',intent.expectedUpdatedAt).select('id').maybeSingle()
  if(result.error)throw result.error.code==='23505'?conflict():Error('Calendar save unconfirmed')
  if(intent.action==='update'&&!result.data)throw conflict()
  const item=await calendarPersonal(client,owner,id)
- if(!item||!sameCalendarDraft(personalDraft(item),intent.item))throw conflict()
+ if(!item||!sameCalendarDraft(personalDraft(item),draft))throw conflict()
  return {item}
 }
 export async function respondNativeCalendar(client:SupabaseClient,owner:string,intent:Extract<CalendarIntent,{action:'respond'}>,scopedCompetitions?:CalendarCompetitionLoader){
