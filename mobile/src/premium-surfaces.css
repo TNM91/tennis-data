@@ -1953,10 +1953,11 @@ dialog.shared-match-dialog[open] {
 .court-invite-calendar [hidden] { display:none; }
 .court-finder-search { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end; }
 .court-finder-filters {
- display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1fr) minmax(0,1.1fr);gap:6px;margin-block-end:14px;
+ display:flex;flex-wrap:wrap;gap:6px;margin-block-end:14px;
 }
 .court-finder-filters button.secondary {
- min-inline-size:0;min-block-size:44px;margin:0;padding:6px 4px;
+ flex:1 0 auto;inline-size:auto;min-inline-size:0;max-inline-size:100%;
+ min-block-size:44px;margin:0;padding:6px 4px;
  font-size:.75rem;line-height:1.25;overflow-wrap:anywhere;
 }
 .court-finder-filters button.secondary[aria-pressed="true"] {

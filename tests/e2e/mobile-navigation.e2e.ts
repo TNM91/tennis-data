@@ -73,10 +73,12 @@ test('first-party My Lab opens account notes and training without a linked playe
  await expect(notebook.getByRole('button',{name:'Add goal',exact:true})).toBeEnabled()
  await notebook.getByRole('button',{name:'Close training notes',exact:true}).click()
 
- await page.getByRole('navigation',{name:'Play and improve'}).getByRole('button',{name:'Coach & training',exact:true}).click()
+ const coachShortcut=page.getByRole('navigation',{name:'Play and improve'}).getByRole('button',{name:'Coach & training',exact:true})
+ await coachShortcut.click()
  await expect(page.getByRole('heading',{name:'Coach & training',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'Back to My Lab',exact:true}).click()
- await expect(page.getByRole('navigation',{name:'Play and improve'}).getByRole('button',{name:'Coach & training',exact:true})).toBeFocused()
+ await expect(coachShortcut).toBeFocused()
+ await expect(coachShortcut).toBeInViewport({ratio:1})
  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'More',exact:true}).click()
  await expect(page.locator('[data-app-destination="following"], [data-app-destination="matchup"]')).toHaveCount(0)
  const reads=await page.evaluate(()=>(window as unknown as {labDataReads:typeof import('../fixtures/mobile-navigation-client').labDataReads}).labDataReads)
@@ -3133,10 +3135,10 @@ test('first-party Explore ranks courts locally and falls back to city or ZIP whe
  expect(await requestCount(page)).toBe(reads)
 })
 
-test('first-party Explore filters listed courts while preserving city and ZIP searches',async({page},info)=>{
+for(const large of [false,true])test('first-party Explore filters listed courts while preserving city and ZIP searches'+(large?' with larger text':''),async({page},info)=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:740})
- await page.goto(origin+'/?signedOut=1')
+ await page.goto(origin+'/?signedOut=1'+(large?'&large=1':''))
  await page.getByRole('button',{name:'Explore without signing in',exact:true}).click()
  await expect(page.locator('[data-explore-event-status]')).not.toContainText('Checking upcoming play')
  const reads=await requestCount(page)
@@ -3720,8 +3722,22 @@ for(const {width,large} of [{width:390,large:false},{width:320,large:true}])test
  await expect(back).toBeInViewport({ratio:1})
  await bounded(page)
  await page.screenshot({path:info.outputPath('coach-from-my-lab.png')})
- if(large)await back.press('Enter');else await back.tap()
+ if(large){
+  await page.evaluate(()=>{
+   const fixture=(window as unknown as LabProfilePreviewWindow).labProfileFixture
+   fixture.deferRatings();fixture.deferMatches()
+  })
+  await back.press('Enter')
+ }else await back.tap()
  await expect(coach).toBeFocused()
+ if(large){
+  await expect(coach).toBeInViewport({ratio:1})
+  await page.evaluate(()=>{
+   window.scrollTo(0,0)
+   const fixture=(window as unknown as LabProfilePreviewWindow).labProfileFixture
+   fixture.releaseRatings();fixture.releaseMatches()
+  })
+ }
  await expect(page.locator('#results-content')).toHaveAttribute('data-state','ready')
  await expect(coach).toBeInViewport({ratio:1})
  await moreTab.click()
