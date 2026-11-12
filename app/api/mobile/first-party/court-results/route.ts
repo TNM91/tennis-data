@@ -1,7 +1,9 @@
 import { accountClient, accountResponse, readAccountJson, verifiedAccount } from '@/lib/mobile-account-auth'
 import { courtAccountId, courtLeagueId, readCourtSubmission } from '@/lib/native-court-result-contract'
 import { CourtUnavailable, loadCourtDesk, loadPostedCourtScorecards, publishCourtResult } from '@/lib/first-party-court-results'
+import { loadPrivateTeamScorecards } from '@/lib/first-party-team-results'
 import { supabaseKey } from '@/lib/supabase-public-config'
+import { teamScorecardsHeader } from '@/lib/team-results-contract'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -18,7 +20,15 @@ async function handle(request: Request) {
   if (params.size === 0 && !write) {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
     if (!key) return json({ ok: false }, 503)
-    return json({ ok: true, owner, scorecards: await loadPostedCourtScorecards(accountClient(key), owner) })
+    const service = accountClient(key)
+    const [scorecards, teamScorecards] = await Promise.all([
+      loadPostedCourtScorecards(service, owner),
+      request.headers.get(teamScorecardsHeader) === '1' ? loadPrivateTeamScorecards(service, owner).catch(() => {
+        console.error('First-party team court scores unavailable')
+        return null
+      }) : undefined,
+    ])
+    return json({ ok: true, owner, scorecards, ...(teamScorecards !== undefined ? { teamScorecards } : {}) })
   }
   if (params.size !== 2 || !courtLeagueId(league) || !courtAccountId(fixture)) return json({ ok: false }, 400)
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
