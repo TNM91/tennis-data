@@ -2257,9 +2257,10 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
  border:1px solid var(--premium-line);border-radius:10px;background:var(--premium-inset);
 }
 .competitions-dialog .competition-directory-heading h2 { margin:0;font-size:1.5rem;line-height:1.15;letter-spacing:-.035em;overflow-wrap:anywhere; }
-@container (max-width:calc(9rem + 52px)) {
+@container (max-width:calc(11rem + 52px)) {
  .competition-directory-heading { display:block; }
  .competition-directory-heading>span { display:none; }
+ .competitions-dialog .competition-directory-heading h2 { font-size:clamp(1rem,13cqi,1.5rem); }
 }
 .competitions-dialog .competition-header:has(+.competition-directory) button.secondary { padding:8px 12px!important;font-size:.8125rem; }
 .competition-directory .competition-switch { margin:0; }
