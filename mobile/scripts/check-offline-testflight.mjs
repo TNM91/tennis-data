@@ -2,11 +2,14 @@ import {createPrivateKey,sign} from 'node:crypto'
 import {setTimeout as sleep} from 'node:timers/promises'
 
 const bundleId = 'com.tenaceiq.app'
-const buildNumber = process.env.TIQ_CHECK_BUILD_NUMBER || '255'
-if(!/^[1-9][0-9]{2,8}$/.test(buildNumber)||Number(buildNumber)<255)throw Error('Choose a first-party build number of at least 255.')
-const previousBuildNumber = '254'
+const buildNumber = process.env.TIQ_CHECK_BUILD_NUMBER ?? ''
+if(!/^[1-9][0-9]{0,8}$/.test(buildNumber))throw Error('Provide a positive iOS build number of at most nine digits.')
+const referenceBuildNumber = '272'
 const origin = 'https://api.appstoreconnect.apple.com'
 const shouldAssign = process.env.TIQ_ASSIGN_PREVIOUS_GROUP === 'true'
+const waitMinutes = Number(process.env.TIQ_TESTFLIGHT_WAIT_MINUTES ?? (shouldAssign?'9':'1'))
+if(!Number.isInteger(waitMinutes)||waitMinutes<1||waitMinutes>20)throw Error('TestFlight wait must be between 1 and 20 minutes.')
+const targetGroupId = process.env.TIQ_TESTFLIGHT_GROUP_ID
 const {API_KEY,API_KEY_ID,API_ISSUER} = process.env
 if(!API_KEY || !API_KEY_ID || !API_ISSUER)throw new Error('App Store Connect credentials are unavailable.')
 const key = createPrivateKey(Buffer.from(API_KEY,'base64'))
@@ -60,6 +63,7 @@ async function readBuild(number){
  const detail = included.find(item=>item.type==='buildBetaDetails' && item.id===build?.relationships.buildBetaDetail?.data?.id)
  return {
   id:build?.id,
+  expired:build?.attributes.expired===true,
   processing:build?.attributes.processingState ?? 'AWAITING_PROCESSING',
   audience:build?.attributes.buildAudienceType ?? null,
   internalState:detail?.attributes.internalBuildState ?? null,
@@ -88,49 +92,59 @@ async function readUploadStatus(){
  return {uploadRecords:matching.length,uploadState:typeof state==='string'&&/^[A-Z_]{1,40}$/.test(state)?state:null,errorCodes}
 }
 
-const previous = await readBuild(previousBuildNumber)
-if(!previous.id || previous.processing!=='VALID')throw new Error('Could not verify the prior iOS build 254.')
-const groups = await read(`/v1/apps/${encodeURIComponent(app.id)}/betaGroups`,{'fields[betaGroups]':'isInternalGroup',limit:'200'})
+const groups = await read(`/v1/apps/${encodeURIComponent(app.id)}/betaGroups`,{
+ 'fields[betaGroups]':'isInternalGroup,name,hasAccessToAllBuilds',limit:'200',
+})
 if(groups.links?.next)throw new Error('The list of TenAceIQ groups is incomplete.')
 const internalGroups = groups.data.filter(group=>group.type==='betaGroups' && group.attributes.isInternalGroup===true)
-let previousGroups = internalGroups.filter(group=>previous.groupIds.has(group.id))
-// Confirm from the group side when Apple omits the build-side relationship.
-if(previousGroups.length===0 && internalGroups.length<=4){
- const memberships = await Promise.all(internalGroups.map(group=>groupContainsBuild(group.id,previous.id)))
- previousGroups = internalGroups.filter((_group,index)=>memberships[index])
+
+async function resolveInternalGroup(){
+ if(targetGroupId){
+  const configured=internalGroups.find(group=>group.id===targetGroupId)
+  if(!configured)throw Error('The configured TestFlight group is not an internal group for TenAceIQ.')
+  return configured
+ }
+ const reference=await readBuild(referenceBuildNumber)
+ if(!reference.id||reference.processing!=='VALID')throw Error('Could not verify the internal group from build 272.')
+ const linked=internalGroups.filter(group=>reference.groupIds.has(group.id))
+ const candidates=linked.length||internalGroups.length>4?linked:
+  (await Promise.all(internalGroups.map(async group=>await groupContainsBuild(group.id,reference.id)?group:null))).filter(Boolean)
+ if(candidates.length!==1)throw Error('Could not verify exactly one internal group for build 272.')
+ return candidates[0]
 }
-if(previousGroups.length!==1){
- console.log(JSON.stringify({priorBuild:previousBuildNumber,priorState:previous.internalState,
-  internalGroups:internalGroups.length,verifiedPriorGroups:previousGroups.length}))
- throw new Error('Could not verify exactly one existing internal group with access to build 254.')
-}
-const [previousGroup] = previousGroups
+const group = await resolveInternalGroup()
+console.log(JSON.stringify({internalGroupId:group.id,isT1:group.attributes.name==='T1',
+ automaticDistribution:group.attributes.hasAccessToAllBuilds===true}))
 
 let result
-let assignmentAttempted = false
-const attempts=shouldAssign?10:6
+let assignedByWorkflow = false
+const attempts=shouldAssign?waitMinutes+1:6
 for(let attempt=0;attempt<attempts;attempt++){
  const current = await readBuild(buildNumber)
- const assigned = current.groupIds.has(previousGroup.id) || Boolean(current.id && current.processing==='VALID'
-  && await groupContainsBuild(previousGroup.id,current.id))
+ const assigned = current.groupIds.has(group.id) || Boolean(current.id && current.processing==='VALID'
+  && await groupContainsBuild(group.id,current.id))
  result = {
   build:buildNumber,
   processing:current.processing,
   audience:current.audience,
   internalState:current.internalState,
-  sameGroupAs254:assigned,
+  assignedToInternalGroup:assigned,
+  installable:current.processing==='VALID'&&!current.expired&&assigned&&current.internalState==='IN_BETA_TESTING',
  }
- if(result.processing==='FAILED' || result.processing==='INVALID')break
- if(result.processing==='VALID' && assigned && (!shouldAssign || result.internalState==='IN_BETA_TESTING'))break
- if(shouldAssign && !assignmentAttempted && attempt<attempts-1 && result.processing==='VALID' && !assigned){
-  if(result.audience!=='INTERNAL_ONLY' || !['READY_FOR_BETA_TESTING','IN_BETA_TESTING'].includes(result.internalState)){
-   throw new Error(`Build ${buildNumber} is outside the approved internal testing scope.`)
-  }
-  await addBuildToGroup(current.id,previousGroup.id)
-  assignmentAttempted = true
+ if(result.installable||current.expired||['FAILED','INVALID'].includes(result.processing)||
+  ['PROCESSING_EXCEPTION','MISSING_EXPORT_COMPLIANCE','EXPIRED'].includes(result.internalState))break
+ if(shouldAssign&&result.processing==='VALID'&&result.audience&&result.audience!=='INTERNAL_ONLY'){
+  throw new Error(`Build ${buildNumber} is outside the approved internal testing scope.`)
+ }
+ if(shouldAssign&&!assignedByWorkflow&&!assigned&&result.processing==='VALID'&&
+  result.audience==='INTERNAL_ONLY'&&['READY_FOR_BETA_TESTING','IN_BETA_TESTING'].includes(result.internalState)){
+  await addBuildToGroup(current.id,group.id)
+  assignedByWorkflow=true
+  // Re-read immediately after assignment, even on the last polling attempt.
+  attempt--
   continue
  }
- if(attempt<attempts-1)await sleep(shouldAssign?60000:20000)
+ if(attempt<attempts-1)await sleep(shouldAssign?60000:12000)
 }
 if(result.processing==='AWAITING_PROCESSING'){
  const upload=await readUploadStatus().catch(error=>({
@@ -140,6 +154,6 @@ if(result.processing==='AWAITING_PROCESSING'){
  result={...result,...upload}
 }
 console.log(JSON.stringify(result))
-if(shouldAssign && (result.processing!=='VALID'||!result.sameGroupAs254||result.internalState!=='IN_BETA_TESTING')){
- throw new Error(`Apple did not confirm build ${buildNumber} is available to the same group as build 254.`)
+if(shouldAssign && (!result.installable||result.audience!=='INTERNAL_ONLY')){
+ throw new Error(`Apple did not confirm build ${buildNumber} is available to the configured internal TestFlight group. Recheck the uploaded build without uploading again.`)
 }
