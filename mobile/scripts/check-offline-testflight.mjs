@@ -28,7 +28,7 @@ async function read(path,query){
  const response = await fetch(url,{
   headers:{Authorization:`Bearer ${token(scope)}`},redirect:'error',signal:AbortSignal.timeout(10000),
  })
- if(!response.ok)throw new Error(`App Store Connect returned HTTP ${response.status} for ${path}.`)
+ if(!response.ok)throw Object.assign(new Error(`App Store Connect returned HTTP ${response.status} for ${path}.`),{status:response.status})
  return response.json()
 }
 
@@ -132,7 +132,10 @@ for(let attempt=0;attempt<6;attempt++){
  if(attempt<5)await sleep(20000)
 }
 if(result.processing==='AWAITING_PROCESSING'){
- const upload=await readUploadStatus().catch(()=>({uploadStatusAvailable:false}))
+ const upload=await readUploadStatus().catch(error=>({
+  uploadStatusAvailable:false,
+  uploadStatusHttp:Number.isInteger(error?.status)?error.status:null,
+ }))
  result={...result,...upload}
 }
 console.log(JSON.stringify(result))
