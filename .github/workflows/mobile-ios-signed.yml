@@ -14,7 +14,7 @@ on:
         type: boolean
         default: false
       distribution:
-        description: App Store upload is available only from master
+        description: Choose internal testing or App Store export
         type: choice
         default: internal
         options:
@@ -47,7 +47,8 @@ jobs:
         (inputs.distribution == 'internal' || (inputs.distribution == 'app-store' && inputs.upload))) ||
        (inputs.profile == 'first-party' && github.ref == 'refs/heads/codex/ios-first-party-release' &&
         inputs.distribution == 'internal' && (!inputs.upload || inputs.build_number == '255')) ||
-       (inputs.profile == 'first-party-full' && github.ref == 'refs/heads/codex/ios-first-party-release' && inputs.distribution == 'internal'))
+       (inputs.profile == 'first-party-full' && github.ref == 'refs/heads/codex/ios-first-party-release' &&
+        (inputs.distribution == 'internal' || (inputs.distribution == 'app-store' && !inputs.upload))))
     permissions:
       contents: read
       actions: read
@@ -79,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$TIQ_BUILD_NUMBER" =~ ^[1-9][0-9]{2,8}$ ]] && (( TIQ_BUILD_NUMBER > 255 ))
-          if test "$TIQ_UPLOAD" = true; then
+          if test "$TIQ_UPLOAD" = true || test "$TIQ_IOS_DISTRIBUTION" = app-store; then
             node mobile/scripts/check-first-party-api.mjs
           fi
       - name: Prepare bundled native app
@@ -151,15 +152,20 @@ jobs:
             -exportPath "$RUNNER_TEMP/tiq-export" -exportOptionsPlist "$RUNNER_TEMP/tiq-signing/export.plist"
           codesign --verify --deep --strict "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app"
           IPA="$RUNNER_TEMP/tiq-export/App.ipa"
-          if test "$TIQ_IOS_PROFILE" = first-party; then
+          if test "$TIQ_IOS_PROFILE" = first-party || test "$TIQ_IOS_PROFILE:$TIQ_IOS_DISTRIBUTION" = first-party-full:app-store; then
             unzip -q "$IPA" 'Payload/App.app/*' -d "$RUNNER_TEMP/tiq-ipa-validation"
             APP="$RUNNER_TEMP/tiq-ipa-validation/Payload/App.app"
             codesign --verify --deep --strict "$APP"
+          fi
+          if test "$TIQ_IOS_PROFILE" = first-party; then
             codesign --display --entitlements - --xml "$APP" > "$RUNNER_TEMP/tiq-signing/offline-entitlements.plist"
             python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$IPA" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled-first-party --first-party "$RUNNER_TEMP/tiq-signing/offline-entitlements.plist"
           elif test "$TIQ_IOS_PROFILE" = first-party-full; then
             python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist" --first-party-full
             python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$IPA" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled --first-party-full
+            if test "$TIQ_IOS_DISTRIBUTION" = app-store; then
+              shasum -a 256 "$IPA" "$APP/public/app.js" "$APP/public/release-scope.json"
+            fi
           else
             python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist"
             python3 mobile/scripts/validate-ios-distribution.py "$TIQ_IOS_DISTRIBUTION" "$TIQ_BUILD_NUMBER" "$IPA" "$RUNNER_TEMP/tiq-signing/export.plist" mobile/bundled
@@ -178,7 +184,7 @@ jobs:
           gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name tenaceiq-ios-first-party-signed-255 --dir "$RUNNER_TEMP/tiq-export"
           printf '%s  %s\n' "$IPA_SHA256" "$RUNNER_TEMP/tiq-export/App.ipa" | shasum -a 256 -c -
       - name: Upload to App Store Connect
-        if: inputs.upload
+        if: inputs.upload && !(inputs.profile == 'first-party-full' && inputs.distribution == 'app-store')
         env:
           API_KEY: ${{ secrets.APPLE_UPLOAD_API_KEY_P8_BASE64 }}
           API_KEY_ID: ${{ secrets.APPLE_UPLOAD_API_KEY_ID }}

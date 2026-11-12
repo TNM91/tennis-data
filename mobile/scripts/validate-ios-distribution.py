@@ -11,7 +11,7 @@ full_app = args == ['--first-party-full']
 assert not args or first_party or full_app, 'Unknown iOS distribution validation option'
 channels = {'internal': 'TestFlightInternalSandbox', 'app-store': 'AppStore'}
 assert distribution in channels, 'Unknown iOS distribution'
-assert not (first_party or full_app) or distribution == 'internal', 'This first-party candidate is internal-only'
+assert not first_party or distribution == 'internal', 'The offline candidate is internal-only'
 options = plistlib.loads(pathlib.Path(export_path).read_bytes())
 assert options.get('method') == 'app-store-connect', 'Wrong export method'
 assert options.get('testFlightInternalTestingOnly') is (distribution == 'internal'), 'Wrong distribution scope'

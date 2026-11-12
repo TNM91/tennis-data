@@ -112,7 +112,7 @@ test('signed workflow restricts secret use and defaults to no upload', async () 
   assert.match(archive.run,/mobile\/bundled-first-party --first-party/)
   assert.match(archive.run,/testFlightInternalTestingOnly/)
   const upload = steps.find(s=>s.name==='Upload to App Store Connect')
-  assert.equal(upload.if,'inputs.upload')
+  assert.equal(upload.if,"inputs.upload && !(inputs.profile == 'first-party-full' && inputs.distribution == 'app-store')")
   assert.match(upload.run, /--output-format json/)
   assert.match(upload.run, /validate-altool-upload\.py/)
   const artifact = steps.find(s=>s.uses?.startsWith('actions/upload-artifact@'))
@@ -156,21 +156,23 @@ test('the build 255 status check skips signing and upload',async()=>{
  assert.equal(job.steps.find(step=>step.run).env.TIQ_ASSIGN_PREVIOUS_GROUP,'${{ inputs.assign_previous_group }}')
 })
 
-test('the full-app first-party candidate has a separate internal-only upload lane',async()=>{
+test('the full-app first-party candidate supports internal uploads and a signed App Store export check',async()=>{
  const workflow=load(await readFile(new URL('../../.github/workflows/mobile-ios-signed.yml',import.meta.url),'utf8'))
  assert.ok(workflow.on.workflow_dispatch.inputs.profile.options.includes('first-party-full'))
  const job=workflow.jobs.signed
- assert.match(job.if,/inputs\.profile == 'first-party-full' && github\.ref == 'refs\/heads\/codex\/ios-first-party-release' && inputs\.distribution == 'internal'/)
+ assert.match(job.if,/inputs\.profile == 'first-party-full' && github\.ref == 'refs\/heads\/codex\/ios-first-party-release' &&\s+\(inputs\.distribution == 'internal' \|\| \(inputs\.distribution == 'app-store' && !inputs\.upload\)\)/)
  const steps=job.steps
  const preflight=steps.find(step=>step.name==='Check full-app release inputs')
  const prepare=steps.find(step=>step.name==='Prepare bundled native app')
  const archive=steps.find(step=>step.name==='Archive and export signed IPA')
  assert.ok(steps.indexOf(preflight)<steps.indexOf(prepare))
  assert.match(preflight.run,/TIQ_BUILD_NUMBER > 255/)
+ assert.match(preflight.run,/test "\$TIQ_UPLOAD" = true \|\| test "\$TIQ_IOS_DISTRIBUTION" = app-store/)
  assert.match(preflight.run,/node mobile\/scripts\/check-first-party-api\.mjs/)
  assert.match(prepare.run,/build:bundled --prefix mobile -- --first-party-full/)
  assert.match(prepare.run,/check:ios --prefix mobile -- --first-party-full/)
  assert.match(archive.run,/mobile\/bundled --first-party-full/)
+ assert.match(archive.run,/shasum -a 256 "\$IPA" "\$APP\/public\/app.js" "\$APP\/public\/release-scope.json"/)
 })
 
 test('camera purposes are top-level plist values even with nested scene dictionaries',()=>{
