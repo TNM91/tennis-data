@@ -7,7 +7,7 @@ jobs:
   listing-captures:
     if: github.repository == 'TNM91/tennis-data' && github.ref == 'refs/heads/codex/ios-listing-capture-273'
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
@@ -36,7 +36,7 @@ jobs:
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/tiq-listing" CODE_SIGNING_ALLOWED=NO build -quiet
       - name: Capture Coach & Training on a large iPhone
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: bash mobile/scripts/capture-ios-listing.sh
       - name: Retain only the sample screenshots
         uses: actions/upload-artifact@v6
