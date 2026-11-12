@@ -4,34 +4,62 @@ on:
 permissions:
   contents: read
 jobs:
-  native-navigation-diagnostics:
+  native-mobile-browser:
     if: github.repository == 'TNM91/tennis-data' && github.ref == 'refs/heads/codex/qa-native-navigation-270'
-    name: Native navigation diagnostics (Chromium)
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Native Coach experience
+            suite: coach
+            browsers: chromium webkit
+          - name: Native navigation (Chromium)
+            suite: navigation
+            browsers: chromium
+            project: mobile-chrome
+          - name: Native navigation (WebKit)
+            suite: navigation
+            browsers: webkit
+            project: mobile-webkit
     steps:
       - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
       - name: Use the Ubuntu archive for browser dependencies
         run: |
+          # Preserve signed Ubuntu packages while avoiding the throttled Azure mirror.
           if [ -f /etc/apt/apt-mirrors.txt ]; then
             sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           fi
-      - name: Install locked dependencies and Chromium
+      - name: Install locked dependencies and browser engines
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps ${{ matrix.browsers }}
       - name: Bundle the installed app
         run: npm run build:bundled --prefix mobile
-      - name: Record individual navigation outcomes
+      - name: Verify complete Coach workflows on phone browser engines
+        if: matrix.suite == 'coach'
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4287
+        run: npx playwright test tests/e2e/mobile-coach-workspace.e2e.ts tests/e2e/mobile-coach-tactics.e2e.ts tests/e2e/mobile-coach-complete.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/coach-experience-results -g 'keeps custom development identities'
+      - name: Verify native destinations and local tool search
+        if: matrix.suite == 'navigation'
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4283
-        run: >-
-          npx playwright test --config=tests/playwright.native-navigation.config.ts
-          --project=mobile-chrome --workers=2 --shard=1/2 --max-failures=3
-          --reporter=list,github --output=.next/navigation-results
+          PLAYWRIGHT_PROJECT: ${{ matrix.project }}
+        # These fixtures isolate every browser/account and block external services.
+        run: npx playwright test --config=tests/playwright.native-navigation.config.ts --project="$PLAYWRIGHT_PROJECT" --output=.next/navigation-results --workers=2 --reporter=list,github -g 'filters team results to their own courts'
+
+      - name: Save synthetic Coach UI fixtures
+        if: always() && matrix.suite == 'coach'
+        uses: actions/upload-artifact@v6
+        with:
+          name: coach-experience-ui-fixtures-${{ github.sha }}
+          path: .next/coach-experience-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 3

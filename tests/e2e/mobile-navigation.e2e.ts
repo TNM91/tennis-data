@@ -1757,6 +1757,8 @@ test('first-party teammate filters team results to their own courts',async({page
  await page.setViewportSize({width:320,height:720})
  await page.clock.setFixedTime(new Date(2026,10,12,12))
  await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ const nav=page.getByRole('navigation',{name:'Main navigation'})
+ await nav.getByRole('button',{name:'Explore',exact:true}).click()
  await page.evaluate(()=>{
   const {manualScheduleFixture,teamResultFixture,personalMatchFixture}=window as unknown as
    typeof import('../fixtures/mobile-personal-matches')&{manualScheduleFixture:{captain:boolean};
@@ -1778,7 +1780,7 @@ test('first-party teammate filters team results to their own courts',async({page
    calendar_match_id:`league:33333333-3333-4333-8333-333333333333:private-team-result:${teamResultFixture.fixtureId}`,
    format:'singles',outcome:'Lost',score:'3-6, 4-6'})
  })
- await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await nav.getByRole('button',{name:/^Chats/}).click()
  await page.getByRole('button',{name:/^Baseline Aces/}).click()
  await page.locator('.chat-room-options > summary').click()
  await page.locator('#chat-team-results').click()
