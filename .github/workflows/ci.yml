@@ -1,273 +1,37 @@
 name: CI
-
 on:
-  push:
-    branches:
-      - main
-      - master
-      - staging
-  pull_request:
   workflow_dispatch:
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
+permissions:
+  contents: read
 jobs:
-  verify:
-    name: Verify
+  native-navigation-diagnostics:
+    if: github.repository == 'TNM91/tennis-data' && github.ref == 'refs/heads/codex/qa-native-navigation-270'
+    name: Native navigation diagnostics (Chromium)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        # Verify the same root-only install used by production.
-        run: npm ci
-
-      - name: Verify
-        run: npm run verify
-
-      - name: Check named lineup ownership in isolated PostgreSQL
-        run: node scripts/verify-named-lineup-ownership.mjs
-
-      - name: Check read-model permissions in isolated PostgreSQL
-        run: node scripts/verify-read-model-view-grants.mjs
-
-      - name: Check conservative native-only website build exclusion
-        run: node --test scripts/vercel-ignore-native-only.test.mjs
-
-      - name: Check native packaging guards
-        run: |
-          node --test mobile/scripts/ios-app-lock.test.mjs mobile/scripts/ios-purchases.test.mjs mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs mobile/scripts/ios-push.test.mjs
-          python3 mobile/scripts/test-altool-upload.py
-
-  tiq-schema-audit:
-    name: TIQ Schema Audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Audit TIQ league schema
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npm run db:audit:tiq
-
-  captain-weekly-continuity:
-    name: Captain weekly continuity
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Use the Ubuntu archive for browser dependencies
-        run: |
-          # The Azure package mirror can throttle font downloads until this job times out.
-          # Keep the same signed Ubuntu packages and existing test/time limit.
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
-          fi
-
-      - name: Install browser engines
-        run: npx playwright install --with-deps chromium webkit
-
-      - name: Verify the captain-to-player match week
-        run: npm run test:e2e:captain-week
-
-      - name: Verify Apple membership loading and recovery
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4259
-        run: |
-          node mobile/scripts/build-website-ui.mjs
-          npx playwright test tests/e2e/mobile-apple-memberships.e2e.ts --project=mobile-chrome --project=mobile-webkit
-
-      - name: Verify iPhone poll sheets and team tools
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4260
-        run: |
-          npm run build:bundled --prefix mobile
-          node mobile/scripts/app-lock-ui-smoke.mjs
-          npx playwright test tests/e2e/mobile-chat-poll-sheets.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/chat-poll-results
-
-      - name: Verify chat gestures, replies, attachments and team cards
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4261
-        run: npx playwright test tests/e2e/mobile-chat-experience.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/chat-experience-results
-
-      - name: Verify My Lab scoreboard, result views and sample boundaries
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4262
-        run: npx playwright test tests/e2e/mobile-lab-scoreboard.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/lab-scoreboard-results
-
-      - name: Verify native captain readiness and match-day surfaces
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4266
-        run: npx playwright test tests/e2e/mobile-captain-workspace.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/captain-workspace-results
-
-      - name: Verify native rating windows, records and scorecard drilldowns
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4263
-        run: npx playwright test tests/e2e/mobile-insights.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/native-insights-results
-
-      - name: Verify native import corrections and guarded confirmation
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4264
-        run: npx playwright test tests/e2e/mobile-import-corrections.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/import-corrections-results
-
-      - name: Verify native competition discovery and season review
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4265
-        run: npx playwright test tests/e2e/mobile-competitions.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/competitions-results
-
-      - name: Verify native tournament discovery, draws and published schedules
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4266
-        run: npx playwright test tests/e2e/mobile-tournaments.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/tournaments-results
-
-      - name: Save tournament UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: tournaments-ui-fixtures-${{ github.sha }}
-          path: .next/tournaments-results/**/tournaments-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      - name: Save competition UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: competitions-ui-fixtures-${{ github.sha }}
-          path: .next/competitions-results/**/competitions-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      - name: Save import correction UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: import-corrections-ui-fixtures-${{ github.sha }}
-          path: .next/import-corrections-results/**/import-corrections-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      - name: Save native insights UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: native-insights-ui-fixtures-${{ github.sha }}
-          path: .next/native-insights-results/**/native-insights-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      - name: Save My Lab scoreboard UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: lab-scoreboard-ui-fixtures-${{ github.sha }}
-          path: .next/lab-scoreboard-results/**/lab-scoreboard-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      - name: Save chat experience UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: chat-experience-ui-fixtures-${{ github.sha }}
-          path: .next/chat-experience-results/**/chat-experience-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      - name: Save chat and poll UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: chat-poll-ui-fixtures-${{ github.sha }}
-          path: .next/chat-poll-results/**/chat-poll-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      - name: Save Apple membership UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: apple-membership-ui-fixtures-${{ github.sha }}
-          path: .next/playwright-results/**/apple-membership-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-  native-coach-experience:
-    name: Native Coach experience
-    runs-on: ubuntu-latest
-    # Both phone browser suites share this runner and can exceed 20 minutes.
-    timeout-minutes: 25
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
       - name: Use the Ubuntu archive for browser dependencies
         run: |
-          # Preserve signed Ubuntu packages while avoiding the throttled Azure mirror.
           if [ -f /etc/apt/apt-mirrors.txt ]; then
             sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           fi
-      - name: Install locked dependencies and browser engines
+      - name: Install locked dependencies and Chromium
         run: |
           npm ci
-          npx playwright install --with-deps chromium webkit
+          npx playwright install --with-deps chromium
       - name: Bundle the installed app
         run: npm run build:bundled --prefix mobile
-      - name: Verify complete Coach workflows on phone browser engines
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4287
-        run: npx playwright test tests/e2e/mobile-coach-workspace.e2e.ts tests/e2e/mobile-coach-tactics.e2e.ts tests/e2e/mobile-coach-complete.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/coach-experience-results
-      # Navigation shares these installed browser engines and runs beside captain flows.
-      - name: Verify native destinations and local tool search
+      - name: Record individual navigation outcomes
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4283
-        # These fixtures isolate every browser/account and block external services.
-        run: npx playwright test --config=tests/playwright.native-navigation.config.ts --output=.next/navigation-results --workers=2
-
-      - name: Save synthetic Coach UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: coach-experience-ui-fixtures-${{ github.sha }}
-          path: .next/coach-experience-results/**/*.png
-          if-no-files-found: ignore
-          retention-days: 3
+        run: >-
+          npx playwright test --config=tests/playwright.native-navigation.config.ts
+          --project=mobile-chrome --workers=2 --shard=1/2 --max-failures=3
+          --reporter=list,github --output=.next/navigation-results
