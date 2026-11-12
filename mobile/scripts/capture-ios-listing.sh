@@ -5,7 +5,8 @@ app="$RUNNER_TEMP/tiq-listing/Build/Products/Debug-iphonesimulator/App.app"
 output="$RUNNER_TEMP/tiq-listing-screens"
 bundle_id=com.tenaceiq.prototype
 mkdir -p "$output"
-device=$(xcrun simctl list devices available --json | python3 -c '
+if test "${1:-}" = boot; then
+  device=$(xcrun simctl list devices available --json | python3 -c '
 import json, sys
 runtimes = json.load(sys.stdin)["devices"]
 phones = [d for runtime in sorted(runtimes, reverse=True) for d in runtimes[runtime]
@@ -13,7 +14,11 @@ phones = [d for runtime in sorted(runtimes, reverse=True) for d in runtimes[runt
 assert phones, "A 6.9-inch iPhone simulator is required"
 print(phones[0]["udid"])
 ')
-xcrun simctl boot "$device"
+  xcrun simctl boot "$device"
+  echo "TIQ_LISTING_SIMULATOR=$device" >> "$GITHUB_ENV"
+  exit 0
+fi
+device=$TIQ_LISTING_SIMULATOR
 trap 'xcrun simctl shutdown "$device" || true' EXIT
 xcrun simctl bootstatus "$device" -b
 xcrun simctl status_bar "$device" override --time '9:41' --dataNetwork wifi --wifiMode active \
@@ -26,12 +31,14 @@ capture() {
   local screen=$1 file=$2 actual
   rm -f "$ready"
   SIMCTL_CHILD_TIQ_STORE_SCREEN="$screen" xcrun simctl launch --terminate-running-process "$device" "$bundle_id"
-  for attempt in $(seq 1 45); do
+  for attempt in $(seq 1 85); do
     test -f "$ready" && break
     sleep 1
   done
   if ! test -f "$ready" || ! test "$(cat "$ready")" = "$screen"; then
     cat "$ready" 2>/dev/null || true
+    mkdir -p "$RUNNER_TEMP/tiq-listing-diagnostics"
+    xcrun simctl io "$device" screenshot --type=jpeg "$RUNNER_TEMP/tiq-listing-diagnostics/$screen.jpg" || true
     echo "::error::The $screen view did not reach the requested state"
     return 1
   fi
