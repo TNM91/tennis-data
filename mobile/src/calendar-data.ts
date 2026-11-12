@@ -11,10 +11,15 @@ import type {CalendarTeamPractice} from '../../lib/native-calendar-practices-con
 import {firstPartyBuild} from './build-scope'
 import {teamLeagueLabel} from '../../lib/private-team-contract'
 import {todayDateKey} from '../../lib/team-room-match-flow'
+import {hittingPlanConfirmed,hittingPlanTimeZone,type HittingPlan} from '../../lib/hitting-plan'
+import {hittingPlanCourt} from './explore-court-catalog'
+import type {ScorecardPractice} from '../../lib/level-up/scorecard-practice'
+import type {CalendarWeeklyRep} from './calendar-weekly-reps'
 
 export function readCalendarItem(raw:unknown):PlayerCalendarItem|null{
  if(raw===null)return null
- const r=obj(raw),draft=calendarDraft(r && {id:r.id,title:r.title,date:r.date,time:r.time,location:r.location,kind:r.kind,recurrenceRule:r.recurrenceRule,availabilityStatus:r.availabilityStatus,venueDirectoryId:r.venueDirectoryId||'',venuePreferenceId:r.venuePreferenceId||''})
+ const r=obj(raw),draft=calendarDraft({id:r.id,title:r.title,date:r.date,time:r.time,location:r.location,kind:r.kind,recurrenceRule:r.recurrenceRule,availabilityStatus:r.availabilityStatus,venueDirectoryId:r.venueDirectoryId||'',venuePreferenceId:r.venuePreferenceId||'',hittingPlan:r.hittingPlan,practiceFocus:r.practiceFocus})
+ if(draft.hittingPlan&&!hittingPlanCourt(draft))delete draft.hittingPlan
  return {...draft,createdAt:revision(r.createdAt),updatedAt:revision(r.updatedAt)}
 }
 const time=(v:unknown)=>{const s=text(v,20);if(s&&!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(s))throw Error('Calendar time unavailable.');return s}
@@ -67,7 +72,8 @@ export function shiftCalendarPeriod(day:string,mode:'week'|'month',direction:num
  if(mode==='week')return shiftCalendarDay(day,direction*7)
  const d=new Date(day.slice(0,7)+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+direction);return d.toISOString().slice(0,10)
 }
-export type CalendarOccurrence={key:string;id:string;source:'personal'|'competition'|'coach'|'team';endTime?:string;timeZone?:string;teamStatus?:CalendarTeamPractice['status'];title:string;date:string;time:string;location:string;detail:string;kind:string;recurring:boolean;readiness:string;matchNeedsReply?:boolean}
+export type CalendarPractice=CalendarWeeklyRep|ScorecardPractice
+export type CalendarOccurrence={key:string;id:string;source:'personal'|'competition'|'coach'|'team';endTime?:string;timeZone?:string;teamStatus?:CalendarTeamPractice['status'];title:string;date:string;time:string;location:string;detail:string;kind:string;recurring:boolean;readiness:string;matchNeedsReply?:boolean;hittingPlan?:HittingPlan;practiceFocus?:ScorecardPractice}
 export const isScheduledCompetitionMatch=(event:PlayerCompetitionScheduleEvent)=>event.eventType==='match'&&(event.status==='Confirmed'||event.status==='Scheduled')
 export type CalendarTournamentEntry={parent:string;division:string}
 export function calendarTournamentEntry(event:NativeCalendar['competitions'][number]|undefined):CalendarTournamentEntry|undefined {
@@ -78,9 +84,12 @@ export function calendarTournamentEntry(event:NativeCalendar['competitions'][num
 }
 export const personalOccurrenceKey=(id:string,day:string)=>`personal:${id}:${day}`
 export function personalCalendarOccurrence(p:PlayerCalendarItem,day=p.date):CalendarOccurrence{
+ const hittingPlan=hittingPlanCourt(p)?p.hittingPlan:undefined
  return {key:personalOccurrenceKey(p.id,day),id:p.id,source:'personal',title:p.title,date:day,time:p.time,location:p.location,
   detail:p.kind==='availability'?(p.availabilityStatus==='available'?'Personal note · Available':'Personal note · Unavailable'):'Personal '+p.kind,
-  kind:p.kind,recurring:!!p.recurrenceRule,readiness:''}
+  kind:p.kind,recurring:!!p.recurrenceRule,readiness:hittingPlan?(hittingPlanConfirmed(p)?'Confirmed':'Proposed'):'',
+  ...(hittingPlan?{hittingPlan,timeZone:hittingPlanTimeZone,detail:'Hitting plan'}:{}),
+  ...(p.practiceFocus?{practiceFocus:p.practiceFocus}:{})}
 }
 export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[]{
  const entries:CalendarOccurrence[]=[]

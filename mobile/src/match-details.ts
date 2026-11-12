@@ -9,6 +9,11 @@ import type {PlayerMatchParticipant as Participant} from '../../lib/player-match
 
 export const html = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
 
+export const matchPracticeButtonHtml = `<button type="button" class="secondary" data-match-practice aria-haspopup="dialog" aria-labelledby="match-practice-title" aria-describedby="match-practice-detail">
+  <span class="app-tool-copy"><strong id="match-practice-title">Work on my game</strong><span id="match-practice-detail">Pick one focus for your next practice</span></span>
+  <span class="app-tool-arrow" aria-hidden="true">›</span>
+</button>`
+
 export function participantNames(rows: Participant[], side: 'A' | 'B') {
   return rows.filter(row => row.side === side).sort((a, b) => (a.seat ?? 99) - (b.seat ?? 99)).map(row => {
     const player = Array.isArray(row.players) ? row.players[0] : row.players
@@ -92,10 +97,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
           ${row.score ? '<p class="scorecard-source-note">Listed in the original court order.</p>' : ''}
         </div>
       </div>
-      ${canOpenPractice ? `<button type="button" class="secondary" data-match-practice aria-labelledby="match-practice-title" aria-describedby="match-practice-detail">
-        <span class="app-tool-copy"><strong id="match-practice-title">Work on my game</strong><span id="match-practice-detail">Pick one focus for your next practice</span></span>
-        <span class="app-tool-arrow" aria-hidden="true">›</span>
-      </button>` : ''}
+      ${canOpenPractice ? matchPracticeButtonHtml : ''}
       <section class="match-court-players" aria-labelledby="match-court-players-title">
         <div class="match-section-heading">
           <h2 id="match-court-players-title" data-match-section="lineup">Players on court</h2>

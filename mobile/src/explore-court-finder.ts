@@ -1,7 +1,7 @@
 import {courtDistanceMiles,stLouisCourts,stLouisCourtSource,stLouisZipPoint,type CourtPoint,type ExploreCourt} from './explore-court-catalog'
 import {openCourtDirections} from './explore-court-directions'
-import {openCourtInfo} from './explore-court-info'
-import {openCourtInvite} from './explore-court-invite'
+import {openCourtInfo,type LoadCourtFeedback} from './explore-court-info'
+import {openCourtInvite,type CourtInviteCalendar} from './explore-court-invite'
 import {nearbyCourtPoint} from './explore-court-location'
 import type {createPrivateCourtStore} from './explore-private-courts'
 import {readSavedCourts,toggleSavedCourt} from './explore-saved-courts'
@@ -13,19 +13,30 @@ const savedPreviewSize=3
 const searchRadius=35
 const courtKey=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]/g,'')
 const cityKeys=['stl','stlouis','saintlouis','stlouismo','saintlouismo']
+const courtTypes={
+ all:{label:'All courts',result:'court'},
+ club:{label:'Tennis clubs',result:'tennis club'},
+ public:{label:'Public courts',result:'public court'},
+} as const
+type CourtType=keyof typeof courtTypes
+type CourtFinderOptions={owner?:string;loadFeedback?:LoadCourtFeedback;initialType?:CourtType;calendar?:CourtInviteCalendar}
 
-export function openCourtFinder(trigger:HTMLElement,current:()=>boolean,store:ReturnType<typeof createPrivateCourtStore>,owner?:string){
+export function openCourtFinder(trigger:HTMLElement,current:()=>boolean,store:ReturnType<typeof createPrivateCourtStore>,
+ {owner,loadFeedback,initialType='all',calendar}:CourtFinderOptions={}){
  const dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog scorecard-share-dialog court-finder-dialog'
  dialog.setAttribute('aria-labelledby','court-finder-title')
  dialog.innerHTML=`<div class="court-invite-heading"><h2 id="court-finder-title" tabindex="-1">Find courts</h2><button class="secondary" type="button" data-finder-close>Close</button></div>
+  <div class="court-finder-filters" role="group" aria-label="Filter listed courts">
+   ${Object.entries(courtTypes).map(([type,{label}])=>`<button class="secondary" type="button" data-finder-court-type="${type}" aria-pressed="${type===initialType}">${label}</button>`).join('')}
+  </div>
   ${owner?'<div class="court-finder-shortcuts" role="region" aria-label="Saved courts" data-finder-shortcuts hidden></div><p class="sr-only" role="status" data-finder-preference-status></p>':''}
   <form class="court-finder-search" data-finder-search role="search" aria-label="Search courts">
    <label for="court-finder-query">Court, city or ZIP</label><input id="court-finder-query" type="search" maxlength="80" placeholder="St. Louis or 63109" autocomplete="off"><button type="submit">Search</button>
   </form>
   <button class="secondary court-finder-locate" type="button" data-finder-locate>Use my location</button>
   <p role="status" class="court-invite-status" data-finder-location></p>
-  <p class="court-invite-help">Hitting invites are available at listed tennis clubs.</p>
+  <p class="court-invite-help">Hitting invites use listed tennis clubs.</p>
   ${owner?`<details class="court-finder-private-form"><summary>Add a private court</summary>
     <form data-finder-private>
      <fieldset>
@@ -53,6 +64,7 @@ export function openCourtFinder(trigger:HTMLElement,current:()=>boolean,store:Re
  const search=dialog.querySelector<HTMLFormElement>('[data-finder-search]')!
  const field=search.querySelector('input')!
  const locate=dialog.querySelector<HTMLButtonElement>('[data-finder-locate]')!
+ const typeButtons=dialog.querySelectorAll<HTMLButtonElement>('[data-finder-court-type]')
  const locationStatus=dialog.querySelector<HTMLElement>('[data-finder-location]')!
  const list=dialog.querySelector<HTMLElement>('[data-finder-results]')!
  const count=dialog.querySelector<HTMLElement>('[data-finder-count]')!
@@ -73,6 +85,7 @@ export function openCourtFinder(trigger:HTMLElement,current:()=>boolean,store:Re
  let invite:ReturnType<typeof openCourtInvite>|undefined
  let directions:ReturnType<typeof openCourtDirections>|undefined
  let info:ReturnType<typeof openCourtInfo>
+ let courtType:CourtType=initialType
  let query='',origin:CourtPoint|undefined,originLabel='',visible=pageSize,locationRequest=0,writing=false
  const active=()=>dialog.open&&current()
  const dispose=()=>{
@@ -81,8 +94,8 @@ export function openCourtFinder(trigger:HTMLElement,current:()=>boolean,store:Re
   if(current()&&trigger.isConnected)trigger.focus({preventScroll:true})
  }
  const back=()=>{
-  if(info?.isOpen())info.dispose()
-  else if(directions?.isOpen())directions.dispose()
+  if(info?.isOpen())return info.back()
+  if(directions?.isOpen())directions.dispose()
   else if(invite?.isOpen())invite.dispose()
   else dispose()
   return true
@@ -118,7 +131,7 @@ export function openCourtFinder(trigger:HTMLElement,current:()=>boolean,store:Re
   const home=courts.find(court=>court.id===saved.home)
   const favorites=courts.filter(court=>court.id!==saved.home&&saved.favorites.includes(court.id))
   const pinned=home?[home,...favorites]:favorites
-  shortcuts.hidden=!pinned.length||Boolean(query||origin)
+  shortcuts.hidden=!pinned.length||Boolean(query||origin)||courtType!=='all'
   shortcuts.innerHTML=shortcuts.hidden?'':`<h3>Saved courts</h3><ul class="explore-court-list">${pinned.slice(0,allSaved?pinned.length:savedPreviewSize).map(court=>row(court,'saved')).join('')}</ul>
    ${pinned.length>savedPreviewSize?`<button class="secondary court-finder-more" type="button" data-finder-toggle-saved aria-expanded="${allSaved}">${allSaved?'Show fewer saved courts':'Show all saved courts'}</button>`:''}`
  }
@@ -129,15 +142,18 @@ export function openCourtFinder(trigger:HTMLElement,current:()=>boolean,store:Re
 
  function render(){
   const key=courtKey(query)
-  let results=stLouisCourts.map(court=>({court,distance:origin&&court.point?courtDistanceMiles(origin,court.point):undefined}))
+  let results=stLouisCourts.filter(court=>courtType==='all'||court.access===courtType)
+   .map(court=>({court,distance:origin&&court.point?courtDistanceMiles(origin,court.point):undefined}))
   if(origin){
    const nearby=results.filter(item=>item.distance!==undefined&&item.distance<=searchRadius)
    results=nearby.length?[...nearby.sort((a,b)=>a.distance!-b.distance!),...results.filter(item=>item.distance===undefined)]:[]
   }else if(key&&!cityKeys.includes(key)){
    results=results.filter(({court})=>courtKey(`${court.name} ${court.area} ${court.destination}`).includes(key))
   }
-  count.textContent=results.length?`${results.length} ${results.length===1?'court':'courts'}${originLabel?' · '+originLabel:''}`:
-   'No courts found in the St. Louis pilot. Try a local ZIP or court name.'
+  const resultLabel=courtTypes[courtType].result
+  count.textContent=results.length?`${results.length} ${resultLabel}${results.length===1?'':'s'}${originLabel?' · '+originLabel:''}`:
+   courtType==='all'?'No courts found in the St. Louis pilot. Try a local ZIP or court name.':
+    `No ${resultLabel}s match. Try All courts or a different search.`
   list.innerHTML=results.slice(0,visible).map(({court,distance})=>row(court,'results',distance)).join('')
   more.hidden=results.length<=visible
   renderPrivate();renderSaved()
@@ -182,6 +198,14 @@ export function openCourtFinder(trigger:HTMLElement,current:()=>boolean,store:Re
   originLabel=origin?`Approximate distance from ZIP ${query}`:''
   visible=pageSize;locationStatus.textContent='';render()
  }
+ typeButtons.forEach(button=>{button.onclick=()=>{
+  if(!active())return
+  const next=button.dataset.finderCourtType as CourtType
+  if(next===courtType)return
+  courtType=next;editing='';visible=pageSize
+  typeButtons.forEach(option=>option.setAttribute('aria-pressed',String(option===button)))
+  render()
+ }})
  locate.onclick=async()=>{
   const request=++locationRequest
   locate.disabled=true;locationStatus.textContent='Finding courts near you…'
@@ -252,10 +276,12 @@ export function openCourtFinder(trigger:HTMLElement,current:()=>boolean,store:Re
   }else if(target.dataset.finderInvite&&!invite?.isOpen()){
    invite=openCourtInvite(target,active,owner,target.dataset.finderInvite,()=>{
     saved=readSavedCourts(owner);render();restoreAction(rowKey,'[data-finder-invite]')
-   })
+   },calendar)
   }else if(target.dataset.finderCourtInfo&&!info?.isOpen()){
    const court=stLouisCourts.find(venue=>venue.id===target.dataset.finderCourtInfo)
-   if(court)info=openCourtInfo(court,target,active)
+   if(court)info=openCourtInfo(court,target,active,{owner,loadFeedback,calendar,onSaved:()=>{
+    saved=readSavedCourts(owner);render();restoreAction(rowKey,'[data-finder-court-info]')
+   }})
   }else if(target.dataset.finderDirections&&!directions?.isOpen()){
    const court=[...stLouisCourts,...privateCourts].find(venue=>venue.id===target.dataset.finderDirections)
    if(court)directions=openCourtDirections(court,target,active)

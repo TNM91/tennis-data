@@ -1,12 +1,15 @@
+import {Clipboard} from '@capacitor/clipboard'
+import {Share} from '@capacitor/share'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {html} from './match-details'
 import {COMPETITION_DATES_UNAVAILABLE,calendarDraft,personalDraft,sameCalendarDraft,type CalendarDraft,type CalendarIntent,type NativeCalendar} from '../../lib/native-calendar-contract'
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
-import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,calendarTournamentEntry,exportableCalendarOccurrences,personalCalendarOccurrence,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence} from './calendar-data'
+import {hittingPlanConfirmed} from '../../lib/hitting-plan'
+import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,calendarTournamentEntry,exportableCalendarOccurrences,personalCalendarOccurrence,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence,type CalendarPractice} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
 import {createCalendarFinder} from './calendar-finder'
-import {CALENDAR_WEEKLY_REP_CHANGED,readCalendarWeeklyReps,saveCalendarWeeklyRep,type CalendarWeeklyRep,type CalendarWeeklyRepChange} from './calendar-weekly-reps'
+import {CALENDAR_WEEKLY_REP_CHANGED,notifyCalendarWeeklyRepChange,readCalendarWeeklyReps,saveCalendarWeeklyRep,type CalendarWeeklyRep,type CalendarWeeklyRepChange} from './calendar-weekly-reps'
 import {openPlayerPractices} from './player-practices-view'
 import {nextMatchTime,openTeamNextMatch} from './team-next-match-view'
 import {teamNextMatchRequest} from './team-room-data'
@@ -16,7 +19,10 @@ import {openTournamentEntry} from './tournament-entry-view'
 import {exportCoachFile,cancelCoachFile} from './native-coach-files'
 import {Browser} from './native-browser'
 import {firstPartyBuild} from './build-scope'
-import {calendarScorecardSeed,type CalendarScorecardSeed} from './personal-match-data'
+import {calendarScorecardSeed,hittingPlanScorecardSeed,type CalendarScorecardSeed} from './personal-match-data'
+import {clubBookingPhone,hittingPlanCourt} from './explore-court-catalog'
+import {openCourtDirections} from './explore-court-directions'
+import {courtInviteMessage} from './court-invite-message'
 import websiteUi from '../generated/website-ui.json'
 
 const label=(day:string)=>new Date(day+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})
@@ -43,19 +49,19 @@ const groupByDate=(events:CalendarOccurrence[])=>{
  return dates
 }
 const dateDots=(events:CalendarOccurrence[])=>calendarSources.filter(source=>events.some(event=>event.source===source)).map(source=>`<i class="${source}"></i>`).join('')
-type Panel='agenda'|'linked-practice'|'editor'|'review'|'delete'|'respond'|'export'|'match-export'|'recovery'|'leave'
+type Panel='agenda'|'linked-practice'|'editor'|'review'|'delete'|'respond'|'export'|'match-export'|'hit-share'|'recovery'|'leave'
 type AgendaOpener={kind:'row'|'featured';key:string}|{kind:'new'|'export'}
 type RefreshContext={message?:string;focusKey?:string;focusControl?:string;preferFeatured?:boolean;reviewReply?:CalendarOccurrence}
 type MatchAvailability=NativeCalendar['competitions'][number]
 type AvailabilityChoice=NonNullable<MatchAvailability['responseStatus']>
 const savedReply=(match?:MatchAvailability):AvailabilityChoice=>match?.responseIsStale?'':match?.responseStatus??''
 export type TournamentCalendarMatch=Pick<CalendarOccurrence,'id'|'date'|'time'>
-export type CalendarStart='all'|'coach'|{practiceTitle:string;weeklyRep?:CalendarWeeklyRep;openDrill?:()=>void;onClose:()=>void}
+export type CalendarStart='all'|'coach'|{practiceTitle:string;weeklyRep?:CalendarWeeklyRep;practiceFocus?:CalendarDraft['practiceFocus'];openDrill?:()=>void;onClose:(changed:boolean)=>void}
  |{practiceEventId:string;onPracticeClose:(changed:boolean,message:string)=>void}
  |{tournamentMatch:TournamentCalendarMatch;onClose:(changed:boolean)=>void}
  |{event?:CalendarOccurrence;filter?:'coach'|'competition'|'needs-reply';followMovedMatch?:boolean;onClose:(changed:boolean)=>void}
-type OpenCalendarRep=(rep:CalendarWeeklyRep,button:HTMLButtonElement,current:()=>boolean,review:boolean)=>{isOpen:()=>boolean;dispose:()=>void;back:()=>void}
-export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all',openRep?:OpenCalendarRep,openScorecard?:(seed:CalendarScorecardSeed)=>void){
+type OpenCalendarPractice=(practice:CalendarPractice,button:HTMLButtonElement,current:()=>boolean,review:boolean)=>{isOpen:()=>boolean;dispose:()=>void;back:()=>void}
+export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all',openPractice?:OpenCalendarPractice,openScorecard?:(seed:CalendarScorecardSeed)=>void){
  const practice=typeof initial==='object'&&'practiceTitle' in initial?initial:null
  const linkedPractice=typeof initial==='object'&&'practiceEventId' in initial?initial:null
  const tournamentShortcut=typeof initial==='object'&&'tournamentMatch' in initial
@@ -72,9 +78,11 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  let practiceView:ReturnType<typeof openPlayerPractices>|null=null
  let teamMatchView:ReturnType<typeof openTeamNextMatch>|null=null
  let competitionView:ReturnType<typeof openCompetitions>|null=null
- let weeklyRepView:ReturnType<OpenCalendarRep>|null=null
+ let practiceDrillView:ReturnType<OpenCalendarPractice>|null=null
+ let courtDirections:ReturnType<typeof openCourtDirections>|undefined
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago'
  let matchExportZone=''
+ let manualHitCopy=false
  let earlierSchedule=''
  let reply:AvailabilityChoice=''
  let draftStart:CalendarDraft|null=null
@@ -83,7 +91,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  let scheduledPracticeId=''
  let weeklyReps=readCalendarWeeklyReps(owner)
  const isPersonalPractice=(event:CalendarOccurrence)=>event.source==='personal'&&event.kind==='practice'&&!event.recurring
- const canOpenPractice=(event:CalendarOccurrence)=>isPersonalPractice(event)&&(event.id===scheduledPracticeId||Boolean(openRep&&weeklyReps.has(event.id)))
+ const canOpenPractice=(event:CalendarOccurrence)=>isPersonalPractice(event)&&(event.id===scheduledPracticeId||Boolean(openPractice&&(event.practiceFocus||weeklyReps.has(event.id))))
  const repDone=(id:string)=>weeklyReps.get(id)?.progress?.completed===true
  const practiceAction=(done:boolean)=>done?'View saved rep':'Open practice drill'
  const practiceStatus=(id:string)=>`<span class="cal-rep-status" data-cal-rep-status="${html(id)}"${repDone(id)?'':' hidden'}><span aria-hidden="true">✓</span><span>Rep done</span></span>`
@@ -110,19 +118,27 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const visible=(events=matchingEvents())=>day?events.filter(event=>event.date===day):events
  const selectedMatch=()=>selected?.source==='competition'?calendar?.competitions.find(match=>match.id===selected?.id):undefined
+ const selectedPersonal=()=>selected?.source==='personal'?calendar?.personal.find(item=>item.id===selected?.id):undefined
  const selectedTeamMatch=()=>selected?.source==='team'&&selected.kind==='match'?calendar?.teamMatches?.find(match=>match.roomId===selected?.id):undefined
  const scheduledMatch=()=>{
   const match=selectedMatch()
   return match&&isScheduledCompetitionMatch(match)?match:null
  }
- const exportableMatch=()=>scheduledMatch()&&selected?.time?selected:null
+ const exportableHit=()=>selected?.hittingPlan&&selected.timeZone&&hittingPlanConfirmed(selected)?selected:null
+ const hitMessage=()=>{
+  const court=selected&&hittingPlanCourt(selected)
+  if(!selected||!court)return
+  const {body,directions,start}=courtInviteMessage(court,selected)
+  if(start)return {body,address:court.destination,text:`${body}\n${court.destination}\n\n${directions}`}
+ }
+ const exportableMatch=()=>selected?.time&&(scheduledMatch()||exportableHit())?selected:null
  const venueHref=()=>{
   const team=selectedTeamMatch()
   if(team)return calendarMatchVenueHref({location:team.match.facility})
   const match=scheduledMatch()
   return match&&match.date>=localCalendarDate()?calendarMatchVenueHref(match):''
  }
- const exportZone=()=>panel==='match-export'?matchExportZone:zone
+ const exportZone=()=>panel==='match-export'?exportableHit()?.timeZone??matchExportZone:zone
  const exportEvents=()=>{
   if(panel!=='match-export')return exportableCalendarOccurrences(visible())
   const event=exportableMatch()
@@ -149,8 +165,9 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   teamMatchView=null
   competitionView?.dispose()
   competitionView=null
-  weeklyRepView?.dispose()
-  weeklyRepView=null
+  practiceDrillView?.dispose()
+  practiceDrillView=null
+  courtDirections?.dispose()
   void cancelCoachFile(owner).catch(()=>{})
   calendar=null;finder=null;finderSource=null;query='';draft=null;draftStart=null;pending=null;initialEvent=undefined;initialTournamentMatch=undefined
   dialog.close()
@@ -170,7 +187,10 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const cancelEditor=()=>{
   if(linkedPractice||schedulingRep||!calendar){back();return}
-  if(draft&&draftStart&&sameCalendarDraft(draft,draftStart))returnAgenda()
+  if(draft&&draftStart&&sameCalendarDraft(draft,draftStart)){
+   if(selected?.hittingPlan||selected?.practiceFocus){draft=null;draftStart=null;openEvent(selected)}
+   else returnAgenda()
+  }
   else confirmDiscard('agenda')
  }
  const keepChange=()=>{
@@ -184,12 +204,14 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(hasReplyChanges())confirmDiscard('agenda')
   else returnAgenda()
  }
- const returnToMatch=()=>{
+ const returnToMatch=(control='[data-cal-match-export-review]')=>{
   panel='respond';notice='';render()
-  dialog.querySelector<HTMLElement>('[data-cal-match-export-review]')?.focus()
+  dialog.querySelector<HTMLElement>(control)?.focus()
  }
+ const returnToHit=()=>returnToMatch('[data-cal-hit-share-review]')
  const back=()=>{
-  if(weeklyRepView?.isOpen()){weeklyRepView.back();return true}
+  if(courtDirections?.isOpen()){courtDirections.dispose();return true}
+  if(practiceDrillView?.isOpen()){practiceDrillView.back();return true}
   if(practiceView?.isOpen()){practiceView.back();return true}
   if(teamMatchView?.isOpen()){teamMatchView.close();return true}
   if(competitionView?.isOpen())return competitionView.back()
@@ -197,6 +219,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(busy){notice='Finishing this calendar check…';status();return true}
   if(panel==='leave'){keepChange();return true}
   if(panel==='match-export'){returnToMatch();return true}
+  if(panel==='hit-share'){returnToHit();return true}
   if(linkedPractice&&(panel==='linked-practice'||panel==='editor'&&draft&&draftStart&&sameCalendarDraft(draft,draftStart))){dispose();return true}
   if(pending||panel==='editor'||panel==='review'||hasReplyChanges()){confirmDiscard('close');return true}
   if(linkedPractice&&panel==='delete'){panel='editor';render();focus();return true}
@@ -240,13 +263,13 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const closedReply=reviewReply&&competitionMatch?.status==='Completed'
    const events=reviewReply?findEvents(''):visible()
    const event=events.find(item=>item.key===target.key&&(competitionMatch||!reviewReply&&item.date===target.date))
-   if(event&&(closedReply||isCurrentCalendarOccurrence(event,calendar,new Date()))){
+   if(event&&(closedReply||event.hittingPlan||event.practiceFocus||isCurrentCalendarOccurrence(event,calendar,new Date()))){
     changed=changed||event.date!==target.date||event.title!==target.title||event.time!==target.time||event.endTime!==target.endTime||
      event.location!==target.location||event.readiness!==target.readiness
     if(reviewReply){
      if(day)day=event.date
     }else rememberAgenda({kind:'row',key:event.key})
-    openEvent(event,competitionMatch&&!closedReply?previousMatchSchedule(target,event):'',reviewReply&&!closedReply?message:undefined)
+    openEvent(event,competitionMatch&&!closedReply?previousMatchSchedule(target,event):'',event.hittingPlan||event.practiceFocus||reviewReply&&!closedReply?message:undefined)
     return
    }
    changed=true
@@ -333,6 +356,11 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const confirmed=async(context:RefreshContext,{saved,loaded}:{saved?:PlayerCalendarItem|null;loaded?:NativeCalendar}={})=>{
   changed=true
+  if(schedulingRep&&practice?.practiceFocus&&saved?.practiceFocus){
+   notifyCalendarWeeklyRepChange(owner,true)
+   dispose();return
+  }
+  if(typeof initial==='string'&&(saved?.practiceFocus||pending?.action==='delete'&&selected?.practiceFocus))notifyCalendarWeeklyRepChange(owner,true)
   if(schedulingRep&&saved&&practice?.openDrill){
    scheduledPracticeId=saved.id
    if(practice.weeklyRep){
@@ -355,6 +383,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    day=''
    filter='all'
    query=''
+   if(hittingPlanCourt(saved)||saved.practiceFocus)initialEvent=personalCalendarOccurrence(saved)
   }
   if(loaded){
    calendar=loaded
@@ -382,7 +411,9 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    else{
     const saved=readCalendarItem(result.item)
     if(intent.action==='delete'?saved!==null:!saved||!sameCalendarDraft(personalDraft(saved),intent.item))throw Error()
-    await confirmed({message:intent.action==='delete'?'Personal event deleted.':'Personal event saved.'},{saved})
+    const message=intent.action==='delete'?'Personal event deleted.':saved?.hittingPlan
+     ?hittingPlanConfirmed(saved)?'Hitting plan confirmed.':'Hitting plan saved.':'Personal event saved.'
+    await confirmed({message},{saved})
    }
   }catch(error){
    if(!active())return
@@ -440,7 +471,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   finally{if(active()&&busy){busy=false;render();focus()}}
  }
  const setDraft=(item?:CalendarDraft,stamp='',practiceTitle='')=>{
-  draft=item||{id:'player-calendar-'+crypto.randomUUID(),title:practiceTitle.trim().slice(0,160).trim(),date:day||anchor,time:'',location:'',kind:'practice',recurrenceRule:'',availabilityStatus:'',venueDirectoryId:'',venuePreferenceId:''}
+  draft=item||{id:'player-calendar-'+crypto.randomUUID(),title:practiceTitle.trim().slice(0,160).trim(),date:day||anchor,time:'',location:'',kind:'practice',recurrenceRule:'',availabilityStatus:'',venueDirectoryId:'',venuePreferenceId:'',
+   ...(practice?.practiceFocus?{practiceFocus:practice.practiceFocus}:{})}
   draftStart=draft
   baseline=stamp;schedulingRep=Boolean(practiceTitle);panel='editor';notice='';render()
   if(schedulingRep)focus()
@@ -449,13 +481,14 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  const field=(name:string,title:string,value:string,type='text',max=160)=>`<label>${title}<input name="${name}" type="${type}" value="${html(value)}" ${type==='date'?'min="1900-01-01" max="2199-12-31"':''} ${type==='text'?'maxlength="'+max+'"':''}></label>`
  const details=(event:CalendarOccurrence|CalendarDraft,missingTime:string,showVenueSearch=false,venueTime='')=>{
   const time=venueTime||formatCaptainPracticeTimeRange(event.time.slice(0,5),'endTime' in event?event.endTime?.slice(0,5):undefined)
+  const club=hittingPlanCourt(event)
   return `<div class="cal-event-summary">
    <h3>${html(event.title)}</h3>
-   ${'detail' in event&&event.detail?`<p>${html(event.detail)}</p>`:''}
+   ${!club&&'detail' in event&&event.detail?`<p>${html(event.detail)}</p>`:''}
    <dl>
     <div><dt>Date</dt><dd><time datetime="${html(event.date)}">${html(label(event.date))}</time></dd></div>
-    <div><dt>Time</dt><dd>${html(time||missingTime)}</dd></div>
-    <div><dt>Location</dt><dd>${html(event.location||'Location not set')}</dd></div>
+    <div><dt>Time</dt><dd>${html(time?(club?time+' CT':time):missingTime)}</dd></div>
+    <div><dt>Location</dt><dd>${html(club?.destination??(event.location||'Location not set'))}</dd></div>
    </dl>
    ${showVenueSearch?`<button type="button" class="secondary cal-venue-link" data-cal-venue>${'source' in event&&event.source==='team'?'Find in Apple Maps':'Find venue in Apple Maps'} <span aria-hidden="true">↗</span></button><p class="cal-venue-status" role="status"></p>`:''}
   </div>`
@@ -490,9 +523,9 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(!event)return top+'<h2>Your tennis calendar</h2><p>Personal plans and shared dates.</p>'
   const time=event.time?event.time.slice(0,5)+(event.endTime?' – '+event.endTime:''):''
   const dateAndTime=[event.date===today?'':label(event.date),time].filter(Boolean).join(' · ')
-  const replyStatus=event.matchNeedsReply?`<p id="cal-highlight-reply" data-cal-reply-needed>${html(event.readiness)}</p>`:''
+  const replyStatus=event.matchNeedsReply||event.hittingPlan?`<p id="cal-highlight-reply"${event.matchNeedsReply?' data-cal-reply-needed':''}>${html(event.readiness)}</p>`:''
   const details=`<button type="button" class="secondary" data-cal-open-event="${html(event.key)}" aria-describedby="cal-highlight-title${replyStatus?' cal-highlight-reply':''}">Open event</button>`
-  const scheduled=Boolean(openRep&&canOpenPractice(event))
+  const scheduled=Boolean(openPractice&&canOpenPractice(event))
   const actions=scheduled?`<div class="cal-featured-practice">${practiceButton(event,'cal-highlight-title')}${details}</div>`:details
   return top+`<h2 id="cal-highlight-title">${html(event.title)}</h2>${dateAndTime?'<p>'+html(dateAndTime)+'</p>':''}${event.location?'<p>'+html(event.location)+'</p>':''}${replyStatus}${scheduled?practiceStatus(event.id):''}${actions}`
  }
@@ -508,7 +541,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const heading=e.date!==last?'<h3 class="cal-date">'+html(label(e.date))+'</h3>':''
    last=e.date
    const time=e.time?e.time.slice(0,5):e.source==='team'?'TBD':'All day'
-   const type=e.source==='competition'?e.kind:e.source==='coach'?'Coach':e.source==='team'?(e.kind==='match'?'Team match':'Team practice · '+(calendar?.practices?.find(p=>p.id===e.id)?.scope.teamName||'')):'Personal'
+   const type=e.hittingPlan?'Hitting plan':e.practiceFocus?'Practice':e.source==='competition'?e.kind:e.source==='coach'?'Coach':e.source==='team'?(e.kind==='match'?'Team match':'Team practice · '+(calendar?.practices?.find(p=>p.id===e.id)?.scope.teamName||'')):'Personal'
    const readiness=e.readiness?`<span${needsMatchReply(e,now)?' data-cal-reply-needed':''}>${html(e.readiness)}</span>`:''
    const scheduled=canOpenPractice(e)
    const titleId='cal-scheduled-rep-'+html(e.id)
@@ -544,27 +577,61 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(panel==='leave')return `<section class="cal-panel"><h2 tabindex="-1">Leave this calendar change?</h2><p>${pending?'The saved result is still unconfirmed. Your calendar will need a fresh check when you return.':'Your unsaved changes will be discarded.'}</p><button data-cal-stay>Keep reviewing</button><button class="secondary" data-cal-discard>Discard and close</button></section>`
   if(panel==='recovery')return '<section class="cal-panel"><h2 tabindex="-1">Check the saved result</h2><p>The connection ended before we could confirm your change. Check your saved calendar before trying again.</p><button data-cal-recover '+(busy?'disabled':'')+'>Check saved entry</button></section>'
   if(panel==='linked-practice')return `<section class="cal-panel"><h2 tabindex="-1">Saved practice</h2>${practiceLookupFailed?'<button type="button" data-cal-practice-retry>Retry practice lookup</button>':''}</section>`
-  if(panel==='editor'&&draft)return `<form class="cal-form">
-   <h2 tabindex="-1">${schedulingRep?'Schedule practice':linkedPractice?'Edit practice date':baseline?'Edit personal event':'Add personal event'}</h2>
+  if(panel==='editor'&&draft)return `<form class="cal-form"${draft.practiceFocus?' data-cal-practice-focus':''}>
+   <h2 tabindex="-1">${draft.hittingPlan?'Edit hitting plan':schedulingRep?'Schedule practice':linkedPractice||draft.practiceFocus?'Edit practice date':baseline?'Edit personal event':'Add personal event'}</h2>
    ${field('title','Title',draft.title)}
-   <div class="cal-form-pair">${field('date','Date',draft.date,'date')}${field('time',schedulingRep?'Time':'Time (optional)',draft.time,'time')}</div>
-   ${schedulingRep?'<p>Save a private practice on your calendar. Leave the time blank for an all-day entry.</p>':`
+   <div class="cal-form-pair">${field('date','Date',draft.date,'date')}${field('time',draft.hittingPlan?'Central time':schedulingRep&&!draft.practiceFocus?'Time':'Time (optional)',draft.time,'time')}</div>
+   ${draft.hittingPlan?`<p>${html(draft.location)}</p><p>Changing the date or time returns the plan to Proposed.</p>`:draft.practiceFocus?`${field('location','Location (optional)',draft.location)}<p><strong>Practice target</strong><br>${html(draft.practiceFocus.target)}</p>`:schedulingRep?'<p>Save a private practice on your calendar. Leave the time blank for an all-day entry.</p>':`
     ${field('location','Location (optional)',draft.location)}
     <label>Type<select name="kind">${['practice','match','lesson','reminder','availability'].map(k=>'<option value="'+k+'" '+(draft!.kind===k?'selected':'')+'>'+k[0].toUpperCase()+k.slice(1)+'</option>').join('')}</select></label>
     <label>Repeat<select name="recurrenceRule">${Object.entries(repeatNames).map(([k,v])=>'<option value="'+k+'" '+(draft!.recurrenceRule===k?'selected':'')+'>'+v+'</option>').join('')}</select></label>
     <label data-cal-availability ${draft.kind==='availability'?'':'hidden'}>Personal availability<select name="availabilityStatus"><option value="available" ${draft.availabilityStatus==='available'?'selected':''}>Available</option><option value="unavailable" ${draft.availabilityStatus==='unavailable'?'selected':''}>Unavailable</option></select></label>
     <p>${draft.recurrenceRule?'Edits apply to the whole repeating series. Monthly dates skip months without that day.':'Leave time empty for an all-day entry.'} Personal events don’t book a court, send a team message or reply to a competition.</p>`}
-   <button type="submit">${schedulingRep?'Review practice':'Review event'}</button>
+   <button type="submit">${schedulingRep||draft.practiceFocus?'Review practice':'Review event'}</button>
    ${baseline&&selected?'<button type="button" class="secondary" data-cal-delete-review>'+(selected.recurring?'Delete repeating series':'Delete event')+'</button>':''}
    <button type="button" class="secondary" data-cal-cancel>Cancel</button>
   </form>`
-  if(panel==='review'&&draft)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">${schedulingRep?'Review practice':'Review personal event'}</h2>${details(draft,'All day')}<p>${html(draft.kind)} · ${html(repeatNames[draft.recurrenceRule])}</p>${draft.kind==='availability'?'<p>Personal note: '+html(draft.availabilityStatus)+'. No competition reply is sent.</p>':''}${draft.recurrenceRule?'<p>This saves the whole repeating series.</p>':''}<button data-cal-save ${busy?'disabled':''}>${schedulingRep?'Save private practice':baseline?'Save changes':'Save personal event'}</button><button class="secondary" data-cal-edit ${busy?'disabled':''}>Keep editing</button></section>`
+  if(panel==='review'&&draft)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">${schedulingRep||draft.practiceFocus?'Review practice':'Review personal event'}</h2>${details(draft,'All day')}${draft.practiceFocus?`<p><strong>Practice target</strong><br>${html(draft.practiceFocus.target)}</p>`:`<p>${html(draft.kind)} · ${html(repeatNames[draft.recurrenceRule])}</p>`}${draft.kind==='availability'?'<p>Personal note: '+html(draft.availabilityStatus)+'. No competition reply is sent.</p>':''}${draft.recurrenceRule?'<p>This saves the whole repeating series.</p>':''}<button data-cal-save ${busy?'disabled':''}>${schedulingRep?'Save private practice':baseline?'Save changes':'Save personal event'}</button><button class="secondary" data-cal-edit ${busy?'disabled':''}>Keep editing</button></section>`
   if(panel==='delete'&&selected)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Delete ${selected.recurring?'repeating series':'personal event'}?</h2>${details(selected,'All day')}<p>${selected.recurring?'Every occurrence from this personal series will be removed.':'This removes this personal event from your saved calendar.'}</p><button data-cal-delete ${busy?'disabled':''}>Delete ${selected.recurring?'whole series':'event'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Keep event</button></section>`
   if(panel==='respond'&&selected?.source==='team'){
    const team=selectedTeamMatch()
    if(team)return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Team match</h2>${details(selected,'Time to be confirmed',Boolean(venueHref()),nextMatchTime(team.match))}<button type="button" data-cal-team-match ${busy?'disabled':''}>Open match & availability</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
    const closed=selected.teamStatus==='cancelled'||selected.teamStatus==='completed'
    return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Team practice</h2>${details(selected,'Time to be confirmed')}<p class="cal-event-readiness">${html(selected.readiness)}</p><p>${closed?'See the saved practice details and your reply.':'Open the practice to check the latest details and your place, then review your RSVP.'}</p><button data-cal-practice ${busy?'disabled':''}>${closed?'View practice':'Open practice & RSVP'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
+  }
+  if(panel==='respond'&&selected?.hittingPlan){
+   const confirmed=hittingPlanConfirmed(selected)
+   const venue=hittingPlanCourt(selected)
+   const phone=venue&&clubBookingPhone(venue)
+   const scorecard=openScorecard&&hittingPlanScorecardSeed(selected)?'<button type="button" data-cal-scorecard>Open scorecard in My Lab</button>':''
+   return `<section class="cal-panel cal-event-panel"><div class="cal-hitting-heading"><h2 tabindex="-1">Hitting plan</h2>
+    <p class="cal-event-readiness" data-tone="${confirmed?'available':'changed'}">${html(selected.readiness)}</p></div>
+    ${details(selected,'Time to be confirmed')}
+    ${confirmed?'':`<p>Confirm once you’ve agreed on the time and checked court availability.</p><button type="button" data-cal-confirm-hit ${busy?'disabled':''}>Confirm plan</button>`}
+    ${scorecard}<div class="cal-hitting-actions"><button type="button"${confirmed&&!scorecard?'':' class="secondary"'} data-cal-court-directions aria-haspopup="dialog">Directions</button>
+    ${phone?`<a class="cal-hitting-call" href="${html(phone.href)}" aria-labelledby="cal-club-call" aria-describedby="cal-club-phone"><span id="cal-club-call">Call club</span><small id="cal-club-phone">${html(phone.label)}</small></a>`:''}</div>
+    <div class="cal-hitting-actions">${hitMessage()?'<button type="button" class="secondary" data-cal-hit-share-review>Share plan</button>':''}
+    <button type="button" class="secondary" data-cal-edit-hit>Edit plan</button></div>
+    ${exportableHit()?'<button type="button" class="secondary" data-cal-match-export-review>Export to calendar</button>':''}
+    <button type="button" class="secondary" data-cal-agenda>Back to calendar</button></section>`
+  }
+  if(panel==='hit-share'){
+   const message=hitMessage()
+   if(!message)return ''
+   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Share hitting plan</h2>
+    <div class="cal-event-summary"><h3>Message preview</h3><p>${html(message.body)}</p>
+    <p>${html(message.address)}</p><p>Includes Apple Maps and Google Maps directions.</p></div>
+    ${manualHitCopy?`<label class="cal-hit-message">Plan message<textarea readonly rows="5" data-cal-hit-message>${html(message.text)}</textarea></label>`:''}
+    <div class="cal-hitting-actions"><button type="button" data-cal-hit-send ${busy?'disabled':''}>Share message</button>
+    <button type="button" class="secondary" data-cal-hit-copy ${busy?'disabled':''}>Copy message</button></div>
+    <button type="button" class="secondary" data-cal-hit-back ${busy?'disabled':''}>Back to hitting plan</button></section>`
+  }
+  if(panel==='respond'&&selected?.practiceFocus){
+   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Scheduled practice</h2>${details({...selected,detail:''},'All day')}
+    <p><strong>Practice target</strong><br>${html(selected.practiceFocus.target)}</p>
+    ${openPractice?'<button type="button" data-cal-start-practice>Open practice drill</button>':''}
+    <button type="button" class="secondary" data-cal-edit-personal>Edit practice date</button>
+    <button type="button" class="secondary" data-cal-agenda>Back to calendar</button></section>`
   }
   if(panel==='respond'&&selected){
    const match=selectedMatch()
@@ -579,17 +646,18 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   }
   if(panel==='export'||panel==='match-export'){
    const single=panel==='match-export',list=exportEvents(),selectedZone=exportZone()
+   const hit=single&&exportableHit()
    const zones=[...new Set(['America/Chicago',Intl.DateTimeFormat().resolvedOptions().timeZone,'America/New_York','America/Denver','America/Los_Angeles','Pacific/Honolulu','America/Anchorage'])]
-   return `<section class="cal-panel${single?' cal-event-panel':''}"><h2 tabindex="-1">${single?'Export this match':'Export these dates'}</h2>
+   return `<section class="cal-panel${single?' cal-event-panel':''}"><h2 tabindex="-1">${hit?'Export this hit':single?'Export this match':'Export these dates'}</h2>
     ${single&&selected?details(selected,'Time to be confirmed'):`<p>${list.length} ${list.length===1?'date':'dates'} · ${day?html(label(day)):html(label(range().from)+' – '+label(range().to))} · ${calendarFilters[filter]}</p>${query.trim()?'<p>Search: '+html(query)+'</p>':''}`}
-    <label${single?' class="cal-type"':''}><span>${single?'Venue time zone':'Times are in'}</span><select data-cal-zone ${busy?'disabled':''}>
+    ${hit?'':`<label${single?' class="cal-type"':''}><span>${single?'Venue time zone':'Times are in'}</span><select data-cal-zone ${busy?'disabled':''}>
      ${single?'<option value="" disabled>Choose a time zone</option>':''}
      ${zones.map(z=>`<option value="${html(z)}" ${z===selectedZone?'selected':''}>${html(z.replaceAll('_',' '))}</option>`).join('')}
-    </select></label>
-    ${single?'<p>The file reserves 90 minutes for this match. Later schedule changes won’t sync.</p>':`<p>${firstPartyBuild?'Team matches use their venue time zone. Choose a zone for your other dates.':'Choose the zone where these events take place.'} ${firstPartyBuild?'Timed events':'Team practices use their recorded end time when available. Other timed events'} use 90-minute slots; Coach lessons use 60 minutes. Dates without a time export as all day.</p><p>${firstPartyBuild?'':'Cancelled team practices and invalid time ranges are excluded. '}This is a one-time calendar file for the dates, type and search shown. Repeating entries export only occurrences in this view. Later changes won’t sync.</p>`}
+    </select></label>`}
+    ${hit?'<p>The file reserves 90 minutes for this hit. Export it again after a schedule change.</p>':single?'<p>The file reserves 90 minutes for this match. Later schedule changes won’t sync.</p>':`<p>${firstPartyBuild?'Team matches use their venue time zone. Choose a zone for your other dates.':'Choose the zone where these events take place.'} ${firstPartyBuild?'Timed events':'Team practices use their recorded end time when available. Other timed events'} use 90-minute slots; Coach lessons use 60 minutes. Dates without a time export as all day.</p><p>${firstPartyBuild?'':'Cancelled team practices and invalid time ranges are excluded. '}This is a one-time calendar file for the dates, type and search shown. Repeating entries export only occurrences in this view. Later changes won’t sync.</p>`}
     ${!single&&calendar?.warnings.length?'<p class="cal-warning">Some sources are unavailable. This file includes only the dates that loaded.</p>':''}
     <button data-cal-export ${busy||!list.length||!selectedZone?'disabled':''}>Share calendar file</button>
-    <button class="secondary" ${single?'data-cal-match-back':'data-cal-agenda'} ${busy?'disabled':''}>${single?'Back to match':'Back to calendar'}</button>
+    <button class="secondary" ${single?'data-cal-match-back':'data-cal-agenda'} ${busy?'disabled':''}>${hit?'Back to hitting plan':single?'Back to match':'Back to calendar'}</button>
    </section>`
   }
   return ''
@@ -646,7 +714,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  }
  const openEvent=(event:CalendarOccurrence,previous='',message='')=>{
   if(!calendar)return
-  if(event.source==='personal'){
+  if(event.source==='personal'&&!event.hittingPlan&&!event.practiceFocus){
    const saved=calendar.personal.find(item=>item.id===event.id)
    if(!saved)return
    draft=personalDraft(saved)
@@ -669,13 +737,13 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   rememberAgenda({kind,key})
   openEvent(event)
  }
- const openPracticeDrill=(button:HTMLButtonElement)=>{
-  if(weeklyRepView?.isOpen())return
-  const saved=visible().find(e=>e.key===button.dataset.calOpenRep)
+ const openPracticeDrill=(button:HTMLButtonElement,event?:CalendarOccurrence)=>{
+  if(practiceDrillView?.isOpen())return
+  const saved=event??visible().find(e=>e.key===button.dataset.calOpenRep)
   if(!saved||!canOpenPractice(saved))return
   if(saved.id===scheduledPracticeId&&practice?.openDrill){dispose();if(current())practice.openDrill();return}
-  const rep=weeklyReps.get(saved.id)
-  if(rep&&openRep)weeklyRepView=openRep(rep,button,()=>active()&&button.isConnected,repDone(saved.id))
+  const drill=saved.practiceFocus??weeklyReps.get(saved.id)
+  if(drill&&openPractice)practiceDrillView=openPractice(drill,button,()=>active()&&button.isConnected,repDone(saved.id))
  }
  const updatePracticeStatus=(event:Event)=>{
   const change=(event as CustomEvent<CalendarWeeklyRepChange>).detail
@@ -787,11 +855,55 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
     :openTournaments(client,owner,active,()=>{competitionView=null},undefined,button,'Back to calendar',target.id,{divisionId:target.divisionId,matchId})
   })
   on('[data-cal-scorecard]',()=>{
-   const seed=calendarScorecardSeed(selectedMatch())
+   const seed=hittingPlanScorecardSeed(selected)??calendarScorecardSeed(selectedMatch())
    if(!seed||!openScorecard)return
    if(pending||hasReplyChanges()){notice='Save or clear your availability reply before opening the scorecard.';status();return}
    dispose()
    if(current())openScorecard(seed)
+  })
+  on('[data-cal-court-directions]',button=>{
+   const court=selected&&hittingPlanCourt(selected)
+   if(court&&!courtDirections?.isOpen())courtDirections=openCourtDirections(court,button,active)
+  })
+  on('[data-cal-hit-share-review]',()=>{
+   if(!hitMessage())return
+   panel='hit-share';manualHitCopy=false;notice='';render()
+   dialog.querySelector<HTMLElement>('.cal-body h2')?.focus()
+  })
+  on('[data-cal-hit-back]',returnToHit)
+  on('[data-cal-hit-send],[data-cal-hit-copy]',async button=>{
+   const message=hitMessage()
+   if(!message)return
+   const copy=button.hasAttribute('data-cal-hit-copy')
+   busy=true;manualHitCopy=false;notice='';render()
+   try{
+    if(copy)await Clipboard.write({string:message.text})
+    else await Share.share({title:'Tennis hitting plan',text:message.text,dialogTitle:'Share hitting plan'})
+    notice=copy?'Plan copied.':'Share sheet closed.'
+   }catch(error){
+    manualHitCopy=copy
+    if(copy)notice='Select and copy the plan message below.'
+    else if(!(error instanceof Error&&(error.name==='AbortError'||error.message==='Share canceled')))notice='Couldn’t open sharing. You can copy the message instead.'
+   }finally{
+    busy=false
+    if(active()){
+     render()
+     const messageBox=dialog.querySelector<HTMLTextAreaElement>('[data-cal-hit-message]')
+     if(messageBox){messageBox.focus();messageBox.select()}
+     else dialog.querySelector<HTMLElement>(copy?'[data-cal-hit-copy]':'[data-cal-hit-send]')?.focus({preventScroll:true})
+    }
+   }
+  })
+  on('[data-cal-edit-hit],[data-cal-edit-personal]',()=>{
+   const plan=selectedPersonal()
+   if(plan)setDraft(personalDraft(plan),plan.updatedAt)
+  })
+  on('[data-cal-start-practice]',button=>{if(selected?.practiceFocus)openPracticeDrill(button,selected)})
+  on('[data-cal-confirm-hit]',()=>{
+   const plan=selectedPersonal()
+   if(!plan?.hittingPlan||hittingPlanConfirmed(plan))return
+   const item={...personalDraft(plan),hittingPlan:{clubId:plan.hittingPlan.clubId,confirmedFor:`${plan.date}T${plan.time}`}}
+   void perform({action:'update',item,expectedUpdatedAt:plan.updatedAt})
   })
   const form=dialog.querySelector<HTMLFormElement>('form')
   if(form&&draft){
@@ -801,7 +913,14 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
     const availability=form.querySelector<HTMLElement>('[data-cal-availability]')
     if(availability)availability.hidden=kind!=='availability'
    }
-   form.oninput=sync;form.onchange=sync;form.onsubmit=e=>{e.preventDefault();sync();try{draft=calendarDraft(draft);panel='review';notice='';render();focus()}catch(error){notice=error instanceof Error?error.message:'Review this event.';status()}}
+   form.oninput=sync;form.onchange=sync;form.onsubmit=e=>{
+    e.preventDefault();sync()
+    if(draft?.hittingPlan&&draftStart&&(draft.date!==draftStart.date||draft.time!==draftStart.time)){
+     draft={...draft,hittingPlan:{clubId:draft.hittingPlan.clubId}}
+    }
+    try{draft=calendarDraft(draft);panel='review';notice='';render();focus()}
+    catch(error){notice=error instanceof Error?error.message:'Review this event.';status()}
+   }
   }
   on('[data-cal-edit]',()=>{panel='editor';render();if(schedulingRep||linkedPractice)focus()});on('[data-cal-delete-review]',()=>{panel='delete';render();focus()})
   on('[data-cal-save]',()=>{if(draft)void perform({action:baseline?'update':'create',item:draft,expectedUpdatedAt:baseline})})
@@ -860,7 +979,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    matchExportZone='';panel='match-export';notice='';render()
    dialog.querySelector<HTMLElement>('.cal-body h2')?.focus()
   })
-  on('[data-cal-match-back]',returnToMatch)
+  on('[data-cal-match-back]',()=>returnToMatch())
   const zoneSelect=dialog.querySelector<HTMLSelectElement>('[data-cal-zone]')
   const exportButton=dialog.querySelector<HTMLButtonElement>('[data-cal-export]')
   if(zoneSelect&&exportButton){
@@ -875,7 +994,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const events=exportEvents(),timeZone=exportZone()
    if(!events.length||!timeZone)return
    const single=panel==='match-export'
-   const filename=single?'TenAceIQ-match.ics':`TenAceIQ-${range().from}-${range().to}.ics`
+   const filename=single?(exportableHit()?'TenAceIQ-hit.ics':'TenAceIQ-match.ics'):`TenAceIQ-${range().from}-${range().to}.ics`
    busy=true;notice='Preparing calendar file…';render()
    void (async()=>{
     try{

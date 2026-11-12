@@ -1,9 +1,11 @@
 import zipCenters from './explore-stl-zip-centers.json'
+import type {HittingPlan} from '../../lib/hitting-plan'
 
 export type CourtPoint={lat:number;lon:number}
 export type ExploreCourt={
  id:string;name:string;area:string;destination:string;source?:string;
  access:'public'|'club'|'private';point?:CourtPoint;accessNote?:string;
+ bookingPhone?:{number:string;extension?:string};
 }
 
 export const stLouisCourtSource='https://www.stlouis-mo.gov/parks/parks/browse-parks/amenities.cfm?amenitySubtypeID=46'
@@ -57,10 +59,14 @@ const suburbanParks:readonly ExploreCourt[]=[
 
 // The invite picker uses operator-listed tennis clubs. Points are Census address matches.
 export const stLouisHittingClubs:readonly ExploreCourt[]=[
- {id:'vetta-concord',name:'Vetta Concord Racquet Sports',area:'Concord',destination:'12320 Old Tesson Rd, St. Louis, MO 63128',source:clubSource,access:'club',accessNote:'Member court rentals',point:{lat:38.511642,lon:-90.371951}},
- {id:'vetta-sunset',name:'Vetta Sunset',area:'Sunset Hills',destination:'10911 Gravois Industrial Ct, St. Louis, MO 63128',source:clubSource,access:'club',accessNote:'Member court rentals',point:{lat:38.512021,lon:-90.410392}},
- {id:'vetta-west',name:'Vetta West Racquet Sports',area:'St. Peters',destination:'1330 Harvestowne Industrial Dr, St. Peters, MO 63304',source:clubSource,access:'club',accessNote:'Member court rentals',point:{lat:38.739865,lon:-90.607003}},
- {id:'frontenac-racquet-club',name:'Frontenac Racquet Club',area:'Frontenac · Vetta Sports',destination:'10455 German Blvd, St. Louis, MO 63131',source:'https://frcstl.com/tennis-court-rentals-events/',access:'club',accessNote:'Contact club to book',point:{lat:38.644166,lon:-90.408661}},
+ {id:'vetta-concord',name:'Vetta Concord Racquet Sports',area:'Concord',destination:'12320 Old Tesson Rd, St. Louis, MO 63128',source:clubSource,access:'club',accessNote:'Member court rentals',point:{lat:38.511642,lon:-90.371951},
+  bookingPhone:{number:'+13148423111',extension:'3'}},
+ {id:'vetta-sunset',name:'Vetta Sunset',area:'Sunset Hills',destination:'10911 Gravois Industrial Ct, St. Louis, MO 63128',source:clubSource,access:'club',accessNote:'Member court rentals',point:{lat:38.512021,lon:-90.410392},
+  bookingPhone:{number:'+13148492327'}},
+ {id:'vetta-west',name:'Vetta West Racquet Sports',area:'St. Peters',destination:'1330 Harvestowne Industrial Dr, St. Peters, MO 63304',source:clubSource,access:'club',accessNote:'Member court rentals',point:{lat:38.739865,lon:-90.607003},
+  bookingPhone:{number:'+16364410006'}},
+ {id:'frontenac-racquet-club',name:'Frontenac Racquet Club',area:'Frontenac · Vetta Sports',destination:'10455 German Blvd, St. Louis, MO 63131',source:'https://frcstl.com/tennis-court-rentals-events/',access:'club',accessNote:'Contact club to book',point:{lat:38.644166,lon:-90.408661},
+  bookingPhone:{number:'+13149915599'}},
 ]
 
 export const stLouisCourts:readonly ExploreCourt[]=[
@@ -75,6 +81,19 @@ export const stLouisCourts:readonly ExploreCourt[]=[
 
 export function listedExploreCourt(id:string|null|undefined){
  return stLouisCourts.find(court=>court.id===id)
+}
+
+export function hittingPlanLocation(court:ExploreCourt){return `${court.name} — ${court.destination}`}
+
+export function hittingPlanCourt(entry:{location:string;hittingPlan?:HittingPlan}){
+ return stLouisHittingClubs.find(court=>court.id===entry.hittingPlan?.clubId&&entry.location===hittingPlanLocation(court))
+}
+
+export function clubBookingPhone(court:ExploreCourt){
+ const phone=court.access==='club'?court.bookingPhone:undefined
+ if(!phone)return
+ const number=phone.number.replace(/^\+1(\d{3})(\d{3})(\d{4})$/,'($1) $2-$3')
+ return {href:`tel:${phone.number}`,label:phone.extension?`${number} ext. ${phone.extension}`:number}
 }
 
 // Representative ZIP-area points from the 2025 U.S. Census Gazetteer, limited to metro St. Louis.

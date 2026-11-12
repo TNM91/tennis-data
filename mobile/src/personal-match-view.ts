@@ -1,10 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { Clipboard } from '@capacitor/clipboard'
+import { courtFeedbackLabels, courtFeedbackList } from './court-feedback-view'
 import { localCalendarDate } from './calendar-data'
 import { mountPersonalRecentForm } from './lab-recent-form'
-import { html } from './match-details'
+import { html, matchPracticeButtonHtml } from './match-details'
 import { matchDate } from './recent-results'
-import { listedExploreCourt, stLouisCourts, type ExploreCourt } from './explore-court-catalog'
+import { listedExploreCourt, stLouisCourts, stLouisHittingClubs, type ExploreCourt } from './explore-court-catalog'
 import { readSavedCourts } from './explore-saved-courts'
 import { loadCaptainScorecards } from './captain-court-data'
 import type { PostedCourtScorecard } from '../../lib/native-court-result-contract'
@@ -15,7 +16,6 @@ import { courtFeedbackKeys, loadCalendarScorecard, loadPersonalMatches, MatchCha
   type PersonalMatchDraft, type TeamScore } from './personal-match-data'
 
 const formatName = (format: PersonalMatch['format']) => format === 'singles' ? 'Singles' : 'Doubles'
-const courtFeedbackLabels = { surface: 'Surface condition', lighting: 'Lighting', court_time: 'Ease of getting court time' }
 const starLabel = (stars: number) => stars === 1 ? '1 star' : `${stars} stars`
 type LogScorecard = PersonalMatch | PostedCourtScorecard
 type UnsubmittedScorecard = { match_date: string; opponent: string; format: string; outcome: string; score: string; court_venue_key: string }
@@ -26,7 +26,7 @@ function resumeCalendarScorecard(session: PersonalMatchFormSession, seed: Calend
   const cached = session.calendarDrafts?.get(seed.calendarMatchId)
   if (!cached) return
   if (cached.seed.date === seed.date && cached.seed.opponent === seed.opponent && cached.seed.format === seed.format &&
-      cached.seed.outcome === seed.outcome && cached.seed.score === seed.score) return cached.fields
+      cached.seed.outcome === seed.outcome && cached.seed.score === seed.score && cached.seed.courtVenueKey === seed.courtVenueKey) return cached.fields
   session.calendarDrafts?.delete(seed.calendarMatchId)
 }
 
@@ -88,8 +88,15 @@ function recentOpponents(matches: PersonalMatch[]) {
   return [...opponents.values()]
 }
 
+type PersonalMatchLogOptions = {
+  seed?: CalendarScorecardSeed
+  backToTeamResults?: () => void
+  openPractice: (match: PersonalMatch, current: () => boolean) => void
+  openRematchInvite: (clubId: string, trigger: HTMLButtonElement, current: () => boolean) => void
+}
+
 export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient, owner: string, current: () => boolean,
-  formSession: PersonalMatchFormSession, seed?: CalendarScorecardSeed, backToTeamResults?: () => void) {
+  formSession: PersonalMatchFormSession, {seed, backToTeamResults, openPractice, openRematchInvite}: PersonalMatchLogOptions) {
   const teamScore = seed?.score && seed.outcome && isTeamResultScorecardKey(seed.calendarMatchId)
     ? { key: seed.calendarMatchId, score: seed.score, outcome: seed.outcome } : undefined
   host.innerHTML = `<div class="lab-form-host" data-personal-form></div>
@@ -256,11 +263,9 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     }
     const postedScore = teamScore && teamScore.key === match.calendar_match_id && teamScoreDiffers(match, teamScore) ? teamScore : undefined
     const venue = listedExploreCourt(match.court_venue_key)
+    const club = stLouisHittingClubs.find(court => court.id === venue?.id)
     const venueName = match.court_venue_key ? venue?.name ?? 'Court no longer listed' : ''
-    const courtRatings = courtFeedbackKeys.flatMap(key => {
-      const rating = match.court_feedback?.[key]
-      return rating ? [`<div><dt>${courtFeedbackLabels[key]}</dt><dd><span aria-hidden="true">${'★'.repeat(rating)}${'☆'.repeat(5-rating)}</span><span class="sr-only">${rating} out of 5 stars</span></dd></div>`] : []
-    }).join('')
+    const logRematch = `<button type="button" class="secondary" data-log-rematch ${reading ? 'disabled' : ''}>Log a rematch</button>`
     editor.innerHTML = `<article class="lab-first-scorecard" aria-label="Saved scorecard">
       <h3 tabindex="-1">${html(match.opponent)}</h3>
       <p>${html(matchDate(match.match_date))} · ${formatName(match.format)} · ${match.outcome}</p>
@@ -272,22 +277,37 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         <p><strong>${html(postedScore.score)}</strong> · ${postedScore.outcome}</p>
         <button type="button" class="secondary" data-review-team-score ${reading ? 'disabled' : ''}>Review team score</button>
       </section>` : ''}
+      ${matchPracticeButtonHtml}
       ${venue ? `<section class="lab-court-feedback" aria-labelledby="lab-court-feedback-title">
         <h4 id="lab-court-feedback-title">Court ratings</h4>
-        ${courtRatings ? `<dl>${courtRatings}</dl>` : ''}
-        <button type="button" class="secondary" data-edit-court-feedback ${reading ? 'disabled' : ''}>${courtRatings ? 'Edit court ratings' : 'Rate this court'}</button>
+        ${match.court_feedback ? courtFeedbackList(match.court_feedback) : ''}
+        <button type="button" class="secondary" data-edit-court-feedback ${reading ? 'disabled' : ''}>${match.court_feedback ? 'Edit court ratings' : 'Rate this court'}</button>
       </section>` : ''}
-      <button type="button" class="secondary" data-log-rematch ${reading ? 'disabled' : ''}>Log a rematch</button>
+      ${club ? `<div class="lab-rematch-actions" role="group" aria-label="Play again">
+        <button type="button" class="secondary" data-plan-rematch aria-haspopup="dialog">Plan another hit</button>${logRematch}
+      </div>` : logRematch}
       ${scorecardCopyControls}
       <button type="button" class="secondary" data-edit-match>Edit scorecard</button>
       <button type="button" class="secondary" data-remove-match>Remove scorecard</button>
       <button type="button" class="secondary" data-close-scorecard>Back to match log</button>
     </article>`
     bindScorecardActions(match)
+    const practice = editor.querySelector<HTMLButtonElement>('[data-match-practice]')!
+    practice.onclick = () => {
+      const currentScorecard = () => active() && practice.isConnected
+      if (!currentScorecard() || writing) return
+      practice.focus({preventScroll:true})
+      openPractice(match, currentScorecard)
+    }
     const review = editor.querySelector<HTMLButtonElement>('[data-review-team-score]')
     if (review && postedScore) review.onclick = () => showEditor(match, { teamScore: postedScore })
     const rate = editor.querySelector<HTMLButtonElement>('[data-edit-court-feedback]')
     if (rate && venue) rate.onclick = () => showCourtFeedbackEditor(match, venue.name)
+    const plan = editor.querySelector<HTMLButtonElement>('[data-plan-rematch]')
+    if (plan && club) plan.onclick = () => {
+      const currentScorecard = () => active() && plan.isConnected
+      if (currentScorecard() && !writing) openRematchInvite(club.id, plan, currentScorecard)
+    }
     editor.querySelector<HTMLButtonElement>('[data-log-rematch]')!.onclick = () => showEditor(null, { previous: match })
     editor.querySelector<HTMLButtonElement>('[data-edit-match]')!.onclick = () => showEditor(match)
     editor.querySelector<HTMLButtonElement>('[data-remove-match]')!.onclick = () => confirmRemoval(match)
@@ -426,7 +446,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     for (const [field, value] of Object.entries(resumed ?? { match_date: match?.match_date ?? calendarSeed?.date ?? localCalendarDate(),
       opponent: prefill?.opponent ?? '', format: prefill?.format ?? '',
       outcome: correction?.outcome ?? match?.outcome ?? calendarSeed?.outcome ?? '',
-      score: correction?.score ?? match?.score ?? calendarSeed?.score ?? '', court_venue_key: match?.court_venue_key ?? '' })) {
+      score: correction?.score ?? match?.score ?? calendarSeed?.score ?? '',
+      court_venue_key: match?.court_venue_key ?? calendarSeed?.courtVenueKey ?? listedExploreCourt(previous?.court_venue_key)?.id ?? '' })) {
       const input = form.elements.namedItem(field) as HTMLInputElement | HTMLSelectElement
       input.value = value
     }

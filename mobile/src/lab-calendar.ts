@@ -2,12 +2,15 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {CapacitorHttp,type HttpOptions,type HttpResponse} from '@capacitor/core'
 import {isValidCalendarDate} from '../../lib/calendar-date'
 import {html} from './match-details'
-import {calendarOccurrences,calendarTournamentEntry,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,localCalendarDate,shiftCalendarDay,type CalendarOccurrence,type CalendarTournamentEntry} from './calendar-data'
+import {calendarOccurrences,calendarTournamentEntry,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,localCalendarDate,shiftCalendarDay,type CalendarOccurrence,type CalendarPractice,type CalendarTournamentEntry} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
-import {readCalendarWeeklyReps,type CalendarWeeklyRep} from './calendar-weekly-reps'
+import {readCalendarWeeklyReps} from './calendar-weekly-reps'
 import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
 import type {NativeCalendar} from '../../lib/native-calendar-contract'
-import {calendarScorecardSeed,type CalendarScorecardSeed} from './personal-match-data'
+import {calendarScorecardSeed,hittingPlanScorecardSeed,type CalendarScorecardSeed} from './personal-match-data'
+import {hittingPlanTimeZone} from '../../lib/hitting-plan'
+import {todayDateKey} from '../../lib/team-room-match-flow'
+import {hittingPlanCourt} from './explore-court-catalog'
 import websiteUi from '../generated/website-ui.json'
 export type CourtEvent={id:string;source:'personal'|'competition';title:string;date:string;time:string;location:string;detail:string;kind:string;readiness:string;recurrence:string}
 export type CourtCalendar={events:CourtEvent[];competitionUnavailable:boolean}
@@ -48,13 +51,13 @@ export function courtCalendarHtml(calendar:CourtCalendar,now=new Date()){
 function highlightDateDetails(event:CalendarOccurrence,now:Date){
  const date=event.date===localCalendarDate(now)?'Today':new Date(event.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})
  const time=formatCaptainPracticeTimeRange(event.time.slice(0,5),event.endTime)
- return [date,time,event.location].filter(Boolean).join(' · ')
+ return [date,time&&event.hittingPlan?time+' CT':time,hittingPlanCourt(event)?.destination??event.location].filter(Boolean).join(' · ')
 }
 type OpenCalendarHighlight=(button:HTMLButtonElement,event:CalendarOccurrence|undefined,onClose:(changed:boolean)=>void)=>void
 type CalendarHighlightShortcuts={
  replies?:{button:HTMLButtonElement;open:OpenCalendarHighlight}
  tournament?:{button:HTMLButtonElement;open:(button:HTMLButtonElement,entry:CalendarTournamentEntry,onClose:(changed:boolean)=>void)=>void}
- practice?:(button:HTMLButtonElement,rep:CalendarWeeklyRep)=>void
+ practice?:(button:HTMLButtonElement,practice:CalendarPractice)=>void
  scorecard?:(seed:CalendarScorecardSeed)=>void
 }
 export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>string|undefined){
@@ -88,7 +91,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   </button>${scorecard?`<button type="button" class="secondary app-tool" data-lab-calendar-scorecard hidden>
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.tournaments}</span>
    <span class="app-tool-copy">
-    <small>Completed today</small>
+    <small data-scorecard-kicker>Completed today</small>
     <strong data-scorecard-opponent></strong>
     <span class="lab-next-action">Open scorecard</span>
    </span><span aria-hidden="true">›</span>
@@ -105,7 +108,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   calendarButton.textContent='View in Calendar'
   const active=()=>host.isConnected&&current()
   let event:CalendarOccurrence|undefined
-  let rep:CalendarWeeklyRep|undefined
+  let scheduledPractice:CalendarPractice|undefined
   let lastCalendar:NativeCalendar|null=null
   let replyEvent:CalendarOccurrence|undefined
   let tournamentEntry:CalendarTournamentEntry|undefined
@@ -115,6 +118,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    lastCalendar=calendar
    const now=new Date()
    const incomplete=!calendar||calendar.warnings.length>0
+   const events=calendar?calendarOccurrences(calendar):[]
    if(scorecardButton){
     const today=localCalendarDate(now)
     const completed=incomplete?[]:calendar.competitions.flatMap(match=>{
@@ -122,16 +126,21 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
      const seed=calendarScorecardSeed(match,today)
      return seed?[seed]:[]
     })
-    completedScorecard=completed.length===1?completed[0]:undefined
+    const clubToday=todayDateKey(now,hittingPlanTimeZone)
+    const hittingScorecard=completed.length===1?undefined:events.reduce<{title:string;seed:CalendarScorecardSeed}|undefined>((latest,item)=>{
+     const seed=item.date===clubToday?hittingPlanScorecardSeed(item,now):undefined
+     return seed?{title:item.title,seed}:latest
+    },undefined)
+    completedScorecard=completed.length===1?completed[0]:hittingScorecard?.seed
     if(!completedScorecard&&document.activeElement===scorecardButton)button.focus({preventScroll:true})
     scorecardButton.hidden=!completedScorecard
-    scorecardButton.querySelector<HTMLElement>('[data-scorecard-opponent]')!.textContent=completedScorecard?.opponent
+    scorecardButton.querySelector<HTMLElement>('[data-scorecard-kicker]')!.textContent=hittingScorecard?'Earlier today':'Completed today'
+    scorecardButton.querySelector<HTMLElement>('[data-scorecard-opponent]')!.textContent=hittingScorecard?hittingScorecard.title:completedScorecard?.opponent
      ?'vs '+completedScorecard.opponent:'Tournament match'
    }
    const matches=matchOnly&&calendar
     ?new Map(calendar.competitions.filter(item=>item.eventType==='match').map(item=>[item.id,item]))
     :null
-   const events=calendar?calendarOccurrences(calendar):[]
    const links=practice?readCalendarWeeklyReps(owner):undefined
    const linkedRep=(item:CalendarOccurrence)=>item.source==='personal'&&item.kind==='practice'&&!item.recurring?links?.get(item.id):undefined
    let skippedDone=false
@@ -141,7 +150,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
     skippedDone=true
     return false
    }):undefined
-   rep=event?linkedRep(event):undefined
+   scheduledPractice=event&&practice?(event.practiceFocus??linkedRep(event)):undefined
    if(tournament){
     const next=calendar?events.find(item=>{
      const match=item.source==='competition'?matches?.get(item.id):undefined
@@ -173,7 +182,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    }
    kicker.textContent=matchOnly?'Your next match':event&&isPracticeInProgress(event,now)?'Scheduled now':event&&incomplete?'Next loaded date':'Up next'
    const match=event?matches?.get(event.id):undefined
-   if(rep){if(!calendarButton.isConnected)host.append(calendarButton)}
+   if(scheduledPractice){if(!calendarButton.isConnected)host.append(calendarButton)}
    else if(calendarButton.isConnected){
     if(document.activeElement===calendarButton)button.focus({preventScroll:true})
     calendarButton.remove()
@@ -181,7 +190,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
    title.textContent=match?.opponent?'vs '+match.opponent:event?.title??'Open Calendar'
    action.hidden=!event
    if(!event){details.textContent=incomplete?'Check your tennis dates.':skippedDone?'No other dates in the next 7 days.':'No events in the next 7 days.';return}
-   action.textContent=rep?'Open practice drill':matchOnly?'View match · '+event.readiness:event.source==='team'?(event.kind==='match'?'View match':'View practice'):'View event'
+   action.textContent=scheduledPractice?'Open practice drill':event.hittingPlan?'View plan · '+event.readiness:matchOnly?'View match · '+event.readiness:event.source==='team'?(event.kind==='match'?'View match':'View practice'):'View event'
    details.textContent=[match?.opponent?match.competitionName:'',highlightDateDetails(event,now)].filter(Boolean).join(' · ')
   }
   const refresh=()=>{
@@ -200,7 +209,7 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   button.onclick=()=>{
    if(!active())return
    button.focus({preventScroll:true})
-   if(rep&&practice)practice(button,rep)
+   if(scheduledPractice&&practice)practice(button,scheduledPractice)
    else open(button,event,afterClose)
   }
   calendarButton.onclick=()=>{

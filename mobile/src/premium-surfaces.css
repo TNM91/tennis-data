@@ -495,11 +495,14 @@ body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.0
  border-radius:var(--premium-control-radius);background:var(--premium-inset);
 }
 .lab-court-feedback h4 { margin:0 0 8px;color:var(--premium-ice); }
-.lab-court-feedback dl { display:grid;gap:8px;margin:0 0 10px; }
-.lab-court-feedback dl div { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:3px 12px; }
-.lab-court-feedback dt { color:var(--premium-copy);font-size:.8125rem; }
-.lab-court-feedback dd { margin:0;color:var(--premium-lime);letter-spacing:.08em; }
+.court-rating-list { display:grid;gap:8px;margin:0 0 10px; }
+.court-rating-list div { display:grid;grid-template-columns:minmax(0,1fr) max-content;align-items:center;gap:8px; }
+.court-rating-list dt { color:var(--premium-copy);font-size:.8125rem;line-height:1.35;overflow-wrap:anywhere; }
+.court-rating-list dd { margin:0;color:var(--premium-lime);font-size:.9375rem;line-height:1.2;letter-spacing:.06em;white-space:nowrap; }
 .lab-court-feedback button.secondary { min-block-size:44px;margin:0; }
+.lab-rematch-actions { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-block-end:8px; }
+.lab-rematch-actions button.secondary { min-inline-size:0;min-block-size:44px;margin:0;padding:8px 6px;font-size:.8125rem;white-space:normal; }
+.lab-rematch-actions button[data-plan-rematch].secondary { border-color:transparent;background:var(--premium-court-inlay);color:var(--premium-lime); }
 .lab-court-rating-groups,.lab-court-rating-groups fieldset { min-inline-size:0;margin:0;padding:0;border:0; }
 .lab-court-rating-groups fieldset { margin-block-end:14px; }
 .lab-court-rating-groups legend { margin-block-end:6px;padding:0;color:var(--premium-white);font-size:.875rem;font-weight:650; }
@@ -790,6 +793,8 @@ body[data-screen] .explore-nearby .explore-spotlight { margin:0;padding:18px 16p
 }
 [data-explore-event-list]:not(:empty)+.explore-nearby-message,.explore-court-list+.explore-nearby-message { margin-block-start:8px; }
 .explore-nearby-actions { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr));gap:7px;margin-block-start:8px; }
+.explore-court-shortcuts { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.explore-public-courts-title { margin:14px 0 7px;color:var(--premium-copy);font-size:.875rem;line-height:1.3; }
 .explore-nearby-actions button.secondary,.explore-nearby button.explore-nearby-followup.secondary {
  display:flex;justify-content:center;align-items:center;gap:6px;min-block-size:44px;margin:0;padding:7px 8px;
  border-color:var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface);
@@ -804,18 +809,17 @@ body[data-screen] .explore-nearby .explore-spotlight { margin:0;padding:18px 16p
  display:flex;justify-content:space-between;flex-wrap:wrap;align-items:center;gap:0 8px;padding:8px 12px;
 }
 .explore-court-list li+li { border-block-start:1px solid var(--premium-line); }
-.explore-court-list h3 { margin:0;font-size:.9rem;line-height:1.3;overflow-wrap:anywhere; }
+.explore-court-list :is(h3,h4) { margin:0;font-size:.9rem;line-height:1.3;overflow-wrap:anywhere; }
 .explore-court-list p { margin:1px 0 0;color:var(--premium-copy);font-size:.75rem;line-height:1.3; }
 .explore-court-links { display:flex;flex-wrap:wrap;align-items:center;gap:0 12px; }
 .explore-court-links a { display:inline-flex;align-items:center;gap:3px;min-block-size:44px;font-size:.75rem;font-weight:700; }
 .explore-court-links a:first-child { color:var(--premium-copy); }
-.explore-nearby button.explore-hit-invite.secondary {
+.explore-nearby button.explore-find-courts.secondary {
  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:9px;
- min-block-size:48px;margin:8px 0 0;padding:9px 12px;text-align:start;font-size:.875rem;
+ min-block-size:48px;margin:0;padding:9px 12px;text-align:start;font-size:.875rem;
  border-color:transparent;border-radius:var(--premium-control-radius);background:var(--premium-court-inlay);
 }
-.explore-hit-invite>span:first-child { display:grid;place-items:center; }
-.explore-nearby button.explore-find-courts.secondary { margin:0 0 8px; }
+.explore-find-courts>span:first-child { display:grid;place-items:center; }
 #app button.explore-back.secondary { inline-size:auto;min-block-size:44px;margin:0 0 12px;padding:8px 14px; }
 .explore-back[hidden],
 .explore-back:has(+ #explore-content :is(#directory-detail,#explore-player):not([hidden])) { display:none!important; }
@@ -1019,6 +1023,10 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 }
 .training-drill-footer p { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.4; }
 .training-drill-footer button { min-block-size:44px;margin:0;padding:8px 10px;font-size:.875rem; }
+.training-drill-footer[data-practice-actions] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.training-drill-footer[data-practice-actions] > :not(button) { grid-column:1/-1; }
+.training-drill-footer[data-practice-actions] button { min-inline-size:0;padding-inline:6px; }
+.training-drill-footer [data-notice]:empty { display:none; }
 .training-drill-footer :is([data-start],[data-start-warmup]:not(.secondary)) { background:var(--premium-action);color:var(--premium-page); }
 .training-inbox-header {
  position:sticky;inset-block-start:-16px;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -1173,6 +1181,8 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 .training-catalog-card-facts { display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;color:var(--premium-ice);font-size:.6875rem;line-height:1.4; }
 .training-catalog-time { padding:2px 7px;border:1px solid var(--premium-line);border-radius:999px;background:var(--premium-inset);color:var(--premium-lime); }
 .training-catalog-goal { color:var(--premium-copy);font-size:.75rem;font-weight:500;line-height:1.4; }
+.training-scorecard-screen .training-catalog-goal { display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px; }
+.training-scorecard-duration { color:var(--premium-ice);white-space:nowrap; }
 .training-catalog-arrow { grid-column:2;grid-row:1/4;color:var(--premium-ice);font-size:1.3rem;line-height:1; }
 :is(.training-catalog-screen,.training-scorecard-screen,.training-modules-screen,.training-direction-screen) :is(button,input,select,summary):focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 .training-catalog-empty { padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-surface); }
@@ -1764,7 +1774,8 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 .match-participants { margin:0;padding:0;list-style:none; }
 .match-participants>li+li { border-block-start:1px solid var(--premium-line); }
 .match-side-card p { padding:12px 14px; }
-#match-detail :is(.match-participants [data-match-player],[data-share-scorecard],[data-match-practice]).secondary {
+#match-detail :is(.match-participants [data-match-player],[data-share-scorecard],[data-match-practice]).secondary,
+.lab-first-scorecard [data-match-practice].secondary {
  display:grid;grid-template-columns:minmax(0,1fr) 24px;align-items:center;gap:8px;
  min-block-size:48px;padding:10px 14px;color:var(--premium-white);text-align:start;overflow-wrap:anywhere;
 }
@@ -1772,11 +1783,16 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 #match-detail :is([data-share-scorecard],[data-match-practice]).secondary {
  margin:16px 0 0;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-card);
 }
-#match-detail [data-match-practice].secondary { border-color:#6d8849;background:var(--premium-court-inlay); }
-#match-detail :is([data-share-scorecard],[data-match-practice]) .app-tool-copy { gap:2px; }
-#match-detail :is([data-share-scorecard],[data-match-practice]) .app-tool-copy>span { font-size:.75rem;line-height:1.4; }
-#match-detail :is(.match-participants,[data-share-scorecard],[data-match-practice]) .app-tool-arrow { justify-self:center;color:var(--premium-ice);font-size:1.125rem; }
-#match-detail [data-match-practice] .app-tool-arrow { color:var(--premium-lime); }
+#match-detail [data-match-practice].secondary,.lab-first-scorecard [data-match-practice].secondary {
+ border-color:#6d8849;background:var(--premium-court-inlay);
+}
+.lab-first-scorecard [data-match-practice].secondary { margin:0 0 12px;border-radius:var(--premium-control-radius); }
+#match-detail [data-share-scorecard] .app-tool-copy,[data-match-practice] .app-tool-copy { gap:2px; }
+#match-detail [data-share-scorecard] .app-tool-copy>span,[data-match-practice] .app-tool-copy>span { font-size:.75rem;line-height:1.4; }
+#match-detail :is(.match-participants,[data-share-scorecard]) .app-tool-arrow,[data-match-practice] .app-tool-arrow {
+ justify-self:center;color:var(--premium-ice);font-size:1.125rem;
+}
+[data-match-practice] .app-tool-arrow { color:var(--premium-lime); }
 #match-detail .match-participants [data-match-player]:focus-visible { outline-offset:-3px; }
 
 dialog.shared-match-dialog[open] {
@@ -1852,28 +1868,38 @@ dialog.shared-match-dialog[open] {
 .court-directions-venue strong { color:var(--premium-white); }
 .court-directions-venue span { color:var(--premium-copy);font-size:.8125rem;line-height:1.4; }
 .court-directions-dialog .scorecard-share-actions button { flex-basis:7rem; }
-.court-info-dialog button.court-info-source.secondary { min-block-size:44px;margin-block:12px 0; }
-.court-info-report {
+:is(.court-info-report,.court-info-ratings) {
  margin-block-start:12px;padding:0 12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);
 }
-.court-info-report summary { min-block-size:44px;padding-block:10px;color:var(--premium-ice);font-weight:650;cursor:pointer; }
-.court-info-report>p:not(:empty) { margin:0 0 10px;color:var(--premium-copy);font-size:.8125rem; }
+:is(.court-info-report,.court-info-ratings) summary { min-block-size:44px;padding-block:10px;color:var(--premium-ice);font-weight:650;cursor:pointer; }
+:is(.court-info-report,.court-info-ratings)>p:not(:empty) { margin:0 0 10px;color:var(--premium-copy);font-size:.8125rem; }
+.court-info-ratings button.secondary { min-block-size:44px;margin:0 0 10px; }
 .court-info-actions { display:flex;flex-wrap:wrap;gap:8px;margin-block-end:10px; }
-.court-info-actions :is(a,button.secondary) {
- flex:1 1 8rem;min-block-size:44px;inline-size:auto;margin:0;padding:8px 10px;font-size:.8125rem;text-align:center;
+.court-info-venue-actions { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-block:12px 0; }
+.court-info-actions :is(a,button) {
+ flex:1 1 8rem;min-inline-size:0;min-block-size:44px;inline-size:auto;margin:0;padding:8px 10px;font-size:.8125rem;text-align:center;
 }
-.court-info-email {
- display:grid;place-items:center;border-radius:var(--premium-control-radius);
- background:var(--premium-action);color:var(--premium-page);font-weight:750;text-decoration:none;
+.court-info-actions :is(.court-info-primary,.court-info-call) {
+ display:grid;place-items:center;border-radius:var(--premium-control-radius);font-weight:750;text-decoration:none;
 }
-.court-info-email:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
+.court-info-actions .court-info-primary { background:var(--premium-action);color:var(--premium-page); }
+.court-info-call { border:1px solid var(--premium-royal-line);background:var(--premium-raised);color:var(--premium-white); }
+.court-info-actions a:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 .court-info-report textarea { inline-size:100%;margin:5px 0 10px;font-size:1rem; }
-.court-info-report [hidden] { display:none; }
+:is(.court-info-report,.court-info-ratings) [hidden] { display:none; }
 .court-invite-dialog .court-invite-fields {
  display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:10px;
  min-inline-size:0;margin:0;padding:0;border:0;
 }
 .court-invite-fields label:first-of-type { grid-column:1/-1; }
+.court-invite-club-contact {
+ display:flex;flex-wrap:wrap;align-items:center;gap:0 10px;grid-column:1/-1;color:var(--premium-copy);font-size:.8125rem;
+}
+.court-invite-club-contact[hidden] { display:none; }
+.court-invite-club-contact a {
+ display:inline-flex;align-items:center;min-block-size:44px;color:var(--premium-lime);font-weight:700;
+}
+.court-invite-club-contact a:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 .court-invite-preferences {
  display:flex;flex-wrap:wrap;gap:6px;grid-column:1/-1;
 }
@@ -1883,6 +1909,8 @@ dialog.shared-match-dialog[open] {
 .court-invite-preferences button.secondary[aria-pressed="true"] {
  border-color:transparent;background:var(--premium-court-inlay);color:var(--premium-lime);
 }
+.court-invite-date-options { display:grid;grid-template-columns:repeat(3,minmax(0,1fr)); }
+.court-invite-date-options button.secondary { padding-inline:4px; }
 .court-invite-dialog label { min-inline-size:0;margin:0;color:var(--premium-copy);font-size:.8125rem; }
 .court-invite-dialog :is(input,select,textarea) {
  min-inline-size:0;max-inline-size:100%;margin:0;border-color:var(--premium-line);
@@ -1899,7 +1927,19 @@ dialog.shared-match-dialog[open] {
 .court-invite-status,.court-invite-help { margin:6px 0 0; }
 .court-invite-dialog [data-invite-manual][hidden] { display:none; }
 .court-invite-dialog .scorecard-share-actions button { flex-basis:7rem; }
+.court-invite-calendar button.secondary { min-block-size:44px;margin:8px 0 0;font-size:.875rem; }
+.court-invite-calendar [hidden] { display:none; }
 .court-finder-search { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end; }
+.court-finder-filters {
+ display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1fr) minmax(0,1.1fr);gap:6px;margin-block-end:14px;
+}
+.court-finder-filters button.secondary {
+ min-inline-size:0;min-block-size:44px;margin:0;padding:6px 4px;
+ font-size:.75rem;line-height:1.25;overflow-wrap:anywhere;
+}
+.court-finder-filters button.secondary[aria-pressed="true"] {
+ border-color:var(--premium-lime);background:var(--premium-court-inlay);color:var(--premium-white);
+}
 .court-finder-dialog label { min-inline-size:0;margin:0;color:var(--premium-copy);font-size:.8125rem; }
 .court-finder-search label { grid-column:1/-1; }
 .court-finder-dialog input { min-inline-size:0;margin:0;background:var(--premium-inset);font-size:max(16px,.875rem); }

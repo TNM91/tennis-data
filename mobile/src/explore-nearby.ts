@@ -3,18 +3,22 @@ import {formatCalendarDay,isValidCalendarDate} from '../../lib/calendar-date'
 import {publicCompetitionOwner} from '../../lib/native-competitions-contract'
 import {todayDateKey} from '../../lib/team-room-match-flow'
 import websiteUi from '../generated/website-ui.json'
+import {personalCalendarOccurrence,type CalendarOccurrence} from './calendar-data'
 import {loadCompetitions} from './competitions-data'
 import {stLouisCourts} from './explore-court-catalog'
 import {openCourtFinder} from './explore-court-finder'
 import {openCourtDirections} from './explore-court-directions'
-import {openCourtInfo} from './explore-court-info'
-import {openCourtInvite} from './explore-court-invite'
+import {openCourtInfo,type LoadCourtFeedback} from './explore-court-info'
+import {openCourtInvite,type CourtInviteCalendar} from './explore-court-invite'
 import {createPrivateCourtStore} from './explore-private-courts'
 import {html} from './match-details'
+import {loadLatestCourtFeedback} from './personal-match-data'
 import {loadTournaments} from './tournaments-data'
 
 type OpenEvent=(trigger:HTMLElement,id?:string)=>void
-export type NearbyExploreOptions={owner:string;onTournaments:OpenEvent}
+export type NearbyExploreOptions={owner:string;onTournaments:OpenEvent;calendar?:{
+ changed:()=>void;open:(trigger:HTMLElement,event:CalendarOccurrence)=>void
+}}
 type ExploreEvent={id:string;kind:'league'|'tournament';name:string;date:string;location:string}
 
 const areaPreference='tiq.explore.play-area'
@@ -44,16 +48,20 @@ export function nearbySectionsHtml(guest:boolean){
   </div>
  </section>
  <section class="explore-nearby-section" aria-labelledby="explore-courts-title">
-  <div class="explore-nearby-section-heading"><h2 id="explore-courts-title">Public courts</h2><span>St. Louis, MO</span></div>
-  <button type="button" class="secondary explore-hit-invite explore-find-courts" data-nearby-find><span aria-hidden="true">${websiteUi.icons.explore}</span>Find courts near me<span class="explore-event-arrow" aria-hidden="true">›</span></button>
-  <ul class="explore-court-list">${stLouisCourts.slice(0,3).map(court=>`<li>
-   <div><h3>${html(court.name)}</h3><p>${html(court.area)}</p></div>
+  <div class="explore-nearby-section-heading"><h2 id="explore-courts-title">Courts</h2><span>St. Louis, MO</span></div>
+  <button type="button" class="secondary explore-find-courts" data-nearby-find="all" aria-haspopup="dialog"><span aria-hidden="true">${websiteUi.icons.explore}</span>Find courts near me<span class="explore-event-arrow" aria-hidden="true">›</span></button>
+  <div class="explore-nearby-actions explore-court-shortcuts" role="group" aria-label="Court shortcuts">
+   <button type="button" class="secondary" data-nearby-find="club" aria-haspopup="dialog"><span aria-hidden="true">${websiteUi.actionIcons.members}</span>Tennis clubs</button>
+   <button type="button" class="secondary" data-nearby-invite aria-haspopup="dialog"><span aria-hidden="true">${websiteUi.actionIcons.send}</span>Invite to hit</button>
+  </div>
+  <h3 class="explore-public-courts-title" id="explore-public-courts-title">Public courts</h3>
+  <ul class="explore-court-list" aria-labelledby="explore-public-courts-title">${stLouisCourts.slice(0,3).map(court=>`<li>
+   <div><h4>${html(court.name)}</h4><p>${html(court.area)}</p></div>
    <div class="explore-court-links">
     <button class="secondary explore-court-info" type="button" data-nearby-court-info="${html(court.id)}" aria-label="Court info for ${html(court.name)}" aria-haspopup="dialog">Court info</button>
     <button class="secondary explore-court-directions" type="button" data-nearby-directions="${html(court.id)}" aria-label="Directions to ${html(court.name)}" aria-haspopup="dialog">Directions</button>
    </div>
   </li>`).join('')}</ul>
-  <button type="button" class="secondary explore-hit-invite" data-nearby-invite><span aria-hidden="true">${websiteUi.icons.teams}</span>Invite to hit<span class="explore-event-arrow" aria-hidden="true">›</span></button>
  </section>`
 }
 
@@ -71,6 +79,8 @@ export function mountNearbyExplore(overview:HTMLElement,client:SupabaseClient,cu
  const {owner,onTournaments}=options
  const guest=owner===publicCompetitionOwner
  const signedInOwner=guest?undefined:owner
+ const loadFeedback:LoadCourtFeedback|undefined=signedInOwner
+  ?(courtId,active)=>loadLatestCourtFeedback(client,signedInOwner,courtId,active):undefined
  const privateCourts=createPrivateCourtStore(signedInOwner)
  const picker=overview.querySelector<HTMLSelectElement>('#explore-area')!
  const upcoming=overview.querySelector<HTMLElement>('[data-explore-event-list]')!
@@ -83,6 +93,16 @@ export function mountNearbyExplore(overview:HTMLElement,client:SupabaseClient,cu
  let finder:ReturnType<typeof openCourtFinder>|undefined
  let directions:ReturnType<typeof openCourtDirections>|undefined
  let info:ReturnType<typeof openCourtInfo>
+
+ const calendarFor=(trigger:HTMLElement):CourtInviteCalendar|undefined=>{
+  const calendar=options.calendar
+  if(!signedInOwner||!calendar)return
+  return {client,changed:calendar.changed,open:saved=>{
+   if(!current())return
+   invite?.dispose();finder?.dispose();info?.dispose()
+   calendar.open(trigger,personalCalendarOccurrence(saved))
+  }}
+ }
 
  try { if(localStorage.getItem(areaPreference)==='stl')picker.value='stl' } catch { /* Storage is optional. */ }
 
@@ -128,13 +148,15 @@ export function mountNearbyExplore(overview:HTMLElement,client:SupabaseClient,cu
   else if(target.matches('[data-nearby-tournaments]'))onTournaments(target)
   else if(target.dataset.exploreKind==='league')onLeagues(target,target.dataset.exploreId)
   else if(target.dataset.exploreKind==='tournament')onTournaments(target,target.dataset.exploreId)
-  else if(target.matches('[data-nearby-find]')){
-   if(!finder?.isOpen())finder=openCourtFinder(target,current,privateCourts,signedInOwner)
+  else if(target.dataset.nearbyFind){
+   if(!finder?.isOpen())finder=openCourtFinder(target,current,privateCourts,{
+    owner:signedInOwner,loadFeedback,initialType:target.dataset.nearbyFind==='club'?'club':'all',calendar:calendarFor(target),
+   })
   }else if(target.matches('[data-nearby-invite]')&&!invite?.isOpen()){
-   invite=openCourtInvite(target,current,signedInOwner)
+   invite=openCourtInvite(target,current,signedInOwner,undefined,undefined,calendarFor(target))
   }else if(target.dataset.nearbyCourtInfo&&!info?.isOpen()){
    const court=stLouisCourts.find(venue=>venue.id===target.dataset.nearbyCourtInfo)
-   if(court)info=openCourtInfo(court,target,current)
+   if(court)info=openCourtInfo(court,target,current,{owner:signedInOwner,loadFeedback})
   }else if(target.dataset.nearbyDirections&&!directions?.isOpen()){
    const court=stLouisCourts.find(venue=>venue.id===target.dataset.nearbyDirections)
    if(court)directions=openCourtDirections(court,target,current)
@@ -147,7 +169,7 @@ export function mountNearbyExplore(overview:HTMLElement,client:SupabaseClient,cu
  void load()
  return {dispose:()=>{invite?.dispose();finder?.dispose();directions?.dispose();info?.dispose()},back:()=>{
   if(finder?.isOpen())return finder.back()
-  if(info?.isOpen()){info.dispose();return true}
+  if(info?.isOpen())return info.back()
   if(directions?.isOpen()){directions.dispose();return true}
   if(!invite?.isOpen())return false
   invite.dispose();return true
