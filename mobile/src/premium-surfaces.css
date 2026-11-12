@@ -1412,6 +1412,7 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
     body[data-screen="teams"] .chats-inbox-filters,
     .cal-switch,
     .player-practice-dialog .match-filters,
+    .captain-practice-dialog .match-filters,
     .updates-filters>[role="group"])>button[aria-pressed="true"],
 button.secondary[data-cal-all][aria-pressed="true"] {
  background:var(--premium-court-inlay);
@@ -1422,6 +1423,43 @@ button.secondary[data-cal-all][aria-pressed="true"] {
 .player-practice-dialog {
  background:var(--premium-page);border-color:var(--premium-line);color:var(--premium-white);
  overflow-wrap:anywhere;
+}
+.captain-practice-dialog {
+ background:var(--premium-page);border-color:var(--premium-line);color:var(--premium-white);
+}
+.captain-practice-header h1 { margin-block:0 6px; }
+.captain-practice-header p { margin:0;color:var(--premium-copy); }
+.captain-practice-header [data-create] { margin-block-start:14px;background:var(--premium-action); }
+.captain-practice-dialog .match-filters button { min-inline-size:0;padding-inline:4px; }
+.captain-practice-list { display:grid;gap:12px;margin:0;padding:0;list-style:none; }
+.captain-practice-card {
+ min-inline-size:0;padding:16px;border:1px solid var(--premium-line);
+ border-radius:var(--premium-panel-radius);background:var(--premium-card);
+}
+.captain-practice-next { border-color:transparent;background:var(--premium-court-inlay); }
+.captain-practice-card-status {
+ display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:2px 12px;
+ font-size:.8125rem;color:var(--premium-copy);
+}
+.captain-practice-card-status strong { color:var(--premium-lime); }
+.captain-practice-card h2 { margin:6px 0 4px;font-size:1.125rem; }
+.captain-practice-card p { margin:0;color:var(--premium-copy);font-size:.875rem; }
+.captain-practice-rsvps {
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:12px 0 0;
+}
+.captain-practice-rsvps>div {
+ display:flex;flex-direction:column-reverse;justify-content:flex-end;
+ padding:8px 4px;background:var(--premium-inset);border:1px solid var(--premium-line);
+ border-radius:10px;text-align:center;
+}
+.captain-practice-rsvps dt { margin:0;color:var(--premium-copy);font-size:.75rem; }
+.captain-practice-rsvps dd {
+ margin:0;color:var(--premium-white);font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.captain-practice-card [data-practice] { margin-block-start:12px; }
+.captain-practice-empty {
+ padding:12px 16px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);
+ background:var(--premium-surface);
 }
 .player-practice-header {
  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 8px;margin:0;padding:0 0 8px;
