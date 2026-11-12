@@ -1,5 +1,7 @@
 import {isValidCalendarDate} from './calendar-date'
 import {buildPlayerCalendarItemPayload,type PlayerCalendarItem,type PlayerCalendarItemInput} from './player-calendar-items'
+import {hittingPlanStart,isHittingPlanEntry,readHittingPlan,type HittingPlan} from './hitting-plan'
+import {isScorecardPracticeEntry,readScorecardPractice,type ScorecardPractice} from './level-up/scorecard-practice'
 import type {PlayerCompetitionScheduleEvent} from './player-competition-schedule'
 import type {CalendarTeamPractice} from './native-calendar-practices-contract'
 import {fixtureId,readReviewedNextMatch,type ReviewedNextMatch} from './team-fixtures-contract'
@@ -39,7 +41,7 @@ export function readCalendarCompetitionView(event:PlayerCompetitionScheduleEvent
  if(divisionId===undefined)return id===event.competitionId?{id}:undefined
  if(event.kind==='tournament'&&typeof divisionId==='string'&&validId.test(divisionId)&&divisionId===event.competitionId&&id!==divisionId)return {id,divisionId}
 }
-export type CalendarDraft={id:string;title:string;date:string;time:string;location:string;kind:PlayerCalendarItem['kind'];recurrenceRule:PlayerCalendarItem['recurrenceRule'];availabilityStatus:PlayerCalendarItem['availabilityStatus'];venueDirectoryId:string;venuePreferenceId:string}
+export type CalendarDraft={id:string;title:string;date:string;time:string;location:string;kind:PlayerCalendarItem['kind'];recurrenceRule:PlayerCalendarItem['recurrenceRule'];availabilityStatus:PlayerCalendarItem['availabilityStatus'];venueDirectoryId:string;venuePreferenceId:string;hittingPlan?:HittingPlan;practiceFocus?:ScorecardPractice}
 export type CalendarIntent=
  |{action:'create'|'update';item:CalendarDraft;expectedUpdatedAt:string}
  |{action:'delete';id:string;expectedUpdatedAt:string}
@@ -56,13 +58,22 @@ export function calendarRevision(value:unknown){const v=calendarText(value,50);i
 export function calendarRange(from:unknown,to:unknown):CalendarRange{const a=calendarDate(from),b=calendarDate(to),days=(Date.parse(b+'T12:00:00Z')-Date.parse(a+'T12:00:00Z'))/86400000;if(days<0||days>61)throw Error('Choose a calendar view of up to 62 days.');return {from:a,to:b}}
 function keys(value:Record<string,unknown>,allowed:string[]){if(Object.keys(value).some(k=>!allowed.includes(k)))throw Error('Refresh your calendar and review this change.')}
 export function calendarDraft(value:unknown):CalendarDraft{
- const r=calendarObject(value);keys(r,['id','title','date','time','location','kind','recurrenceRule','availabilityStatus','venueDirectoryId','venuePreferenceId'])
+ const r=calendarObject(value);keys(r,['id','title','date','time','location','kind','recurrenceRule','availabilityStatus','venueDirectoryId','venuePreferenceId','hittingPlan','practiceFocus'])
  const id=calendarId(r.id),title=calendarText(r.title,160),date=calendarDate(r.date),time=calendarText(r.time,5),location=calendarText(r.location,160)
  if(!title||time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)||!['practice','match','lesson','reminder','availability'].includes(String(r.kind))||!['','FREQ=DAILY','FREQ=WEEKLY','FREQ=MONTHLY'].includes(String(r.recurrenceRule))||!['','available','unavailable'].includes(String(r.availabilityStatus)))throw Error('Review the title, date, time and event type.')
  const venueDirectoryId=calendarText(r.venueDirectoryId??'',80),venuePreferenceId=calendarText(r.venuePreferenceId??'',80)
  if(venueDirectoryId&&!uuid.test(venueDirectoryId)||venuePreferenceId&&!uuid.test(venuePreferenceId))throw Error('Choose a saved venue again.')
  if(r.kind==='availability'&&!r.availabilityStatus||r.kind!=='availability'&&r.availabilityStatus)throw Error('Choose a personal availability status only for an availability note.')
- return {id,title,date,time,location,kind:r.kind as CalendarDraft['kind'],recurrenceRule:r.recurrenceRule as CalendarDraft['recurrenceRule'],availabilityStatus:r.availabilityStatus as CalendarDraft['availabilityStatus'],venueDirectoryId,venuePreferenceId}
+ const draft:CalendarDraft={id,title,date,time,location,kind:r.kind as CalendarDraft['kind'],recurrenceRule:r.recurrenceRule as CalendarDraft['recurrenceRule'],availabilityStatus:r.availabilityStatus as CalendarDraft['availabilityStatus'],venueDirectoryId,venuePreferenceId}
+ if(r.hittingPlan!==undefined){
+  if(!nativePersonalId.test(id)||!isHittingPlanEntry(draft)||!location||!hittingPlanStart(draft))throw Error('Choose a club, date and valid Central start time for this hitting plan.')
+  draft.hittingPlan=readHittingPlan(r.hittingPlan)
+ }
+ if(r.practiceFocus!==undefined){
+  if(!nativePersonalId.test(id)||!isScorecardPracticeEntry(draft))throw Error('Schedule this drill as a single practice.')
+  draft.practiceFocus=readScorecardPractice(r.practiceFocus)
+ }
+ return draft
 }
 export function calendarIntent(value:unknown):CalendarIntent{
  const r=calendarObject(value)
@@ -80,6 +91,11 @@ export function calendarIntent(value:unknown):CalendarIntent{
  }
  throw Error('Choose a calendar action.')
 }
-export function personalDraft(item:PlayerCalendarItem):CalendarDraft{return {id:item.id,title:item.title,date:item.date,time:item.time.slice(0,5),location:item.location,kind:item.kind,recurrenceRule:item.recurrenceRule,availabilityStatus:item.availabilityStatus,venueDirectoryId:item.venueDirectoryId||'',venuePreferenceId:item.venuePreferenceId||''}}
+export function personalDraft(item:PlayerCalendarItem):CalendarDraft{return {id:item.id,title:item.title,date:item.date,time:item.time.slice(0,5),location:item.location,kind:item.kind,recurrenceRule:item.recurrenceRule,availabilityStatus:item.availabilityStatus,venueDirectoryId:item.venueDirectoryId||'',venuePreferenceId:item.venuePreferenceId||'',...(item.hittingPlan?{hittingPlan:item.hittingPlan}:{}),...(item.practiceFocus?{practiceFocus:item.practiceFocus}:{})}}
 export function calendarPayload(draft:CalendarDraft,owner:string){const value=buildPlayerCalendarItemPayload(draft as PlayerCalendarItemInput,owner);if(!value)throw Error('Review this calendar entry.');return value}
-export function sameCalendarDraft(a:CalendarDraft,b:CalendarDraft){return (Object.keys(a) as (keyof CalendarDraft)[]).every(k=>k==='location'&&(a.venueDirectoryId||a.venuePreferenceId)?a.venueDirectoryId===b.venueDirectoryId&&a.venuePreferenceId===b.venuePreferenceId:a[k]===b[k])}
+export function sameCalendarDraft(a:CalendarDraft,b:CalendarDraft){
+ return a.hittingPlan?.clubId===b.hittingPlan?.clubId&&a.hittingPlan?.confirmedFor===b.hittingPlan?.confirmedFor&&
+  a.practiceFocus?.cardId===b.practiceFocus?.cardId&&a.practiceFocus?.target===b.practiceFocus?.target&&
+  (Object.keys(a) as (keyof CalendarDraft)[]).every(k=>k==='hittingPlan'||k==='practiceFocus'||(k==='location'&&(a.venueDirectoryId||a.venuePreferenceId)
+   ?a.venueDirectoryId===b.venueDirectoryId&&a.venuePreferenceId===b.venuePreferenceId:a[k]===b[k]))
+}

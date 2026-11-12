@@ -1,5 +1,7 @@
 import { isValidCalendarDate } from './calendar-date'
 import { resolveCalendarLocation } from './calendar-location'
+import { hittingPlanStart, isHittingPlanEntry, readHittingPlan, type HittingPlan } from './hitting-plan'
+import { isScorecardPracticeEntry, readScorecardPractice, type ScorecardPractice } from './level-up/scorecard-practice'
 
 export type PlayerCalendarKind = 'practice' | 'match' | 'lesson' | 'reminder' | 'availability'
 export type PlayerAvailabilityStatus = '' | 'available' | 'unavailable'
@@ -18,6 +20,8 @@ export type PlayerCalendarItem = {
   updatedAt: string
   venueDirectoryId?: string
   venuePreferenceId?: string
+  hittingPlan?: HittingPlan
+  practiceFocus?: ScorecardPractice
 }
 
 export type PlayerCalendarItemRow = {
@@ -34,6 +38,8 @@ export type PlayerCalendarItemRow = {
   updated_at: string
   venue_directory_id?: string | null
   venue_preference_id?: string | null
+  hitting_plan?: HittingPlan | null
+  practice_focus?: ScorecardPractice | null
 }
 
 export type PlayerCalendarItemInput = {
@@ -74,7 +80,7 @@ export function normalizePlayerAvailabilityStatus(value: unknown): PlayerAvailab
 }
 
 export function mapPlayerCalendarItemRow(row: PlayerCalendarItemRow): PlayerCalendarItem {
-  return {
+  const item: PlayerCalendarItem = {
     id: row.id,
     title: row.title,
     date: row.scheduled_date,
@@ -88,6 +94,9 @@ export function mapPlayerCalendarItemRow(row: PlayerCalendarItemRow): PlayerCale
     ...(row.venue_directory_id ? {venueDirectoryId:row.venue_directory_id} : {}),
     ...(row.venue_preference_id ? {venuePreferenceId:row.venue_preference_id} : {}),
   }
+  if (row.hitting_plan && isHittingPlanEntry(item) && hittingPlanStart(item)) item.hittingPlan = readHittingPlan(row.hitting_plan)
+  if (row.practice_focus && isScorecardPracticeEntry(item)) item.practiceFocus = readScorecardPractice(row.practice_focus)
+  return item
 }
 
 export function buildPlayerCalendarItemPayload(input: PlayerCalendarItemInput, playerUserId: string) {

@@ -3,6 +3,7 @@ import {createClient} from '@supabase/supabase-js'
 import {calendarDraft,calendarIntent,calendarRange,personalDraft,type NativeCalendar} from '../native-calendar-contract'
 import {calendarWindow,calendarOccurrences,calendarExport,readCalendar,calendarRequest} from '../../mobile/src/calendar-data'
 import {writeCalendarPersonal,loadNativeCalendar,respondNativeCalendar} from '../native-calendar'
+import {hittingPlanConfirmed} from '../hitting-plan'
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222',stamp='2026-10-31T10:00:00.123456+00:00'
 const draft=()=>({id:'player-calendar-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',title:'Serve + first ball',date:'2026-10-31',time:'18:00',location:'Court 2',kind:'practice' as const,recurrenceRule:'' as const,availabilityStatus:'' as const,venueDirectoryId:'',venuePreferenceId:''})
 const item=()=>({...draft(),createdAt:stamp,updatedAt:stamp})
@@ -59,6 +60,37 @@ describe('calendar transport and owned writes',()=>{
   await writeCalendarPersonal(h.client,owner,{action:'create',item:draft(),expectedUpdatedAt:''});expect(h.calls.filter(c=>c.method==='POST')).toHaveLength(1)
   for(const c of h.calls.filter(c=>c.method==='GET'))expect(c.url.searchParams.get('player_user_id')).toBe('eq.'+owner)
   expect(h.calls.find(c=>c.method==='POST')?.body?.player_user_id).toBe(owner)
+ })
+ it('keeps a club plan private and invalidates its confirmation when an older client moves it',async()=>{
+  const plan=calendarDraft({...draft(),kind:'match',location:'Vetta West Racquet Sports — 1330 Harvestowne Industrial Dr, St. Peters, MO 63304',
+   hittingPlan:{clubId:'vetta-west',confirmedFor:'2026-10-31T18:00'}})
+  let saved={...row(),kind:plan.kind,location:plan.location,hitting_plan:plan.hittingPlan}
+  const h=db(call=>{
+   if(call.method==='PATCH')saved={...saved,...call.body}
+   return json(saved)
+  })
+  const olderDraft={...plan,time:'18:30'}
+  delete olderDraft.hittingPlan
+  const result=await writeCalendarPersonal(h.client,owner,{action:'update',item:olderDraft,expectedUpdatedAt:stamp})
+  expect(result.item?.hittingPlan).toEqual({clubId:'vetta-west'})
+  expect(hittingPlanConfirmed(result.item!)).toBe(false)
+  const returned=await writeCalendarPersonal(h.client,owner,{action:'update',item:{...olderDraft,time:'18:00'},expectedUpdatedAt:result.item!.updatedAt})
+  expect(hittingPlanConfirmed(returned.item!)).toBe(false)
+  expect(h.calls.every(call=>call.url.searchParams.get('player_user_id')==='eq.'+owner)).toBe(true)
+  expect(()=>calendarDraft({...plan,date:'2027-03-14',time:'02:30'})).toThrow('valid Central start time')
+ })
+ it('keeps the drill and private target when rescheduling an account practice',async()=>{
+  const practiceFocus={cardId:'return-depth-lane',target:'Land six deep returns'}
+  const entry=calendarDraft({...draft(),title:'Return Depth Lane',practiceFocus})
+  let saved={...row(),title:entry.title,practice_focus:entry.practiceFocus}
+  const h=db(call=>{
+   if(call.method==='PATCH')saved={...saved,...call.body}
+   return json(saved)
+  })
+  const olderDraft={...entry,date:'2026-11-01'}
+  delete olderDraft.practiceFocus
+  const result=await writeCalendarPersonal(h.client,owner,{action:'update',item:olderDraft,expectedUpdatedAt:stamp})
+  expect(result.item).toMatchObject({date:'2026-11-01',practiceFocus})
  })
  it('protects an edited record with its full PostgreSQL revision and detects empty updates',async()=>{
   const h=db(call=>json(call.method==='PATCH'?[]:row()));await expect(writeCalendarPersonal(h.client,owner,{action:'update',item:{...draft(),title:'New title'},expectedUpdatedAt:stamp})).rejects.toMatchObject({status:409})
