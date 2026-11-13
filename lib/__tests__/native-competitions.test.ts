@@ -3,12 +3,18 @@ import type {SupabaseClient,SupabaseClientOptions} from '@supabase/supabase-js'
 import {loadNativeCompetitions} from '../native-competitions'
 import {competitionInput,publicCompetitionOwner,readCompetitionSnapshot} from '../native-competitions-contract'
 import {reviewedRevisionDigest} from '../first-party-revisions'
+import {attestedLeagueSchedule,leagueScheduleService} from '../native-league-schedule'
 import {getSignedInPlayerApiAuth,loadPlayerAccess} from '../player-api-auth'
 import {GET as firstPartyCompetitions} from '../../app/api/mobile/first-party/competitions/route'
 import {competitionCardsHtml,competitionSeasonHtml} from '../../mobile/src/competitions-view'
 import {loadCompetitions} from '../../mobile/src/competitions-data'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from '../../tests/fixtures/competitions-data'
 vi.mock('../player-api-auth', () => ({ getSignedInPlayerApiAuth: vi.fn(), loadPlayerAccess: vi.fn() }))
+vi.mock('../native-league-schedule', async importOriginal => ({
+ ...await importOriginal<typeof import('../native-league-schedule')>(),
+ attestedLeagueSchedule:vi.fn().mockResolvedValue([]),
+ leagueScheduleService:vi.fn(),
+}))
 const publicClientFixture = vi.hoisted(() => vi.fn<() => SupabaseClient | undefined>())
 vi.mock('@supabase/supabase-js', async importOriginal => {
  const actual = await importOriginal<typeof import('@supabase/supabase-js')>()
@@ -117,6 +123,39 @@ describe('first-party league route', () => {
   publicClientFixture.mockReturnValueOnce(f.db)
   const guest=await firstPartyCompetitions(request(url+'&audience=public'))
   expect(await guest.json()).toMatchObject({detailsUnderReview:true,connections:[]})
+ })
+
+ it('updates public standings from attested approvals while withholding unrelated edits',async()=>{
+  const f=fixture()
+  const scheduled={id:'22222222-2222-4222-8222-222222222222',date:'2026-11-07',time:'18:00',
+   facility:'Northside',a:'Aces',b:'Rallies',status:'coordinator_set'}
+  const approved={id:'22222222-2222-4222-8222-222222222223',date:scheduled.date,
+   a:scheduled.a,b:scheduled.b,winner:'Rallies',score:'',
+   courts:[{label:'Line 1 · Singles',a:'',b:'',winner:'Side B',score:'0-6, 0-6'}]}
+  await approve(f)
+  f.tables.tiq_league_schedule_items.unshift({id:scheduled.id,league_id:'league-one',league_format:'team',
+   participant_a_name:scheduled.a,participant_b_name:scheduled.b,scheduled_date:scheduled.date,
+   scheduled_time:scheduled.time,facility:scheduled.facility,status:scheduled.status})
+  f.tables.tiq_team_league_match_events.unshift({id:approved.id,league_id:'league-one',team_a_name:approved.a,
+   team_b_name:approved.b,match_date:approved.date,winner_team_name:approved.winner})
+  f.tables.tiq_team_league_match_lines.push({id:'new-line',event_id:approved.id,line_number:1,match_type:'singles',
+   winner_side:'B',score:approved.courts[0].score})
+  const rpc=vi.fn(() => ({retry:async()=>({data:[approved],error:null})}))
+  vi.mocked(leagueScheduleService).mockReturnValue({rpc} as unknown as SupabaseClient)
+  vi.mocked(attestedLeagueSchedule).mockResolvedValueOnce([{match:{...scheduled,court:'',duration:null},original:null}])
+   .mockResolvedValueOnce([{match:{...scheduled,court:'',duration:null},original:null}])
+  publicClientFixture.mockReturnValueOnce(f.db).mockReturnValueOnce(f.db)
+  const publicView=()=>firstPartyCompetitions(request('?audience=public&league=league-one&overview=1'))
+  const merged=readCompetitionSnapshot(await (await publicView()).json(),publicCompetitionOwner,'discover','','league-one')
+  expect(merged.detailsUnderReview).toBeUndefined()
+  expect(merged.detail?.standings[0]).toMatchObject({teamName:'Rallies',wins:1,losses:1})
+  expect(merged.detail?.results).toHaveLength(2)
+  expect(rpc).toHaveBeenCalledWith('native_league_approved_results',{p_league:'league-one',p_version:merged.detail?.league.updatedAt})
+  f.tables.tiq_team_league_match_lines.find(line=>line.id==='line-one')!.score='7-5, 7-5'
+  const filtered=readCompetitionSnapshot(await (await publicView()).json(),publicCompetitionOwner,'discover','','league-one')
+  expect(filtered).toMatchObject({detailsUnderReview:true,publishedSchedule:[scheduled],detail:{results:[],standings:[]},
+   approvedScores:{results:[approved],standings:[{teamName:'Rallies',wins:1},{teamName:'Aces',losses:1}]}})
+  expect(JSON.stringify(filtered)).not.toContain('7-5')
  })
 
  it('rejects private guest scopes and defaults to an empty catalog when no approval is configured',async()=>{

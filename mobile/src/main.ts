@@ -1,6 +1,7 @@
 import {openCalendar,type CalendarStart} from './calendar-view'
 import {openCoachLessons} from './coach-lesson-view'
 import {openUpdates} from './updates-view'
+import {openLeagueScores} from './league-score-view'
 import {createUpdatesCounter} from './updates-counter'
 import {createChatUnreadCounter,paintChatsBadge,combinedChatUnread} from './chat-unread'
 import {createChatReceiptRefresh} from './chat-receipt-refresh'
@@ -395,6 +396,9 @@ function launchUpdates(trigger:HTMLElement){
  updates=openUpdates(client,owner,current,()=>updatesCounter.refresh(),(action,button,active)=>{
   if(action.kind==='league-schedule'){
    return openCompetitions(client,owner,active,'discover',undefined,undefined,button,action.leagueId,{matchId:action.matchId,fromUpdates:true})
+  }
+  if(action.kind==='league-score'){
+   return openLeagueScores(client,owner,active,action.leagueId,action.matchId,()=>button.focus({preventScroll:true}),undefined,'Back to updates')
   }
   if(action.kind==='practice-reminder'){
    button.focus({preventScroll:true})

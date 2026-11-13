@@ -2394,6 +2394,13 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
 .league-scheduler .league-scheduler-summary p { margin:.45rem 0;overflow-wrap:anywhere; }
 .league-scheduler [data-schedule-form] > button { width:100%; }
 .league-scheduler [data-schedule-form] > .entry-check { margin-block:14px; }
+.league-scheduler [data-score-form] fieldset { min-inline-size:0;margin-inline:0;margin-block-end:12px; }
+.league-scheduler [data-score-form] legend { padding-inline:6px;color:var(--premium-text);font-weight:700; }
+.league-scheduler :is([data-score-form], [data-score-return-form]) :is(input, select, textarea) {
+  box-sizing:border-box;display:block;inline-size:100%;min-inline-size:0;max-inline-size:100%;
+}
+.league-scheduler [data-score-return-form] textarea { min-block-size:5rem; }
+.league-scheduler [data-score-form] button[type="submit"] { display:block;width:100%;margin-block-start:12px; }
 @media (max-width:360px) {
   .league-scheduler-fields { grid-template-columns:1fr;gap:0; }
 }

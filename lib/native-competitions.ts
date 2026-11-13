@@ -4,6 +4,7 @@ import {readReviewedRevisions,reviewedRevisionDigest} from './first-party-revisi
 import type {OfficeLeague} from './native-league-office-contract'
 import {nativeLeagueColumns,readNativeLeagueSeason} from './native-league-season'
 import {attestedLeagueSchedule,mergeAttestedLeagueMatches} from './native-league-schedule'
+import {beforeApprovedLeagueScores,loadApprovedLeagueScores,standingsFromLeagueScores} from './native-league-score-public'
 type Row=Record<string,unknown>
 const columns=nativeLeagueColumns+',is_public'
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
@@ -51,13 +52,21 @@ export async function loadNativeCompetitions(db:SupabaseClient,owner:string,scop
    ? [{leagueId: selected, kind: 'organizer', status: 'active'}] : []
   const approvedDigest=approvals?.get(selected)?.detail
   if(approvedDigest&&approvedDigest!==reviewedRevisionDigest(detail)){
-   const saved=league.status==='active'
-    ? await attestedLeagueSchedule(league).then(rows=>mergeAttestedLeagueMatches(detail,rows,approvedDigest)).catch(()=>null)
-    : null
+   const [matches,results]=await Promise.all([
+    league.status==='active'?attestedLeagueSchedule(league).catch(()=>[]):Promise.resolve([]),
+    league.format==='team'?loadApprovedLeagueScores(league).catch(()=>[]):Promise.resolve([]),
+   ])
+   const prior=beforeApprovedLeagueScores(detail.results,results)
+   const baseline=prior.length!==detail.results.length&&!detail.moreResults
+    ? {...detail,results:prior,standings:standingsFromLeagueScores(prior,source)}
+    : detail
+   let saved:ReturnType<typeof mergeAttestedLeagueMatches>|null=null
+   try{saved=mergeAttestedLeagueMatches(baseline,matches,approvedDigest)}catch{/* Details can change between reads. */}
    if(saved?.fullDetail)return {...base,leagues:[league],detail,connections}
    if(!allowReviewedOverview&&!(allowPublishedSchedule&&saved?.publishedSchedule.length))throw Error('League records changed')
    return {...base,leagues:[league],connections,detailsUnderReview:true,
     ...(saved?.publishedSchedule.length?{publishedSchedule:saved.publishedSchedule}:{}),
+    ...(results.length?{approvedScores:{results:results.slice(0,100),standings:standingsFromLeagueScores(results,source)}}:{}),
     detail:{league,participants:[],fixtures:[],results:[],standings:[],moreParticipants:false,moreFixtures:false,moreResults:false,standingsAvailable:false}}
   }
   return {...base,leagues:[league],detail,connections}

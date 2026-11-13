@@ -7,10 +7,11 @@ import {getMyTournamentEntries} from './tournament-entry-data'
 import {firstPartyBuild} from './build-scope'
 import {readPracticeReminderDestination} from '../../lib/native-practice-reminder-contract'
 import {leagueScheduleUpdateLink} from '../../lib/native-league-schedule-contract'
+import {leagueScoreUpdateLink} from '../../lib/native-league-score-contract'
 import type {TeamScope} from './team-room-data'
 
 export {UPDATE_PAGE_SIZE,UPDATE_LOADED_LIMIT,updateCursorFilter,type UpdateFilter,type UpdateCursor} from '../../lib/native-updates-contract'
-export type UpdateAction={kind:'link';link:AppLink;label:string}|{kind:'tool';destination:'lab'|'coach'|'training-inbox'|'calendar'|'tournament-entries';label:string}|{kind:'conversation';id:string;label:string}|{kind:'coach-message';student:string;label:string}|{kind:'coach-plan';planId:string;label:string}|{kind:'tournament-entry';division:string;label:string}|{kind:'practice-reminder';eventId:string;scope:TeamScope;label:string}|{kind:'league-schedule';leagueId:string;matchId:string;label:string}
+export type UpdateAction={kind:'link';link:AppLink;label:string}|{kind:'tool';destination:'lab'|'coach'|'training-inbox'|'calendar'|'tournament-entries';label:string}|{kind:'conversation';id:string;label:string}|{kind:'coach-message';student:string;label:string}|{kind:'coach-plan';planId:string;label:string}|{kind:'tournament-entry';division:string;label:string}|{kind:'practice-reminder';eventId:string;scope:TeamScope;label:string}|{kind:'league-schedule';leagueId:string;matchId:string;label:string}|{kind:'league-score';leagueId:string;matchId:string;label:string}
 export type ResolvedUpdateAction=Exclude<UpdateAction,{kind:'conversation'|'tournament-entry'}>|{kind:'tournament-entry';parent:string;division:string;receiptId:string;label:string}
 export type UpdatePage={rows:InternalNotification[];more:boolean;cursor:UpdateCursor|null}
 const columns='id,recipient_profile_id,notification_type,title,body,href,conversation_id,schedule_event_id,read_at,created_at'
@@ -114,6 +115,8 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
       if(planId&&planId.length<=240&&!/[\u0000-\u001f\u007f]/.test(planId))return {kind:'coach-plan',planId,label:'Open coach update'}
     }
     if(firstPartyBuild){
+      const score=row.notificationType==='system'&&!row.conversationId&&!row.scheduleEventId?leagueScoreUpdateLink(u):undefined
+      if(score)return {kind:'league-score',...score,label:'Open scorecard'}
       const student=u.searchParams.get('coach')
       return row.notificationType==='message'&&u.pathname==='/messages'&&only(['coach'])&&!u.hash&&updateId(student)
         ? {kind:'coach-message',student,label:'Open Coach messages'} : null

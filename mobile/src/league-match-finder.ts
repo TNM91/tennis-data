@@ -87,8 +87,8 @@ export function leagueResultHtml(r:OfficeResult,team:boolean,query='',meeting?:O
    <summary>Court scores (${r.courts.length})</summary>
    ${r.courts.map(c=>`<div class="league-court-result${search&&matchesName(search,c.a,c.b)?' league-court-match':''}">
     <h5>${html(c.label)}</h5>
-    <p>${html(c.a)} <span>vs</span> ${html(c.b)}</p>
-    ${competitionOutcomeHtml('Court winner',courtWinner(c),c.score)}
+    <p>${html(c.a||r.a)} <span>vs</span> ${html(c.b||r.b)}</p>
+    ${competitionOutcomeHtml('Court winner',courtWinner({...c,a:c.a||r.a,b:c.b||r.b}),c.score)}
    </div>`).join('')}
   </details>`:''}
   ${meeting?competitionScheduleJumpHtml(meeting.id,`${r.a} vs ${r.b}`,'Next meeting',matchDate(meeting.date)):''}
