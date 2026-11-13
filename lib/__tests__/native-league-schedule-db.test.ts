@@ -25,9 +25,12 @@ it('publishes and moves the same match, checks court and participant overlaps, a
       grant select on public.native_first_party_updates, public.internal_notifications to authenticated;
     `)
     await db.exec(await readFile('supabase/migrations/20261113000400_native_first_party_league_schedule.sql', 'utf8'))
+    await db.exec(await readFile('supabase/migrations/20261113000500_native_league_schedule_notification_guard.sql', 'utf8'))
     await db.exec(`
       create function public.fixture_clock() returns trigger language plpgsql as $$begin new.updated_at=clock_timestamp();return new;end$$;
       create trigger fixture_clock before update on public.tiq_league_schedule_items for each row execute function public.fixture_clock();
+      create trigger notify_tiq_league_schedule_change after insert or update on public.tiq_league_schedule_items
+        for each row execute function public.notify_tiq_league_schedule_change();
     `)
     for (const id of [coordinator,captain,player,contact,unrelated]) {
       await db.query("insert into auth.users(id,email) values($1,$2)",[id,id+'@example.test'])
@@ -112,8 +115,19 @@ it('publishes and moves the same match, checks court and participant overlaps, a
       ($3,'singles','Imported','active',$6,'verified','unknown','unknown')`, [a,b,c,captain,player,unrelated])
     await db.query('insert into internal_notification_preferences(profile_id,schedule_alerts_enabled) values ($1,false)',[player])
     expect(await call(57,'18:00',{league:'singles',a:c})).toMatchObject({code:'roster'})
+    await db.exec('set role service_role')
     expect(await call(58,'18:00',{league:'singles'})).toMatchObject({code:'saved',notified:1,unreachable:1})
+    await db.exec('reset role')
     expect(await inbox(captain)).toEqual([expect.objectContaining({title:'League match scheduled',body:expect.stringContaining('Alex vs Drew')})])
     expect(await inbox(player)).toHaveLength(0)
+    const legacyNotices = async () => (await db.query<{count:number}>(
+      "select count(*)::int from public.internal_notifications where href like '/compete/schedule#event-%'")).rows[0].count
+    expect(await legacyNotices()).toBe(0)
+    expect(await call(59,'20:00',{league:'singles',notify:false})).toMatchObject({code:'saved',notified:0})
+    expect(await legacyNotices()).toBe(0)
+    await db.query(`insert into public.tiq_league_schedule_items (league_id,league_format,participant_a_name,participant_b_name,
+      scheduled_date,scheduled_time,facility,status,updated_by_user_id)
+      values ('singles','individual','Alex','Drew',$1,'21:00','Court Club','confirmed',$2)`,[earlier,coordinator])
+    expect(await legacyNotices()).toBe(2)
   } finally { await db.close() }
 }, 45000)
