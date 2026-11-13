@@ -17,6 +17,7 @@ import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNa
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {entryReviewFixture} from './league-entry-data'
 import {decisionReviewFixture} from './league-decisions-data'
+import type {LeagueScheduleChange,LeagueScheduleReview} from '../../lib/native-league-schedule-contract'
 import type {EntryReceipt} from '../../lib/native-league-entry-contract'
 import {publicCompetitionOwner} from '../../lib/native-competitions-contract'
 import {tournamentSnapshot} from './native-tournaments'
@@ -44,7 +45,12 @@ const scopedLeagueEntry={
  coordinator:new URL(location.href).searchParams.has('league-coordinator'),
  decisionRequests:[] as string[],
 }
-Object.assign(window,{scopedRegistration,scopedLeagueEntry})
+const scheduleId=(value:number)=>'20000000-0000-4000-8000-'+String(value).padStart(12,'0')
+const scopedLeagueSchedule={
+ enabled:new URL(location.href).searchParams.has('league-schedule'),requests:[] as LeagueScheduleChange[],
+ match:null as LeagueScheduleReview['matches'][number]|null,lostReply:true,
+}
+Object.assign(window,{scopedRegistration,scopedLeagueEntry,scopedLeagueSchedule})
 const myEntriesFixture={
  enabled:new URL(location.href).searchParams.has('my-tournament-entries'),
  fail:true,
@@ -558,6 +564,13 @@ window.fetch=async(input,init)=>{
    if(snapshot.detail&&scopedLeagueEntry.coordinator&&audience!=='public'){
     snapshot.connections=[{leagueId:league.id,kind:'organizer',status:'active'}]
     snapshot.canReviewEntries=true
+    if(scopedLeagueSchedule.enabled)snapshot.canScheduleMatches=true
+   }
+   if(snapshot.detail&&scopedLeagueSchedule.enabled){
+    snapshot.detailsUnderReview=true
+    snapshot.detail={...snapshot.detail,participants:[],fixtures:[],results:[],standings:[],standingsAvailable:false}
+    const match=scopedLeagueSchedule.match
+    if(match)snapshot.publishedSchedule=[{id:match.id,a:match.a,b:match.b,date:match.date,time:match.time,facility:match.facility,status:match.status}]
    }
    if(snapshot.detail&&scopedLeagueEntry.receipt?.status==='active'){
     snapshot.detailsUnderReview=true
@@ -568,6 +581,37 @@ window.fetch=async(input,init)=>{
    path:url.pathname,query:snapshot.query,audience,authenticated:new Headers(init?.headers).has('Authorization'),
   })
   reply={ok:true,releaseScope:scoped&&!fixtureState.unscopedLeagueReply?'first-party':undefined,...snapshot}
+ }
+ if(scopedLeagueSchedule.enabled&&url.pathname==='/api/mobile/first-party/competitions/schedule'){
+  const review={
+   owner:currentNavigationOwner(),leagueId:'league-one',name:'Northside Singles Ladder',format:'individual',zone:'America/Chicago',
+   startsOn:'2026-11-01',endsOn:'2026-12-31',defaultTime:'18:00',defaultVenueId:scheduleId(3),
+   entries:[{id:scheduleId(1),name:'Alex Server'},{id:scheduleId(2),name:'Drew Return'}],
+   venues:[{id:scheduleId(3),name:'Northside Tennis Club',detail:'123 Court Drive, St. Louis, MO'}],
+   matches:scopedLeagueSchedule.match?[scopedLeagueSchedule.match]:[],
+  } satisfies LeagueScheduleReview
+  if(init?.method!=='POST')return Response.json({ok:true,releaseScope:'first-party',...review})
+  const body=JSON.parse(String(init.body)) as LeagueScheduleChange
+  const repeated=scopedLeagueSchedule.requests.some(request=>request.requestId===body.requestId)
+  scopedLeagueSchedule.requests.push(body)
+  if(!repeated){
+   const [a,b]=review.entries
+   scopedLeagueSchedule.match={id:body.matchId??scheduleId(4),a:a.name,b:b.name,aId:body.a,bId:body.b,
+    date:body.date,time:body.time,venueId:body.venueId,court:body.court,duration:body.duration,
+    facility:review.venues[0].name+' · Court '+body.court,status:'coordinator_set',version:'2026-11-14T00:00:00Z'}
+   firstPartyUpdatesFixture.leagueNotices=body.notify?[{
+    id:scheduleId(5),recipient_profile_id:review.owner,notification_type:'schedule',title:body.matchId?'League match rescheduled':'League match scheduled',
+    body:a.name+' vs '+b.name+' · '+scopedLeagueSchedule.match.facility,
+    href:'/explore/leagues/tiq/league-one?scheduledMatch='+scopedLeagueSchedule.match.id+'#league-schedule',
+    conversation_id:null,schedule_event_id:null,read_at:null,created_at:'2026-11-13T15:00:00Z',
+   }]:[]
+  }
+  if(scopedLeagueSchedule.lostReply){
+   scopedLeagueSchedule.lostReply=false
+   return Response.json({ok:false,releaseScope:'first-party'},{status:503})
+  }
+  return Response.json({ok:true,releaseScope:'first-party',owner:review.owner,leagueId:review.leagueId,requestId:body.requestId,
+   match:scopedLeagueSchedule.match,notified:body.notify?2:0,unreachable:0})
  }
  if(scopedLeagueEntry.enabled&&url.pathname.endsWith('/competitions/decisions')){
   scopedLeagueEntry.decisionRequests.push(url.pathname)

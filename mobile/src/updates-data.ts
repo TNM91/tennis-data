@@ -6,10 +6,11 @@ import {readAppLink,type AppLink} from './app-links'
 import {getMyTournamentEntries} from './tournament-entry-data'
 import {firstPartyBuild} from './build-scope'
 import {readPracticeReminderDestination} from '../../lib/native-practice-reminder-contract'
+import {leagueScheduleUpdateLink} from '../../lib/native-league-schedule-contract'
 import type {TeamScope} from './team-room-data'
 
 export {UPDATE_PAGE_SIZE,UPDATE_LOADED_LIMIT,updateCursorFilter,type UpdateFilter,type UpdateCursor} from '../../lib/native-updates-contract'
-export type UpdateAction={kind:'link';link:AppLink;label:string}|{kind:'tool';destination:'lab'|'coach'|'training-inbox'|'calendar'|'tournament-entries';label:string}|{kind:'conversation';id:string;label:string}|{kind:'coach-message';student:string;label:string}|{kind:'coach-plan';planId:string;label:string}|{kind:'tournament-entry';division:string;label:string}|{kind:'practice-reminder';eventId:string;scope:TeamScope;label:string}
+export type UpdateAction={kind:'link';link:AppLink;label:string}|{kind:'tool';destination:'lab'|'coach'|'training-inbox'|'calendar'|'tournament-entries';label:string}|{kind:'conversation';id:string;label:string}|{kind:'coach-message';student:string;label:string}|{kind:'coach-plan';planId:string;label:string}|{kind:'tournament-entry';division:string;label:string}|{kind:'practice-reminder';eventId:string;scope:TeamScope;label:string}|{kind:'league-schedule';leagueId:string;matchId:string;label:string}
 export type ResolvedUpdateAction=Exclude<UpdateAction,{kind:'conversation'|'tournament-entry'}>|{kind:'tournament-entry';parent:string;division:string;receiptId:string;label:string}
 export type UpdatePage={rows:InternalNotification[];more:boolean;cursor:UpdateCursor|null}
 const columns='id,recipient_profile_id,notification_type,title,body,href,conversation_id,schedule_event_id,read_at,created_at'
@@ -102,6 +103,8 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
     const u=new URL(href,'https://www.tenaceiq.com')
     if(u.protocol!=='https:'||!['www.tenaceiq.com','tenaceiq.com'].includes(u.hostname)||u.username||u.password||u.port)return null
     if(row.notificationType==='schedule'){
+      const league=leagueScheduleUpdateLink(u)
+      if(league&&!row.scheduleEventId&&!row.conversationId)return {kind:'league-schedule',...league,label:'Open league match'}
       const practice=readPracticeReminderDestination(u,row.scheduleEventId,row.conversationId)
       if(practice)return {kind:'practice-reminder',...practice,label:'Open practice RSVP'}
     }

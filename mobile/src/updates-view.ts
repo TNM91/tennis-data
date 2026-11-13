@@ -129,7 +129,7 @@ export function openUpdates(client:SupabaseClient,owner:string,current:()=>boole
           <label>Type<select data-updates-category ${busy?'disabled':''}>
             <option value="all" ${filter.category==='all'?'selected':''}>All types</option>
             <option value="message" ${filter.category==='message'?'selected':''}>Messages</option>
-            ${firstPartyBuild?'':`<option value="schedule" ${filter.category==='schedule'?'selected':''}>Schedule</option>`}
+            <option value="schedule" ${filter.category==='schedule'?'selected':''}>Schedule</option>
             <option value="other" ${filter.category==='other'?'selected':''}>${firstPartyBuild?'Support':'Account &amp; support'}</option>
           </select></label>
           <div class="updates-search">

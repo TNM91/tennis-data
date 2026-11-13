@@ -8,6 +8,7 @@ import {competitionEntryActionHtml} from './competition-entry-action'
 import {openTournaments} from './tournaments-view'
 import {entryStatusLabel,openLeagueEntry} from './league-entry-view'
 import {openLeagueDecisions} from './league-decisions-view'
+import {openLeagueSchedule} from './league-schedule-view'
 import {bindLeagueMatchFinder,emptyLeagueFinder,emptyLeagueMatchFilters,filterLeagueFixtures,leagueFixtureDay,leagueFixtureHtml,leagueMatchViewHtml,type LeagueMatchFilters} from './league-match-finder'
 import {bindCompetitionScheduleJumps,competitionScheduleClock,competitionScheduleJumpButton,focusCalendarCompetitionMatch,focusCompetitionMatch} from './competition-match-card'
 import {html} from './match-details'
@@ -54,7 +55,7 @@ export function competitionSeasonHtml(d:OfficeDetail,view:View,today?:string,fil
  if(view==='participants')return leagueParticipantsViewHtml(d,listFilters,false)
  return leagueStandingsViewHtml(d,listFilters)
 }
-export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement,initialLeague='',calendarEntry?:{matchId?:string},initialQuery='',openPersonal?:(seed:CalendarScorecardSeed)=>void){
+export function openCompetitions(client:SupabaseClient,owner:string,current:()=>boolean,initial:CompetitionScope='mine',onChats?:()=>void,send?:ScenarioSend,trigger?:HTMLElement,initialLeague='',calendarEntry?:{matchId?:string;fromUpdates?:true},initialQuery='',openPersonal?:(seed:CalendarScorecardSeed)=>void){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog competitions-dialog';dialog.setAttribute('aria-label','Competitions')
  const guest=firstPartyBuild&&owner===publicCompetitionOwner
@@ -66,14 +67,16 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
  let teamEvidence:ReturnType<typeof openLeagueTeamEvidence>|null=null
  let entry:ReturnType<typeof openLeagueEntry>|null=null
  let decisions:ReturnType<typeof openLeagueDecisions>|null=null
+ let scheduler:ReturnType<typeof openLeagueSchedule>|null=null
  let tournaments:ReturnType<typeof openTournaments>|null=null
  let courtDesk:ReturnType<typeof openCaptainCourtScores>|null=null
  const active=()=>!disposed&&current()
- const dispose=()=>{if(disposed)return;disposed=true;version++;courtDesk?.dispose();courtDesk=null;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;decisions?.dispose();decisions=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
+ const dispose=()=>{if(disposed)return;disposed=true;version++;scheduler?.dispose();scheduler=null;courtDesk?.dispose();courtDesk=null;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;decisions?.dispose();decisions=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const hidden=()=>{if(document.visibilityState==='hidden')dispose()}
  const focus=()=>((selected?dialog.querySelector<HTMLElement>('[data-competition-content] h3'):null)??dialog.querySelector<HTMLElement>('h2'))?.focus({preventScroll:true})
  const back=()=>{
   if(!active()){dispose();return true}
+  if(scheduler?.isOpen())return scheduler.back()
   if(courtDesk?.isOpen())return courtDesk.back()
   if(teamEvidence?.isOpen())return teamEvidence.back()
   if(tournaments?.isOpen())return tournaments.back()
@@ -98,20 +101,29 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   const compactDetail=!!selected&&view!=='home'
   const entryAvailable=!guest&&!!d
   const canReviewEntries=firstPartyBuild&&!guest&&snapshot?.canReviewEntries===true
+  const canSchedule=firstPartyBuild&&!guest&&snapshot?.canScheduleMatches===true
   const detailsUnderReview=snapshot?.detailsUnderReview===true
+  const scheduleDetail=d&&detailsUnderReview?{...d,fixtures:snapshot?.publishedSchedule??[]}:d
+  const scheduleAvailable=canSchedule||!!snapshot?.publishedSchedule?.length
+  const fromLabel=calendarEntry?.fromUpdates?'Back to updates':'Back to calendar'
   const matchFilters=view==='fixtures'||view==='results'?filters[view]:undefined
   const displayedFilters=view==='fixtures'&&showFullSchedule?emptyLeagueMatchFilters():matchFilters
   const toolbar=`<header class="competition-header${compactDetail?' competition-header-compact':''}">
-   <button type="button" class="secondary" data-competition-back>${calendarEntry?'Back to calendar':selected?'← Competitions':'Close'}</button>
+   <button type="button" class="secondary" data-competition-back>${calendarEntry?fromLabel:selected?'← Competitions':'Close'}</button>
    ${entryAvailable&&compactDetail?competitionEntryActionHtml('league',true):''}
    <button type="button" class="secondary" data-competition-refresh ${busy?'disabled':''}>Refresh</button>
   </header>`
   dialog.innerHTML=toolbar+
    (selected?d?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(d.league.format==='team'?'TiQ team league':'TiQ player league')+'</small><h2 tabindex="-1">'+html(d.league.name)+'</h2><p>'+html([d.league.season,d.league.flight,stateLabel(d.league.status)].filter(Boolean).join(' · '))+'</p><p>'+html(d.league.location||'Location to be confirmed')+'</p></div>'+
-   (detailsUnderReview?'':'<nav class="competition-tabs" aria-label="League views">'+(['home','fixtures','results',...(d.league.format==='team'?['standings']:[]),'participants'] as View[]).map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>')+
+   (!detailsUnderReview||scheduleAvailable?'<nav class="competition-tabs" aria-label="League views">'+((detailsUnderReview?['home','fixtures']:['home','fixtures','results',...(d.league.format==='team'?['standings']:[]),'participants']) as View[]).map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>':'')+
    (!entryAvailable||compactDetail?'':competitionEntryActionHtml('league'))+
    (canReviewEntries?'<button type="button" class="secondary competition-entry-open" data-competition-decisions>Review entry requests</button>':'')+
-   '<div data-competition-content>'+(detailsUnderReview?'<p class="entry-note">League updates are under review. Check back for the roster, schedule and results.</p>':competitionSeasonHtml(d,view,undefined,displayedFilters,view==='participants'||view==='standings'?lists[view]:undefined))+'</div>'+
+   (canSchedule&&view==='fixtures'?'<div class="league-scheduler-actions"><button type="button" data-competition-schedule-add>Schedule match</button><button type="button" class="secondary" data-competition-schedule-manage>Manage schedule</button></div>':'')+
+   '<div data-competition-content>'+(
+    detailsUnderReview&&view==='fixtures'&&scheduleAvailable&&scheduleDetail
+     ? '<p class="entry-note">Showing matches published from the app while other league updates are under review.</p>'+competitionSeasonHtml(scheduleDetail,view,undefined,displayedFilters)
+     : detailsUnderReview?'<p class="entry-note">League updates are under review. Check back for the roster, schedule and results.</p>'
+     : competitionSeasonHtml(d,view,undefined,displayedFilters,view==='participants'||view==='standings'?lists[view]:undefined))+'</div>'+
    (onChats?'<button type="button" class="secondary competition-chat" data-competition-chats>Open your team chats →</button>':''):'<h2 tabindex="-1">League</h2>':
    competitionDirectoryHtml('league',query,busy,{count:snapshot?.leagues.length,resetLabel:scope==='mine'?'Show all entries':undefined,controls:guest?'':`<div class="competition-switch" role="group" aria-label="Competition list">
     <button type="button" class="secondary" data-competition-scope="mine" aria-pressed="${scope==='mine'}" ${busy?'disabled':''}>Your entries</button>
@@ -143,6 +155,31 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    view=b.dataset.competitionView as View
    render();focus()
   }})
+  const openSchedule=(button:HTMLButtonElement,id='',manage=false)=>{
+   if(!canSchedule||!active()||busy||!selected||scheduler?.isOpen())return
+   scheduler=openLeagueSchedule(client,owner,active,selected,(saved,refresh)=>{
+    scheduler=null
+    if(!active())return
+    if(saved){filters.fixtures=emptyLeagueMatchFilters();showFullSchedule=true;calendarMatchId=saved;void load()}
+    else if(refresh)void load()
+    else button.focus({preventScroll:true})
+   },send,id,manage)
+  }
+  dialog.querySelector<HTMLButtonElement>('[data-competition-schedule-add]')?.addEventListener('click',event=>openSchedule(event.currentTarget as HTMLButtonElement))
+  dialog.querySelector<HTMLButtonElement>('[data-competition-schedule-manage]')?.addEventListener('click',event=>openSchedule(event.currentTarget as HTMLButtonElement,'',true))
+  if(canSchedule&&scheduleDetail&&view==='fixtures'){
+   const clock=competitionScheduleClock(scheduleDetail.league.timeZone)
+   const upcoming=new Set(scheduleDetail.fixtures.filter(f=>courtAccountId(f.id)&&['confirmed','coordinator_set'].includes(f.status)&&
+    (f.date>clock.day||f.date===clock.day&&f.time.slice(0,5)>clock.time)).map(f=>f.id))
+   dialog.querySelectorAll<HTMLElement>('[data-competition-schedule-match]').forEach(card=>{
+    const id=card.dataset.competitionScheduleMatch
+    if(!id||!upcoming.has(id))return
+    const button=document.createElement('button')
+    button.type='button';button.className='secondary';button.textContent='Reschedule'
+    button.onclick=()=>openSchedule(button,id)
+    card.append(button)
+   })
+  }
   if(d)bindCompetitionScheduleJumps(dialog,(id,trigger)=>{
    if(!active()||busy||(view!=='home'&&view!=='results'))return
    const source=view,sourceScroll=dialog.scrollTop
@@ -227,7 +264,19 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    if(notice)dialog.querySelector<HTMLElement>('[data-competition-notice]')?.focus()
    else if(opener&&returning)restoreListFocus(dialog,opener,returning.scroll)
    else if(calendarMatchId&&view==='fixtures'){
-    focusCalendarCompetitionMatch(dialog,calendarMatchId,dialog.querySelector('[data-competition-content] h3'),back)
+    if(calendarEntry?.fromUpdates){
+     if(!focusCompetitionMatch(dialog,calendarMatchId,back,'Back to updates')){
+      const notice=document.createElement('p')
+      notice.className='rating-context';notice.tabIndex=-1;notice.textContent='This match is no longer in the published schedule.'
+      dialog.querySelector('[data-competition-content]')?.prepend(notice);notice.focus()
+     }
+    }else if(calendarEntry)focusCalendarCompetitionMatch(dialog,calendarMatchId,dialog.querySelector('[data-competition-content] h3'),back)
+    else{
+     const card=dialog.querySelector<HTMLElement>(`[data-competition-schedule-match="${CSS.escape(calendarMatchId)}"]`)
+     const heading=card?.querySelector<HTMLElement>('.competition-opponents')
+     if(heading){heading.tabIndex=-1;heading.focus();card?.scrollIntoView({block:'start'})}
+     else focus()
+    }
     calendarMatchId=undefined
    }
    else{

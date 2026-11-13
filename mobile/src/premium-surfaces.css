@@ -2377,6 +2377,26 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
 .competitions-dialog .competition-switch { gap:6px;padding:6px;border-radius:18px;border:1px solid var(--premium-line);background:var(--premium-inset); }
 .competitions-dialog .competition-switch button.secondary { border:0;background:transparent;border-radius:12px;font-size:.8125rem!important; }
 .league-entry-dialog .entry-hero { margin-block:18px 22px;padding:22px 18px; }
+.league-scheduler-actions { display:flex;flex-wrap:wrap;gap:10px;margin-block:12px 18px; }
+.league-scheduler-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+.league-scheduler-fields > label { min-width:0; }
+.league-scheduler [data-schedule-form] :is(input:not([type="checkbox"]),select) {
+  display:block;inline-size:100%;min-inline-size:0;max-inline-size:100%;
+}
+.league-scheduler [data-schedule-form] select {
+  appearance:none;-webkit-appearance:none;padding-inline-end:2.25rem;
+  background-image:linear-gradient(45deg,transparent 50%,#abc8df 50%),linear-gradient(135deg,#abc8df 50%,transparent 50%);
+  background-position:calc(100% - 1.1rem) 50%,calc(100% - .8rem) 50%;
+  background-size:.3rem .3rem;background-repeat:no-repeat;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.league-scheduler input::-webkit-date-and-time-value { min-inline-size:0;text-align:start; }
+.league-scheduler .league-scheduler-summary p { margin:.45rem 0;overflow-wrap:anywhere; }
+.league-scheduler [data-schedule-form] > button { width:100%; }
+.league-scheduler [data-schedule-form] > .entry-check { margin-block:14px; }
+@media (max-width:360px) {
+  .league-scheduler-fields { grid-template-columns:1fr;gap:0; }
+}
 .league-entry-dialog .competition-header button.secondary { font-size:.8125rem!important; }
 .league-entry-dialog .entry-hero h2 { font-size:1.75rem!important;line-height:1.15;letter-spacing:-.035em;margin-block:10px 0; }
 .league-entry-dialog .entry-hero p { margin-block:12px 0;color:#c4dbe9;font-size:.875rem;line-height:1.6; }

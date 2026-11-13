@@ -393,6 +393,9 @@ function launchUpdates(trigger:HTMLElement){
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  const leave=()=>{updates?.dispose();updates=null}
  updates=openUpdates(client,owner,current,()=>updatesCounter.refresh(),(action,button,active)=>{
+  if(action.kind==='league-schedule'){
+   return openCompetitions(client,owner,active,'discover',undefined,undefined,button,action.leagueId,{matchId:action.matchId,fromUpdates:true})
+  }
   if(action.kind==='practice-reminder'){
    button.focus({preventScroll:true})
    return openPlayerPractices(client,owner,action.scope,active,()=>{},'','Back to updates',action.eventId)
