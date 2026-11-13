@@ -1,11 +1,31 @@
 begin;
 set local lock_timeout = '5s';
 
--- The native save transaction writes its own scoped notices. The function
--- setting is restored on return, so website writes still use the legacy trigger.
-alter function public.native_first_party_save_league_match(
-  uuid,text,timestamptz,uuid,uuid,timestamptz,uuid,uuid,date,time,text,text,integer,boolean
-) set tenaceiq.native_league_schedule to 'on';
+-- The legacy trigger should only skip the fixture write inside the native save
+-- transaction. Private transaction markers cannot be set by an API caller.
+create table private.native_league_schedule_writes (
+  transaction_id xid8 primary key,
+  league_id text not null
+);
+alter table private.native_league_schedule_writes enable row level security;
+revoke all on private.native_league_schedule_writes from public, anon, authenticated, service_role;
+
+do $patch$
+declare
+  source text := replace(pg_get_functiondef('public.native_first_party_save_league_match(uuid,text,timestamptz,uuid,uuid,timestamptz,uuid,uuid,date,time without time zone,text,text,integer,boolean)'::regprocedure), chr(13), '');
+  before_write constant text := '  if p_match is null then' || chr(10) || '    insert into public.tiq_league_schedule_items';
+  after_write constant text := '  insert into private.native_league_match_operations';
+begin
+  if position(before_write in source) = 0 or position(after_write in source) = 0 then
+    raise exception 'Review the current native league save function before updating its notifications';
+  end if;
+  source := replace(source, before_write,
+    '  insert into private.native_league_schedule_writes values (pg_current_xact_id(), p_league);' || chr(10) || before_write);
+  source := replace(source, after_write,
+    '  delete from private.native_league_schedule_writes where transaction_id = pg_current_xact_id();' || chr(10) || after_write);
+  execute source;
+end
+$patch$;
 
 create or replace function public.notify_tiq_league_schedule_change()
 returns trigger
@@ -14,8 +34,10 @@ security definer
 set search_path = public
 as $$
 begin
-  if current_setting('tenaceiq.native_league_schedule', true) = 'on'
-    and current_setting('role', true) in ('service_role', 'postgres', 'none') then
+  if exists (
+    select 1 from private.native_league_schedule_writes w
+    where w.transaction_id = pg_current_xact_id_if_assigned() and w.league_id = new.league_id
+  ) then
     return new;
   end if;
 
