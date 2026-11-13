@@ -69,18 +69,18 @@ export async function saveManualTeamNextMatch(service: SupabaseClient, owner: st
 
 export async function loadReviewedTeamNextMatch(db: SupabaseClient, owner: string, room: ReviewedTeamRoom, now = new Date()) {
   if (!room.scheduleLeagueId) return null
-  const { detail } = await loadFirstPartyNativeCompetitions(db, owner, {
+  const { detail, publishedSchedule } = await loadFirstPartyNativeCompetitions(db, owner, {
     scope: 'discover', query: '', selected: room.scheduleLeagueId,
-  })
+  }, false, true)
   if (!detail || detail.league.format !== 'team' || detail.league.name !== room.leagueName ||
       detail.league.flight !== room.flight || detail.league.status !== 'active' ||
       detail.moreFixtures || detail.moreParticipants ||
-      detail.participants.filter(team => team.name === room.teamName && team.status === 'active').length !== 1) return null
+      (!publishedSchedule && detail.participants.filter(team => team.name === room.teamName && team.status === 'active').length !== 1)) return null
 
   const { timeZone } = detail.league
   const today = todayDateKey(now, timeZone)
   const candidates: ReviewedNextMatch[] = []
-  for (const fixture of detail.fixtures) {
+  for (const fixture of publishedSchedule ?? detail.fixtures) {
     if (fixture.date < today || !['confirmed', 'coordinator_set'].includes(fixture.status)) continue
     const home = fixture.a === room.teamName, away = fixture.b === room.teamName
     if (home === away) continue
