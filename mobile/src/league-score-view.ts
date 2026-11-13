@@ -14,14 +14,14 @@ const blankLine=(format:LeagueScoreDiscipline):DraftLine=>({format,score:'',outc
 
 export function openLeagueScores(
   client: SupabaseClient, owner: string, current: () => boolean, leagueId: string, matchId: string,
-  closed: (approved: boolean) => void, send: ScenarioSend = request => CapacitorHttp.request(request),
+  closed: (approved: boolean, changed: boolean) => void, send: ScenarioSend = request => CapacitorHttp.request(request),
   backLabel = 'Back to league',
 ) {
   const dialog = document.createElement('dialog')
   dialog.className = 'captain-lineup-dialog competitions-dialog league-entry-dialog league-scheduler'
   dialog.setAttribute('aria-labelledby', 'league-scores-title')
   const queue = !matchId
-  let disposed = false, busy = false, approved = false, selected = matchId
+  let disposed = false, busy = false, approved = false, changed = false, selected = matchId
   let desk: LeagueScoreDesk | null = null, matches: LeagueScoreFixture[] | null = null
   let draft: DraftLine[] = [], note = '', returning = false
   let pending: LeagueScoreChange | null = null
@@ -36,7 +36,7 @@ export function openLeagueScores(
     }
     if (queue && selected) { selected = ''; void load(); return true }
     dispose()
-    if (current()) closed(approved)
+    if (current()) closed(approved,changed)
     return true
   }
 
@@ -104,6 +104,7 @@ export function openLeagueScores(
       const expected = change.action === 'submit' ? 'pending' : change.action === 'return' ? 'changes_requested' : 'approved'
       if (data.matchId !== selected || card.revision !== change.requestId || card.state !== expected) throw Error('Score receipt changed.')
       desk = { ...desk, card }
+      changed = true
       pending = null; returning = false; note = ''
       if (card.state === 'approved') approved = true
       status = card.state === 'approved' ? 'Score approved. League standings are updated.' :

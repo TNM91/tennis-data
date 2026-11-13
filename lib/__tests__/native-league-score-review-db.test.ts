@@ -32,6 +32,7 @@ it('keeps pending scores private, returns corrections, and posts one official re
     await db.exec(await readFile('supabase/migrations/20261113000400_native_first_party_league_schedule.sql', 'utf8'))
     await db.exec(await readFile('supabase/migrations/20261113000600_native_league_score_review.sql', 'utf8'))
     await db.exec(await readFile('supabase/migrations/20261113000700_native_league_score_outcomes.sql', 'utf8'))
+    await db.exec(await readFile('supabase/migrations/20261113000800_native_league_match_day.sql', 'utf8'))
     for (const owner of [director, captain, stranger]) {
       await db.query('insert into auth.users(id,email) values($1,$2)', [owner, owner+'@example.test'])
       await db.query('insert into profiles(id,email,role) values($1,$2,$3)', [owner, owner+'@example.test', owner===director?'admin':'member'])
@@ -55,6 +56,11 @@ it('keeps pending scores private, returns corrections, and posts one official re
       "select native_league_score_review($1,'demo',$2,$3,$4,null,null) as result", [actor,version,match,actor!==director])).rows[0].result
     const published = async () => (await db.query<{ result: OfficeResult[] }>(
       "select native_league_approved_results('demo',$1) as result", [version])).rows[0].result
+    const matchDay=async(actor:string|null,access:boolean,matches=[fixture,future],league='demo')=>
+      (await db.query<{result:unknown}>(
+        "select native_league_match_day($1,$2,$3::uuid[],$4,$5,'{}') as result",
+        [league,version,matches,actor,access],
+      )).rows[0].result
     const updates = async (actor:string) => {
       await db.exec('reset role; set role authenticated')
       try {
@@ -65,7 +71,10 @@ it('keeps pending scores private, returns corrections, and posts one official re
     const href = '/explore/leagues/tiq/demo?scoreMatch='+fixture+'#league-scores'
     await db.exec('set role authenticated')
     await expect(review(captain,fixture)).rejects.toMatchObject({code:'42501'})
+    await expect(matchDay(captain,true)).rejects.toMatchObject({code:'42501'})
     await db.exec('reset role; set role service_role')
+    expect(await matchDay(captain,true)).toMatchObject({matches:[{id:fixture,action:'enter'}],canReview:false})
+    expect(await matchDay(stranger,true)).toEqual({matches:[],canReview:false})
     expect(await review(stranger,fixture)).toBeNull()
     expect(await save(stranger,'submit',19,null,first)).toEqual({code:'forbidden'})
     expect(await save(captain,'submit',19,null,first,'',fixture,false)).toEqual({code:'forbidden'})
@@ -73,12 +82,18 @@ it('keeps pending scores private, returns corrections, and posts one official re
     expect(await save(captain,'submit',20,null,first)).toMatchObject({code:'saved',card:{state:'pending'}})
     expect(await save(captain,'submit',21,id(20),first)).toEqual({code:'pending'})
     expect(await review(director,null)).toMatchObject({matches:[{id:fixture}]})
+    expect(await matchDay(director,false)).toMatchObject({matches:[{id:fixture,action:'review'}],canReview:true})
+    expect(await matchDay(captain,true)).toMatchObject({matches:[{id:fixture,action:'pending'}],canReview:false})
+    expect(await matchDay(null,false)).toEqual({matches:[],canReview:false})
     expect(await updates(director)).toEqual([{title:'League score ready for review',href}])
     expect(await updates(captain)).toEqual([])
     expect(await published()).toEqual([])
     expect(await save(captain,'approve',21,id(20),first)).toEqual({code:'forbidden'})
     expect(await save(director,'return',21,id(20),[],'Check the score from court one.')).toMatchObject({code:'saved',card:{state:'changes_requested'}})
     expect(await review(captain,fixture)).toMatchObject({card:{note:'Check the score from court one.'}})
+    expect(await matchDay(captain,true)).toMatchObject({matches:[{id:fixture,action:'fix',official:null}]})
+    expect(JSON.stringify(await matchDay(captain,true))).not.toContain('Check the score')
+    expect(await matchDay(director,false)).toEqual({matches:[],canReview:true})
     expect(await updates(captain)).toEqual([{title:'League score needs corrections',href}])
     expect(await updates(director)).toEqual([])
     expect(await updates(stranger)).toEqual([])
@@ -91,6 +106,8 @@ it('keeps pending scores private, returns corrections, and posts one official re
     expect(await review(director,null)).toEqual({matches:[]})
     expect(await updates(captain)).toEqual([{title:'League score approved',href}])
     const scores = await published()
+    expect(await matchDay(null,false)).toMatchObject({matches:[{id:fixture,action:null,official:scores[0]}],canReview:false})
+    expect(await matchDay(null,false,[future])).toEqual({matches:[],canReview:false})
     expect(scores).toMatchObject([{a:'Aces',b:'Rallies',winner:'Rallies',courts:[{winner:'Side B',score:'4-6, 3-6'}]}])
     expect(standingsFromLeagueScores(scores,{})).toMatchObject([
       {teamName:'Rallies',wins:1,lineWins:1},{teamName:'Aces',losses:1,lineLosses:1},
@@ -116,6 +133,8 @@ it('keeps pending scores private, returns corrections, and posts one official re
       (await db.query<{ result: unknown }>(`select native_league_save_score($1,$2,$3,$4,$3,$5,$6,$7,$8,$9,true,null,null) as result`,
         [actor,demo,version,demoMatch,revision,id(request),action,JSON.stringify(lines),note])).rows[0].result
     await db.exec('set role service_role')
+    expect(await matchDay(null,false,[demoMatch],demo)).toEqual({matches:[],canReview:false})
+    expect(await matchDay(captain,true,[demoMatch],demo)).toMatchObject({matches:[{id:demoMatch,action:'enter'}],canReview:true})
     expect(await demoSave(stranger,'submit',44,null,demoLines)).toEqual({code:'stale'})
     expect(await demoSave(captain,'submit',44,null,[{...demoLines[0],score:'6-0, 6-0'}])).toEqual({code:'invalid'})
     expect(await demoSave(captain,'submit',44,null,demoLines)).toMatchObject({code:'saved',card:{state:'pending',lines:demoLines}})

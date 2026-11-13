@@ -77,13 +77,15 @@ function finderHtml(d:OfficeDetail,view:LeagueMatchView,filters:LeagueMatchFilte
  return competitionFiltersHtml(view==='fixtures'?'schedule':'results',form,activeCount)
 }
 const courtWinner=(c:OfficeResult['courts'][number])=>c.winner==='Side A'?(c.a||c.winner):c.winner==='Side B'?(c.b||c.winner):c.winner
-export function leagueResultHtml(r:OfficeResult,team:boolean,query='',meeting?:OfficeFixture){
+export function leagueResultHtml(r:OfficeResult,team:boolean,query='',meeting?:OfficeFixture,openCourts=false){
  const search=normalized(query),courtMatch=!!search&&r.courts.some(c=>matchesName(search,c.a,c.b))
+ const winsA=r.courts.filter(c=>c.winner==='Side A').length,winsB=r.courts.filter(c=>c.winner==='Side B').length
+ const tie=team&&!r.winner&&winsA>0&&winsA===winsB
  return `<article class="league-result-card" data-league-result-id="${html(r.id)}">
   <p class="competition-date">${html(matchDate(r.date))} · ${team?'Team result':'Player result'}</p>
-  ${competitionOutcomeHtml(team?'Team winner':'Winner',r.winner,r.score||undefined)}
+  ${competitionOutcomeHtml(tie?'Match result':team?'Team winner':'Winner',tie?'Tie':r.winner,r.score||undefined)}
   ${competitionOpponentsHtml(r.a,r.b)}
-  ${r.courts.length?`<details${courtMatch?' open':''}>
+  ${r.courts.length?`<details${courtMatch||openCourts?' open':''}>
    <summary>Court scores (${r.courts.length})</summary>
    ${r.courts.map(c=>`<div class="league-court-result${search&&matchesName(search,c.a,c.b)?' league-court-match':''}">
     <h5>${html(c.label)}</h5>

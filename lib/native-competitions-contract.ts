@@ -3,10 +3,12 @@ import {readOfficeResult,readOfficeSnapshot,type OfficeFixture,type OfficeResult
 import type {TiqTeamStandingRow} from './tiq-team-standings'
 import {readScheduledLeagueMatch} from './native-league-schedule-contract'
 import {testflightLeagueScoreId} from './testflight-league-scores'
+import {courtAccountId} from './native-court-result-contract'
 export type CompetitionScope='discover'|'mine'
 export const publicCompetitionOwner='public-competitions'
 export type CompetitionConnection={leagueId:string;kind:'player'|'team'|'organizer';status:'active'|'pending'|'rejected'|'removed'}
-export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean;detailsUnderReview?:true;canReviewEntries?:true;canScheduleMatches?:true;publishedSchedule?:OfficeFixture[];canOpenLeagueScores?:true;scoreReviewDemo?:true;approvedScores?:{results:OfficeResult[];standings:TiqTeamStandingRow[]}}
+export type LeagueMatchDayRow={id:string;action:'enter'|'fix'|'pending'|'review'}|{id:string;action:'result';resultId:string}
+export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean;detailsUnderReview?:true;canReviewEntries?:true;canScheduleMatches?:true;publishedSchedule?:OfficeFixture[];canOpenLeagueScores?:true;scoreReviewDemo?:true;approvedScores?:{results:OfficeResult[];standings:TiqTeamStandingRow[]};matchDay?:{matches:LeagueMatchDayRow[];pendingReviews?:number}}
 export function competitionInput(scope:string,query:string,selected:string){
  if(!['discover','mine'].includes(scope)||query.length>80||selected.length>80||selected&&!/^[a-zA-Z0-9_-]+$/.test(selected))throw Error('Invalid competition selection')
  return {scope:scope as CompetitionScope,query:query.trim().replace(/\s+/g,' '),selected}
@@ -45,10 +47,35 @@ export function readCompetitionSnapshot(value:unknown,owner:string,scope:Competi
  if(r.canOpenLeagueScores===true&&(!selected||owner===publicCompetitionOwner||base.detail?.league.format!=='team'))throw Error('Invalid score review access')
  if(r.scoreReviewDemo===true&&(!selected||selected!==testflightLeagueScoreId(owner)||r.canOpenLeagueScores!==true||
     r.canScheduleMatches===true||r.canReviewEntries===true||!connections.some(c=>c.leagueId===selected&&c.kind==='organizer')))throw Error('TestFlight league context changed')
+ let matchDay:CompetitionSnapshot['matchDay']
+ if(r.matchDay!==undefined){
+  const source=lineupRecord(r.matchDay),canReview=r.canReviewEntries===true||r.scoreReviewDemo===true
+  if(!base.detail||base.detail.league.format!=='team'||!Array.isArray(source.matches)||source.matches.length>100)throw Error('Invalid Match Day')
+  const fixtures=new Map((publishedSchedule??base.detail.fixtures).map(f=>[f.id,f]))
+  const results=new Map((approvedScores?.results??base.detail.results).map(result=>[result.id,result]))
+  const ids=new Set<string>()
+  const matches=source.matches.map((value):LeagueMatchDayRow=>{
+   const m=lineupRecord(value),f=courtAccountId(m.id)?fixtures.get(m.id):undefined,a=m.action
+   if(!f||ids.has(f.id)||!['confirmed','coordinator_set','completed'].includes(f.status))throw Error('Invalid Match Day match')
+   ids.add(f.id)
+   if(a==='result'){
+    const result=typeof m.resultId==='string'?results.get(m.resultId):undefined
+    if(!result||result.a!==f.a||result.b!==f.b||result.date!==f.date)throw Error('Unavailable Match Day result')
+    return {id:f.id,action:a,resultId:result.id}
+   }
+   if(r.canOpenLeagueScores!==true||!['enter','fix','pending','review'].includes(String(a))||a==='review'&&!canReview)throw Error('Invalid Match Day action')
+   return {id:f.id,action:a as 'enter'|'fix'|'pending'|'review'}
+  })
+  const count=source.pendingReviews
+  const tally=matches.filter(m=>m.action==='review').length
+  if(count!==undefined&&(!canReview||count!==tally)||tally>0&&count===undefined)throw Error('Invalid score review count')
+  matchDay={matches,...(typeof count==='number'?{pendingReviews:count}:{})}
+ }
  return {...base,scope,query,connections,moreConnections:r.moreConnections,
   ...(approvedScores?{approvedScores}:{}),
   ...(r.canOpenLeagueScores===true?{canOpenLeagueScores:true as const}:{}),
   ...(r.scoreReviewDemo===true?{scoreReviewDemo:true as const}:{}),
+  ...(matchDay?{matchDay}:{}),
   ...(r.canScheduleMatches===true?{canScheduleMatches:true as const}:{}),
   ...(publishedSchedule?{publishedSchedule}:{}),
   ...(r.detailsUnderReview===true?{detailsUnderReview:true as const}:{}),...(r.canReviewEntries===true?{canReviewEntries:true as const}:{})}

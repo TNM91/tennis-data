@@ -1,7 +1,7 @@
 import type {ScenarioSend} from './captain-scenarios-data'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {publicCompetitionOwner,type CompetitionSnapshot,type CompetitionScope} from '../../lib/native-competitions-contract'
-import type {OfficeDetail} from '../../lib/native-league-office-contract'
+import type {OfficeDetail,OfficeResult} from '../../lib/native-league-office-contract'
 import {loadCompetitions} from './competitions-data'
 import {bindCompetitionSearch,competitionDirectoryHtml,focusCompetitionSearchResults} from './competition-directory'
 import {competitionEntryActionHtml} from './competition-entry-action'
@@ -10,7 +10,7 @@ import {entryStatusLabel,openLeagueEntry} from './league-entry-view'
 import {openLeagueDecisions} from './league-decisions-view'
 import {openLeagueSchedule} from './league-schedule-view'
 import {openLeagueScores} from './league-score-view'
-import {bindLeagueMatchFinder,emptyLeagueFinder,emptyLeagueMatchFilters,filterLeagueFixtures,leagueFixtureDay,leagueFixtureHtml,leagueMatchViewHtml,type LeagueMatchFilters} from './league-match-finder'
+import {bindLeagueMatchFinder,emptyLeagueFinder,emptyLeagueMatchFilters,filterLeagueFixtures,leagueFixtureDay,leagueFixtureHtml,leagueMatchViewHtml,leagueResultHtml,type LeagueMatchFilters} from './league-match-finder'
 import {bindCompetitionScheduleJumps,competitionScheduleClock,competitionScheduleJumpButton,focusCalendarCompetitionMatch,focusCompetitionMatch} from './competition-match-card'
 import {html} from './match-details'
 import {bindLeagueListFinder,emptyLeagueListFinder,emptyLeagueListFilters,leagueParticipantsViewHtml,leagueStandingsViewHtml,type LeagueListFilters} from './league-list-finder'
@@ -23,7 +23,7 @@ import {openCaptainCourtScores} from './captain-court-view'
 import {localCalendarDate} from './calendar-data'
 import type {CalendarScorecardSeed} from './personal-match-data'
 type View='home'|'fixtures'|'results'|'standings'|'participants'
-type ReturnPosition={scroll:number}&({target:'league'|'league-entry';id:string}|{target:'registration'|'entry-requests'})
+type ReturnPosition={scroll:number}&({target:'league'|'league-entry'|'match-day';id:string}|{target:'registration'|'entry-requests'|'score-queue'})
 const stateLabel=(v:string)=>(({draft:'Draft',registration_open:'Registration open',active:'In season',completed:'Completed',archived:'Past season'} as Record<string,string>)[v]||v.replaceAll('_',' '))
 export function competitionCardsHtml(snapshot:CompetitionSnapshot){
  return snapshot.leagues.length?'<div class="competition-cards">'+snapshot.leagues.map((l,i)=>{
@@ -70,14 +70,16 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
  let decisions:ReturnType<typeof openLeagueDecisions>|null=null
  let scheduler:ReturnType<typeof openLeagueSchedule>|null=null
  let scores:ReturnType<typeof openLeagueScores>|null=null
+ let official:HTMLDialogElement|null=null
  let tournaments:ReturnType<typeof openTournaments>|null=null
  let courtDesk:ReturnType<typeof openCaptainCourtScores>|null=null
  const active=()=>!disposed&&current()
- const dispose=()=>{if(disposed)return;disposed=true;version++;scores?.dispose();scores=null;scheduler?.dispose();scheduler=null;courtDesk?.dispose();courtDesk=null;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;decisions?.dispose();decisions=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
+ const dispose=()=>{if(disposed)return;disposed=true;version++;official?.remove();official=null;scores?.dispose();scores=null;scheduler?.dispose();scheduler=null;courtDesk?.dispose();courtDesk=null;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;decisions?.dispose();decisions=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const hidden=()=>{if(document.visibilityState==='hidden')dispose()}
  const focus=()=>((selected?dialog.querySelector<HTMLElement>('[data-competition-content] h3'):null)??dialog.querySelector<HTMLElement>('h2'))?.focus({preventScroll:true})
  const back=()=>{
   if(!active()){dispose();return true}
+  if(official){official.close();return true}
   if(scores?.isOpen())return scores.back()
   if(scheduler?.isOpen())return scheduler.back()
   if(courtDesk?.isOpen())return courtDesk.back()
@@ -97,6 +99,18 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   if(guest||!active()||busy||entry?.isOpen())return
   entry=openLeagueEntry(client,owner,active,id,()=>{entry=null;if(active())void load(returning)},send,returning.target==='league-entry'?'entries':'league')
  }
+ const showOfficial=(result:OfficeResult,trigger:HTMLButtonElement)=>{
+  if(!active()||busy||official)return
+  const sheet=document.createElement('dialog')
+  official=sheet
+  sheet.className='captain-lineup-dialog competitions-dialog league-entry-dialog'
+  sheet.setAttribute('aria-labelledby','league-official-title')
+  sheet.innerHTML='<header class="competition-header"><button type="button" class="secondary">Back to schedule</button></header>'+
+   '<div class="entry-hero"><h2 id="league-official-title" tabindex="-1" autofocus>Official result</h2></div>'+leagueResultHtml(result,true,'',undefined,true)
+  sheet.querySelector('button')!.onclick=()=>sheet.close()
+  sheet.onclose=()=>{sheet.remove();if(official===sheet)official=null;if(active())trigger.focus({preventScroll:true})}
+  document.body.append(sheet);sheet.showModal()
+ }
  const render=()=>{
   if(!active())return
   const d=snapshot?.detail
@@ -108,6 +122,8 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   const canSchedule=firstPartyBuild&&!guest&&snapshot?.canScheduleMatches===true
   const canOpenScores=firstPartyBuild&&!guest&&snapshot?.canOpenLeagueScores===true
   const canReviewScores=canOpenScores&&(canReviewEntries||scoreDemo)
+  const matchDay=firstPartyBuild?snapshot?.matchDay:undefined
+  const pendingReviews=matchDay?.pendingReviews
   const approved=snapshot?.approvedScores
   const detailsUnderReview=snapshot?.detailsUnderReview===true
   const scheduleDetail=d&&detailsUnderReview?{...d,fixtures:snapshot?.publishedSchedule??[]}:d
@@ -126,10 +142,13 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   dialog.innerHTML=toolbar+
    (selected?d?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(d.league.format==='team'?'TiQ team league':'TiQ player league')+'</small><h2 tabindex="-1">'+html(d.league.name)+'</h2><p>'+html([d.league.season,d.league.flight,stateLabel(d.league.status)].filter(Boolean).join(' · '))+'</p><p>'+html(d.league.location||'Location to be confirmed')+'</p></div>'+
    (tabs.length>1?'<nav class="competition-tabs" aria-label="League views">'+tabs.map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>':'')+
-   (scoreDemo&&view==='home'?'<p class="entry-note">Private TestFlight practice league. Submit from Schedule, then switch to Results to try the coordinator review on this same account.</p>':'')+
+   (scoreDemo&&view==='home'?'<p class="entry-note">Private TestFlight practice league. Submit from Schedule, then review the scorecard on this same account.</p>':'')+
    (!entryAvailable||compactDetail?'':competitionEntryActionHtml('league'))+
    (canReviewEntries?'<button type="button" class="secondary competition-entry-open" data-competition-decisions>Review entry requests</button>':'')+
    (canSchedule&&view==='fixtures'?'<div class="league-scheduler-actions"><button type="button" data-competition-schedule-add>Schedule match</button><button type="button" class="secondary" data-competition-schedule-manage>Manage schedule</button></div>':'')+
+   (canReviewScores&&view==='home'&&pendingReviews!==undefined?'<section class="competition-match-day-review" aria-label="Score review"><div><h3>Score review</h3><p>'+
+    (pendingReviews===0?'You’re caught up.':pendingReviews===1?'1 scorecard waiting for approval.':pendingReviews+' scorecards waiting for approval.')+
+    '</p></div>'+(pendingReviews>0?'<button type="button" data-competition-score-queue>Review scores ('+pendingReviews+')</button>':'')+'</section>':'')+
    (canReviewScores&&view==='results'?'<div class="league-scheduler-actions"><button type="button" data-competition-score-queue>Review scores</button></div>':'')+
    '<div data-competition-content>'+(
     detailsUnderReview&&view==='fixtures'&&scheduleAvailable&&scheduleDetail
@@ -184,15 +203,34 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   dialog.querySelector<HTMLButtonElement>('[data-competition-schedule-manage]')?.addEventListener('click',event=>openSchedule(event.currentTarget as HTMLButtonElement,'',true))
   const openScore=(button:HTMLButtonElement,id='')=>{
    if(!canOpenScores||!active()||busy||!selected||scores?.isOpen())return
-   scores=openLeagueScores(client,owner,active,selected,id,changed=>{
+   const scroll=dialog.scrollTop
+   scores=openLeagueScores(client,owner,active,selected,id,(approved,changed)=>{
     scores=null
     if(!active())return
-    if(changed){view='standings';void load()}
+    if(approved){view='standings';void load()}
+    else if(changed)void load(id?{target:'match-day',id,scroll}:{target:'score-queue',scroll})
     else button.focus({preventScroll:true})
    },send)
   }
   dialog.querySelector<HTMLButtonElement>('[data-competition-score-queue]')?.addEventListener('click',event=>openScore(event.currentTarget as HTMLButtonElement))
-  if(canOpenScores&&scheduleDetail&&view==='fixtures'){
+  if(matchDay&&view==='fixtures'){
+   const actions=new Map(matchDay.matches.map(m=>[m.id,m]))
+   const results=new Map((approved?.results??d?.results??[]).map(result=>[result.id,result]))
+   const labels={enter:'Enter scores',fix:'Fix scorecard',pending:'Submitted for review',review:'Review scorecard',result:'View official result'}
+   dialog.querySelectorAll<HTMLElement>('[data-competition-schedule-match]').forEach(card=>{
+    const action=actions.get(card.dataset.competitionScheduleMatch??'')
+    if(!action)return
+    const button=document.createElement('button')
+    button.type='button';button.className='secondary';button.textContent=labels[action.action]
+    button.dataset.competitionMatchDay=action.id
+    if(action.action==='pending')button.classList.add('competition-match-day-pending')
+    button.onclick=()=>{
+     if(action.action==='result'){const result=results.get(action.resultId);if(result)showOfficial(result,button)}
+     else openScore(button,action.id)
+    }
+    card.append(button)
+   })
+  }else if(canOpenScores&&scheduleDetail&&view==='fixtures'){
    const clock=competitionScheduleClock(scheduleDetail.league.timeZone)
    const eligible=new Set(scheduleDetail.fixtures.filter(match=>courtAccountId(match.id)&&['confirmed','coordinator_set','completed'].includes(match.status)&&
     (match.date<clock.day||match.date===clock.day&&(!match.time||match.time.slice(0,5)<=clock.time))).map(match=>match.id))
@@ -264,9 +302,10 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    if(teamEvidence?.isOpen())return;const scroll=dialog.scrollTop,id=d.league.id,chosenScope=scope,chosenQuery=query
    teamEvidence=openLeaguePlayerEvidence(d,name,active,async valid=>{try{const result=await loadCompetitions(client,owner,()=>active()&&valid(),chosenScope,chosenQuery,id,send);if(!valid()||!result.detail)throw Error('League changed');snapshot=result;notice='';return result.detail}catch(error){if(valid()){snapshot=null;notice='Couldn’t refresh this league. Refresh to try again.'}throw error}},()=>{teamEvidence=null;if(active()){render();restoreLeaguePlayerFocus(dialog,name,scroll)}},'← Players')
   })
-  if(firstPartyBuild&&!guest&&d?.league.format==='team'&&view==='fixtures'){
+  if(firstPartyBuild&&!guest&&!scoreDemo&&d?.league.format==='team'&&view==='fixtures'){
    const today=localCalendarDate()
-   const fixtures=new Map(d.fixtures.filter(f=>courtAccountId(f.id)&&f.date<=today&&['confirmed','coordinator_set','completed'].includes(f.status)).map(f=>[f.id,f]))
+   const matchDayIds=new Set(matchDay?.matches.map(match=>match.id))
+   const fixtures=new Map(d.fixtures.filter(f=>!matchDayIds.has(f.id)&&courtAccountId(f.id)&&f.date<=today&&['confirmed','coordinator_set','completed'].includes(f.status)).map(f=>[f.id,f]))
    dialog.querySelectorAll<HTMLElement>('[data-competition-schedule-match]').forEach(card=>{
     const fixture=fixtures.get(card.dataset.competitionScheduleMatch||'')
     if(!fixture)return
@@ -296,7 +335,9 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    busy=false;render()
    const index=returning&&'id' in returning?snapshot?.leagues.findIndex(league=>league.id===returning.id)??-1:-1
    const leagueOpener=index>=0?dialog.querySelector<HTMLElement>('[data-competition-league="'+index+'"]'):null
-   const opener=returning?.target==='entry-requests'?dialog.querySelector<HTMLElement>('[data-competition-decisions]'):
+   const opener=returning?.target==='match-day'?dialog.querySelector<HTMLElement>('[data-competition-match-day="'+CSS.escape(returning.id)+'"]'):
+    returning?.target==='score-queue'?dialog.querySelector<HTMLElement>('[data-competition-score-queue]'):
+    returning?.target==='entry-requests'?dialog.querySelector<HTMLElement>('[data-competition-decisions]'):
     returning?.target==='registration'?dialog.querySelector<HTMLElement>('[data-competition-entry]'):
     returning?.target==='league-entry'?dialog.querySelector<HTMLElement>('[data-competition-league-entry="'+index+'"]')||leagueOpener:leagueOpener
    if(notice)dialog.querySelector<HTMLElement>('[data-competition-notice]')?.focus()

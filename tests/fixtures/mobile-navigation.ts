@@ -54,6 +54,8 @@ const scopedLeagueSchedule={
 const scopedLeagueScore={
  enabled:new URL(location.href).searchParams.has('league-score-review'),coordinator:false,
  demo:new URL(location.href).searchParams.get('league-score-review')==='demo',
+ matchDay:new URL(location.href).searchParams.get('league-score-review')==='match-day',
+ player:false,
  match:{id:scheduleId(10),a:'Baseline Aces',b:'Rally Crew',date:'2026-11-12',time:'18:30'},
  card:null as LeagueScoreCard|null,
 }
@@ -591,9 +593,9 @@ window.fetch=async(input,init)=>{
    if(snapshot.detail){snapshot.detail.league=snapshot.leagues[0];snapshot.scoreReviewDemo=true}
   }
   if(scoped&&snapshot.detail&&scopedLeagueScore.enabled){
-   const {match,card,coordinator}=scopedLeagueScore
+   const {match,card,coordinator,matchDay,player}=scopedLeagueScore
    snapshot.detail.fixtures=[{...match,facility:'Northside Tennis Center · Court 1',status:'coordinator_set'}]
-   snapshot.canOpenLeagueScores=true
+   if(!player&&audience!=='public')snapshot.canOpenLeagueScores=true
    if(coordinator){
     snapshot.connections=[{leagueId:'league-one',kind:'organizer',status:'active'}]
     snapshot.canReviewEntries=true
@@ -608,6 +610,17 @@ window.fetch=async(input,init)=>{
    }else{
     snapshot.detail.results=[]
     snapshot.detail.standings=[]
+   }
+   if(matchDay){
+    const outcome=card?.state
+    const action=outcome==='pending'?(coordinator?'review':'pending'):outcome==='changes_requested'?'fix':'enter'
+    const otherMatch={...snapshot.detail.fixtures[0],id:scheduleId(13),date:'2026-11-11'}
+    snapshot.detail.fixtures.push(otherMatch)
+    snapshot.matchDay={
+     matches:outcome==='approved'?[{id:match.id,action:'result',resultId:scheduleId(11)}]:
+      player||(!['pending'].includes(outcome??'')&&coordinator)?[]:[{id:match.id,action}],
+     ...(coordinator?{pendingReviews:outcome==='pending'?1:0}:{}),
+    }
    }
   }
   fixtureState.competitionReads.push({
