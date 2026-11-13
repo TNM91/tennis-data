@@ -2,7 +2,7 @@ import {normalizeTournamentEventDetails,type TournamentEventDetails} from './tou
 export type TournamentSummary={id:string;parentId:string;isEvent:boolean;name:string;format:string;formatLabel:string;entrantType:'players'|'teams';status:'open'|'scheduled'|'completed';date:string;location:string;updatedAt:string;details:TournamentEventDetails;registrationClosed:boolean}
 export type TournamentMatch={id:string;label:string;round:number;a:string;b:string;winner:string;score:string;date:string;time:string;court:string}
 export type TournamentStanding={name:string;group:string;played:number;wins:number;losses:number;gamesWon:number;gamesLost:number;gameDiff:number;winPct:number}
-export type TournamentDetail={root:TournamentSummary;divisions:TournamentSummary[];moreDivisions:boolean;active:TournamentSummary|null;entrants:number;drawNotice:string;matches:TournamentMatch[];standings:TournamentStanding[]}
+export type TournamentDetail={root:TournamentSummary;divisions:TournamentSummary[];moreDivisions:boolean;active:TournamentSummary|null;entrants:number;drawNotice:string;matches:TournamentMatch[];standings:TournamentStanding[];entryAvailable?:boolean}
 export type TournamentSnapshot={owner:string;checkedAt:string;query:string;selected:string;division:string;tournaments:TournamentSummary[];more:boolean;detail:TournamentDetail|null}
 export function tournamentInput(query='',selected='',division=''){
  if(query.length>80||[selected,division].some(v=>v.length>80||v&&!/^[a-zA-Z0-9_-]+$/.test(v))||division&&!selected)throw Error('Invalid tournament selection')
@@ -31,7 +31,8 @@ export function readTournamentSnapshot(value:unknown,owner:string,query='',selec
   const matches=unique(array(d.matches,500).map(value=>{const m=object(value),a=str(m.a,256),b=str(m.b,256),winner=str(m.winner,256);if(winner&&winner!==a&&winner!==b)throw Error('Invalid tournament winner');return {id:str(m.id,120),label:str(m.label),round:num(m.round,1,100),a,b,winner,score:str(m.score),date:str(m.date,10),time:str(m.time,5),court:str(m.court,160)}}),m=>m.id)
   const standings=unique(array(d.standings,64).map(value=>{const s=object(value),played=num(s.played),wins=num(s.wins),losses=num(s.losses),gamesWon=num(s.gamesWon),gamesLost=num(s.gamesLost);if(wins+losses!==played||gamesWon-gamesLost!==s.gameDiff||s.winPct!==(played?Math.round(wins/played*100):0))throw Error('Invalid tournament standing');return {name:str(s.name,256),group:str(s.group),played,wins,losses,gamesWon,gamesLost,gameDiff:num(s.gameDiff,-10000),winPct:num(s.winPct,0,100)}}),s=>s.group+':'+s.name)
   const drawNotice=str(d.drawNotice);if((!active||drawNotice)&&(matches.length||standings.length))throw Error('Incomplete draw presented as complete')
-  detail={root,divisions,active,matches,standings,drawNotice,entrants:num(d.entrants,0,64),moreDivisions:bool(d.moreDivisions)}
+  detail={root,divisions,active,matches,standings,drawNotice,entrants:num(d.entrants,0,64),moreDivisions:bool(d.moreDivisions),
+   ...(d.entryAvailable===undefined?{}:{entryAvailable:bool(d.entryAvailable)})}
  }else if(r.detail!==null)throw Error('Unexpected tournament detail')
  const checkedAt=str(r.checkedAt,80);if(!Number.isFinite(Date.parse(checkedAt)))throw Error('Invalid tournament check time')
  return {owner,checkedAt,query:input.query,selected,division,tournaments,more:bool(r.more),detail}
