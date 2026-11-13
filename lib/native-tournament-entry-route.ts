@@ -11,7 +11,7 @@ async function registration(db: SupabaseClient, owner: string, firstParty: boole
  if (!firstParty) {
   return db.rpc('native_tournament_registration', {p_action:action,p_parent:parent,p_division:division,...(data?{p_data:data}:{})})
  }
- const publications = await loadTournamentEntryPublications(db, [parent, division].filter(Boolean))
+ const publications = await loadTournamentEntryPublications(db, [parent, division].filter(Boolean), undefined, undefined, owner)
  const active = publications.get(division), root = parent ? publications.get(parent) : active
  if (!active || !root || active.is_event || (active.event_id ?? '') !== parent ||
      parent && (!root.is_event || root.event_id !== null)) {

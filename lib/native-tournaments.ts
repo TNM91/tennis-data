@@ -4,13 +4,14 @@ import {normalizeTournamentEventDetails,isTournamentEventRegistrationClosed} fro
 import {getTournamentDrawFormatDefinition} from './competition-format-registry'
 import {buildTournamentPreview,buildTournamentGroupChampionship,buildRoundRobinStandings} from './tournament-draw'
 import {nativeTournamentDrawColumns,nativeTournamentSummaryColumns,readTournamentApprovals,tournamentRevisionDigest} from './native-tournament-approvals'
+import {readTestflightTournament,testflightTournamentId} from './testflight-tournament'
 import type {TiqTournamentRecord,TiqTournamentMatchResult,TiqTournamentMatchSchedule,TiqTournamentMatchPreview,TiqTournamentStanding} from './tiq-tournament-registry'
 type Row=Record<string,unknown>
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const signal=()=>AbortSignal.timeout(12000)
 const list=(r:{data:unknown;error:unknown},limit:number)=>{if(r.error||!Array.isArray(r.data)||r.data.length>limit)throw Error('Tournaments unavailable');return r.data as Row[]}
-function published(r:Row):TournamentSummary{
- if(r.is_public!==true||!['open','scheduled','completed'].includes(text(r.status))||!/^[a-zA-Z0-9_-]{1,80}$/.test(text(r.id))||!text(r.name)||text(r.name).length>500||!['players','teams'].includes(text(r.entrant_type))||typeof r.is_event!=='boolean'||!text(r.updated_at))throw Error('Tournament unavailable')
+function published(r:Row, demoId = ''):TournamentSummary{
+ if((r.is_public!==true&&r.id!==demoId)||!['open','scheduled','completed'].includes(text(r.status))||!/^[a-zA-Z0-9_-]{1,80}$/.test(text(r.id))||!text(r.name)||text(r.name).length>500||!['players','teams'].includes(text(r.entrant_type))||typeof r.is_event!=='boolean'||!text(r.updated_at))throw Error('Tournament unavailable')
  const details=normalizeTournamentEventDetails(r.event_details),format=text(r.format)
  return {id:text(r.id),parentId:text(r.event_id),isEvent:r.is_event,name:text(r.name),format,formatLabel:getTournamentDrawFormatDefinition(format).id===format?getTournamentDrawFormatDefinition(format).label:'Format to be confirmed',entrantType:r.entrant_type as 'players'|'teams',status:r.status as TournamentSummary['status'],date:text(r.starts_on),location:text(r.location_label).slice(0,500),updatedAt:text(r.updated_at),details,registrationClosed:isTournamentEventRegistrationClosed({status:r.status as TiqTournamentRecord['status'],startsOn:text(r.starts_on),eventDetails:details})}
 }
@@ -56,8 +57,8 @@ export async function loadNativeTournaments(db:SupabaseClient,owner:string,query
  const input=tournamentInput(query,selected,division);if(!owner)throw Error('Account required')
  const base:TournamentSnapshot={owner,checkedAt:new Date().toISOString(),...input,tournaments:[],more:false,detail:null}
  const approvedIds = approvals && [...approvals.keys()]
- if (approvals && [selected, division].some(id => id && !approvals.has(id))) throw Error('Tournament unavailable')
- if (approvedIds?.length === 0) return base
+ const demoId = approvals ? testflightTournamentId(owner) : ''
+ if (approvals && [selected, division].some(id => id && id !== demoId && !approvals.has(id))) throw Error('Tournament unavailable')
 
  const isApproved = (row: Row, full = false) => {
   if (!approvals) return true
@@ -74,16 +75,39 @@ export async function loadNativeTournaments(db:SupabaseClient,owner:string,query
  const listLimit = approvedIds?.length ?? 21
  const approvedList = (result: Parameters<typeof list>[0]) =>
   list(result, listLimit).filter(row => isApproved(row))
- const get=async(id:string,full=false)=>{const result=await publicQuery(full).eq('id',id).abortSignal(signal()).maybeSingle();const row=result.data as unknown as Row|null;if(result.error||!row||row.id!==id||!isApproved(row,full))throw Error('Tournament unavailable');published(row);return row}
- if(!selected){let q=publicQuery().is('event_id',null);if(input.query)q=q.ilike('name','%'+input.query.replace(/[\\%_]/g,'\\$&')+'%')
-  const records=approvedList(await q.order('updated_at',{ascending:false}).order('id').limit(listLimit).abortSignal(signal())),tournaments=records.slice(0,20).map(published)
+ const getDemo = (full = false) => readTestflightTournament(db, owner, full ? nativeTournamentDrawColumns : nativeTournamentSummaryColumns, signal())
+ const get=async(id:string,full=false)=>{
+  if (id === demoId) {
+   const row = await getDemo(full)
+   if (!row) throw Error('Tournament unavailable')
+   published(row,demoId)
+   return row
+  }
+  const result=await publicQuery(full).eq('id',id).abortSignal(signal()).maybeSingle()
+  const row=result.data as unknown as Row|null
+  if(result.error||!row||row.id!==id||!isApproved(row,full))throw Error('Tournament unavailable')
+  published(row)
+  return row
+ }
+ if(!selected){
+  const search = () => {
+   let q=publicQuery().is('event_id',null)
+   if(input.query)q=q.ilike('name','%'+input.query.replace(/[\\%_]/g,'\\$&')+'%')
+   return q.order('updated_at',{ascending:false}).order('id').limit(listLimit).abortSignal(signal()).then(approvedList)
+  }
+  const [records, demo] = await Promise.all([
+   approvedIds?.length === 0 ? [] as Row[] : search(),
+   demoId ? getDemo() : null,
+  ])
+  if (demo && text(demo.name).toLowerCase().includes(input.query.toLowerCase())) records.unshift(demo)
+  const tournaments=records.slice(0,20).map(row=>published(row,demoId))
   if(tournaments.some(t=>t.parentId)||new Set(tournaments.map(t=>t.id)).size!==tournaments.length)throw Error('Ambiguous tournament list')
   return {...base,tournaments,more:records.length>20}
  }
- const rootRow=await get(selected),root=published(rootRow);if(root.parentId||division&&!root.isEvent)throw Error('Choose a public event')
+ const rootRow=await get(selected),root=published(rootRow,demoId);if(root.parentId||division&&!root.isEvent)throw Error('Choose a public event')
  const children=root.isEvent?approvedList(await publicQuery().eq('event_id',selected).eq('is_event',false).order('name').order('id').limit(listLimit).abortSignal(signal())):[]
- const divisions=children.slice(0,20).map(published);if(divisions.some(d=>d.parentId!==selected||d.isEvent)||new Set(divisions.map(d=>d.id)).size!==divisions.length)throw Error('Event divisions changed')
- const id=root.isEvent?division:selected,activeRow=id?await get(id,true):null,active=activeRow?published(activeRow):null
+ const divisions=children.slice(0,20).map(row=>published(row));if(divisions.some(d=>d.parentId!==selected||d.isEvent)||new Set(divisions.map(d=>d.id)).size!==divisions.length)throw Error('Event divisions changed')
+ const id=root.isEvent?division:selected,activeRow=id?await get(id,true):null,active=activeRow?published(activeRow,demoId):null
  if(active&&(active.isEvent||active.parentId!==(root.isEvent?selected:'')))throw Error('Division moved to another event')
  const details=activeRow?draw(activeRow):{entrants:0,drawNotice:'',matches:[],standings:[]}
  if(activeRow&&JSON.stringify(activeRow)!==JSON.stringify(await get(id,true)))throw Error('Draw changed. Refresh.')

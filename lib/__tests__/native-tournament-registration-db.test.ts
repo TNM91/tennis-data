@@ -1,6 +1,7 @@
 import {expect,it} from 'vitest'
 import {PGlite} from '@electric-sql/pglite'
 import {readFile} from 'node:fs/promises'
+import {testflightTournamentId} from '../testflight-tournament'
 const organizer='11111111-1111-4111-8111-111111111111',member='22222222-2222-4222-8222-222222222222',other='33333333-3333-4333-8333-333333333333'
 type Reply={ok:boolean;status?:number;context:Record<string,unknown>;receipt:Record<string,unknown>|null;queue:Record<string,unknown>[];more:boolean;alreadySubmitted?:boolean}
 const sql=(name:string)=>readFile(new URL('../../supabase/migrations/'+name,import.meta.url),'utf8')
@@ -57,6 +58,44 @@ it('limits first-party registration to reviewed metadata and supports receipts a
    updatedAt:saved.receipt!.updatedAt,decision:'approve',note:'See you on court.',confirmed:true})).toMatchObject({ok:true,receipt:{status:'approved',inDraw:true}})
   await db.exec("update tiq_tournaments set schedule='{\"r1-m1\":{\"date\":\"2099-06-01\",\"time\":\"10:30\",\"court\":\"2\"}}' where id='division'")
   expect(await scoped(member,'review')).toMatchObject({ok:true,receipt:{status:'approved',inDraw:true}})
+ }finally{await db.close()}
+},30000)
+it('allows only the private fixture owner to submit and approve a demo match',async()=>{
+ const {db,call}=await setup()
+ const id=testflightTournamentId(member)
+ try{
+  await db.exec(await sql('20261112000800_native_first_party_tournament_entry.sql'))
+  await db.exec(await sql('20261113000100_native_testflight_tournament.sql'))
+  await db.query(`insert into tiq_tournaments
+   (id,name,is_public,is_event,status,format,entrant_type,created_by_user_id,starts_on,entrants)
+   values($1,'TestFlight Doubles Demo',false,false,'open','round_robin','teams',$2,'2099-06-01',
+   array['Demo Avery / Demo Robin','Demo Casey / Demo Morgan'])`,[id,member])
+  async function scoped(actor:string, action:string, payload:object={}){
+   const publication=(await db.query<{value:object}>(`select jsonb_object_agg(id,to_jsonb(t)) value
+     from (select id,event_id,is_event,name,format,entrant_type,status,starts_on,location_label,event_details,is_public,registration_email
+       from tiq_tournaments where id=$1) t`,[id])).rows[0].value
+   await db.exec('set role service_role')
+   try{return (await db.query<{r:Reply}>("select native_first_party_tournament_registration($1,$2,'',$3,$4,$5) r",
+    [actor,action,id,JSON.stringify(publication),JSON.stringify(payload)])).rows[0].r}
+   finally{await db.exec('reset role')}
+  }
+  expect(await call(member,'review',{},'',id)).toMatchObject({ok:false,status:404})
+  expect(await scoped(other,'review')).toMatchObject({ok:false,status:404})
+  const review=await scoped(member,'review')
+  expect(review).toMatchObject({ok:true,context:{owner:member,mode:'native',canManage:true,paired:true}})
+  const saved=await scoped(member,'submit',{revision:review.context.revision,one:'Alex Serve',two:'Sam Return',
+   rating:4,partnerRating:3.5,attested:true,partnerAttested:true})
+  expect(saved).toMatchObject({ok:true,receipt:{status:'pending'}})
+  expect((await db.query('select schedule from tiq_tournaments where id=$1',[id])).rows).toEqual([{schedule:{}}])
+  const queue=await scoped(member,'queue')
+  expect(queue.queue).toHaveLength(1)
+  expect(await scoped(member,'decide',{revision:queue.context.revision,entryId:saved.receipt!.id,
+   updatedAt:saved.receipt!.updatedAt,decision:'approve',note:'Demo approved.',confirmed:true}))
+   .toMatchObject({ok:true,receipt:{status:'approved',inDraw:true}})
+  expect((await db.query('select is_public,status,schedule from tiq_tournaments where id=$1',[id])).rows).toEqual([
+   {is_public:false,status:'scheduled',schedule:{'r1-m2':{date:'2099-06-01',time:'10:00',court:'Demo Court 2'}}},
+  ])
+  expect((await db.query('select id from internal_notifications')).rows).toEqual([])
  }finally{await db.close()}
 },30000)
 it('ties self-attested requests to the caller, approves once through the existing desk, and keeps private fields out of receipts',async()=>{

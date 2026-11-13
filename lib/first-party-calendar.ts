@@ -3,6 +3,7 @@ import { readReviewedRevisions } from './first-party-revisions'
 import { readTournamentApprovals } from './native-tournament-approvals'
 import { loadNativeCompetitions } from './native-competitions'
 import { loadNativeTournaments } from './native-tournaments'
+import { testflightTournamentId } from './testflight-tournament'
 import { applyCompetitionScheduleResponses, mapApprovedCompetitionSchedule, type TournamentScheduleMatch } from './player-competition-schedule'
 import { type NativeCalendarCompetition } from './native-calendar-contract'
 
@@ -18,25 +19,28 @@ function playerKey(name: unknown) {
 export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, owner: string): Promise<NativeCalendarCompetition[]> {
   const leagues = readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS, 'detail')
   const tournaments = readTournamentApprovals(process.env.TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS)
+  const demoId = testflightTournamentId(owner)
+  const allowedTournaments = new Set([...tournaments.keys(), demoId])
   const empty = { data: [], error: null }
   const [leagueResult, tournamentResult] = await Promise.all([
     leagues.size ? db.from('tiq_player_league_entries').select('league_id,player_name,created_by_user_id,entry_status')
       .eq('created_by_user_id', owner).eq('entry_status', 'active').in('league_id', [...leagues.keys()]).limit(101) : empty,
-    tournaments.size ? db.from('tiq_tournament_entries').select('tournament_id,player_name,submitted_by_user_id,status')
-      .eq('submitted_by_user_id', owner).eq('status', 'approved').in('tournament_id', [...tournaments.keys()]).limit(101) : empty,
+    db.from('tiq_tournament_entries').select('tournament_id,player_name,submitted_by_user_id,status')
+      .eq('submitted_by_user_id', owner).eq('status', 'approved').in('tournament_id', [...allowedTournaments]).limit(101),
   ])
   const leagueEntries = rows(leagueResult, 100), tournamentEntries = rows(tournamentResult, 100)
   if (leagueEntries.some(entry => entry.created_by_user_id !== owner || entry.entry_status !== 'active' || !leagues.has(entry.league_id)) ||
-      tournamentEntries.some(entry => entry.submitted_by_user_id !== owner || entry.status !== 'approved' || !tournaments.has(entry.tournament_id))) {
+      tournamentEntries.some(entry => entry.submitted_by_user_id !== owner || entry.status !== 'approved' || !allowedTournaments.has(entry.tournament_id))) {
     throw Error('Calendar entries changed')
   }
   const leagueIds = [...new Set<string>(leagueEntries.map(entry => entry.league_id))]
-  const tournamentIds = [...new Set<string>(tournamentEntries.map(entry => entry.tournament_id))]
+  const tournamentIds = [...new Set<string>(tournamentEntries.map(entry => entry.tournament_id))].filter(id => id !== demoId)
   const parents = tournamentIds.length ? rows(await db.from('tiq_tournaments').select('id,event_id')
     .in('id', tournamentIds).eq('is_public', true).neq('status', 'draft').limit(51), 50) : []
   if (parents.some(row => !tournamentIds.includes(row.id)) || new Set(parents.map(row => row.id)).size !== parents.length) {
     throw Error('Tournament selection changed')
   }
+  if (tournamentEntries.some(entry => entry.tournament_id === demoId)) parents.push({ id: demoId, event_id: null })
 
   const tasks = [
     ...leagueIds.map(id => async (): Promise<NativeCalendarCompetition[]> => {
@@ -70,7 +74,7 @@ export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, own
       })
       const scorecardFormat = active.entrantType === 'teams' ? 'doubles' : 'singles'
       return events.map(event => ({ ...event, publishedView: parent ? { id: parent, divisionId: id } : { id },
-        scorecardFormat: event.eventType === 'match' ? scorecardFormat : undefined }))
+        scorecardFormat: id !== demoId && event.eventType === 'match' ? scorecardFormat : undefined }))
     }),
   ]
 
