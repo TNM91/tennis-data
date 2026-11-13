@@ -44,11 +44,14 @@ export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, own
 
   const tasks = [
     ...leagueIds.map(id => async (): Promise<NativeCalendarCompetition[]> => {
-      const { detail } = await loadNativeCompetitions(db, owner, 'discover', '', id, leagues)
+      const { detail, publishedSchedule } = await loadNativeCompetitions(db, owner, 'discover', '', id, leagues, false, true)
       if (!detail || detail.league.format !== 'individual' || detail.moreParticipants || detail.moreFixtures) return []
-      const { league, fixtures, participants } = detail
+      const { league, participants } = detail
+      const fixtures = publishedSchedule ?? detail.fixtures
       const ownNames = new Set(leagueEntries.filter(entry => entry.league_id === id).map(entry => playerKey(entry.player_name)))
-      const matching = participants.filter(participant => ownNames.has(playerKey(participant.name)))
+      const publishedNames = [...new Set(publishedSchedule?.flatMap(fixture => [fixture.a, fixture.b]) ?? [])]
+      const matching = (publishedSchedule ? publishedNames.map(name => ({ name })) : participants)
+        .filter(participant => ownNames.has(playerKey(participant.name)))
       // A name is only a lookup key. All display values come from the reviewed season.
       if (!matching.length || new Set(matching.map(participant => playerKey(participant.name))).size !== matching.length) return []
       const events = mapApprovedCompetitionSchedule({

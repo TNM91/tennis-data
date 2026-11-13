@@ -45,7 +45,8 @@ export async function GET(request: Request) {
     const canReviewEntries = snapshot.detail?.league.status === 'active' &&
       snapshot.connections.some(connection => connection.kind === 'organizer' && connection.leagueId === input.selected) &&
       (await loadPlayerAccess(auth.supabase, auth.userId)).canUseLeagueTools
-    return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot, ...(canReviewEntries ? { canReviewEntries } : {}) }, { headers })
+    return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot,
+      ...(canReviewEntries ? { canReviewEntries, canScheduleMatches: true } : {}) }, { headers })
   } catch {
     return Response.json({ ok: false, message: 'Leagues are unavailable. Refresh to try again.' }, { status: 503, headers })
   }

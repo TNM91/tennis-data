@@ -3,6 +3,7 @@ import {competitionInput,publicCompetitionOwner,type CompetitionScope,type Compe
 import {readReviewedRevisions,reviewedRevisionDigest} from './first-party-revisions'
 import type {OfficeLeague} from './native-league-office-contract'
 import {nativeLeagueColumns,readNativeLeagueSeason} from './native-league-season'
+import {attestedLeagueSchedule,mergeAttestedLeagueMatches} from './native-league-schedule'
 type Row=Record<string,unknown>
 const columns=nativeLeagueColumns+',is_public'
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
@@ -14,13 +15,24 @@ export function publicLeague(r:Row):OfficeLeague{
 }
 type LeagueApprovals = ReadonlyMap<string, { summary: string; detail: string }>
 
-export function loadFirstPartyNativeCompetitions(db: SupabaseClient, owner: string, input: ReturnType<typeof competitionInput>, allowReviewedOverview = false) {
+export async function reviewedSchedulingLeague(db: SupabaseClient, owner: string, id: string) {
+ const approval=readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS,'detail').get(id)
+ if(!approval)return null
+ const {data,error}=await db.from('tiq_leagues').select(columns).eq('id',id).eq('created_by_user_id',owner)
+  .eq('is_public',true).eq('season_status','active').abortSignal(timeout()).maybeSingle()
+ if(error)throw Error('League scheduling unavailable')
+ if(!data)return null
+ const league=publicLeague(data as unknown as Row)
+ return approval.summary===reviewedRevisionDigest(league)?league:null
+}
+
+export function loadFirstPartyNativeCompetitions(db: SupabaseClient, owner: string, input: ReturnType<typeof competitionInput>, allowReviewedOverview = false, allowPublishedSchedule = false) {
   const approvals = readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS, 'detail')
-  return loadNativeCompetitions(db, owner, input.scope, input.query, input.selected, approvals, allowReviewedOverview)
+  return loadNativeCompetitions(db, owner, input.scope, input.query, input.selected, approvals, allowReviewedOverview, allowPublishedSchedule)
 }
 
 /** Public TiQ seasons through the caller's RLS context. Account connections require a verified account. */
-export async function loadNativeCompetitions(db:SupabaseClient,owner:string,scope:CompetitionScope='discover',query='',selected='',approvals?:LeagueApprovals,allowReviewedOverview=false):Promise<CompetitionSnapshot>{
+export async function loadNativeCompetitions(db:SupabaseClient,owner:string,scope:CompetitionScope='discover',query='',selected='',approvals?:LeagueApprovals,allowReviewedOverview=false,allowPublishedSchedule=false):Promise<CompetitionSnapshot>{
  const input=competitionInput(scope,query,selected);query=input.query
  const base:CompetitionSnapshot={owner,checkedAt:new Date().toISOString(),scope,query,leagues:[],moreLeagues:false,detail:null,connections:[],moreConnections:false}
  if(!owner||owner===publicCompetitionOwner&&(!approvals||scope!=='discover'))throw Error('Account required')
@@ -37,9 +49,15 @@ export async function loadNativeCompetitions(db:SupabaseClient,owner:string,scop
   const detail=await readNativeLeagueSeason(db,league,source,get,true)
   const connections:CompetitionConnection[] = allowReviewedOverview && owner !== publicCompetitionOwner && source.created_by_user_id === owner
    ? [{leagueId: selected, kind: 'organizer', status: 'active'}] : []
-  if(approvals&&approvals.get(selected)?.detail!==reviewedRevisionDigest(detail)){
-   if(!allowReviewedOverview)throw Error('League records changed')
+  const approvedDigest=approvals?.get(selected)?.detail
+  if(approvedDigest&&approvedDigest!==reviewedRevisionDigest(detail)){
+   const saved=league.status==='active'
+    ? await attestedLeagueSchedule(league).then(rows=>mergeAttestedLeagueMatches(detail,rows,approvedDigest)).catch(()=>null)
+    : null
+   if(saved?.fullDetail)return {...base,leagues:[league],detail,connections}
+   if(!allowReviewedOverview&&!(allowPublishedSchedule&&saved?.publishedSchedule.length))throw Error('League records changed')
    return {...base,leagues:[league],connections,detailsUnderReview:true,
+    ...(saved?.publishedSchedule.length?{publishedSchedule:saved.publishedSchedule}:{}),
     detail:{league,participants:[],fixtures:[],results:[],standings:[],moreParticipants:false,moreFixtures:false,moreResults:false,standingsAvailable:false}}
   }
   return {...base,leagues:[league],detail,connections}
