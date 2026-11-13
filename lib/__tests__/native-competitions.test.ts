@@ -6,7 +6,9 @@ import {competitionCardsHtml,competitionSeasonHtml} from '../../mobile/src/compe
 import {loadCompetitions} from '../../mobile/src/competitions-data'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from '../../tests/fixtures/competitions-data'
 import {GET as firstPartyCompetitions} from '../../app/api/mobile/first-party/competitions/route'
-vi.mock('../player-api-auth',()=>({getSignedInPlayerApiAuth:vi.fn()}))
+import {getSignedInPlayerApiAuth,loadPlayerAccess} from '../player-api-auth'
+import {reviewedRevisionDigest} from '../first-party-revisions'
+vi.mock('../player-api-auth',()=>({getSignedInPlayerApiAuth:vi.fn(),loadPlayerAccess:vi.fn()}))
 
 it('returns a scoped guest league catalog without reading unapproved data',async()=>{
  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS','')
@@ -47,4 +49,26 @@ describe('native competition boundary and copy',()=>{
  it('rejects wrong owners, stale selections, bad zones and unapproved public rosters',()=>{const base=competitionSnapshot();for(const data of [{...base,owner:'other'},{...base,scope:'discover'},{...base,leagues:[{...base.leagues[0],timeZone:'invalid/zone'}]},{...base,connections:[{leagueId:'foreign',kind:'team',status:'active'}]}])expect(()=>readCompetitionSnapshot({ok:true,...data},owner,'mine','','')).toThrow();const detail=competitionDetail();detail.participants[0].status='pending';expect(()=>readCompetitionSnapshot({ok:true,...base,detail},owner,'mine','','league-one')).toThrow()})
  it('escapes records, keeps pending approval visible and separates canceled dates',()=>{const s=competitionSnapshot();s.leagues[0].name='<League>';expect(competitionCardsHtml(s)).toContain('&lt;League&gt;');expect(competitionCardsHtml(s)).toContain('Awaiting approval');const d=competitionDetail();expect(competitionSeasonHtml(d,'home','2026-11-01')).not.toContain('Cancelled');expect(competitionSeasonHtml(d,'fixtures')).toContain('Cancelled');expect(competitionSeasonHtml({...d,moreResults:true,standingsAvailable:false,standings:[]},'standings')).toContain('withheld')})
  it('checks owner before and after native transport and keeps the URL/cache policy exact',async()=>{let current=true;const client={auth:{getSession:async()=>({data:{session:{user:{id:owner},access_token:'synthetic'}}})}} as unknown as SupabaseClient;const s=competitionSnapshot();const send=async(o:{url:string;headers?:Record<string,string>;disableRedirects?:boolean})=>{expect(o.url).toBe('https://www.tenaceiq.com/api/mobile/competitions?scope=mine&q=');expect(o.disableRedirects).toBe(true);expect(o.headers?.['Cache-Control']).toBe('no-store');return {status:200,data:{ok:true,...s},headers:{},url:o.url}};expect(await loadCompetitions(client,owner,()=>current,'mine','','',send)).toEqual(s);await expect(loadCompetitions(client,owner,()=>current,'mine','','',async o=>{current=false;return {status:200,data:{ok:true,...s},headers:{},url:o.url}})).rejects.toThrow();await expect(loadCompetitions(client,'other',()=>true,'mine','','',send)).rejects.toThrow()})
+})
+
+it('keeps the overview and coordinator queue available after an approved entry changes the roster',async()=>{
+ const f=fixture()
+ const {detail}=await loadNativeCompetitions(f.db,owner,'discover','','league-one')
+ vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS',JSON.stringify({
+  'league-one':{summary:reviewedRevisionDigest(detail!.league),detail:reviewedRevisionDigest(detail)},
+ }))
+ vi.mocked(getSignedInPlayerApiAuth).mockResolvedValue({ok:true,supabase:f.db,userId:owner})
+ vi.mocked(loadPlayerAccess).mockResolvedValue({canUseLeagueTools:true} as Awaited<ReturnType<typeof loadPlayerAccess>>)
+ try{
+  f.tables.tiq_team_league_entries[0].entry_status='active'
+  const url='https://example.test/api/mobile/first-party/competitions?league=league-one'
+  const response=await firstPartyCompetitions(new Request(url+'&overview=1'))
+  expect(response.status).toBe(200)
+  const snapshot=readCompetitionSnapshot(await response.json(),owner,'discover','','league-one')
+  expect(snapshot).toMatchObject({canReviewEntries:true,detailsUnderReview:true,detail:{
+   league:{name:'City League'},participants:[],fixtures:[],results:[],standings:[],
+  }})
+  expect(JSON.stringify(snapshot)).not.toContain('Waiting')
+  expect((await firstPartyCompetitions(new Request(url))).status).toBe(503)
+ }finally{vi.unstubAllEnvs();vi.clearAllMocks()}
 })
