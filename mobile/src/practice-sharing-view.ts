@@ -11,21 +11,28 @@ import {readPracticeShare,reviewedPracticeShare,sendPracticeAnnouncement,practic
 import {freezePracticeAnnouncement,type PracticeAnnouncementKind} from '../../lib/native-practice-share-contract'
 import {formatCaptainPracticeDate,formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
 import {html} from './match-details'
-export function openPracticeSharing(client:SupabaseClient,owner:string,scope:TeamScope,p:NativePractice,current:()=>boolean,onChanged:(p:NativePractice)=>void,onChatPosted?:(id:string)=>void,showChatFirst=false){
+export function openPracticeSharing(client:SupabaseClient,owner:string,scope:TeamScope,p:NativePractice,current:()=>boolean,onChanged:(p:NativePractice)=>void,onChatPosted?:(id:string)=>void,initialAnnouncement?:PracticeAnnouncementKind){
  const privateChat=Boolean(privateTeamRoomId(scope.leagueName))
  const dialog=document.createElement('dialog'),previous=document.activeElement as HTMLElement|null;dialog.className='captain-lineup-dialog training-dialog';dialog.style.overflowWrap='anywhere';dialog.setAttribute('aria-label','Share practice')
  let disposed=false,busy=false,share:PracticeShare|null=null,kind:PracticeAnnouncementKind=p.status==='cancelled'?'cancelled':'invitation',note='',pending:PracticeAnnouncement|null=null,posted:PracticeAnnouncement|null=null,attempted=false,conflict=false,leaving=false,notice='',calendar=false
  const active=()=>!disposed&&current(),focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus(),dispose=()=>{disposed=true;share=null;pending=null;posted=null;note='';dialog.remove();if(current()){if(previous?.isConnected)previous.focus({preventScroll:true});else document.querySelector('dialog[aria-label="Captain practices"]')?.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})}},close=()=>{if(busy)return;if(pending||note.trim()){leaving=true;render();focus()}else dispose()}
  const update=(fresh:PracticeShare)=>{share=fresh;kind=fresh.practice.status==='cancelled'?'cancelled':'invitation';note='';onChanged(fresh.practice)}
  const preparePost=()=>{if(!share)return;pending=freezePracticeAnnouncement(share,scope,kind,note,crypto.randomUUID(),privateChat);attempted=false;conflict=false;notice=''}
- const load=async(reviewPost=false)=>{
+ const load=async(reviewKind?:PracticeAnnouncementKind)=>{
   if(busy||!active())return
   busy=true;share=null;notice='Checking this practice and RSVP link...';render()
   try{
    const fresh=await readPracticeShare(client,owner,active,scope,p.id)
    if(!active())return
    update(fresh);notice=''
-   if(reviewPost)preparePost()
+   if(reviewKind){
+    if((fresh.practice.status==='cancelled')!==(reviewKind==='cancelled')){
+     notice='The practice status changed. Check its details before sharing.'
+     return
+    }
+    kind=reviewKind
+    preparePost()
+   }
   }catch{if(active())notice='Practice sharing is unavailable. Check your team access and connection, then refresh.'}
   finally{if(active()){busy=false;render();focus()}}
  }
@@ -48,5 +55,5 @@ export function openPracticeSharing(client:SupabaseClient,owner:string,scope:Tea
   onChatPosted(id)
  })
  }
- dialog.oncancel=e=>{e.preventDefault();close()};document.body.append(dialog);dialog.showModal();void load(showChatFirst);return {dispose,back:close,isOpen:()=>!disposed}
+ dialog.oncancel=e=>{e.preventDefault();close()};document.body.append(dialog);dialog.showModal();void load(initialAnnouncement);return {dispose,back:close,isOpen:()=>!disposed}
 }

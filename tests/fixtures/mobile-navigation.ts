@@ -6,7 +6,7 @@ import {calendarFixture,calendarPreview} from './mobile-calendar'
 import {openSyntheticLink} from './mobile-navigation-app'
 import {calendarTeamFixture,calendarTeamPreview} from './mobile-calendar-practices'
 import {practiceRsvpPath} from '../../lib/captain-practice-rsvp'
-import {privatePracticeChatPath} from '../../lib/native-practice-share-contract'
+import {practiceAnnouncementText,privatePracticeChatPath} from '../../lib/native-practice-share-contract'
 import type {NativePractice} from '../../lib/native-captain-practices'
 import type {PlayerPractice} from '../../lib/native-player-practice-contract'
 import {firstPartyUpdatesFixture,firstPartyUpdatesPreview,updatesFixture,updateCoachStudent} from './mobile-updates-client'
@@ -112,6 +112,24 @@ const teamResultFixture={
 let captainInvite:{id:string;token:string;expiresAt:string;revokedAt:string|null;acceptedCount:number;active:boolean}|null=null
 let firstPartyTeamJoined=false
 const firstPartyTeamMessages=[{id:'66666666-6666-4666-8666-666666666666',senderUserId:'77777777-7777-4777-8777-777777770E4A',senderName:'Teammate 0E4A',body:'Anyone up for a hit on Friday?',kind:'message',createdAt:'2026-11-06T10:00:00.000Z',isMine:false}]
+if(privateTeam&&new URL(location.href).searchParams.has('posted-practice')){
+ const updatedAt='2026-11-13T00:00:00.000Z'
+ privateReply='in'
+ privatePractice={
+  id:'99999999-9999-4999-8999-999999999999',owner:navigationOwner,title:'Baseline Aces practice',
+  date:'2030-06-09',time:'18:00',endTime:'19:00',facility:'Court 3',recurrence:'',focus:'',
+  status:'confirmed',updatedAt,capacity:2,inviteId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  roster:privateRoster.map((person,index)=>{
+   const response=index===1?'in':'unanswered'
+   return {...person,response,displayStatus:response,respondedAt:index===1?updatedAt:null,confirmedAt:null,updatedAt}
+  }),
+ }
+ firstPartyTeamMessages.push({
+  id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',senderUserId:navigationOwner,senderName:'Sam',kind:'message',
+  body:practiceAnnouncementText({practice:privatePractice,rsvpPath:privateRsvpPath},privateTeam,'invitation','',true),
+  createdAt:'2026-11-13T00:01:00.000Z',isMine:true,
+ })
+}
 const chatNamesEnabled=new URL(location.href).searchParams.has('chat-display-name')
 const chatNames=new Map([[firstPartyTeamMessages[0].senderUserId,'Sam']])
 const chatSafetyFixture={actions:[] as Record<string,string>[],failNextReport:false,failNextBlock:false,blocked:false}
@@ -146,7 +164,8 @@ window.fetch=async(input,init)=>{
    const person=privatePractice.roster[1]
    if(init?.method==='PATCH'){
     const reply=JSON.parse(String(init.body))
-    if(reply.eventId!==id||reply.personId!==person.id)return Response.json({ok:false},{status:409})
+    if(reply.eventId!==id||reply.personId!==person.id||status==='cancelled'||reply.eventUpdatedAt!==updatedAt)
+     return Response.json({ok:false},{status:409})
     privateReply=reply.response
     privatePractice.roster[1]={...person,response:privateReply,displayStatus:privateReply,respondedAt:updatedAt}
    }
@@ -166,7 +185,7 @@ window.fetch=async(input,init)=>{
    if(existing?existing.body!==body:action!=='announce'||expectedUpdatedAt!==privatePractice.updatedAt)
     return Response.json({ok:false},{status:409})
    if(!existing)firstPartyTeamMessages.push({id:clientMessageId,senderUserId:owner,senderName:'Sam',body,kind:'message',
-    createdAt:'2026-11-13T00:01:00.000Z',isMine:true})
+    createdAt:new Date(Date.UTC(2026,10,13,0,1,firstPartyTeamMessages.length)).toISOString(),isMine:true})
    return Response.json({...base,eventId:privatePractice.id,announcementId:clientMessageId,body})
   }
   if(url.pathname.endsWith('/create')){
@@ -178,6 +197,17 @@ window.fetch=async(input,init)=>{
     roster:privateRoster.map(person=>({...person,response:'unanswered',displayStatus:'unanswered',respondedAt:null,confirmedAt:null,updatedAt:stamp}))}
    return Response.json({...base,practice:privatePractice,requestId:draft.requestId,
     rsvpPath:privateRsvpPath})
+  }
+  if(init?.method==='PATCH'){
+   const {action,eventId,expectedUpdatedAt,requestId,fields}=JSON.parse(String(init.body))
+   if(!privatePractice||privatePractice.id!==eventId||privatePractice.updatedAt!==expectedUpdatedAt||
+      !['edit_details','cancel_occurrence'].includes(action))return Response.json({ok:false},{status:409})
+   const receipt={requestId,expectedUpdatedAt}
+   const updatedAt=new Date(Date.parse(privatePractice.updatedAt)+1000).toISOString()
+   privatePractice=action==='edit_details'
+    ?{...privatePractice,...fields,editReceipt:receipt,updatedAt}
+    :{...privatePractice,status:'cancelled',cancelReceipt:receipt,updatedAt}
+   return Response.json({...base,practice:privatePractice})
   }
   return Response.json({...base,practices:privatePractice?[privatePractice]:[]})
  }
