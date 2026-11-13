@@ -79,7 +79,7 @@ Both baselines are internal TestFlight builds. Submit the selected track from a 
 ### First-party launch scope
 
 - **Available in build 255.** Offline drills, a timer, self-entered matches and recent form.
-- **Full-app candidate.** `npm --prefix mobile run build:bundled -- --first-party-preview` builds the integrated app shell and assets into `.next/mobile-first-party-preview`. The preview omits external uploads and imports, skips the imported ratings and match history reads in My Lab, and sends tournament browsing to the signed-in `GET /api/mobile/first-party/tournaments` feed for approved records. Tournament registration and saved entries are held until their separate routes enforce the same scope.
+- **Full-app candidate.** `npm --prefix mobile run build:bundled -- --first-party-preview` builds the integrated app shell and assets into `.next/mobile-first-party-preview`. The preview omits external uploads and imports, skips the imported ratings and match history reads in My Lab, and sends tournament browsing, registration and saved entries to the signed-in `/api/mobile/first-party/tournaments` routes for approved records.
 - **Chats.** Coach invites and direct coach-player messages use their dedicated account routes. Team chat and team invites use the reviewed team routes described below. Compete → My Teams opens the same conversation as Chats.
 - **Hold for verified rights and data scope.** External imports, imported directory and match history, and ratings computed from those records. The fallback bundle and its server endpoints should enforce the scope before returning data. Hiding a screen alone leaves other paths to the same data.
 
@@ -140,6 +140,8 @@ npx tsx scripts/fingerprint-first-party-tournaments.ts path/to/reviewed-rows.jso
 ```
 
 Set the output as the server-only `TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS` value for the candidate backend. The route accepts up to 50 rows, including events and divisions. With no approvals, the catalog is empty. Edits to an approved revision require review and a new fingerprint. Removing an approval withdraws the record from the first-party feed. Review records against the updated feed before connecting a TestFlight build.
+
+For events accepting in-app entry, include the fields in `nativeTournamentEntryColumns` in the reviewed export and pass `--entry` after the file path. Add entry approvals to the parent event and each division accepting requests. Apply `20261112000800_native_first_party_tournament_entry.sql` before testing entry, organizer decisions, and receipts on the candidate backend. Entry receipts use the approved registration metadata, so an organizer can keep reviewing requests while a changed draw awaits publication. Publish a fresh draw fingerprint after adding players or changing court assignments so players can see those matches in My Event and Calendar.
 
 ### Offline baseline build
 

@@ -1,4 +1,6 @@
-import {teamLeagueLabel} from '../../lib/private-team-contract'
+import {privateTeamRoomId,teamLeagueLabel} from '../../lib/private-team-contract'
+import {firstPartyBuild} from './build-scope'
+import {openPracticeReminder} from './practice-reminder-view'
 import type {PracticeAnnouncementKind} from '../../lib/native-practice-share-contract'
 import {openPracticeRepeat} from './practice-repeat-view'
 import {openPracticeSharing} from './practice-sharing-view'
@@ -76,10 +78,15 @@ export function openCaptainPractices(client:SupabaseClient,owner:string,scope:Te
    <button type="button" class="secondary" data-roster-status="unanswered" aria-pressed="${unansweredOnly}">No reply</button>
   </div><label>Find a practice player<input type="search" maxlength="120" data-roster-search value="${html(rosterFilter)}" placeholder="Player name"></label>
   <p data-roster-empty role="status" hidden></p>`:''}
+  ${firstPartyBuild&&privateTeamRoomId(scope.leagueName)&&p.inviteId&&p.date>=day&&
+     (p.status==='proposed'||p.status==='confirmed')&&p.roster.some(person=>person.response==='unanswered')
+     ?'<button type="button" data-remind-players hidden>Remind players</button>':''}
   ${practiceRosterHtml(p)}
  </div>`:data?practiceList(practices,view,data.more):''}<p role="status">${html(notice)}</p>${p?`<button type="button" data-create ${busy?'disabled':''}>Create practice</button>`:''}<button type="button" class="secondary" data-refresh ${busy?'disabled':''}>Refresh practices</button><button type="button" class="secondary" data-web ${busy?'disabled':''}>More practice tools on website</button><button type="button" class="secondary" data-close ${busy?'disabled':''}>${html(backLabel)}</button>`;
  dialog.querySelector('[data-repeat-practice]')?.addEventListener('click',()=>{if(!p||busy)return;editor=openPracticeRepeat(client,owner,scope,p,active,saved=>{if(!active())return;data={practices:[saved,...(data?.practices||[]).filter(row=>row.id!==saved.id)].slice(0,40),more:(data?.practices.length||0)>=40||data?.more||false};selected=saved.id;rosterFilter='';unansweredOnly=false;notice='Review the saved repeat below.';render()})});dialog.querySelector('[data-create]')?.addEventListener('click',()=>{if(busy)return;editor=openPracticeCreate(client,owner,scope,active,saved=>{if(!active())return;data={practices:[saved,...(data?.practices||[]).filter(p=>p.id!==saved.id)].slice(0,40),more:(data?.practices.length||0)>=40||data?.more||false};selected=saved.id;rosterFilter='';unansweredOnly=false;notice='Practice created.';render()},onChatPosted?saved=>openSharing(saved,'invitation'):undefined)});dialog.querySelector('[data-edit-practice]')?.addEventListener('click',()=>{if(!p||busy)return;editor=openPracticeEditor(client,owner,scope,p,active,saved=>{if(!active())return;data={practices:(data?.practices||[]).map(row=>row.id===saved.id?saved:row),more:data?.more||false};notice='Practice details saved.';render()},onChatPosted?saved=>openSharing(saved,'update'):undefined)});dialog.querySelector('[data-cancel-practice]')?.addEventListener('click',()=>{if(!p||busy)return;editor=openPracticeCancellation(client,owner,scope,p,active,saved=>{if(!active())return;data={practices:(data?.practices||[]).map(row=>row.id===saved.id?saved:row),more:data?.more||false};notice='Practice cancelled.';render()},onChatPosted?saved=>openSharing(saved,'cancelled'):undefined)});dialog.querySelector('[data-share-practice]')?.addEventListener('click',()=>{if(!p||busy)return;openSharing(p)});
  const filterRoster=()=>{
+  const reminder=dialog.querySelector<HTMLButtonElement>('[data-remind-players]')
+  if(reminder)reminder.hidden=!unansweredOnly
   const query=rosterFilter.trim().toLocaleLowerCase()
   let visible=0
   dialog.querySelectorAll<HTMLElement>('[data-roster-person]').forEach(row=>{
@@ -104,6 +111,9 @@ export function openCaptainPractices(client:SupabaseClient,owner:string,scope:Te
    dialog.querySelectorAll('[data-roster-status]').forEach(filter=>filter.setAttribute('aria-pressed',String(filter===button)))
    filterRoster()
   }
+ })
+ dialog.querySelector('[data-remind-players]')?.addEventListener('click',()=>{
+  if(p&&unansweredOnly&&active())editor=openPracticeReminder(client,owner,scope,p,active)
  })
  filterRoster()
  dialog.querySelector('[data-close]')?.addEventListener('click',close);dialog.querySelector('[data-keep]')?.addEventListener('click',()=>{leaving=false;render();focus()});dialog.querySelector('[data-discard]')?.addEventListener('click',()=>{void finish('Review your latest practice below.')});dialog.querySelector('[data-save]')?.addEventListener('click',()=>{void send(false)});dialog.querySelector('[data-check]')?.addEventListener('click',()=>{void send(true)});dialog.querySelector('[data-cancel]')?.addEventListener('click',()=>{if(attempted)void finish('Review your latest practice below.');else{pending=null;notice='';render();focus()}});dialog.querySelector('[data-refresh]')?.addEventListener('click',()=>{void load()});dialog.querySelector('[data-back]')?.addEventListener('click',()=>{selected='';unansweredOnly=false;notice='';render();focus()});dialog.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b=>{b.onclick=()=>{view=b.dataset.view==='cancelled'?'cancelled':b.dataset.view==='earlier'?'earlier':'upcoming';notice='';render();focus()}});dialog.querySelectorAll<HTMLButtonElement>('[data-person]').forEach(b=>{b.onclick=()=>{if(!p)return;try{pending=practiceChange(p,b.dataset.person||'',b.dataset.confirmed==='true');attempted=false;conflict=false;notice='';render();focus()}catch{notice='Refresh this practice before changing a spot.';render()}}});dialog.querySelector('[data-web]')?.addEventListener('click',()=>{void Browser.open({url:'https://www.tenaceiq.com/captain/practice?'+new URLSearchParams({team:scope.teamName,league:scope.leagueName,flight:scope.flight})}).catch(()=>{if(active()){notice='The website could not be opened. Try again when connected.';render()}})})

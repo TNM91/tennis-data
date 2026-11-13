@@ -29,6 +29,7 @@ import {mountBiometricSignIn} from './biometric-sign-in'
 import {showGuestExplore} from './guest-explore'
 import {welcomeHtml,signInHtml} from './welcome-view'
 import type {TeamChatDestination} from './team-room-data'
+import {openPlayerPractices} from './player-practices-view'
 import {nativeActionIcon} from './native-action-icons'
 import websiteUi from '../generated/website-ui.json'
 import {mountLabRecentForm} from './lab-recent-form'
@@ -392,6 +393,10 @@ function launchUpdates(trigger:HTMLElement){
  const owner=session.user.id,visit=revision,current=()=>visit===revision&&owner===session?.user.id
  const leave=()=>{updates?.dispose();updates=null}
  updates=openUpdates(client,owner,current,()=>updatesCounter.refresh(),(action,button,active)=>{
+  if(action.kind==='practice-reminder'){
+   button.focus({preventScroll:true})
+   return openPlayerPractices(client,owner,action.scope,active,()=>{},'','Back to updates',action.eventId)
+  }
   if(action.kind==='coach-message')return openCoachMessages(client,owner,active,button,undefined,action.student,undefined,()=>{void chatUnread.refresh()})
   if(action.kind==='coach-plan'){
    button.focus({preventScroll:true})
@@ -519,7 +524,6 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
   guardNavigation(()=>showHub('compete',{browseFirst:true}));return
  }
  if(destination==='leagues'||destination==='browse-leagues'){launchCompetitions(destination==='browse-leagues'?'discover':'mine',trigger);return}
- if(firstPartyBuild&&destination==='tournament-entries')return
  if(destination==='tournaments'||destination==='tournament-entries'){
   launchTournaments(trigger,undefined,destination==='tournament-entries')
   return

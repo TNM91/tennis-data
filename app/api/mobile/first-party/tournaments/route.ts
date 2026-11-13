@@ -1,6 +1,7 @@
 import { loadFirstPartyNativeTournaments } from '@/lib/native-tournaments'
 import { tournamentInput } from '@/lib/native-tournaments-contract'
 import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
+import { loadTournamentEntryPublications } from '@/lib/first-party-tournament-entry'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -29,6 +30,15 @@ export async function GET(request: Request) {
     }
 
     const snapshot = await loadFirstPartyNativeTournaments(auth.supabase, auth.userId, input)
+    const active = snapshot.detail?.active
+    if (active) {
+      const publications = await loadTournamentEntryPublications(auth.supabase, [active.parentId, active.id].filter(Boolean))
+      const division = publications.get(active.id)
+      const entryAvailable = !!division && (division.event_id ?? '') === active.parentId &&
+        (!active.parentId || publications.has(active.parentId))
+      return Response.json({ ok: true, scope: 'first-party', ...snapshot,
+        detail: { ...snapshot.detail, entryAvailable } }, { headers })
+    }
     return Response.json({ ok: true, scope: 'first-party', ...snapshot }, { headers })
   } catch {
     return Response.json({ ok: false, message: 'Tournaments are unavailable. Refresh to try again.' }, { status: 503, headers })

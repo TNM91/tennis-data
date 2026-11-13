@@ -10,6 +10,7 @@ import {tournamentMyEvent} from './tournament-my-event'
 import {openCalendar} from './calendar-view'
 import {Browser} from './native-browser'
 import {html} from './match-details'
+import {firstPartyBuild} from './build-scope'
 const label=(e:TournamentEntryReceipt)=>e.status==='pending'?'Awaiting organizer approval':e.status==='declined'?'Not approved':e.inDraw?'Approved · in the draw':'Approved · awaiting draw placement'
 const levels=(name:string,value:number|null,disabled:boolean)=>'<select name="'+name+'" aria-label="'+(name==='rating'?'Your self-rated level':'Partner self-rated level')+'" required '+(disabled?'disabled':'')+'><option value="">Choose a level</option>'+Array.from({length:13},(_,i)=>1+i*.5).map(n=>'<option value="'+n+'" '+(value===n?'selected':'')+'>'+n.toFixed(1)+'</option>').join('')+'</select>'
 function receiptHtml(e:TournamentEntryReceipt){return '<section class="entry-receipts" aria-label="Your entry"><article data-entry-state="'+e.status+'"><small>Saved entry</small><strong>'+html(e.name)+'</strong><span class="entry-state">'+html(label(e))+'</span>'+(e.note?'<p>Organizer: '+html(e.note)+'</p>':'')+(e.legacy?'<p>Contact the organizer to change this existing entry.</p>':'')+'</article></section>'}
@@ -100,7 +101,9 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
    if(result.detail)pass=tournamentMyEvent(result.detail,entry.name,allowCalendar)
   }catch{ /* The entry receipt is still available if the public draw can't be loaded. */ }
   if(!currentPass())return
-  host.innerHTML=pass?.content??'<p role="status">Your draw details are unavailable. Refresh or check with the event desk.</p>'
+  host.innerHTML=pass?.content??(firstPartyBuild
+   ? '<p role="status">Your entry is confirmed. Check back for the published draw and court time.</p>'
+   : '<p role="status">Your draw details are unavailable. Refresh or check with the event desk.</p>')
   host.setAttribute('aria-busy','false')
   const button=host.querySelector<HTMLButtonElement>('[data-event-calendar]'),match=pass?.calendarMatch
   if(button&&match)button.onclick=()=>{

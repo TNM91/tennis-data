@@ -1,6 +1,6 @@
 import {competitionOwner} from './competitions-data'
 export const updateCoachStudent='99999999-9999-4999-8999-999999999991',updateCoachThread='99999999-9999-4999-8999-999999999992'
-type Row={id:string;recipient_profile_id:string;notification_type:string;title:string;body:string;href:string;conversation_id:string|null;schedule_event_id:null;read_at:string|null;created_at:string}
+type Row={id:string;recipient_profile_id:string;notification_type:string;title:string;body:string;href:string;conversation_id:string|null;schedule_event_id:string|null;read_at:string|null;created_at:string}
 export const updatesFixture={
   failList:false,failCount:false,loseWrite:false,deferList:false,release:()=>{},
   queries:[] as {table:string;method:string;ids:string[];owner:string|null}[],
@@ -11,12 +11,12 @@ const scopedRows:Row[]=[
   {...updatesFixture.rows[3],title:'Coach conversation',body:'Open Coach messages to catch up.',href:'/messages?coach='+updateCoachStudent},
   {...updatesFixture.rows[4],title:'TenAceIQ support update',body:'There’s an update on your support request.',notification_type:'support',href:'',read_at:null},
 ]
-export const firstPartyUpdatesFixture={calls:[] as string[],omitMarker:false}
+export const firstPartyUpdatesFixture={calls:[] as string[],omitMarker:false,practiceReminders:[] as Row[]}
 export function firstPartyUpdatesPreview(method:string,url:URL,body:unknown,owner:string){
   const op=method==='POST'?'mark':url.searchParams.get('op')??'list'
   firstPartyUpdatesFixture.calls.push(op)
   const envelope={ok:true,owner,releaseScope:firstPartyUpdatesFixture.omitMarker?undefined:'first-party'}
-  const owned=scopedRows.filter(row=>row.recipient_profile_id===owner)
+  const owned=[...firstPartyUpdatesFixture.practiceReminders,...scopedRows].filter(row=>row.recipient_profile_id===owner)
   if(op==='count')return Response.json({...envelope,count:owned.filter(row=>!row.read_at).length})
   if(op==='mark'){
     const ids=(JSON.parse(String(body)) as {ids:string[]}).ids

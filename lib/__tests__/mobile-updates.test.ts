@@ -2,6 +2,7 @@ import {describe,it,expect,vi} from 'vitest'
 import {createClient} from '@supabase/supabase-js'
 import {parseUpdatePage,updateCursorFilter,loadUpdates,countUnreadUpdates,markUpdatesRead,updateAction,resolveUpdateAction} from '../../mobile/src/updates-data'
 import {toInternalNotification} from '../internal-notification-record'
+import {practiceReminderHref} from '../native-practice-reminder-contract'
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222'
 const id=(n=1)=>'aaaaaaaa-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0')
 const raw=(n=1)=>({id:id(n),recipient_profile_id:owner,notification_type:'message',title:'Practice update',body:'See you on court.',href:'/tournaments/open-draw',conversation_id:null,schedule_event_id:null,read_at:null,created_at:'2026-10-31T10:00:00.123456+00:00'})
@@ -14,6 +15,16 @@ function client(reply:(request:{url:URL;method:string;body:Record<string,unknown
 }
 const json=(value:unknown)=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}})
 describe('owned Updates records and cursors',()=>{
+ it('opens a practice reminder only when the destination matches the notification event and private room',()=>{
+  const scope={teamName:'Aces & Friends',leagueName:'Private team '+id(4),flight:'4.5'}
+  const href=practiceReminderHref(scope,id(3),id(5))
+  const row={...item(),href,notificationType:'schedule' as const,scheduleEventId:id(3),conversationId:id(4)}
+  expect(updateAction(row)).toEqual({kind:'practice-reminder',eventId:id(3),scope,label:'Open practice RSVP'})
+  for(const invalid of [{scheduleEventId:id(2)},{conversationId:id(2)},{href:href+'&team=Other'},
+   {href:href+'#more'},{href:'https://other.example'+href},{notificationType:'message' as const}]){
+   expect(updateAction({...row,...invalid})).toBeNull()
+  }
+ })
  it('reuses the website projection and preserves a microsecond cursor over 25 rows',()=>{
   const page=parseUpdatePage(Array.from({length:26},(_,i)=>raw(i+1)),owner)
   expect(page.rows).toHaveLength(25);expect(page.more).toBe(true);expect(page.cursor).toEqual({id:id(25),createdAt:raw().created_at})

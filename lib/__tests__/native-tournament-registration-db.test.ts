@@ -24,6 +24,41 @@ async function setup(){
  }
  return {db,call}
 }
+it('limits first-party registration to reviewed metadata and supports receipts across draw revisions',async()=>{
+ const {db,call}=await setup()
+ try{
+  await db.exec(await sql('20261112000800_native_first_party_tournament_entry.sql'))
+  await db.exec("update tiq_tournaments set registration_email='director@example.test' where id='event'")
+  const publication=(await db.query<{value:object}>(`select jsonb_object_agg(id,to_jsonb(t)) value
+    from (select id,event_id,is_event,name,format,entrant_type,status,starts_on,location_label,event_details,is_public,registration_email
+      from tiq_tournaments where id in ('event','division')) t`)).rows[0].value
+  async function scoped(actor:string, action:string, payload:object={}){
+   await db.exec('set role service_role')
+   try{return (await db.query<{r:Reply}>("select native_first_party_tournament_registration($1,$2,'event','division',$3,$4) r",
+    [actor,action,JSON.stringify(publication),JSON.stringify(payload)])).rows[0].r}
+   finally{await db.exec('reset role')}
+  }
+  expect(await call(member,'review')).toMatchObject({context:{mode:'director'}})
+  await db.exec('set role authenticated')
+  await expect(db.query("select native_first_party_tournament_registration(null,'review','','division','{}','{}')")).rejects.toThrow(/permission denied/)
+  await db.exec('reset role')
+  const review=await scoped(member,'review')
+  expect(review).toMatchObject({ok:true,context:{owner:member,mode:'native',director:'',playerLocked:false}})
+  const draft={revision:review.context.revision,one:'Alex Serve',two:'Sam Return',rating:4,partnerRating:3.5,attested:true,partnerAttested:true}
+  await db.exec("update tiq_tournaments set name='Different event' where id='event'")
+  expect(await scoped(member,'submit',draft)).toMatchObject({ok:false,status:404})
+  await db.exec("update tiq_tournaments set name='Summer Open' where id='event'")
+  const saved=await scoped(member,'submit',draft)
+  expect(saved).toMatchObject({ok:true,receipt:{status:'pending'}})
+  expect(await scoped(other,'queue')).toMatchObject({ok:false,status:403})
+  expect(await scoped(other,'review')).toMatchObject({ok:true,receipt:null})
+  const queue=await scoped(organizer,'queue')
+  expect(await scoped(organizer,'decide',{revision:queue.context.revision,entryId:saved.receipt!.id,
+   updatedAt:saved.receipt!.updatedAt,decision:'approve',note:'See you on court.',confirmed:true})).toMatchObject({ok:true,receipt:{status:'approved',inDraw:true}})
+  await db.exec("update tiq_tournaments set schedule='{\"r1-m1\":{\"date\":\"2099-06-01\",\"time\":\"10:30\",\"court\":\"2\"}}' where id='division'")
+  expect(await scoped(member,'review')).toMatchObject({ok:true,receipt:{status:'approved',inDraw:true}})
+ }finally{await db.close()}
+},30000)
 it('ties self-attested requests to the caller, approves once through the existing desk, and keeps private fields out of receipts',async()=>{
  const {db,call}=await setup();try{
   expect((await db.query<{ok:boolean}>('select account_erasure_catalog_ready() ok')).rows[0].ok).toBe(true)

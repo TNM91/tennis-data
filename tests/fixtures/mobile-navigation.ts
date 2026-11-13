@@ -7,6 +7,7 @@ import {openSyntheticLink} from './mobile-navigation-app'
 import {calendarTeamFixture,calendarTeamPreview} from './mobile-calendar-practices'
 import {practiceRsvpPath} from '../../lib/captain-practice-rsvp'
 import {practiceAnnouncementText,privatePracticeChatPath} from '../../lib/native-practice-share-contract'
+import {practiceReminderHref} from '../../lib/native-practice-reminder-contract'
 import type {NativePractice} from '../../lib/native-captain-practices'
 import type {PlayerPractice} from '../../lib/native-player-practice-contract'
 import {firstPartyUpdatesFixture,firstPartyUpdatesPreview,updatesFixture,updateCoachStudent} from './mobile-updates-client'
@@ -33,6 +34,8 @@ const freeTraining=new URL(location.href).searchParams.has('free-training')
 const nearbyExplore=new URL(location.href).searchParams.get('nearby-explore')
 const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false,unscopedLeagueReply:false,competitionReads:[] as {path:string;query:string;audience:string|null;authenticated:boolean}[]}
 const tournamentShortcutFixture={enabled:new URL(location.href).searchParams.has('tournament-shortcut-review'),approved:true,entryReads:[] as string[]}
+const scopedRegistration={enabled:new URL(location.href).searchParams.has('scoped-tournament-entry'),status:'',published:false}
+Object.assign(window,{scopedRegistration})
 const myEntriesFixture={
  enabled:new URL(location.href).searchParams.has('my-tournament-entries'),
  fail:true,
@@ -45,7 +48,7 @@ const myEntriesFixture={
 }
 Object.assign(window,{myEntriesFixture})
 const shortcutDate='2026-11-13'
-if(tournamentShortcutFixture.enabled){
+if(tournamentShortcutFixture.enabled||scopedRegistration.enabled){
  const match={...calendarFixture.competitions[0],id:'tournament:division-one:r2-m1',kind:'tournament',competitionId:'division-one',competitionName:'Northside Open · 4.0 Doubles',
   date:shortcutDate,time:'10:00',title:'Northside Open: vs Jordan Serve',opponent:'Jordan Serve',detail:'Round 2 · Court 1',status:'Scheduled',publishedView:{id:'event-one',divisionId:'division-one'}}
  calendarFixture.competitions.push(match)
@@ -112,16 +115,17 @@ const teamResultFixture={
 let captainInvite:{id:string;token:string;expiresAt:string;revokedAt:string|null;acceptedCount:number;active:boolean}|null=null
 let firstPartyTeamJoined=false
 const firstPartyTeamMessages=[{id:'66666666-6666-4666-8666-666666666666',senderUserId:'77777777-7777-4777-8777-777777770E4A',senderName:'Teammate 0E4A',body:'Anyone up for a hit on Friday?',kind:'message',createdAt:'2026-11-06T10:00:00.000Z',isMine:false}]
-if(privateTeam&&new URL(location.href).searchParams.has('posted-practice')){
+const practiceReminderScenario=new URL(location.href).searchParams.has('practice-reminder')
+if(privateTeam&&(new URL(location.href).searchParams.has('posted-practice')||practiceReminderScenario)){
  const updatedAt='2026-11-13T00:00:00.000Z'
- privateReply='in'
+ privateReply=practiceReminderScenario?'unanswered':'in'
  privatePractice={
   id:'99999999-9999-4999-8999-999999999999',owner:navigationOwner,title:'Baseline Aces practice',
   date:'2030-06-09',time:'18:00',endTime:'19:00',facility:'Court 3',recurrence:'',focus:'',
   status:'confirmed',updatedAt,capacity:2,inviteId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   roster:privateRoster.map((person,index)=>{
-   const response=index===1?'in':'unanswered'
-   return {...person,response,displayStatus:response,respondedAt:index===1?updatedAt:null,confirmedAt:null,updatedAt}
+   const response=index===1?privateReply:'unanswered'
+   return {...person,response,displayStatus:response,respondedAt:response==='in'?updatedAt:null,confirmedAt:null,updatedAt}
   }),
  }
  firstPartyTeamMessages.push({
@@ -152,7 +156,7 @@ window.fetch=async(input,init)=>{
  })
  if(url.pathname.includes('/calendar'))calendarPaths.push(url.pathname)
  if(/^\/api\/(team-rooms(?:\/|$)|mobile\/(team-invites|captain\/invites|chats\/unread)$)/.test(url.pathname))firstPartyTeamFixture.integratedReads++
- if(privateTools&&privateTeam&&['/api/mobile/captain/practices','/api/mobile/captain/practices/create','/api/mobile/captain/practices/share','/api/mobile/practices'].includes(url.pathname)){
+ if(privateTools&&privateTeam&&['/api/mobile/captain/practices','/api/mobile/captain/practices/create','/api/mobile/captain/practices/share','/api/mobile/captain/practices/reminder','/api/mobile/practices'].includes(url.pathname)){
   const owner=currentNavigationOwner(),scope=privateTeam
   if(url.searchParams.get('team')!==scope.teamName||url.searchParams.get('league')!==scope.leagueName||
      url.searchParams.get('flight')!==scope.flight)return Response.json({ok:false},{status:403})
@@ -175,6 +179,25 @@ window.fetch=async(input,init)=>{
    return Response.json({...base,practices:[practice]})
   }
   if(privateTools!=='captain'||owner!==navigationOwner)return Response.json({ok:false},{status:403})
+  if(url.pathname.endsWith('/reminder')){
+   if(!privatePractice||url.searchParams.get('eventId')!==privatePractice.id)return Response.json({ok:false},{status:404})
+   const eventId=privatePractice.id,updatedAt=privatePractice.updatedAt
+   const recipients=privatePractice.roster.filter(person=>person.id!==owner&&person.response==='unanswered')
+    .map(({id,name})=>({id,name}))
+   const saved=firstPartyUpdatesFixture.practiceReminders[0]
+   if(init?.method!=='POST')return Response.json({...base,eventId,updatedAt,date:privatePractice.date,recipients,alreadySent:Boolean(saved)})
+   const intent=JSON.parse(String(init.body))
+   const href=practiceReminderHref(scope,eventId,intent.requestId)
+   if(saved)return saved.href===href?Response.json({...base,eventId,count:1}):Response.json({ok:false},{status:409})
+   if(intent.updatedAt!==updatedAt)return Response.json({ok:false},{status:409})
+   if(!recipients.some(person=>intent.recipientIds.includes(person.id)))return Response.json({...base,eventId,count:0})
+   firstPartyUpdatesFixture.practiceReminders.push({
+    id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa99',recipient_profile_id:privateTeammate,notification_type:'schedule',
+    title:'Practice RSVP reminder',body:'Open practice to mark In, Out, or Maybe.',href,
+    conversation_id:scope.id,schedule_event_id:eventId,read_at:null,created_at:updatedAt,
+   })
+   return Response.json({...base,eventId,count:1})
+  }
   if(url.pathname.endsWith('/share')){
    if(!privatePractice||url.searchParams.get('eventId')!==privatePractice.id)return Response.json({ok:false},{status:404})
    if(init?.method!=='POST')return Response.json({...base,practice:privatePractice,rsvpPath:privateRsvpPath})
@@ -522,6 +545,23 @@ window.fetch=async(input,init)=>{
   })
   reply={ok:true,releaseScope:scoped&&!fixtureState.unscopedLeagueReply?'first-party':undefined,...snapshot}
  }
+ if(scopedRegistration.enabled&&['/api/mobile/first-party/tournaments/entry','/api/mobile/first-party/tournaments/entries'].includes(url.pathname)){
+  const receipt={...tournamentReceipt(),status:scopedRegistration.status,inDraw:scopedRegistration.status==='approved'}
+  if(url.pathname.endsWith('/entries'))return Response.json({ok:true,scope:'first-party',owner:currentNavigationOwner(),more:false,
+   entries:scopedRegistration.status?[{...myEntriesFixture.entries[0],status:receipt.status}]:[]})
+  if(init?.method==='POST'){
+   const command=JSON.parse(String(init.body))
+   if(command.action!=='submit'||command.parent!=='event-one'||command.division!=='division-one'||command.data.two!=='Sam Return'||!command.data.partnerAttested){
+    return Response.json({ok:false},{status:400})
+   }
+   scopedRegistration.status='pending'
+   receipt.status='pending'
+  }
+  const snapshot=tournamentEntrySnapshot()
+  snapshot.context.owner=currentNavigationOwner()
+  return Response.json({ok:true,scope:'first-party',...snapshot,receipt:scopedRegistration.status?receipt:null,
+   ...(init?.method==='POST'?{alreadySubmitted:false}:{})})
+ }
  if(myEntriesFixture.enabled&&url.pathname==='/api/mobile/tournaments/entries'){
   if(myEntriesFixture.fail)return Response.json({ok:false},{status:503})
   const division=url.searchParams.get('division')
@@ -558,6 +598,13 @@ window.fetch=async(input,init)=>{
   if((tournamentShortcutFixture.enabled||myEntriesFixture.enabled)&&snapshot.detail?.active){
    const match=snapshot.detail.matches.find(match=>match.id==='r2-m1')!
    match.a=tournamentReceipt().name;match.date=shortcutDate
+  }
+  if(scopedRegistration.enabled&&snapshot.detail?.active){
+   if(scopedRegistration.status==='approved'&&!scopedRegistration.published)return Response.json({ok:false},{status:503})
+   snapshot.detail.entryAvailable=true
+   const match=snapshot.detail.matches.find(match=>match.id==='r2-m1')!
+   match.a=tournamentReceipt().name
+   match.date=shortcutDate
   }
   const scope=url.pathname==='/api/mobile/first-party/tournaments'&&!fixtureState.unscopedTournamentReply?'first-party':undefined
   reply={ok:true,scope,...snapshot}

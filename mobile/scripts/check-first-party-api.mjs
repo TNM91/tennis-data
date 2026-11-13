@@ -5,6 +5,7 @@ const probe = async (path, method = 'GET') => fetch(new URL(path, base), {
 
 const checks = [
   ['competitions?audience=public', 'GET', 200], ['tournaments', 'GET', 401],
+  ['tournaments/entries', 'GET', 401], ['tournaments/entry', 'GET', 401], ['tournaments/entry', 'POST', 401],
   ['team-rooms', 'GET', 401], ['team-invites', 'POST', 401],
   ['calendar', 'GET', 401], ['updates', 'GET', 401], ['court-results', 'GET', 401], ['setup', 'GET', 401],
 ]
@@ -13,6 +14,7 @@ const failures = (await Promise.all(checks.map(async ([path, method, status]) =>
     const response = await probe(path, method)
     if (response.status !== status) return `${path} returned HTTP ${response.status}`
     const data = await response.json()
+    if (path.startsWith('tournaments/') && data.scope !== 'first-party') return `${path} is missing its release scope`
     if (status === 200 && (data.ok !== true || data.releaseScope !== 'first-party') ||
         status === 401 && data.ok === true) return `${path} returned an unexpected response`
     if (['team-rooms', 'team-invites', 'calendar', 'updates', 'court-results', 'setup'].includes(path) && data.releaseScope !== 'first-party') {

@@ -1,7 +1,7 @@
 import {afterEach,describe,it,expect,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {loadNativeTournaments} from '../native-tournaments'
-import {tournamentRevisionDigest} from '../native-tournament-approvals'
+import {tournamentEntryDigest,tournamentRevisionDigest} from '../native-tournament-approvals'
 import {getSignedInPlayerApiAuth} from '../player-api-auth'
 import {GET as firstPartyTournaments} from '../../app/api/mobile/first-party/tournaments/route'
 import {readTournamentSnapshot,tournamentInput} from '../native-tournaments-contract'
@@ -106,6 +106,25 @@ describe('first-party tournament route', () => {
   approve(f.root, f.division)
   const latest = readTournamentSnapshot(await (await firstPartyTournaments(request(url))).json(), owner, '', 'event-one', 'division-one')
   expect(latest.detail?.matches.find(match => match.id === 'r1-m2')).toMatchObject({ time: '19:00', court: 'Court 5' })
+ })
+
+ it('exposes entry only for a separately approved event and division', async () => {
+  const f = fixture()
+  signedIn(f.db)
+  f.root.registration_email='director@example.test'
+  f.division.registration_email='director@example.test'
+  const config=(includeParent:boolean)=>JSON.stringify(Object.fromEntries(f.rows.map(row=>[String(row.id),{
+   summary:tournamentRevisionDigest(row),draw:tournamentRevisionDigest(row,true),
+   ...(includeParent||row===f.division?{entry:tournamentEntryDigest(row)}:{}),
+  }])))
+  const selection=request('?tournament=event-one&division=division-one')
+  vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS',config(false))
+  expect((await (await firstPartyTournaments(selection)).json()).detail.entryAvailable).toBe(false)
+  vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS',config(true))
+  const published=await firstPartyTournaments(selection)
+  expect((await published.json()).detail.entryAvailable).toBe(true)
+  f.root.registration_email='changed@example.test'
+  expect((await (await firstPartyTournaments(selection)).json()).detail.entryAvailable).toBe(false)
  })
 })
 
