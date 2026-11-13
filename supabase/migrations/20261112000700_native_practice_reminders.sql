@@ -1,15 +1,15 @@
 begin;
 set local lock_timeout = '5s';
 
-create table public.native_practice_reminders (
+create table private.native_practice_reminders (
   event_id uuid primary key references public.internal_schedule_events(id) on delete cascade,
   request_id uuid not null,
   href text not null,
   notification_ids uuid[] not null check (cardinality(notification_ids) between 1 and 200)
 );
-alter table public.native_practice_reminders enable row level security;
-revoke all on public.native_practice_reminders from public, anon, authenticated, service_role;
-grant select, insert on public.native_practice_reminders to service_role;
+alter table private.native_practice_reminders enable row level security;
+revoke all on private.native_practice_reminders from public, anon, authenticated, service_role;
+grant select, insert on private.native_practice_reminders to service_role;
 
 -- Recipient eligibility is shared by preview and send. Only the server can query it.
 create function private.native_practice_reminder_recipients(
@@ -64,7 +64,7 @@ declare
   league_key text := 'Private team ' || p_room::text;
   practice public.internal_schedule_events%rowtype;
   invitation uuid;
-  previous public.native_practice_reminders%rowtype;
+  previous private.native_practice_reminders%rowtype;
   recipients jsonb;
   saved_ids uuid[];
   total integer;
@@ -111,7 +111,7 @@ begin
       and metadata->>'flight' = p_flight;
   if not found then return jsonb_build_object('status',404); end if;
 
-  select * into previous from public.native_practice_reminders where event_id = p_event;
+  select * into previous from private.native_practice_reminders where event_id = p_event;
   if p_request is not null and previous.request_id = p_request and previous.href = p_href then
     return jsonb_build_object('status',200,'count',cardinality(previous.notification_ids));
   end if;
@@ -148,7 +148,7 @@ begin
   select count(*), array_agg(id) into total,saved_ids from saved;
 
   if total > 0 then
-    insert into public.native_practice_reminders(event_id,request_id,href,notification_ids)
+    insert into private.native_practice_reminders(event_id,request_id,href,notification_ids)
       values (p_event,p_request,p_href,saved_ids);
   end if;
   return jsonb_build_object('status',200,'count',total);
@@ -169,7 +169,7 @@ as $$
   select n.id, n.recipient_profile_id, 'schedule', 'Practice RSVP reminder',
     'Open practice to mark In, Out, or Maybe.', n.href, n.conversation_id, n.schedule_event_id, n.read_at, n.created_at
   from public.internal_notifications n
-  join public.native_practice_reminders receipt on receipt.event_id = n.schedule_event_id
+  join private.native_practice_reminders receipt on receipt.event_id = n.schedule_event_id
     and n.id = any(receipt.notification_ids) and n.href = receipt.href
   join public.internal_schedule_events e on e.id = n.schedule_event_id and e.created_by_user_id = n.actor_user_id
   join public.native_private_teams t on t.room_id = n.conversation_id
