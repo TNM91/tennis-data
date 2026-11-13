@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { loadFirstPartyNativeCompetitions, loadTestflightLeagueScores } from '@/lib/native-competitions'
 import { competitionInput, publicCompetitionOwner, type CompetitionSnapshot } from '@/lib/native-competitions-contract'
 import { loadNativeLeagueMatchDay } from '@/lib/native-league-match-day'
+import { loadNativeLeagueAttention } from '@/lib/native-league-attention'
 import { getSignedInPlayerApiAuth, loadPlayerAccess } from '@/lib/player-api-auth'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase-public-config'
 
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
       return auth.response
     }
     const matchDayRequested = request.headers.get('X-TenAceIQ-Match-Day') === '1'
+    const attentionRequested = auth.emailVerified === true && request.headers.get('X-TenAceIQ-League-Attention') === '1'
     const demo = auth.userId !== publicCompetitionOwner && request.headers.get('X-TenAceIQ-League-Score') === '2'
       ? await loadTestflightLeagueScores(auth.supabase, auth.userId, input) : null
     if (demo?.detail) {
@@ -53,9 +55,12 @@ export async function GET(request: Request) {
         moreLeagues: false, moreConnections: false, scoreReviewDemo: true, canOpenLeagueScores: true,
         connections: [{ leagueId: demo.league.id, kind: 'organizer', status: 'active' }],
       }
-      const matchDay = matchDayRequested && auth.emailVerified === true
-        ? await loadNativeLeagueMatchDay(snapshot,auth.userId,true,true).catch(()=>undefined) : undefined
-      return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot, matchDay }, { headers })
+      const [matchDay, attention] = await Promise.all([
+        matchDayRequested && auth.emailVerified === true
+          ? loadNativeLeagueMatchDay(snapshot,auth.userId,true,true).catch(()=>undefined) : undefined,
+        attentionRequested ? loadNativeLeagueAttention(snapshot,auth.userId).catch(()=>undefined) : undefined,
+      ])
+      return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot, matchDay, attention }, { headers })
     }
     const snapshot = await loadFirstPartyNativeCompetitions(auth.supabase, auth.userId, input, overview === '1')
     if (demo) {
@@ -74,12 +79,15 @@ export async function GET(request: Request) {
     const canReviewEntries = organizer && access?.canUseLeagueTools
     const canOpenLeagueScores = team && (canReviewEntries || access?.canUseCaptainWorkflow)
     const matchDayActor = auth.emailVerified === true ? auth.userId : null
-    const matchDay = matchDayRequested && input.selected ? await loadNativeLeagueMatchDay(snapshot,
-      matchDayActor, !!matchDayActor && access?.canUseCaptainWorkflow === true,
-      !!matchDayActor && canReviewEntries === true,
-    ).catch(()=>({matches:[]})) : undefined
+    const [matchDay, attention] = await Promise.all([
+      matchDayRequested && input.selected ? loadNativeLeagueMatchDay(snapshot,
+        matchDayActor, !!matchDayActor && access?.canUseCaptainWorkflow === true,
+        !!matchDayActor && canReviewEntries === true,
+      ).catch(()=>({matches:[]})) : undefined,
+      attentionRequested && canReviewEntries === true ? loadNativeLeagueAttention(snapshot,auth.userId).catch(()=>undefined) : undefined,
+    ])
     return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot,
-      matchDay,
+      matchDay, attention,
       ...(canOpenLeagueScores ? { canOpenLeagueScores: true } : {}),
       ...(canReviewEntries ? { canReviewEntries, canScheduleMatches: true } : {}) }, { headers })
   } catch {

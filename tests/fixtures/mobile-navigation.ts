@@ -19,6 +19,7 @@ import {entryReviewFixture} from './league-entry-data'
 import {decisionReviewFixture} from './league-decisions-data'
 import type {LeagueScheduleChange,LeagueScheduleReview} from '../../lib/native-league-schedule-contract'
 import {leagueCourtResultText,type LeagueScoreCard,type LeagueScoreChange} from '../../lib/native-league-score-contract'
+import {readScoreReminder} from '../../lib/native-league-attention-contract'
 import type {EntryReceipt} from '../../lib/native-league-entry-contract'
 import {publicCompetitionOwner} from '../../lib/native-competitions-contract'
 import {tournamentSnapshot} from './native-tournaments'
@@ -55,6 +56,8 @@ const scopedLeagueScore={
  enabled:new URL(location.href).searchParams.has('league-score-review'),coordinator:false,
  demo:new URL(location.href).searchParams.get('league-score-review')==='demo',
  matchDay:new URL(location.href).searchParams.get('league-score-review')==='match-day',
+ reminders:new Map<string,string>(),
+ reminderRequests:0,
  player:false,
  match:{id:scheduleId(10),a:'Baseline Aces',b:'Rally Crew',date:'2026-11-12',time:'18:30'},
  card:null as LeagueScoreCard|null,
@@ -614,12 +617,19 @@ window.fetch=async(input,init)=>{
    if(matchDay){
     const outcome=card?.state
     const action=outcome==='pending'?(coordinator?'review':'pending'):outcome==='changes_requested'?'fix':'enter'
-    const otherMatch={...snapshot.detail.fixtures[0],id:scheduleId(13),date:'2026-11-11'}
+    const otherMatch={...snapshot.detail.fixtures[0],id:scheduleId(13),date:'2026-11-11',a:'Topspin Club',b:'Deuce Crew'}
     snapshot.detail.fixtures.push(otherMatch)
     snapshot.matchDay={
      matches:outcome==='approved'?[{id:match.id,action:'result',resultId:scheduleId(11)}]:
       player||(!['pending'].includes(outcome??'')&&coordinator)?[]:[{id:match.id,action}],
      ...(coordinator?{pendingReviews:outcome==='pending'?1:0}:{}),
+    }
+    if(coordinator&&!player&&audience!=='public'&&new Headers(init?.headers).get('X-TenAceIQ-League-Attention')==='1'){
+     const next=(id:string)=>scopedLeagueScore.reminders.get(id)??null
+     snapshot.attention=[{id:otherMatch.id,fixtureDigest:'a'.repeat(64),since:'2026-11-12T06:00:00Z',
+      revision:null,note:'',nextReminderAt:next(otherMatch.id)},
+      ...(card?.state==='changes_requested'?[{id:match.id,fixtureDigest:'b'.repeat(64),since:'2026-11-13T15:00:00Z',
+       revision:card.revision,note:card.note,nextReminderAt:next(match.id)}]:[])]
     }
    }
   }
@@ -669,7 +679,19 @@ window.fetch=async(input,init)=>{
     canSubmit:!coordinator||demo,canReview:coordinator||demo,thirdSetRule:'either',
     slots:demo?[{label:'Singles 1',format:'singles'},{label:'Doubles 1',format:'doubles'},{label:'Doubles 2',format:'doubles'}]:[{label:'Singles 1',format:'singles'}]}})
   }
-  const body=JSON.parse(String(init.body)) as LeagueScoreChange
+  const body=JSON.parse(String(init.body)) as LeagueScoreChange | ReturnType<typeof readScoreReminder>
+  if(body.action==='remind'){
+   const correction=body.matchId===match.id&&card?.state==='changes_requested'&&body.revision===card.revision
+   const missing=body.matchId===scheduleId(13)&&body.revision===null
+   if(!coordinator||body.leagueId!==leagueId||!correction&&!missing){
+    return Response.json({ok:false,releaseScope:'first-party',message:'Match access changed.'},{status:409})
+   }
+   scopedLeagueScore.reminderRequests++
+   const nextReminderAt='2026-11-14T15:00:00Z'
+   const code=scopedLeagueScore.reminders.has(body.matchId)?'recent':'sent'
+   scopedLeagueScore.reminders.set(body.matchId,nextReminderAt)
+   return Response.json({...base,matchId:body.matchId,code,count:correction?1:2,nextReminderAt})
+  }
   if(body.leagueId!==leagueId||body.matchId!==match.id||body.revision!==(card?.revision??null)||!demo&&coordinator===(body.action==='submit')){
    return Response.json({ok:false,releaseScope:'first-party',message:'Match access changed.'},{status:409})
   }

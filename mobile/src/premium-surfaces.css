@@ -2387,6 +2387,24 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
 .competition-match-day-review p { margin-top:4px; }
 .competition-schedule-match [data-competition-match-day] { width:100%;margin-block-start:8px; }
 .competition-schedule-match .competition-match-day-pending { border-color:var(--premium-line); }
+.competitions-dialog .competition-attention {
+  margin-block:12px 18px;padding:0;border:0;background:none;
+}
+.competition-attention > h3 { margin-block-end:10px; }
+.competition-attention > ol { display:grid;gap:8px;margin:0;padding:0;list-style:none; }
+.competitions-dialog .competition-attention-card { margin:0; }
+.competition-attention-card .competition-attention-reason {
+  margin:0 0 4px;color:var(--premium-ice);font-size:.8125rem;font-weight:700;
+}
+.competition-attention-card.competition-fixture .competition-opponents { margin-block:4px 6px!important; }
+.competition-attention-note { overflow-wrap:anywhere; }
+.competition-attention-note small { display:block;margin-block-end:3px;color:var(--premium-copy); }
+.competition-attention-controls { display:grid;gap:6px;margin-block-start:10px; }
+.competition-attention-controls button { margin-block-start:0; }
+.competition-attention-action [data-competition-score-remind] { width:100%; }
+.competition-schedule-match .competition-attention-action { margin-block-start:8px; }
+.competition-attention-action [data-reminder-status] { margin:6px 0 0;color:var(--premium-copy);font-size:.8125rem; }
+.competition-attention-action [data-reminder-status]:empty { margin:0; }
 .league-scheduler-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
 .league-scheduler-fields > label { min-width:0; }
 .league-scheduler [data-schedule-form] :is(input:not([type="checkbox"]),select) {

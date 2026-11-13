@@ -11,6 +11,7 @@ import { readReviewedTeamRooms, reviewedTeamRoom, findReviewedTeamConversation }
 import { loadPlayerAccess } from '@/lib/player-api-auth'
 import { supabaseKey } from '@/lib/supabase-public-config'
 import { lineupRecord } from '@/lib/native-captain-lineup-contract'
+import { leagueAttentionFixture, readReminderTime, readScoreReminder } from '@/lib/native-league-attention-contract'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -24,12 +25,16 @@ async function handle(request: Request) {
   if (!account) return fail('Sign in to open the league scorecard.', 401)
   const params = new URL(request.url).searchParams
   let leagueId: string, matchId: string | null, change: ReturnType<typeof readLeagueScoreChange> | undefined
+  let reminder: ReturnType<typeof readScoreReminder> | undefined
   try {
     if (request.method === 'POST') {
       if (params.size) throw Error('Choose a scheduled match.')
-      change = readLeagueScoreChange(await readAccountJson(request, 8192))
-      leagueId = change.leagueId
-      matchId = change.matchId
+      const body = await readAccountJson(request, 8192)
+      if (body?.action === 'remind') reminder = readScoreReminder(body)
+      else change = readLeagueScoreChange(body)
+      const input = reminder ?? change!
+      leagueId = input.leagueId
+      matchId = input.matchId
     } else {
       if ([...params.keys()].some(key => !['league', 'match'].includes(key) || params.getAll(key).length !== 1)) {
         throw Error('Choose a scheduled match.')
@@ -58,6 +63,7 @@ async function handle(request: Request) {
   const access = demo ? null : await loadPlayerAccess(db, owner)
   const coordinator = !!demo || source.created_by_user_id === owner && access?.canUseLeagueTools === true
   const captainAccess = !!demo || access?.canUseCaptainWorkflow === true
+  if (reminder && !coordinator) return fail('Only the league coordinator can remind captains.', 403)
   if (!coordinator && (!matchId || !captainAccess)) return denied()
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!key) throw Error('League score review unavailable')
@@ -74,7 +80,7 @@ async function handle(request: Request) {
 
   let roomA: string | null = null, roomB: string | null = null
   if (fixture) {
-    if (!demo && captainAccess) {
+    if (!demo && (captainAccess || reminder)) {
       const rooms = readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)
       const lookUp = async (teamName: string) => {
         const room = reviewedTeamRoom(rooms, { teamName, leagueName: league.name, flight: league.flight })
@@ -85,8 +91,26 @@ async function handle(request: Request) {
       roomB = b
     }
   }
-  const scope = { p_actor: owner, p_league: leagueId, p_version: league.updatedAt, p_match: matchId,
-    p_captain_access: captainAccess, p_room_a: roomA, p_room_b: roomB }
+  const matchScope = { p_actor: owner, p_league: leagueId, p_version: league.updatedAt, p_match: matchId,
+    p_room_a: roomA, p_room_b: roomB }
+  if (reminder && fixture) {
+    const { data, error } = await service.rpc('native_league_remind_score', {
+      ...matchScope, p_fixture_digest: reminder.fixtureDigest, p_revision: reminder.revision,
+      p_fixture: leagueAttentionFixture(fixture),
+    }).retry(false)
+    if (error) throw Error('League reminder unavailable')
+    const { code, count, nextReminderAt } = lineupRecord(data)
+    if (code === 'forbidden') return fail('Only the league coordinator can remind captains.', 403)
+    if (code === 'stale') return fail('This match or scorecard changed. Refresh the league to see what still needs attention.', 409)
+    const reply = { ok: true, owner, leagueId, matchId, code }
+    if (code === 'no_captains') return json(reply)
+    if (code === 'recent') return json({ ...reply, nextReminderAt: readReminderTime(nextReminderAt) })
+    if (code === 'sent' && typeof count === 'number' && Number.isSafeInteger(count) && count > 0) {
+      return json({ ...reply, count, nextReminderAt: readReminderTime(nextReminderAt) })
+    }
+    throw Error('League reminder unavailable')
+  }
+  const scope = { ...matchScope, p_captain_access: captainAccess }
   const { data: review, error: readError } = await service.rpc('native_league_score_review', scope).retry(false)
   if (readError) throw Error('Scorecard unavailable')
   if (!review) return denied()
@@ -132,7 +156,7 @@ async function handle(request: Request) {
 
 async function respond(request: Request) {
   try { return await handle(request) }
-  catch { return fail('The league scorecard couldn’t be confirmed. Try again.', 503) }
+  catch { return fail('The league score update couldn’t be confirmed. Try again.', 503) }
 }
 export const GET = respond
 export const POST = respond

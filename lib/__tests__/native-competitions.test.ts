@@ -7,6 +7,8 @@ import {attestedLeagueSchedule,leagueScheduleService} from '../native-league-sch
 import {loadNativeLeagueMatchDay} from '../native-league-match-day'
 import {getSignedInPlayerApiAuth,loadPlayerAccess} from '../player-api-auth'
 import {GET as firstPartyCompetitions} from '../../app/api/mobile/first-party/competitions/route'
+import {POST as changeScorecard} from '../../app/api/mobile/first-party/competitions/scores/route'
+import {verifiedAccount} from '../mobile-account-auth'
 import {competitionCardsHtml,competitionSeasonHtml} from '../../mobile/src/competitions-view'
 import {loadCompetitions} from '../../mobile/src/competitions-data'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from '../../tests/fixtures/competitions-data'
@@ -21,6 +23,7 @@ const scoreService = vi.hoisted(()=>vi.fn())
 vi.mock('../mobile-account-auth',async imports=>({
  ...await imports<typeof import('../mobile-account-auth')>(),
  accountClient:scoreService,
+ verifiedAccount:vi.fn(),
 }))
 vi.mock('@supabase/supabase-js', async importOriginal => {
  const actual = await importOriginal<typeof import('@supabase/supabase-js')>()
@@ -227,6 +230,64 @@ describe('first-party league route', () => {
   const unverified=readCompetitionSnapshot(await (await open()).json(),owner,'discover','','league-one')
   expect(unverified.matchDay).toEqual({matches:[]})
   expect(rpc).toHaveBeenLastCalledWith('native_league_match_day',expect.objectContaining({p_actor:null,p_captain_access:false}))
+ })
+
+ it('returns score follow-ups only for a verified coordinator and the exact published fixtures',async()=>{
+  const f=fixture(),id='22222222-2222-4222-8222-222222222222'
+  f.tables.tiq_league_schedule_items[0].id=id
+  await approve(f)
+  account(f.db)
+  vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','synthetic')
+  const access = (canUseLeagueTools:boolean) => vi.mocked(loadPlayerAccess).mockResolvedValue({
+   canUseLeagueTools,canUseCaptainWorkflow:true,
+  } as Awaited<ReturnType<typeof loadPlayerAccess>>)
+  const row={id,fixtureDigest:'a'.repeat(64),revision:null,note:'',since:'2026-11-07T06:00:00Z',nextReminderAt:null}
+  const match={id,a:'Aces',b:'Rallies',date:'2026-11-06',time:'18:00',facility:'Northside',status:'confirmed'}
+  const rpc=vi.fn(()=>({retry:async()=>({error:null,data:[{...row,fixture:match}]})}))
+  scoreService.mockReturnValue({rpc})
+  const open=async()=>readCompetitionSnapshot(await (await firstPartyCompetitions(
+   request('?league=league-one&overview=1',{'X-TenAceIQ-League-Attention':'1'}))).json(),owner,'discover','','league-one')
+  access(false)
+  expect((await open()).attention).toBeUndefined()
+  expect(rpc).not.toHaveBeenCalled()
+  access(true)
+  expect((await open()).attention).toEqual([row])
+  expect(rpc).toHaveBeenLastCalledWith('native_league_score_attention',expect.objectContaining({p_actor:owner,p_matches:[id]}))
+  match.facility='Different court'
+  expect((await open()).attention).toEqual([])
+  vi.mocked(getSignedInPlayerApiAuth).mockResolvedValue({ok:true,supabase:f.db,userId:owner,emailVerified:false})
+  expect((await open()).attention).toBeUndefined()
+  expect(rpc).toHaveBeenCalledTimes(2)
+ })
+
+ it('sends reminders through the coordinator route bound to the exact published fixture',async()=>{
+  const f=fixture(),id='22222222-2222-4222-8222-222222222222'
+  f.tables.tiq_league_schedule_items[0].id=id
+  await approve(f)
+  vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','synthetic')
+  vi.mocked(verifiedAccount).mockResolvedValue({user:{id:owner},token:'verified',recent:false} as
+   NonNullable<Awaited<ReturnType<typeof verifiedAccount>>>)
+  const rpc=vi.fn(() => ({retry:async()=>({error:null,data:{code:'sent',count:2,nextReminderAt:'2026-11-14T15:00:00Z'}})}))
+  scoreService.mockImplementation((key:string)=>key==='synthetic'?{rpc}:f.db)
+  const send=(matchId=id)=>changeScorecard(new Request('https://example.test/api/mobile/first-party/competitions/scores',{
+   method:'POST',headers:{'Content-Type':'application/json','X-TenAceIQ-League-Score':'2'},
+   body:JSON.stringify({action:'remind',leagueId:'league-one',matchId,revision:null,fixtureDigest:'a'.repeat(64)}),
+  }))
+  const setAccess=(allowed:boolean)=>vi.mocked(loadPlayerAccess).mockResolvedValue({
+   canUseLeagueTools:allowed,canUseCaptainWorkflow:!allowed,
+  } as Awaited<ReturnType<typeof loadPlayerAccess>>)
+  setAccess(false)
+  expect((await send()).status).toBe(403)
+  setAccess(true)
+  expect((await send('33333333-3333-4333-8333-333333333333')).status).toBe(403)
+  expect(rpc).not.toHaveBeenCalled()
+  const result=await send()
+  expect(result.headers.get('Cache-Control')).toBe('private, no-store')
+  expect(await result.json()).toMatchObject({ok:true,owner,matchId:id,code:'sent',count:2})
+  expect(rpc).toHaveBeenCalledExactlyOnceWith('native_league_remind_score',expect.objectContaining({
+   p_actor:owner,p_match:id,p_fixture_digest:'a'.repeat(64),p_revision:null,p_room_a:null,p_room_b:null,
+   p_fixture:{id,a:'Aces',b:'Rallies',date:'2026-11-06',time:'18:00',facility:'Northside',status:'confirmed'},
+  }))
  })
 
  it('rejects private guest scopes and defaults to an empty catalog when no approval is configured',async()=>{
