@@ -3,7 +3,7 @@ import {readOfficeSnapshot,type OfficeSnapshot} from './native-league-office-con
 export type CompetitionScope='discover'|'mine'
 export const publicCompetitionOwner='public-competitions'
 export type CompetitionConnection={leagueId:string;kind:'player'|'team'|'organizer';status:'active'|'pending'|'rejected'|'removed'}
-export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean}
+export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean;detailsUnderReview?:true;canReviewEntries?:true}
 export function competitionInput(scope:string,query:string,selected:string){
  if(!['discover','mine'].includes(scope)||query.length>80||selected.length>80||selected&&!/^[a-zA-Z0-9_-]+$/.test(selected))throw Error('Invalid competition selection')
  return {scope:scope as CompetitionScope,query:query.trim().replace(/\s+/g,' '),selected}
@@ -18,5 +18,9 @@ export function readCompetitionSnapshot(value:unknown,owner:string,scope:Competi
   const key=c.leagueId+':'+c.kind+':'+c.status;if(seen.has(key))throw Error('Ambiguous competition entry');seen.add(key)
   return {leagueId:c.leagueId,kind:c.kind as CompetitionConnection['kind'],status:c.status as CompetitionConnection['status']}
  })
- return {...base,scope,query,connections,moreConnections:r.moreConnections}
+ if(r.detailsUnderReview===true&&(!base.detail||base.detail.participants.length||base.detail.fixtures.length||
+   base.detail.results.length||base.detail.standings.length||base.detail.standingsAvailable))throw Error('Unreviewed league details')
+ if(r.canReviewEntries===true&&(!selected||owner===publicCompetitionOwner||!connections.some(c=>c.leagueId===selected&&c.kind==='organizer')))throw Error('League review access changed')
+ return {...base,scope,query,connections,moreConnections:r.moreConnections,
+  ...(r.detailsUnderReview===true?{detailsUnderReview:true as const}:{}),...(r.canReviewEntries===true?{canReviewEntries:true as const}:{})}
 }

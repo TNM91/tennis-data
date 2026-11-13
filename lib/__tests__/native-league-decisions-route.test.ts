@@ -3,9 +3,22 @@ const {auth,access,load,decide}=vi.hoisted(()=>({auth:vi.fn(),access:vi.fn(),loa
 vi.mock('../player-api-auth',()=>({getSignedInPlayerApiAuth:auth,loadPlayerAccess:access}))
 vi.mock('../native-league-decisions',()=>({loadNativeLeagueDecisions:load,decideNativeLeagueEntry:decide}))
 import {GET,POST} from '../../app/api/mobile/league-office/entries/route'
+import {GET as firstPartyGET,POST as firstPartyPOST} from '../../app/api/mobile/first-party/competitions/decisions/route'
 const url='https://example.invalid/api/mobile/league-office/entries',post=(body='{}',suffix='',type='application/json')=>new Request(url+suffix,{method:'POST',headers:{'Content-Type':type},body})
 beforeEach(()=>{vi.clearAllMocks();auth.mockResolvedValue({ok:true,supabase:{caller:'rls'},userId:'owner'});access.mockResolvedValue({canUseLeagueTools:true});load.mockResolvedValue({owner:'owner'});decide.mockResolvedValue({ok:true,status:200})})
 it('requires signed-in League access before reading or writing; Captain alone is insufficient',async()=>{for(const allowed of ['anonymous','captain']){if(allowed==='anonymous')auth.mockResolvedValue({ok:false,response:Response.json({ok:false},{status:401})});else{auth.mockResolvedValue({ok:true,supabase:{},userId:'owner'});access.mockResolvedValue({canUseCaptainTools:true,canUseLeagueTools:false})}for(const [method,r] of [[GET,new Request(url+'?league=one')],[POST,post()]] as const){const response=await method(r);expect(response.status).toBe(allowed==='anonymous'?401:403);expect(response.headers.get('Cache-Control')).toContain('no-store')}}expect(load).not.toHaveBeenCalled();expect(decide).not.toHaveBeenCalled()})
 it('uses only the verified caller and no-store responses',async()=>{expect((await GET(new Request(url+'?league=one'))).status).toBe(200);expect(load).toHaveBeenCalledWith({caller:'rls'},'owner','one');expect((await POST(post())).status).toBe(200);expect(decide).toHaveBeenCalledWith({caller:'rls'},'owner',{})})
 it('rejects ambiguous queries, unsupported content and actual byte overflow',async()=>{for(const suffix of ['','?league=../bad','?league=one&league=two','?league=one&owner=foreign'])expect((await GET(new Request(url+suffix))).status).toBe(400);for(const [body,suffix,type,status] of [['{}','?owner=x','application/json',400],['{}','','text/plain',400],['{','','application/json',400],['"'+'🎾'.repeat(1100)+'"','','application/json',413]] as const)expect((await POST(post(body,suffix,type))).status).toBe(status);expect(decide).not.toHaveBeenCalled()})
 it('preserves conflicts and hides internal failures',async()=>{decide.mockResolvedValue({ok:false,status:409,message:'Review changed.'});expect((await POST(post())).status).toBe(409);load.mockRejectedValue(Error('private diagnostic'));const response=await GET(new Request(url+'?league=one'));expect(response.status).toBe(503);expect(await response.text()).not.toContain('private diagnostic')})
+it('first-party decisions require League access and always use the scoped handler',async()=>{
+ access.mockResolvedValueOnce({canUseLeagueTools:false})
+ const denied=await firstPartyGET(new Request(url+'?league=one'))
+ expect(denied.status).toBe(403)
+ expect(await denied.json()).toMatchObject({releaseScope:'first-party'})
+ expect(load).not.toHaveBeenCalled()
+ const review=await firstPartyGET(new Request(url+'?league=one'))
+ expect(await review.json()).toMatchObject({releaseScope:'first-party',ok:true})
+ expect(load).toHaveBeenCalledWith({caller:'rls'},'owner','one',true)
+ expect((await firstPartyPOST(post())).status).toBe(200)
+ expect(decide).toHaveBeenCalledWith({caller:'rls'},'owner',{},true)
+})

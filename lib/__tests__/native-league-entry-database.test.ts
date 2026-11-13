@@ -8,20 +8,24 @@ import {GET,POST} from '../../app/api/mobile/competitions/entry/route'
 import {loadNativeLeagueDecisions} from '../native-league-decisions'
 import {GET as reviewRequests,POST as decideEntry} from '../../app/api/mobile/league-office/entries/route'
 const owner='11111111-1111-4111-8111-111111111111',director='22222222-2222-4222-8222-222222222222',other='33333333-3333-4333-8333-333333333333',url='https://example.invalid/api/mobile/competitions/entry'
-it('saves only self-attested pending first-party entries against the exact open league version',async()=>{
+it('saves and decides first-party entries only for the reviewed league and entry versions',async()=>{
  const pg=new PGlite()
  try{
   await pg.exec(await readFile('lib/__tests__/fixtures/account-erasure-audited-schema.sql','utf8'))
   await pg.exec("create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$")
   await pg.exec(await readFile('supabase/migrations/20261028000100_native_account_requests.sql','utf8'))
   await pg.exec(await readFile('supabase/migrations/20261113000200_native_first_party_league_entry.sql','utf8'))
+  await pg.exec(await readFile('supabase/migrations/20261113000300_native_first_party_league_decisions.sql','utf8'))
+  const entrySchema=await readFile('supabase/migrations/20260507162000_require_tiq_league_entry_approval.sql','utf8')
+  await pg.exec(entrySchema.slice(entrySchema.indexOf('create or replace function public.set_tiq_entry_updated_at()'),
+   entrySchema.indexOf('alter table public.tiq_team_league_entries enable row level security;')))
   await pg.query("insert into auth.users values($1,'player@example.test',now()),($2,'director@example.test',now())",[owner,director])
   await pg.query("insert into profiles(id,email,role) values($1,'player@example.test','member'),($2,'director@example.test','admin')",[owner,director])
   const version='2026-11-13T10:00:00Z',playerEntry={id:other,player_name:'Demo Serve',player_id:'unreviewed-player',entry_status:'active',
    created_by_user_id:director,eligibility_status:'needs_confirmation',eligibility_rating:4,eligibility_rating_source:'verified',
    eligibility_mixed_pair_role:'unknown',eligibility_review_note:'Self-rated for this league'}
-  await pg.query(`insert into tiq_leagues(id,league_format,season_status,is_public,updated_at)
-   values ('demo','individual','active',true,$1),('team-demo','team','active',true,$1)`,[version])
+  await pg.query(`insert into tiq_leagues(id,league_format,season_status,is_public,updated_at,created_by_user_id)
+   values ('demo','individual','active',true,$1,$2),('team-demo','team','active',true,$1,$2)`,[version,director])
   async function insert(actor:string,league:string,format:string,updatedAt:string,entry:object){
    return (await pg.query<{saved:boolean}>('select native_first_party_league_entry($1,$2,$3,$4,$5) as saved',
     [actor,league,format,updatedAt,JSON.stringify(entry)])).rows[0].saved
@@ -36,6 +40,38 @@ it('saves only self-attested pending first-party entries against the exact open 
   await pg.exec('reset role')
   expect((await pg.query('select created_by_user_id,entry_status,player_id,eligibility_rating_source from tiq_player_league_entries')).rows)
    .toEqual([{created_by_user_id:owner,entry_status:'pending',player_id:null,eligibility_rating_source:'self'}])
+
+  async function decide(actor:string,entryVersion:string,leagueVersion=version,decision='active',league='demo',format='individual',id=other){
+   return (await pg.query<{receipt:unknown}>(`select native_first_party_league_decision(
+     $1,$2,$3,$4,$5,$6,$7,'Confirmed with the entrant.','verified'
+   ) as receipt`,[actor,league,format,leagueVersion,id,entryVersion,decision])).rows[0].receipt
+  }
+  const playerVersion=async()=>(await pg.query<{version:string}>('select updated_at::text as version from tiq_player_league_entries where id=$1',[other])).rows[0].version
+  const initialVersion=await playerVersion()
+  await pg.exec('set role authenticated')
+  await expect(decide(director,initialVersion)).rejects.toMatchObject({code:'42501'})
+  await pg.exec('reset role;set role service_role')
+  expect(await decide(owner,initialVersion)).toBeNull()
+  expect(await decide(director,initialVersion,'2026-11-12T10:00:00Z')).toBeNull()
+  expect(await decide(director,initialVersion,version,'information')).toMatchObject({entry_status:'pending',player_action_required:true})
+  await pg.exec('reset role')
+  const questionVersion=await playerVersion()
+  await pg.exec('set role service_role')
+  expect(await decide(director,questionVersion)).toBeNull()
+  await pg.exec('reset role')
+  await pg.query("update tiq_player_league_entries set player_action_required=false,player_id='imported' where id=$1",[other])
+  const importedVersion=await playerVersion()
+  await pg.exec('set role service_role')
+  expect(await decide(director,importedVersion)).toBeNull()
+  await pg.exec('reset role')
+  await pg.query('update tiq_player_league_entries set player_id=null where id=$1',[other])
+  const replyVersion=await playerVersion()
+  const teamVersion=(await pg.query<{version:string}>('select updated_at::text as version from tiq_team_league_entries where id=$1',[owner])).rows[0].version
+  await pg.exec('set role service_role')
+  expect(await decide(director,questionVersion)).toBeNull()
+  expect(await decide(director,replyVersion)).toMatchObject({entry_status:'active',created_by_user_id:owner,eligibility_rating_source:'self'})
+  expect(await decide(director,replyVersion)).toBeNull()
+  expect(await decide(director,teamVersion,version,'rejected','team-demo','team',owner)).toMatchObject({entry_status:'rejected',team_name:'Demo Aces'})
  }finally{await pg.close()}
 },30000)
 it('walks native review and create-only API through existing PostgreSQL constraints and caller RLS',async()=>{

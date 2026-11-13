@@ -2705,6 +2705,7 @@ test('first-party league entry uses self-reported details and keeps the organize
  await page.getByRole('button',{name:/^Browse leagues/}).click()
  const directory=page.getByRole('dialog',{name:'Competitions',exact:true})
  await directory.getByRole('button',{name:/^Open league Northside Singles Ladder/}).click()
+ await expect(directory.getByRole('button',{name:'Review entry requests'})).toHaveCount(0)
  await directory.getByRole('button',{name:'Entry & registration',exact:true}).click()
  const entry=page.getByRole('dialog',{name:'League entry',exact:true})
  await entry.getByLabel('Player name',{exact:true}).fill('Alex Serve')
@@ -2730,6 +2731,34 @@ test('first-party league entry uses self-reported details and keeps the organize
  await expect(entry.getByRole('alert')).toContainText('Entry status is unavailable')
  expect(await page.evaluate(()=>(window as unknown as {scopedLeagueEntry:{requests:string[]}}).scopedLeagueEntry.requests))
   .toEqual(Array(4).fill('/api/mobile/first-party/competitions/entry'))
+})
+
+test('first-party coordinator approves a league entry and returns to the reviewed overview',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:844})
+ await page.goto(origin+'/?scoped-league-entry=1&league-coordinator=1')
+ await page.getByRole('button',{name:'Compete',exact:true}).click()
+ await page.getByRole('button',{name:/^Browse leagues/}).click()
+ const directory=page.getByRole('dialog',{name:'Competitions',exact:true})
+ await directory.getByRole('button',{name:/^Open league Northside Singles Ladder/}).click()
+ await directory.getByRole('button',{name:'Review entry requests',exact:true}).click()
+ const requests=page.getByRole('dialog',{name:'Entry requests',exact:true})
+ await requests.getByRole('button',{name:'Review Alex Server',exact:true}).click()
+ const approve=requests.getByRole('button',{name:'Approve entry',exact:true})
+ await expect(approve).toBeDisabled()
+ await requests.getByLabel('Review note / question',{exact:true}).fill('Confirmed with Alex.')
+ await requests.getByRole('checkbox',{name:/I reviewed this entry/}).check()
+ await approve.click()
+ await expect(requests.getByText('Approved',{exact:true})).toBeVisible()
+ await requests.getByRole('button',{name:'← League',exact:true}).click()
+ await expect(directory.getByText(/League updates are under review/)).toBeVisible()
+ await expect(directory.getByRole('button',{name:'Review entry requests',exact:true})).toBeFocused()
+ await expect(directory.getByRole('button',{name:'Entry & registration',exact:true})).toBeVisible()
+ await expect(directory.getByRole('navigation',{name:'League views'})).toHaveCount(0)
+ await directory.getByRole('button',{name:'Review entry requests',exact:true}).click()
+ await expect(requests.getByText('No pending requests.',{exact:true})).toBeVisible()
+ expect(await page.evaluate(()=>(window as unknown as {scopedLeagueEntry:{decisionRequests:string[]}}).scopedLeagueEntry.decisionRequests))
+  .toEqual(Array(3).fill('/api/mobile/first-party/competitions/decisions'))
 })
 
 test('first-party tournament request stays available through approval and opens the published court in Calendar',async({page})=>{
@@ -2790,7 +2819,8 @@ for(const guest of [false,true])test(`first-party Explore searches reviewed leag
  await dialog.getByRole('button',{name:/Open league Northside Night League/}).click()
  await dialog.getByRole('button',{name:'Schedule',exact:true}).click()
  await expect(dialog.getByText('Northside · Courts 1–3').first()).toBeVisible()
- await expect(dialog.locator('[data-competition-entry]')).toHaveCount(0)
+ await expect(dialog.locator('[data-competition-entry]')).toHaveCount(guest?0:1)
+ await expect(dialog.getByRole('button',{name:'Review entry requests'})).toHaveCount(0)
  await page.evaluate(()=>{
   const state=(window as unknown as {navigationFixture:{unscopedLeagueReply:boolean}}).navigationFixture
   state.unscopedLeagueReply=true

@@ -3,12 +3,12 @@ import type {SupabaseClient,SupabaseClientOptions} from '@supabase/supabase-js'
 import {loadNativeCompetitions} from '../native-competitions'
 import {competitionInput,publicCompetitionOwner,readCompetitionSnapshot} from '../native-competitions-contract'
 import {reviewedRevisionDigest} from '../first-party-revisions'
-import {getSignedInPlayerApiAuth} from '../player-api-auth'
+import {getSignedInPlayerApiAuth,loadPlayerAccess} from '../player-api-auth'
 import {GET as firstPartyCompetitions} from '../../app/api/mobile/first-party/competitions/route'
 import {competitionCardsHtml,competitionSeasonHtml} from '../../mobile/src/competitions-view'
 import {loadCompetitions} from '../../mobile/src/competitions-data'
 import {competitionOwner as owner,competitionSnapshot,competitionDetail} from '../../tests/fixtures/competitions-data'
-vi.mock('../player-api-auth', () => ({ getSignedInPlayerApiAuth: vi.fn() }))
+vi.mock('../player-api-auth', () => ({ getSignedInPlayerApiAuth: vi.fn(), loadPlayerAccess: vi.fn() }))
 const publicClientFixture = vi.hoisted(() => vi.fn<() => SupabaseClient | undefined>())
 vi.mock('@supabase/supabase-js', async importOriginal => {
  const actual = await importOriginal<typeof import('@supabase/supabase-js')>()
@@ -97,6 +97,26 @@ describe('first-party league route', () => {
   f.tables.tiq_leagues[0].league_name='Unreviewed title'
   const list=await firstPartyCompetitions(request())
   expect(readCompetitionSnapshot(await list.json(),owner,'discover','','').leagues).toEqual([])
+ })
+
+ it('keeps a reviewed overview and the coordinator queue available when an approval changes the roster',async()=>{
+  const f=fixture()
+  await approve(f)
+  account(f.db)
+  vi.mocked(loadPlayerAccess).mockResolvedValue({canUseLeagueTools:true} as Awaited<ReturnType<typeof loadPlayerAccess>>)
+  f.tables.tiq_team_league_entries[0].entry_status='active'
+  const url='?league=league-one&overview=1'
+  const response=await firstPartyCompetitions(request(url))
+  expect(response.status).toBe(200)
+  const snapshot=readCompetitionSnapshot(await response.json(),owner,'discover','','league-one')
+  expect(snapshot).toMatchObject({canReviewEntries:true,detailsUnderReview:true,detail:{
+   league:{name:'City League'},participants:[],fixtures:[],results:[],standings:[],
+  }})
+  expect(JSON.stringify(snapshot)).not.toContain('Waiting')
+  expect((await firstPartyCompetitions(request('?league=league-one'))).status).toBe(503)
+  publicClientFixture.mockReturnValueOnce(f.db)
+  const guest=await firstPartyCompetitions(request(url+'&audience=public'))
+  expect(await guest.json()).toMatchObject({detailsUnderReview:true,connections:[]})
  })
 
  it('rejects private guest scopes and defaults to an empty catalog when no approval is configured',async()=>{

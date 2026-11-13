@@ -7,6 +7,7 @@ import {bindCompetitionSearch,competitionDirectoryHtml,focusCompetitionSearchRes
 import {competitionEntryActionHtml} from './competition-entry-action'
 import {openTournaments} from './tournaments-view'
 import {entryStatusLabel,openLeagueEntry} from './league-entry-view'
+import {openLeagueDecisions} from './league-decisions-view'
 import {bindLeagueMatchFinder,emptyLeagueFinder,emptyLeagueMatchFilters,filterLeagueFixtures,leagueFixtureDay,leagueFixtureHtml,leagueMatchViewHtml,type LeagueMatchFilters} from './league-match-finder'
 import {bindCompetitionScheduleJumps,competitionScheduleClock,competitionScheduleJumpButton,focusCalendarCompetitionMatch,focusCompetitionMatch} from './competition-match-card'
 import {html} from './match-details'
@@ -20,7 +21,7 @@ import {openCaptainCourtScores} from './captain-court-view'
 import {localCalendarDate} from './calendar-data'
 import type {CalendarScorecardSeed} from './personal-match-data'
 type View='home'|'fixtures'|'results'|'standings'|'participants'
-type ReturnPosition={scroll:number}&({target:'league'|'league-entry';id:string}|{target:'registration'})
+type ReturnPosition={scroll:number}&({target:'league'|'league-entry';id:string}|{target:'registration'|'entry-requests'})
 const stateLabel=(v:string)=>(({draft:'Draft',registration_open:'Registration open',active:'In season',completed:'Completed',archived:'Past season'} as Record<string,string>)[v]||v.replaceAll('_',' '))
 export function competitionCardsHtml(snapshot:CompetitionSnapshot){
  return snapshot.leagues.length?'<div class="competition-cards">'+snapshot.leagues.map((l,i)=>{
@@ -64,18 +65,20 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
  let leagueListScroll:number|null=null
  let teamEvidence:ReturnType<typeof openLeagueTeamEvidence>|null=null
  let entry:ReturnType<typeof openLeagueEntry>|null=null
+ let decisions:ReturnType<typeof openLeagueDecisions>|null=null
  let tournaments:ReturnType<typeof openTournaments>|null=null
  let courtDesk:ReturnType<typeof openCaptainCourtScores>|null=null
  const active=()=>!disposed&&current()
- const dispose=()=>{if(disposed)return;disposed=true;version++;courtDesk?.dispose();courtDesk=null;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
+ const dispose=()=>{if(disposed)return;disposed=true;version++;courtDesk?.dispose();courtDesk=null;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;decisions?.dispose();decisions=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const hidden=()=>{if(document.visibilityState==='hidden')dispose()}
- const focus=()=>dialog.querySelector<HTMLElement>(selected?'[data-competition-content] h3':'h2')?.focus({preventScroll:true})
+ const focus=()=>((selected?dialog.querySelector<HTMLElement>('[data-competition-content] h3'):null)??dialog.querySelector<HTMLElement>('h2'))?.focus({preventScroll:true})
  const back=()=>{
   if(!active()){dispose();return true}
   if(courtDesk?.isOpen())return courtDesk.back()
   if(teamEvidence?.isOpen())return teamEvidence.back()
   if(tournaments?.isOpen())return tournaments.back()
   if(entry?.isOpen())return entry.back()
+  if(decisions?.isOpen())return decisions.back()
   if(calendarEntry){dispose();return true}
   if(selected){
    const returning:ReturnPosition|undefined=leagueListScroll===null?undefined:{target:'league',id:selected,scroll:leagueListScroll}
@@ -94,6 +97,8 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   const noMatches=Boolean(query)&&snapshot?.leagues.length===0
   const compactDetail=!!selected&&view!=='home'
   const entryAvailable=!guest&&!!d
+  const canReviewEntries=firstPartyBuild&&!guest&&snapshot?.canReviewEntries===true
+  const detailsUnderReview=snapshot?.detailsUnderReview===true
   const matchFilters=view==='fixtures'||view==='results'?filters[view]:undefined
   const displayedFilters=view==='fixtures'&&showFullSchedule?emptyLeagueMatchFilters():matchFilters
   const toolbar=`<header class="competition-header${compactDetail?' competition-header-compact':''}">
@@ -102,7 +107,12 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    <button type="button" class="secondary" data-competition-refresh ${busy?'disabled':''}>Refresh</button>
   </header>`
   dialog.innerHTML=toolbar+
-   (selected?d?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(d.league.format==='team'?'TiQ team league':'TiQ player league')+'</small><h2 tabindex="-1">'+html(d.league.name)+'</h2><p>'+html([d.league.season,d.league.flight,stateLabel(d.league.status)].filter(Boolean).join(' · '))+'</p><p>'+html(d.league.location||'Location to be confirmed')+'</p></div><nav class="competition-tabs" aria-label="League views">'+(['home','fixtures','results',...(d.league.format==='team'?['standings']:[]),'participants'] as View[]).map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>'+(!entryAvailable||compactDetail?'':competitionEntryActionHtml('league'))+'<div data-competition-content>'+competitionSeasonHtml(d,view,undefined,displayedFilters,view==='participants'||view==='standings'?lists[view]:undefined)+'</div>'+(onChats?'<button type="button" class="secondary competition-chat" data-competition-chats>Open your team chats →</button>':''):'<h2 tabindex="-1">League</h2>':
+   (selected?d?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(d.league.format==='team'?'TiQ team league':'TiQ player league')+'</small><h2 tabindex="-1">'+html(d.league.name)+'</h2><p>'+html([d.league.season,d.league.flight,stateLabel(d.league.status)].filter(Boolean).join(' · '))+'</p><p>'+html(d.league.location||'Location to be confirmed')+'</p></div>'+
+   (detailsUnderReview?'':'<nav class="competition-tabs" aria-label="League views">'+(['home','fixtures','results',...(d.league.format==='team'?['standings']:[]),'participants'] as View[]).map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>')+
+   (!entryAvailable||compactDetail?'':competitionEntryActionHtml('league'))+
+   (canReviewEntries?'<button type="button" class="secondary competition-entry-open" data-competition-decisions>Review entry requests</button>':'')+
+   '<div data-competition-content>'+(detailsUnderReview?'<p class="entry-note">League updates are under review. Check back for the roster, schedule and results.</p>':competitionSeasonHtml(d,view,undefined,displayedFilters,view==='participants'||view==='standings'?lists[view]:undefined))+'</div>'+
+   (onChats?'<button type="button" class="secondary competition-chat" data-competition-chats>Open your team chats →</button>':''):'<h2 tabindex="-1">League</h2>':
    competitionDirectoryHtml('league',query,busy,{count:snapshot?.leagues.length,resetLabel:scope==='mine'?'Show all entries':undefined,controls:guest?'':`<div class="competition-switch" role="group" aria-label="Competition list">
     <button type="button" class="secondary" data-competition-scope="mine" aria-pressed="${scope==='mine'}" ${busy?'disabled':''}>Your entries</button>
     <button type="button" class="secondary" data-competition-scope="discover" aria-pressed="${scope==='discover'}" ${busy?'disabled':''}>Browse leagues</button>
@@ -163,6 +173,14 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   dialog.querySelector('[data-competition-entry]')?.addEventListener('click',()=>{
    if(selected)showEntry(selected,{target:'registration',scroll:dialog.scrollTop})
   })
+  dialog.querySelector('[data-competition-decisions]')?.addEventListener('click',()=>{
+   if(!canReviewEntries||!active()||busy||!selected||decisions?.isOpen())return
+   const scroll=dialog.scrollTop
+   decisions=openLeagueDecisions(client,owner,active,selected,()=>{
+    decisions=null
+    if(active())void load({target:'entry-requests',scroll})
+   },send,'← League')
+  })
   if(d)bindLeagueTeamActions(dialog,d,()=>active()&&!busy,team=>{
    if(teamEvidence?.isOpen())return;const scroll=dialog.scrollTop,id=d.league.id,chosenScope=scope,chosenQuery=query
    teamEvidence=openLeagueTeamEvidence(d,team,active,async valid=>{try{const result=await loadCompetitions(client,owner,()=>active()&&valid(),chosenScope,chosenQuery,id,send);if(!valid()||!result.detail)throw Error('League changed');snapshot=result;notice='';return result.detail}catch(error){if(valid()){snapshot=null;notice='Couldn’t refresh this league. Refresh to try again.'}throw error}},()=>{teamEvidence=null;if(active()){render();restoreLeagueTeamFocus(dialog,team,scroll)}},team.source==='standings'?'← Standings':'← Teams')
@@ -203,7 +221,8 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    busy=false;render()
    const index=returning&&'id' in returning?snapshot?.leagues.findIndex(league=>league.id===returning.id)??-1:-1
    const leagueOpener=index>=0?dialog.querySelector<HTMLElement>('[data-competition-league="'+index+'"]'):null
-   const opener=returning?.target==='registration'?dialog.querySelector<HTMLElement>('[data-competition-entry]'):
+   const opener=returning?.target==='entry-requests'?dialog.querySelector<HTMLElement>('[data-competition-decisions]'):
+    returning?.target==='registration'?dialog.querySelector<HTMLElement>('[data-competition-entry]'):
     returning?.target==='league-entry'?dialog.querySelector<HTMLElement>('[data-competition-league-entry="'+index+'"]')||leagueOpener:leagueOpener
    if(notice)dialog.querySelector<HTMLElement>('[data-competition-notice]')?.focus()
    else if(opener&&returning)restoreListFocus(dialog,opener,returning.scroll)

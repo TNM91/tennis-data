@@ -10,6 +10,7 @@ export async function loadCompetitions(client:SupabaseClient,owner:string,curren
  const session=guest?null:await scenarioOwner(client,owner,current)
  const p=new URLSearchParams({scope,q:input.query});if(selected)p.set('league',selected)
  if(guest)p.set('audience','public')
+ if(firstPartyBuild&&selected)p.set('overview','1')
  const endpoint=firstPartyBuild?'/api/mobile/first-party/competitions':'/api/mobile/competitions'
  const r=await send({url:'https://www.tenaceiq.com'+endpoint+'?'+p,headers:{...(session?{Authorization:'Bearer '+session.access_token}:{}),'Cache-Control':'no-store'},webFetchExtra:{cache:'no-store'},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:30000})
  if(!current())throw Error('Competition context changed')

@@ -16,6 +16,7 @@ import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complet
 import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal,labProfileFixture,labDataReads} from './mobile-navigation-client'
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {entryReviewFixture} from './league-entry-data'
+import {decisionReviewFixture} from './league-decisions-data'
 import type {EntryReceipt} from '../../lib/native-league-entry-contract'
 import {publicCompetitionOwner} from '../../lib/native-competitions-contract'
 import {tournamentSnapshot} from './native-tournaments'
@@ -40,6 +41,8 @@ const scopedRegistration={enabled:new URL(location.href).searchParams.has('scope
 const scopedLeagueEntry={
  enabled:new URL(location.href).searchParams.has('scoped-league-entry'),
  receipt:null as EntryReceipt|null,requests:[] as string[],unscoped:false,
+ coordinator:new URL(location.href).searchParams.has('league-coordinator'),
+ decisionRequests:[] as string[],
 }
 Object.assign(window,{scopedRegistration,scopedLeagueEntry})
 const myEntriesFixture={
@@ -552,11 +555,34 @@ window.fetch=async(input,init)=>{
    if(snapshot.detail)snapshot.detail.league=league
    snapshot.connections=!snapshot.detail&&snapshot.scope==='mine'&&scopedLeagueEntry.receipt
     ? [{leagueId:league.id,kind:'player',status:scopedLeagueEntry.receipt.status}] : []
+   if(snapshot.detail&&scopedLeagueEntry.coordinator&&audience!=='public'){
+    snapshot.connections=[{leagueId:league.id,kind:'organizer',status:'active'}]
+    snapshot.canReviewEntries=true
+   }
+   if(snapshot.detail&&scopedLeagueEntry.receipt?.status==='active'){
+    snapshot.detailsUnderReview=true
+    snapshot.detail={...snapshot.detail,participants:[],fixtures:[],results:[],standings:[],standingsAvailable:false}
+   }
   }
   fixtureState.competitionReads.push({
    path:url.pathname,query:snapshot.query,audience,authenticated:new Headers(init?.headers).has('Authorization'),
   })
   reply={ok:true,releaseScope:scoped&&!fixtureState.unscopedLeagueReply?'first-party':undefined,...snapshot}
+ }
+ if(scopedLeagueEntry.enabled&&url.pathname.endsWith('/competitions/decisions')){
+  scopedLeagueEntry.decisionRequests.push(url.pathname)
+  if(!scopedLeagueEntry.coordinator)return Response.json({ok:false,releaseScope:'first-party'},{status:403})
+  const review={...decisionReviewFixture(),owner:currentNavigationOwner(),leagueName:'Northside Singles Ladder'}
+  const entry=review.entries[0]
+  if(init?.method==='POST'){
+   const body=JSON.parse(String(init.body)) as {leagueId:string;entryId:string;decision:string;confirmed:boolean}
+   if(body.leagueId!==review.leagueId||body.entryId!==entry.id||body.decision!=='active'||!body.confirmed){
+    return Response.json({ok:false,releaseScope:'first-party'},{status:400})
+   }
+   scopedLeagueEntry.receipt={id:entry.id,name:entry.name,status:'active'}
+   return Response.json({ok:true,releaseScope:'first-party',owner:review.owner,leagueId:review.leagueId,receipt:{...entry,status:'active'}})
+  }
+  return Response.json({ok:true,releaseScope:'first-party',...review,entries:scopedLeagueEntry.receipt?.status==='active'?[]:[entry]})
  }
  if(scopedLeagueEntry.enabled&&url.pathname.endsWith('/competitions/entry')){
   scopedLeagueEntry.requests.push(url.pathname)
