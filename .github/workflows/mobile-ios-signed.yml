@@ -33,6 +33,10 @@ on:
         description: Assign an already uploaded build to the existing internal group
         type: boolean
         default: false
+      use_intel_runner:
+        description: Use the Intel Mac pool for a first-party-full internal build
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -53,7 +57,7 @@ jobs:
       contents: read
       actions: read
     environment: apple-testflight
-    runs-on: macos-15
+    runs-on: ${{ inputs.use_intel_runner && inputs.profile == 'first-party-full' && inputs.distribution == 'internal' && 'macos-15-intel' || 'macos-15' }}
     timeout-minutes: 55
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
