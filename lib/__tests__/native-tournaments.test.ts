@@ -1,6 +1,7 @@
 import {afterEach,describe,it,expect,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {loadNativeTournaments} from '../native-tournaments'
+import {testflightTournamentId} from '../testflight-tournament'
 import {tournamentEntryDigest,tournamentRevisionDigest} from '../native-tournament-approvals'
 import {getSignedInPlayerApiAuth} from '../player-api-auth'
 import {GET as firstPartyTournaments} from '../../app/api/mobile/first-party/tournaments/route'
@@ -59,10 +60,29 @@ describe('first-party tournament route', () => {
   const empty = await firstPartyTournaments(request())
   expect(empty.headers.get('Cache-Control')).toBe('private, no-store')
   expect(readTournamentSnapshot(await empty.json(), owner).tournaments).toEqual([])
+  expect(f.calls).toHaveLength(1)
   expect((await firstPartyTournaments(request('?tournament=event-one'))).status).toBe(503)
   vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', '{"event-one":{"summary":"invalid"}}')
   expect((await firstPartyTournaments(request())).status).toBe(503)
-  expect(f.calls).toEqual([])
+  expect(f.calls).toHaveLength(1)
+ })
+
+ it('lists the private doubles demo only for its owner and only in first-party tournaments', async () => {
+  const f = fixture()
+  const id = testflightTournamentId(owner)
+  f.rows.push({...f.division,id,event_id:null,is_public:false,created_by_user_id:owner,entrant_type:'teams',
+   name:'TestFlight Doubles Demo',registration_email:'',entrants:['Demo Casey / Demo Morgan','Demo Alex / Demo Sam'],
+   results:{},schedule:{'r1-m1':{date:'2026-11-14',time:'10:00',court:'Demo Court 2'}}})
+  signedIn(f.db)
+  vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', '')
+  expect(await (await firstPartyTournaments(request())).json()).toMatchObject({tournaments:[{id}]})
+  expect(await (await firstPartyTournaments(request('?tournament='+id))).json()).toMatchObject({
+   detail:{entryAvailable:true,matches:[{court:'Demo Court 2'}]},
+  })
+  expect((await loadNativeTournaments(f.db,owner)).tournaments.map(t=>t.id)).toEqual(['event-one'])
+  vi.mocked(getSignedInPlayerApiAuth).mockResolvedValue({ok:true,supabase:f.db,userId:'20000000-0000-4000-8000-000000000002'})
+  expect(await (await firstPartyTournaments(request())).json()).toMatchObject({tournaments:[]})
+  expect((await firstPartyTournaments(request('?tournament='+id))).status).toBe(503)
  })
 
  it('returns only the reviewed event and division through the existing tournament contract', async () => {

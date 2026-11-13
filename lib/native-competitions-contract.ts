@@ -2,7 +2,7 @@ import {lineupRecord} from './native-captain-lineup-contract'
 import {readOfficeSnapshot,type OfficeSnapshot} from './native-league-office-contract'
 export type CompetitionScope='discover'|'mine'
 export const publicCompetitionOwner='public-competitions'
-export type CompetitionConnection={leagueId:string;kind:'player'|'team'|'organizer';status:'active'|'pending'}
+export type CompetitionConnection={leagueId:string;kind:'player'|'team'|'organizer';status:'active'|'pending'|'rejected'|'removed'}
 export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean}
 export function competitionInput(scope:string,query:string,selected:string){
  if(!['discover','mine'].includes(scope)||query.length>80||selected.length>80||selected&&!/^[a-zA-Z0-9_-]+$/.test(selected))throw Error('Invalid competition selection')
@@ -14,7 +14,7 @@ export function readCompetitionSnapshot(value:unknown,owner:string,scope:Competi
  for(const l of base.leagues){try{new Intl.DateTimeFormat('en',{timeZone:l.timeZone})}catch{throw Error('Invalid league time zone')}}
  if(base.detail?.participants.some(p=>p.status!=='active'))throw Error('Unapproved public entry')
  const seen=new Set<string>(),connections=r.connections.map(value=>{const c=lineupRecord(value)
-  if(typeof c.leagueId!=='string'||!base.leagues.some(l=>l.id===c.leagueId)||!['player','team','organizer'].includes(String(c.kind))||!['active','pending'].includes(String(c.status)))throw Error('Invalid competition entry')
+  if(typeof c.leagueId!=='string'||!base.leagues.some(l=>l.id===c.leagueId)||!['player','team','organizer'].includes(String(c.kind))||!['active','pending','rejected','removed'].includes(String(c.status))||c.kind==='organizer'&&c.status!=='active')throw Error('Invalid competition entry')
   const key=c.leagueId+':'+c.kind+':'+c.status;if(seen.has(key))throw Error('Ambiguous competition entry');seen.add(key)
   return {leagueId:c.leagueId,kind:c.kind as CompetitionConnection['kind'],status:c.status as CompetitionConnection['status']}
  })

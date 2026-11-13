@@ -55,8 +55,9 @@ export async function loadNativeCompetitions(db:SupabaseClient,owner:string,scop
   return text(result.data.linked_player_id)
  }
  const player=approvals?'':await linkedPlayer()
+ const entryStatuses=approvals?['active','pending','rejected','removed']:['active','pending']
  const entries=async(table:string,column:string,value:string)=>{
-  const request=db.from(table).select('league_id,entry_status,'+column).eq(column,value).in('entry_status',['active','pending'])
+  const request=db.from(table).select('league_id,entry_status,'+column).eq(column,value).in('entry_status',entryStatuses)
   if(approvedIds)request.in('league_id',approvedIds)
   return rows(await request.order('league_id').limit(51).abortSignal(timeout()),51)
  }
@@ -68,8 +69,8 @@ export async function loadNativeCompetitions(db:SupabaseClient,owner:string,scop
  ])
  const connections:CompetitionConnection[]=[]
  const add=(source:Row[],kind:'player'|'team',column:string,value:string)=>{for(const r of source){
-  if(r[column]!==value||!text(r.league_id)||!/^[a-zA-Z0-9_-]{1,80}$/.test(text(r.league_id))||!['active','pending'].includes(text(r.entry_status)))throw Error('Entry account changed')
-  const c:CompetitionConnection={leagueId:text(r.league_id),kind,status:r.entry_status as 'active'|'pending'}
+  if(r[column]!==value||!text(r.league_id)||!/^[a-zA-Z0-9_-]{1,80}$/.test(text(r.league_id))||!entryStatuses.includes(text(r.entry_status)))throw Error('Entry account changed')
+  const c:CompetitionConnection={leagueId:text(r.league_id),kind,status:r.entry_status as CompetitionConnection['status']}
   if(!connections.some(x=>x.leagueId===c.leagueId&&x.kind===kind&&x.status===c.status))connections.push(c)
  }}
  add(playerRows,'player','created_by_user_id',owner);add(teamRows,'team','created_by_user_id',owner);add(linkedRows,'player','player_id',player)
