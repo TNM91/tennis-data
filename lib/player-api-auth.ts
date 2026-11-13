@@ -13,6 +13,7 @@ export type PlayerApiAuth =
       ok: true
       supabase: SupabaseClient
       userId: string
+      emailVerified?: boolean
     }
   | {
       ok: false
@@ -82,7 +83,7 @@ export async function getSignedInPlayerApiAuth(request: Request): Promise<Player
     }
   }
 
-  return { ok: true, supabase, userId: user.id }
+  return { ok: true, supabase, userId: user.id, emailVerified: Boolean(user.email && user.email_confirmed_at) }
 }
 
 export async function loadPlayerAccess(supabase: SupabaseClient, userId: string) {
