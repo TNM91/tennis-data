@@ -1,6 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {buildTeamRoomScopeId,normalizeTeamRoomKey,type TeamRoomScope} from './team-room'
 import {checkTeamChatAccess} from './team-chat-updates'
+import {privateTeamRoomId} from './private-team-contract'
 import {resolvePracticeToken} from './captain-practice-rsvp'
 import {assignPracticeDisplayStatuses} from './captain-practice-rsvp'
 import {practiceId,practiceStamp,validPlayerPracticeReply,type PlayerPractice} from './native-player-practice-contract'
@@ -10,6 +11,8 @@ export async function authorizePlayerPracticeScope(service:SupabaseClient,owner:
  if(links.error)return {ok:false as const,status:503};if(links.data?.length!==1)return {ok:false as const,status:403}
  const room=await service.from('internal_conversations').select('id,status').eq('related_entity_type','team_room').eq('related_entity_id',buildTeamRoomScopeId(scope)).maybeSingle()
  if(room.error)return {ok:false as const,status:503};if(!room.data||room.data.status==='closed')return {ok:false as const,status:403}
+ const privateRoom=privateTeamRoomId(scope.leagueName)
+ if(privateRoom&&room.data.id!==privateRoom)return {ok:false as const,status:403}
  const access=await checkTeamChatAccess(service,owner,room.data.id,false);return access.ok?{ok:true as const,status:200}:access
 }
 const str=(v:unknown,n:number,empty=true):v is string=>typeof v==='string'&&v.length<=n&&(empty||!!v.trim())

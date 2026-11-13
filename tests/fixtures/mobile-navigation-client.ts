@@ -144,7 +144,7 @@ export function createClient(){return {
 const chatSignals=new Set<(()=>void)[]>()
 export function emitChatSignal(){for(const callbacks of chatSignals)callbacks[0]?.()}
 export function refreshNavigationSession(){listener?.('TOKEN_REFRESHED',session())}
-export function switchNavigationOwner(){user={id:'22222222-2222-4222-8222-222222222222',email:'another-preview@example.test'};listener?.('SIGNED_IN',session())}
+export function switchNavigationOwner(restore=false){user=restore?{id:navigationOwner,email:'captain@example.test'}:{id:'22222222-2222-4222-8222-222222222222',email:'another-preview@example.test'};listener?.('SIGNED_IN',session())}
 
 export function connectNavigationPlayer(){linked=true}
 

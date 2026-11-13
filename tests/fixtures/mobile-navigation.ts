@@ -6,6 +6,9 @@ import {calendarFixture,calendarPreview} from './mobile-calendar'
 import {openSyntheticLink} from './mobile-navigation-app'
 import {calendarTeamFixture,calendarTeamPreview} from './mobile-calendar-practices'
 import {practiceRsvpPath} from '../../lib/captain-practice-rsvp'
+import {privatePracticeChatPath} from '../../lib/native-practice-share-contract'
+import type {NativePractice} from '../../lib/native-captain-practices'
+import type {PlayerPractice} from '../../lib/native-player-practice-contract'
 import {firstPartyUpdatesFixture,firstPartyUpdatesPreview,updatesFixture,updateCoachStudent} from './mobile-updates-client'
 import {clearCoachDeviceData} from '../../mobile/src/coach-device-cleanup'
 import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complete-browser'
@@ -84,8 +87,11 @@ const privateTools=new URL(location.href).searchParams.get('private-team-tools')
 let privateTeam:(typeof chatTeam&{id:string;leagueLabel:string})|null=privateTools?{
  ...chatTeam,id:chatRoomId,leagueName:'Private team '+chatRoomId,leagueLabel:'Weekend Tennis',
 }:null
-const privateRoster=[{id:navigationOwner,playerId:'',name:'Sam'},{id:'88888888-8888-4888-8888-888888888888',playerId:'',name:'Alex'}]
-let privatePractice:Record<string,unknown>|null=null
+const privateTeammate='22222222-2222-4222-8222-222222222222'
+const privateRoster=[{id:navigationOwner,playerId:'',name:'Sam'},{id:privateTeammate,playerId:'',name:'Alex'}]
+let privatePractice:NativePractice|null=null
+let privateReply:PlayerPractice['mine']['response']='unanswered'
+const privateRsvpPath=practiceRsvpPath('44444444-4444-4444-8444-444444444444')
 let privateLogoUrl=''
 const linkedSchedule=new URL(location.href).searchParams.get('team-schedule')
 const manualScheduleFixture={enabled:new URL(location.href).searchParams.has('manual-team-schedule'),captain:true,
@@ -128,13 +134,41 @@ window.fetch=async(input,init)=>{
  })
  if(url.pathname.includes('/calendar'))calendarPaths.push(url.pathname)
  if(/^\/api\/(team-rooms(?:\/|$)|mobile\/(team-invites|captain\/invites|chats\/unread)$)/.test(url.pathname))firstPartyTeamFixture.integratedReads++
- if(privateTools&&privateTeam&&['/api/mobile/captain/practices','/api/mobile/captain/practices/create','/api/mobile/practices'].includes(url.pathname)){
+ if(privateTools&&privateTeam&&['/api/mobile/captain/practices','/api/mobile/captain/practices/create','/api/mobile/captain/practices/share','/api/mobile/practices'].includes(url.pathname)){
   const owner=currentNavigationOwner(),scope=privateTeam
   if(url.searchParams.get('team')!==scope.teamName||url.searchParams.get('league')!==scope.leagueName||
      url.searchParams.get('flight')!==scope.flight)return Response.json({ok:false},{status:403})
   const base={ok:true,owner,scope,more:false}
-  if(url.pathname==='/api/mobile/practices')return Response.json({...base,practices:[]})
-  if(privateTools!=='captain')return Response.json({ok:false},{status:403})
+  if(url.pathname==='/api/mobile/practices'){
+   if(!privatePractice||owner!==privateTeammate)return Response.json({...base,practices:[]})
+   if(url.searchParams.has('invite')||url.searchParams.get('eventId')!==privatePractice.id)return Response.json({ok:false},{status:404})
+   const {id,title,date,time,endTime,facility,focus,status,updatedAt,capacity}=privatePractice
+   const person=privatePractice.roster[1]
+   if(init?.method==='PATCH'){
+    const reply=JSON.parse(String(init.body))
+    if(reply.eventId!==id||reply.personId!==person.id)return Response.json({ok:false},{status:409})
+    privateReply=reply.response
+    privatePractice.roster[1]={...person,response:privateReply,displayStatus:privateReply,respondedAt:updatedAt}
+   }
+   const practice:PlayerPractice={id,title,date,time,endTime,facility,focus,status,updatedAt,capacity,
+    inCount:Number(privateReply==='in'),waitlistCount:0,mine:{id:person.id,name:person.name,response:privateReply,
+     displayStatus:privateReply,note:'',confirmedAt:null,updatedAt}}
+   return Response.json({...base,practices:[practice]})
+  }
+  if(privateTools!=='captain'||owner!==navigationOwner)return Response.json({ok:false},{status:403})
+  if(url.pathname.endsWith('/share')){
+   if(!privatePractice||url.searchParams.get('eventId')!==privatePractice.id)return Response.json({ok:false},{status:404})
+   if(init?.method!=='POST')return Response.json({...base,practice:privatePractice,rsvpPath:privateRsvpPath})
+   const {action,body,clientMessageId,expectedUpdatedAt}=JSON.parse(String(init.body))
+   if(typeof body!=='string'||!body.endsWith('https://www.tenaceiq.com'+privatePracticeChatPath(privatePractice.id))||body.includes(privateRsvpPath))
+    return Response.json({ok:false},{status:409})
+   const existing=firstPartyTeamMessages.find(message=>message.id===clientMessageId)
+   if(existing?existing.body!==body:action!=='announce'||expectedUpdatedAt!==privatePractice.updatedAt)
+    return Response.json({ok:false},{status:409})
+   if(!existing)firstPartyTeamMessages.push({id:clientMessageId,senderUserId:owner,senderName:'Sam',body,kind:'message',
+    createdAt:'2026-11-13T00:01:00.000Z',isMine:true})
+   return Response.json({...base,eventId:privatePractice.id,announcementId:clientMessageId,body})
+  }
   if(url.pathname.endsWith('/create')){
    if(init?.method!=='POST')return Response.json({...base,roster:privateRoster})
    const {draft}=JSON.parse(String(init.body))
@@ -143,7 +177,7 @@ window.fetch=async(input,init)=>{
     updatedAt:stamp,capacity:draft.capacity,inviteId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     roster:privateRoster.map(person=>({...person,response:'unanswered',displayStatus:'unanswered',respondedAt:null,confirmedAt:null,updatedAt:stamp}))}
    return Response.json({...base,practice:privatePractice,requestId:draft.requestId,
-    rsvpPath:practiceRsvpPath('44444444-4444-4444-8444-444444444444')})
+    rsvpPath:privateRsvpPath})
   }
   return Response.json({...base,practices:privatePractice?[privatePractice]:[]})
  }
@@ -306,13 +340,15 @@ window.fetch=async(input,init)=>{
    return Response.json({ok:false},{status:403})
   }
   const room=team?{...team,id:privateTeam?.id??chatRoomId,chatReady:true,canInviteTeammates:(captainInvitesEnabled||privateTeamFlow)&&owner===navigationOwner,
-   ...(privateTools?{teamPractices:true,canPlanPractice:privateTools==='captain',canManageTeamLogo:privateTools==='captain'}:{}),
+   ...(privateTools?{teamPractices:true,canPlanPractice:privateTools==='captain'&&owner===navigationOwner,
+    canManageTeamLogo:privateTools==='captain'&&owner===navigationOwner}:{}),
    scheduleLinked:Boolean(linkedSchedule),manualFixture:manualScheduleFixture.enabled,canScheduleMatch:manualScheduleFixture.captain&&owner===navigationOwner,
    lastReadAt:'2026-11-06T10:00:00.000Z',members:[],
    ...(chatNamesEnabled?{chatDisplayName:chatNames.get(owner)||''}:{}),
    blockedMembers:chatSafetyFixture.blocked?[{id:firstPartyTeamMessages[0].senderUserId,name:firstPartyTeamMessages[0].senderName}]:[],
    messages:privateTeamFlow?[]:firstPartyTeamMessages.map((message,index)=>chatSafetyFixture.blocked&&index===0
     ?{...message,body:'',deletedAt:'1970-01-01T00:00:00.000Z'}
+    :privateTools?{...message,isMine:message.senderUserId===owner,canManageOwn:message.senderUserId===owner}
     :chatNamesEnabled&&!message.isMine?{...message,senderName:chatNames.get(message.senderUserId)||message.senderName}:message)}:null
   return Response.json({...base,teams,room,nextCursor:''})
  }

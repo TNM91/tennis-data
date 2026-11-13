@@ -40,4 +40,17 @@ describe('shared chat interaction boundaries',()=>{
   const markup=sharedChatPlanHtml(body)!
   expect(markup).toContain('Doubles drills');expect(markup).toContain('Practice cancelled');expect(markup).toContain('View cancellation');expect(markup).toContain('Rain expected &lt;bring cover&gt;');expect(markup).toContain('future practices are unchanged');expect(markup).not.toContain('View practice · RSVP');expect(markup).not.toContain('<bring cover>')
  })
+ it('shows the event card only in private practice chat and keeps public RSVP links separate',()=>{
+  const body=`Team practice invitation\nDoubles drills\nAces · Private team\nDate: 2026-11-03\nTime: 18:00\nLocation: North courts\nhttps://www.tenaceiq.com/team-room?practice=${practiceId}`
+  const markup=chatBodyHtml(body,'private-practice')
+  expect(markup).toContain(`data-chat-practice-event="${practiceId}"`)
+  expect(markup).toContain('6:00 PM')
+  expect(markup).toContain('North courts')
+  expect(markup).not.toContain('https://')
+  expect(chatBodyHtml(body,true)).not.toContain('data-chat-practice-event')
+  for(const changed of [body+'&team=Other',body+'#other',body.replace('www.tenaceiq.com','evil.example'),
+   body.replace('/team-room?practice='+practiceId,practiceRsvpPath(practiceId))]){
+   expect(chatBodyHtml(changed,'private-practice')).not.toContain('data-chat-practice-event')
+  }
+ })
 })

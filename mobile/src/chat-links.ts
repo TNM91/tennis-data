@@ -2,6 +2,8 @@ import {nativeActionIcon as icon} from './native-action-icons'
 import {readAppLink} from './app-links'
 import {pollFields} from '../../lib/team-poll-contract'
 import {chatPlanLink,type ChatPlan} from '../../lib/team-chat-plan-links'
+import {privatePracticeChatEventId} from '../../lib/native-practice-share-contract'
+import {formatCaptainPracticeDate,formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
 export {chatPlanLink} from '../../lib/team-chat-plan-links'
 import {Browser} from './native-browser'
 import {tokenizeTeamRoomMessageBody} from '../../lib/team-room-message-links'
@@ -9,27 +11,33 @@ import {html} from './match-details'
 import {chatWebLink} from './chat-web-link'
 export {chatWebLink} from './chat-web-link'
 type PlanContent={title?:string;detail?:string;meta?:string;label?:string;cancelled?:boolean}
-export function chatPlanCardHtml(plan:ChatPlan,content:PlanContent={}){
+export function chatPlanCardHtml(plan:ChatPlan|{kind:'practice-event';id:string},content:PlanContent={}){
  const poll=plan.kind==='poll'
  return `<button type="button" class="chat-plan-card${content.cancelled?' chat-plan-cancelled':''}" data-chat-${plan.kind}="${html(plan.id)}"><span class="chat-plan-kicker">${icon(poll?'members':'plane')}<span>${html(content.label||(poll?'Team poll':'Team practice'))}</span></span><strong>${html(content.title||(poll?'Have your say':'Get the team on court'))}</strong>${content.detail?`<span class="chat-plan-detail">${html(content.detail)}</span>`:''}${content.meta?`<span class="chat-plan-meta">${html(content.meta)}</span>`:''}<span class="chat-plan-open">${content.cancelled?'View cancellation':poll?'Vote · view results':'View practice · RSVP'}<span aria-hidden="true">→</span></span></button>`
 }
 /** Condense only canonical shared announcements. Never infer live votes, places or RSVP status. */
-export function sharedChatPlanHtml(body:string){
- const lines=body.replace(/\r\n/g,'\n').split('\n'),plan=chatPlanLink(lines.at(-1)||'')
+export function sharedChatPlanHtml(body:string,privatePractice=false){
+ const lines=body.replace(/\r\n/g,'\n').split('\n')
+ const url=lines.at(-1)||''
+ const privateEventId=privatePractice?privatePracticeChatEventId(url):''
+ const plan=privatePractice?(privateEventId?{kind:'practice-event' as const,id:privateEventId}:null):chatPlanLink(url)
  if(!plan)return null
  if(plan.kind==='poll'&&lines[0].startsWith('Poll: ')&&lines.length>=4&&lines.length<=8){
   const question=lines[0].slice(6),rows=lines.slice(1,-1),choices=rows.map((line,index)=>line.startsWith(`${index+1}. `)?line.slice(String(index+1).length+2):'')
   if(pollFields(question,choices))return chatPlanCardHtml(plan,{title:question,detail:choices.slice(0,2).join(' · ')+(choices.length>2?` · +${choices.length-2} more`:''),meta:`${choices.length} choices`})
  }
- if(plan.kind==='practice'&&['Team practice invitation','Practice update','Practice cancelled'].includes(lines[0])&&lines.length>=7&&lines[1].length>0&&lines[1].length<=160&&/^Date: \d{4}-\d{2}-\d{2}$/.test(lines[3])&&lines[4].startsWith('Time: ')&&lines[5].startsWith('Location: ')){
+ if(plan.kind!=='poll'&&['Team practice invitation','Practice update','Practice cancelled'].includes(lines[0])&&lines.length>=7&&lines[1].length>0&&lines[1].length<=300&&/^Date: \d{4}-\d{2}-\d{2}$/.test(lines[3])&&lines[4].startsWith('Time: ')&&lines[5].startsWith('Location: ')){
   const caption=[lines[2],...lines.slice(6,-1)].join('\n')
-  return `<span class="chat-shared-plan">${chatPlanCardHtml(plan,{title:lines[1],label:lines[0],detail:lines[3].slice(6)+' · '+lines[4].slice(6),meta:lines[5].slice(10),cancelled:lines[0]==='Practice cancelled'})}<span class="chat-plan-caption">${html(caption)}</span></span>`
+  const date=lines[3].slice(6),time=lines[4].slice(6)
+  const [start,end]=time.split('–',2)
+  const detail=privatePractice?formatCaptainPracticeDate(date)+' · '+(formatCaptainPracticeTimeRange(start,end)||time):date+' · '+time
+  return `<span class="chat-shared-plan">${chatPlanCardHtml(plan,{title:lines[1],label:lines[0],detail,meta:lines[5].slice(10),cancelled:lines[0]==='Practice cancelled'})}<span class="chat-plan-caption">${html(caption)}</span></span>`
  }
  return null
 }
-export function chatBodyHtml(body:string,plans=false){
- const shared=plans?sharedChatPlanHtml(body):null;if(shared)return shared
- return tokenizeTeamRoomMessageBody(body).map(part=>{const url=part.href&&chatWebLink(part.href),plan=url&&plans?chatPlanLink(url):null;return plan?chatPlanCardHtml(plan):url?`<button type="button" class="chat-web-link" data-chat-url="${html(url)}">${html(part.text)}</button>`:html(part.text)}).join('')
+export function chatBodyHtml(body:string,plans:boolean|'private-practice'=false){
+ const shared=plans?sharedChatPlanHtml(body,plans==='private-practice'):null;if(shared)return shared
+ return tokenizeTeamRoomMessageBody(body).map(part=>{const url=part.href&&chatWebLink(part.href),plan=url&&plans===true?chatPlanLink(url):null;return plan?chatPlanCardHtml(plan):url?`<button type="button" class="chat-web-link" data-chat-url="${html(url)}">${html(part.text)}</button>`:html(part.text)}).join('')
 }
 
 export function openChatLink(value:string,current:()=>boolean,open:typeof Browser.open=options=>Browser.open(options),onClose?:()=>void){
