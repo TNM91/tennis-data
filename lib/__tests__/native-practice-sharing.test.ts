@@ -7,6 +7,7 @@ vi.mock('../team-chat-updates',()=>({checkTeamChatAccess:async()=>state.roomAllo
 import {loadNativePracticeSharing,announceNativePractice} from '../native-practice-sharing'
 import {practiceRsvpPath} from '../captain-practice-rsvp'
 import {freezePracticeAnnouncement} from '../native-practice-share-contract'
+import {privateTeamLeagueKey} from '../private-team-contract'
 const scope={teamName:'Aces',leagueName:'City',flight:'4.0'},owner='owner',eventId='44444444-4444-4444-8444-444444444444',id='55555555-5555-4555-8555-555555555555',token='66666666-6666-4666-8666-666666666666',stamp='2026-10-25T00:00:00.123456+00:00'
 const practice=():NativePractice=>({id:eventId,owner,title:'Return practice',date:'2026-10-30',time:'18:00',endTime:'19:00',facility:'Court 3',recurrence:'weekly',status:'confirmed',focus:'Deep returns',updatedAt:stamp,capacity:2,inviteId:'invite',roster:[]})
 const draft=()=>freezePracticeAnnouncement({practice:practice(),rsvpPath:practiceRsvpPath(token)},scope,'update','Bring balls',id)
@@ -18,5 +19,25 @@ it('announces once through existing team delivery and recovers an exact replay a
 it('never posts during lookup of an absent announcement',async()=>{const d=db();expect((await announceNativePractice(d.service,owner,scope,{action:'lookup',...draft()},d.deliver)).status).toBe(404);expect(d.deliver).not.toHaveBeenCalled()})
 it('rejects stale schedule, changed body, crossed RSVP link and wrong cancellation state before sending',async()=>{for(const change of [{expectedUpdatedAt:'2026-10-24T00:00:00Z'},{body:draft().body.replace('Return practice','Changed title')},{body:draft().body.replace(practiceRsvpPath(token),'/pr/other')},{kind:'cancelled'}]){const d=db();expect((await announceNativePractice(d.service,owner,scope,{action:'announce',...draft(),...change},d.deliver)).status).toBe(409);expect(d.deliver).not.toHaveBeenCalled()}})
 it('rejects edited, removed, wrong-owner or wrong-room existing messages without another delivery',async()=>{for(const change of [{edited_at:stamp},{deleted_at:stamp},{sender_user_id:'other'},{conversation_id:'other'},{message_kind:'message'},{reply_to_message_id:'other'}]){const d=db(),a=draft();await announceNativePractice(d.service,owner,scope,{action:'announce',...a},d.deliver);Object.assign(d.rows.internal_messages!,change);expect((await announceNativePractice(d.service,owner,scope,{action:'lookup',...a},d.deliver)).status).toBe(409);expect(d.deliver).toHaveBeenCalledTimes(1)}})
-it('allows a reviewed cancellation announcement without changing RSVPs or sending through a separate notification path',async()=>{state.practice={...practice(),status:'cancelled'};const d=db(),a=freezePracticeAnnouncement({practice:state.practice,rsvpPath:practiceRsvpPath(token)},scope,'cancelled','Court is closed',id);expect((await announceNativePractice(d.service,owner,scope,{action:'announce',...a},d.deliver)).status).toBe(200);expect(d.deliver).toHaveBeenCalledWith({clientMessageId:id,body:a.body});expect(d.calls.every(c=>['internal_conversations','captain_practice_invites','internal_messages'].includes(c.table))).toBe(true)})
+it('allows a reviewed cancellation announcement without changing RSVPs or sending through a separate notification path',async()=>{state.practice={...practice(),status:'cancelled'};const d=db(),a=freezePracticeAnnouncement({practice:state.practice,rsvpPath:practiceRsvpPath(token)},scope,'cancelled','Court is closed',id);expect((await announceNativePractice(d.service,owner,scope,{action:'announce',...a},d.deliver)).status).toBe(200);expect(d.deliver).toHaveBeenCalledWith({clientMessageId:id,body:a.body},'room');expect(d.calls.every(c=>['internal_conversations','captain_practice_invites','internal_messages'].includes(c.table))).toBe(true)})
 it('validates before private reads and treats delivery or malformed acknowledgments as unconfirmed',async()=>{const d=db();expect((await announceNativePractice(d.service,owner,scope,{action:'announce'},d.deliver)).status).toBe(400);expect(d.calls).toEqual([]);expect((await announceNativePractice(d.service,owner,scope,{action:'announce',...draft()},async()=>Response.json({ok:false},{status:503}))).status).toBe(503);expect((await announceNativePractice(d.service,owner,scope,{action:'announce',...draft()},async()=>Response.json({ok:true,message:{id:'wrong'}}))).status).toBe(503)})
+it('posts an event reference in the exact private room and recovers a duplicate send',async()=>{
+ const roomId='33333333-3333-4333-8333-333333333333'
+ const privateScope={...scope,leagueName:privateTeamLeagueKey(roomId)}
+ const share={practice:practice(),rsvpPath:practiceRsvpPath(token)}
+ const a=freezePracticeAnnouncement(share,privateScope,'invitation','',id,true)
+ const d=db()
+ const deliver=vi.fn(async({body,clientMessageId}:{body:string;clientMessageId:string})=>{
+  d.rows.internal_messages={id:clientMessageId,body,message_kind:'message',sender_user_id:owner,conversation_id:roomId}
+  return Response.json({ok:true,message:{id:clientMessageId,body,kind:'message',isMine:true}})
+ })
+ expect(a.body).toContain('/team-room?practice='+eventId)
+ expect(a.body).not.toContain(token)
+ expect((await announceNativePractice(d.service,owner,privateScope,{action:'announce',...a},deliver)).status).toBe(403)
+ d.rows.internal_conversations={id:roomId,status:'open'}
+ expect((await announceNativePractice(d.service,owner,privateScope,{action:'announce',...a,body:a.body.replace('/team-room?practice='+eventId,share.rsvpPath)},deliver)).status).toBe(409)
+ expect(deliver).not.toHaveBeenCalled()
+ expect((await announceNativePractice(d.service,owner,privateScope,{action:'announce',...a},deliver)).status).toBe(200)
+ expect((await announceNativePractice(d.service,owner,privateScope,{action:'lookup',...a},deliver)).status).toBe(200)
+ expect(deliver).toHaveBeenCalledTimes(1)
+})
