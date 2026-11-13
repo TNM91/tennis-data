@@ -2,10 +2,11 @@ import {lineupRecord} from './native-captain-lineup-contract'
 import {readOfficeResult,readOfficeSnapshot,type OfficeFixture,type OfficeResult,type OfficeSnapshot} from './native-league-office-contract'
 import type {TiqTeamStandingRow} from './tiq-team-standings'
 import {readScheduledLeagueMatch} from './native-league-schedule-contract'
+import {testflightLeagueScoreId} from './testflight-league-scores'
 export type CompetitionScope='discover'|'mine'
 export const publicCompetitionOwner='public-competitions'
 export type CompetitionConnection={leagueId:string;kind:'player'|'team'|'organizer';status:'active'|'pending'|'rejected'|'removed'}
-export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean;detailsUnderReview?:true;canReviewEntries?:true;canScheduleMatches?:true;publishedSchedule?:OfficeFixture[];canOpenLeagueScores?:true;approvedScores?:{results:OfficeResult[];standings:TiqTeamStandingRow[]}}
+export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean;detailsUnderReview?:true;canReviewEntries?:true;canScheduleMatches?:true;publishedSchedule?:OfficeFixture[];canOpenLeagueScores?:true;scoreReviewDemo?:true;approvedScores?:{results:OfficeResult[];standings:TiqTeamStandingRow[]}}
 export function competitionInput(scope:string,query:string,selected:string){
  if(!['discover','mine'].includes(scope)||query.length>80||selected.length>80||selected&&!/^[a-zA-Z0-9_-]+$/.test(selected))throw Error('Invalid competition selection')
  return {scope:scope as CompetitionScope,query:query.trim().replace(/\s+/g,' '),selected}
@@ -42,9 +43,12 @@ export function readCompetitionSnapshot(value:unknown,owner:string,scope:Competi
   approvedScores={results:detail.results.map(readOfficeResult),standings:detail.standings}
  }
  if(r.canOpenLeagueScores===true&&(!selected||owner===publicCompetitionOwner||base.detail?.league.format!=='team'))throw Error('Invalid score review access')
+ if(r.scoreReviewDemo===true&&(!selected||selected!==testflightLeagueScoreId(owner)||r.canOpenLeagueScores!==true||
+    r.canScheduleMatches===true||r.canReviewEntries===true||!connections.some(c=>c.leagueId===selected&&c.kind==='organizer')))throw Error('TestFlight league context changed')
  return {...base,scope,query,connections,moreConnections:r.moreConnections,
   ...(approvedScores?{approvedScores}:{}),
   ...(r.canOpenLeagueScores===true?{canOpenLeagueScores:true as const}:{}),
+  ...(r.scoreReviewDemo===true?{scoreReviewDemo:true as const}:{}),
   ...(r.canScheduleMatches===true?{canScheduleMatches:true as const}:{}),
   ...(publishedSchedule?{publishedSchedule}:{}),
   ...(r.detailsUnderReview===true?{detailsUnderReview:true as const}:{}),...(r.canReviewEntries===true?{canReviewEntries:true as const}:{})}

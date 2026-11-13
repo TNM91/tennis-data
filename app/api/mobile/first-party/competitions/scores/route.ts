@@ -2,7 +2,8 @@ import { accountClient, accountResponse, readAccountJson, verifiedAccount } from
 import { courtAccountId } from '@/lib/native-court-result-contract'
 import { entryLeague } from '@/lib/native-league-entry-contract'
 import { readLeagueScoreCard, readLeagueScoreChange, readLeagueScoreDesk, readLeagueScoreFixture, validateLeagueScoreLines } from '@/lib/native-league-score-contract'
-import { loadFirstPartyNativeCompetitions, publicLeague } from '@/lib/native-competitions'
+import { loadFirstPartyNativeCompetitions, loadTestflightLeagueScores, publicLeague } from '@/lib/native-competitions'
+import { readTestflightScoreLeague, testflightLeagueScoreId } from '@/lib/testflight-league-scores'
 import { nativeLeagueColumns } from '@/lib/native-league-season'
 import { readReviewedRevisions, reviewedRevisionDigest } from '@/lib/first-party-revisions'
 import { resolveTeamMatchFormat } from '@/lib/competition-format-registry'
@@ -39,24 +40,31 @@ async function handle(request: Request) {
     }
   } catch (error) { return fail(error instanceof Error ? error.message : 'Check the scorecard.', 400) }
   const denied = () => fail('Only this match’s captains and league coordinator can open its scorecard.', 403)
-  const approval = readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS, 'detail').get(leagueId)
-  if (!approval) return denied()
+  const modern = request.headers.get('X-TenAceIQ-League-Score') === '2'
   const owner = account.user.id, db = accountClient(supabaseKey, account.token)
-  const { data, error } = await db.from('tiq_leagues').select(nativeLeagueColumns + ',is_public,third_set_rule,team_match_format_id')
+  const isDemo = modern && leagueId === testflightLeagueScoreId(owner)
+  const approval = readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS, 'detail').get(leagueId)
+  if (!isDemo && !approval) return denied()
+  const cols = nativeLeagueColumns + ',is_public,third_set_rule,team_match_format_id'
+  const {data,error} = isDemo ? {data:await readTestflightScoreLeague(db,owner,cols), error:null} : await db.from('tiq_leagues').select(cols)
     .eq('id', leagueId).eq('league_format', 'team').eq('season_status', 'active').eq('is_public', true).maybeSingle()
   if (error) throw Error('League unavailable')
   if (!data) return denied()
-  const source = lineupRecord(data), league = publicLeague(source)
-  if (reviewedRevisionDigest(league) !== approval.summary) return denied()
-  const access = await loadPlayerAccess(db, owner)
-  const coordinator = source.created_by_user_id === owner && access.canUseLeagueTools
-  if (!coordinator && (!matchId || !access.canUseCaptainWorkflow)) return denied()
+  const source = lineupRecord(data), input = { scope: 'discover' as const, query: '', selected: leagueId }
+  const demo = isDemo ? await loadTestflightLeagueScores(db,owner,input) : null
+  if (isDemo && (!demo?.detail || demo.league.updatedAt!==source.updated_at)) return denied()
+  const league = demo?.league ?? publicLeague(source)
+  if (!demo && reviewedRevisionDigest(league) !== approval?.summary) return denied()
+  const access = demo ? null : await loadPlayerAccess(db, owner)
+  const coordinator = !!demo || source.created_by_user_id === owner && access?.canUseLeagueTools === true
+  const captainAccess = !!demo || access?.canUseCaptainWorkflow === true
+  if (!coordinator && (!matchId || !captainAccess)) return denied()
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!key) throw Error('League score review unavailable')
   const service = accountClient(key)
 
-  const { detail, publishedSchedule } = await loadFirstPartyNativeCompetitions(db, owner,
-    { scope: 'discover', query: '', selected: leagueId }, true)
+  const { detail, publishedSchedule } = demo ? {...demo,publishedSchedule:undefined} :
+    await loadFirstPartyNativeCompetitions(db, owner, input, true)
   if (!detail || detail.league.updatedAt !== league.updatedAt) return denied()
   const schedule = publishedSchedule ?? detail.fixtures
   const fixture = matchId ? schedule.find(item => item.id === matchId) : undefined
@@ -66,7 +74,7 @@ async function handle(request: Request) {
 
   let roomA: string | null = null, roomB: string | null = null
   if (fixture) {
-    if (access.canUseCaptainWorkflow) {
+    if (!demo && captainAccess) {
       const rooms = readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)
       const lookUp = async (teamName: string) => {
         const room = reviewedTeamRoom(rooms, { teamName, leagueName: league.name, flight: league.flight })
@@ -78,7 +86,7 @@ async function handle(request: Request) {
     }
   }
   const scope = { p_actor: owner, p_league: leagueId, p_version: league.updatedAt, p_match: matchId,
-    p_captain_access: access.canUseCaptainWorkflow, p_room_a: roomA, p_room_b: roomB }
+    p_captain_access: captainAccess, p_room_a: roomA, p_room_b: roomB }
   const { data: review, error: readError } = await service.rpc('native_league_score_review', scope).retry(false)
   if (readError) throw Error('Scorecard unavailable')
   if (!review) return denied()
@@ -93,8 +101,11 @@ async function handle(request: Request) {
     thirdSetRule: ['full_set', 'match_tiebreak_10'].includes(String(source.third_set_rule)) ? source.third_set_rule : 'either',
   }, matchId)
   if (!visible(desk.match)) return denied()
+  if (!modern && (desk.card?.lines.some(line=>line.outcome) || change?.lines.some(line=>line.outcome))) {
+    return fail('Update TenAceIQ to review walkovers or retirements.', 409)
+  }
   if (!change) return json({ ok: true, owner, leagueId, desk })
-  if (change.action !== 'submit' && !desk.canReview || change.action === 'submit' && !access.canUseCaptainWorkflow) return denied()
+  if (change.action !== 'submit' && !desk.canReview || change.action === 'submit' && !captainAccess) return denied()
   const lines = change.action === 'submit' ? change.lines : change.action === 'approve' ? desk.card?.lines ?? [] : []
   try {
     if (change.action === 'submit' || change.action === 'approve') validateLeagueScoreLines(lines, desk)

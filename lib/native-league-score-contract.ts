@@ -5,7 +5,8 @@ import { isValidCalendarDate } from './calendar-date'
 import { inferTiqBestOfThreeWinner, validateTiqTennisMatchScore } from './tiq-scoring'
 
 export type LeagueScoreDiscipline = 'singles' | 'doubles'
-export type LeagueScoreLine = { format: LeagueScoreDiscipline; score: string; winner: 'A' | 'B' }
+export type LeagueCourtOutcome = 'played' | 'walkover' | 'retirement'
+export type LeagueScoreLine = { format: LeagueScoreDiscipline; score: string; winner: 'A' | 'B'; outcome?: Exclude<LeagueCourtOutcome,'played'> }
 export type LeagueScoreAction = 'submit' | 'approve' | 'return'
 export type LeagueScoreState = 'pending' | 'changes_requested' | 'approved'
 export type LeagueScoreChange = {
@@ -41,7 +42,46 @@ function discipline(value: unknown) {
   return value
 }
 
-export function leagueScoreLine(format: unknown, input: unknown): LeagueScoreLine {
+function retirementScore(input: unknown, rule: LeagueScoreDesk['thirdSetRule'] = 'either'): string {
+  if (rule==='either') {
+    try { return retirementScore(input,'full_set') }
+    catch (error) {
+      try { return retirementScore(input,'match_tiebreak_10') }
+      catch { throw error }
+    }
+  }
+  const score = text(input, 64, true).replace(/[–—]/g, '-').split(/[,\s]+/).filter(Boolean).join(', ')
+  if (!score) return ''
+  const parts = score.split(', ')
+  const invalid = () => Error('Enter only the score when play stopped, like 6-4, 2-1, or leave it blank.')
+  if (parts.length > 3) throw invalid()
+  let aWins=0, bWins=0
+  for (const [i, part] of parts.entries()) {
+    const match = /^(0|[1-9]\d?)-(0|[1-9]\d?)(?:\(\d{1,2}(?:-\d{1,2})?\))?$/.exec(part)
+    if (!match) throw invalid()
+    const a=Number(match[1]), b=Number(match[2]), high=Math.max(a,b), low=Math.min(a,b), gap=high-low
+    const setComplete=(high===6&&low<=4)||(high===7&&(low===5||low===6))
+    const setOpen=high<=5||(high===6&&(low===5||low===6))
+    const breakerComplete=high>=10&&gap>=2&&(high===10||gap===2)
+    const breakerOpen=high<10||gap<=1
+    if (i===2&&!(aWins===1&&bWins===1) ||
+        part.includes('(') && !(high===7&&low===6&&(i<2||rule!=='match_tiebreak_10'))) throw invalid()
+    const complete=i<2 || rule==='full_set' ? setComplete : breakerComplete
+    const unfinished=i<2 || rule==='full_set' ? setOpen : breakerOpen
+    if (complete) { if (a>b) aWins++; else bWins++ }
+    else if (!unfinished || i!==parts.length-1) throw invalid()
+    if (aWins===2||bWins===2) throw Error('This score is complete. Choose Played to record it.')
+  }
+  return score
+}
+
+export function leagueScoreLine(format: unknown, input: unknown, outcome: unknown = 'played', side: unknown = undefined): LeagueScoreLine {
+  if (outcome==='walkover'||outcome==='retirement') {
+    if (side!=='A'&&side!=='B') throw Error('Choose the team awarded this court.')
+    if (outcome==='walkover'&&input!=='') throw Error('Leave the set score blank for a walkover.')
+    return {format:discipline(format),score:outcome==='walkover'?'':retirementScore(input),winner:side,outcome}
+  }
+  if (outcome!=='played') throw Error('Choose a court outcome.')
   const score = text(input, 64).replace(/[–—]/g, '-').replace(/[,\s]+/g, ', ')
   const winner = inferTiqBestOfThreeWinner(score)
   if (!winner) {
@@ -55,7 +95,7 @@ function readLines(value: unknown, requireWinner = false) {
   if (!Array.isArray(value) || value.length > 30) throw Error('Enter up to 30 court scores.')
   return value.map(item => {
     const row = lineupRecord(item)
-    const line = leagueScoreLine(row.format, row.score)
+    const line = leagueScoreLine(row.format, row.score, row.outcome, row.winner)
     if (requireWinner && line.winner !== row.winner) throw Error('The recorded court winner does not match the score.')
     return line
   })
@@ -119,10 +159,17 @@ export function validateLeagueScoreLines(lines: LeagueScoreLine[], desk: Pick<Le
   if (desk.slots.length && (lines.length !== desk.slots.length || lines.some((line, i) => line.format !== desk.slots[i].format))) {
     throw Error('Enter a score for every court in the league’s match format.')
   }
-  for (const { score, winner } of lines) {
+  for (const { score, winner, outcome } of lines) {
+    if (outcome==='walkover') continue
+    if (outcome==='retirement') { retirementScore(score,desk.thirdSetRule); continue }
     const third = validateTiqTennisMatchScore(score, winner).parsedSets[2]
     if (!third) continue
     if (desk.thirdSetRule === 'full_set' && third.kind === 'match_tiebreak') throw Error('This league requires a full third set.')
     if (desk.thirdSetRule === 'match_tiebreak_10' && third.kind !== 'match_tiebreak') throw Error('This league uses a match tiebreak for the third set.')
   }
+}
+
+export function leagueCourtResultText(line: LeagueScoreLine) {
+  return line.outcome==='walkover'?'Walkover':line.outcome==='retirement'
+    ? ['Retired',line.score].filter(Boolean).join(' · ') : line.score
 }

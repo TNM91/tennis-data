@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { loadFirstPartyNativeCompetitions } from '@/lib/native-competitions'
+import { loadFirstPartyNativeCompetitions, loadTestflightLeagueScores } from '@/lib/native-competitions'
 import { competitionInput, publicCompetitionOwner } from '@/lib/native-competitions-contract'
 import { getSignedInPlayerApiAuth, loadPlayerAccess } from '@/lib/player-api-auth'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase-public-config'
@@ -41,7 +41,24 @@ export async function GET(request: Request) {
       auth.response.headers.set('Referrer-Policy', headers['Referrer-Policy'])
       return auth.response
     }
+    const demo = auth.userId !== publicCompetitionOwner && request.headers.get('X-TenAceIQ-League-Score') === '2'
+      ? await loadTestflightLeagueScores(auth.supabase, auth.userId, input) : null
+    if (demo?.detail) return Response.json({
+      ok: true, releaseScope: 'first-party', owner: auth.userId, checkedAt: new Date().toISOString(),
+      scope: input.scope, query: input.query, leagues: [demo.league], detail: demo.detail,
+      moreLeagues: false, moreConnections: false, scoreReviewDemo: true, canOpenLeagueScores: true,
+      connections: [{ leagueId: demo.league.id, kind: 'organizer', status: 'active' }],
+    }, { headers })
     const snapshot = await loadFirstPartyNativeCompetitions(auth.supabase, auth.userId, input, overview === '1')
+    if (demo) {
+      if (snapshot.leagues.length >= 20) {
+        const hidden = snapshot.leagues.pop()
+        snapshot.connections = snapshot.connections.filter(entry => entry.leagueId !== hidden?.id)
+        snapshot.moreLeagues = true
+      }
+      snapshot.leagues.unshift(demo.league)
+      snapshot.connections.unshift({ leagueId: demo.league.id, kind: 'organizer', status: 'active' })
+    }
     const active = snapshot.detail?.league.status === 'active' && auth.userId !== publicCompetitionOwner
     const organizer = active && snapshot.connections.some(connection => connection.kind === 'organizer' && connection.leagueId === input.selected)
     const team = active && snapshot.detail?.league.format === 'team'
