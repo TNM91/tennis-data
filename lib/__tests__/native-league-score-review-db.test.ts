@@ -31,6 +31,7 @@ it('keeps pending scores private, returns corrections, and posts one official re
     await db.exec(await readFile('supabase/migrations/20260507174500_link_tiq_schedule_items_to_results.sql', 'utf8'))
     await db.exec(await readFile('supabase/migrations/20261113000400_native_first_party_league_schedule.sql', 'utf8'))
     await db.exec(await readFile('supabase/migrations/20261113000600_native_league_score_review.sql', 'utf8'))
+    await db.exec(await readFile('supabase/migrations/20261113000700_native_league_score_outcomes.sql', 'utf8'))
     for (const owner of [director, captain, stranger]) {
       await db.query('insert into auth.users(id,email) values($1,$2)', [owner, owner+'@example.test'])
       await db.query('insert into profiles(id,email,role) values($1,$2,$3)', [owner, owner+'@example.test', owner===director?'admin':'member'])
@@ -99,5 +100,47 @@ it('keeps pending scores private, returns corrections, and posts one official re
     await db.exec("update tiq_team_league_match_lines set score='0-6, 0-6'")
     expect(await published()).toEqual([])
     expect((await db.query('select count(*)::int as count from tiq_team_league_match_events')).rows[0]).toEqual({count:1})
+
+    const demo = 'tiq-testflight-scores-'+captain
+    const demoMatch = id(41), demoEntry = id(42)
+    await db.query(`insert into tiq_leagues(id,created_by_user_id,league_name,league_format,season_status,is_public,updated_at,max_match_events)
+      values($1,$2,'TestFlight Score Review','team','active',false,$3,20)`, [demo,captain,version])
+    await db.query(`insert into tiq_team_league_entries(id,league_id,team_name,entry_status,created_by_user_id)
+      values($1,$2,'Aces','active',$3)`, [demoEntry,demo,captain])
+    await db.query(`insert into tiq_league_schedule_items(id,league_id,league_format,participant_a_name,participant_b_name,
+      participant_a_id,scheduled_date,scheduled_time,status,updated_at)
+      values($1,$2,'team','Aces','Rallies',$3,current_date-1,'18:00','coordinator_set',$4)`, [demoMatch,demo,demoEntry,version])
+    const demoLines = [leagueScoreLine('singles','','walkover','A'), leagueScoreLine('doubles','6-4, 2-1','retirement','B'),
+      leagueScoreLine('doubles','','retirement','A')]
+    const demoSave = async (actor:string, action:string, request:number, revision:string|null, lines:unknown, note='') =>
+      (await db.query<{ result: unknown }>(`select native_league_save_score($1,$2,$3,$4,$3,$5,$6,$7,$8,$9,true,null,null) as result`,
+        [actor,demo,version,demoMatch,revision,id(request),action,JSON.stringify(lines),note])).rows[0].result
+    await db.exec('set role service_role')
+    expect(await demoSave(stranger,'submit',44,null,demoLines)).toEqual({code:'stale'})
+    expect(await demoSave(captain,'submit',44,null,[{...demoLines[0],score:'6-0, 6-0'}])).toEqual({code:'invalid'})
+    expect(await demoSave(captain,'submit',44,null,demoLines)).toMatchObject({code:'saved',card:{state:'pending',lines:demoLines}})
+    expect(await demoSave(captain,'return',45,id(44),[],'Check the court outcomes.')).toMatchObject({code:'saved',card:{state:'changes_requested'}})
+    expect(await updates(captain)).toContainEqual({title:'League score needs corrections',href:'/explore/leagues/tiq/'+demo+'?scoreMatch='+demoMatch+'#league-scores'})
+    expect(await demoSave(captain,'submit',46,id(45),demoLines)).toMatchObject({code:'saved',card:{state:'pending'}})
+    expect(await demoSave(captain,'approve',47,id(46),demoLines)).toMatchObject({code:'saved',card:{state:'approved'}})
+    const {rows:privateResults} = await db.query<{ result: OfficeResult[] }>('select native_league_approved_results($1,$2) as result',[demo,version])
+    expect(privateResults[0].result).toEqual([])
+    await db.exec('reset role')
+    const {rows:official} = await db.query<{ result: OfficeResult }>(
+      'select private.native_league_score_result(e) as result from tiq_team_league_match_events e where schedule_item_id=$1',[demoMatch])
+    expect(official[0].result).toMatchObject({winner:'Aces',courts:[
+      {winner:'Side A',score:'Walkover'},{winner:'Side B',score:'Retired · 6-4, 2-1'},{winner:'Side A',score:'Retired'},
+    ]})
+    expect(standingsFromLeagueScores([official[0].result],{})).toMatchObject([{teamName:'Aces',wins:1,lineWins:2},{teamName:'Rallies',losses:1,lineWins:1}])
+    expect(standingsFromLeagueScores([official[0].result],{scoring_system:'dynamic_points'}).map(row=>row.points)).toEqual([0,0])
   } finally { await db.close() }
 }, 30000)
+
+it('preserves partial retirement scores without inferring a winner or accepting an impossible score', () => {
+  expect(leagueScoreLine('doubles','6-4 2-1','retirement','B')).toEqual({format:'doubles',score:'6-4, 2-1',winner:'B',outcome:'retirement'})
+  expect(()=>leagueScoreLine('doubles','','walkover')).toThrow('Choose the team')
+  expect(()=>leagueScoreLine('doubles','6-0, 6-0','walkover','A')).toThrow('Leave the set score blank')
+  for (const score of ['6-4, 6-0','2-1, 6-3','8-1','6-4, 2-1, 0-0','6-4, 4-6, 10-8']) {
+    expect(()=>leagueScoreLine('singles',score,'retirement','A')).toThrow()
+  }
+})

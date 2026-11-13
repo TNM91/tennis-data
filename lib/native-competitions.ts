@@ -5,14 +5,31 @@ import type {OfficeLeague} from './native-league-office-contract'
 import {nativeLeagueColumns,readNativeLeagueSeason} from './native-league-season'
 import {attestedLeagueSchedule,mergeAttestedLeagueMatches} from './native-league-schedule'
 import {beforeApprovedLeagueScores,loadApprovedLeagueScores,standingsFromLeagueScores} from './native-league-score-public'
+import {readTestflightScoreLeague,testflightLeagueScoreId} from './testflight-league-scores'
 type Row=Record<string,unknown>
 const columns=nativeLeagueColumns+',is_public'
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const rows=(r:{data:unknown;error:unknown},max:number):Row[]=>{if(r.error||!Array.isArray(r.data)||r.data.length>max)throw Error('Competition records unavailable');return r.data as Row[]}
 const timeout=()=>AbortSignal.timeout(12000)
-export function publicLeague(r:Row):OfficeLeague{
- if(r.is_public!==true||r.season_status==='draft'||!text(r.id)||!text(r.league_name)||!['team','individual'].includes(text(r.league_format)))throw Error('League visibility changed')
+function leagueSummary(r:Row):OfficeLeague{
+ if(r.season_status==='draft'||!text(r.id)||!text(r.league_name)||!['team','individual'].includes(text(r.league_format)))throw Error('League visibility changed')
  return {id:text(r.id),name:text(r.league_name),format:r.league_format as 'team'|'individual',season:text(r.season_label),status:text(r.season_status),flight:text(r.flight),location:text(r.location_label),startsOn:text(r.starts_on),endsOn:text(r.ends_on),timeZone:text(r.schedule_time_zone)||'America/Chicago',updatedAt:text(r.updated_at)}
+}
+export function publicLeague(r:Row):OfficeLeague{
+ if(r.is_public!==true)throw Error('League visibility changed')
+ return leagueSummary(r)
+}
+
+export async function loadTestflightLeagueScores(db:SupabaseClient,owner:string,input:ReturnType<typeof competitionInput>) {
+ const id=testflightLeagueScoreId(owner)
+ if(!id||input.selected&&input.selected!==id||!input.selected&&input.scope!=='mine')return null
+ const get=()=>readTestflightScoreLeague(db,owner,columns)
+ const source=await get()
+ if(!source)return null
+ const league=leagueSummary(source)
+ if(!input.selected&&input.query&&!league.name.toLowerCase().includes(input.query.toLowerCase()))return null
+ const detail=input.selected?await readNativeLeagueSeason(db,league,source,get,true):null
+ return {league,detail}
 }
 type LeagueApprovals = ReadonlyMap<string, { summary: string; detail: string }>
 
