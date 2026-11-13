@@ -6,7 +6,7 @@ import {loadCompetitions} from './competitions-data'
 import {bindCompetitionSearch,competitionDirectoryHtml,focusCompetitionSearchResults} from './competition-directory'
 import {competitionEntryActionHtml} from './competition-entry-action'
 import {openTournaments} from './tournaments-view'
-import {openLeagueEntry} from './league-entry-view'
+import {entryStatusLabel,openLeagueEntry} from './league-entry-view'
 import {bindLeagueMatchFinder,emptyLeagueFinder,emptyLeagueMatchFilters,filterLeagueFixtures,leagueFixtureDay,leagueFixtureHtml,leagueMatchViewHtml,type LeagueMatchFilters} from './league-match-finder'
 import {bindCompetitionScheduleJumps,competitionScheduleClock,competitionScheduleJumpButton,focusCalendarCompetitionMatch,focusCompetitionMatch} from './competition-match-card'
 import {html} from './match-details'
@@ -25,10 +25,10 @@ const stateLabel=(v:string)=>(({draft:'Draft',registration_open:'Registration op
 export function competitionCardsHtml(snapshot:CompetitionSnapshot){
  return snapshot.leagues.length?'<div class="competition-cards">'+snapshot.leagues.map((l,i)=>{
   const related=snapshot.scope==='mine'?snapshot.connections.filter(c=>c.leagueId===l.id):[]
-  const canViewEntry=!firstPartyBuild&&related.some(c=>c.kind!=='organizer')
+  const canViewEntry=related.some(c=>c.kind!=='organizer')
   const connections=related.map(c=>c.kind==='organizer'?'<li>Season you created</li>':`<li>
    <span>${c.kind==='team'?'Team entry':'Player entry'}</span>
-   <span class="competition-entry-status" data-entry-status="${html(c.status)}">${c.status==='active'?'Approved':'Awaiting approval'}</span>
+   <span class="competition-entry-status" data-entry-status="${html(c.status)}">${c.status==='pending'?'Awaiting approval':entryStatusLabel(c.status)}</span>
   </li>`).join('')
   const name=html(l.name)
   return `<article class="competition-card">
@@ -85,7 +85,7 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   return true
  }
  const showEntry=(id:string,returning:ReturnPosition)=>{
-  if(firstPartyBuild||!active()||busy||entry?.isOpen())return
+  if(guest||!active()||busy||entry?.isOpen())return
   entry=openLeagueEntry(client,owner,active,id,()=>{entry=null;if(active())void load(returning)},send,returning.target==='league-entry'?'entries':'league')
  }
  const render=()=>{
@@ -93,15 +93,16 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   const d=snapshot?.detail
   const noMatches=Boolean(query)&&snapshot?.leagues.length===0
   const compactDetail=!!selected&&view!=='home'
+  const entryAvailable=!guest&&!!d
   const matchFilters=view==='fixtures'||view==='results'?filters[view]:undefined
   const displayedFilters=view==='fixtures'&&showFullSchedule?emptyLeagueMatchFilters():matchFilters
   const toolbar=`<header class="competition-header${compactDetail?' competition-header-compact':''}">
    <button type="button" class="secondary" data-competition-back>${calendarEntry?'Back to calendar':selected?'← Competitions':'Close'}</button>
-   ${!firstPartyBuild&&compactDetail&&d?competitionEntryActionHtml('league',true):''}
+   ${entryAvailable&&compactDetail?competitionEntryActionHtml('league',true):''}
    <button type="button" class="secondary" data-competition-refresh ${busy?'disabled':''}>Refresh</button>
   </header>`
   dialog.innerHTML=toolbar+
-   (selected?d?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(d.league.format==='team'?'TiQ team league':'TiQ player league')+'</small><h2 tabindex="-1">'+html(d.league.name)+'</h2><p>'+html([d.league.season,d.league.flight,stateLabel(d.league.status)].filter(Boolean).join(' · '))+'</p><p>'+html(d.league.location||'Location to be confirmed')+'</p></div><nav class="competition-tabs" aria-label="League views">'+(['home','fixtures','results',...(d.league.format==='team'?['standings']:[]),'participants'] as View[]).map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>'+(firstPartyBuild||compactDetail?'':competitionEntryActionHtml('league'))+'<div data-competition-content>'+competitionSeasonHtml(d,view,undefined,displayedFilters,view==='participants'||view==='standings'?lists[view]:undefined)+'</div>'+(onChats?'<button type="button" class="secondary competition-chat" data-competition-chats>Open your team chats →</button>':''):'<h2 tabindex="-1">League</h2>':
+   (selected?d?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(d.league.format==='team'?'TiQ team league':'TiQ player league')+'</small><h2 tabindex="-1">'+html(d.league.name)+'</h2><p>'+html([d.league.season,d.league.flight,stateLabel(d.league.status)].filter(Boolean).join(' · '))+'</p><p>'+html(d.league.location||'Location to be confirmed')+'</p></div><nav class="competition-tabs" aria-label="League views">'+(['home','fixtures','results',...(d.league.format==='team'?['standings']:[]),'participants'] as View[]).map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>'+(!entryAvailable||compactDetail?'':competitionEntryActionHtml('league'))+'<div data-competition-content>'+competitionSeasonHtml(d,view,undefined,displayedFilters,view==='participants'||view==='standings'?lists[view]:undefined)+'</div>'+(onChats?'<button type="button" class="secondary competition-chat" data-competition-chats>Open your team chats →</button>':''):'<h2 tabindex="-1">League</h2>':
    competitionDirectoryHtml('league',query,busy,{count:snapshot?.leagues.length,resetLabel:scope==='mine'?'Show all entries':undefined,controls:guest?'':`<div class="competition-switch" role="group" aria-label="Competition list">
     <button type="button" class="secondary" data-competition-scope="mine" aria-pressed="${scope==='mine'}" ${busy?'disabled':''}>Your entries</button>
     <button type="button" class="secondary" data-competition-scope="discover" aria-pressed="${scope==='discover'}" ${busy?'disabled':''}>Browse leagues</button>

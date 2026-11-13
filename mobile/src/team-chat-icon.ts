@@ -28,30 +28,41 @@ function readPhotoFile(file:File){
 export function openTeamChatIcon(client:SupabaseClient,owner:string,room:NativeTeamRoom,current:()=>boolean,onClose:(changed:boolean)=>void){
  const dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog team-chat-icon-dialog'
- dialog.setAttribute('aria-label','Team chat icon')
- dialog.innerHTML=`<h1 tabindex="-1">Team chat icon</h1><p>Visible to teammates in ${html(room.teamName)}.</p>
-  <div data-team-icon-preview>${teamChatAvatarHtml(room.teamName,room.teamLogoUrl)}</div>
+ dialog.setAttribute('aria-labelledby','team-chat-icon-title')
+ dialog.innerHTML=`<div class="team-chat-icon-heading">
+  <h2 id="team-chat-icon-title" tabindex="-1">Team chat icon</h2>
+  <button type="button" class="secondary" data-close-icon aria-label="Close team icon editor">Close</button>
+ </div>
   <form>
-   <label>Choose a photo<input type="file" accept="image/*"></label>
-   <button type="submit" disabled>Save team icon</button>
-   ${room.teamLogoUrl?'<button type="button" class="secondary" data-remove-icon>Remove team icon</button>':''}
+   <div class="team-chat-icon-picker">
+    <div data-team-icon-preview>${teamChatAvatarHtml(room.teamName,room.teamLogoUrl)}</div>
+    <button type="button" class="secondary" data-choose-icon>Choose photo</button>
+    <input type="file" accept="image/*" aria-label="Team icon photo" hidden>
+   </div>
+   <div class="team-chat-icon-actions">
+    ${room.teamLogoUrl?'<button type="button" class="secondary" data-remove-icon>Remove icon</button>':''}
+    <button type="submit" aria-label="Save team icon" hidden disabled>Save</button>
+   </div>
    <p role="status"></p>
-   <button type="button" class="secondary" data-close-icon>Back to chat</button>
   </form>`
  const preview=dialog.querySelector<HTMLElement>('[data-team-icon-preview]')!
  const form=dialog.querySelector('form')!,input=form.querySelector('input')!
  const save=form.querySelector<HTMLButtonElement>('button[type="submit"]')!
+ const choose=form.querySelector<HTMLButtonElement>('[data-choose-icon]')!
  const remove=form.querySelector<HTMLButtonElement>('[data-remove-icon]')
+ const dismiss=dialog.querySelector<HTMLButtonElement>('[data-close-icon]')!
  const status=form.querySelector<HTMLElement>('[role="status"]')!
  let photo:ChatPhoto|null=null,busy=false,disposed=false,revision=0
  const active=()=>!disposed&&current()
  const dispose=()=>{disposed=true;revision++;photo=null;dialog.remove()}
  const close=(changed=false)=>{if(disposed)return;dispose();onClose(changed)}
+ choose.onclick=()=>input.click()
  input.onchange=async()=>{
   const file=input.files?.[0]
   if(!file||busy||!active())return
+  input.value=''
   const attempt=++revision
-  photo=null;save.disabled=true
+  photo=null;save.disabled=true;save.hidden=true
   preview.innerHTML=teamChatAvatarHtml(room.teamName,room.teamLogoUrl)
   bindTeamChatAvatars(preview)
   status.textContent='Preparing photo…'
@@ -64,15 +75,15 @@ export function openTeamChatIcon(client:SupabaseClient,owner:string,room:NativeT
    if(!active()||attempt!==revision)return
    photo=next
    preview.innerHTML=teamChatAvatarHtml(room.teamName,next.preview)
-   status.textContent='Photo ready to save.'
-   save.disabled=false
+   status.textContent=''
+   save.hidden=false;save.disabled=false
   }catch{
    if(active()&&attempt===revision)status.textContent='Choose another photo.'
   }
  }
  const submit=async(image:ChatPhoto|null)=>{
   if(!active()||busy)return
-  busy=true;revision++;input.disabled=true;save.disabled=true
+  busy=true;revision++;input.disabled=true;choose.disabled=true;save.disabled=true;dismiss.disabled=true
   if(remove)remove.disabled=true
   status.textContent=image?'Saving team icon…':'Removing team icon…'
   try{
@@ -92,16 +103,16 @@ export function openTeamChatIcon(client:SupabaseClient,owner:string,room:NativeT
   }catch(error){
    if(active())status.textContent=error instanceof Error?error.message:'The team icon could not be saved.'
   }finally{
-   if(active()){busy=false;input.disabled=false;save.disabled=!photo;if(remove)remove.disabled=false}
+   if(active()){busy=false;input.disabled=false;choose.disabled=false;save.disabled=!photo;dismiss.disabled=false;if(remove)remove.disabled=false}
   }
  }
  form.onsubmit=event=>{event.preventDefault();if(photo)void submit(photo)}
  if(remove)remove.onclick=()=>{void submit(null)}
- form.querySelector<HTMLButtonElement>('[data-close-icon]')!.onclick=()=>{if(!busy)close()}
+ dismiss.onclick=()=>{if(!busy)close()}
  dialog.oncancel=event=>{event.preventDefault();if(!busy)close()}
  document.body.append(dialog)
  dialog.showModal()
  bindTeamChatAvatars(preview)
- dialog.querySelector('h1')!.focus({preventScroll:true})
+ dialog.querySelector('h2')!.focus({preventScroll:true})
  return {isOpen:()=>!disposed,close:()=>{if(!busy)close()},dispose,keepWhileHidden:true}
 }

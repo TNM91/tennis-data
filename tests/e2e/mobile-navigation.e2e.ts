@@ -1090,34 +1090,58 @@ test('first-party captain can create and post a practice RSVP list and update th
 
  const image=await page.evaluate(()=>{
   const canvas=document.createElement('canvas')
-  canvas.width=canvas.height=96
+  canvas.width=160
+  canvas.height=96
   const context=canvas.getContext('2d')!
   context.fillStyle='#3a5de2'
-  context.fillRect(0,0,96,96)
+  context.fillRect(0,0,160,96)
   return canvas.toDataURL('image/png').split(',')[1]
  })
  const buffer=Buffer.from(image,'base64')
  await page.route('https://pwxppfazbyourjrsutgx.supabase.co/storage/v1/object/sign/team-room-files/team-logos/**',
   route=>route.fulfill({contentType:'image/png',body:buffer}))
+ await page.setViewportSize({width:320,height:750})
  if(!await page.locator('.chat-room-options').evaluate(element=>(element as HTMLDetailsElement).open))await tools.click()
- await page.getByRole('button',{name:/Add team icon/}).click()
+ const addIcon=page.getByRole('button',{name:'Add icon',exact:true})
+ await expect(page.locator('.chat-team-settings')).toContainText('Baseline Aces')
+ await expect(page.locator('.chat-room-links').getByRole('button',{name:'Add icon',exact:true})).toHaveCount(0)
+ await expect(addIcon).toBeInViewport()
+ await addIcon.click()
  const icon=page.getByRole('dialog',{name:'Team chat icon'})
- await icon.getByLabel('Choose a photo').setInputFiles({name:'team.png',mimeType:'image/png',buffer})
- await expect(icon.getByRole('status')).toHaveText('Photo ready to save.')
- await icon.getByRole('button',{name:'Save team icon',exact:true}).click()
+ const saveIcon=icon.getByRole('button',{name:'Save team icon',exact:true})
+ await expect(saveIcon).toBeHidden()
+ const [picker]=await Promise.all([page.waitForEvent('filechooser'),icon.getByRole('button',{name:'Choose photo',exact:true}).click()])
+ await picker.setFiles({name:'team.png',mimeType:'image/png',buffer})
+ await expect(saveIcon).toBeEnabled()
+ const preview=icon.locator('[data-team-icon-preview] .chats-team-avatar')
+ await expect(preview.locator('img')).toBeVisible()
+ expect(await preview.evaluate(element=>{
+  const box=element.getBoundingClientRect()
+  return {width:box.width,height:box.height,fit:getComputedStyle(element.querySelector('img')!).objectFit}
+ })).toEqual({width:64,height:64,fit:'cover'})
+ expect(await icon.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true)
+ await saveIcon.click()
  await expect(icon).toHaveCount(0)
  await expect(page.locator('.chat-room-identity img')).toBeVisible()
  await page.getByRole('button',{name:'All team chats',exact:true}).click()
  await expect(team.locator('img')).toBeVisible()
  await team.click()
  await tools.click()
- await page.getByRole('button',{name:/Change team icon/}).click()
- await icon.getByRole('button',{name:'Remove team icon',exact:true}).click()
+ const editIcon=page.getByRole('button',{name:'Edit icon',exact:true})
+ await editIcon.click()
+ await icon.getByRole('button',{name:'Close team icon editor',exact:true}).click()
+ await expect(editIcon).toBeFocused()
+ await editIcon.click()
+ await icon.getByRole('button',{name:'Remove icon',exact:true}).click()
  await expect(page.locator('.chat-room-identity img')).toHaveCount(0)
+ await page.setViewportSize({width:390,height:844})
 
  await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
  await team.click()
+ await tools.click()
+ await expect(page.locator('#chat-team-icon')).toHaveCount(0)
+ await page.getByRole('button',{name:'Close team tools',exact:true}).click()
  await practiceCard.click()
  const playerPractice=page.getByRole('dialog',{name:'Team practices',exact:true})
  await expect(playerPractice.getByRole('heading',{name:'Your RSVP · Alex',exact:true})).toBeVisible()
@@ -2671,6 +2695,41 @@ test('first-party preview keeps the app shell and uses only the scoped tournamen
  await expect(tournaments.getByRole('alert')).toContainText('Couldn’t load these tournaments')
  const paths = await page.evaluate(()=>(window as unknown as {navigationFixture:{tournamentReads:string[]}}).navigationFixture.tournamentReads)
  expect(paths).toEqual(Array(4).fill('/api/mobile/first-party/tournaments'))
+})
+
+test('first-party league entry uses self-reported details and keeps the organizer decision visible',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:844})
+ await page.goto(origin+'/?scoped-league-entry=1')
+ await page.getByRole('button',{name:'Compete',exact:true}).click()
+ await page.getByRole('button',{name:/^Browse leagues/}).click()
+ const directory=page.getByRole('dialog',{name:'Competitions',exact:true})
+ await directory.getByRole('button',{name:/^Open league Northside Singles Ladder/}).click()
+ await directory.getByRole('button',{name:'Entry & registration',exact:true}).click()
+ const entry=page.getByRole('dialog',{name:'League entry',exact:true})
+ await entry.getByLabel('Player name',{exact:true}).fill('Alex Serve')
+ await entry.getByLabel('Self-rating (optional)',{exact:true}).fill('4')
+ await entry.getByRole('checkbox',{name:/40 & Over/}).check()
+ await entry.getByRole('button',{name:'Request entry',exact:true}).click()
+ await expect(entry.getByText('Awaiting organizer approval',{exact:true})).toBeVisible()
+ await entry.getByRole('button',{name:'← League',exact:true}).click()
+ await directory.getByRole('button',{name:'← Competitions',exact:true}).click()
+ await directory.getByRole('button',{name:'Your entries',exact:true}).click()
+ await expect(directory.getByText('Awaiting approval',{exact:true})).toBeVisible()
+ await page.evaluate(()=>{
+  const state=(window as unknown as {scopedLeagueEntry:{receipt:{status:string}}}).scopedLeagueEntry
+  state.receipt.status='rejected'
+ })
+ await directory.getByRole('button',{name:'Refresh',exact:true}).click()
+ await expect(directory.getByText('Not approved',{exact:true})).toBeVisible()
+ await directory.getByRole('button',{name:/^View entry for Northside Singles Ladder/}).click()
+ await expect(entry.getByText('Not approved',{exact:true})).toBeVisible()
+ expect(await entry.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await page.evaluate(()=>{(window as unknown as {scopedLeagueEntry:{unscoped:boolean}}).scopedLeagueEntry.unscoped=true})
+ await entry.getByRole('button',{name:'Check entry status',exact:true}).click()
+ await expect(entry.getByRole('alert')).toContainText('Entry status is unavailable')
+ expect(await page.evaluate(()=>(window as unknown as {scopedLeagueEntry:{requests:string[]}}).scopedLeagueEntry.requests))
+  .toEqual(Array(4).fill('/api/mobile/first-party/competitions/entry'))
 })
 
 test('first-party tournament request stays available through approval and opens the published court in Calendar',async({page})=>{

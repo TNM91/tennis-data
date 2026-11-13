@@ -4,13 +4,13 @@ import {scenarioOwner,type ScenarioSend} from './captain-scenarios-data'
 import {entryLeague,entryDraft,readEntryReview,readEntryReceipt,type EntryDraft,type EntryReview} from '../../lib/native-league-entry-contract'
 import {firstPartyBuild} from './build-scope'
 export async function leagueEntryRequest(client:SupabaseClient,owner:string,current:()=>boolean,leagueId:string,submission?:{review:EntryReview;draft:EntryDraft;information?:{entryId:string;updatedAt:string}},send:ScenarioSend=o=>CapacitorHttp.request(o)){
- if(firstPartyBuild)throw Error('League registration is unavailable in this edition.')
  entryLeague(leagueId);const session=await scenarioOwner(client,owner,current)
  const body=submission?submission.information?{leagueId,information:true,...submission.information,draft:entryDraft(submission.draft)}:{leagueId,review:submission.review.review,draft:entryDraft(submission.draft)}:undefined
  if(submission&&(submission.review.owner!==owner||submission.review.leagueId!==leagueId))throw Error('Entry account changed')
  let r:HttpResponse
- try{r=await send({method:body?'POST':'GET',url:'https://www.tenaceiq.com/api/mobile/competitions/entry'+(body?'':'?'+new URLSearchParams({league:leagueId})),headers:{Authorization:'Bearer '+session.access_token,'Cache-Control':'no-store',...(body?{'Content-Type':'application/json'}:{})},...(body?{data:body}:{}),webFetchExtra:{cache:'no-store'},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:60000})}catch{throw Error(body?'Your request could not be confirmed. Check entry status before trying again.':'Entry status is unavailable. Check your connection and try again.')}
+ try{r=await send({method:body?'POST':'GET',url:'https://www.tenaceiq.com/api/mobile/'+(firstPartyBuild?'first-party/':'')+'competitions/entry'+(body?'':'?'+new URLSearchParams({league:leagueId})),headers:{Authorization:'Bearer '+session.access_token,'Cache-Control':'no-store',...(body?{'Content-Type':'application/json'}:{})},...(body?{data:body}:{}),webFetchExtra:{cache:'no-store'},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:60000})}catch{throw Error(body?'Your request could not be confirmed. Check entry status before trying again.':'Entry status is unavailable. Check your connection and try again.')}
  await scenarioOwner(client,owner,current)
+ if(firstPartyBuild&&r.data?.releaseScope!=='first-party')throw Error('Entry status is unavailable. Check your connection and try again.')
  if(r.status!==200){const data=r.data as {message?:unknown};throw Error([400,403,409].includes(r.status)&&typeof data?.message==='string'&&data.message.length<=600?data.message:body?'Your request could not be confirmed. Check entry status before trying again.':'Entry status is unavailable. Check your connection and try again.')}
  if(!body)return {kind:'review' as const,review:readEntryReview(r.data,owner,leagueId)}
  const data=r.data as {ok?:boolean;owner?:string;leagueId?:string;receipt?:unknown;alreadySubmitted?:unknown}

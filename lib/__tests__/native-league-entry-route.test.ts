@@ -3,6 +3,7 @@ const {auth,load,submit,answer}=vi.hoisted(()=>({auth:vi.fn(),load:vi.fn(),submi
 vi.mock('../player-api-auth',()=>({getSignedInPlayerApiAuth:auth}))
 vi.mock('../native-league-entry',()=>({loadNativeLeagueEntry:load,submitNativeLeagueEntry:submit,answerNativeLeagueInformation:answer}))
 import {GET,POST} from '../../app/api/mobile/competitions/entry/route'
+import {GET as scopedGet,POST as scopedPost} from '../../app/api/mobile/first-party/competitions/entry/route'
 const url='https://example.invalid/api/mobile/competitions/entry'
 beforeEach(()=>{vi.clearAllMocks();auth.mockResolvedValue({ok:true,supabase:{caller:'rls'},userId:'owner'});load.mockResolvedValue({owner:'owner'});submit.mockResolvedValue({ok:true,status:200,owner:'owner'})})
 it('authenticates GET and POST before reading or mutating data',async()=>{auth.mockResolvedValue({ok:false,response:Response.json({ok:false},{status:401})});for(const method of [GET,POST]){const r=await method(new Request(url,{method:method===POST?'POST':'GET'}));expect(r.status).toBe(401);expect(r.headers.get('Cache-Control')).toContain('no-store')}expect(load).not.toHaveBeenCalled();expect(submit).not.toHaveBeenCalled()})
@@ -12,3 +13,12 @@ it('bounds actual request bytes and rejects malformed body, content type and que
 it('preserves actionable status without leaking database exceptions',async()=>{submit.mockResolvedValue({ok:false,status:409,message:'Review again.'});expect((await POST(new Request(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}))).status).toBe(409);load.mockRejectedValue(Error('private key'));submit.mockRejectedValue(Error('private key'));for(const [method,request] of [[GET,new Request(url+'?league=one')],[POST,new Request(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})]] as const){const r=await method(request);expect(r.status).toBe(503);expect(await r.text()).not.toContain('private key')}})
 
 it('routes an eligibility reply through the caller-owned information handler',async()=>{answer.mockResolvedValue({ok:true,status:200});const body={information:true,leagueId:'one'};expect((await POST(new Request(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}))).status).toBe(200);expect(answer).toHaveBeenCalledWith({caller:'rls'},'owner',body);expect(submit).not.toHaveBeenCalled()})
+it('passes the first-party scope to each signed-in handler and marks its responses',async()=>{
+ const review=await scopedGet(new Request(url+'?league=league-one'))
+ expect(await review.json()).toMatchObject({ok:true,releaseScope:'first-party'})
+ expect(load).toHaveBeenCalledWith({caller:'rls'},'owner','league-one',true)
+ const body={leagueId:'league-one',review:'a'.repeat(64),draft:{name:'Alex Server'}}
+ const saved=await scopedPost(new Request(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}))
+ expect(await saved.json()).toMatchObject({ok:true,releaseScope:'first-party'})
+ expect(submit).toHaveBeenCalledWith({caller:'rls'},'owner',body,true)
+})

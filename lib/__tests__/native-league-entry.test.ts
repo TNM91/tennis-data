@@ -8,6 +8,8 @@ import {entryCanSubmit,entryDraft,readEntryReview} from '../native-league-entry-
 import {entryReviewHtml} from '../../mobile/src/league-entry-view'
 import {leagueEntryRequest} from '../../mobile/src/league-entry-data'
 import {entryReviewFixture} from '../../tests/fixtures/league-entry-data'
+import {publicLeague} from '../native-competitions'
+import {reviewedRevisionDigest} from '../first-party-revisions'
 const owner=entryReviewFixture().owner,draft={name:'Alex Server',rating:4,ageAttested:true,divisionAttested:false}
 function fixture(){
  const tables:Record<string,Record<string,unknown>[]>={profiles:[{id:owner,linked_player_id:'player-one'}],tiq_leagues:[{id:'league-one',league_name:'Northside 4.0',league_format:'individual',season_status:'active',flight:'40 & Over',notes:'',is_public:true,updated_at:'2026-10-30T04:40:00Z'}],players:[{id:'player-one',name:'Alex Server',location:'Northside',overall_rating:4,rating_source:'verified'}],team_roster_members:[],tiq_player_league_entries:[],tiq_team_league_entries:[]}
@@ -19,6 +21,20 @@ function fixture(){
 }
 beforeEach(()=>{access.mockReset();access.mockResolvedValue({canEnterTiqTeamLeague:true})})
 describe('native league entry authorization and persistence',()=>{
+ it('requires reviewed first-party league metadata and uses only self-reported evidence',async()=>{
+  const f=fixture(),league=f.tables.tiq_leagues[0]
+  league.notes='55 & Over'
+  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS',JSON.stringify({
+   'league-one':{summary:reviewedRevisionDigest(publicLeague(league)),detail:'a'.repeat(64)},
+  }))
+  try{
+   const result=await loadNativeLeagueEntry(f.db,owner,'league-one',true)
+   expect(result).toMatchObject({player:{id:'',name:'',rating:null},requirement:{ageDivision:'40 & Over'}})
+   expect(f.calls.map(call=>call.table)).toEqual(['tiq_leagues','tiq_player_league_entries','tiq_leagues'])
+   league.flight='55 & Over'
+   await expect(loadNativeLeagueEntry(f.db,owner,'league-one',true)).rejects.toThrow('League unavailable')
+  }finally{vi.unstubAllEnvs()}
+ })
  it('previews the exact linked identity and requirements without writing or exposing private fields',async()=>{const f=fixture();f.tables.players[0].email='private';const r=await loadNativeLeagueEntry(f.db,owner,'league-one');expect(r.player).toMatchObject({id:'player-one',name:'Alex Server',ratingSource:'verified'});expect(r.requirement).toMatchObject({ratingLevel:4,ageDivision:'40 & Over'});expect(readEntryReview({ok:true,...r},owner,'league-one')).toEqual(r);expect(JSON.stringify(r)).not.toContain('private');expect(f.inserts()).toBe(0);expect(access).not.toHaveBeenCalled()})
  it('creates only pending entries and recovers exact repeats without changing an organizer decision',async()=>{const f=fixture(),review=await loadNativeLeagueEntry(f.db,owner,'league-one');const first=await submitNativeLeagueEntry(f.db,owner,{leagueId:'league-one',review:review.review,draft});expect(first).toMatchObject({ok:true,receipt:{name:'Alex Server',status:'pending'}});const saved=f.tables.tiq_player_league_entries[0];expect(saved).toMatchObject({created_by_user_id:owner,updated_by_user_id:owner,player_id:'player-one',eligibility_age_division:'40 & Over',eligibility_age_division_source:'self'});saved.entry_status='active';f.tables.tiq_leagues[0].season_status='completed';const retry=await submitNativeLeagueEntry(f.db,owner,{leagueId:'league-one',review:review.review,draft});expect(retry).toMatchObject({ok:true,alreadySubmitted:true,receipt:{status:'active'}});expect(f.inserts()).toBe(1)})
  it('recovers a lost insert reply from the saved entry on retry',async()=>{const f=fixture(),r=await loadNativeLeagueEntry(f.db,owner,'league-one');f.loseReply();expect(await submitNativeLeagueEntry(f.db,owner,{leagueId:'league-one',review:r.review,draft})).toMatchObject({ok:false,status:503});expect(await submitNativeLeagueEntry(f.db,owner,{leagueId:'league-one',review:r.review,draft})).toMatchObject({ok:true,receipt:{status:'pending'},alreadySubmitted:true});expect(f.inserts()).toBe(1)})
