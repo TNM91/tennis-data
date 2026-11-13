@@ -42,10 +42,14 @@ export async function GET(request: Request) {
       return auth.response
     }
     const snapshot = await loadFirstPartyNativeCompetitions(auth.supabase, auth.userId, input, overview === '1')
-    const canReviewEntries = snapshot.detail?.league.status === 'active' &&
-      snapshot.connections.some(connection => connection.kind === 'organizer' && connection.leagueId === input.selected) &&
-      (await loadPlayerAccess(auth.supabase, auth.userId)).canUseLeagueTools
+    const active = snapshot.detail?.league.status === 'active' && auth.userId !== publicCompetitionOwner
+    const organizer = active && snapshot.connections.some(connection => connection.kind === 'organizer' && connection.leagueId === input.selected)
+    const team = active && snapshot.detail?.league.format === 'team'
+    const access = organizer || team ? await loadPlayerAccess(auth.supabase, auth.userId) : null
+    const canReviewEntries = organizer && access?.canUseLeagueTools
+    const canOpenLeagueScores = team && (canReviewEntries || access?.canUseCaptainWorkflow)
     return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot,
+      ...(canOpenLeagueScores ? { canOpenLeagueScores: true } : {}),
       ...(canReviewEntries ? { canReviewEntries, canScheduleMatches: true } : {}) }, { headers })
   } catch {
     return Response.json({ ok: false, message: 'Leagues are unavailable. Refresh to try again.' }, { status: 503, headers })
