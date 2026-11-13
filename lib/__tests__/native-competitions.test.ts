@@ -8,7 +8,13 @@ import {competitionOwner as owner,competitionSnapshot,competitionDetail} from '.
 import {GET as firstPartyCompetitions} from '../../app/api/mobile/first-party/competitions/route'
 import {getSignedInPlayerApiAuth,loadPlayerAccess} from '../player-api-auth'
 import {reviewedRevisionDigest} from '../first-party-revisions'
+import {attestedLeagueSchedule,leagueScheduleService} from '../native-league-schedule'
 vi.mock('../player-api-auth',()=>({getSignedInPlayerApiAuth:vi.fn(),loadPlayerAccess:vi.fn()}))
+vi.mock('../native-league-schedule', async imports => ({
+ ...await imports<typeof import('../native-league-schedule')>(),
+ attestedLeagueSchedule:vi.fn().mockResolvedValue([]),
+ leagueScheduleService:vi.fn(),
+}))
 
 it('returns a scoped guest league catalog without reading unapproved data',async()=>{
  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS','')
@@ -35,6 +41,38 @@ function fixture(){
  return {db,tables,calls,errors,changePublic:()=>{changePublic=true},changePlayer:()=>{changePlayer=true}}
 }
 describe('public TiQ competitions through caller RLS',()=>{
+ it('merges attested score approvals without publishing unrelated changes',async()=>{
+  const f=fixture()
+  const {detail}=await loadNativeCompetitions(f.db,owner,'discover','','league-one')
+  const approvals=new Map([['league-one',{summary:reviewedRevisionDigest(detail!.league),detail:reviewedRevisionDigest(detail)}]])
+  const scheduled={id:'22222222-2222-4222-8222-222222222222',date:'2026-11-07',time:'18:00',
+   facility:'Northside',a:'Aces',b:'Rallies',status:'coordinator_set'}
+  const approved={id:'22222222-2222-4222-8222-222222222223',date:scheduled.date,
+   a:scheduled.a,b:scheduled.b,winner:'Rallies',score:'',
+   courts:[{label:'Line 1 · Singles',a:'',b:'',winner:'Side B',score:'0-6, 0-6'}]}
+  f.tables.tiq_league_schedule_items.unshift({id:scheduled.id,league_id:'league-one',league_format:'team',
+   participant_a_name:scheduled.a,participant_b_name:scheduled.b,scheduled_date:scheduled.date,
+   scheduled_time:scheduled.time,facility:scheduled.facility,status:scheduled.status})
+  f.tables.tiq_team_league_match_events.unshift({id:approved.id,league_id:'league-one',team_a_name:approved.a,
+   team_b_name:approved.b,match_date:approved.date,winner_team_name:approved.winner})
+  f.tables.tiq_team_league_match_lines.push({id:'new-line',event_id:approved.id,line_number:1,match_type:'singles',
+   winner_side:'B',score:approved.courts[0].score})
+  const rpc=vi.fn(() => ({retry:async()=>({data:[approved],error:null})}))
+  vi.mocked(leagueScheduleService).mockReturnValueOnce({rpc} as unknown as SupabaseClient)
+   .mockReturnValueOnce({rpc} as unknown as SupabaseClient)
+  vi.mocked(attestedLeagueSchedule).mockResolvedValueOnce([{match:{...scheduled,court:'',duration:null},original:null}])
+   .mockResolvedValueOnce([{match:{...scheduled,court:'',duration:null},original:null}])
+  const publicView=()=>loadNativeCompetitions(f.db,'public-competitions','discover','','league-one',approvals,true)
+  const merged=await publicView()
+  expect(merged.detailsUnderReview).toBeUndefined()
+  expect(merged.detail?.standings[0]).toMatchObject({teamName:'Rallies',wins:1,losses:1})
+  expect(merged.detail?.results).toHaveLength(2)
+  f.tables.tiq_team_league_match_lines.find(line=>line.id==='line-one')!.score='7-5, 7-5'
+  const filtered=await publicView()
+  expect(filtered).toMatchObject({detailsUnderReview:true,publishedSchedule:[scheduled],detail:{results:[],standings:[]},
+   approvedScores:{results:[approved],standings:[{teamName:'Rallies',wins:1},{teamName:'Aces',losses:1}]}})
+  expect(JSON.stringify(filtered)).not.toContain('7-5')
+ })
  it('bounds discovery and excludes private and draft seasons',async()=>{const f=fixture();f.tables.tiq_leagues.push({...f.tables.tiq_leagues[0],id:'private',is_public:false},{...f.tables.tiq_leagues[0],id:'draft',season_status:'draft'});const r=await loadNativeCompetitions(f.db,owner);expect(r.leagues.map(l=>l.id)).toEqual(['league-one']);expect(f.calls).toHaveLength(1);expect(f.calls[0].ops).toContainEqual(['eq','is_public',true]);expect(f.calls[0].ops).toContainEqual(['neq','season_status','draft']);expect(f.calls[0].ops).toContainEqual(['limit',21]);expect(JSON.stringify(r.leagues)).not.toContain('created_by_user_id');expect(r.detail).toBeNull()})
  it('shows only caller submissions, exact linked-player entries and public created seasons',async()=>{const f=fixture(),r=await loadNativeCompetitions(f.db,owner,'mine');expect(r.connections).toEqual(expect.arrayContaining([{leagueId:'league-one',kind:'player',status:'active'},{leagueId:'league-one',kind:'team',status:'pending'},{leagueId:'league-one',kind:'organizer',status:'active'}]));expect(JSON.stringify(r)).not.toContain('phone');expect(f.calls.filter(c=>c.table==='profiles')).toHaveLength(2);expect(r.leagues).toHaveLength(1)})
  it('does not use names to infer participation and rejects a changing linked player',async()=>{const f=fixture();f.tables.tiq_leagues[0].created_by_user_id='director';f.tables.tiq_player_league_entries[0].player_id='different';f.tables.tiq_team_league_entries=[];expect((await loadNativeCompetitions(f.db,owner,'mine')).leagues).toEqual([]);const changed=fixture();changed.changePlayer();await expect(loadNativeCompetitions(changed.db,owner,'mine')).rejects.toThrow('changed')})

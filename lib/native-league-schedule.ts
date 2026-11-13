@@ -65,7 +65,7 @@ export function mergeAttestedLeagueMatches(detail: OfficeDetail, value: unknown,
     return original ? [original] : []
   })
   const publishedSchedule = [...matches.values()].map(({ current }) => current).sort(chronological).slice(0, 100)
-  const fullDetail = !detail.moreFixtures && seen.size === matches.size && matches.size > 0 &&
+  const fullDetail = (matches.size === 0 || !detail.moreFixtures) && seen.size === matches.size &&
     reviewedRevisionDigest({ ...detail, fixtures: baseline.sort(chronological) }) === approvedDigest
   return { publishedSchedule, fullDetail }
 }

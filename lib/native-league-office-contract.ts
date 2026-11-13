@@ -9,6 +9,13 @@ export type OfficeSnapshot={owner:string;checkedAt:string;leagues:OfficeLeague[]
 const text=(v:unknown,max=240)=>{if(typeof v!=='string'||v.length>max)throw Error('Invalid league response');return v}
 function array<T>(v:unknown,max:number,read:(v:unknown)=>T):T[]{if(!Array.isArray(v)||v.length>max)throw Error('Invalid league response');return v.map(read)}
 const bool=(v:unknown)=>{if(typeof v!=='boolean')throw Error('Invalid league response');return v}
+export function readOfficeResult(v:unknown):OfficeResult{
+ const p=lineupRecord(v)
+ return {id:text(p.id),date:text(p.date),a:text(p.a),b:text(p.b),winner:text(p.winner),score:text(p.score),courts:array(p.courts,30,v=>{
+  const c=lineupRecord(v)
+  return {label:text(c.label),a:text(c.a),b:text(c.b),winner:text(c.winner),score:text(c.score)}
+ })}
+}
 function league(v:unknown):OfficeLeague{const r=lineupRecord(v);if(r.format!=='team'&&r.format!=='individual')throw Error('Invalid league format');const fields=Object.fromEntries(['id','name','season','status','flight','location','startsOn','endsOn','timeZone','updatedAt'].map(k=>[k,text(r[k])])) as Omit<OfficeLeague,'format'>;if(!fields.id||!fields.name)throw Error('Missing league');return {...fields,format:r.format}}
 function unique<T extends {id:string}>(rows:T[]){if(new Set(rows.map(x=>x.id)).size!==rows.length||rows.some(x=>!x.id))throw Error('Ambiguous league records');return rows}
 export function readOfficeSnapshot(v:unknown,owner:string,selected:string):OfficeSnapshot{

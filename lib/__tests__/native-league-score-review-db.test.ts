@@ -1,0 +1,103 @@
+import { PGlite } from '@electric-sql/pglite'
+import { readFile } from 'node:fs/promises'
+import { expect, it } from 'vitest'
+import { beforeApprovedLeagueScores, standingsFromLeagueScores } from '../native-league-score-public'
+import { leagueScoreLine } from '../native-league-score-contract'
+import type { OfficeResult } from '../native-league-office-contract'
+
+const id = (n: number) => '33333333-3333-4333-8333-' + String(n).padStart(12, '0')
+const [director, captain, stranger, entry, fixture, future] = Array.from({ length: 6 }, (_, i) => id(i + 1))
+const version = '2026-11-13T12:00:00Z'
+const first = [leagueScoreLine('singles', '6-4, 6-3')]
+const corrected = [leagueScoreLine('singles', '4-6, 3-6')]
+
+it('keeps pending scores private, returns corrections, and posts one official result with updated standings', async () => {
+  const db = new PGlite()
+  try {
+    await db.exec(await readFile('lib/__tests__/fixtures/account-erasure-audited-schema.sql', 'utf8'))
+    await db.exec(`
+      create schema private;
+      create function auth.uid() returns uuid language sql stable as $$
+        select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+      $$;
+      create table public.account_deletion_requests(account_id uuid,status text);
+      create table public.native_captain_court_results(fixture_id uuid);
+      create view public.native_first_party_updates as
+        select id,recipient_profile_id,notification_type,title,body,href,conversation_id,schedule_event_id,read_at,created_at
+        from public.internal_notifications where false;
+      grant usage on schema private to authenticated;
+      grant select on public.native_first_party_updates, public.internal_notifications to authenticated;
+    `)
+    await db.exec(await readFile('supabase/migrations/20260507174500_link_tiq_schedule_items_to_results.sql', 'utf8'))
+    await db.exec(await readFile('supabase/migrations/20261113000400_native_first_party_league_schedule.sql', 'utf8'))
+    await db.exec(await readFile('supabase/migrations/20261113000600_native_league_score_review.sql', 'utf8'))
+    for (const owner of [director, captain, stranger]) {
+      await db.query('insert into auth.users(id,email) values($1,$2)', [owner, owner+'@example.test'])
+      await db.query('insert into profiles(id,email,role) values($1,$2,$3)', [owner, owner+'@example.test', owner===director?'admin':'member'])
+    }
+    await db.query(`insert into tiq_leagues(id,created_by_user_id,league_name,league_format,season_status,is_public,updated_at,max_match_events)
+      values('demo',$1,'City League','team','active',true,$2,20)`, [director, version])
+    await db.query(`insert into tiq_team_league_entries(id,league_id,team_name,entry_status,created_by_user_id)
+      values($1,'demo','Aces','active',$2)`, [entry,captain])
+    await db.query(`insert into team_profile_links(profile_user_id,team_name,league_name,source_type,source_record_id,status,team_roles)
+      values($1,'Aces','City League','manual_invite',null,'accepted',array['captain'])`, [stranger])
+    await db.query(`insert into tiq_league_schedule_items(id,league_id,league_format,participant_a_name,participant_b_name,
+      participant_a_id,scheduled_date,scheduled_time,status,updated_at)
+      values($1,'demo','team','Aces','Rallies',$3,current_date-1,'18:00','coordinator_set',$4),
+            ($2,'demo','team','Aces','Rallies',$3,current_date+2,'18:00','coordinator_set',$4)`, [fixture,future,entry,version])
+    const save = async (actor:string, action:string, request:number, revision:string|null, lines:unknown = [], note='', match=fixture, canCaptain=actor!==director) => {
+      const result = await db.query<{ result: unknown }>(`select native_league_save_score(
+        $1,'demo',$2,$3,$2,$4,$5,$6,$7,$8,$9,null,null) as result`, [actor,version,match,revision,id(request),action,JSON.stringify(lines),note,canCaptain])
+      return result.rows[0].result
+    }
+    const review = async (actor:string, match:string|null) => (await db.query<{ result: unknown }>(
+      "select native_league_score_review($1,'demo',$2,$3,$4,null,null) as result", [actor,version,match,actor!==director])).rows[0].result
+    const published = async () => (await db.query<{ result: OfficeResult[] }>(
+      "select native_league_approved_results('demo',$1) as result", [version])).rows[0].result
+    const updates = async (actor:string) => {
+      await db.exec('reset role; set role authenticated')
+      try {
+        await db.query("select set_config('request.jwt.claim.sub',$1,false)", [actor])
+        return (await db.query('select title,href from native_first_party_updates')).rows
+      } finally { await db.exec('reset role; set role service_role') }
+    }
+    const href = '/explore/leagues/tiq/demo?scoreMatch='+fixture+'#league-scores'
+    await db.exec('set role authenticated')
+    await expect(review(captain,fixture)).rejects.toMatchObject({code:'42501'})
+    await db.exec('reset role; set role service_role')
+    expect(await review(stranger,fixture)).toBeNull()
+    expect(await save(stranger,'submit',19,null,first)).toEqual({code:'forbidden'})
+    expect(await save(captain,'submit',19,null,first,'',fixture,false)).toEqual({code:'forbidden'})
+    expect(await save(captain,'submit',19,null,first,'',future)).toEqual({code:'early'})
+    expect(await save(captain,'submit',20,null,first)).toMatchObject({code:'saved',card:{state:'pending'}})
+    expect(await save(captain,'submit',21,id(20),first)).toEqual({code:'pending'})
+    expect(await review(director,null)).toMatchObject({matches:[{id:fixture}]})
+    expect(await updates(director)).toEqual([{title:'League score ready for review',href}])
+    expect(await updates(captain)).toEqual([])
+    expect(await published()).toEqual([])
+    expect(await save(captain,'approve',21,id(20),first)).toEqual({code:'forbidden'})
+    expect(await save(director,'return',21,id(20),[],'Check the score from court one.')).toMatchObject({code:'saved',card:{state:'changes_requested'}})
+    expect(await review(captain,fixture)).toMatchObject({card:{note:'Check the score from court one.'}})
+    expect(await updates(captain)).toEqual([{title:'League score needs corrections',href}])
+    expect(await updates(director)).toEqual([])
+    expect(await updates(stranger)).toEqual([])
+    expect(await published()).toEqual([])
+    expect(await save(captain,'submit',22,id(21),corrected)).toMatchObject({code:'saved',card:{state:'pending'}})
+    expect(await save(director,'approve',23,id(20),first)).toEqual({code:'stale'})
+    const approved = await save(director,'approve',23,id(22),corrected)
+    expect(approved).toMatchObject({code:'saved',card:{state:'approved',lines:corrected}})
+    expect(await save(director,'approve',23,id(22),corrected)).toEqual(approved)
+    expect(await review(director,null)).toEqual({matches:[]})
+    expect(await updates(captain)).toEqual([{title:'League score approved',href}])
+    const scores = await published()
+    expect(scores).toMatchObject([{a:'Aces',b:'Rallies',winner:'Rallies',courts:[{winner:'Side B',score:'4-6, 3-6'}]}])
+    expect(standingsFromLeagueScores(scores,{})).toMatchObject([
+      {teamName:'Rallies',wins:1,lineWins:1},{teamName:'Aces',losses:1,lineLosses:1},
+    ])
+    expect(beforeApprovedLeagueScores(scores,scores)).toEqual([])
+    await db.exec('reset role')
+    await db.exec("update tiq_team_league_match_lines set score='0-6, 0-6'")
+    expect(await published()).toEqual([])
+    expect((await db.query('select count(*)::int as count from tiq_team_league_match_events')).rows[0]).toEqual({count:1})
+  } finally { await db.close() }
+}, 30000)
