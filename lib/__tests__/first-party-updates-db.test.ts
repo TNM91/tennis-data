@@ -59,7 +59,7 @@ afterAll(async () => db.close())
 
 beforeEach(async () => {
   await db.exec(`reset role; truncate internal_notifications, internal_conversations, internal_conversation_participants,
-    internal_messages, coach_player_links, level_up_weekly_plans, native_practice_reminders, internal_schedule_events,
+    internal_messages, coach_player_links, level_up_weekly_plans, private.native_practice_reminders, internal_schedule_events,
     native_private_teams, captain_practice_invites, captain_practice_invitees, team_profile_links, team_room_member_removals,
     team_chat_blocks, internal_notification_preferences;
     insert into coach_player_links values ('${student}', '${coach}', '${owner}', 'active');
