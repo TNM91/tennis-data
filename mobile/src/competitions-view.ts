@@ -102,11 +102,12 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   const d=snapshot?.detail
   const noMatches=Boolean(query)&&snapshot?.leagues.length===0
   const compactDetail=!!selected&&view!=='home'
-  const entryAvailable=!guest&&!!d
+  const scoreDemo=firstPartyBuild&&snapshot?.scoreReviewDemo===true
+  const entryAvailable=!guest&&!!d&&!scoreDemo
   const canReviewEntries=firstPartyBuild&&!guest&&snapshot?.canReviewEntries===true
   const canSchedule=firstPartyBuild&&!guest&&snapshot?.canScheduleMatches===true
   const canOpenScores=firstPartyBuild&&!guest&&snapshot?.canOpenLeagueScores===true
-  const canReviewScores=canOpenScores&&canReviewEntries
+  const canReviewScores=canOpenScores&&(canReviewEntries||scoreDemo)
   const approved=snapshot?.approvedScores
   const detailsUnderReview=snapshot?.detailsUnderReview===true
   const scheduleDetail=d&&detailsUnderReview?{...d,fixtures:snapshot?.publishedSchedule??[]}:d
@@ -125,6 +126,7 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   dialog.innerHTML=toolbar+
    (selected?d?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(d.league.format==='team'?'TiQ team league':'TiQ player league')+'</small><h2 tabindex="-1">'+html(d.league.name)+'</h2><p>'+html([d.league.season,d.league.flight,stateLabel(d.league.status)].filter(Boolean).join(' · '))+'</p><p>'+html(d.league.location||'Location to be confirmed')+'</p></div>'+
    (tabs.length>1?'<nav class="competition-tabs" aria-label="League views">'+tabs.map(v=>'<button type="button" class="secondary" data-competition-view="'+v+'" aria-pressed="'+(v===view)+'">'+({home:'Overview',fixtures:'Schedule',results:'Results',standings:'Standings',participants:d.league.format==='team'?'Teams':'Players'})[v]+'</button>').join('')+'</nav>':'')+
+   (scoreDemo&&view==='home'?'<p class="entry-note">Private TestFlight practice league. Submit from Schedule, then switch to Results to try the coordinator review on this same account.</p>':'')+
    (!entryAvailable||compactDetail?'':competitionEntryActionHtml('league'))+
    (canReviewEntries?'<button type="button" class="secondary competition-entry-open" data-competition-decisions>Review entry requests</button>':'')+
    (canSchedule&&view==='fixtures'?'<div class="league-scheduler-actions"><button type="button" data-competition-schedule-add>Schedule match</button><button type="button" class="secondary" data-competition-schedule-manage>Manage schedule</button></div>':'')+

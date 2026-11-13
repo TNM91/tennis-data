@@ -12,7 +12,7 @@ export async function loadCompetitions(client:SupabaseClient,owner:string,curren
  if(guest)p.set('audience','public')
  if(firstPartyBuild&&selected)p.set('overview','1')
  const endpoint=firstPartyBuild?'/api/mobile/first-party/competitions':'/api/mobile/competitions'
- const r=await send({url:'https://www.tenaceiq.com'+endpoint+'?'+p,headers:{...(session?{Authorization:'Bearer '+session.access_token}:{}),'Cache-Control':'no-store'},webFetchExtra:{cache:'no-store'},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:30000})
+ const r=await send({url:'https://www.tenaceiq.com'+endpoint+'?'+p,headers:{...(session?{Authorization:'Bearer '+session.access_token}:{}),...(firstPartyBuild?{'X-TenAceIQ-League-Score':'2'}:{}),'Cache-Control':'no-store'},webFetchExtra:{cache:'no-store'},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:30000})
  if(!current())throw Error('Competition context changed')
  if(!guest)await scenarioOwner(client,owner,current)
  if(r.status!==200||(firstPartyBuild&&r.data?.releaseScope!=='first-party'))throw Error(r.status===401?'Sign in again to open Competitions.':'Competitions are unavailable. Check your connection and try again.')

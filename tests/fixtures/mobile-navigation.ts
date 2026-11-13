@@ -18,7 +18,7 @@ import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {entryReviewFixture} from './league-entry-data'
 import {decisionReviewFixture} from './league-decisions-data'
 import type {LeagueScheduleChange,LeagueScheduleReview} from '../../lib/native-league-schedule-contract'
-import type {LeagueScoreCard,LeagueScoreChange} from '../../lib/native-league-score-contract'
+import {leagueCourtResultText,type LeagueScoreCard,type LeagueScoreChange} from '../../lib/native-league-score-contract'
 import type {EntryReceipt} from '../../lib/native-league-entry-contract'
 import {publicCompetitionOwner} from '../../lib/native-competitions-contract'
 import {tournamentSnapshot} from './native-tournaments'
@@ -53,6 +53,7 @@ const scopedLeagueSchedule={
 }
 const scopedLeagueScore={
  enabled:new URL(location.href).searchParams.has('league-score-review'),coordinator:false,
+ demo:new URL(location.href).searchParams.get('league-score-review')==='demo',
  match:{id:scheduleId(10),a:'Baseline Aces',b:'Rally Crew',date:'2026-11-12',time:'18:30'},
  card:null as LeagueScoreCard|null,
 }
@@ -583,6 +584,12 @@ window.fetch=async(input,init)=>{
     snapshot.detail={...snapshot.detail,participants:[],fixtures:[],results:[],standings:[],standingsAvailable:false}
    }
   }
+  if(scoped&&scopedLeagueScore.demo&&audience!=='public'){
+   const id='tiq-testflight-scores-'+currentNavigationOwner()
+   snapshot.leagues=[{...snapshot.leagues[0],id,name:'TestFlight Score Review'}]
+   snapshot.connections=[{leagueId:id,kind:'organizer',status:'active'}]
+   if(snapshot.detail){snapshot.detail.league=snapshot.leagues[0];snapshot.scoreReviewDemo=true}
+  }
   if(scoped&&snapshot.detail&&scopedLeagueScore.enabled){
    const {match,card,coordinator}=scopedLeagueScore
    snapshot.detail.fixtures=[{...match,facility:'Northside Tennis Center · Court 1',status:'coordinator_set'}]
@@ -593,7 +600,9 @@ window.fetch=async(input,init)=>{
    }
    if(card?.state==='approved'){
     const [line]=card.lines,winner=line.winner==='A'?match.a:match.b,loser=winner===match.a?match.b:match.a
-    snapshot.detail.results=[{...match,id:scheduleId(11),winner,score:'',courts:[{label:'Line 1 · Singles',a:'',b:'',winner:'Side '+line.winner,score:line.score}]}]
+    snapshot.detail.results=[{...match,id:scheduleId(11),winner,score:'',courts:card.lines.map((court,i)=>({
+     label:'Line '+(i+1),a:'',b:'',winner:'Side '+court.winner,score:leagueCourtResultText(court),
+    }))}]
     snapshot.detail.standings=[{teamName:winner,wins:1,losses:0,ties:0,lineWins:1,lineLosses:0,points:1},
      {teamName:loser,wins:0,losses:1,ties:0,lineWins:0,lineLosses:1,points:0}]
    }else{
@@ -638,22 +647,24 @@ window.fetch=async(input,init)=>{
    match:scopedLeagueSchedule.match,notified:body.notify?2:0,unreachable:0})
  }
  if(scopedLeagueScore.enabled&&url.pathname==='/api/mobile/first-party/competitions/scores'){
-  const {match,card,coordinator}=scopedLeagueScore
-  const base={ok:true,releaseScope:'first-party',owner:currentNavigationOwner(),leagueId:'league-one'}
+  const {match,card,coordinator,demo}=scopedLeagueScore
+  const owner=currentNavigationOwner(),leagueId=demo?'tiq-testflight-scores-'+owner:'league-one'
+  const base={ok:true,releaseScope:'first-party',owner,leagueId}
   if(init?.method!=='POST'){
-   if(!url.searchParams.has('match'))return Response.json({...base,matches:coordinator&&card?.state==='pending'?[match]:[]})
+   if(!url.searchParams.has('match'))return Response.json({...base,matches:(coordinator||demo)&&card?.state==='pending'?[match]:[]})
    return Response.json({...base,desk:{match,fixtureVersion:'2026-11-13T12:00:00Z',card,
-    canSubmit:!coordinator,canReview:coordinator,thirdSetRule:'either',slots:[{label:'Singles 1',format:'singles'}]}})
+    canSubmit:!coordinator||demo,canReview:coordinator||demo,thirdSetRule:'either',
+    slots:demo?[{label:'Singles 1',format:'singles'},{label:'Doubles 1',format:'doubles'},{label:'Doubles 2',format:'doubles'}]:[{label:'Singles 1',format:'singles'}]}})
   }
   const body=JSON.parse(String(init.body)) as LeagueScoreChange
-  if(body.matchId!==match.id||body.revision!==(card?.revision??null)||coordinator===(body.action==='submit')){
+  if(body.leagueId!==leagueId||body.matchId!==match.id||body.revision!==(card?.revision??null)||!demo&&coordinator===(body.action==='submit')){
    return Response.json({ok:false,releaseScope:'first-party',message:'Match access changed.'},{status:409})
   }
   scopedLeagueScore.card={revision:body.requestId,state:body.action==='submit'?'pending':body.action==='return'?'changes_requested':'approved',
    lines:body.action==='submit'?body.lines:card!.lines,note:body.note}
   firstPartyUpdatesFixture.leagueNotices=body.action==='return'?[{
    id:scheduleId(12),recipient_profile_id:base.owner,notification_type:'system',title:'League score needs corrections',
-   body:match.a+' vs '+match.b,href:'/explore/leagues/tiq/league-one?scoreMatch='+match.id+'#league-scores',
+   body:match.a+' vs '+match.b,href:'/explore/leagues/tiq/'+leagueId+'?scoreMatch='+match.id+'#league-scores',
    conversation_id:null,schedule_event_id:null,read_at:null,created_at:'2026-11-13T15:00:00Z',
   }]:[]
   return Response.json({...base,matchId:match.id,card:scopedLeagueScore.card})

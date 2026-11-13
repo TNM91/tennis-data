@@ -90,6 +90,31 @@ describe('first-party league route', () => {
   expect(f.calls.find(c=>c.table==='tiq_team_league_entries')?.ops).toContainEqual(['in','league_id',['league-one']])
  })
 
+ it('keeps the test league in the invited account’s entries and grants review only on that private season',async()=>{
+  const f=fixture()
+  await approve(f)
+  const id='tiq-testflight-scores-'+owner
+  f.tables.tiq_leagues.push({...f.tables.tiq_leagues[0],id,is_public:false,league_name:'TestFlight Score Review'})
+  f.tables.tiq_league_schedule_items.push({...f.tables.tiq_league_schedule_items[0],id:'private-match',league_id:id})
+  account(f.db)
+  const header={'X-TenAceIQ-League-Score':'2'}
+  const mine=await firstPartyCompetitions(request('?scope=mine',header))
+  expect((await mine.json()).leagues.map((league:{id:string})=>league.id)).toEqual([id,'league-one'])
+  const legacy=await firstPartyCompetitions(request('?scope=mine'))
+  expect((await legacy.json()).leagues.map((league:{id:string})=>league.id)).toEqual(['league-one'])
+  const ownDemo=await firstPartyCompetitions(request('?league='+id,header))
+  expect(readCompetitionSnapshot(await ownDemo.json(),owner,'discover','',id)).toMatchObject({
+   scoreReviewDemo:true,canOpenLeagueScores:true,detail:{fixtures:[{id:'private-match'}]},
+  })
+  expect(loadPlayerAccess).not.toHaveBeenCalled()
+  publicClientFixture.mockReturnValueOnce(f.db).mockReturnValueOnce(f.db)
+  const guests=await firstPartyCompetitions(request('?audience=public',header))
+  expect((await guests.json()).leagues.map((league:{id:string})=>league.id)).toEqual(['league-one'])
+  expect((await firstPartyCompetitions(request('?audience=public&league='+id,header))).status).toBe(503)
+  vi.mocked(getSignedInPlayerApiAuth).mockResolvedValue({ok:true,supabase:f.db,userId:'22222222-2222-4222-8222-222222222222'})
+  expect((await firstPartyCompetitions(request('?league='+id,header))).status).toBe(503)
+ })
+
  it('withholds unreviewed and changed data even if the season id and timestamp stay the same',async()=>{
   const f=fixture()
   await approve(f)

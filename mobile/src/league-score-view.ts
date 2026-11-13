@@ -3,13 +3,14 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { formatCalendarDay } from '../../lib/calendar-date'
 import { formatCaptainPracticeTime } from '../../lib/captain-practice-invite'
 import {
-  leagueScoreLine, readLeagueScoreCard, readLeagueScoreDesk, readLeagueScoreFixture, validateLeagueScoreLines,
-  type LeagueScoreChange, type LeagueScoreDesk, type LeagueScoreDiscipline, type LeagueScoreFixture,
+  leagueCourtResultText, leagueScoreLine, readLeagueScoreCard, readLeagueScoreDesk, readLeagueScoreFixture, validateLeagueScoreLines,
+  type LeagueCourtOutcome, type LeagueScoreChange, type LeagueScoreDesk, type LeagueScoreDiscipline, type LeagueScoreFixture,
 } from '../../lib/native-league-score-contract'
 import { scenarioOwner, type ScenarioSend } from './captain-scenarios-data'
 import { html } from './match-details'
 
-type DraftLine = { format: LeagueScoreDiscipline; score: string }
+type DraftLine = { format: LeagueScoreDiscipline; score: string; outcome: LeagueCourtOutcome; winner: string }
+const blankLine=(format:LeagueScoreDiscipline):DraftLine=>({format,score:'',outcome:'played',winner:''})
 
 export function openLeagueScores(
   client: SupabaseClient, owner: string, current: () => boolean, leagueId: string, matchId: string,
@@ -45,7 +46,7 @@ export function openLeagueScores(
     const response = await send({
       url: 'https://www.tenaceiq.com/api/mobile/first-party/competitions/scores' + (change ? '' : '?' + params),
       method: change ? 'POST' : 'GET',
-      headers: { Authorization: 'Bearer ' + session.access_token, 'Cache-Control': 'no-store',
+      headers: { Authorization: 'Bearer ' + session.access_token, 'Cache-Control': 'no-store', 'X-TenAceIQ-League-Score': '2',
         ...(change ? { 'Content-Type': 'application/json' } : {}) },
       ...(change ? { data: change } : {}), disableRedirects: true, responseType: 'json',
       webFetchExtra: { cache: 'no-store' }, connectTimeout: 12000, readTimeout: 60000,
@@ -78,9 +79,9 @@ export function openLeagueScores(
       if (selected) {
         desk = readLeagueScoreDesk(data.desk, selected)
         if (desk.card?.state === 'approved') approved ||= queue
-        draft = desk.card?.lines.map(({ format, score }) => ({ format, score })) ??
-          desk.slots.map(({ format }) => ({ format, score: '' }))
-        if (!draft.length) draft = [{ format: 'doubles', score: '' }]
+        draft = desk.card?.lines.map(({ format, score, outcome, winner }) => ({ format, score, outcome:outcome??'played', winner })) ??
+          desk.slots.map(({ format }) => blankLine(format))
+        if (!draft.length) draft = [blankLine('doubles')]
       } else {
         if (!Array.isArray(data.matches) || data.matches.length > 100) throw Error('Score review queue is unavailable.')
         matches = data.matches.map(readLeagueScoreFixture)
@@ -117,7 +118,9 @@ export function openLeagueScores(
   function commit(action: LeagueScoreChange['action']) {
     if (!desk || busy || pending) return
     try {
-      const lines = action === 'submit' ? draft.map(line => leagueScoreLine(line.format, line.score)) : []
+      const lines = action === 'submit' ? draft.map(line => leagueScoreLine(
+        line.format, line.outcome==='walkover'?'':line.score, line.outcome, line.winner,
+      )) : []
       if (action === 'submit') validateLeagueScoreLines(lines, desk)
       const reason = action === 'return' ? note.trim().replace(/\s+/g, ' ') : ''
       if (action === 'return' && !reason) throw Error('Tell the captain what needs correcting.')
@@ -154,11 +157,20 @@ export function openLeagueScores(
         if (card.note) content += `<p class="entry-note">${html(card.note)}</p>`
       }
       if (editable) {
-        content += `<form data-score-form><p>Enter completed sets in ${html(match.a)}–${html(match.b)} order.</p>
+        content += `<form data-score-form><p>Enter scores in ${html(match.a)}–${html(match.b)} order.</p>
           ${draft.map((line, i) => `<fieldset class="lineup-court"><legend>${html(slot(i))}</legend>
             ${desk?.slots.length ? '' : `<label>Format<select name="format-${i}" ${controls ? '' : 'disabled'}><option value="singles"${line.format === 'singles' ? ' selected' : ''}>Singles</option>
               <option value="doubles"${line.format === 'doubles' ? ' selected' : ''}>Doubles</option></select></label>`}
-            <label>Set scores<input name="score-${i}" required maxlength="64" value="${html(line.score)}" placeholder="6-4, 7-5" autocomplete="off" ${controls ? '' : 'disabled'}></label>
+            <label>Court outcome<select name="outcome-${i}" data-court-outcome ${controls ? '' : 'disabled'}>
+              <option value="played"${line.outcome==='played'?' selected':''}>Played</option>
+              <option value="walkover"${line.outcome==='walkover'?' selected':''}>Walkover</option>
+              <option value="retirement"${line.outcome==='retirement'?' selected':''}>Retirement</option></select></label>
+            ${line.outcome==='played'?'':`<label>Team awarded the court<select name="winner-${i}" required ${controls?'':'disabled'}>
+              <option value="">Choose team</option><option value="A"${line.winner==='A'?' selected':''}>${html(match.a)}</option>
+              <option value="B"${line.winner==='B'?' selected':''}>${html(match.b)}</option></select></label>`}
+            ${line.outcome==='walkover'?'<p class="rating-context">No score needed.</p>':`<label>${line.outcome==='retirement'?'Score when play stopped (optional)':'Set scores'}
+              <input name="score-${i}" ${line.outcome==='played'?'required':''} maxlength="64" value="${html(line.score)}"
+              placeholder="${line.outcome==='retirement'?'6-4, 2-1':'6-4, 7-5'}" autocomplete="off" ${controls?'':'disabled'}></label>`}
             ${!desk?.slots.length && draft.length > 1 && controls ? `<button type="button" class="secondary" data-score-remove="${i}">Remove court ${i+1}</button>` : ''}
           </fieldset>`).join('')}
           ${controls && !desk.slots.length && draft.length < 30 ? '<button type="button" class="secondary" data-score-add>Add court</button>' : ''}
@@ -166,7 +178,7 @@ export function openLeagueScores(
         </form>`
       } else if (card) {
         content += `<ol class="competition-standings">${card.lines.map((line, i) => `<li class="lineup-court">
-          <strong>${html(slot(i))}</strong><p>${html(line.score)} · ${html(line.winner === 'A' ? match.a : match.b)}</p></li>`).join('')}</ol>`
+          <strong>${html(slot(i))}</strong><p>${html(leagueCourtResultText(line))} · ${html(line.winner === 'A' ? match.a : match.b)}</p></li>`).join('')}</ol>`
       } else {
         content += desk.canReview ? '<p>The captains haven’t submitted a scorecard yet.</p>' :
           '<p>Scores open when the match starts. If the result is already recorded, look in Results.</p>'
@@ -193,12 +205,22 @@ export function openLeagueScores(
     const remember = () => {
       if (!fields) return
       const values = new FormData(fields)
-      draft = draft.map((line, i) => ({ format: values.get('format-'+i) === 'singles' ? 'singles' :
-        values.has('format-'+i) ? 'doubles' : line.format, score: String(values.get('score-'+i) ?? '') }))
+      draft = draft.map((line, i) => {
+        const next=values.get('outcome-'+i), outcome=next==='walkover'||next==='retirement'?next:'played'
+        return { format: values.get('format-'+i) === 'singles' ? 'singles' :
+          values.has('format-'+i) ? 'doubles' : line.format, outcome,
+          winner: outcome===line.outcome ? String(values.get('winner-'+i)??'') : '',
+          score: outcome==='walkover'?'':String(values.get('score-'+i)??'') }
+      })
     }
     fields?.addEventListener('submit', event => { event.preventDefault(); remember(); commit('submit') })
+    fields?.addEventListener('change', event => {
+      if (!(event.target instanceof HTMLSelectElement)||!event.target.hasAttribute('data-court-outcome')) return
+      const name=event.target.name
+      remember(); render(); dialog.querySelector<HTMLElement>('[name="'+name+'"]')?.focus({preventScroll:true})
+    })
     dialog.querySelector('[data-score-add]')?.addEventListener('click', () => {
-      remember(); draft.push({ format: 'doubles', score: '' }); render()
+      remember(); draft.push(blankLine('doubles')); render()
       dialog.querySelector<HTMLElement>('[name="format-'+(draft.length-1)+'"]')?.focus()
     })
     dialog.querySelectorAll<HTMLButtonElement>('[data-score-remove]').forEach(button => {
