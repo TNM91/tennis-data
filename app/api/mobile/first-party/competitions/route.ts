@@ -11,6 +11,14 @@ export const maxDuration = 30
 
 const headers = { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' }
 const allowedParams = new Set(['scope', 'q', 'league', 'audience', 'overview'])
+function readableSchedule(snapshot: CompetitionSnapshot, supportsPostponement: boolean) {
+  if (supportsPostponement) return snapshot
+  const visible = (fixture: { status: string }) => fixture.status !== 'postponed'
+  return { ...snapshot,
+    ...(snapshot.detail ? { detail: { ...snapshot.detail, fixtures: snapshot.detail.fixtures.filter(visible) } } : {}),
+    ...(snapshot.publishedSchedule ? { publishedSchedule: snapshot.publishedSchedule.filter(visible) } : {}),
+  }
+}
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams
@@ -46,6 +54,7 @@ export async function GET(request: Request) {
     }
     const matchDayRequested = request.headers.get('X-TenAceIQ-Match-Day') === '1'
     const attentionRequested = auth.emailVerified === true && request.headers.get('X-TenAceIQ-League-Attention') === '1'
+    const showPostponed = request.headers.get('X-TenAceIQ-League-Postpone') === '1'
     const demo = auth.userId !== publicCompetitionOwner && request.headers.get('X-TenAceIQ-League-Score') === '2'
       ? await loadTestflightLeagueScores(auth.supabase, auth.userId, input) : null
     if (demo?.detail) {
@@ -60,7 +69,8 @@ export async function GET(request: Request) {
           ? loadNativeLeagueMatchDay(snapshot,auth.userId,true,true).catch(()=>undefined) : undefined,
         attentionRequested ? loadNativeLeagueAttention(snapshot,auth.userId).catch(()=>undefined) : undefined,
       ])
-      return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot, matchDay, attention }, { headers })
+      return Response.json({ ok: true, releaseScope: 'first-party', ...readableSchedule(snapshot, showPostponed), matchDay, attention,
+        ...(showPostponed && auth.emailVerified === true ? { canPostponeMatches: true } : {}) }, { headers })
     }
     const snapshot = await loadFirstPartyNativeCompetitions(auth.supabase, auth.userId, input, overview === '1')
     if (demo) {
@@ -86,10 +96,11 @@ export async function GET(request: Request) {
       ).catch(()=>({matches:[]})) : undefined,
       attentionRequested && canReviewEntries === true ? loadNativeLeagueAttention(snapshot,auth.userId).catch(()=>undefined) : undefined,
     ])
-    return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot,
+    return Response.json({ ok: true, releaseScope: 'first-party', ...readableSchedule(snapshot, showPostponed),
       matchDay, attention,
       ...(canOpenLeagueScores ? { canOpenLeagueScores: true } : {}),
-      ...(canReviewEntries ? { canReviewEntries, canScheduleMatches: true } : {}) }, { headers })
+      ...(canReviewEntries ? { canReviewEntries, canScheduleMatches: true } : {}),
+      ...(showPostponed && matchDayActor && team && canReviewEntries ? { canPostponeMatches: true } : {}) }, { headers })
   } catch {
     return Response.json({ ok: false, message: 'Leagues are unavailable. Refresh to try again.' }, { status: 503, headers })
   }

@@ -41,6 +41,20 @@ function fixture(){
  return {db,tables,calls,errors,changePublic:()=>{changePublic=true},changePlayer:()=>{changePlayer=true}}
 }
 describe('public TiQ competitions through caller RLS',()=>{
+ it('shows a postponed private demo fixture only to clients that support it',async()=>{
+  const f=fixture(), id='tiq-testflight-scores-'+owner
+  f.tables.tiq_leagues.push({...f.tables.tiq_leagues[0],id,is_public:false,league_name:'TestFlight Score Review'})
+  f.tables.tiq_league_schedule_items.push({...f.tables.tiq_league_schedule_items[0],id:'private-match',league_id:id,status:'postponed'})
+  vi.mocked(getSignedInPlayerApiAuth).mockResolvedValue({ok:true,supabase:f.db,userId:owner,emailVerified:true})
+  const request=(supportsPostpone:boolean)=>new Request('https://example.test/api/mobile/first-party/competitions?league='+id,
+   {headers:{'X-TenAceIQ-League-Score':'2',...(supportsPostpone?{'X-TenAceIQ-League-Postpone':'1'}:{})}})
+  const previous=await firstPartyCompetitions(request(false))
+  expect(readCompetitionSnapshot(await previous.json(),owner,'discover','',id).detail?.fixtures).toEqual([])
+  const current=await firstPartyCompetitions(request(true))
+  expect(readCompetitionSnapshot(await current.json(),owner,'discover','',id)).toMatchObject({
+   canPostponeMatches:true,detail:{fixtures:[{id:'private-match',status:'postponed'}]},
+  })
+ })
  it('merges attested score approvals without publishing unrelated changes',async()=>{
   const f=fixture()
   const {detail}=await loadNativeCompetitions(f.db,owner,'discover','','league-one')

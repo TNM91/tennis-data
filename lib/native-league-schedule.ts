@@ -1,7 +1,7 @@
 import { reviewedRevisionDigest } from './first-party-revisions'
 import { accountClient } from './mobile-account-auth'
 import type { OfficeDetail, OfficeFixture, OfficeLeague } from './native-league-office-contract'
-import { readScheduledLeagueMatch, type LeagueScheduleChange } from './native-league-schedule-contract'
+import { readScheduledLeagueMatch, type LeaguePostponement, type LeagueScheduleChange } from './native-league-schedule-contract'
 import { lineupRecord } from './native-captain-lineup-contract'
 
 export function leagueScheduleService() {
@@ -29,6 +29,15 @@ export async function saveLeagueScheduling(owner: string, league: OfficeLeague, 
   return lineupRecord(data)
 }
 
+export async function postponeLeagueMatch(owner: string, league: OfficeLeague, input: LeaguePostponement) {
+  const { data, error } = await leagueScheduleService().rpc('native_first_party_postpone_league_match', {
+    p_actor: owner, p_league: league.id, p_version: league.updatedAt, p_request: input.requestId,
+    p_match: input.matchId, p_match_version: input.version, p_fixture: input.fixture,
+  }).retry(false)
+  if (error) throw Error('Postponement could not be confirmed')
+  return lineupRecord(data)
+}
+
 // A saved revision may replace its reviewed predecessor, or add a fixture.
 // Any other league edits still require the existing review.
 export function mergeAttestedLeagueMatches(detail: OfficeDetail, value: unknown, approvedDigest: string) {
@@ -37,7 +46,7 @@ export function mergeAttestedLeagueMatches(detail: OfficeDetail, value: unknown,
   for (const entry of value) {
     const row = lineupRecord(entry)
     const { id, a, b, date, time, facility, status } = readScheduledLeagueMatch(row.match)
-    if (status !== 'coordinator_set' || matches.has(id)) throw Error('Invalid match revision')
+    if (!['coordinator_set', 'postponed'].includes(status) || matches.has(id)) throw Error('Invalid match revision')
     let original: OfficeFixture | null = null
     if (row.original !== null) {
       const old = lineupRecord(row.original)

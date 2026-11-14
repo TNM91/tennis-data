@@ -86,7 +86,7 @@ export async function loadNativeCompetitions(db:SupabaseClient,owner:string,scop
     ...(results.length?{approvedScores:{results:results.slice(0,100),standings:standingsFromLeagueScores(results,source)}}:{}),
     detail:{league,participants:[],fixtures:[],results:[],standings:[],moreParticipants:false,moreFixtures:false,moreResults:false,standingsAvailable:false}}
   }
-  return {...base,leagues:[league],detail,connections}
+  return {...base,leagues:[league],detail:approvals ? detail : {...detail,fixtures:detail.fixtures.filter(fixture=>fixture.status!=='postponed')},connections}
  }
  const listLimit = approvedIds?.length ?? 21
  const publicQuery=()=>{let q=db.from('tiq_leagues').select(columns).eq('is_public',true).neq('season_status','draft')
