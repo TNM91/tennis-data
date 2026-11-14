@@ -34,18 +34,22 @@ export function nativeCoachPayload(recipient:string,href:string):AppleChatPayloa
  return {aps:{alert:{title:'TenAceIQ',body:'You have a new Coach message.'},sound:'default'},recipient,href:url.pathname+url.search}
 }
 type Delivery={status:number;reason?:string}
-export async function deliverAppleChat(devices:Device[],href:string,conversationId:string,configuration:ApnsConfig,sendOverride?:(device:Device,payload:ReturnType<typeof nativeChatPayload>)=>Promise<Delivery>,payloadFor=nativeChatPayload,badges:ReadonlyMap<string,number>=new Map()){
+type ApplePushRequest<T extends Device>={device:T;href:string;collapseId:string;expiresAt:number;badge?:number}
+export async function deliverAppleNotifications<T extends Device>(requests:ApplePushRequest<T>[],configuration:ApnsConfig,
+ payloadFor:(recipient:string,href:string)=>AppleChatPayload,sendOverride?:(device:T,payload:AppleChatPayload)=>Promise<Delivery>){
+ if(!requests.length)return []
  const session=sendOverride?null:connect('https://api.push.apple.com')
  session?.on('error',()=>{})
  const deadline=Date.now()+10000,timeout=session?setTimeout(()=>session.destroy(),10000):null
- const authorization=apnsAuthorization(configuration),expired:Device[]=[]
- let index=0,sent=0,failed=0
- const send=sendOverride || ((device:Device,payload:ReturnType<typeof nativeChatPayload>)=>new Promise<Delivery>(resolve=>{
+ const authorization=apnsAuthorization(configuration)
+ const outcomes:{device:T;result:Delivery;expired:boolean}[]=Array.from(requests,({device})=>({device,result:{status:0},expired:false}))
+ let index=0
+ const send=(input:ApplePushRequest<T>,payload:AppleChatPayload)=>new Promise<Delivery>(resolve=>{
   if(!session || session.destroyed){resolve({status:0});return}
   let settled=false,status=0,body=''
   const finish=(result:Delivery)=>{if(settled)return;settled=true;resolve(result)}
   try{
-   const request=session.request({'content-type':'application/json',':method':'POST',':path':'/3/device/'+device.device_token,authorization:'bearer '+authorization,'apns-topic':'com.tenaceiq.app','apns-push-type':'alert','apns-priority':'10','apns-expiration':String(Math.floor(Date.now()/1000)+3600),'apns-collapse-id':conversationId})
+   const request=session.request({'content-type':'application/json',':method':'POST',':path':'/3/device/'+input.device.device_token,authorization:'bearer '+authorization,'apns-topic':'com.tenaceiq.app','apns-push-type':'alert','apns-priority':'10','apns-expiration':String(input.expiresAt),'apns-collapse-id':input.collapseId})
    request.setTimeout(5000,()=>{request.close();finish({status:0})})
    request.on('response',headers=>{status=Number(headers[':status'])})
    request.on('data',chunk=>{if(body.length<1024)body+=chunk.toString()})
@@ -54,21 +58,29 @@ export async function deliverAppleChat(devices:Device[],href:string,conversation
    request.on('end',()=>{let reason='';try{reason=JSON.parse(body).reason || ''}catch{}finish({status,reason})})
    request.end(JSON.stringify(payload))
   }catch{finish({status:0})}
- }))
- try{await Promise.all(Array.from({length:Math.min(4,devices.length)},async()=>{
-  while(index<devices.length){
+ })
+ try{await Promise.all(Array.from({length:Math.min(4,requests.length)},async()=>{
+  while(index<requests.length){
    if(Date.now()>deadline)break
-   const device=devices[index++];let result:Delivery
+   const position=index++,input=requests[position],{device,href,badge}=input;let result:Delivery
    try{
-    const payload=payloadFor(device.profile_id,href),badge=badges.get(device.profile_id)
-    result=await send(device,typeof badge==='number'&&Number.isInteger(badge)&&badge>=0&&badge<=100?{...payload,aps:{...payload.aps,badge}}:payload)
+    const base=payloadFor(device.profile_id,href)
+    const payload=typeof badge==='number'&&Number.isInteger(badge)&&badge>=0&&badge<=100?{...base,aps:{...base.aps,badge}}:base
+    result=await (sendOverride?sendOverride(device,payload):send(input,payload))
    }catch{result={status:0}}
-   if(result.status===200)sent++
-   else{failed++;if(result.status===410 || result.status===400 && result.reason==='BadDeviceToken')expired.push(device)}
+   outcomes[position]={device,result,expired:result.status===410||result.status===400&&result.reason==='BadDeviceToken'}
   }
  }))}
  finally{if(timeout)clearTimeout(timeout);session?.destroy()}
- return {sent,failed:failed+devices.length-index,expired}
+ return outcomes
+}
+export async function deliverAppleChat(devices:Device[],href:string,conversationId:string,configuration:ApnsConfig,sendOverride?:(device:Device,payload:AppleChatPayload)=>Promise<Delivery>,payloadFor=nativeChatPayload,badges:ReadonlyMap<string,number>=new Map()){
+ const expiresAt=Math.floor(Date.now()/1000)+3600
+ const outcomes=await deliverAppleNotifications(devices.map(device=>({
+  device,href,collapseId:conversationId,expiresAt,badge:badges.get(device.profile_id),
+ })),configuration,payloadFor,sendOverride)
+ const sent=outcomes.filter(({result})=>result.status===200).length
+ return {sent,failed:outcomes.length-sent,expired:outcomes.filter(x=>x.expired).map(x=>x.device)}
 }
 /** Ordinary chat only; fail closed for membership, safety or device storage errors. */
 export async function sendNativeTeamChatPush(service:SupabaseClient,input:{conversationId:string;parentConversationId?:string;actorId:string;recipients:string[];scope:TeamRoomScope;href:string}){
