@@ -2,6 +2,7 @@ import {expect,it} from 'vitest'
 import {PGlite} from '@electric-sql/pglite'
 import {readFile} from 'node:fs/promises'
 import {teamResultScorecardKey} from '../team-results-contract'
+import {hittingPlanStart} from '../hitting-plan'
 type Result={ok:boolean;blocked?:string;job:{id:string;account_id:string;lease_token:string}|null;objects?:unknown[];request?:{id:string}}
 const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',room='33333333-3333-4333-8333-333333333333',message='44444444-4444-4444-8444-444444444444'
 it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure across the audited FK graph (%s checkout)',async newline=>{
@@ -26,6 +27,10 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await expect(db.exec(reconcile)).rejects.toThrow('Review unexpected account deletion catalog changes')
   await db.exec('rollback; alter table profiles drop column unexpected')
   await db.exec(reconcile)
+  await db.exec('alter table auth.users add column raw_user_meta_data jsonb; alter table public.team_chat_blocks add unique(owner_user_id,blocked_user_id)')
+  for(const file of ['20261113001100_native_player_chats.sql','20261114000300_native_direct_chat_hits.sql','20261114000800_native_chat_hit_scorecards.sql']){
+   await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
+  }
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
 
   await db.query('insert into internal_notification_preferences(profile_id,native_coach_alerts_enabled) values($1,true),($2,false)',[a,b])
@@ -59,6 +64,18 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
     values ($1,$2,'Return Depth Lane','practice','{"cardId":"return-depth-lane","target":"Land six deep returns"}')`,[practiceId,a])
   await expect(db.query("update player_calendar_items set practice_focus='{}' where id=$1",[practiceId])).rejects.toMatchObject({code:'23514'})
 
+  const direct='87777777-7777-4777-8777-777777777771',playedHit='87777777-7777-4777-8777-777777777772'
+  const cancelledHit='87777777-7777-4777-8777-777777777773',futureHit='87777777-7777-4777-8777-777777777774'
+  const stranger='99999999-9999-4999-8999-999999999991'
+  await db.query("insert into internal_conversations(id,created_by_user_id,conversation_type,related_entity_type,status) values($1,$2,'direct','player_chat','open')",[direct,a])
+  await db.query("insert into internal_conversation_participants(conversation_id,profile_id) values($1,$2),($1,$3)",[direct,a,b])
+  const pastDate=new Date(Date.now()-2*86400000).toISOString().slice(0,10)
+  const futureDate=new Date(Date.now()+2*86400000).toISOString().slice(0,10)
+  for(const [id,date,status] of [[playedHit,pastDate,'accepted'],[cancelledHit,pastDate,'cancelled'],[futureHit,futureDate,'accepted']]){
+   await db.query(`insert into private.native_chat_hits(id,room_id,proposed_by,invited_player,club_id,play_date,play_time,starts_at,status)
+     values($1,$2,$3,$4,'vetta-west',$5,'18:00',$6,$7)`,
+     [id,direct,a,b,date,hittingPlanStart({date,time:'18:00'})!.toISOString(),status])
+  }
   await db.exec('grant usage on schema auth to authenticated; set role authenticated')
   const matchId = '22222222-aaaa-4222-8222-222222222222'
   const scorecardKey = teamResultScorecardKey(room, matchId)
@@ -99,6 +116,15 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await expect(rateMatch(courtFeedback)).rejects.toMatchObject({code:'23514'})
   await db.query("update native_personal_matches set court_venue_key='vetta-west' where id=$1",[matchId])
   await rateMatch(courtFeedback)
+  const logHit = (owner:string,plan:string) => db.query(`insert into native_personal_matches
+    (owner_user_id,id,revision,chat_hit_id,match_date,opponent,format,outcome,score,court_venue_key)
+    values ($1,gen_random_uuid(),gen_random_uuid(),$2,$3,'Hitting partner','singles','Won','6-4 6-3','vetta-west')`,[owner,plan,pastDate])
+  await logHit(a,playedHit)
+  await expect(logHit(a,playedHit)).rejects.toMatchObject({code:'23505'})
+  for(const unavailable of [cancelledHit,futureHit,stranger]) await expect(logHit(a,unavailable)).rejects.toMatchObject({code:'23514'})
+  await expect(db.query('update native_personal_matches set chat_hit_id=null')).rejects.toMatchObject({code:'42501'})
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[stranger])
+  await expect(logHit(stranger,playedHit)).rejects.toMatchObject({code:'23514'})
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[b])
   expect((await db.query('select id from native_personal_matches')).rows).toEqual([])
   expect((await ratings()).rows).toEqual([])
@@ -107,6 +133,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   expect((await db.query("update native_personal_matches set court_venue_key='vetta-sunset' where owner_user_id=$1 returning id",[a])).rows).toEqual([])
   expect((await db.query('delete from native_personal_matches where owner_user_id=$1 returning id',[a])).rows).toEqual([])
   await insertMatch(b)
+  await logHit(b,playedHit)
   await expect(db.query('update native_personal_matches set owner_user_id=$1',[a])).rejects.toMatchObject({code:'42501'})
   await db.exec('reset role; set role anon')
   await expect(db.query('select id from native_personal_matches')).rejects.toMatchObject({code:'42501'})
@@ -185,7 +212,9 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   expect((await db.query('select won,lost,court_scores,lineup from native_team_fixture_history')).rows)
    .toEqual([{won:1,lost:0,court_scores:['6-4, 6-3'],lineup:null}])
   expect((await db.query('select profile_id,seat from native_team_result_players')).rows).toEqual([{profile_id:b,seat:2}])
-  expect((await db.query('select owner_user_id from native_personal_matches')).rows).toEqual([{owner_user_id:b}])
+  expect((await db.query('select owner_user_id,chat_hit_id from native_personal_matches order by chat_hit_id nulls first')).rows)
+   .toEqual([{owner_user_id:b,chat_hit_id:null},{owner_user_id:b,chat_hit_id:playedHit}])
+  expect((await db.query('select id from private.native_chat_hits')).rows).toEqual([])
   expect((await db.query('select id from player_calendar_items where id=$1',[hittingId])).rows).toEqual([])
   expect((await db.query('select id from player_calendar_items where id=$1',[practiceId])).rows).toEqual([])
   expect((await db.query('select a1,b1,posted_by from native_captain_court_results')).rows).toEqual([{a1:null,b1:b,posted_by:null}])
