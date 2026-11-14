@@ -3,6 +3,7 @@ import { readTeamChatCursor, teamChatMessageId } from './team-chat-cursor'
 import { updateTimestamp } from './native-updates-contract'
 import { readChatIconUrl } from './chat-icon-url'
 import { parseGroupPracticeAction,readGroupPractice,type GroupPractice,type GroupPracticeAction } from './group-practice-contract'
+import { parseChatHitAction,readChatHit,type ChatHit,type ChatHitAction } from './chat-hit-contract'
 
 export const playerChatInvitePath = '/chats/join'
 export const playerChatPath = '/chats'
@@ -45,6 +46,7 @@ const text = (value: unknown, max: number, multiline = false) => {
 
 export type PlayerChatAction =
   | GroupPracticeAction
+  | ChatHitAction
   | { action: 'invite'|'revoke'; room?: string; token: string }
   | { action: 'preview'|'join'; token: string }
   | { action: 'direct'|'forget'; target: string }
@@ -58,6 +60,8 @@ export function playerChatAction(value: unknown): PlayerChatAction {
   const row = lineupRecord(value), action = row.action
   const practice = parseGroupPracticeAction(row)
   if (practice) return practice
+  const hit = parseChatHitAction(row)
+  if (hit) return hit
   const exact = (...keys: string[]) => {
     if (Object.keys(row).length !== keys.length + 1 || keys.some(key => !Object.hasOwn(row,key))) {
       throw Error('Check the chat details.')
@@ -115,7 +119,7 @@ export type PlayerContact = { id: string; name: string }
 export type PlayerChatMessage = { id: string; author: string; name: string; body: string; createdAt: string }
 export type PlayerChatSummary = { id: string; title: string; group: boolean; unread: boolean; logo?: string; activityAt?: string }
 export type PlayerChatRoom = Omit<PlayerChatSummary,'unread'> & {
-  manage: boolean; messages: PlayerChatMessage[]; more: boolean; members: PlayerContact[]; practice?: GroupPractice | null
+  manage: boolean; messages: PlayerChatMessage[]; more: boolean; members: PlayerContact[]; practice?: GroupPractice | null; hit?: ChatHit | null
 }
 export type PlayerChatInbox = { contacts: PlayerContact[]; rooms: PlayerChatSummary[] }
 const flag = (value: unknown) => {
@@ -139,7 +143,10 @@ export function readPlayerChatInbox(value: unknown): PlayerChatInbox {
 export function readPlayerChatRoom(value: unknown, room: string): PlayerChatRoom {
   const row = lineupRecord(value)
   if (row.id !== room) throw Error('Chat access changed.')
+  const hit = row.hit!=null && row.group===false ? readChatHit(row.hit) : row.hit===null && row.group===false ? null : undefined
+  if (hit && hit.room!==room) throw Error('Hitting plan changed.')
   return { id:room,title:text(row.title,100),group:flag(row.group),manage:flag(row.manage),more:flag(row.more),logo:readChatIconUrl(row.logo),
+    ...(hit!==undefined ? {hit} : {}),
     ...(Object.hasOwn(row,'practice') && row.group === true ? {practice:readGroupPractice(row.practice)} : {}),
     members:list(row.members,31,contact),messages:list(row.messages,40,m=>{
       if (!updateTimestamp(m.createdAt)) throw Error('Chat messages changed.')

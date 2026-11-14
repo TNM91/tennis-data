@@ -1,6 +1,8 @@
 import { PGlite } from '@electric-sql/pglite'
 import { readFile } from 'node:fs/promises'
 import { expect, it } from 'vitest'
+import { hittingPlanStart } from '../hitting-plan'
+import { readCalendarChatHits, readChatHit } from '../chat-hit-contract'
 
 const id = (value: number) => '33333333-3333-4333-8333-' + String(value).padStart(12, '0')
 const [owner, contact, guest, stranger, unverified, group, post, groupPost] = Array.from({length: 8}, (_, i) => id(i + 1))
@@ -67,6 +69,51 @@ it('keeps contacts consensual and player chats private while delivering one noti
     const {roomId} = await action(owner,'direct',{target:contact})
     const direct = String(roomId)
     expect(await action(contact,'direct',{target:owner})).toEqual({code:'ok',roomId:direct})
+    await db.exec(await readFile('supabase/migrations/20261114000300_native_direct_chat_hits.sql','utf8'))
+    const hit = id(60), replacement = id(61)
+    const playDate = new Date(Date.now()+3*86400000).toISOString().slice(0,10)
+    const starts = hittingPlanStart({date:playDate,time:'18:00'})!.toISOString()
+    const writeHit = async (user:string, operation:string, event=hit, response:string|null=null, room=direct) =>
+      (await db.query<{value:{code:string}}>(
+        'select public.native_write_chat_hit($1,$2,$3,$4,$5,$6,$7,$8,$9) value',
+        [user,room,event,operation,'vetta-west',playDate,'18:00',starts,response])).rows[0].value.code
+    const readHit = async (user:string) => (await db.query<{value:unknown}>(
+      'select public.native_chat_hit_for_room($1,$2) value',[user,direct])).rows[0].value
+    const hitsOnCalendar = async (user:string) => readCalendarChatHits((await db.query<{value:unknown}>(
+      'select public.native_chat_hits_for_calendar($1,$2,$2) value',[user,playDate])).rows[0].value,playDate,playDate)
+    expect(await writeHit(stranger,'hit_propose')).toBe('forbidden')
+    expect(await writeHit(owner,'hit_propose')).toBe('ok')
+    expect(await writeHit(owner,'hit_propose')).toBe('ok')
+    expect(await writeHit(contact,'hit_propose',replacement)).toBe('hit_stale')
+    expect(readChatHit(await readHit(contact))).toMatchObject({id:hit,status:'proposed',proposedBy:owner})
+    expect(await readHit(stranger)).toBeNull()
+    expect(await hitsOnCalendar(owner)).toEqual([])
+    expect(await hitsOnCalendar(contact)).toEqual([])
+    expect(await writeHit(owner,'hit_reply',hit,'accepted')).toBe('forbidden')
+    await asUser(contact,async ()=>{
+      expect((await db.query("select title from public.native_first_party_updates where notification_type='schedule'")).rows)
+        .toEqual([{title:'New hitting plan'}])
+      await expect(db.query('select public.native_chat_hit_for_room($1,$2)',[contact,direct])).rejects.toMatchObject({code:'42501'})
+    })
+    expect(await writeHit(contact,'hit_reply',hit,'accepted')).toBe('ok')
+    expect(await writeHit(contact,'hit_reply',hit,'accepted')).toBe('ok')
+    expect(await hitsOnCalendar(owner)).toMatchObject([{id:hit,partner:'Cam',startsAt:expect.any(String)}])
+    expect(await hitsOnCalendar(contact)).toMatchObject([{id:hit,partner:'Avery'}])
+    expect(await hitsOnCalendar(stranger)).toEqual([])
+    await asUser(owner,async ()=>{
+      expect((await db.query("select title from public.native_first_party_updates where notification_type='schedule'")).rows)
+        .toEqual([{title:'Hitting plan accepted'}])
+    })
+    expect(await writeHit(owner,'hit_cancel')).toBe('ok')
+    expect(await writeHit(contact,'hit_reply',hit,'accepted')).toBe('hit_stale')
+    expect(await hitsOnCalendar(owner)).toEqual([])
+    expect(await hitsOnCalendar(contact)).toEqual([])
+    expect(readChatHit(await readHit(contact))).toMatchObject({id:hit,status:'cancelled'})
+    expect(await writeHit(owner,'hit_propose',replacement)).toBe('ok')
+    expect(await writeHit(contact,'hit_reply',replacement,'declined')).toBe('ok')
+    expect(readChatHit(await readHit(owner))).toMatchObject({id:replacement,status:'declined'})
+    // Remove the fixture hits before running the pre-existing chat notice assertions.
+    await db.query('delete from private.native_chat_hits where room_id=$1',[direct])
 
     const send = {room:direct,request:post,text:'Want to hit on Friday?'}
     expect(await action(owner,'send',send)).toEqual({code:'ok',messageId:post})
@@ -97,6 +144,7 @@ it('keeps contacts consensual and player chats private while delivering one noti
 
     expect(await action(owner,'group',{request:group,text:'Friday practice',members:[stranger]})).toEqual({code:'forbidden'})
     expect(await action(owner,'group',{request:group,text:'Friday practice',members:[]})).toEqual({code:'ok',roomId:group})
+    expect(await writeHit(owner,'hit_propose',id(62),null,group)).toBe('forbidden')
     expect(await action(owner,'invite',{room:group,token:groupToken})).toMatchObject({code:'ok'})
     expect(await read(guest)).toEqual({code:'ok',contacts:[],rooms:[]})
     expect(await action(guest,'preview',{token:groupToken})).toEqual({code:'ok',group:true,title:'Friday practice'})
