@@ -4,6 +4,7 @@ import {loadNativePracticeSharing,announceNativePractice} from '@/lib/native-pra
 import {POST as postTeamRoom} from '@/app/api/team-rooms/route'
 import {writeFirstPartyChat} from '@/lib/first-party-team-chat'
 import {privateTeamRoomId} from '@/lib/private-team-contract'
+import {namedChatRoomId} from '@/lib/named-team-chat-rooms'
 export const runtime='nodejs'
 export const maxDuration=30
 const json=(value:unknown,status:number)=>Response.json(value,{status,headers:{'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer'}})
@@ -21,6 +22,9 @@ export async function POST(request:Request){
  try{
   const selected=scope(request)
   const privateChat=Boolean(privateTeamRoomId(selected.leagueName))
+  const chatRooms=new URL(request.url).searchParams.getAll('chatRoom')
+  const chatRoomId=chatRooms[0]
+  if(chatRooms.length>1||chatRoomId!==undefined&&(!privateChat||!namedChatRoomId(chatRoomId)))return json({ok:false},400)
   const service=getCaptainAvailabilityServiceClient()
   const result=await announceNativePractice(service,auth.userId,selected,body,async(message,roomId)=>{
    const send={action:'send',replyToMessageId:'',...message}
@@ -33,7 +37,7 @@ export async function POST(request:Request){
     headers:{Authorization:request.headers.get('Authorization')||'','Content-Type':'application/json'},
     body:JSON.stringify({...selected,announcement:true,...send}),
    }))
-  })
+  },chatRoomId)
   return json(result,result.status)
  }catch{return json({ok:false},503)}
 }

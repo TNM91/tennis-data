@@ -2,6 +2,10 @@ import {beforeEach,it,expect,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {NativePractice} from '../native-captain-practices'
 const state=vi.hoisted(()=>({allowed:true,roomAllowed:true,practice:null as NativePractice|null}))
+const openChat=vi.hoisted(()=>vi.fn())
+vi.mock('../named-team-chat-rooms',async importOriginal=>({
+ ...await importOriginal<typeof import('../named-team-chat-rooms')>(),namedTeamChatRooms:openChat,
+}))
 vi.mock('../native-captain-practices',()=>({loadNativeCaptainPractices:async()=>state.allowed?{ok:true,status:200,practices:state.practice?[state.practice]:[]}:{ok:false,status:403}}))
 vi.mock('../team-chat-updates',()=>({checkTeamChatAccess:async()=>state.roomAllowed?{ok:true}:{ok:false,status:403}}))
 import {loadNativePracticeSharing,announceNativePractice} from '../native-practice-sharing'
@@ -39,5 +43,28 @@ it('posts an event reference in the exact private room and recovers a duplicate 
  expect(deliver).not.toHaveBeenCalled()
  expect((await announceNativePractice(d.service,owner,privateScope,{action:'announce',...a},deliver)).status).toBe(200)
  expect((await announceNativePractice(d.service,owner,privateScope,{action:'lookup',...a},deliver)).status).toBe(200)
+ expect(deliver).toHaveBeenCalledTimes(1)
+})
+
+it('authorizes a named chat under the practice team and scopes recovery to that chat',async()=>{
+ const parent='33333333-3333-4333-8333-333333333333',child='77777777-7777-4777-8777-777777777777'
+ const privateScope={...scope,leagueName:privateTeamLeagueKey(parent)}
+ const a=freezePracticeAnnouncement({practice:practice(),rsvpPath:practiceRsvpPath(token)},privateScope,'invitation','',id,true)
+ const d=db()
+ d.rows.internal_conversations={id:parent,status:'open'}
+ const deliver=vi.fn(async({body,clientMessageId}:{body:string;clientMessageId:string},roomId:string)=>{
+  d.rows.internal_messages={id:clientMessageId,body,message_kind:'message',sender_user_id:owner,conversation_id:roomId}
+  return Response.json({ok:true,message:{id:clientMessageId,body,kind:'message',isMine:true}})
+ })
+ openChat.mockResolvedValueOnce({ok:false,status:404})
+ expect((await announceNativePractice(d.service,owner,privateScope,{action:'announce',...a},deliver,child)).status).toBe(404)
+ expect(deliver).not.toHaveBeenCalled()
+ openChat.mockResolvedValue({ok:true,id:child,parentId:parent})
+ expect(await announceNativePractice(d.service,owner,privateScope,{action:'announce',...a},deliver,child))
+  .toMatchObject({ok:true,chatRoomId:child})
+ expect(openChat).toHaveBeenLastCalledWith(d.service,owner,privateScope,'open',child,undefined,parent)
+ expect(deliver).toHaveBeenCalledExactlyOnceWith({clientMessageId:id,body:a.body},child)
+ expect(await announceNativePractice(d.service,owner,privateScope,{action:'lookup',...a},deliver,child))
+  .toMatchObject({ok:true,chatRoomId:child})
  expect(deliver).toHaveBeenCalledTimes(1)
 })

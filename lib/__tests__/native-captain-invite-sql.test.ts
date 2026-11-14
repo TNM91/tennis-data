@@ -323,7 +323,8 @@ it('connects first-party invites, Team Rally, and captain fixtures to real team 
     expect((await invite(teammateToken, { action: 'join', token: privateToken,
       expected: { invite: privateReview.expected, linkVersion: privateReview.linkVersion } })).status).toBe(200)
     expect(await teams(teammateToken)).toMatchObject({ teams: expect.arrayContaining([
-      { ...privateTeam, canManage: false }, { ...details, leagueName: privateTeamLeagueKey(sameNameId), canManage: false },
+      expect.objectContaining({ ...privateTeam, canManage: false, activityAt: expect.any(String) }),
+      expect.objectContaining({ ...details, leagueName: privateTeamLeagueKey(sameNameId), canManage: false, activityAt: expect.any(String) }),
     ]) })
   } finally {
     vi.unstubAllEnvs()

@@ -11,6 +11,23 @@ import { html } from './html'
 import { watchTeamChat } from './team-chat-live'
 import { groupPracticeStart } from '../../lib/group-practice-contract'
 import { groupPracticeCard,newGroupPracticeDraft,type GroupPracticeDraft } from './group-practice-card'
+import { bindTeamChatAvatars,openChatIconEditor,teamChatAvatarHtml } from './team-chat-icon'
+
+export function playerChatsForAccount(client: SupabaseClient,owner: string,active: () => boolean,browser = false) {
+  return playerChatTransport(owner,async ({query,action})=>{
+    const {data,error} = await client.auth.getSession()
+    if (error || data.session?.user.id !== owner || !active()) throw Error('Your chat session changed.')
+    const path = playerChatApiUrl(query), method = action ? 'POST' : 'GET'
+    const headers = {Authorization:'Bearer '+data.session.access_token,'Cache-Control':'no-store',...(action?{'Content-Type':'application/json'}:{})}
+    const response = browser
+      ? await fetch(path,{method,headers,body:action?JSON.stringify(action):undefined,cache:'no-store',redirect:'error',
+        signal:AbortSignal.timeout(20000)}).then(async res=>({status:res.status,data:await res.json()}))
+      : await CapacitorHttp.request({url:'https://www.tenaceiq.com'+path,method,headers,
+        ...(action?{data:action}:{}),responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:20000})
+    if (!active() || (await client.auth.getSession()).data.session?.user.id !== owner) throw Error('Your chat session changed.')
+    return response
+  })
+}
 
 export function openPlayerChats(
   client: SupabaseClient,owner: string,current: () => boolean,onClose: () => void,
@@ -33,22 +50,12 @@ export function openPlayerChats(
   const lastRead = new Map<string,string>()
   const selected = new Set<string>()
   const active = () => !disposed && current()
-  const transport = playerChatTransport(owner,async ({query,action})=>{
-    const {data,error} = await client.auth.getSession()
-    if (error || data.session?.user.id !== owner || !active()) throw Error('Your chat session changed.')
-    const path = playerChatApiUrl(query), method = action ? 'POST' : 'GET'
-    const headers = {Authorization:'Bearer '+data.session.access_token,'Cache-Control':'no-store',...(action?{'Content-Type':'application/json'}:{})}
-    const response = initial.browser
-      ? await fetch(path,{method,headers,body:action?JSON.stringify(action):undefined,cache:'no-store',redirect:'error',
-        signal:AbortSignal.timeout(20000)}).then(async res=>({status:res.status,data:await res.json()}))
-      : await CapacitorHttp.request({url:'https://www.tenaceiq.com'+path,method,headers,
-        ...(action?{data:action}:{}),responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:20000})
-    if (!active() || (await client.auth.getSession()).data.session?.user.id !== owner) throw Error('Your chat session changed.')
-    return response
-  })
+  const transport = playerChatsForAccount(client,owner,active,initial.browser)
+  let iconEditor: ReturnType<typeof openChatIconEditor> | null = null
 
   function dispose() {
     disposed = true
+    iconEditor?.dispose()
     stopLive()
     room = null; inbox = null; pending = null; shared = null; invitation = null; token = ''; draft = ''
     dialog.remove()
@@ -59,6 +66,7 @@ export function openPlayerChats(
     onClose()
   }
   function back() {
+    if (iconEditor?.isOpen()) { iconEditor.close(); return true }
     if (busy || !active()) return true
     if (page === 'inbox') close()
     else { draft=''; pending=null; shared=null; void openInbox() }
@@ -86,7 +94,7 @@ export function openPlayerChats(
     live = watchTeamChat(client,owner,id,()=>active() && page === 'room' && room?.id === id,async ()=>{
       const history = dialog.querySelector<HTMLElement>('.player-chat-messages')
       const readingHistory = history && history.scrollHeight - history.clientHeight - history.scrollTop > 24
-      if (busy || draft || readingHistory || dialog.contains(document.activeElement) && document.activeElement?.matches('input,textarea,select,summary')) {
+      if (busy || iconEditor || draft || practiceDraft || readingHistory || dialog.contains(document.activeElement) && document.activeElement?.matches('input,textarea,select,summary')) {
         const refresh = dialog.querySelector('[data-player-refresh]')
         if (refresh) refresh.textContent = 'Check for updates'
         return
@@ -139,6 +147,11 @@ export function openPlayerChats(
         if (error instanceof PlayerChatError && error.status >= 400 && error.status < 500) {
           pending=null
           if (error.status===403 && page==='room') room=null
+          if (error.status===409 && input.action==='practice_edit' && room) {
+            const attempted = practiceDraft
+            await loadRoom(room.id).catch(()=>undefined)
+            if (attempted?.revision !== room?.practice?.revision) practiceDraft=null
+          }
         }
         throw error
       }
@@ -172,6 +185,7 @@ export function openPlayerChats(
       if (input.action === 'report') { notice='Message reported.'; return }
       if (input.action === 'send') draft=''
       if (input.action === 'practice_create') { practiceDraft=null; notice='Practice posted.' }
+      if (input.action === 'practice_edit') { practiceDraft=null; notice='Practice updated.' }
       if (input.action === 'practice_reply') notice=input.response==='in'?'You’re on the practice list.':'Your reply is saved.'
       if (input.action === 'practice_cancel') notice='Practice cancelled.'
       if ('room' in input && input.room) {
@@ -196,7 +210,7 @@ export function openPlayerChats(
       ${simpleButton('Revoke link','data-player-revoke')}</div></section>`
   }
   function inboxMarkup() {
-    const conversations = inbox?.rooms.map(item=>`<li>${simpleButton(html(item.title)+(item.unread?' <small>New</small>':''),'data-player-room',item.id)}</li>`).join('')
+    const conversations = inbox?.rooms.map(item=>`<li>${simpleButton(teamChatAvatarHtml(item.title,item.logo)+html(item.title)+(item.unread?' <small>New</small>':''),'data-player-room',item.id)}</li>`).join('')
     return `<div class="player-chat-actions">${simpleButton('New group','data-player-group')}${simpleButton('Connect a player','data-player-invite')}</div>
       ${sharedMarkup()}<form data-player-join><label>Have an invite link?<input name="invite" type="url" autocomplete="off" placeholder="Paste invite link" required></label>
       <button class="secondary" type="submit">Review invite</button></form>
@@ -226,7 +240,8 @@ export function openPlayerChats(
       ${value.manage?simpleButton(shared?'Replace invite link':'Invite players','data-player-group-invite'):''}
       ${sharedMarkup()}
       <details class="player-chat-options"><summary>${value.group?'Group settings':'Player settings'}</summary>
-      ${value.manage?`${simpleButton('Turn off invite links','data-player-revoke-links')}
+      ${value.manage?`${initial.browser?'':simpleButton(value.logo?'Edit group icon':'Add group icon','data-player-icon')}
+      ${simpleButton('Turn off invite links','data-player-revoke-links')}
       ${choices.length?`<form data-player-add><label>Add a saved player<select name="player">${choices.map(contact=>`<option value="${html(contact.id)}">${html(contact.name)}</option>`).join('')}</select></label>
       <button class="secondary" type="submit">Add to group</button></form>`:''}`:''}
       <ul aria-label="Chat members">${names}</ul>
@@ -246,7 +261,7 @@ export function openPlayerChats(
       page==='invite' && invitation ? `<p>${invitation.group?'Join':'Connect with'} <strong>${html(invitation.title)}</strong>.</p>
       <button type="button" data-player-accept>${invitation.group?'Join group':'Save player'}</button>` : ''
     const backLabel = page==='inbox'?'Close':'Back'
-    dialog.innerHTML = `<header class="team-invite-heading"><h2 id="player-chats-title" tabindex="-1">${html(title)}</h2>
+    dialog.innerHTML = `<header class="team-invite-heading"><h2 id="player-chats-title" tabindex="-1">${room?.logo?teamChatAvatarHtml(title,room.logo):''}${html(title)}</h2>
       <button class="secondary" type="button" data-player-back aria-label="${page==='inbox'?'Close':'Back to players &amp; groups'}">${backLabel}</button></header>
       <p tabindex="-1" role="status">${html(busy?'Working…':notice)}</p>
       ${pending&&!busy?simpleButton('Retry same action','data-player-retry'):''}
@@ -266,14 +281,42 @@ export function openPlayerChats(
     if (practiceList && practiceListOpen) practiceList.open = true
     const history = dialog.querySelector<HTMLElement>('.player-chat-messages')
     if (history) history.scrollTop = history.scrollHeight - historyAnchor
+    bindTeamChatAvatars(dialog)
     click('[data-player-back]',()=>{back()})
     click('[data-player-retry]',()=>{if(pending)void act(pending)})
     click('[data-player-refresh]',()=>{if(page==='room'&&room)void run(()=>loadRoom(room!.id));else void openInbox()})
     click('[data-player-group]',()=>{page='group';selected.clear();groupName='';notice='';render(true)})
     click('[data-player-invite]',()=>{void act({action:'invite',token:newPlayerChatInvite()})})
     click('[data-player-group-invite]',()=>{if(room)void act({action:'invite',room:room.id,token:newPlayerChatInvite()})})
+    click('[data-player-icon]',button=>{
+      const target=room
+      if (!target?.manage || iconEditor) return
+      iconEditor=openChatIconEditor({name:target.title,logo:target.logo,kind:'Group'},active,async photo=>{
+        const {data}=await client.auth.getSession()
+        if (!active() || data.session?.user.id!==owner) throw Error('Sign in again to update the icon.')
+        const path=playerChatApiUrl()+'/branding', body={room:target.id,photo:photo?.base64??null}
+        const headers={Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'}
+        const response=await CapacitorHttp.post({url:'https://www.tenaceiq.com'+path,headers,data:body,responseType:'json',
+          disableRedirects:true,connectTimeout:12000,readTimeout:20000})
+        if (!active() || response.status!==200 || response.data?.ok!==true || response.data?.releaseScope!=='first-party' ||
+          response.data?.owner!==owner || response.data?.roomId!==target.id || response.data?.hasLogo!==Boolean(photo)) {
+          throw Error('The icon change could not be confirmed. Refresh your chat.')
+        }
+      },changed=>{
+        iconEditor=null
+        if (!active()) return
+        if (changed) void run(()=>loadRoom(target.id))
+        else button.focus()
+      })
+    })
     click('[data-practice-start]',()=>{practiceDraft=newGroupPracticeDraft();render();dialog.querySelector<HTMLElement>('[data-group-practice] input')?.focus()})
-    click('[data-practice-dismiss]',()=>{practiceDraft=null;render();dialog.querySelector<HTMLElement>('[data-practice-start]')?.focus()})
+    click('[data-practice-edit]',()=>{
+      if (!room?.practice?.revision) return
+      practiceDraft=newGroupPracticeDraft(room.practice)
+      render()
+      dialog.querySelector<HTMLElement>('[data-group-practice] input')?.focus()
+    })
+    click('[data-practice-dismiss]',()=>{practiceDraft=null;render();dialog.querySelector<HTMLElement>('[data-practice-start],[data-practice-edit]')?.focus()})
     click('[data-practice-cancel]',()=>{
       if (room?.practice && confirm('Cancel this practice for everyone?')) void act({action:'practice_cancel',room:room.id,id:room.practice.id})
     })
@@ -325,14 +368,20 @@ export function openPlayerChats(
       court:String(fields.get('court')??''),capacity:String(fields.get('capacity')??''),
     })
     dialog.querySelector<HTMLFormElement>('[data-group-practice]')?.addEventListener('input',event=>{
-      practiceDraft=practiceFields(new FormData(event.currentTarget as HTMLFormElement))
+      practiceDraft={...practiceDraft,...practiceFields(new FormData(event.currentTarget as HTMLFormElement))}
     })
     form('[data-group-practice]',fields=>{
       if (!room?.manage) return
       const next=practiceFields(fields)
       try {
-        void act({action:'practice_create',room:room.id,id:crypto.randomUUID(),startsAt:groupPracticeStart(next.date,next.time),
-          court:next.court.trim(),capacity:Number(next.capacity)})
+        const currentPractice = room.practice
+        const original = currentPractice ? newGroupPracticeDraft(currentPractice) : null
+        const startsAt = original?.date===next.date && original.time===next.time && original.startsAt
+          ? original.startsAt : groupPracticeStart(next.date,next.time)
+        const change = {room:room.id,startsAt,court:next.court.trim(),capacity:Number(next.capacity)}
+        if (practiceDraft?.revision && practiceDraft.id) {
+          void act({action:'practice_edit',...change,id:practiceDraft.id,revision:practiceDraft.revision,request:crypto.randomUUID()})
+        } else void act({action:'practice_create',...change,id:crypto.randomUUID()})
       } catch (error) { notice=message(error);render(true) }
     })
     form('[data-player-report]',(fields,element)=>{

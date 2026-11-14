@@ -9,6 +9,7 @@ import { changeNativePost } from './native-chat-message-tools'
 import { chatSafetyAction, loadChatBlocks } from './team-chat-safety'
 import { markTeamChatRead } from './team-chat-read'
 import { readTeamChatDisplayName } from './team-chat-display-name'
+import { namedTeamChatRooms, type NamedChatRoom, type NamedChatRoomSummary } from './named-team-chat-rooms'
 
 const nameFor = (id: string, owner: string, names?: Map<string, string> | null) =>
   id === owner ? 'You' : names?.get(id) || `Teammate ${id.slice(-4).toUpperCase()}`
@@ -41,8 +42,8 @@ function chatPost(row: SentTeamMessage, owner: string, names?: Map<string, strin
   }
 }
 
-export async function readFirstPartyChat(service: SupabaseClient, owner: string, room: ReviewedTeamRoom, params: URLSearchParams) {
-  const roomId = room.roomId
+export async function readFirstPartyChat(service: SupabaseClient, owner: string, room: ReviewedTeamRoom, params: URLSearchParams, named?: NamedChatRoom) {
+  const roomId = named?.id ?? room.roomId
   if (params.get('op') === 'message') {
     const messageId = params.get('message') || '', view = params.get('view') || ''
     const result = await loadTeamChatMessage(service, owner, roomId, messageId, view, true)
@@ -66,7 +67,7 @@ export async function readFirstPartyChat(service: SupabaseClient, owner: string,
     loadChatDisplayNames(service, roomId, updates ? senders : [owner, ...senders]),
   ])
   const messages = result.rows.map(row => ({ ...chatPost(row, owner, names), reactions: reactions.get(row.id) || [] }))
-  const chat = { id: roomId, messages, lastReadAt: result.lastReadAt }
+  const chat = { id: roomId, messages, lastReadAt: result.lastReadAt, ...(named ? { chatRoom: named } : {}) }
   if (updates) {
     return {
       ok: true as const, chatUpdate: true, beforeCursor: result.beforeCursor, nextCursor: result.nextCursor,
@@ -77,7 +78,7 @@ export async function readFirstPartyChat(service: SupabaseClient, owner: string,
   return {
     ok: true as const, nextCursor: result.nextCursor,
     room: {
-      ...chat, ...chatTeam(room), subject: room.teamName, chatReady: true, members: [],
+      ...chat, ...chatTeam(room), subject: named?.name ?? room.teamName, chatReady: true, members: [],
       ...(names ? { chatDisplayName: names.get(owner) || '' } : {}),
       activeCardId: '', nextScheduledMatch: null,
       blockedMembers: result.blockedUserIds.map(id => ({ id, name: nameFor(id, owner) })),
@@ -88,11 +89,20 @@ export async function readFirstPartyChat(service: SupabaseClient, owner: string,
 export async function countFirstPartyChats(service: SupabaseClient, owner: string, rooms: ReviewedTeamRoom[]) {
   if (!rooms.length) return { owner, teams: [], total: 0 }
   const blocked = await loadChatBlocks(service, owner)
-  const teams: { teamName: string; leagueName: string; flight: string; unread: number }[] = []
+  const teams: (Pick<ReviewedTeamRoom, 'teamName' | 'leagueName' | 'flight'> & {
+    unread: number; generalUnread?: number; rooms?: NamedChatRoomSummary[]
+  })[] = []
   // Bound parallel reads for members connected to multiple teams.
   for (let offset = 0; offset < rooms.length; offset += 4) {
     const batch = await Promise.all(rooms.slice(offset, offset + 4).map(async room => {
       if (!await findReviewedTeamConversation(service, room)) return null
+      const { teamName, leagueName, flight } = room
+      const list = await namedTeamChatRooms(service, owner, room, 'list', undefined, undefined, room.roomId)
+      if (list.ok && 'rooms' in list) return {
+        teamName, leagueName, flight, generalUnread: list.generalUnread, rooms: list.rooms,
+        unread: Math.min(100, list.generalUnread + list.rooms.reduce((sum, chat) => sum + chat.unread, 0)),
+      }
+      if (!list.ok && list.status === 403) return null
       const access = await checkTeamChatAccess(service, owner, room.roomId, false)
       if (!access.ok) {
         if (access.status === 403) return null
@@ -106,7 +116,6 @@ export async function countFirstPartyChats(service: SupabaseClient, owner: strin
       if (access.lastReadAt) query = query.gt('created_at', access.lastReadAt)
       const result = await query
       if (result.error || typeof result.count !== 'number') throw Error('Chat counts unavailable')
-      const { teamName, leagueName, flight } = room
       return { teamName, leagueName, flight, unread: Math.min(100, result.count) }
     }))
     teams.push(...batch.filter(team => team !== null))
@@ -121,7 +130,7 @@ export async function writeFirstPartyChat(service: SupabaseClient, owner: string
   if (action === 'set_chat_display_name') {
     if (body.roomId !== roomId) return fault(403)
     const name = readTeamChatDisplayName(body.displayName)
-    if (name === undefined || Object.keys(body).length !== 6) return fault(400)
+    if (name === undefined || Object.keys(body).length !== (body.chatRoomId === undefined ? 6 : 7)) return fault(400)
     const { data, error } = await service.from('team_room_member_preferences').upsert({
       conversation_id: roomId, profile_id: owner, chat_display_name: name || null,
     }, { onConflict: 'conversation_id,profile_id' }).select('chat_display_name').single()

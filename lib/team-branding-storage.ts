@@ -11,11 +11,11 @@ function storedPath(roomId: string, metadata: Record<string, unknown> | null) {
     /^[a-f0-9-]{36}\.(?:jpg|png|webp)$/.test(logo.path.slice(prefix.length)) ? logo.path : ''
 }
 
-export async function loadTeamLogoUrls(service: SupabaseClient, roomIds: string[]) {
+export async function loadTeamLogoUrls(service: SupabaseClient, roomIds: string[], roomType: 'team_room' | 'team_room_chat' | 'player_group' = 'team_room') {
   const urls = new Map<string, string>()
   if (!roomIds.length) return urls
   const { data, error } = await service.from('internal_conversations').select('id,metadata')
-    .in('id', roomIds).eq('related_entity_type', 'team_room').eq('status', 'open').limit(roomIds.length)
+    .in('id', roomIds).eq('related_entity_type', roomType).eq('status', 'open').limit(roomIds.length)
   if (error || !data) return urls
   const rooms = new Map(data.flatMap(row => {
     const path = storedPath(row.id, row.metadata)

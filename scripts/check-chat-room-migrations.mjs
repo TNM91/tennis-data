@@ -85,4 +85,60 @@ await db.exec(`update public.internal_conversations set status='open' where id='
 await db.exec(`insert into public.team_room_member_removals values('${parent}','${captain}');`);
 await db.query("select set_config('request.jwt.claim.sub',$1,false)",[captain]);await db.exec('set role authenticated');
 assert.equal((await db.query('select id from public.internal_conversations where id=$1',[child])).rows.length,0);await db.exec('reset role');
-console.log('PASS: migrations execute in PostgreSQL; captain-only create, idempotency/conflicts, scope, removal/archived membership, capacity, service-only grants, direct message/reaction/creator RLS and signal rejection, social reactions retain ack.');await db.close();})().catch(e=>{console.error(e.message);process.exitCode=1});
+// Apply the first-party migration over existing rooms and a private team without legacy metadata.
+await db.exec(`alter table public.internal_conversations add column updated_at timestamptz default now();
+ alter table public.internal_messages add column message_kind text default 'message', add column metadata jsonb default '{}';
+ alter table public.team_profile_links add column source_type text default 'manual_invite';
+ create table public.native_private_teams(room_id uuid primary key, team_name text, flight text);
+ grant select on public.native_private_teams to service_role;
+ delete from public.team_room_member_removals;`);
+await db.exec(fs.readFileSync('supabase/migrations/20261114000200_native_first_party_team_chats.sql','utf8'));
+const privateTeam='00000000-0000-4000-8000-000000000400';
+const privateChat='00000000-0000-4000-8000-000000000401';
+const newChat='00000000-0000-4000-8000-000000000402';
+const privateLeague='Private team '+privateTeam;
+await db.exec(`
+ insert into public.internal_conversations(id,conversation_type,status,created_by_user_id,related_entity_type,related_entity_id,metadata)
+ values('${privateTeam}','league','open','${captain}','team_room','rally__private team 00000000 0000 4000 8000 000000000400__4 0','{}');
+ insert into public.native_private_teams values('${privateTeam}','Rally','4.0');
+ insert into public.internal_conversation_participants values('${privateTeam}','${captain}','coordinator',false,null),
+ ('${privateTeam}','${member}','member',false,null),('${privateTeam}','${outsider}','member',false,null);
+ insert into public.team_profile_links(profile_user_id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,status,source_type)
+ values('${captain}','Rally','rally','${privateLeague}','4.0','captain',array['captain'],'accepted','manual_invite'),
+ ('${member}','Rally','rally','${privateLeague}','4.0','player',array['player'],'accepted','manual_invite'),
+ ('${outsider}','Rally','rally','${privateLeague}','4.0','captain',array['captain'],'accepted','data_assist_import');`);
+const firstParty=async(owner,action,id=null,name=null,parentId=privateTeam,team='Rally',league=privateLeague)=>
+ (await db.query('select public.native_first_party_team_chat_rooms($1,$2,$3,$4,$5,$6,$7,$8) value',
+ [owner,team,league,'4.0',action,id,name,parentId])).rows[0].value;
+await db.exec('set role service_role');
+assert.equal((await firstParty(outsider,'list')).status,403);
+assert.equal((await firstParty(member,'create',privateChat,'Practice')).status,403);
+assert.equal((await firstParty(captain,'create',privateChat,'Practice')).status,200);
+assert.equal((await firstParty(captain,'create',privateChat,'Practice')).replayed,true);
+assert.equal((await firstParty(member,'open',privateChat,null,parent)).status,403);
+assert.equal((await firstParty(member,'open',privateChat)).status,200);
+assert.equal((await firstParty(outsider,'open',privateChat)).status,403);
+assert.equal((await firstParty(captain,'create',newChat,'Clubhouse',parent,'Aces','City')).status,200);
+assert.equal((await rpc(member,'open',newChat)).status,404);
+assert.equal((await firstParty(member,'open',child,null,parent,'Aces','City')).status,404);
+assert.equal((await rpc(member,'list')).rooms.some(room=>room.id===newChat),false);
+assert.equal((await firstParty(member,'list',null,null,parent,'Aces','City')).rooms.length,1);
+await db.exec('reset role');
+await db.exec(`insert into public.internal_messages(id,conversation_id,sender_user_id,message_kind,metadata)
+ values('00000000-0000-4000-8000-000000000410','${privateChat}','${captain}','message','{}'),
+ ('00000000-0000-4000-8000-000000000411','${privateChat}','${captain}','announcement','{}');`);
+assert.equal((await asMember('select id from public.internal_messages where conversation_id=$1',[privateChat])).rows.length,2);
+await db.exec('set role service_role');
+const listed=await firstParty(member,'list');
+assert.equal(listed.rooms[0].id,privateChat);
+assert.equal(listed.rooms[0].unread,1);
+assert.equal(typeof listed.rooms[0].activityAt,'string');
+await db.exec('reset role');
+await db.exec(`insert into public.team_room_member_removals values('${privateTeam}','${member}');`);
+assert.equal((await asMember('select id from public.internal_messages where conversation_id=$1',[privateChat])).rows.length,0);
+assert.equal((await asMember('select public.can_read_team_chat_signal($1) allowed',[privateChat])).rows[0].allowed,false);
+await db.exec('set role service_role');
+assert.equal((await firstParty(member,'open',privateChat)).status,403);
+await db.exec('reset role');
+assert.equal((await db.query("select has_function_privilege('authenticated','public.native_first_party_team_chat_rooms(uuid,text,text,text,text,uuid,text,uuid)','execute') allowed")).rows[0].allowed,false);
+console.log('PASS: migrations execute in PostgreSQL; first-party room isolation, roster access, private teams, unread counts and legacy rooms.');await db.close();})().catch(e=>{console.error(e.message);process.exitCode=1});

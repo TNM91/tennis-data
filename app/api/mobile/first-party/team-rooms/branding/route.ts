@@ -6,6 +6,7 @@ import { inspectTeamLogoImage, validateTeamLogoDimensions } from '@/lib/team-bra
 import { saveTeamLogo } from '@/lib/team-branding-storage'
 import { buildTeamRoomScopeId } from '@/lib/team-room'
 import { checkTeamChatAccess } from '@/lib/team-chat-updates'
+import { namedChatRoomId, namedTeamChatRooms } from '@/lib/named-team-chat-rooms'
 
 export const runtime = 'nodejs'
 
@@ -19,9 +20,10 @@ export async function POST(request: Request) {
     const account = await verifiedAccount(request)
     if (!account) return denied(401)
     const body = await readAccountJson(request, 360_000)
-    if (!body || Object.keys(body).length !== 5) return denied(400)
-    const { teamName, leagueName, flight, roomId, photo } = body
+    if (!body || Object.keys(body).length !== (body.chatRoomId === undefined ? 5 : 6)) return denied(400)
+    const { teamName, leagueName, flight, roomId, photo, chatRoomId } = body
     if ([teamName, leagueName, flight, roomId].some(field => typeof field !== 'string') ||
+        chatRoomId !== undefined && (!namedChatRoomId(chatRoomId) || roomId !== chatRoomId) ||
         photo !== null && (typeof photo !== 'string' || photo.length > 350_000 ||
           !/^[A-Za-z0-9+/]+={0,2}$/.test(photo))) return denied(400)
 
@@ -29,19 +31,26 @@ export async function POST(request: Request) {
     if (!key) return denied(503)
     const service = accountClient(key), owner = account.user.id
     const links = await loadReviewedTeamLinks(service, owner, readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS))
-    const team = links.find(link => link.roomId === roomId && link.teamName === teamName &&
+    const team = links.find(link => (chatRoomId !== undefined || link.roomId === roomId) && link.teamName === teamName &&
       link.leagueName === leagueName && link.flight === flight)
     if (!team?.isCaptain) return denied(403)
+    const target = chatRoomId === undefined ? team.roomId : chatRoomId as string
     const [access, membership, room] = await Promise.all([
       loadPlayerAccess(accountClient(supabaseKey, account.token), owner),
       checkTeamChatAccess(service, owner, team.roomId, false),
-      service.from('internal_conversations').select('id,metadata').eq('id', team.roomId)
-        .eq('related_entity_type', 'team_room').eq('related_entity_id', buildTeamRoomScopeId(team))
+      service.from('internal_conversations').select('id,metadata').eq('id', target)
+        .eq('related_entity_type', chatRoomId === undefined ? 'team_room' : 'team_room_chat')
+        .eq('related_entity_id', chatRoomId === undefined ? buildTeamRoomScopeId(team) : target)
         .eq('status', 'open').maybeSingle(),
     ])
     if (room.error) return denied(503)
     if (!membership.ok) return denied(membership.status)
-    if (!access.canUseCaptainWorkflow || room.data?.id !== team.roomId) return denied(403)
+    if (!access.canUseCaptainWorkflow || room.data?.id !== target) return denied(403)
+    if (chatRoomId !== undefined) {
+      const opened = await namedTeamChatRooms(service, owner, team, 'open', target, undefined, team.roomId)
+      if (!opened.ok) return denied(opened.status)
+      if (!('id' in opened) || opened.id !== target) return denied(403)
+    }
 
     let logo = null
     if (typeof photo === 'string') {
@@ -51,7 +60,7 @@ export async function POST(request: Request) {
       if (!dimensions || validateTeamLogoDimensions(dimensions) || Math.max(dimensions.width, dimensions.height) > 512) return denied(400)
       logo = { ...dimensions, bytes, mimeType }
     }
-    const status = await saveTeamLogo(service, team.roomId, room.data.metadata, logo)
+    const status = await saveTeamLogo(service, target, room.data.metadata, logo)
     return status === 200 ? json({ ok: true, owner, roomId, hasLogo: logo !== null }, 200) : denied(status)
   } catch {
     return denied(503)

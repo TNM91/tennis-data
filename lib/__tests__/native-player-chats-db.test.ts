@@ -129,6 +129,40 @@ it('keeps contacts consensual and player chats private while delivering one noti
     expect(await practiceRoom(owner)).toMatchObject({room:{practice:{mine:'in',inCount:1,players:[{name:'Avery'}]}}})
     expect(await practiceRoom(stranger)).toEqual({code:'forbidden'})
     expect(await changePractice(stranger,'practice_reply','in')).toEqual({code:'forbidden'})
+    await db.exec(await readFile('supabase/migrations/20261114000100_native_group_practice_edit.sql','utf8'))
+    const practiceRevision = async () => (await db.query<{revision:string}>(
+      'select revision from private.native_group_practices where id=$1',[practice])).rows[0].revision
+    const revision = await practiceRevision()
+    const newTime = new Date(Date.now()+172800000).toISOString()
+    const edit = async (user:string, version=revision, request=id(50), court='Court 4', capacity=4, time=newTime) =>
+      (await db.query<{value:unknown}>('select native_edit_group_practice($1,$2,$3,$4,$5,$6,$7,$8) as value',
+        [user,group,practice,version,request,time,court,capacity])).rows[0].value
+    const scheduleNotices = async (user:string) => {
+      let rows:unknown[] = []
+      await asUser(user,async ()=>{
+        rows = (await db.query("select title,href from public.native_first_party_updates where notification_type='schedule'")).rows
+      })
+      return rows
+    }
+    expect(await changePractice(guest,'practice_reply','in')).toEqual({code:'ok'})
+    expect(await edit(guest)).toEqual({code:'forbidden'})
+    expect(await edit(owner)).toEqual({code:'ok'})
+    expect(await edit(owner)).toEqual({code:'ok'})
+    expect(await edit(owner,revision,id(50),'Different court')).toEqual({code:'stale'})
+    expect(await edit(owner,revision,id(51))).toEqual({code:'stale'})
+    const secondRevision = await practiceRevision()
+    expect(secondRevision).not.toBe(revision)
+    expect(await practiceRoom(guest)).toMatchObject({room:{practice:{id:practice,revision:secondRevision,court:'Court 4',mine:'in',inCount:2}}})
+    const notice = {title:'Group practice changed',href:'/chats?room='+group}
+    expect(await scheduleNotices(guest)).toEqual([notice])
+    expect(await scheduleNotices(stranger)).toEqual([])
+    expect(await scheduleNotices(owner)).toEqual([])
+    expect(await edit(owner,secondRevision,id(52),'Court 5')).toEqual({code:'ok'})
+    expect(await scheduleNotices(guest)).toEqual([notice])
+    await db.query("update public.internal_notifications set read_at=now() where notification_type='schedule'")
+    await db.query('insert into public.internal_notification_preferences(profile_id,schedule_alerts_enabled) values($1,false)',[guest])
+    expect(await edit(owner,await practiceRevision(),id(53),'Court 6')).toEqual({code:'ok'})
+    expect(await scheduleNotices(guest)).toEqual([notice])
     expect(await read(stranger,group)).toEqual({code:'forbidden'})
     expect(await action(stranger,'join',{token:groupToken})).toEqual({code:'unavailable'})
     await asUser(stranger,async ()=>{
@@ -140,6 +174,7 @@ it('keeps contacts consensual and player chats private while delivering one noti
     expect(await changePractice(guest,'practice_cancel')).toEqual({code:'forbidden'})
     expect(await changePractice(owner,'practice_cancel')).toEqual({code:'ok'})
     expect(await practiceRoom(owner)).toMatchObject({room:{practice:null}})
+    expect(await scheduleNotices(guest)).toEqual([])
     expect(await action(owner,'leave',{room:group})).toEqual({code:'ok'})
     expect(await read(guest,group)).toEqual({code:'forbidden'})
   } finally { await db.close() }
