@@ -10,6 +10,8 @@ import {
   type SignupEmailIntent,
 } from '@/lib/signup-confirmation-email'
 import { supabaseUrl } from '@/lib/supabase'
+import { isPlayerChatInviteNext } from '@/lib/player-chats-contract'
+import { NATIVE_WEB_PARAMETER } from '@/lib/native-web-privacy'
 
 export const runtime = 'nodejs'
 
@@ -167,6 +169,7 @@ function buildConfirmationRedirect(planId: BillablePricingPlanId, nextHref: stri
   redirect.searchParams.set('plan', planId)
   redirect.searchParams.set('next', nextHref)
   redirect.searchParams.set('email', email)
+  if (isPlayerChatInviteNext(nextHref)) redirect.searchParams.set(NATIVE_WEB_PARAMETER, 'ios')
   if (isScorecardSignup) redirect.searchParams.set('source', SCORECARD_SIGNUP_SOURCE)
   return redirect.toString()
 }

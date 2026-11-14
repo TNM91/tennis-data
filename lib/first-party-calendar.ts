@@ -5,7 +5,9 @@ import { loadNativeCompetitions } from './native-competitions'
 import { loadNativeTournaments } from './native-tournaments'
 import { testflightTournamentId } from './testflight-tournament'
 import { applyCompetitionScheduleResponses, mapApprovedCompetitionSchedule, type TournamentScheduleMatch } from './player-competition-schedule'
-import { type NativeCalendarCompetition } from './native-calendar-contract'
+import type { NativeCalendarCompetition } from './native-calendar-contract'
+import { accountClient } from './mobile-account-auth'
+import { loadActiveReviewedTeamRoomIds, loadReviewedTeamLinks, readReviewedTeamRooms } from './first-party-team-scopes'
 
 function rows<T>(result: { data: T[] | null; error: unknown }, limit: number) {
   if (result.error || !Array.isArray(result.data) || result.data.length > limit) throw Error('Competition dates unavailable')
@@ -22,18 +24,32 @@ export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, own
   const demoId = testflightTournamentId(owner)
   const allowedTournaments = new Set([...tournaments.keys(), demoId])
   const empty = { data: [], error: null }
-  const [leagueResult, tournamentResult] = await Promise.all([
+  const [leagueResult, tournamentResult, teamLinks] = await Promise.all([
     leagues.size ? db.from('tiq_player_league_entries').select('league_id,player_name,created_by_user_id,entry_status')
       .eq('created_by_user_id', owner).eq('entry_status', 'active').in('league_id', [...leagues.keys()]).limit(101) : empty,
     db.from('tiq_tournament_entries').select('tournament_id,player_name,submitted_by_user_id,status')
       .eq('submitted_by_user_id', owner).eq('status', 'approved').in('tournament_id', [...allowedTournaments]).limit(101),
+    (async () => {
+      const rooms = readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)
+      if (![...rooms.values()].some(room => room.scheduleLeagueId && leagues.has(room.scheduleLeagueId))) return []
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+      if (!key) return []
+      const service = accountClient(key)
+      const links = (await loadReviewedTeamLinks(service, owner, rooms))
+        .filter(room => room.scheduleLeagueId && leagues.has(room.scheduleLeagueId))
+      const activeRooms = new Set(await loadActiveReviewedTeamRoomIds(service, owner, links))
+      return links.filter(room => activeRooms.has(room.roomId))
+    })(),
   ])
   const leagueEntries = rows(leagueResult, 100), tournamentEntries = rows(tournamentResult, 100)
   if (leagueEntries.some(entry => entry.created_by_user_id !== owner || entry.entry_status !== 'active' || !leagues.has(entry.league_id)) ||
       tournamentEntries.some(entry => entry.submitted_by_user_id !== owner || entry.status !== 'approved' || !allowedTournaments.has(entry.tournament_id))) {
     throw Error('Calendar entries changed')
   }
-  const leagueIds = [...new Set<string>(leagueEntries.map(entry => entry.league_id))]
+  const leagueIds = [...new Set<string>([
+    ...leagueEntries.map(entry => entry.league_id),
+    ...teamLinks.flatMap(room => room.scheduleLeagueId ? [room.scheduleLeagueId] : []),
+  ])]
   const tournamentIds = [...new Set<string>(tournamentEntries.map(entry => entry.tournament_id))].filter(id => id !== demoId)
   const parents = tournamentIds.length ? rows(await db.from('tiq_tournaments').select('id,event_id')
     .in('id', tournamentIds).eq('is_public', true).neq('status', 'draft').limit(51), 50) : []
@@ -45,9 +61,29 @@ export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, own
   const tasks = [
     ...leagueIds.map(id => async (): Promise<NativeCalendarCompetition[]> => {
       const { detail, publishedSchedule } = await loadNativeCompetitions(db, owner, 'discover', '', id, leagues, false, true)
-      if (!detail || detail.league.format !== 'individual' || detail.moreParticipants || detail.moreFixtures) return []
+      if (!detail || detail.moreParticipants || detail.moreFixtures) return []
       const { league, participants } = detail
       const fixtures = publishedSchedule ?? detail.fixtures
+      if (league.format === 'team') {
+        new Intl.DateTimeFormat('en', { timeZone: league.timeZone })
+        const teamNames = new Set(teamLinks.filter(room => room.scheduleLeagueId === id &&
+          room.leagueName === league.name && room.flight === league.flight &&
+          (publishedSchedule || participants.filter(team => team.name === room.teamName && team.status === 'active').length === 1))
+          .map(room => room.teamName))
+        return fixtures.flatMap((fixture): NativeCalendarCompetition[] => {
+          if (!['confirmed', 'coordinator_set', 'completed'].includes(fixture.status) ||
+              teamNames.has(fixture.a) === teamNames.has(fixture.b)) return []
+          const own = teamNames.has(fixture.a), opponent = own ? fixture.b : fixture.a
+          const time = fixture.time.slice(0, 5)
+          if (time && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) return []
+          return [{ id: 'league:' + id + ':' + fixture.id, kind: 'league', eventType: 'match', competitionId: id,
+            competitionName: league.name, title: (own ? fixture.a : fixture.b) + ' vs ' + opponent,
+            opponent, date: fixture.date, time, location: fixture.facility,
+            detail: league.season || 'League match', href: '',
+            status: fixture.status === 'completed' ? 'Completed' : 'Confirmed',
+            publishedView: { id }, timeZone: league.timeZone }]
+        })
+      }
       const ownNames = new Set(leagueEntries.filter(entry => entry.league_id === id).map(entry => playerKey(entry.player_name)))
       const publishedNames = [...new Set(publishedSchedule?.flatMap(fixture => [fixture.a, fixture.b]) ?? [])]
       const matching = (publishedSchedule ? publishedNames.map(name => ({ name })) : participants)

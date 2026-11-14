@@ -35,6 +35,7 @@ it('keeps pending scores private, returns corrections, and posts one official re
     await db.exec(await readFile('supabase/migrations/20261113000700_native_league_score_outcomes.sql', 'utf8'))
     await db.exec(await readFile('supabase/migrations/20261113000800_native_league_match_day.sql', 'utf8'))
     await db.exec(await readFile('supabase/migrations/20261113000900_native_league_score_attention.sql', 'utf8'))
+    await db.exec(await readFile('supabase/migrations/20261113001000_native_league_postponement.sql', 'utf8'))
     for (const owner of [director, captain, stranger, otherCaptain]) {
       await db.query('insert into auth.users(id,email) values($1,$2)', [owner, owner+'@example.test'])
       await db.query('insert into profiles(id,email,role) values($1,$2,$3)', [owner, owner+'@example.test', owner===director?'admin':'member'])
@@ -79,6 +80,10 @@ it('keeps pending scores private, returns corrections, and posts one official re
     const remind = async (actor:string, row:AttentionRow, league='demo') => (await db.query<{ result: unknown }>(
       'select native_league_remind_score($1,$2,$3,$4,$5,$6,null,null,$7) as result',
       [actor,league,version,row.id,row.fixtureDigest,row.revision,JSON.stringify(row.fixture)],
+    )).rows[0].result
+    const postpone = async (actor:string, row:AttentionRow, request:number, league='demo') => (await db.query<{result:unknown}>(
+      'select native_first_party_postpone_league_match($1,$2,$3,$4,$5,$3,$6) as result',
+      [actor,league,version,id(request),row.id,JSON.stringify(row.fixture)],
     )).rows[0].result
     const updates = async (actor:string) => {
       await db.exec('reset role; set role authenticated')
@@ -134,6 +139,7 @@ it('keeps pending scores private, returns corrections, and posts one official re
     const [stillOlder, correction] = (await attention())!
     expect([stillOlder, correction]).toMatchObject([{id:older}, {id:fixture,revision:id(21),note:'Check the score from court one.'}])
     expect(await remind(director,correction)).toMatchObject({code:'sent',count:1})
+    expect(await postpone(director,correction,161)).toEqual({code:'played'})
     expect(await updates(captain)).toEqual(expect.arrayContaining([missingNotice,
       {title:'League score needs corrections',href},{title:'League score correction reminder',href}]))
     expect(await updates(otherCaptain)).toEqual([missingNotice])
@@ -158,6 +164,12 @@ it('keeps pending scores private, returns corrections, and posts one official re
       {teamName:'Rallies',wins:1,lineWins:1},{teamName:'Aces',losses:1,lineLosses:1},
     ])
     expect(beforeApprovedLeagueScores(scores,scores)).toEqual([])
+    expect(await postpone(director,olderRow,162)).toMatchObject({code:'saved',match:{id:older,status:'postponed'}})
+    expect(await attention()).toEqual([])
+    expect(await remind(director,olderRow)).toEqual({code:'stale'})
+    expect(await matchDay(captain,true,[older])).toEqual({matches:[],canReview:false})
+    expect(await updates(otherCaptain)).toEqual([{title:'League match postponed',
+      href:'/explore/leagues/tiq/demo?scheduledMatch='+older+'#league-schedule'}])
     await db.exec('reset role')
     await db.query("update tiq_league_schedule_items set scheduled_date=current_date+3 where id=$1",[older])
     expect(await remind(director,olderRow)).toEqual({code:'stale'})

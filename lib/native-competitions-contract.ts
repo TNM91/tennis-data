@@ -9,7 +9,7 @@ export type CompetitionScope='discover'|'mine'
 export const publicCompetitionOwner='public-competitions'
 export type CompetitionConnection={leagueId:string;kind:'player'|'team'|'organizer';status:'active'|'pending'|'rejected'|'removed'}
 export type LeagueMatchDayRow={id:string;action:'enter'|'fix'|'pending'|'review'}|{id:string;action:'result';resultId:string}
-export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean;detailsUnderReview?:true;canReviewEntries?:true;canScheduleMatches?:true;publishedSchedule?:OfficeFixture[];canOpenLeagueScores?:true;scoreReviewDemo?:true;approvedScores?:{results:OfficeResult[];standings:TiqTeamStandingRow[]};matchDay?:{matches:LeagueMatchDayRow[];pendingReviews?:number};attention?:LeagueAttentionRow[]}
+export type CompetitionSnapshot=OfficeSnapshot&{scope:CompetitionScope;query:string;connections:CompetitionConnection[];moreConnections:boolean;detailsUnderReview?:true;canReviewEntries?:true;canScheduleMatches?:true;canPostponeMatches?:true;publishedSchedule?:OfficeFixture[];canOpenLeagueScores?:true;scoreReviewDemo?:true;approvedScores?:{results:OfficeResult[];standings:TiqTeamStandingRow[]};matchDay?:{matches:LeagueMatchDayRow[];pendingReviews?:number};attention?:LeagueAttentionRow[]}
 export function competitionInput(scope:string,query:string,selected:string){
  if(!['discover','mine'].includes(scope)||query.length>80||selected.length>80||selected&&!/^[a-zA-Z0-9_-]+$/.test(selected))throw Error('Invalid competition selection')
  return {scope:scope as CompetitionScope,query:query.trim().replace(/\s+/g,' '),selected}
@@ -32,7 +32,7 @@ export function readCompetitionSnapshot(value:unknown,owner:string,scope:Competi
   if(!selected||r.detailsUnderReview!==true||!Array.isArray(r.publishedSchedule)||r.publishedSchedule.length>100)throw Error('Invalid published schedule')
   publishedSchedule=r.publishedSchedule.map(value=>{
    const {id,date,time,facility,a,b,status}=readScheduledLeagueMatch({...lineupRecord(value),court:'',duration:null})
-   if(status!=='coordinator_set')throw Error('Invalid published match')
+   if(!['coordinator_set','postponed'].includes(status))throw Error('Invalid published match')
    return {id,date,time,facility,a,b,status}
   })
   if(new Set(publishedSchedule.map(match=>match.id)).size!==publishedSchedule.length)throw Error('Ambiguous published match')
@@ -48,6 +48,7 @@ export function readCompetitionSnapshot(value:unknown,owner:string,scope:Competi
  if(r.canOpenLeagueScores===true&&(!selected||owner===publicCompetitionOwner||base.detail?.league.format!=='team'))throw Error('Invalid score review access')
  if(r.scoreReviewDemo===true&&(!selected||selected!==testflightLeagueScoreId(owner)||r.canOpenLeagueScores!==true||
     r.canScheduleMatches===true||r.canReviewEntries===true||!connections.some(c=>c.leagueId===selected&&c.kind==='organizer')))throw Error('TestFlight league context changed')
+ if(r.canPostponeMatches===true&&(base.detail?.league.format!=='team'||r.canScheduleMatches!==true&&r.scoreReviewDemo!==true))throw Error('Match change access changed')
  let matchDay:CompetitionSnapshot['matchDay']
  if(r.matchDay!==undefined){
   const source=lineupRecord(r.matchDay),canReview=r.canReviewEntries===true||r.scoreReviewDemo===true
@@ -85,6 +86,7 @@ export function readCompetitionSnapshot(value:unknown,owner:string,scope:Competi
   ...(matchDay?{matchDay}:{}),
   ...(attention?{attention}:{}),
   ...(r.canScheduleMatches===true?{canScheduleMatches:true as const}:{}),
+  ...(r.canPostponeMatches===true?{canPostponeMatches:true as const}:{}),
   ...(publishedSchedule?{publishedSchedule}:{}),
   ...(r.detailsUnderReview===true?{detailsUnderReview:true as const}:{}),...(r.canReviewEntries===true?{canReviewEntries:true as const}:{})}
 }

@@ -10,7 +10,7 @@ import type {TeamRoomScope} from './team-room'
 export type CalendarRange={from:string;to:string}
 export type CalendarSharedDate={id:string;title:string;date:string;time:string;location:string;detail:string;kind:'lesson'|'reminder'}
 export type CalendarCompetitionView={id:string;divisionId?:string}
-export type NativeCalendarCompetition=PlayerCompetitionScheduleEvent&{publishedView?:CalendarCompetitionView;scorecardFormat?:'singles'|'doubles'}
+export type NativeCalendarCompetition=PlayerCompetitionScheduleEvent&{publishedView?:CalendarCompetitionView;scorecardFormat?:'singles'|'doubles';timeZone?:string}
 export type CalendarTeamMatch={roomId:string;revision:string;match:ReviewedNextMatch;scope:TeamRoomScope&{leagueLabel?:string}}
 export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:NativeCalendarCompetition[];coach:CalendarSharedDate[];practices?:CalendarTeamPractice[];practicesUnavailable?:boolean;teamMatches?:CalendarTeamMatch[];warnings:string[]}
 export const COMPETITION_DATES_UNAVAILABLE='League and tournament dates couldn’t load. Refresh to check them.'

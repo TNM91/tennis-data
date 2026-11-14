@@ -8,6 +8,7 @@ describe('native content links',()=>{
  it('opens only explicit supported content destinations',()=>{
   expect(readAppLink(root+'/coach/invite/test-token')).toEqual({kind:'coach-invite',href:root+'/coach/invite/test-token'})
   expect(readAppLink(root+'/team-room/join?token='+id)?.kind).toBe('team-invite')
+  expect(readAppLink(root+'/chats?room='+id+'&room='+id)).toBeNull()
   expect(readAppLink(root+'/team-room?team=Baseline+Aces&league=City&flight=4.0')).toEqual({kind:'chat',scope:{teamName:'Baseline Aces',leagueName:'City',flight:'4.0'}})
   for(const [path,kind] of [['explore/leagues/tiq','league'],['tournaments','tournament'],['matches','match']])expect(readAppLink(root+'/'+path+'/'+id)).toEqual({kind,id})
   expect(readAppLink(root+'/matches/'+id+'?via=scorecard-share')?.kind).toBe('match')
@@ -18,7 +19,7 @@ describe('native content links',()=>{
  it('publishes only content associations for the verified app identifier',()=>{
   expect(appleAppSiteAssociation.applinks.details[0].appIDs).toEqual(['6C5MPYLRVQ.com.tenaceiq.app'])
   const components=appleAppSiteAssociation.applinks.details[0].components
-  expect(components.filter(c=>!c.exclude).map(c=>c['/'])).toEqual(['/coach/invite/*','/team-room/join','/team-room','/explore/leagues/tiq/*','/tournaments/*','/matches/*'])
+  expect(components.filter(c=>!c.exclude).map(c=>c['/'])).toEqual(['/coach/invite/*','/team-room/join','/team-room','/chats/join','/chats','/explore/leagues/tiq/*','/tournaments/*','/matches/*'])
   expect(components.filter(c=>c.exclude).map(c=>c['/'])).toEqual(['/coach/invite/*/*','/explore/leagues/tiq/*/*','/tournaments/*/*','/matches/*/*'])
  })
 })
