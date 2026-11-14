@@ -6,6 +6,7 @@ import { isTeamResultScorecardKey, readTeamCourtScore } from '../../lib/team-res
 import { todayDateKey } from '../../lib/team-room-match-flow'
 import { localCalendarDate, type CalendarOccurrence } from './calendar-data'
 import { hittingPlanCourt, listedExploreCourt } from './explore-court-catalog'
+import { listedHittingClub } from '../../lib/hitting-clubs'
 
 type MatchFields = {
   match_date: string
@@ -19,7 +20,7 @@ export const courtFeedbackKeys = ['surface', 'lighting', 'court_time'] as const
 export type CourtFeedback = Record<typeof courtFeedbackKeys[number], number | null>
 export type CourtFeedbackVisit = { date: string; ratings: CourtFeedback }
 type MatchVenue = { court_venue_key: string | null; court_feedback: CourtFeedback | null }
-type MatchCalendarLink = { calendar_match_id: string | null; hitting_calendar_id?: string | null }
+type MatchCalendarLink = { calendar_match_id: string | null; hitting_calendar_id?: string | null; chat_hit_id?: string | null }
 export type PersonalMatch = MatchFields & MatchVenue & MatchCalendarLink & { id: string; revision: string; created_at: string }
 export type TeamScore = Pick<MatchFields, 'score' | 'outcome'>
 export type PersonalMatchDraft = MatchFields & MatchVenue & MatchCalendarLink & { id: string; revision: string; expected: string | null }
@@ -33,13 +34,15 @@ export function teamScoreDiffers(saved: TeamScore, posted: TeamScore) {
 }
 
 const table = 'native_personal_matches'
-const columns = 'owner_user_id,id,revision,calendar_match_id,match_date,opponent,format,outcome,score,created_at,court_venue_key,court_feedback,hitting_calendar_id'
+const columns = 'owner_user_id,id,revision,calendar_match_id,match_date,opponent,format,outcome,score,created_at,court_venue_key,court_feedback,hitting_calendar_id,chat_hit_id'
 const pageSize = 20
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const calendarMatchId = /^(?:league|tournament):[a-zA-Z0-9_-]{1,80}:[a-zA-Z0-9_:-]{1,120}$/
 const hittingCalendarId = new RegExp(`^player-calendar-${uuid.source.slice(1,-1)}$`, 'i')
 const hittingIdFromSeed = (seed?: CalendarScorecardSeed) => seed?.calendarMatchId.startsWith('hitting:')
   ? seed.calendarMatchId.slice('hitting:'.length) : null
+const chatHitIdFromSeed = (seed?: CalendarScorecardSeed) => seed?.calendarMatchId.startsWith('chat-hit:')
+  ? seed.calendarMatchId.slice('chat-hit:'.length) : null
 const courtVenueKey = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/
 const text = (value: unknown) => typeof value === 'string' ? value.trim() : ''
@@ -55,6 +58,13 @@ export function calendarScorecardSeed(match: NativeCalendarCompetition | undefin
 }
 
 export function hittingPlanScorecardSeed(event: CalendarOccurrence | null | undefined, now = new Date()): CalendarScorecardSeed | undefined {
+  if (event?.source === 'chat' && event.chatHit) {
+    const hit = event.chatHit
+    const venue = listedHittingClub(hit.clubId), start = Date.parse(hit.startsAt)
+    if (hit.status !== 'accepted' || !venue || !uuid.test(hit.id) || !Number.isFinite(start) || start > now.getTime()) return
+    return { calendarMatchId: `chat-hit:${hit.id}`, date: hit.date,
+      opponent: validText(hit.partner, 100) ? hit.partner : '', courtVenueKey: venue.id }
+  }
   if (event?.source !== 'personal' || !hittingPlanConfirmed(event)) return
   const venue = hittingPlanCourt(event), start = hittingPlanStart(event)
   if (!venue || !start || start > now || !hittingCalendarId.test(event.id)) return
@@ -63,7 +73,7 @@ export function hittingPlanScorecardSeed(event: CalendarOccurrence | null | unde
 
 export function latestScorecardDate(match: PersonalMatch | null, seed?: CalendarScorecardSeed) {
   const now = new Date()
-  return match?.hitting_calendar_id || hittingIdFromSeed(seed)
+  return match?.hitting_calendar_id || match?.chat_hit_id || hittingIdFromSeed(seed) || chatHitIdFromSeed(seed)
     ? todayDateKey(now, hittingPlanTimeZone) : localCalendarDate(now)
 }
 
@@ -85,9 +95,11 @@ export function personalMatchDraft(form: FormData, match: PersonalMatch | null, 
   const venue = text(form.get('court_venue_key'))
   if (venue && venue !== match?.court_venue_key && !listedExploreCourt(venue)) throw Error('Choose a listed venue for this scorecard.')
   const hittingId = match?.hitting_calendar_id ?? hittingIdFromSeed(seed)
+  const chatHitId = match?.chat_hit_id ?? chatHitIdFromSeed(seed)
   return { ...fields, id: match?.id ?? crypto.randomUUID(), revision: crypto.randomUUID(), expected: match?.revision ?? null,
-    calendar_match_id: match?.calendar_match_id ?? (hittingId ? null : seed?.calendarMatchId ?? null),
-    ...(hittingId ? {hitting_calendar_id:hittingId} : {}), court_venue_key: venue || null,
+    calendar_match_id: match?.calendar_match_id ?? (hittingId || chatHitId ? null : seed?.calendarMatchId ?? null),
+    ...(hittingId ? {hitting_calendar_id:hittingId} : {}), ...(chatHitId ? {chat_hit_id:chatHitId} : {}),
+    court_venue_key: venue || null,
     court_feedback: venue && venue === match?.court_venue_key ? match.court_feedback : null }
 }
 
@@ -108,6 +120,7 @@ export function personalMatchFeedbackDraft(match: PersonalMatch, feedback: Court
   return { ...matchFields(match), id: match.id, expected: match.revision, revision: crypto.randomUUID(),
     calendar_match_id: match.calendar_match_id, court_venue_key: match.court_venue_key,
     ...(match.hitting_calendar_id ? {hitting_calendar_id:match.hitting_calendar_id} : {}),
+    ...(match.chat_hit_id ? {chat_hit_id:match.chat_hit_id} : {}),
     court_feedback: readCourtFeedback(feedback, match.court_venue_key) }
 }
 
@@ -115,14 +128,17 @@ function readMatch(value: unknown, owner: string): PersonalMatch {
   const row = value as Record<string, unknown> | null
   const venue = row?.court_venue_key ?? null
   const hittingId = row?.hitting_calendar_id ?? null
+  const chatHitId = row?.chat_hit_id ?? null
   if (!row || row.owner_user_id !== owner || typeof row.id !== 'string' || !uuid.test(row.id) ||
       typeof row.revision !== 'string' || !uuid.test(row.revision) || typeof row.created_at !== 'string' ||
       !(row.calendar_match_id === null || typeof row.calendar_match_id === 'string' && calendarMatchId.test(row.calendar_match_id)) ||
       !(hittingId === null || row.calendar_match_id === null && typeof hittingId === 'string' && hittingCalendarId.test(hittingId)) ||
+      !(chatHitId === null || row.calendar_match_id === null && hittingId === null && typeof chatHitId === 'string' && uuid.test(chatHitId)) ||
       !(venue === null || typeof venue === 'string' && venue.length <= 80 && courtVenueKey.test(venue) && !venue.startsWith('private-')) ||
       !timestamp.test(row.created_at) || !Number.isFinite(Date.parse(row.created_at))) throw Error('Match record unavailable.')
   return { ...matchFields(row), id: row.id, revision: row.revision, created_at: row.created_at, calendar_match_id: row.calendar_match_id,
     ...(hittingId ? {hitting_calendar_id:hittingId} : {}),
+    ...(chatHitId ? {chat_hit_id:chatHitId} : {}),
     court_venue_key: venue, court_feedback: readCourtFeedback(row.court_feedback, venue) }
 }
 
@@ -165,7 +181,7 @@ export async function loadPersonalMatches(client: SupabaseClient, owner: string,
   return { matches: data.slice(0, pageSize).map(row => readMatch(row, owner)), more: data.length > pageSize }
 }
 
-async function lookup(client: SupabaseClient, owner: string, field: 'id' | 'calendar_match_id' | 'hitting_calendar_id', key: string, current: () => boolean) {
+async function lookup(client: SupabaseClient, owner: string, field: 'id' | keyof MatchCalendarLink, key: string, current: () => boolean) {
   await requireOwner(client, owner, current)
   const { data, error } = await client.from(table).select(columns).eq('owner_user_id', owner).eq(field, key)
     .abortSignal(timeout()).retry(false).maybeSingle()
@@ -178,6 +194,8 @@ async function lookup(client: SupabaseClient, owner: string, field: 'id' | 'cale
 
 export function loadCalendarScorecard(client: SupabaseClient, owner: string, seed: CalendarScorecardSeed, current: () => boolean) {
   const hittingId = hittingIdFromSeed(seed)
+  const chatHitId = chatHitIdFromSeed(seed)
+  if (chatHitId) return lookup(client, owner, 'chat_hit_id', chatHitId, current)
   return hittingId ? lookup(client, owner, 'hitting_calendar_id', hittingId, current) : lookup(client, owner, 'calendar_match_id', seed.calendarMatchId, current)
 }
 
@@ -204,25 +222,29 @@ export async function loadSavedTeamScores(client: SupabaseClient, owner: string,
 
 export async function savePersonalMatch(client: SupabaseClient, owner: string, draft: PersonalMatchDraft, current: () => boolean) {
   await requireOwner(client, owner, current)
-  const { id, expected, calendar_match_id, hitting_calendar_id, ...values } = draft
+  const { id, expected, calendar_match_id, hitting_calendar_id, chat_hit_id, ...values } = draft
   const query = expected
     ? client.from(table).update(values).eq('owner_user_id', owner).eq('id', id).eq('revision', expected)
-    : client.from(table).insert({ ...values, owner_user_id: owner, id, calendar_match_id, ...(hitting_calendar_id ? {hitting_calendar_id} : {}) })
+    : client.from(table).insert({ ...values, owner_user_id: owner, id, calendar_match_id,
+        ...(hitting_calendar_id ? {hitting_calendar_id} : {}), ...(chat_hit_id ? {chat_hit_id} : {}) })
   const result = await query.select(columns).abortSignal(timeout()).retry(false).maybeSingle()
   await requireOwner(client, owner, current)
-  const saved = result.data ? readMatch(result.data, owner) : !expected && hitting_calendar_id
+  const saved = result.data ? readMatch(result.data, owner) : !expected && chat_hit_id
+    ? await lookup(client, owner, 'chat_hit_id', chat_hit_id, current) : !expected && hitting_calendar_id
     ? await lookup(client, owner, 'hitting_calendar_id', hitting_calendar_id, current) : !expected && calendar_match_id
     ? await lookup(client, owner, 'calendar_match_id', calendar_match_id, current)
     : await lookup(client, owner, 'id', id, current)
   const { court_feedback, ...scorecardValues } = values
   if (saved?.id === id && saved.calendar_match_id === calendar_match_id && saved.hitting_calendar_id === hitting_calendar_id &&
+      saved.chat_hit_id === chat_hit_id &&
       Object.entries(scorecardValues).every(([key, value]) => saved[key as keyof PersonalMatch] === value) &&
       courtFeedbackKeys.every(key => (saved.court_feedback?.[key] ?? null) === (court_feedback?.[key] ?? null))) return saved
   if (!expected && calendar_match_id && saved?.calendar_match_id === calendar_match_id) {
     if (isTeamResultScorecardKey(calendar_match_id)) throw new MatchChanged('You already saved this team scorecard. Open it again from Team results.')
     throw new MatchChanged('A scorecard is already saved for this calendar match. Open it again from your calendar.')
   }
-  if (!expected && hitting_calendar_id && saved?.hitting_calendar_id === hitting_calendar_id) {
+  if (!expected && (hitting_calendar_id && saved?.hitting_calendar_id === hitting_calendar_id ||
+      chat_hit_id && saved?.chat_hit_id === chat_hit_id)) {
     throw new MatchChanged('A scorecard is already saved for this hit. Open it again from Calendar.')
   }
   if ((saved?.revision ?? null) !== expected) throw new MatchChanged('This scorecard changed on another device. Reopen it to see the latest result.')

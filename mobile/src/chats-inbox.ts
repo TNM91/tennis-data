@@ -66,24 +66,24 @@ export function chatsInboxHtml(data:NativeTeamData){
  </div>
  <div class="chats-inbox-toolbar">
  <div class="chats-team-add" role="group" aria-label="Chat and team actions"><button type="button" class="secondary" data-player-chats>Contacts</button><button type="button" class="secondary" id="create-private-team">Create a team</button><button type="button" class="secondary" id="join-team">Join team</button></div>
- <div class="chat-inbox-order"><label class="sr-only" for="chat-inbox-sort">View</label><select id="chat-inbox-sort" data-chat-inbox-order><option value="sections">By section</option><option value="recent">Recent</option></select></div>
+ <div class="chat-inbox-order"><label class="sr-only" for="chat-inbox-sort">View</label><select id="chat-inbox-sort" data-chat-inbox-order><option value="sections">By section</option><option value="recent">Recent</option></select>${nativeActionIcon('down')}</div>
  </div>
- <section class="chat-inbox-organized" data-chats-find aria-labelledby="chat-inbox-results" hidden>
+ <section class="native-section-group chat-inbox-organized" data-chats-find aria-labelledby="chat-inbox-results" hidden>
  <div class="chats-section-heading"><h2 id="chat-inbox-results">Search results</h2>
  <button type="button" class="secondary" data-inbox-clear>Clear filters</button></div>
  <p class="chats-inbox-find-status" role="status"></p>
  <button type="button" class="secondary" data-inbox-retry hidden>Refresh chats</button>
  <ul role="list"></ul>
  </section>
- <section class="chat-inbox-organized" data-chats-pinned aria-label="Pinned" hidden><h2>Pinned</h2><ul role="list"></ul></section>
- <section class="chat-inbox-organized" data-chats-recent aria-label="Recent" hidden><h2>Recent</h2><ul role="list"></ul></section>
- <section class="chat-inbox-organized" data-chats-players aria-label="Conversations" hidden><h2>Conversations</h2><ul role="list"></ul></section>`:''}
+ <section class="native-section-group chat-inbox-organized" data-chats-pinned aria-label="Pinned" hidden><h2>Pinned</h2><ul role="list"></ul></section>
+ <section class="native-section-group chat-inbox-organized" data-chats-recent aria-label="Recent" hidden><h2>Recent</h2><ul role="list"></ul></section>
+ <section class="native-section-group chat-inbox-organized" data-chats-players aria-label="Conversations" hidden><h2>Conversations</h2><ul role="list"></ul></section>`:''}
  <div class="chats-inbox-shortcuts" role="group" aria-label="Chat inbox shortcuts" ${firstPartyBuild?'hidden':''}>${inboxShortcuts.map(({target,label,description,icon})=>`
   <button type="button" class="secondary chats-inbox-shortcut" aria-controls="${target}" data-chats-jump="${target}">
    <span class="chats-shortcut-icon" aria-hidden="true">${icon}</span>
    <span class="chats-shortcut-copy"><strong>${html(label)}</strong><small data-chats-jump-status>${description}</small></span>
   </button>`).join('')}</div>
- <section id="chats-team-inbox" aria-labelledby="chats-teams-title"><div class="chats-section-heading"><h2 id="chats-teams-title" tabindex="-1">Your teams</h2>
+ <section id="chats-team-inbox"${firstPartyBuild?' class="native-section-group"':''} aria-labelledby="chats-teams-title"><div class="chats-section-heading"><h2 id="chats-teams-title" tabindex="-1">Your teams</h2>
  ${!firstPartyBuild&&data.teams.length?'<button type="button" class="secondary" id="join-team">Join team</button>':''}</div>
  ${firstPartyBuild?'':`<details class="chats-filter-drawer" data-team-chat-filters ${data.teams.length?'':'hidden'}>
   <summary>Search &amp; filter teams<span class="chats-filter-active" data-team-filter-active hidden>Active</span></summary>

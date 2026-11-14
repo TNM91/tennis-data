@@ -54,7 +54,8 @@ export function personalMatchQuery() {
         fixture.writtenIds.push(row.id)
         if (fixture.rows.some(item => item.owner_user_id === row.owner_user_id &&
             (item.id === row.id || row.calendar_match_id && item.calendar_match_id === row.calendar_match_id ||
-             row.hitting_calendar_id && item.hitting_calendar_id === row.hitting_calendar_id))) return fail('Duplicate ID')
+             row.hitting_calendar_id && item.hitting_calendar_id === row.hitting_calendar_id ||
+             row.chat_hit_id && item.chat_hit_id === row.chat_hit_id))) return fail('Duplicate ID')
         fixture.rows.push(row)
         if (fixture.loseReceipt) { fixture.loseReceipt = false; missLookup = true; return fail('Receipt unavailable') }
         return resolve({ data: row, error: null })

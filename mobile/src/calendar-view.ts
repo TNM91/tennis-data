@@ -653,10 +653,12 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1">Team practice</h2>${details(selected,'Time to be confirmed')}<p class="cal-event-readiness">${html(selected.readiness)}</p><p>${closed?'See the saved practice details and your reply.':'Open the practice to check the latest details and your place, then review your RSVP.'}</p><button data-cal-practice ${busy?'disabled':''}>${closed?'View practice':'Open practice & RSVP'}</button><button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
   }
   if(panel==='respond'&&selected?.chatHit){
+   const scorecard=openScorecard&&hittingPlanScorecardSeed(selected)
    return `<section class="cal-panel cal-event-panel"><div class="cal-hitting-heading"><h2 tabindex="-1">Hitting plan</h2>
     <p class="cal-event-readiness" data-tone="available">Confirmed</p></div>
     ${details(selected,'Time to be confirmed')}
-    <button type="button" data-cal-court-directions aria-haspopup="dialog">Directions</button>
+    ${scorecard?'<button type="button" data-cal-scorecard>Log score</button>':''}
+    <button type="button"${scorecard?' class="secondary"':''} data-cal-court-directions aria-haspopup="dialog">Directions</button>
     <button type="button" class="secondary" data-cal-hit-chat>Open chat</button>
     <button type="button" class="secondary" data-cal-agenda>Back to calendar</button></section>`
   }

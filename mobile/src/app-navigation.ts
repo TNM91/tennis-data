@@ -85,7 +85,7 @@ export function appHubHtml(hub:AppHub,{fromLab=false,browseFirst=false}={}){
  const groupHtml=groups.map((group,index)=>{
   const discovery=hub==='compete'&&index===0
   const lane=group.lane?` id="coach-${group.lane}-tools" data-coach-lane${group.lane==='studio'?' hidden':''}`:''
-  return `<section class="app-hub-group"${lane}${discovery?' data-compete-discovery aria-labelledby="compete-discovery-title"':''}>
+  return `<section class="native-section-group app-hub-group"${lane}${discovery?' data-compete-discovery aria-labelledby="compete-discovery-title"':''}>
    ${group.lane==='player'?'<div class="coach-next-assignment" data-coach-next-assignment hidden></div><div class="coach-latest-feedback" data-coach-latest-feedback hidden></div>':''}
    <h2${discovery?' id="compete-discovery-title"':''}>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],key==='tactics')).join('')}</div></section>`
  })
@@ -108,7 +108,7 @@ export function appHubHtml(hub:AppHub,{fromLab=false,browseFirst=false}={}){
    <button type="button" class="secondary app-tool compete-my-event" data-compete-my-event aria-labelledby="compete-my-event-title" aria-describedby="compete-my-event-name" hidden>
     <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.tournaments}</span><span class="app-tool-copy"><strong id="compete-my-event-title">My Event</strong><span id="compete-my-event-name" data-compete-event-name></span></span><span class="app-tool-arrow" aria-hidden="true">›</span>
    </button>
-   <section class="compete-teams" data-compete-teams aria-labelledby="compete-teams-title"><h2 id="compete-teams-title">My Teams</h2><div data-compete-team-list></div></section>`:''}
+   <section class="native-section-group compete-teams" data-compete-teams aria-labelledby="compete-teams-title"><h2 id="compete-teams-title">My Teams</h2><div data-compete-team-list></div></section>`:''}
   ${coachControls}${toolFinder}<div id="app-tool-results">${groupHtml.slice(discoveryFirst?1:0).join('')}</div>
   ${hub==='more'?'<p class="app-tools-empty" data-tools-empty hidden>No tools found. Try coach, leagues or account.</p>':''}
   <p role="alert" class="app-hub-notice"></p>

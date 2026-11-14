@@ -394,6 +394,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       <h3 tabindex="-1">${html(match.opponent)}</h3>
       <p>${html(matchDate(match.match_date))} · ${formatName(match.format)} · ${match.outcome}</p>
       ${venueName ? `<p>${html(venueName)}</p>` : ''}
+      ${match.chat_hit_id ? '<p>From your hitting plan</p>' : ''}
       ${match.calendar_match_id ? `<p>${isTeamResultScorecardKey(match.calendar_match_id)?'From your team result':'From your TenAceIQ calendar'}</p>` : ''}
       <p>${postedScore ? 'Your saved score<br>' : ''}<strong>${html(match.score)}</strong></p>
       ${postedScore ? `<section class="lab-team-score-review" aria-labelledby="lab-team-score-title">

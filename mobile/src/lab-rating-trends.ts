@@ -6,7 +6,7 @@ import {showPlayerJourney} from './player-journey-view'
 export function mountLabRatingTrends(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean) {
   let disposed=false,journey:ReturnType<typeof showPlayerJourney>|null=null
   const valid=()=>!disposed&&host.isConnected&&current()
-  host.classList.add('lab-rating-trends')
+  host.classList.add('lab-rating-trends','native-section-group')
   host.innerHTML=`<h2>Understand your game</h2>
     <button type="button" class="secondary app-tool lab-action-row lab-trend-entry" aria-labelledby="lab-trend-title" aria-describedby="lab-trend-detail">
       <span class="lab-action-icon" aria-hidden="true">${websiteUi.icons.following}</span>

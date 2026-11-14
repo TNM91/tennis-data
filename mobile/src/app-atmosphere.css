@@ -16,7 +16,7 @@ body:is([data-screen="coach"],[data-screen="following"],[data-screen="matchup"])
 .app-brand-watermark { position:absolute; right:16px; bottom:126px; width:min(52vw,280px); height:auto; object-fit:contain; opacity:.09; }
 body[data-screen]:not(.native-chat-conversation) .app-header { padding:16px 2px 14px; border-color:#29445c; }
 body[data-screen]:not(.native-chat-conversation) main { padding-top:20px; }
-body[data-screen]:not(.native-chat-conversation) main>section:not(.lab-scoreboard) { background:#091f34ed; border-color:#25435d; box-shadow:0 12px 30px #0002; }
+body[data-screen]:not(.native-chat-conversation) main>section:not(.lab-scoreboard,.native-section-group) { background:#091f34ed; border-color:#25435d; box-shadow:0 12px 30px #0002; }
 body[data-screen]:not(.native-chat-conversation) main>h1,body[data-screen]:not(.native-chat-conversation) #following-list>h1,body[data-screen]:not(.native-chat-conversation) #comparison-list>h1 { font-size:36px; font-weight:800; letter-spacing:-.045em; line-height:1.08; }
 body[data-screen]:not(.native-chat-conversation) main .stat-eyebrow { color:#80c9ff; letter-spacing:.16em; font-size:10px; font-weight:750; }
 body[data-screen]:not(.native-chat-conversation) .app-navigation { background:#051628f5; border-color:#2b4c69; box-shadow:0 -12px 32px #0004; padding-top:7px; }

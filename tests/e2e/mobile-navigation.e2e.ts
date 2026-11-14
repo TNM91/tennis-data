@@ -303,6 +303,48 @@ test('a hit reminder opens the confirmed plan and its directions during a propos
  await expect(reminder.getByRole('button',{name:'Open hitting plan',exact:true})).toBeFocused()
 })
 
+test('past confirmed hits open a private prefilled scorecard and reopen the saved result',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.clock.setFixedTime(new Date('2026-11-18T23:50:00Z'))
+ await page.goto(origin+'/?player-chat=1&chat-hit=1')
+ const hit='a3407652-e697-4388-aa96-0ea474852368'
+ await page.evaluate(id=>{
+  const fixture=Reflect.get(window,'playerChatFixture')
+  fixture.title='Jamie'
+  fixture.hit={id,room:fixture.room,proposedBy:fixture.player,
+   clubId:'vetta-west',date:'2026-11-18',time:'18:00',startsAt:'2026-11-19T00:00:00Z',status:'accepted'}
+ },hit)
+ const calendar=page.getByRole('dialog',{name:'Your calendar',exact:true})
+ const openHit=async()=>{
+  await page.getByRole('button',{name:'More',exact:true}).click()
+  await page.locator('[data-app-destination="calendar"]').click()
+  await calendar.getByRole('combobox',{name:'Show',exact:true}).selectOption('hitting-plans')
+  await calendar.locator('[data-cal-event="chat-hit:'+hit+'"]').click()
+ }
+ const log=calendar.getByRole('button',{name:'Log score',exact:true})
+ await openHit()
+ await expect(log).toHaveCount(0)
+ await calendar.getByRole('button',{name:'Back to calendar',exact:true}).click()
+ await calendar.getByRole('button',{name:'Close',exact:true}).click()
+ await page.clock.setFixedTime(new Date('2026-11-19T00:10:00Z'))
+ await openHit()
+ await log.click()
+ await expect(page.getByRole('heading',{name:'Log a match',exact:true})).toBeFocused()
+ await expect(page.getByLabel('Match date',{exact:true})).toHaveValue('2026-11-18')
+ await expect(page.getByLabel('Opponent or doubles team',{exact:true})).toHaveValue('Jamie')
+ await expect(page.getByLabel('Venue (optional)',{exact:true})).toHaveValue('vetta-west')
+ await page.getByLabel('Format',{exact:true}).selectOption('singles')
+ await page.getByLabel('Result',{exact:true}).selectOption('Won')
+ await page.getByLabel('Score',{exact:true}).fill('6-4 6-3')
+ await page.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ await expect(page.getByText('Scorecard saved.',{exact:true})).toBeVisible()
+ await openHit()
+ await log.click()
+ const saved=page.getByRole('article',{name:'Saved scorecard',exact:true})
+ await expect(saved).toContainText('6-4 6-3')
+ await expect(saved).toContainText('From your hitting plan')
+})
+
 test('a hitting plan push opens the right chat after enabling iPhone alerts',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?player-chat=1&chat-hit=1&hit-alerts=1')
@@ -409,6 +451,11 @@ for(const font of ['regular','large']){
   expect(bounds.row.x).toBeCloseTo(bounds.search.x,0)
   expect(bounds.row.x+bounds.row.width).toBeCloseTo(bounds.unread.x+bounds.unread.width,0)
   expect(bounds.pin.x+bounds.pin.width).toBeLessThanOrEqual(bounds.row.x+bounds.row.width)
+  for(const selector of ['[data-chats-pinned]','#chats-team-inbox']){
+   await expect(page.locator(selector)).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
+   await expect(page.locator(selector)).toHaveCSS('box-shadow','none')
+  }
+  await expect(page.locator('[data-chats-pinned] .chat-organized-row')).toHaveCSS('border-top-left-radius','12px')
   await bounded(page)
  })
 }
@@ -3748,6 +3795,7 @@ for(const guest of [false,true])test(`first-party Explore shows upcoming play an
  const tournament=page.getByRole('button',{name:'View tournament Northside Open'})
  await expect(league).toBeVisible()
  await expect(tournament).toHaveCount(guest?0:1)
+ await expect(page.locator('#explore-upcoming-title').locator('..')).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
  await expect(page.getByRole('button',{name:'View league Past season'})).toHaveCount(0)
  await expect(league).toHaveAccessibleDescription('Friday, November 13, 2026 · '+(guest?'Kansas City, MO':'Saint Louis, MO'))
  await bounded(page)
@@ -5130,7 +5178,9 @@ test('My Lab offers a first-scorecard path only when match history is empty',asy
   await expect(drills).toBeFocused()
   await results.getByRole('button',{name:'Find a match',exact:true}).click()
   await expect(page.getByRole('heading',{name:'Compete',exact:true})).toBeFocused()
-  await expect(page.locator('.app-hub-heading + [data-compete-discovery]')).toBeVisible()
+  const discovery=page.locator('.app-hub-heading + [data-compete-discovery]')
+  await expect(discovery).toBeVisible()
+  await expect(discovery).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
 })
 
 test('My Lab starter warm-up confirms completion for the current visit without recording a session',async({page},info)=>{

@@ -35,7 +35,7 @@ export function nearbyAreaHtml(){
 }
 
 export function nearbySectionsHtml(guest:boolean){
- return `<section class="explore-nearby-section" aria-labelledby="explore-upcoming-title">
+ return `<section class="native-section-group explore-nearby-section" aria-labelledby="explore-upcoming-title">
   <h2 id="explore-upcoming-title">Upcoming play</h2>
   <div data-explore-events>
    <div data-explore-event-list></div>
@@ -47,7 +47,7 @@ export function nearbySectionsHtml(guest:boolean){
    <button class="secondary" type="button" data-nearby-tournaments><span aria-hidden="true">${websiteUi.icons.tournaments}</span>${guest?'Sign in for tournaments':'Browse tournaments'}</button>
   </div>
  </section>
- <section class="explore-nearby-section" aria-labelledby="explore-courts-title">
+ <section class="native-section-group explore-nearby-section" aria-labelledby="explore-courts-title">
   <div class="explore-nearby-section-heading"><h2 id="explore-courts-title">Courts</h2><span>St. Louis, MO</span></div>
   <button type="button" class="secondary explore-find-courts" data-nearby-find="all" aria-haspopup="dialog"><span aria-hidden="true">${websiteUi.icons.explore}</span>Find courts near me<span class="explore-event-arrow" aria-hidden="true">›</span></button>
   <div class="explore-nearby-actions explore-court-shortcuts" role="group" aria-label="Court shortcuts">
