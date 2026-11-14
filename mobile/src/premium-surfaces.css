@@ -2651,4 +2651,12 @@ body[data-screen] .app-header .tiq-feature-icon__glyph { inline-size:21px;block-
 .player-chats-dialog .player-chat-post time { font-size:.75rem; color:var(--premium-copy); margin-inline-start:6px; }
 .player-chats-dialog .player-chat-post summary { min-block-size:32px; color:var(--premium-copy); }
 .player-chats-dialog .player-chat-options { margin-block:10px; }
+.player-chats-dialog .group-practice-card {
+ padding:12px; margin-block:8px 12px; border:1px solid var(--premium-line);
+ border-radius:var(--premium-control-radius); background:var(--premium-card);
+}
+.player-chats-dialog .group-practice-card h3 { margin:0 0 6px; font-size:1rem; }
+.player-chats-dialog .group-practice-card time { margin:0; font:inherit; }
+.player-chats-dialog .group-practice-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.player-chats-dialog .group-practice-fields input { min-width:0; }
 .player-chats-dialog textarea { resize:vertical; width:100%; }

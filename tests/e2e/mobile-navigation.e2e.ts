@@ -75,6 +75,35 @@ test('player chats open a saved contact and share a practice group from Chats',a
  expect(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true)
 })
 
+test('a pinned group practice accepts a reply from the chat and shows the sign-up list',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:844})
+ await page.clock.setFixedTime(new Date('2026-11-13T19:00:00Z'))
+ await page.goto(origin+'/?player-chat=1&group-practice=1')
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/Players & groups/}).click()
+ const dialog=page.locator('dialog.player-chats-dialog')
+ await dialog.getByRole('button',{name:'New group'}).click()
+ await dialog.getByRole('textbox',{name:'Group name'}).fill('Friday practice')
+ await dialog.getByRole('button',{name:'Create group'}).click()
+ await dialog.getByRole('button',{name:'Schedule practice'}).click()
+ await dialog.getByLabel('Date',{exact:true}).fill('2026-11-20')
+ await dialog.getByLabel('Start time',{exact:true}).fill('18:00')
+ await dialog.getByRole('textbox',{name:'Court or club'}).fill('Club courts, court 2')
+ await dialog.getByRole('spinbutton',{name:'Spots'}).fill('6')
+ await dialog.getByRole('button',{name:'Post practice'}).click()
+ const card=dialog.getByRole('region',{name:'Upcoming practice'})
+ await expect(card.getByText('Club courts, court 2',{exact:true})).toBeVisible()
+ await expect(card.getByText('0 of 6 spots filled')).toBeVisible()
+ await card.getByRole('button',{name:'Join practice'}).click()
+ await expect(card.getByText('1 of 6 spots filled')).toBeVisible()
+ await card.getByText('Who’s in',{exact:true}).click()
+ await expect(card.getByText('Avery',{exact:true})).toBeVisible()
+ await card.getByRole('button',{name:'Can’t make it'}).click()
+ await expect(card.getByText('0 of 6 spots filled')).toBeVisible()
+ expect(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true)
+})
+
 async function recordScorecardCopies(page: Page, failFirst = false) {
  await page.evaluate(fail => {
   const copies: string[] = []

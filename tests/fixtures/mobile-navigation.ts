@@ -38,6 +38,8 @@ import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLim
 const originalFetch=window.fetch.bind(window)
 const playerChatFixture={
  enabled:new URL(location.href).searchParams.has('player-chat'),
+ practices:new URL(location.href).searchParams.has('group-practice'),
+ practice:null as import('../../lib/group-practice-contract').GroupPractice|null,
  room:'bb4f152f-bb10-4b30-a233-09f20121e463',
  player:'ca2592d5-8135-4d6c-86ff-aef07ff620f0',
  title:'',
@@ -193,13 +195,21 @@ window.fetch=async(input,init)=>{
   const base={ok:true,releaseScope:'first-party',owner}
   const contact={id:state.player,name:'Jamie'}
   if(init?.method==='POST'){
-   const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string}
+   const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string;startsAt?:string;court?:string;capacity?:number;response?:'in'|'out'}
    if(body.action==='group'||body.action==='direct'){
     state.group=body.action==='group'
     state.title=state.group?body.text??'':'Jamie'
     return Response.json({...base,roomId:state.room})
    }
    if(body.action==='invite')return Response.json({...base,expiresAt:'2026-11-20T10:00:00Z'})
+   if(body.action==='practice_create'&&body.id&&body.startsAt&&body.court&&body.capacity){
+    state.practice={id:body.id,startsAt:body.startsAt,court:body.court,capacity:body.capacity,mine:null,inCount:0,players:[]}
+   }
+   if(body.action==='practice_reply'&&state.practice&&body.response){
+    const going=body.response==='in'
+    state.practice={...state.practice,mine:body.response,inCount:Number(going),players:going?[{id:owner,name:'Avery'}]:[]}
+   }
+   if(body.action==='practice_cancel')state.practice=null
    if(body.action==='send'&&body.id&&body.text){
     state.outgoing.push({id:body.id,name:'Avery',author:owner,body:body.text,createdAt:'2026-11-13T19:00:00Z'})
     return Response.json({...base,messageId:body.id})
@@ -208,6 +218,7 @@ window.fetch=async(input,init)=>{
   }
   if(url.searchParams.get('room')===state.room)return Response.json({...base,room:{
    id:state.room,title:state.title,group:state.group,manage:state.group,more:false,members:[contact],messages:state.outgoing,
+   ...(state.group&&state.practices?{practice:state.practice}:{}),
   }})
   return Response.json({...base,contacts:[contact],rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:false}]:[]})
  }
