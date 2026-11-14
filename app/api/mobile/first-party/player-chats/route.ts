@@ -16,6 +16,7 @@ const errors = {
   forbidden:[403,'This chat or player is unavailable.'],
   invalid:[400,'Check the chat details.'],
   full:[409,'This list, group, or invite account limit has been reached.'],
+  stale:[409,'The practice changed. Refresh the group and try again.'],
   unavailable:[404,'This invite is unavailable. Ask for a fresh link.'],
 } as const
 const service = () => {
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
   try {
     const owner = account.user.id
     const {room,before} = selection
-    const {data,error} = await service().rpc('native_player_chats_read',{
+    const {data,error} = await service().rpc(room ? 'native_player_chat_room_with_practice' : 'native_player_chats_read',{
       p_owner:owner,p_room:room,p_before_at:before?.createdAt??null,p_before_id:before?.id??null,
     }).retry(false)
     if (error) throw Error()
@@ -53,6 +54,19 @@ export async function POST(request: Request) {
   } catch { return failure('Check the chat details.',400) }
   try {
     const owner = account.user.id
+    if (input.action === 'practice_create' || input.action === 'practice_reply' || input.action === 'practice_cancel') {
+      const {data,error} = await service().rpc('native_group_practice_action',{
+        p_owner:owner,p_room:input.room,p_id:input.id,p_action:input.action,
+        p_starts_at:input.action==='practice_create'?input.startsAt:null,p_court:input.action==='practice_create'?input.court:null,
+        p_capacity:input.action==='practice_create'?input.capacity:null,p_response:input.action==='practice_reply'?input.response:null,
+      }).retry(false)
+      if (error) throw Error()
+      if (data?.code === 'ok') return json({ok:true,owner})
+      if (data?.code === 'full') return failure('This practice is full. Check back for an opening.',409)
+      if (typeof data?.code !== 'string' || !Object.hasOwn(errors,data.code)) throw Error()
+      const [status,message] = errors[data.code as keyof typeof errors]
+      return failure(message,status)
+    }
     const {data,error} = await service().rpc('native_player_chats_action',{
       p_owner:owner,p_action:input.action,p_room:'room' in input?input.room??null:null,
       p_id:'id' in input?input.id:null,p_target:'target' in input?input.target:null,

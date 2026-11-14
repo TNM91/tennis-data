@@ -1,6 +1,7 @@
 import { lineupRecord } from './native-captain-lineup-contract'
 import { readTeamChatCursor, teamChatMessageId } from './team-chat-cursor'
 import { updateTimestamp } from './native-updates-contract'
+import { parseGroupPracticeAction,readGroupPractice,type GroupPractice,type GroupPracticeAction } from './group-practice-contract'
 
 export const playerChatInvitePath = '/chats/join'
 export const playerChatPath = '/chats'
@@ -42,6 +43,7 @@ const text = (value: unknown, max: number, multiline = false) => {
 }
 
 export type PlayerChatAction =
+  | GroupPracticeAction
   | { action: 'invite'|'revoke'; room?: string; token: string }
   | { action: 'preview'|'join'; token: string }
   | { action: 'direct'|'forget'; target: string }
@@ -53,6 +55,8 @@ export type PlayerChatAction =
 
 export function playerChatAction(value: unknown): PlayerChatAction {
   const row = lineupRecord(value), action = row.action
+  const practice = parseGroupPracticeAction(row)
+  if (practice) return practice
   const exact = (...keys: string[]) => {
     if (Object.keys(row).length !== keys.length + 1 || keys.some(key => !Object.hasOwn(row,key))) {
       throw Error('Check the chat details.')
@@ -109,7 +113,9 @@ export function playerChatReadParams(params: URLSearchParams) {
 export type PlayerContact = { id: string; name: string }
 export type PlayerChatMessage = { id: string; author: string; name: string; body: string; createdAt: string }
 export type PlayerChatSummary = { id: string; title: string; group: boolean; unread: boolean }
-export type PlayerChatRoom = Omit<PlayerChatSummary,'unread'> & { manage: boolean; messages: PlayerChatMessage[]; more: boolean; members: PlayerContact[] }
+export type PlayerChatRoom = Omit<PlayerChatSummary,'unread'> & {
+  manage: boolean; messages: PlayerChatMessage[]; more: boolean; members: PlayerContact[]; practice?: GroupPractice | null
+}
 export type PlayerChatInbox = { contacts: PlayerContact[]; rooms: PlayerChatSummary[] }
 const flag = (value: unknown) => {
   if (typeof value !== 'boolean') throw Error('Chat access changed.')
@@ -132,6 +138,7 @@ export function readPlayerChatRoom(value: unknown, room: string): PlayerChatRoom
   const row = lineupRecord(value)
   if (row.id !== room) throw Error('Chat access changed.')
   return { id:room,title:text(row.title,100),group:flag(row.group),manage:flag(row.manage),more:flag(row.more),
+    ...(Object.hasOwn(row,'practice') && row.group === true ? {practice:readGroupPractice(row.practice)} : {}),
     members:list(row.members,31,contact),messages:list(row.messages,40,m=>{
       if (!updateTimestamp(m.createdAt)) throw Error('Chat messages changed.')
       return { id:id(m.id),author:id(m.author),name:text(m.name,100),body:text(m.body,2400,true),createdAt:m.createdAt }

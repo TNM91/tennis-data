@@ -9,6 +9,8 @@ import { playerChatApiUrl,PlayerChatError,playerChatTransport } from '../../lib/
 import { teamChatCursor } from '../../lib/team-chat-cursor'
 import { html } from './html'
 import { watchTeamChat } from './team-chat-live'
+import { groupPracticeStart } from '../../lib/group-practice-contract'
+import { groupPracticeCard,newGroupPracticeDraft,type GroupPracticeDraft } from './group-practice-card'
 
 export function openPlayerChats(
   client: SupabaseClient,owner: string,current: () => boolean,onClose: () => void,
@@ -27,6 +29,7 @@ export function openPlayerChats(
   let live: ReturnType<typeof watchTeamChat> | null = null
   let watchedRoom: string | null = null
   let historyAnchor = 0
+  let practiceDraft: GroupPracticeDraft | null = null
   const lastRead = new Map<string,string>()
   const selected = new Set<string>()
   const active = () => !disposed && current()
@@ -85,7 +88,7 @@ export function openPlayerChats(
       const readingHistory = history && history.scrollHeight - history.clientHeight - history.scrollTop > 24
       if (busy || draft || readingHistory || dialog.contains(document.activeElement) && document.activeElement?.matches('input,textarea,select,summary')) {
         const refresh = dialog.querySelector('[data-player-refresh]')
-        if (refresh) refresh.textContent = 'Check for new messages'
+        if (refresh) refresh.textContent = 'Check for updates'
         return
       }
       await run(()=>loadRoom(id),false)
@@ -112,6 +115,7 @@ export function openPlayerChats(
   }
   function openInbox() {
     stopLive()
+    practiceDraft=null
     page='inbox'; room=null; invitation=null; token=''; shared=null
     return run(async ()=>{ inbox=await transport.inbox() })
   }
@@ -167,6 +171,9 @@ export function openPlayerChats(
       }
       if (input.action === 'report') { notice='Message reported.'; return }
       if (input.action === 'send') draft=''
+      if (input.action === 'practice_create') { practiceDraft=null; notice='Practice posted.' }
+      if (input.action === 'practice_reply') notice=input.response==='in'?'You’re on the practice list.':'Your reply is saved.'
+      if (input.action === 'practice_cancel') notice='Practice cancelled.'
       if ('room' in input && input.room) {
         if (input.action==='block' && room?.group===false) { stopLive();room=null; page='inbox'; inbox=await transport.inbox() }
         else await loadRoom(input.room)
@@ -215,7 +222,8 @@ export function openPlayerChats(
       <option value="inappropriate">Inappropriate content</option><option value="other">Other</option></select></label>
       <button type="submit" class="secondary">Report</button></form></details>`:''}</li>`).join('')
     const choices = (inbox?.contacts??[]).filter(contact=>!value.members.some(member=>member.id===contact.id))
-    return `${value.manage?simpleButton(shared?'Replace invite link':'Invite players','data-player-group-invite'):''}
+    return `${value.practice!==undefined?groupPracticeCard(value.practice,value.manage,practiceDraft):''}
+      ${value.manage?simpleButton(shared?'Replace invite link':'Invite players','data-player-group-invite'):''}
       ${sharedMarkup()}
       <details class="player-chat-options"><summary>${value.group?'Group settings':'Player settings'}</summary>
       ${value.manage?`${simpleButton('Turn off invite links','data-player-revoke-links')}
@@ -232,6 +240,7 @@ export function openPlayerChats(
   function render(focus = false) {
     if (!active()) return
     const settingsOpen = dialog.querySelector<HTMLDetailsElement>('.player-chat-options')?.open
+    const practiceListOpen = dialog.querySelector<HTMLDetailsElement>('.group-practice-card details')?.open
     const title = page==='room' ? room?.title ?? 'Conversation' : page==='group' ? 'New group' : page==='invite' ? 'Chat invitation' : 'Players & groups'
     const contents = page==='inbox' ? inboxMarkup() : page==='group' ? groupMarkup() : page==='room' && room ? roomMarkup(room) :
       page==='invite' && invitation ? `<p>${invitation.group?'Join':'Connect with'} <strong>${html(invitation.title)}</strong>.</p>
@@ -253,6 +262,8 @@ export function openPlayerChats(
     }
     const settings = dialog.querySelector<HTMLDetailsElement>('.player-chat-options')
     if (settings && settingsOpen) settings.open = true
+    const practiceList = dialog.querySelector<HTMLDetailsElement>('.group-practice-card details')
+    if (practiceList && practiceListOpen) practiceList.open = true
     const history = dialog.querySelector<HTMLElement>('.player-chat-messages')
     if (history) history.scrollTop = history.scrollHeight - historyAnchor
     click('[data-player-back]',()=>{back()})
@@ -261,6 +272,15 @@ export function openPlayerChats(
     click('[data-player-group]',()=>{page='group';selected.clear();groupName='';notice='';render(true)})
     click('[data-player-invite]',()=>{void act({action:'invite',token:newPlayerChatInvite()})})
     click('[data-player-group-invite]',()=>{if(room)void act({action:'invite',room:room.id,token:newPlayerChatInvite()})})
+    click('[data-practice-start]',()=>{practiceDraft=newGroupPracticeDraft();render();dialog.querySelector<HTMLElement>('[data-group-practice] input')?.focus()})
+    click('[data-practice-dismiss]',()=>{practiceDraft=null;render();dialog.querySelector<HTMLElement>('[data-practice-start]')?.focus()})
+    click('[data-practice-cancel]',()=>{
+      if (room?.practice && confirm('Cancel this practice for everyone?')) void act({action:'practice_cancel',room:room.id,id:room.practice.id})
+    })
+    click('[data-practice-rsvp]',button=>{
+      const response=button.dataset.practiceRsvp
+      if (room?.practice && (response==='in'||response==='out')) void act({action:'practice_reply',room:room.id,id:room.practice.id,response})
+    })
     click('[data-player-direct]',button=>{if(button.dataset.playerDirect)void act({action:'direct',target:button.dataset.playerDirect})})
     click('[data-player-forget]',button=>{
       if(button.dataset.playerForget && confirm('Remove this player from your contacts?'))void act({action:'forget',target:button.dataset.playerForget})
@@ -300,6 +320,21 @@ export function openPlayerChats(
       void act({action:'group',id:crypto.randomUUID(),text:groupName,members:[...selected]})
     })
     form('[data-player-add]',fields=>{if(room)void act({action:'add',room:room.id,target:String(fields.get('player'))})})
+    const practiceFields = (fields:FormData) => ({
+      date:String(fields.get('date')??''),time:String(fields.get('time')??''),
+      court:String(fields.get('court')??''),capacity:String(fields.get('capacity')??''),
+    })
+    dialog.querySelector<HTMLFormElement>('[data-group-practice]')?.addEventListener('input',event=>{
+      practiceDraft=practiceFields(new FormData(event.currentTarget as HTMLFormElement))
+    })
+    form('[data-group-practice]',fields=>{
+      if (!room?.manage) return
+      const next=practiceFields(fields)
+      try {
+        void act({action:'practice_create',room:room.id,id:crypto.randomUUID(),startsAt:groupPracticeStart(next.date,next.time),
+          court:next.court.trim(),capacity:Number(next.capacity)})
+      } catch (error) { notice=message(error);render(true) }
+    })
     form('[data-player-report]',(fields,element)=>{
       if(room&&element.dataset.playerReport)void act({action:'report',room:room.id,id:element.dataset.playerReport,text:String(fields.get('reason'))})
     })
