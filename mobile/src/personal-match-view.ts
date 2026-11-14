@@ -112,7 +112,7 @@ type PersonalMatchLogOptions = {
   backToTeamResults?: () => void
   scoreReviewShortcut?: HTMLElement
   openPractice: (match: PersonalMatch, current: () => boolean) => void
-  openRematchInvite: (clubId: string, trigger: HTMLButtonElement, current: () => boolean) => void
+  openRematchInvite: (source: {hitId?: string; clubId?: string}, trigger: HTMLButtonElement, current: () => boolean) => void
 }
 
 export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient, owner: string, current: () => boolean,
@@ -411,7 +411,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
         ${match.court_feedback ? courtFeedbackList(match.court_feedback) : ''}
         <button type="button" class="secondary" data-edit-court-feedback ${reading ? 'disabled' : ''}>${match.court_feedback ? 'Edit court ratings' : 'Rate this court'}</button>
       </section>` : ''}
-      ${club ? `<div class="lab-rematch-actions" role="group" aria-label="Play again">
+      ${club || match.chat_hit_id ? `<div class="lab-rematch-actions" role="group" aria-label="Play again">
         <button type="button" class="secondary" data-plan-rematch aria-haspopup="dialog">Plan another hit</button>${logRematch}
       </div>` : logRematch}
       ${scorecardCopyControls}
@@ -440,9 +440,9 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     const rate = editor.querySelector<HTMLButtonElement>('[data-edit-court-feedback]')
     if (rate && venue) rate.onclick = () => showCourtFeedbackEditor(match, venue.name)
     const plan = editor.querySelector<HTMLButtonElement>('[data-plan-rematch]')
-    if (plan && club) plan.onclick = () => {
+    if (plan) plan.onclick = () => {
       const currentScorecard = () => active() && plan.isConnected
-      if (currentScorecard() && !writing) openRematchInvite(club.id, plan, currentScorecard)
+      if (currentScorecard() && !writing) openRematchInvite({hitId:match.chat_hit_id??undefined,clubId:club?.id}, plan, currentScorecard)
     }
     editor.querySelector<HTMLButtonElement>('[data-log-rematch]')!.onclick = () => showEditor(null, { previous: match })
     editor.querySelector<HTMLButtonElement>('[data-edit-match]')!.onclick = () => showEditor(match)

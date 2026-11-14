@@ -1,5 +1,5 @@
 import {
-  playerChatEndpoint,readPlayerChatInbox,readPlayerChatInvitation,readPlayerChatRoom,type PlayerChatAction,
+  playerChatEndpoint,readPlayerChatInbox,readPlayerChatInvitation,readPlayerChatRematch,readPlayerChatRoom,type PlayerChatAction,
 } from './player-chats-contract'
 import { teamChatMessageId } from './team-chat-cursor'
 import { updateTimestamp } from './native-updates-contract'
@@ -25,6 +25,7 @@ export function playerChatTransport(owner: string, call: ChatCall) {
   }
   return {
     inbox: async () => readPlayerChatInbox(await request({})),
+    rematch: async (hit: string) => readPlayerChatRematch((await request({query:new URLSearchParams({rematch:hit})})).rematch),
     room: async (id: string,before = '') => {
       const query = new URLSearchParams({room:id})
       if (before) query.set('before',before)

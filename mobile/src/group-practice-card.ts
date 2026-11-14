@@ -64,7 +64,7 @@ const chatHitWhen = (hit:ChatHit) => new Intl.DateTimeFormat(undefined,{
 export function chatHitCard(hit: ChatHit|null, owner: string, draft: ChatHitDraft|null, saved:SavedCourts,
   confirmedHit:ChatHit|undefined, canSuggest:boolean) {
   if (draft) return `<section class="group-practice-card" aria-labelledby="chat-hit-title">
-    <h3 id="chat-hit-title">${draft.replaces?'Suggest another time':'Plan a hit'}</h3>
+    <h3 id="chat-hit-title" tabindex="-1">${draft.replaces?'Suggest another time':'Plan a hit'}</h3>
     <form data-chat-hit-form>
       ${practiceDateTime(draft,true)}
       <label>Club<select name="clubId" required>

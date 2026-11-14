@@ -313,6 +313,7 @@ test('past confirmed hits open a private prefilled scorecard and reopen the save
   fixture.title='Jamie'
   fixture.hit={id,room:fixture.room,proposedBy:fixture.player,
    clubId:'vetta-west',date:'2026-11-18',time:'18:00',startsAt:'2026-11-19T00:00:00Z',status:'accepted'}
+  fixture.rematchSource=fixture.hit
  },hit)
  const calendar=page.getByRole('dialog',{name:'Your calendar',exact:true})
  const openHit=async()=>{
@@ -343,6 +344,34 @@ test('past confirmed hits open a private prefilled scorecard and reopen the save
  const saved=page.getByRole('article',{name:'Saved scorecard',exact:true})
  await expect(saved).toContainText('6-4 6-3')
  await expect(saved).toContainText('From your hitting plan')
+ const rematch=saved.getByRole('button',{name:'Plan another hit',exact:true})
+ await rematch.click()
+ const chat=page.getByRole('dialog',{name:'Jamie',exact:true})
+ const proposal=chat.getByRole('region',{name:'Plan a hit',exact:true})
+ await expect(proposal.getByRole('heading')).toBeFocused()
+ await expect(proposal.getByRole('combobox',{name:'Club'})).toHaveValue('vetta-west')
+ await expect(proposal.getByLabel('Date',{exact:true})).toHaveValue('')
+ await expect(proposal.getByLabel('Start time (CT)',{exact:true})).toHaveValue('')
+ await proposal.getByLabel('Date',{exact:true}).fill('2026-11-20')
+ await proposal.getByLabel('Start time (CT)',{exact:true}).fill('18:30')
+ await proposal.getByRole('button',{name:'Send proposal'}).click()
+ await expect(chat.getByText('Proposal sent.')).toBeVisible()
+ await expect(chat.getByText('Waiting for a reply')).toBeVisible()
+ await chat.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(rematch).toBeFocused()
+ await expect(saved).toContainText('6-4 6-3')
+ await rematch.click()
+ const plan=chat.getByRole('region',{name:'Hitting plan',exact:true})
+ await expect(plan.getByRole('heading')).toBeFocused()
+ await expect(plan.getByRole('button',{name:'Suggest another time'})).toBeVisible()
+ await expect(proposal).toHaveCount(0)
+ await chat.getByRole('button',{name:'Close',exact:true}).click()
+ await page.evaluate(()=>{Reflect.get(window,'playerChatFixture').rematchSource=null})
+ await rematch.click()
+ const unavailable=page.getByRole('dialog',{name:'Conversation',exact:true})
+ await expect(unavailable.getByRole('status')).toHaveText('This hitting partner is no longer available in Chats.')
+ await unavailable.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(saved).toContainText('6-4 6-3')
 })
 
 test('a hitting plan push opens the right chat after enabling iPhone alerts',async({page})=>{

@@ -387,8 +387,17 @@ function launchCalendar(trigger:HTMLElement,initial:CalendarStart='all'){
  const owner=session.user.id,visit=revision
  agenda=openPlayerCalendar(owner,()=>visit===revision&&owner===session?.user.id,trigger,initial)
 }
-function openScorecardInvite(owner:string,clubId:string,trigger:HTMLButtonElement,current:()=>boolean){
+function openScorecardInvite(owner:string,source:{hitId?:string;clubId?:string},trigger:HTMLButtonElement,current:()=>boolean){
  if(!current()||document.querySelector('dialog[open]'))return
+ const {hitId,clubId}=source
+ if(hitId){
+  playerChats=openPlayerChats(client,owner,current,()=>{
+   playerChats=null
+   if(current())trigger.focus({preventScroll:true})
+  },{rematch:hitId,closeToSource:true})
+  return
+ }
+ if(!clubId)return
  const changed=()=>calendarHighlights.refreshPractice(true)
  courtInvite=openCourtInvite(trigger,current,owner,clubId,undefined,{client,changed,open:saved=>{
   if(!current())return
@@ -862,7 +871,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
       mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
         seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,scoreReviewShortcut,
         openPractice:(match,currentMatch)=>openScorecardPractice(current.user.id,currentMatch,match.match_date,match.format==='doubles'),
-        openRematchInvite:(clubId,trigger,currentMatch)=>openScorecardInvite(current.user.id,clubId,trigger,currentMatch),
+        openRematchInvite:(source,trigger,currentMatch)=>openScorecardInvite(current.user.id,source,trigger,currentMatch),
       })
       const trophies = document.createElement('div')
       matchLog.after(trophies)

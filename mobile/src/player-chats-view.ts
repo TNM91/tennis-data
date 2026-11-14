@@ -44,7 +44,7 @@ export function playerChatsForAccount(client: SupabaseClient,owner: string,activ
 
 export function openPlayerChats(
   client: SupabaseClient,owner: string,current: () => boolean,onClose: () => void,
-  initial: { token?: string; room?: string; hit?: string; browser?: boolean; className?: string; compose?: boolean;
+  initial: { token?: string; room?: string; hit?: string; rematch?: string; browser?: boolean; className?: string; compose?: boolean;
     preferences?: ReturnType<typeof chatInboxOrder>; closeToSource?: boolean } = {},
 ) {
   const dialog = document.createElement('dialog')
@@ -52,7 +52,7 @@ export function openPlayerChats(
   if (initial.className) dialog.classList.add(initial.className)
   dialog.setAttribute('aria-labelledby','player-chats-title')
   let disposed = false,busy = false,notice = '',draft = '',groupName = ''
-  let page: 'inbox'|'room'|'invite'|'people'|ComposerPage = initial.token ? 'invite' : initial.room ? 'room' : initial.compose ? 'new' : 'inbox'
+  let page: 'inbox'|'room'|'invite'|'people'|ComposerPage = initial.token ? 'invite' : initial.room || initial.rematch ? 'room' : initial.compose ? 'new' : 'inbox'
   let inviteReturn: ComposerPage | null = null
   let contactQuery = ''
   let inbox: PlayerChatInbox | null = null,room: PlayerChatRoom | null = null
@@ -64,6 +64,7 @@ export function openPlayerChats(
   let historyAnchor = 0
   let practiceDraft: GroupPracticeDraft | null = null
   let hitDraft: ChatHitDraft | null = null
+  let rematchClub: string | undefined
   let focusHit = false
   let directions: ReturnType<typeof openCourtDirections> | undefined
   let contactTimer: ReturnType<typeof setTimeout> | undefined
@@ -157,6 +158,18 @@ export function openPlayerChats(
       const result = await transport.act({action:'read',room:next.id,id:newest.id}).catch(()=>null)
       if (result && active()) lastRead.set(id,newest.id)
     }
+  }
+  function openRematch(hit: string) {
+    return run(async ()=>{
+      const destination=await transport.rematch(hit)
+      await loadRoom(destination.room)
+      if (!active() || !room || room.group || room.hit===undefined) throw Error('The hitting plan couldn’t load. Refresh to try again.')
+      rematchClub=destination.clubId
+      if (room.hit?.status!=='accepted' && room.hit?.status!=='proposed') {
+        hitDraft={date:'',time:'',clubId:rematchClub}
+      }
+      focusHit=true
+    })
   }
   function openInbox() {
     stopLive()
@@ -521,7 +534,11 @@ export function openPlayerChats(
     click('[data-player-back]',()=>{back()})
     click('[data-player-retry]',()=>{if(pending)void act(pending)})
     click('[data-player-people]',openPeople)
-    click('[data-player-refresh]',()=>{if(page==='room'&&room)void run(()=>loadRoom(room!.id));else void openInbox()})
+    click('[data-player-refresh]',()=>{
+      if (page==='room'&&initial.rematch&&(!room || room.hit===undefined)) void openRematch(initial.rematch)
+      else if(page==='room'&&room)void run(()=>loadRoom(room!.id))
+      else void openInbox()
+    })
     click('[data-player-new]',()=>{openComposer('new')})
     click('[data-player-group]',()=>{openComposer('group')})
     click('[data-player-mode]',button=>{const next=button.dataset.playerMode;if(next==='new'||next==='group')openComposer(next)})
@@ -575,7 +592,7 @@ export function openPlayerChats(
     })
     click('[data-chat-hit-start]',()=>{
       const home=listedHittingClub(readSavedCourts(owner).home)
-      hitDraft={date:'',time:'',clubId:home?.id??''}
+      hitDraft={date:'',time:'',clubId:rematchClub??home?.id??''}
       render()
       dialog.querySelector<HTMLInputElement>('[data-chat-hit-form] input')?.focus()
     })
@@ -737,6 +754,7 @@ export function openPlayerChats(
   dialog.oncancel = event=>{event.preventDefault();back()}
   document.body.append(dialog); render(); dialog.showModal()
   if (initial.token) void preview(initial.token)
+  else if (initial.rematch) void openRematch(initial.rematch)
   else if (initial.room) void run(async ()=>{
     if (!initial.hit) inbox=await transport.inbox()
     await loadRoom(initial.room!)

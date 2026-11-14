@@ -44,6 +44,7 @@ const playerChatFixture={
  practices:new URL(location.href).searchParams.has('group-practice'),
  hitEnabled:new URL(location.href).searchParams.has('chat-hit'),
  hit:null as ChatHit|null,
+ rematchSource:null as ChatHit|null,
  confirmedHit:undefined as ChatHit|undefined,
  practice:null as import('../../lib/group-practice-contract').GroupPractice|null,
  room:'bb4f152f-bb10-4b30-a233-09f20121e463',
@@ -269,13 +270,22 @@ window.fetch=async(input,init)=>{
    }
    return Response.json(base)
   }
+  if(url.searchParams.has('rematch')){
+   const hit=state.rematchSource
+   if(!hit||hit.id!==url.searchParams.get('rematch')||!personalMatchFixture.rows.some(row=>row.owner_user_id===owner&&row.chat_hit_id===hit.id)){
+    return Response.json({...base,ok:false,message:'This hitting partner is no longer available in Chats.'},{status:404})
+   }
+   return Response.json({...base,rematch:{room:hit.room,clubId:hit.clubId}})
+  }
+  const currentHit=state.hit&&Date.parse(state.hit.startsAt)>Date.now()?state.hit:null
+  const confirmedHit=state.confirmedHit&&Date.parse(state.confirmedHit.startsAt)>Date.now()?state.confirmedHit:undefined
   if(url.searchParams.get('room')===state.room)return Response.json({...base,room:{
    id:state.room,title:state.title,group:state.group,manage:state.group&&(!state.inviteGroup||!new URL(location.href).searchParams.has('link')),more:false,
    members:state.group?contacts.filter(player=>state.groupMembers.includes(player.id)):[contact],messages:state.outgoing,logo:state.logo,
    ...(state.group&&state.practices?{practice:state.practice}:{}),
    ...(!state.group&&state.hitEnabled&&new Headers(init?.headers).get(chatHitsHeader)==='1'?
-    new Headers(init?.headers).get(chatHitChangesHeader)==='1'?{hit:state.hit,confirmedHit:state.confirmedHit,canSuggestHit:true}:
-      {hit:state.confirmedHit??state.hit}:{}),
+    new Headers(init?.headers).get(chatHitChangesHeader)==='1'?{hit:currentHit,confirmedHit,canSuggestHit:true}:
+      {hit:confirmedHit??currentHit}:{}),
   }})
   return Response.json({...base,contacts,rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:inboxSearchFixture,
    logo:state.logo,activityAt:'2026-11-13T20:00:00Z'}]:[]})
