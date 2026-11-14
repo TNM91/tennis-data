@@ -20,6 +20,21 @@ export type ChatInboxFilters = { query: string; unreadOnly: boolean }
 type CoachSearch = { snapshot: () => CoachInboxSearch; open: (id:string,trigger:HTMLButtonElement) => void;
   setPins: (keys:readonly string[],toggle:(key:string)=>void) => void }
 const searchWords = (value:string) => value.normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase().trim().split(/\s+/).filter(Boolean)
+const activityTime = new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit'})
+const activityDay = new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric'})
+const activityPastYear = new Intl.DateTimeFormat(undefined,{year:'numeric',month:'short',day:'numeric'})
+
+function recentActivityTime(value:string|undefined,today:Date,yesterday:Date){
+  if(!value)return ''
+  const date=new Date(value)
+  if(!Number.isFinite(date.getTime()))return ''
+  let label:string
+  if(date.toDateString()===today.toDateString())label=activityTime.format(date)
+  else if(date.toDateString()===yesterday.toDateString())label='Yesterday'
+  else label=(date.getFullYear()===today.getFullYear()?activityDay:activityPastYear).format(date)
+  const exact=date.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})
+  return `<time datetime="${html(value)}" title="${html(exact)}"><span class="sr-only">Last message: </span>${html(label)}</time>`
+}
 
 export const teamInboxKey = (scope: TeamScope) => JSON.stringify(['team',scope.teamName,scope.leagueName,scope.flight])
 export const playerInboxKey = (id: string) => 'chat:'+id
@@ -73,6 +88,7 @@ export function mountChatInboxOrder(
 ) {
   const pinned = host.querySelector<HTMLElement>('[data-chats-pinned]')!
   const recent = host.querySelector<HTMLElement>('[data-chats-recent]')!
+  const recentList = recent.querySelector('ul')!
   const recentRefresh = recent.querySelector<HTMLButtonElement>('[data-recent-refresh]')!
   const recentStatus = recent.querySelector<HTMLElement>('[role="status"]')!
   const conversations = host.querySelector<HTMLElement>('[data-chats-players]')!
@@ -92,7 +108,7 @@ export function mountChatInboxOrder(
   const teamEntries = teamOptions.map((team):Entry=>({
     key:teamInboxKey(team),title:team.teamName,
     subtitle:[teamLeagueLabel(team),team.flight].filter(Boolean).join(' · '),searchText:'General',
-    searchSubtitle:['General',teamLeagueLabel(team),team.flight].filter(Boolean).join(' · '),icon:team.teamLogoUrl,activity:team.activityAt,
+    searchSubtitle:['General',teamLeagueLabel(team),team.flight].filter(Boolean).join(' · '),icon:team.teamLogoUrl,
     open:()=>openTeam(team),
   }))
   let players: Entry[] = []
@@ -112,11 +128,14 @@ export function mountChatInboxOrder(
     return `<button type="button" class="secondary chat-pin" data-organized-pin aria-label="${html((isPinned?'Unpin ':'Pin ')+entry.title)}" aria-pressed="${isPinned}">${nativeActionIcon('pin')}</button>`
   }
   function fillList(list:HTMLElement,entries:Entry[],nested=false){
+    const today=new Date(),yesterday=new Date(today)
+    yesterday.setDate(today.getDate()-1)
     const markup=entries.map(entry=>{
       let avatar=teamChatAvatarHtml(entry.title,entry.icon)
       if(entry.initials)avatar=`<span class="chats-team-avatar" aria-hidden="true">${html(entry.initials)}</span>`
       else if(nested&&!entry.icon)avatar=`<span class="chats-team-avatar chat-team-channel-icon" aria-hidden="true">${websiteUi.icons.teams}</span>`
-      const subtitle=nested?'':`<span>${html(entry.subtitle)}</span>`
+      const timestamp=list===recentList?recentActivityTime(entry.activity,today,yesterday):''
+      const subtitle=nested?'':`<span class="chats-row-meta"><span>${html(entry.subtitle)}</span>${timestamp}</span>`
       return `<li class="chat-organized-row"><button type="button" class="secondary chats-team-card" data-organized-open>
         ${avatar}<span class="chats-team-copy"><strong>${html(entry.title)}</strong>${subtitle}</span>
         <span class="chat-unread-badge" data-organized-unread hidden></span><span aria-hidden="true">›</span>
@@ -202,7 +221,7 @@ export function mountChatInboxOrder(
     sort.value=order.sort
     section(pinned,finding?[]:favorite)
     recent.hidden=finding||grouped
-    fillList(recent.querySelector('ul')!,recent.hidden?[]:available)
+    fillList(recentList,recent.hidden?[]:available)
     const loading=playerStatus==='loading'||coachSnapshot.status==='loading'
     const incomplete=playerStatus==='unavailable'||coachSnapshot.status==='unavailable'||summary===null||summary.coach?.available===false
     recentRefresh.disabled=refreshing
@@ -252,7 +271,6 @@ export function mountChatInboxOrder(
   function paintActivity(){
    if(!alive())return
    // Leave the newest row in view when the reader is at the top of Recent.
-   const recentList=recent.querySelector('ul')!
    if(recent.hidden||recentList.getBoundingClientRect().top>=0){paint();return}
    const rows=Array.from(recentList.querySelectorAll<HTMLButtonElement>('[data-organized-open]'))
    const visible=rows.flatMap(row=>{

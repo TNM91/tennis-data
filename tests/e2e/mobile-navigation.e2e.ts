@@ -496,6 +496,10 @@ for(const font of ['regular','large']){
    await expect(page.locator(selector)).toHaveCSS('box-shadow','none')
   }
   await expect(page.locator('[data-chats-pinned] .chat-organized-row')).toHaveCSS('border-top-left-radius','12px')
+  await page.getByLabel('View',{exact:true}).selectOption('recent')
+  const recentGroup=page.getByRole('region',{name:'Recent',exact:true}).getByRole('button',{name:/^Friday Rally/})
+  await expect(recentGroup.locator('time')).toBeVisible()
+  expect(await recentGroup.evaluate(row=>row.scrollWidth<=row.clientWidth)).toBe(true)
   await bounded(page)
  })
 }
@@ -718,6 +722,7 @@ test('coach and team pins stay at the top while Recent follows refreshed activit
 test('Recent catches up on tab return and app resume while keeping the visible conversation in place',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:390,height:780})
+ await page.clock.setFixedTime(new Date('2026-11-13T23:15:00Z'))
  await page.goto(origin+'/?player-chat=1&chat-inbox-search=1&chat-inbox-activity=1')
  await page.evaluate(()=>Object.assign(Reflect.get(window,'inboxActivityFixture'),{extraRooms:18,playerUnread:false}))
  const navigation=page.getByRole('navigation',{name:'Main navigation'})
@@ -734,7 +739,10 @@ test('Recent catches up on tab return and app resume while keeping the visible c
  await page.evaluate(()=>Object.assign(Reflect.get(window,'inboxActivityFixture'),{player:'2026-11-13T23:00:00Z',playerUnread:true,teamUnread:2}))
  await chats.click()
  await expect(titles.first()).toHaveText('Friday Rally')
- await expect(recent.getByRole('button',{name:/^Friday Rally/}).getByText('New',{exact:true})).toBeVisible()
+ const rally=recent.getByRole('button',{name:/^Friday Rally/})
+ await expect(rally.getByText('New',{exact:true})).toBeVisible()
+ await expect(rally.locator('time')).toBeVisible()
+ await expect(rally.locator('time')).toHaveAttribute('datetime','2026-11-13T23:00:00Z')
  await expect(chats).toHaveAccessibleName('Chats, 5 unread messages')
  await expect(pinned.locator('.chats-team-copy strong')).toHaveText(['Taylor Morgan','Baseline Aces'])
 
@@ -743,6 +751,7 @@ test('Recent catches up on tab return and app resume while keeping the visible c
  const before=(await anchor.boundingBox())!.y
  expect(before).toBeGreaterThanOrEqual(55)
  expect(before).toBeLessThanOrEqual(69)
+ await page.clock.setFixedTime(new Date('2026-11-14T17:00:00Z'))
  await page.evaluate(()=>{
   Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'})
   document.dispatchEvent(new Event('visibilitychange'))
@@ -754,6 +763,8 @@ test('Recent catches up on tab return and app resume while keeping the visible c
  })
  await expect(titles.first()).toHaveText('Practice group 1')
  await expect(chats).toHaveAccessibleName('Chats, 6 unread messages')
+ await expect(rally.locator('time')).toHaveAttribute('datetime','2026-11-13T17:00:00Z')
+ await expect(rally.locator('time')).toContainText('Yesterday')
  await expect(pinned.locator('.chats-team-copy strong')).toHaveText(['Taylor Morgan','Baseline Aces'])
  expect(Math.abs((await anchor.boundingBox())!.y-before)).toBeLessThanOrEqual(2)
  expect(await page.evaluate(()=>Reflect.get(window,'inboxActivityFixture').playerReads)).toBe(3)

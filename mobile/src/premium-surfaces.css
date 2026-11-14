@@ -1651,6 +1651,9 @@ body[data-screen="teams"]:not(.native-chat-conversation) .chat-organized-row > b
 .chat-organized-row .chats-team-copy { gap:3px; }
 .chat-organized-row .chats-team-copy strong { font-size:.9375rem; font-weight:700; }
 .chat-organized-row .chats-team-copy > span { font-size:.75rem; font-weight:500; }
+[data-chats-recent] .chats-row-meta { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; }
+[data-chats-recent] .chats-row-meta > span { min-inline-size:0; }
+[data-chats-recent] .chats-row-meta time { color:var(--premium-copy); font-variant-numeric:tabular-nums; }
 body[data-screen="teams"] button.secondary.chat-pin {
  display:grid; place-items:center; inline-size:44px; min-block-size:44px; margin:0; padding:0;
  border:0; background:transparent; color:var(--premium-ice); box-shadow:none;
