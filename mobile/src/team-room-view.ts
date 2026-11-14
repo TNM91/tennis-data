@@ -1,4 +1,6 @@
 import {createCoachChatsInbox} from './coach-chats-inbox'
+import {Capacitor,type PluginListenerHandle} from '@capacitor/core'
+import {App} from '@capacitor/app'
 import type {ReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {applyChatTimeline} from './chat-timeline'
 import {chatQuickFindHtml,highlightChatCopy} from './chat-quick-find'
@@ -106,6 +108,9 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const inboxOrder=firstPartyBuild?chatInboxOrder(userId):null
  const chatFilters:ChatInboxFilters={query:'',unreadOnly:false}
  let organizedInbox:ReturnType<typeof mountChatInboxOrder>|null=null
+ let resumeListener:PluginListenerHandle|undefined
+ let inboxWasHidden=false
+ let inboxNeedsRefresh=false
  let inboxView:ReturnType<typeof bindChatsInbox>|null=null
  let roomPicker:ReturnType<typeof openChatRooms>|null=null
  let historySearch:ReturnType<typeof openChatHistory>|null=null
@@ -139,7 +144,26 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const onVisibility=()=>{if(document.visibilityState!=='visible'){if(focusPending){focusAttempt++;focusPending=false;historyLoading=false;historyNotice='';updateLabels()}if(availabilityView?.isOpen())reviewNeedsRefresh=true;gifChooser?.abort();roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchEssentialsVersion++;if(matchReview?.isOpen()||matchShare?.isOpen())reviewNeedsRefresh=true;matchReview?.dispose();matchReview=null;matchShare?.dispose();matchShare=null;closeMentions();if(teamDialog&&!teamDialog.keepWhileHidden){teamDialog.dispose();teamDialog=null;teamDialogNeedsRefresh=true}captainView?.dispose();captainView=null;if(tab==='Captain'){const panel=app.querySelector('#team-panel');if(panel)panel.innerHTML='<p role="status">Captain tools paused.</p>'}messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;postEditor?.dispose();postEditor=null;closePhoto();gifs.clear();previews.clear()}else if(reviewNeedsRefresh){reviewNeedsRefresh=false;if(tab==='Match day'||tab==='Conversation')void load(true)}else if(teamDialogNeedsRefresh){teamDialogNeedsRefresh=false;void load(true)}else if(snapshot?.room){if(tab==='Captain')render();else previews.attach(app.querySelector<HTMLElement>('.team-conversation'))}}
  document.addEventListener('visibilitychange',onVisibility)
  const valid=()=>!disposed && isCurrent()
- const coachInbox=createCoachChatsInbox(client,userId,valid,()=>alerts?.unread()??null,()=>alerts?.refresh(),()=>organizedInbox?.refreshCoach())
+ const coachInbox=createCoachChatsInbox(client,userId,valid,()=>alerts?.unread()??null,()=>alerts?.refresh(),()=>organizedInbox?.refreshCoach(),
+  ()=>inboxNeedsRefresh&&refreshInbox())
+ const refreshInbox=()=>{
+  if(!valid()||!inbox||!organizedInbox||document.visibilityState!=='visible')return false
+  if(document.querySelector('dialog[open]')){inboxNeedsRefresh=true;return false}
+  inboxNeedsRefresh=false
+  void organizedInbox.refreshAll()
+  return true
+ }
+ const onInboxVisibility=()=>{
+  if(document.visibilityState!=='visible'){inboxWasHidden=true;return}
+  if(inboxWasHidden){inboxWasHidden=false;refreshInbox()}
+ }
+ if(firstPartyBuild){
+  document.addEventListener('visibilitychange',onInboxVisibility)
+  if(Capacitor.isNativePlatform())void App.addListener('appStateChange',({isActive})=>{
+   if(!isActive){inboxWasHidden=true;return}
+   onInboxVisibility()
+  }).then(handle=>{if(disposed)void handle.remove();else resumeListener=handle}).catch(()=>{})
+ }
  const previews=chatPhotoPreviews(async id=>{const data=await postTeamChat(client,userId,valid,{...currentScope()},{action:'read_chat_photo',messageId:id,photoPreview:true});if(data.messageId!==id || data.mimeType!=='image/jpeg' || typeof data.base64!=='string' || data.base64.length>128000)throw Error('Photo preview unavailable');return privatePhotoData(data)},valid)
  const gifs=chatGifPlayback(async id=>{const data=await postTeamChat(client,userId,valid,{...currentScope()},{action:'read_chat_photo',messageId:id});if(data.mimeType!=='image/gif')throw Error('GIF unavailable');return privatePhotoData(data)},valid)
  const statusText=()=>firstPartyBuild?'Refresh to check for new messages.':liveStatus==='live'?'Live chat on':liveStatus==='connecting'?'Connecting to live chat…':liveStatus==='paused'?'Live updates paused. Refresh if needed.':'Live updates unavailable. Refresh to check for messages.'
@@ -595,7 +619,8 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   })
  }
  const openInbox=()=>{
-  if(!valid()||inbox||safetyView?.isOpen()||roomPicker?.isOpen()||draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending||(availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen()||fixturesView?.isOpen()||historySearch?.isOpen()||matchReview?.isOpen()||matchShare?.isOpen()||teamDialog?.isOpen()||messageView?.isOpen()||linkView?.isOpen()||announcementView?.isOpen()||postEditor?.isOpen()||photoDialog||mentionDialog)return
+  if(inbox){refreshInbox();return}
+  if(!valid()||safetyView?.isOpen()||roomPicker?.isOpen()||draft.pending||draft.sending||busy||photoChoosing||matchActions.pending||matchActions.sending||muteSending||(availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen()||fixturesView?.isOpen()||historySearch?.isOpen()||matchReview?.isOpen()||matchShare?.isOpen()||teamDialog?.isOpen()||messageView?.isOpen()||linkView?.isOpen()||announcementView?.isOpen()||postEditor?.isOpen()||photoDialog||mentionDialog)return
   if((draft.text.trim()||draft.photo)&&!window.confirm('Return to Chats? Your unfinished message will be discarded.'))return
   if(entry){entry.back();return}
   freshDraft();inbox=true;render()
@@ -636,7 +661,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
     teamDialog=openPlayerChats(client,userId,()=>valid()&&inbox,()=>{
      teamDialog=null
      if(trigger.isConnected)trigger.focus({preventScroll:true})
-     void organizedInbox?.refresh()
+     if(!inboxNeedsRefresh||!refreshInbox())organizedInbox?.refreshAfterConversation()
     },{room:id,compose,preferences:inboxOrder??undefined})
    }
    const players=app.querySelector<HTMLButtonElement>('[data-player-chats]')
@@ -1020,9 +1045,13 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   if(needsLiveRefresh&&!safetyView?.isOpen()&&!busy&&!draft.sending&&fullLoads===0&&!app.querySelector('.chat-more[open],.chat-reaction-picker[open],.team-hub[open],.chat-room-options[open],.chat-attachment-picker[open],.chat-emoji-picker[open],.chat-match-card details[open]')){needsLiveRefresh=false;void refreshLive().catch(()=>{})}
  }
  void load()
+ const closeInboxLifecycle=()=>{
+  document.removeEventListener('visibilitychange',onInboxVisibility)
+  void resumeListener?.remove()
+ }
  return {openInbox,refreshUnread:()=>{
   if(!valid()||!inbox)return
   const summary=alerts?.unread()??null
   inboxView?.update(summary);organizedInbox?.updateUnread(summary);coachInbox.update(summary)
- },hasDraft:()=>Boolean(safetyView?.isOpen() || coachInbox.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || teamDialog?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{organizedInbox?.dispose();organizedInbox=null;safetyView?.dispose();safetyView=null;replyReturn=null;coachInbox.dispose();inboxView?.dispose();inboxView=null;pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;teamDialog?.dispose();teamDialog=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(safetyView?.isOpen()){safetyView.close();return true}if(coachInbox.back())return true;if(teamDialog?.isOpen()){teamDialog.close();return true}if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
+ },hasDraft:()=>Boolean(safetyView?.isOpen() || coachInbox.isOpen() || roomPicker?.isOpen() || (availabilityView?.isOpen() || pollView?.isOpen()) || practicesView?.isOpen() || matchReview?.isOpen() || matchShare?.isOpen() || announcementView?.isOpen() || teamDialog?.isOpen() || postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{closeInboxLifecycle();organizedInbox?.dispose();organizedInbox=null;safetyView?.dispose();safetyView=null;replyReturn=null;coachInbox.dispose();inboxView?.dispose();inboxView=null;pressActions?.dispose();pressActions=null;app.removeEventListener('keydown',onControlKey);document.body.classList.remove('native-chat-conversation');roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchReview?.dispose();matchShare?.dispose();closeMentions();messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;teamDialog?.dispose();teamDialog=null;gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>{if(safetyView?.isOpen()){safetyView.close();return true}if(coachInbox.back())return true;if(teamDialog?.isOpen()){teamDialog.close();return true}if(matchReview?.isOpen()){matchReview.back();return true}if(availabilityView?.isOpen()){availabilityView.back();return true}if(pollView?.isOpen()){pollView.back();return true}if(roomPicker?.isOpen()){roomPicker.close();return true}if(practicesView?.isOpen()){practicesView.back();return true}if(fixturesView?.isOpen()){fixturesView.close();fixturesView=null;return true}if(historySearch?.isOpen()){historySearch.close();historySearch=null;return true}if(closeControlMenu())return true;if(!inbox){openInbox();return true}return false}}
 }

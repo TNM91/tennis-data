@@ -15,7 +15,8 @@ export type CoachInboxSearch = {
 }
 
 /** Refresh the authorized connection list on mount and on request. */
-export function createCoachChatsInbox(client:SupabaseClient,owner:string,current:()=>boolean,getCounts:()=>ChatUnread|null=()=>null,refreshCounts:()=>void=()=>{},searchChanged:()=>void=()=>{}){
+export function createCoachChatsInbox(client:SupabaseClient,owner:string,current:()=>boolean,getCounts:()=>ChatUnread|null=()=>null,
+ refreshCounts:()=>void=()=>{},searchChanged:()=>void=()=>{},onConversationClosed?:()=>boolean){
  const element=document.createElement('section');element.className='native-section-group chats-coach-inbox';element.setAttribute('aria-label','Coach & player conversations')
  let disposed=false,started=false,busy=false,epoch=0,query='',notice='',more=false,unreadOnly=false,filtersOpen=false,connections:CoachChatConnection[]=[],summary=getCounts()
  let conversation:ReturnType<typeof openCoachMessages>|null=null
@@ -40,7 +41,7 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
     .find(button=>(button.dataset.focusKey===key||button.dataset.coachChat===id)&&button.getClientRects().length)
    const returnFocus=trigger.isConnected&&trigger.getClientRects().length?trigger:visibleRow??filterTarget()
    returnFocus?.focus({preventScroll:true})
-   if(firstPartyBuild)refreshCounts()
+   if(firstPartyBuild&&!onConversationClosed?.())refreshCounts()
   },refreshCounts)
  }
  const paintRows=()=>{
@@ -116,6 +117,7 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
     onClose:connected=>{
      invitation=null
      if(connected&&element.isConnected)void refresh(true)
+     else if(firstPartyBuild)onConversationClosed?.()
     },
    })
   }
@@ -133,11 +135,25 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
  const refresh=async(checkCounts=false)=>{
   if(!active()||busy||overlayOpen())return
   if(checkCounts)refreshCounts()
-  const restoreFocus=element.contains(document.activeElement),version=++epoch;busy=true;notice='Loading conversations…';render()
+  const restoreFocus=checkCounts&&element.contains(document.activeElement),version=++epoch
+  const repaint=checkCounts||!element.hasChildNodes()
+  busy=true;notice='Loading conversations…'
+  if(repaint)render()
   searchChanged()
   try{const result=await loadCoachChatConnections(client,owner,active);if(!active()||version!==epoch)return;connections=result.connections;more=result.more;notice=''}
   catch{if(active()&&version===epoch){connections=[];notice='Coach conversations are unavailable. Refresh to try again.'}}
-  finally{if(active()&&version===epoch){busy=false;render();searchChanged();if(restoreFocus&&element.isConnected)element.querySelector<HTMLButtonElement>('[data-coach-chat-refresh]')?.focus({preventScroll:true})}}
+  finally{
+   if(!active()||version!==epoch)return
+   busy=false
+   if(repaint||!connections.length||element.querySelector('[data-chats-coach-invite]'))render()
+   else{
+    element.querySelector<HTMLButtonElement>('[data-coach-chat-refresh]')!.disabled=false
+    element.querySelector<HTMLDetailsElement>('[data-coach-chat-filters]')!.hidden=false
+    paintRows()
+   }
+   searchChanged()
+   if(restoreFocus&&element.isConnected)element.querySelector<HTMLButtonElement>('[data-coach-chat-refresh]')?.focus({preventScroll:true})
+  }
  }
  return {
   mount(host:HTMLElement){if(!active())return;host.append(element);if(!started){started=true;void refresh()}},

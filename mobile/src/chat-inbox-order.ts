@@ -97,7 +97,9 @@ export function mountChatInboxOrder(
   }))
   let players: Entry[] = []
   let teamChats: Entry[][] = []
-  let loadId = 0
+  let playerRequest:Promise<void>|null = null
+  let refreshRequest:Promise<void>|null = null
+  let pendingPlayerRefresh=false
   let playerStatus: 'loading'|'ready'|'unavailable' = 'loading'
   let refreshing = false
   let summary: ChatUnread|null = null
@@ -247,24 +249,50 @@ export function mountChatInboxOrder(
       ;(replacement??search).focus({preventScroll:true})
     }
   }
+  function paintActivity(){
+   if(!alive())return
+   // Leave the newest row in view when the reader is at the top of Recent.
+   const recentList=recent.querySelector('ul')!
+   if(recent.hidden||recentList.getBoundingClientRect().top>=0){paint();return}
+   const rows=Array.from(recentList.querySelectorAll<HTMLButtonElement>('[data-organized-open]'))
+   const visible=rows.flatMap(row=>{
+    const bounds=row.getBoundingClientRect()
+    return bounds.bottom>0&&bounds.top<window.innerHeight?[{key:row.dataset.focusKey,top:bounds.top}]:[]
+   })
+   paint()
+   const updated=new Map(Array.from(recentList.querySelectorAll<HTMLButtonElement>('[data-organized-open]'),row=>[row.dataset.focusKey,row]))
+   for(const anchor of visible){
+    const row=updated.get(anchor.key)
+    if(!row)continue
+    const delta=row.getBoundingClientRect().top-anchor.top
+    if(Math.abs(delta)>=1)window.scrollBy(0,delta)
+    break
+   }
+  }
   const refresh=()=>{
-   const request=++loadId
+   if(playerRequest)return playerRequest
    playerStatus='loading'
    paint()
-   return load().then(rooms=>{
-    if(!alive()||request!==loadId)return
+   playerRequest=load().then(rooms=>{
+    if(!alive())return
     playerStatus='ready'
     players=rooms.map(room=>({
       key:playerInboxKey(room.id),title:room.title,subtitle:room.group?'Group chat':'Direct message',
       icon:room.logo,unread:room.unread,activity:room.activityAt,open:button=>openPlayer(room.id,button),
     }))
-    paint()
+    paintActivity()
    }).catch(()=>{
-    if(!alive()||request!==loadId)return
-    players=[]
+    if(!alive())return
     playerStatus='unavailable'
-    paint()
+    paintActivity()
+   }).finally(()=>{
+    playerRequest=null
+    if(pendingPlayerRefresh&&alive()){
+     pendingPlayerRefresh=false
+     void refresh()
+    }
    })
+   return playerRequest
   }
   sort.addEventListener('change',()=>{preferences.sort(sort.value==='recent'?'recent':'sections');paint()}, {signal:signal.signal})
   search.addEventListener('input',()=>{filters.query=search.value.slice(0,160);paint()},{signal:signal.signal})
@@ -276,20 +304,30 @@ export function mountChatInboxOrder(
     paint()
     search.focus()
   },{signal:signal.signal})
-  async function refreshAll(){
-    if(!alive()||refreshing)return
-    refreshing=true
-    paint()
-    await Promise.allSettled([refreshSources(),refresh()])
-    refreshing=false
-    paint()
-    if(alive()&&!recent.hidden&&document.activeElement===document.body)recentRefresh.focus({preventScroll:true})
+  function refreshAll(manual=false){
+    if(!alive())return
+    if(refreshRequest)return refreshRequest
+    const returnFocus=manual&&document.activeElement===recentRefresh
+    refreshing=manual
+    refreshRequest=Promise.allSettled([refreshSources(),refresh()]).then(()=>{
+     refreshing=false
+     refreshRequest=null
+     paintActivity()
+     if(returnFocus&&alive()&&!recent.hidden&&document.activeElement===document.body)recentRefresh.focus({preventScroll:true})
+    })
+    return refreshRequest
   }
-  retry.addEventListener('click',()=>{search.focus();void refreshAll()},{signal:signal.signal})
-  recentRefresh.addEventListener('click',()=>void refreshAll(),{signal:signal.signal})
+  retry.addEventListener('click',()=>{search.focus();void refreshAll(true)},{signal:signal.signal})
+  recentRefresh.addEventListener('click',()=>void refreshAll(true),{signal:signal.signal})
   paint()
   void refresh()
-  return { dispose:()=>signal.abort(),refresh,refreshCoach:paint,updateUnread(value:ChatUnread|null){
+  return {
+   dispose:()=>signal.abort(),
+   refreshAfterConversation(){
+    if(playerRequest)pendingPlayerRefresh=true
+    else void refresh()
+   },
+   refreshAll,refreshCoach:paintActivity,updateUnread(value:ChatUnread|null){
     if(!alive())return
     summary=value
     const counts=new Map(value?.teams.map(team=>[teamInboxKey(team),team]))
@@ -313,6 +351,6 @@ export function mountChatInboxOrder(
         }
       })
     })
-    paint()
+    paintActivity()
   } }
 }

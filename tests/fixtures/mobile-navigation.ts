@@ -40,7 +40,10 @@ import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLim
 const originalFetch=window.fetch.bind(window)
 const inboxSearchFixture=new URL(location.href).searchParams.has('chat-inbox-search')
 const hasInboxActivity=new URL(location.href).searchParams.has('chat-inbox-activity')
-const inboxActivityFixture={coach:'2026-11-13T18:00:00Z',team:'2026-11-13T19:00:00Z'}
+const inboxActivityFixture={
+ coach:'2026-11-13T18:00:00Z',team:'2026-11-13T19:00:00Z',teamUnread:0,
+ player:'2026-11-13T20:00:00Z',playerUnread:inboxSearchFixture,playerReads:0,extraRooms:0,
+}
 Object.assign(window,{inboxActivityFixture})
 const playerChatFixture={
  enabled:new URL(location.href).searchParams.has('player-chat'),
@@ -290,8 +293,14 @@ window.fetch=async(input,init)=>{
     new Headers(init?.headers).get(chatHitChangesHeader)==='1'?{hit:currentHit,confirmedHit,canSuggestHit:true}:
       {hit:confirmedHit??currentHit}:{}),
   }})
-  return Response.json({...base,contacts,rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:inboxSearchFixture,
-   logo:state.logo,activityAt:'2026-11-13T20:00:00Z'}]:[]})
+  inboxActivityFixture.playerReads++
+  const rooms=state.title?[{id:state.room,title:state.title,group:state.group,unread:inboxActivityFixture.playerUnread,
+   logo:state.logo,activityAt:inboxActivityFixture.player}]:[]
+  for(let index=0;index<inboxActivityFixture.extraRooms;index++){
+   rooms.push({id:'91d60c11-2570-474f-8ff2-'+String(index+1).padStart(12,'0'),title:'Practice group '+(index+1),
+    group:true,unread:false,logo:'',activityAt:new Date(Date.UTC(2026,10,13,22,-index)).toISOString()})
+  }
+  return Response.json({...base,contacts,rooms})
  }
  if(url.pathname==='/api/mobile/first-party/updates'){
   const hit=playerChatFixture.confirmedHit??playerChatFixture.hit,owner=currentNavigationOwner()
@@ -424,7 +433,8 @@ window.fetch=async(input,init)=>{
    const total=roomSummaries.reduce((sum,room)=>sum+room.unread,0)
    if(hasInboxActivity&&owner===navigationOwner){
     const coach=coachUnreadCounts(owner)
-    return Response.json({...base,total:0,teams:[{...chatTeam,unread:0,activityAt:inboxActivityFixture.team}],
+    const unread=inboxActivityFixture.teamUnread
+    return Response.json({...base,total:unread,teams:[{...chatTeam,unread,activityAt:inboxActivityFixture.team}],
      coach:{...coach,connections:[...coach.connections,{id:updateCoachStudent,unread:0,activityAt:inboxActivityFixture.coach}]}})
    }
    return Response.json({...base,total,teams:namedChatsFixture?[{...(privateTeam??chatTeam),unread:total,generalUnread:0,rooms:roomSummaries}]:[],coach:coachUnreadCounts(owner)})
