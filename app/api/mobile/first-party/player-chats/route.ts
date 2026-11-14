@@ -5,6 +5,8 @@ import {
 import { teamChatMessageId } from '@/lib/team-chat-cursor'
 import { updateTimestamp } from '@/lib/native-updates-contract'
 import { loadTeamLogoUrls } from '@/lib/team-branding-storage'
+import { chatHitsHeader, readChatHit } from '@/lib/chat-hit-contract'
+import { hittingPlanStart } from '@/lib/hitting-plan'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -19,6 +21,7 @@ const errors = {
   full:[409,'This list, group, or invite account limit has been reached.'],
   capacity:[409,'Keep enough spots for everyone who has joined.'],
   stale:[409,'The practice changed. Refresh the group and try again.'],
+  hit_stale:[409,'The hitting plan changed. Review the latest plan.'],
   unavailable:[404,'This invite is unavailable. Ask for a fresh link.'],
 } as const
 const service = () => {
@@ -45,8 +48,16 @@ export async function GET(request: Request) {
     if (data?.code !== 'ok') throw Error()
     if (room) {
       const selected = readPlayerChatRoom(data.room,room)
-      const logos = await loadTeamLogoUrls(db, selected.group ? [selected.id] : [], 'player_group').catch(()=>new Map<string,string>())
-      return json({ok:true,owner,room:{...selected,logo:logos.get(selected.id)}})
+      if (selected.group) {
+        const logos = await loadTeamLogoUrls(db, [selected.id], 'player_group').catch(()=>new Map<string,string>())
+        return json({ok:true,owner,room:{...selected,logo:logos.get(selected.id)}})
+      }
+      // Scope this additional lookup to clients that can display the card.
+      if (!before && request.headers.get(chatHitsHeader)==='1') {
+        const hit = await db.rpc('native_chat_hit_for_room',{p_owner:owner,p_room:room}).retry(false)
+        if (!hit.error) selected.hit=hit.data ? readChatHit(hit.data) : null
+      }
+      return json({ok:true,owner,room:selected})
     }
     const inbox = readPlayerChatInbox(data)
     const ids = inbox.rooms.map(item=>item.id)
@@ -70,6 +81,20 @@ export async function POST(request: Request) {
   } catch { return failure('Check the chat details.',400) }
   try {
     const owner = account.user.id
+    if (input.action==='hit_propose' || input.action==='hit_reply' || input.action==='hit_cancel') {
+      const schedule = input.action==='hit_propose' ? input : null
+      const {data,error} = await service().rpc('native_write_chat_hit',{
+        p_owner:owner,p_room:input.room,p_hit:input.id,p_action:input.action,
+        p_club:schedule?.clubId??null,p_date:schedule?.date??null,p_time:schedule?.time??null,
+        p_starts:schedule?hittingPlanStart(schedule)?.toISOString():null,
+        p_response:input.action==='hit_reply'?input.response:null,
+      }).retry(false)
+      if (error) throw Error()
+      if (data?.code==='ok') return json({ok:true,owner})
+      if (typeof data?.code!=='string' || !Object.hasOwn(errors,data.code)) throw Error()
+      const [status,message] = errors[data.code as keyof typeof errors]
+      return failure(message,status)
+    }
     if (input.action === 'practice_edit') {
       const {data,error} = await service().rpc('native_edit_group_practice',{
         p_owner:owner,p_room:input.room,p_id:input.id,p_revision:input.revision,p_request:input.request,

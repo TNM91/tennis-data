@@ -1,5 +1,5 @@
-import type {ExploreCourt} from './explore-court-catalog'
-import {html} from './match-details'
+import type {ExploreCourt} from '../../lib/hitting-clubs'
+import {html} from './html'
 import {Browser} from './native-browser'
 
 export function courtDirections(court:ExploreCourt){

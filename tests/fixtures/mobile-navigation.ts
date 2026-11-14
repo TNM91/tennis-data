@@ -33,6 +33,8 @@ import {personalMatchFixture} from './mobile-personal-matches'
 import {captainCourtPreview,captainCourtsFixture,captainFixtureId} from './mobile-captain-courts'
 import {shiftCalendarDay} from '../../mobile/src/calendar-data'
 import {calendarTeamMatchesHeader} from '../../lib/native-calendar-contract'
+import {chatHitsHeader,parseChatHitAction,type ChatHit} from '../../lib/chat-hit-contract'
+import {hittingPlanStart} from '../../lib/hitting-plan'
 import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLimit,teamScorecardsHeader,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
 const originalFetch=window.fetch.bind(window)
@@ -40,6 +42,8 @@ const inboxSearchFixture=new URL(location.href).searchParams.has('chat-inbox-sea
 const playerChatFixture={
  enabled:new URL(location.href).searchParams.has('player-chat'),
  practices:new URL(location.href).searchParams.has('group-practice'),
+ hitEnabled:new URL(location.href).searchParams.has('chat-hit'),
+ hit:null as ChatHit|null,
  practice:null as import('../../lib/group-practice-contract').GroupPractice|null,
  room:'bb4f152f-bb10-4b30-a233-09f20121e463',
  player:'ca2592d5-8135-4d6c-86ff-aef07ff620f0',
@@ -213,6 +217,14 @@ window.fetch=async(input,init)=>{
   const contacts=[contact,...(state.savedNewContact?[state.newContact]:[]),...(state.inviteGroup?[state.thirdContact]:[])]
   if(init?.method==='POST'){
    const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string;members?:string[];target?:string;startsAt?:string;court?:string;capacity?:number;response?:'in'|'out';request?:string}
+   if(state.hitEnabled){
+    const action=parseChatHitAction(body)
+    if(action?.action==='hit_propose'){
+     state.hit={...action,startsAt:hittingPlanStart(action)!.toISOString(),proposedBy:owner,status:'proposed'}
+    }
+    if(action?.action==='hit_reply'&&state.hit)state.hit={...state.hit,status:action.response}
+    if(action?.action==='hit_cancel'&&state.hit)state.hit={...state.hit,status:'cancelled'}
+   }
    if(body.action==='group'||body.action==='direct'){
     state.group=body.action==='group'
     state.title=state.group?body.text??'':contacts.find(player=>player.id===body.target)?.name??'Jamie'
@@ -253,6 +265,7 @@ window.fetch=async(input,init)=>{
    id:state.room,title:state.title,group:state.group,manage:state.group&&(!state.inviteGroup||!new URL(location.href).searchParams.has('link')),more:false,
    members:state.group?contacts.filter(player=>state.groupMembers.includes(player.id)):[contact],messages:state.outgoing,logo:state.logo,
    ...(state.group&&state.practices?{practice:state.practice}:{}),
+   ...(!state.group&&state.hitEnabled&&new Headers(init?.headers).get(chatHitsHeader)==='1'?{hit:state.hit}:{}),
   }})
   return Response.json({...base,contacts,rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:inboxSearchFixture,
    logo:state.logo,activityAt:'2026-11-13T20:00:00Z'}]:[]})
@@ -636,7 +649,12 @@ window.fetch=async(input,init)=>{
   const match=readReviewedNextMatch(nextMatch)
   const include=new Headers(init?.headers).get(calendarTeamMatchesHeader)==='1'
   const teamMatches=include&&enabled&&revision&&match?[{roomId:chatRoomId,revision,match,scope:chatTeam}]:undefined
-  return calendarPreview(init?.method||'GET',url,init?.body,teamMatches)
+  const response=await calendarPreview(init?.method||'GET',url,init?.body,teamMatches)
+  const hit=playerChatFixture.hit,from=url.searchParams.get('from'),to=url.searchParams.get('to')
+  if(response.ok&&hit?.status==='accepted'&&from&&to&&hit.date>=from&&hit.date<=to&&new Headers(init?.headers).get(chatHitsHeader)==='1'){
+   return Response.json({...await response.json(),chatHits:[{...hit,partner:'Jamie'}]})
+  }
+  return response
  }
  if(url.pathname==='/api/mobile/first-party/court-results'){
   const owner=currentNavigationOwner()

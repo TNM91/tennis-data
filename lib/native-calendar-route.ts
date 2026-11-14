@@ -1,9 +1,10 @@
 import { verifiedAccount, accountClient, accountResponse, readAccountJson } from './mobile-account-auth'
 import { supabaseKey } from './supabase-public-config'
-import { calendarId, calendarIntent, calendarRange, calendarTeamMatchesHeader, firstPartyPersonalCalendarId, TEAM_MATCH_DATES_UNAVAILABLE } from './native-calendar-contract'
+import { calendarId, calendarIntent, calendarRange, calendarTeamMatchesHeader, firstPartyPersonalCalendarId, TEAM_MATCH_DATES_UNAVAILABLE, CHAT_HIT_DATES_UNAVAILABLE } from './native-calendar-contract'
 import { CalendarFault, calendarPersonal, loadNativeCalendar, respondNativeCalendar, writeCalendarPersonal } from './native-calendar'
 import { loadFirstPartyCalendarCompetitions } from './first-party-calendar'
 import { loadCalendarTeamMatches } from './first-party-team-schedule'
+import { chatHitsHeader, readCalendarChatHits } from './chat-hit-contract'
 
 export async function handleNativeCalendar(request: Request, write: boolean, firstParty = false) {
   const json = (body: object, status = 200) => accountResponse(
@@ -42,15 +43,25 @@ export async function handleNativeCalendar(request: Request, write: boolean, fir
     if (intent) return json({ ok: true, owner, ...await writeCalendarPersonal(client, owner, intent) })
     if (id) return json({ ok: true, owner, item: await calendarPersonal(client, owner, id) })
     if (!firstParty) return json({ ok: true, ...await loadNativeCalendar(client, owner, range!) })
-    const [result, teamMatches] = await Promise.all([
+    const [result, teamMatches, chatHits] = await Promise.all([
       loadNativeCalendar(client, owner, range!, loadFirstPartyCalendarCompetitions),
       request.headers.get(calendarTeamMatchesHeader) === '1' ? (async () => {
         const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
         return key ? loadCalendarTeamMatches(accountClient(key), owner, range!) : null
       })().catch(() => null) : undefined,
+      request.headers.get(chatHitsHeader)==='1' ? (async () => {
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+        if (!key) return null
+        const {data,error} = await accountClient(key).rpc('native_chat_hits_for_calendar',{
+          p_owner:owner,p_from:range!.from,p_to:range!.to,
+        }).retry(false)
+        return error ? null : readCalendarChatHits(data,range!.from,range!.to)
+      })().catch(()=>null) : undefined,
     ])
     if (teamMatches === null) result.warnings = [...result.warnings, TEAM_MATCH_DATES_UNAVAILABLE]
     if (teamMatches) result.teamMatches = teamMatches
+    if (chatHits === null) result.warnings = [...result.warnings, CHAT_HIT_DATES_UNAVAILABLE]
+    if (chatHits) result.chatHits = chatHits
     return json({ ok: true, ...result })
   } catch (error) {
     return json({ ok: false, message: error instanceof CalendarFault ? error.message : 'The calendar result couldn’t be confirmed. Refresh before trying again.' },

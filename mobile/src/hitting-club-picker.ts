@@ -1,6 +1,6 @@
-import {stLouisHittingClubs,type ExploreCourt} from './explore-court-catalog'
+import {stLouisHittingClubs,type ExploreCourt} from '../../lib/hitting-clubs'
 import type {SavedCourts} from './explore-saved-courts'
-import {html} from './match-details'
+import {html} from './html'
 
 export function hittingClubOptions(saved:SavedCourts,selected:string){
  const option=(club:ExploreCourt)=>`<option value="${html(club.id)}"${club.id===selected?' selected':''}>${html(club.name)}</option>`

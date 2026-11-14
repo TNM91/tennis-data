@@ -11,7 +11,13 @@ import { teamChatCursor } from '../../lib/team-chat-cursor'
 import { html } from './html'
 import { watchTeamChat } from './team-chat-live'
 import { groupPracticeStart } from '../../lib/group-practice-contract'
-import { groupPracticeCard,newGroupPracticeDraft,type GroupPracticeDraft } from './group-practice-card'
+import { chatHitCard,groupPracticeCard,newGroupPracticeDraft,type ChatHitDraft,type GroupPracticeDraft } from './group-practice-card'
+import { listedHittingClub } from '../../lib/hitting-clubs'
+import { chatHitsHeader } from '../../lib/chat-hit-contract'
+import { hittingPlanStart } from '../../lib/hitting-plan'
+import { openCourtDirections } from './explore-court-directions'
+import { readSavedCourts } from './explore-saved-courts'
+import { firstPartyBuild } from './build-scope'
 import { bindTeamChatAvatars,openChatIconEditor,teamChatAvatarHtml } from './team-chat-icon'
 import { chatInboxOrder,playerInboxKey } from './chat-inbox-order'
 
@@ -23,7 +29,9 @@ export function playerChatsForAccount(client: SupabaseClient,owner: string,activ
     const {data,error} = await client.auth.getSession()
     if (error || data.session?.user.id !== owner || !active()) throw Error('Your chat session changed.')
     const path = playerChatApiUrl(query), method = action ? 'POST' : 'GET'
-    const headers = {Authorization:'Bearer '+data.session.access_token,'Cache-Control':'no-store',...(action?{'Content-Type':'application/json'}:{})}
+    const headers = {Authorization:'Bearer '+data.session.access_token,'Cache-Control':'no-store',
+      ...(firstPartyBuild&&!browser&&query?.has('room')?{[chatHitsHeader]:'1'}:{}),
+      ...(action?{'Content-Type':'application/json'}:{})}
     const response = browser
       ? await fetch(path,{method,headers,body:action?JSON.stringify(action):undefined,cache:'no-store',redirect:'error',
         signal:AbortSignal.timeout(20000)}).then(async res=>({status:res.status,data:await res.json()}))
@@ -37,7 +45,7 @@ export function playerChatsForAccount(client: SupabaseClient,owner: string,activ
 export function openPlayerChats(
   client: SupabaseClient,owner: string,current: () => boolean,onClose: () => void,
   initial: { token?: string; room?: string; browser?: boolean; className?: string; compose?: boolean;
-    preferences?: ReturnType<typeof chatInboxOrder> } = {},
+    preferences?: ReturnType<typeof chatInboxOrder>; closeToSource?: boolean } = {},
 ) {
   const dialog = document.createElement('dialog')
   dialog.className = 'team-invite-dialog player-chats-dialog'
@@ -55,6 +63,8 @@ export function openPlayerChats(
   let watchedRoom: string | null = null
   let historyAnchor = 0
   let practiceDraft: GroupPracticeDraft | null = null
+  let hitDraft: ChatHitDraft | null = null
+  let directions: ReturnType<typeof openCourtDirections> | undefined
   let contactTimer: ReturnType<typeof setTimeout> | undefined
   let contactWatchUntil = 0,contactRequest = 0,lastContactCheck = -Infinity,contactForeground = true
   let resumeHandle: Awaited<ReturnType<typeof App.addListener>> | undefined
@@ -72,6 +82,7 @@ export function openPlayerChats(
     void resumeHandle?.remove()
     clearTimeout(contactTimer)
     iconEditor?.dispose()
+    directions?.dispose()
     stopLive()
     room = null; inbox = null; pending = null; shared = null; invitation = null; token = ''; draft = ''
     dialog.remove()
@@ -83,6 +94,7 @@ export function openPlayerChats(
   }
   function back() {
     if (iconEditor?.isOpen()) { iconEditor.close(); return true }
+    if (directions?.isOpen()) { directions.dispose(); return true }
     if (busy || !active()) return true
     if (page === 'people') {
       page='room'; notice=''; pending=null; contactQuery=''; selected.clear()
@@ -91,7 +103,7 @@ export function openPlayerChats(
       ;(dialog.querySelector<HTMLElement>('[data-player-people]')??dialog.querySelector('h2'))?.focus({preventScroll:true})
     } else if (page === 'invite' && inviteReturn) {
       page=inviteReturn; inviteReturn=null; invitation=null; token=''; pending=null; notice=''; render(true)
-    } else if (page === 'inbox' || initial.compose) close()
+    } else if (page === 'inbox' || initial.compose || initial.closeToSource) close()
     else { draft=''; pending=null; shared=null; void openInbox() }
     return true
   }
@@ -118,7 +130,7 @@ export function openPlayerChats(
     live = watchTeamChat(client,owner,id,()=>active() && page === 'room' && room?.id === id,async ()=>{
       const history = dialog.querySelector<HTMLElement>('.player-chat-messages')
       const readingHistory = history && history.scrollHeight - history.clientHeight - history.scrollTop > 24
-      if (busy || iconEditor || draft || practiceDraft || readingHistory || dialog.contains(document.activeElement) && document.activeElement?.matches('input,textarea,select,summary')) {
+      if (busy || iconEditor || directions?.isOpen() || draft || practiceDraft || hitDraft || readingHistory || dialog.contains(document.activeElement) && document.activeElement?.matches('input,textarea,select,summary')) {
         const refresh = dialog.querySelector('[data-player-refresh]')
         if (refresh) refresh.textContent = 'Check for updates'
         return
@@ -148,6 +160,7 @@ export function openPlayerChats(
   function openInbox() {
     stopLive()
     practiceDraft=null
+    hitDraft=null
     page='inbox'; room=null; invitation=null; token=''; shared=null; inviteReturn=null
     return run(async ()=>{ inbox=await transport.inbox() })
   }
@@ -249,6 +262,7 @@ export function openPlayerChats(
   }
   function openRoom(id: string) {
     stopLive()
+    hitDraft=null
     draft=''; room=null; shared=null; page='room'
     return run(()=>loadRoom(id))
   }
@@ -260,6 +274,7 @@ export function openPlayerChats(
   }
 
   function act(input: PlayerChatAction) {
+    const hitChange = input.action==='hit_propose' || input.action==='hit_reply' || input.action==='hit_cancel'
     return run(async ()=>{
       pending=input
       let result
@@ -267,7 +282,11 @@ export function openPlayerChats(
       catch (error) {
         if (error instanceof PlayerChatError && error.status >= 400 && error.status < 500) {
           pending=null
-          if (error.status===403 && page==='room') room=null
+          if (error.status===403 && page==='room' && !hitChange) room=null
+          if (hitChange && (error.status===403 || error.status===409) && room) {
+            hitDraft=null
+            await loadRoom(room.id).catch(()=>undefined)
+          }
           if (error.status===409 && input.action==='practice_edit' && room) {
             const attempted = practiceDraft
             await loadRoom(room.id).catch(()=>undefined)
@@ -315,6 +334,12 @@ export function openPlayerChats(
       }
       if (input.action === 'report') { notice='Message reported.'; return }
       if (input.action === 'send') draft=''
+      if (hitChange) {
+        hitDraft=null
+        notice=input.action==='hit_propose'?'Proposal sent.':
+          input.action==='hit_cancel'?'Hitting plan cancelled.':
+            input.response==='accepted'?'Confirmed. Added to both calendars.':'Proposal declined.'
+      }
       if (input.action === 'practice_create') { practiceDraft=null; notice='Practice posted.' }
       if (input.action === 'practice_edit') { practiceDraft=null; notice='Practice updated.' }
       if (input.action === 'practice_reply') notice=input.response==='in'?'You’re on the practice list.':'Your reply is saved.'
@@ -443,6 +468,7 @@ export function openPlayerChats(
       ${preferences?`<button type="button" class="secondary" data-player-pin aria-label="${html((isPinned?'Unpin ':'Pin ')+value.title)}" aria-pressed="${isPinned}">${isPinned?'Unpin chat':'Pin chat'}</button>`:''}
       ${value.manage&&initial.browser?simpleButton(shared?'Replace invite link':'Invite players','data-player-group-invite'):''}</div>
       ${value.practice!==undefined?groupPracticeCard(value.practice,value.manage,practiceDraft):''}
+      ${value.hit!==undefined?chatHitCard(value.hit,owner,hitDraft,readSavedCourts(owner)):''}
       ${sharedMarkup()}
       <details class="player-chat-options"><summary>${value.group?'Group settings':'Player settings'}</summary>
       ${value.manage?`${initial.browser?'':simpleButton(value.logo?'Edit group icon':'Add group icon','data-player-icon')}
@@ -465,7 +491,7 @@ export function openPlayerChats(
     const contents = page==='inbox' ? inboxMarkup() : isComposing() ? composerMarkup(page==='group') : page==='people' ? peopleMarkup() : page==='room' && room ? roomMarkup(room) :
       page==='invite' && invitation ? `<p>${invitation.group?'Join':'Connect with'} <strong>${html(invitation.title)}</strong>.</p>
       <button type="button" data-player-accept>${invitation.group?'Join group':'Save player'}</button>` : ''
-    const backLabel = page==='inbox'||initial.compose&&page!=='invite'&&page!=='people'?'Close':'Back'
+    const backLabel = page==='inbox'||(initial.compose||initial.closeToSource)&&page!=='invite'&&page!=='people'?'Close':'Back'
     const backName = backLabel==='Close'?'Close':page==='people'?'Back to group':page==='invite'&&inviteReturn?'Back to new chat':'Back to players &amp; groups'
     dialog.innerHTML = `<header class="team-invite-heading"><h2 id="player-chats-title" tabindex="-1">${page==='room'&&room?.logo?teamChatAvatarHtml(title,room.logo):''}${html(title)}</h2>
       <div class="player-chat-header-actions">${page==='room'&&room?.manage&&!initial.browser?simpleButton('Add people','data-player-people'):''}
@@ -544,6 +570,29 @@ export function openPlayerChats(
       const response=button.dataset.practiceRsvp
       if (room?.practice && (response==='in'||response==='out')) void act({action:'practice_reply',room:room.id,id:room.practice.id,response})
     })
+    click('[data-chat-hit-start]',()=>{
+      const home=listedHittingClub(readSavedCourts(owner).home)
+      hitDraft={date:'',time:'',clubId:home?.id??''}
+      render()
+      dialog.querySelector<HTMLInputElement>('[data-chat-hit-form] input')?.focus()
+    })
+    click('[data-chat-hit-dismiss]',()=>{
+      hitDraft=null;render()
+      dialog.querySelector<HTMLButtonElement>('[data-chat-hit-start]')?.focus()
+    })
+    click('[data-chat-hit-reply]',button=>{
+      const response=button.dataset.chatHitReply
+      if (room?.hit && (response==='accepted'||response==='declined')) void act({action:'hit_reply',room:room.id,id:room.hit.id,response})
+    })
+    click('[data-chat-hit-cancel]',()=>{
+      if (room?.hit && confirm(room.hit.status==='proposed'?'Withdraw this proposal?':'Cancel this hit for both players?')) {
+        void act({action:'hit_cancel',room:room.id,id:room.hit.id})
+      }
+    })
+    click('[data-chat-hit-directions]',button=>{
+      const court=listedHittingClub(room?.hit?.clubId)
+      if (court && !directions?.isOpen()) directions=openCourtDirections(court,button,active)
+    })
     click('[data-player-direct]',button=>{if(button.dataset.playerDirect)void act({action:'direct',target:button.dataset.playerDirect})})
     click('[data-player-forget]',button=>{
       if(button.dataset.playerForget && confirm('Remove this player from your contacts?'))void act({action:'forget',target:button.dataset.playerForget})
@@ -572,7 +621,7 @@ export function openPlayerChats(
       void run(async ()=>{
         const older=await transport.room(previous.id,teamChatCursor(first.createdAt,first.id))
         const seen=new Set(previous.messages.map(post=>post.id))
-        room={...older,messages:[...older.messages.filter(post=>!seen.has(post.id)),...previous.messages]}
+        room={...previous,more:older.more,messages:[...older.messages.filter(post=>!seen.has(post.id)),...previous.messages]}
       },false).finally(()=>{historyAnchor=0;dialog.querySelector<HTMLElement>('.player-chat-messages')?.focus({preventScroll:true})})
     })
     form('[data-player-join]',fields=>{void preview(playerChatInviteToken(fields.get('invite')))})
@@ -609,6 +658,22 @@ export function openPlayerChats(
     })
     form('[data-player-add]',fields=>{if(room)void act({action:'add',room:room.id,target:String(fields.get('player'))})})
     form('[data-player-add-many]',addPeople)
+    const hitFields = (fields:FormData) => ({
+      date:String(fields.get('date')??''),time:String(fields.get('time')??''),clubId:String(fields.get('clubId')??''),
+    })
+    dialog.querySelector<HTMLFormElement>('[data-chat-hit-form]')?.addEventListener('input',event=>{
+      hitDraft=hitFields(new FormData(event.currentTarget as HTMLFormElement))
+    })
+    form('[data-chat-hit-form]',fields=>{
+      if (!room || room.group || !hitDraft) return
+      const next=hitFields(fields), start=hittingPlanStart(next)
+      if (!listedHittingClub(next.clubId) || !start || start.getTime()<=Date.now()) {
+        notice='Choose a listed club and an upcoming Central start time.'
+        render(true)
+        return
+      }
+      void act({action:'hit_propose',room:room.id,id:crypto.randomUUID(),...next})
+    })
     const practiceFields = (fields:FormData) => ({
       date:String(fields.get('date')??''),time:String(fields.get('time')??''),
       court:String(fields.get('court')??''),capacity:String(fields.get('capacity')??''),

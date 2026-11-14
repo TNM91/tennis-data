@@ -6,16 +6,18 @@ import type {PlayerCompetitionScheduleEvent} from './player-competition-schedule
 import type {CalendarTeamPractice} from './native-calendar-practices-contract'
 import {fixtureId,readReviewedNextMatch,type ReviewedNextMatch} from './team-fixtures-contract'
 import type {TeamRoomScope} from './team-room'
+import type {CalendarChatHit} from './chat-hit-contract'
 
 export type CalendarRange={from:string;to:string}
 export type CalendarSharedDate={id:string;title:string;date:string;time:string;location:string;detail:string;kind:'lesson'|'reminder'}
 export type CalendarCompetitionView={id:string;divisionId?:string}
 export type NativeCalendarCompetition=PlayerCompetitionScheduleEvent&{publishedView?:CalendarCompetitionView;scorecardFormat?:'singles'|'doubles';timeZone?:string}
 export type CalendarTeamMatch={roomId:string;revision:string;match:ReviewedNextMatch;scope:TeamRoomScope&{leagueLabel?:string}}
-export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:NativeCalendarCompetition[];coach:CalendarSharedDate[];practices?:CalendarTeamPractice[];practicesUnavailable?:boolean;teamMatches?:CalendarTeamMatch[];warnings:string[]}
+export type NativeCalendar={owner:string;range:CalendarRange;personal:PlayerCalendarItem[];competitions:NativeCalendarCompetition[];coach:CalendarSharedDate[];practices?:CalendarTeamPractice[];practicesUnavailable?:boolean;teamMatches?:CalendarTeamMatch[];chatHits?:CalendarChatHit[];warnings:string[]}
 export const COMPETITION_DATES_UNAVAILABLE='League and tournament dates couldn’t load. Refresh to check them.'
 export const TEAM_MATCH_DATES_UNAVAILABLE='Team match dates couldn’t load. Refresh to check them.'
 export const calendarTeamMatchesHeader='X-TenAceIQ-Team-Matches'
+export const CHAT_HIT_DATES_UNAVAILABLE='Hitting plans couldn’t load. Refresh to check them.'
 
 export function readCalendarTeamMatches(value:unknown,range:CalendarRange):CalendarTeamMatch[]{
  if(!Array.isArray(value)||value.length>50)throw Error(TEAM_MATCH_DATES_UNAVAILABLE)
