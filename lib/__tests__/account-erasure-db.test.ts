@@ -28,7 +28,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.exec('rollback; alter table profiles drop column unexpected')
   await db.exec(reconcile)
   await db.exec('alter table auth.users add column raw_user_meta_data jsonb; alter table public.team_chat_blocks add unique(owner_user_id,blocked_user_id)')
-  for(const file of ['20261113001100_native_player_chats.sql','20261114000300_native_direct_chat_hits.sql','20261114000800_native_chat_hit_scorecards.sql']){
+  for(const file of ['20261113001100_native_player_chats.sql','20261114000300_native_direct_chat_hits.sql','20261114000800_native_chat_hit_scorecards.sql','20261114000900_native_chat_hit_rematch.sql']){
    await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
   }
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
@@ -133,8 +133,21 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   expect((await db.query("update native_personal_matches set court_venue_key='vetta-sunset' where owner_user_id=$1 returning id",[a])).rows).toEqual([])
   expect((await db.query('delete from native_personal_matches where owner_user_id=$1 returning id',[a])).rows).toEqual([])
   await insertMatch(b)
-  await logHit(b,playedHit)
+  await expect(db.query('select public.native_chat_hit_rematch($1,$2)',[b,playedHit])).rejects.toMatchObject({code:'42501'})
   await expect(db.query('update native_personal_matches set owner_user_id=$1',[a])).rejects.toMatchObject({code:'42501'})
+  await db.exec('reset role; set role service_role')
+  const rematch = async (owner:string,hit=playedHit) =>
+   (await db.query('select public.native_chat_hit_rematch($1,$2) destination',[owner,hit])).rows[0]
+  expect(await rematch(a)).toEqual({destination:{room:direct,clubId:'vetta-west'}})
+  for(const owner of [b,stranger]) expect(await rematch(owner)).toEqual({destination:null})
+  expect(await rematch(a,futureHit)).toEqual({destination:null})
+  await db.exec('reset role; set role authenticated')
+  await logHit(b,playedHit)
+  await db.exec('reset role')
+  await db.query('insert into team_chat_blocks(owner_user_id,blocked_user_id) values ($1,$2)',[b,a])
+  expect(await rematch(a)).toEqual({destination:null})
+  expect(await rematch(b)).toEqual({destination:null})
+  await db.query('delete from team_chat_blocks where owner_user_id=$1 and blocked_user_id=$2',[b,a])
   await db.exec('reset role; set role anon')
   await expect(db.query('select id from native_personal_matches')).rejects.toMatchObject({code:'42501'})
   await db.exec('reset role')

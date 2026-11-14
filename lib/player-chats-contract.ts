@@ -4,6 +4,7 @@ import { updateTimestamp } from './native-updates-contract'
 import { readChatIconUrl } from './chat-icon-url'
 import { parseGroupPracticeAction,readGroupPractice,type GroupPractice,type GroupPracticeAction } from './group-practice-contract'
 import { parseChatHitAction,readChatHit,type ChatHit,type ChatHitAction } from './chat-hit-contract'
+import { listedHittingClub } from './hitting-clubs'
 
 export const playerChatInvitePath = '/chats/join'
 export const playerChatPath = '/chats'
@@ -106,13 +107,24 @@ export function playerChatAction(value: unknown): PlayerChatAction {
 }
 
 export function playerChatReadParams(params: URLSearchParams) {
-  if ([...params.keys()].some(key => !['room','before'].includes(key) || params.getAll(key).length !== 1)) {
+  if ([...params.keys()].some(key => !['room','before','rematch'].includes(key) || params.getAll(key).length !== 1)) {
     throw Error('Choose a chat.')
+  }
+  if (params.has('rematch')) {
+    if (params.size !== 1) throw Error('Choose a hitting plan.')
+    return { rematch: id(params.get('rematch')), room: null, before: null }
   }
   const room = params.has('room') ? id(params.get('room')) : null
   const before = params.has('before') ? readTeamChatCursor(params.get('before')) : null
   if (params.has('before') && (!room || !before)) throw Error('Choose a chat.')
   return { room, before }
+}
+
+export function readPlayerChatRematch(value: unknown) {
+  const row = lineupRecord(value)
+  const club = listedHittingClub(row.clubId)
+  if (!club) throw Error('The club for this hit is unavailable.')
+  return { room: id(row.room), clubId: club.id }
 }
 
 export type PlayerContact = { id: string; name: string }
