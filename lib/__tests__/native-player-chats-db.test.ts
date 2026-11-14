@@ -112,6 +112,41 @@ it('keeps contacts consensual and player chats private while delivering one noti
     expect(await writeHit(owner,'hit_propose',replacement)).toBe('ok')
     expect(await writeHit(contact,'hit_reply',replacement,'declined')).toBe('ok')
     expect(readChatHit(await readHit(owner))).toMatchObject({id:replacement,status:'declined'})
+    const original = id(64), suggestion = id(65), counter = id(66), change = id(67), decline = id(68), cancel = id(69)
+    expect(await writeHit(owner,'hit_propose',original)).toBe('ok')
+    await db.exec(await readFile('supabase/migrations/20261114000400_native_chat_hit_changes.sql','utf8'))
+    const readHitState = async (user:string) => (await db.query<{value:unknown}>(
+      'select public.native_chat_hit_state_for_room($1,$2) value',[user,direct])).rows[0].value
+    const suggest = async (user:string,event:string,replaces:string,time:string) => (await db.query<{value:{code:string}}>(
+      'select public.native_suggest_chat_hit($1,$2,$3,$4,$5,$6,$7,$8) value',
+      [user,direct,event,replaces,'vetta-west',playDate,time,hittingPlanStart({date:playDate,time})!.toISOString()])).rows[0].value.code
+    expect(await suggest(stranger,suggestion,original,'19:00')).toBe('forbidden')
+    expect(await suggest(contact,suggestion,original,'18:00')).toBe('hit_unchanged')
+    expect(await suggest(contact,suggestion,original,'19:00')).toBe('ok')
+    expect(await suggest(contact,suggestion,original,'19:00')).toBe('ok')
+    expect(await writeHit(contact,'hit_reply',original,'accepted')).toBe('hit_stale')
+    expect(await readHitState(owner)).toMatchObject({hit:{id:suggestion,status:'proposed'},confirmedHit:null})
+    expect(await hitsOnCalendar(owner)).toEqual([])
+    expect(await suggest(owner,counter,suggestion,'20:00')).toBe('ok')
+    expect(await suggest(owner,id(70),suggestion,'21:00')).toBe('hit_stale')
+    expect(await writeHit(contact,'hit_reply',counter,'accepted')).toBe('ok')
+
+    expect(await suggest(owner,change,counter,'21:00')).toBe('ok')
+    expect(await readHitState(contact)).toMatchObject({hit:{id:change,status:'proposed'},confirmedHit:{id:counter,status:'accepted'}})
+    expect(readChatHit(await readHit(contact))).toMatchObject({id:counter,status:'accepted'})
+    expect(await readHitState(stranger)).toEqual({hit:null,confirmedHit:null})
+    for (const user of [owner,contact]) expect(await hitsOnCalendar(user)).toMatchObject([{id:counter,time:'20:00'}])
+    expect(await writeHit(contact,'hit_reply',change,'accepted')).toBe('ok')
+    expect(await writeHit(contact,'hit_reply',change,'accepted')).toBe('ok')
+    for (const user of [owner,contact]) expect(await hitsOnCalendar(user)).toMatchObject([{id:change,time:'21:00'}])
+
+    expect(await suggest(contact,decline,change,'17:00')).toBe('ok')
+    expect(await writeHit(owner,'hit_reply',decline,'declined')).toBe('ok')
+    expect(await readHitState(owner)).toMatchObject({hit:{id:change,status:'accepted'},confirmedHit:null})
+    expect(await suggest(contact,cancel,change,'17:00')).toBe('ok')
+    expect(await writeHit(owner,'hit_cancel',change)).toBe('ok')
+    expect(await writeHit(owner,'hit_reply',cancel,'accepted')).toBe('hit_stale')
+    for (const user of [owner,contact]) expect(await hitsOnCalendar(user)).toEqual([])
     // Remove the fixture hits before running the pre-existing chat notice assertions.
     await db.query('delete from private.native_chat_hits where room_id=$1',[direct])
 

@@ -6,6 +6,7 @@ import { teamChatMessageId } from './team-chat-cursor'
 type HitTime = { date: string; time: string; clubId: string }
 export type ChatHitAction =
   | ({ action: 'hit_propose'; room: string; id: string } & HitTime)
+  | ({ action: 'hit_suggest'; room: string; id: string; replaces: string } & HitTime)
   | { action: 'hit_reply'; room: string; id: string; response: 'accepted' | 'declined' }
   | { action: 'hit_cancel'; room: string; id: string }
 
@@ -15,6 +16,7 @@ export type ChatHit = HitTime & {
 }
 export type CalendarChatHit = ChatHit & { partner: string }
 export const chatHitsHeader = 'X-TenAceIQ-Chat-Hits'
+export const chatHitChangesHeader = 'X-TenAceIQ-Chat-Hit-Changes'
 
 export function readHitTime(value: Record<string, unknown>): HitTime {
   const { date, time, clubId } = value
@@ -27,11 +29,14 @@ export function readHitTime(value: Record<string, unknown>): HitTime {
 
 export function parseChatHitAction(value: Record<string, unknown>): ChatHitAction | null {
   const { action, room, id, response } = value
-  if (action!=='hit_propose' && action!=='hit_reply' && action!=='hit_cancel') return null
+  if (action!=='hit_propose' && action!=='hit_suggest' && action!=='hit_reply' && action!=='hit_cancel') return null
   if (!teamChatMessageId(room) || !teamChatMessageId(id)) throw Error('Open the hitting plan again.')
   const target = { room: room.toLowerCase(), id: id.toLowerCase() }
   const size = Object.keys(value).length
   if (action==='hit_propose' && size===6) return { action, ...target, ...readHitTime(value) }
+  if (action==='hit_suggest' && size===7 && teamChatMessageId(value.replaces) && value.replaces.toLowerCase()!==target.id) {
+    return { action, ...target, replaces:value.replaces.toLowerCase(), ...readHitTime(value) }
+  }
   if (action==='hit_reply' && size===4 && (response==='accepted' || response==='declined')) return { action, ...target, response }
   if (action==='hit_cancel' && size===3) return { action, ...target }
   throw Error('Review the hitting plan before trying again.')
