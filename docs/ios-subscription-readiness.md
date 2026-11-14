@@ -1,5 +1,25 @@
 # iPhone subscriptions and launch readiness — U.S. first
 
+## First-party public launch offer
+
+The approved offer is free Player access and **TenAceIQ Pro for $4.99/month**. Pro includes Coach and Captain tools. Joining a team, practicing, recording matches, entering competitions, and receiving coach assignments are part of Player access.
+
+Organizers pay **$5 per tournament event**, including its divisions, or **$25 per league season** of up to 12 weeks. Drafting is free. These fees apply when publishing and are outside the Pro subscription. The organizer fee is distinct from any entry fee for players.
+
+The first-party candidate offers only Pro. Existing Apple products are still recognized for receipt reconciliation, and the earlier app can continue to read its existing catalog. App Store Connect shows the Pro draft with a one-month term and a U.S. price of $4.99. The draft is still marked Missing Metadata. It has no English (U.S.) localization or review screenshot, and the current API key cannot verify storefront availability. The Pro database migration is pending. Purchase and restore still need an iPhone sandbox test.
+
+Tournament Desk saves private setups with singles or doubles divisions, a draw format, and an entry deadline in the organizer's chosen time zone. Publishing binds the Apple purchase to the exact saved setup. A verified production transaction publishes the event and all divisions together and opens them for entries. Sandbox checkout leaves the event private. Refunds hide the event and its divisions. The organizer can check a purchase again after a lost connection.
+
+Tournament Publishing still needs the U.S. **$5.00 consumable** `com.tenaceiq.app.tournament.publish` in App Store Connect, the publication migration and API on the backend, and a signed TestFlight build. Keep `APPLE_TOURNAMENT_PURCHASES_ENABLED` off until those pieces can be tested together in sandbox mode. Test cancellation and interrupted checkout on an iPhone and verify that a second player can enter a published fixture before switching to production purchases.
+
+**Tournament Desk → Draw & courts** lets organizers review in-app entries, publish each division’s draw, and assign or move match times and courts. Publishing locks the approved field. Court assignments use a 60-minute window in the event’s time zone and appear in the player schedule and approved entrants’ calendars.
+
+Organizers can record or correct played matches, walkovers, and retirements. Results advance knockout winners or refresh round-robin standings. The final result completes the division, and the last completed division closes the event. If a later result depends on a winner, corrections can update the score while keeping that winner. Review court assignments flagged when an advancing player has an overlap.
+
+In a completed division, **Champion trophy** awards the account on the winning approved entry. For doubles, the organizer can share a one-time code for the partner to redeem in My Lab. For tied match-win leaders, the organizer confirms the champion using the tournament’s tiebreak rules. Withdraw an issued trophy before changing a match winner. Apply the draw, result, and trophy migrations before iPhone testing.
+
+## October 29 audit
+
 Current audit: October 29, 2026. This replaces the pre-implementation plan in this file. The owner selected a U.S.-first launch with **Player and Captain**; Coach and Full-Court are not in the first Apple catalog.
 
 ## Implemented and released to internal TestFlight

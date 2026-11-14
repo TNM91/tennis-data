@@ -11,6 +11,10 @@ it('grants Apple Player and Captain tools only to the owner while preserving web
  const oldPolicies=await sql('20261026000100_owner_scoped_lineup_scenarios.sql');await db.exec(oldPolicies.slice(oldPolicies.indexOf('drop policy if exists "owner insert'),oldPolicies.indexOf('create unique index')))
  await db.exec(await sql('20261028000300_apple_purchase_records.sql'))
  await db.exec(await sql('20261028000500_apple_paid_tool_access.sql'))
+ const coachAccessSource=await sql('20260815000100_prelaunch_entitlements_and_tournament_privacy.sql')
+ await db.exec(coachAccessSource.slice(coachAccessSource.indexOf('create or replace function public.has_current_coach_access'),coachAccessSource.indexOf('create or replace function public.has_current_full_court_access')))
+ await db.exec(await sql('20261114001100_apple_pro_membership.sql'))
+ expect((await db.query<{r:boolean}>('select apple_purchase_catalog_ready() r')).rows[0].r).toBe(true)
  const setOwner=async(owner:string)=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[owner]);await db.exec('set role authenticated')}
  const access=async(owner=a)=>(await db.query<{r:boolean}>('select has_current_player_access($1) r',[owner])).rows[0].r
  await setOwner(a);expect(await access()).toBe(false);await expect(db.exec("insert into lineup_scenarios(scenario_name) values('Denied')")).rejects.toThrow()
@@ -21,8 +25,14 @@ it('grants Apple Player and Captain tools only to the owner while preserving web
  await db.exec('reset role');await db.exec("update tenaceiq_private.apple_memberships set product_id='com.tenaceiq.app.captain.monthly'")
  await setOwner(a);await db.exec("insert into lineup_scenarios(scenario_name) values('My Apple lineup')");await db.exec("update lineup_scenarios set scenario_name='Updated'");await expect(db.query("insert into lineup_scenarios(owner_user_id,scenario_name) values($1,'Foreign')",[b])).rejects.toThrow()
  await setOwner(b);expect((await db.query('select * from lineup_scenarios')).rows).toHaveLength(0)
+ const canCoach=async(owner=a)=>(await db.query<{r:boolean}>('select has_current_coach_access($1) r',[owner])).rows[0].r
+ await setOwner(a);expect(await canCoach()).toBe(false)
+ await db.exec('reset role');await db.exec("update tenaceiq_private.apple_memberships set product_id='com.tenaceiq.app.pro.monthly'")
+ await setOwner(a);expect(await canCoach()).toBe(true)
+ await db.exec("insert into lineup_scenarios(scenario_name) values('My Pro lineup')")
+ await setOwner(b);expect(await canCoach()).toBe(false)
  await db.exec('reset role');await db.exec("update tenaceiq_private.apple_memberships set revoked=true")
- await setOwner(a);expect(await access()).toBe(false);expect((await db.query("update lineup_scenarios set scenario_name='Denied' returning id")).rows).toHaveLength(0)
+ await setOwner(a);expect(await access()).toBe(false);expect(await canCoach()).toBe(false);expect((await db.query("update lineup_scenarios set scenario_name='Denied' returning id")).rows).toHaveLength(0)
  await db.exec('reset role');await db.query("update profiles set captain_subscription_active=true,captain_subscription_status='active' where id=$1",[a])
  await setOwner(a);expect(await access()).toBe(true);await db.exec("insert into lineup_scenarios(scenario_name) values('Web grant survives refund')")
  await setOwner(admin);expect(await access(b)).toBe(true)

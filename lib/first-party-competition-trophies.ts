@@ -13,17 +13,23 @@ function rows<T>(result: { data: T[] | null; error: unknown }, max: number) {
 const empty = { data: [], error: null }
 
 export async function loadFirstPartyCompetitionTrophies(db: SupabaseClient, service: SupabaseClient, owner: string) {
-  const profile = await db.from('profiles').select('linked_player_id').eq('id', owner).maybeSingle()
+  const [profile, titles] = await Promise.all([
+    db.from('profiles').select('linked_player_id').eq('id', owner).maybeSingle(),
+    service.rpc('native_tournament_account_trophies', { p_owner: owner }),
+  ])
   if (profile.error) throw Error('Player connection unavailable')
+  if (titles.error && titles.error.code !== 'PGRST202') throw Error('Tournament trophies unavailable')
+  // Keep existing honors available while the trophy migration is rolling out.
+  const accountTrophies = titles.error ? [] : readCompetitionTrophies(titles.data)
   const playerId = profile.data?.linked_player_id
   if (typeof playerId !== 'string' || !playerId.trim()) {
-    return { competitionProfileLinked: false, competitionTrophies: [] }
+    return { competitionProfileLinked: false, competitionTrophies: accountTrophies }
   }
 
   const leagueApprovals = readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS, 'detail')
   const tournamentApprovals = readTournamentApprovals(process.env.TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS)
   const sourceIds = [...new Set([...leagueApprovals.keys(), ...tournamentApprovals.keys()])]
-  if (!sourceIds.length) return { competitionProfileLinked: true, competitionTrophies: [] }
+  if (!sourceIds.length) return { competitionProfileLinked: true, competitionTrophies: accountTrophies }
 
   const awards = rows(await db.from('tiq_awards').select('id,source_type,source_id,placement,issued_at,created_by_user_id')
     .eq('recipient_player_id', playerId).in('source_id', sourceIds)
@@ -59,13 +65,16 @@ export async function loadFirstPartyCompetitionTrophies(db: SupabaseClient, serv
     if (row.event_id && !parent) return []
     return [[row.id, { name: parent || row.name, division: parent ? row.name : '', owner: row.created_by_user_id }] as const]
   }))
-  const competitionTrophies = readCompetitionTrophies(awards.flatMap((award): CompetitionTrophy[] => {
+  const legacyTrophies = awards.flatMap((award): CompetitionTrophy[] => {
     const { source_id: sourceId, source_type: kind, created_by_user_id: publisher } = award
     if (kind !== 'league' && kind !== 'tournament' || !publisher || !isCompetitionPlacement(award.placement)) return []
     const source = kind === 'league' ? leagues.get(sourceId) : approvedTournaments.get(sourceId)
     if (!source || source.owner !== publisher && !(kind === 'league' && delegates.has(JSON.stringify([sourceId, publisher])))) return []
     const awardedOn = typeof award.issued_at === 'string' ? award.issued_at.slice(0, 10) : ''
     return [{ id: award.id, kind, placement: award.placement, name: source.name, division: source.division, awardedOn }]
-  }))
+  })
+  const accountIds = new Set(accountTrophies.map(trophy => trophy.id))
+  const competitionTrophies = readCompetitionTrophies([...accountTrophies, ...legacyTrophies.filter(trophy => !accountIds.has(trophy.id))]
+    .sort((a,b) => b.awardedOn.localeCompare(a.awardedOn)).slice(0, competitionTrophyLimit))
   return { competitionProfileLinked: true, competitionTrophies }
 }

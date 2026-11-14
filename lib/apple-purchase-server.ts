@@ -19,7 +19,7 @@ export type ApplePurchaseConfiguration=NonNullable<ReturnType<typeof applePurcha
 class ReadOnlyAppleClient extends AppStoreServerAPIClient {
  constructor(private config:ApplePurchaseConfiguration){super(config.key,config.keyId,config.issuerId,'com.tenaceiq.app',config.environment==='Sandbox'?Environment.SANDBOX:Environment.PRODUCTION)}
  protected override async makeFetchRequest(path:string,query:URLSearchParams,method:string,body:string|Buffer|undefined,headers:Record<string,string>){
-  if(method!=='GET'||body||!/^\/inApps\/v1\/subscriptions\/[0-9]{1,32}$/.test(path))throw Error('apple_request_scope')
+  if(method!=='GET'||body||!/^\/inApps\/v1\/(subscriptions|transactions)\/[0-9]{1,32}$/.test(path))throw Error('apple_request_scope')
   const origin=this.config.environment==='Sandbox'?'https://api.storekit-sandbox.apple.com':'https://api.storekit.apple.com'
   return fetch(origin+path+'?'+query,{method:'GET',headers,redirect:'error',timeout:10000,size:262144})
  }
@@ -34,6 +34,17 @@ export type AppleVerification={decode:(jws:string)=>Promise<JWSTransactionDecode
 export function appleVerification(config:ApplePurchaseConfiguration):AppleVerification {
  const verifier=appleVerifier(config.environment),client=new ReadOnlyAppleClient(config)
  return {decode:jws=>verifier.verifyAndDecodeTransaction(jws),statuses:id=>client.getAllSubscriptionStatuses(id)}
+}
+export function appleTransactionVerification(config:ApplePurchaseConfiguration) {
+ const verifier=appleVerifier(config.environment),client=new ReadOnlyAppleClient(config)
+ return {
+  decode:(jws:string)=>verifier.verifyAndDecodeTransaction(jws),
+  current:async (id:string)=>{
+   const data=await client.getTransactionInfo(id)
+   if(!data.signedTransactionInfo)throw Error('Apple transaction unavailable')
+   return verifier.verifyAndDecodeTransaction(data.signedTransactionInfo)
+  },
+ }
 }
 export async function currentAppleMembership(signedTransaction:string,token:string,environment:AppleEnvironment,verification:AppleVerification){
  if(!appleUuid(token)||typeof signedTransaction!=='string'||signedTransaction.length>24000||!/^[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+$/.test(signedTransaction))throw Error('apple_transaction_mismatch')

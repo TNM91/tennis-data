@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { normalizeMixedPairRole, normalizePlayerRatingSource } from '@/lib/player-eligibility'
 import { supabaseUrl } from '@/lib/supabase'
 import { isTournamentEventRegistrationClosed, normalizeTournamentEventDetails } from '@/lib/tournament-event-presentation'
+import { nativeTournamentPublicationId } from '@/lib/native-tournament-draft-contract'
 
 export const runtime = 'nodejs'
 
@@ -45,6 +46,9 @@ export async function POST(request: Request) {
   const eligibilityAgeDivisionSource = normalizePlayerRatingSource(body.eligibilityAgeDivisionSource)
   if (!tournamentId || !playerName) {
     return Response.json({ ok: false, message: 'Enter your name before submitting.' }, { status: 400 })
+  }
+  if (nativeTournamentPublicationId(tournamentId, 'division')) {
+    return Response.json({ ok: false, message: 'Request entry for this division in the TenAceIQ app.' }, { status: 400 })
   }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()

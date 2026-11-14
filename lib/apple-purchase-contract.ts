@@ -11,11 +11,11 @@ export function appleMembership(value:Record<string,unknown>,environment:AppleEn
  if(typeof expiresAt!=='number'||!Number.isSafeInteger(expiresAt)||expiresAt<=0||typeof signedAt!=='number'||!Number.isSafeInteger(signedAt)||signedAt<=0||signedAt>now+300000||value.revocationDate!==undefined&&(typeof value.revocationDate!=='number'||!Number.isSafeInteger(value.revocationDate)))throw Error('apple_transaction_mismatch')
  return {environment,originalTransactionId:value.originalTransactionId,transactionId:value.transactionId,appAccountToken:token,productId:value.productId as string,expiresAt,signedAt,status,revoked:value.revocationDate!==undefined,upgraded:value.isUpgraded===true}
 }
-export function mergeAppleAccess(web:ProductEntitlementSnapshot,apple:{playerExpiresAt:string|null;captainExpiresAt:string|null},now=Date.now()):ProductEntitlementSnapshot {
+export function mergeAppleAccess(web:ProductEntitlementSnapshot,apple:{playerExpiresAt:string|null;captainExpiresAt:string|null;proExpiresAt?:string|null},now=Date.now()):ProductEntitlementSnapshot {
  const result={...web}
- for(const [key,expiry]of [['playerPlus',apple.playerExpiresAt],['captain',apple.captainExpiresAt]] as const){
+ for(const [key,expiry]of [['playerPlus',apple.playerExpiresAt],['captain',apple.captainExpiresAt],['coach',apple.proExpiresAt]] as const){
   if(!expiry||!Number.isFinite(Date.parse(expiry))||Date.parse(expiry)<=now)continue
-  const active=key==='playerPlus'?'playerPlusSubscriptionActive':'captainSubscriptionActive',status=key==='playerPlus'?'playerPlusSubscriptionStatus':'captainSubscriptionStatus',until=key==='playerPlus'?'playerPlusAccessExpiresAt':'captainAccessExpiresAt'
+  const active=`${key}SubscriptionActive` as const,status=`${key}SubscriptionStatus` as const,until=`${key}AccessExpiresAt` as const
   const old=result[until]
   if(result[active]&&(!old||Number.isFinite(Date.parse(old))&&Date.parse(old)>=Date.parse(expiry)))continue
   result[active]=true;result[status]='active';result[until]=expiry

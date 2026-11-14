@@ -1,9 +1,21 @@
 import { readReviewedRevisions, reviewedRevisionDigest } from './first-party-revisions'
+import { nativeTournamentPublicationId } from './native-tournament-draft-contract'
 
 export const nativeTournamentSummaryColumns = 'id,event_id,is_event,name,format,entrant_type,status,starts_on,location_label,event_details,updated_at,is_public'
 export const nativeTournamentDrawColumns = nativeTournamentSummaryColumns + ',entrants,results,schedule'
 // Entry receipts survive draw changes. The published draw still requires its own approval.
 export const nativeTournamentEntryColumns = 'id,event_id,is_event,name,format,entrant_type,status,starts_on,location_label,event_details,is_public,registration_email'
+
+export const publishedNativeTournamentId = (id: string) =>
+  nativeTournamentPublicationId(id, 'event') || nativeTournamentPublicationId(id, 'division')
+
+export function isPublishedNativeTournament(row: Record<string, unknown>) {
+  if (row.is_public !== true) return false
+  return row.is_event === true
+    ? nativeTournamentPublicationId(row.id, 'event') && row.event_id === null
+    : row.is_event === false && nativeTournamentPublicationId(row.id, 'division') &&
+      nativeTournamentPublicationId(row.event_id, 'event')
+}
 
 export function tournamentEntryPublication(row: Record<string, unknown>) {
   return Object.fromEntries(nativeTournamentEntryColumns.split(',').map(column => [column, row[column]]))

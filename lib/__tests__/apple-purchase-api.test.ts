@@ -3,7 +3,8 @@ vi.mock('server-only',()=>({}))
 const m=vi.hoisted(()=>({identity:vi.fn(),client:vi.fn(),config:vi.fn(),verify:vi.fn(),canonical:vi.fn(),notification:vi.fn(),transaction:vi.fn()}))
 vi.mock('../mobile-account-auth',()=>({verifiedAccount:m.identity,accountClient:m.client,accountResponse:(body:unknown,status=200,headers={})=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store',...headers}}),readAccountJson:async(r:Request)=>r.json()}))
 vi.mock('../apple-purchase-server',()=>({applePurchaseConfiguration:m.config,appleVerification:m.verify,currentAppleMembership:m.canonical,appleVerifier:()=>({verifyAndDecodeNotification:m.notification,verifyAndDecodeTransaction:m.transaction}),APPLE_APP_ID:6826324431}))
-import {applePurchaseContext,prepareApplePurchase,reconcileApplePurchase,type ApplePurchaseContext} from '../apple-purchase-api'
+import {applePurchaseContext,applePurchasePublicContext,prepareApplePurchase,reconcileApplePurchase,type ApplePurchaseContext} from '../apple-purchase-api'
+import {APPLE_MEMBERSHIP_SCOPE_HEADER,APPLE_PRO_PRODUCT,APPLE_PRO_SCOPE} from '../apple-membership-products'
 import {POST as notification} from '../../app/api/apple/notifications/[environment]/route'
 const owner='11111111-1111-4111-8111-111111111111',token='22222222-2222-4222-8222-222222222222',operation='33333333-3333-4333-8333-333333333333',sku='com.tenaceiq.app.player.monthly'
 const request=()=>new Request('https://www.tenaceiq.com/api/mobile/apple-purchases',{headers:{Authorization:'Bearer synthetic'}})
@@ -28,6 +29,18 @@ describe('Apple purchase server account boundary',()=>{
   const f=fixture();f.values.apple_purchase_account.data={ownerId:owner,accountToken:token,sandboxEnabled:false};expect(await applePurchaseContext(request())).toEqual({context:null})
   f.values.apple_purchase_account.data={ownerId:owner,accountToken:token,sandboxEnabled:true};f.profile.player_plus_subscription_active=true;f.profile.player_plus_subscription_status='active'
   const result=await applePurchaseContext(request());expect('context'in result&&result.context).toMatchObject({webBlocked:true,canPurchase:false});expect((await prepareApplePurchase({...f.ctx,canPurchase:false},sku)).status).toBe(409);expect((await prepareApplePurchase(f.ctx,'unknown')).status).toBe(400)
+ })
+ it('advertises only Pro in the first-party catalog after the migration',async()=>{
+  const f=fixture()
+  const scoped=new Request(request(),{headers:{Authorization:'Bearer synthetic',[APPLE_MEMBERSHIP_SCOPE_HEADER]:APPLE_PRO_SCOPE}})
+  const before=await applePurchaseContext(scoped)
+  expect('context'in before&&applePurchasePublicContext(before.context)).toMatchObject({canPurchase:false,products:expect.arrayContaining([{id:sku,name:'Player'}])})
+  f.values.apple_purchase_access.data={ownerId:owner,playerExpiresAt:null,captainExpiresAt:null,proExpiresAt:null}
+  const result=await applePurchaseContext(scoped)
+  expect('context'in result&&applePurchasePublicContext(result.context)).toMatchObject({canPurchase:true,products:[{id:APPLE_PRO_PRODUCT.productId,name:'TenAceIQ Pro'}]})
+  expect((await prepareApplePurchase({...f.ctx,pro:true},sku)).status).toBe(400)
+  expect((await prepareApplePurchase(f.ctx,APPLE_PRO_PRODUCT.productId)).status).toBe(400)
+  expect((await prepareApplePurchase({...f.ctx,pro:true},APPLE_PRO_PRODUCT.productId)).status).toBe(200)
  })
  it('creates only a server-owned token and acknowledges only after a canonical durable commit',async()=>{
   const f=fixture();expect(await (await prepareApplePurchase(f.ctx,sku)).json()).toMatchObject({accountToken:token,environment:'Sandbox',productId:sku});expect(f.rpc).toHaveBeenCalledWith('apple_purchase_account',{p_owner:owner,p_create:true})

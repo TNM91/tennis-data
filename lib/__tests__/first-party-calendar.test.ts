@@ -36,7 +36,10 @@ function approvals(includeParent = true) {
   vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', JSON.stringify({ ...(includeParent ? { [parent.id]: review(parent) } : {}), [division.id]: review(division) }))
 }
 
-function database({ stale = false, foreign = false, testflight = false } = {}) {
+function database({ stale = false, foreign = false, testflight = false, native = false } = {}) {
+  const nativeRoot = { ...parent, id: 'tiq-native-event-10000000-0000-4000-8000-000000000001' }
+  const nativeDivision = { ...division, id: 'tiq-native-division-10000000-0000-4000-8000-000000000002',
+    event_id: nativeRoot.id, event_details: { timeZone: 'America/Chicago' } }
   const calls: { url: URL; method: string }[] = []
   const client = createClient('https://calendar.example.test', 'synthetic-anon', { auth: { persistSession: false }, global: { fetch: async (input, init) => {
     const url = new URL(String(input)), params = url.searchParams
@@ -57,10 +60,13 @@ function database({ stale = false, foreign = false, testflight = false } = {}) {
         participant_b_name: stale ? 'Unreviewed opponent' : fixture.b, scheduled_date: date, scheduled_time: fixture.time, facility: fixture.facility, status: fixture.status,
         notes: 'Unreviewed fixture notes' }])
       case 'tiq_tournament_entries': return Response.json([
-        ...(params.get('tournament_id')?.includes(division.id) ? [{ tournament_id: division.id, player_name: 'Jordan Lee', submitted_by_user_id: owner, status: 'approved' }] : []),
+        ...(params.get('or')?.includes(division.id) ? [{ tournament_id: division.id, player_name: 'Jordan Lee', submitted_by_user_id: owner, status: 'approved' }] : []),
         ...(testflight ? [{tournament_id:demo.id,player_name:'Demo Alex / Demo Sam',submitted_by_user_id:owner,status:'approved'}] : []),
+        ...(native ? [{tournament_id:nativeDivision.id, player_name:'Jordan Lee', submitted_by_user_id:owner, status:'approved'}] : []),
       ])
       case 'tiq_tournaments': return Response.json(params.get('id') === 'eq.'+demo.id ? [demo]
+        : native && params.getAll('id').includes('eq.'+nativeRoot.id) ? [nativeRoot]
+        : native && (params.getAll('id').some(query => query.includes(nativeDivision.id)) || params.get('event_id') === 'eq.'+nativeRoot.id) ? [nativeDivision]
         : params.getAll('id').includes('eq.'+parent.id) ? [parent] : [division])
       case 'player_schedule_responses': return Response.json(params.get('competition_id')?.includes(league.id)
         ? [{ event_id: 'league:'+league.id+':'+fixture.id, competition_kind: 'league', competition_id: league.id,
@@ -72,6 +78,16 @@ function database({ stale = false, foreign = false, testflight = false } = {}) {
 }
 
 afterEach(() => vi.unstubAllEnvs())
+
+it('shows a paid native court assignment on the approved player’s calendar', async () => {
+  vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', '')
+  const events = await loadFirstPartyCalendarCompetitions(database({ native: true }).client, owner)
+  expect(events).toContainEqual(expect.objectContaining({
+    kind: 'tournament', eventType: 'match', time: '15:00', timeZone: 'America/Chicago',
+    publishedView: { id: 'tiq-native-event-10000000-0000-4000-8000-000000000001',
+      divisionId: 'tiq-native-division-10000000-0000-4000-8000-000000000002' },
+  }))
+})
 
 it('maps reviewed fixtures and draws alongside manual and coach dates without imported metadata', async () => {
   approvals()
@@ -106,13 +122,13 @@ it('skips divisions with an unreviewed parent and rejects unexpected owners', as
   await expect(loadFirstPartyCalendarCompetitions(database({ foreign: true }).client, owner)).rejects.toThrow('Calendar entries changed')
 })
 
-it('only checks the signed-in account’s private demo when the reviewed catalogs are empty', async () => {
+it('checks native divisions and the signed-in account’s demo when the reviewed catalogs are empty', async () => {
   vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS', '')
   vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', '')
   const { client, calls } = database()
   expect(await loadFirstPartyCalendarCompetitions(client, owner)).toEqual([])
   expect(calls.map(call=>call.url.pathname.split('/').at(-1))).toEqual(['tiq_tournament_entries'])
-  expect(calls[0].url.searchParams.get('tournament_id')).toBe('in.('+demo.id+')')
+  expect(calls[0].url.searchParams.get('or')).toBe('(tournament_id.in.('+demo.id+'),tournament_id.like.tiq-native-division-*)')
 })
 
 it('shows the owner’s scheduled doubles demo without enabling a match scorecard', async () => {
