@@ -19,7 +19,7 @@ export function tournamentEntryHtml(s:TournamentEntrySnapshot,d:TournamentEntryD
  const deadline=isValidCalendarDate(c.deadline)?`<p class="entry-note tournament-entry-deadline">Entry deadline <time datetime="${html(c.deadline)}">${html(formatTournamentEventDate(c.deadline))}</time>${c.zone?` · ${html(c.zone)}`:''}</p>`:''
  if(organizer){const e=s.queue.find(x=>x.id===selected)
   return deadline+'<h3 tabindex="-1">App entry requests</h3><p>Review self-reported player details before adding anyone to the draw.</p>'+(e?'<article class="entry-receipts"><strong>'+html(e.name)+'</strong><p>'+html(e.one)+' · self-rated '+e.rating?.toFixed(1)+(e.two?'<br>'+html(e.two)+' · self-rated '+e.partnerRating?.toFixed(1):'')+'</p><form data-tournament-decision><label for="tournament-decision-note">Note to player</label><textarea id="tournament-decision-note" name="note" maxlength="600" required '+(busy?'disabled':'')+'></textarea><label class="entry-check"><input type="checkbox" name="confirmed" '+(busy||!c.canApprove?'disabled':'')+'><span>I checked '+(c.paired?'both players’':'this player’s')+' eligibility and can add '+'them'+' to this draw.</span></label><p>No payment is collected here. Arrange any entry fee with the organizer.</p><div class="decision-actions"><button type="submit" name="decision" value="approve" '+(busy||!c.canApprove?'disabled':'')+'>Approve and add to draw</button><button type="submit" class="secondary" name="decision" value="decline" '+(busy?'disabled':'')+'>Decline request</button><button type="button" class="secondary" data-request-list '+(busy?'disabled':'')+'>← Requests</button></div></form></article>':
-   '<ul class="decision-list">'+s.queue.map(e=>'<li><button type="button" class="secondary" data-request="'+html(e.id)+'">'+html(e.name)+'<span>Review request →</span></button></li>').join('')+'</ul>'+(s.queue.length?'':'<p>No pending app entry requests.</p>')+(s.more?'<p>Showing the first 50 requests. Review these, then refresh for more.</p>':''))+(c.locked?'<p class="entry-note">The draw has results or assigned courts. New approvals are paused. You can still decline a pending request.</p>':'')
+   '<ul class="decision-list">'+s.queue.map(e=>'<li><button type="button" class="secondary" data-request="'+html(e.id)+'">'+html(e.name)+'<span>Review request →</span></button></li>').join('')+'</ul>'+(s.queue.length?'':'<p>No pending app entry requests.</p>')+(s.more?'<p>Showing the first 50 requests. Review these, then refresh for more.</p>':''))+(c.locked?'<p class="entry-note">This division’s field is locked. You can still decline a pending request.</p>':'')
  }
  if(s.receipt)return (s.receipt.status==='approved'&&s.receipt.inDraw?'':deadline)+receiptHtml(s.receipt)
  if(c.mode==='director'){
@@ -41,10 +41,10 @@ export function tournamentEntryHtml(s:TournamentEntrySnapshot,d:TournamentEntryD
  (c.paired?'<label class="entry-check"><input type="checkbox" name="partnerAttested" '+(d.partnerAttested?'checked':'')+' '+(busy?'disabled':'')+'><span>My partner agrees to enter. Their details are accurate and they meet this division’s requirements.</span></label>':'')+
  '</fieldset><button type="submit" data-entry-send '+(busy||!tournamentEntryCanSend(c,d)?'disabled':'')+'>Request entry</button></form>'
 }
-type TournamentEntryOptions={allowCalendar?:boolean;backLabel?:string;existingEntry?:boolean;receiptId?:string}
-export function openTournamentEntry(client:SupabaseClient,owner:string,current:()=>boolean,parent:string,division:string,onClose:(changed:boolean)=>void,send?:ScenarioSend,trigger?:HTMLElement,{allowCalendar=true,backLabel='← Division',existingEntry=false,receiptId}:TournamentEntryOptions={}){
+type TournamentEntryOptions={allowCalendar?:boolean;backLabel?:string;existingEntry?:boolean;receiptId?:string;organizerOnly?:boolean}
+export function openTournamentEntry(client:SupabaseClient,owner:string,current:()=>boolean,parent:string,division:string,onClose:(changed:boolean)=>void,send?:ScenarioSend,trigger?:HTMLElement,{allowCalendar=true,backLabel='← Division',existingEntry=false,receiptId,organizerOnly=false}:TournamentEntryOptions={}){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog competitions-dialog league-entry-dialog tournament-entry-dialog';dialog.setAttribute('aria-label','Tournament entry')
- let disposed=false,version=0,busy=false,uncertain=false,organizer=false,selected='',snapshot:TournamentEntrySnapshot|null=null,notice='',revision='',draft:TournamentEntryDraft={one:'',two:'',rating:null,partnerRating:null,attested:false,partnerAttested:false}
+ let disposed=false,version=0,busy=false,uncertain=false,organizer=organizerOnly,selected='',snapshot:TournamentEntrySnapshot|null=null,notice='',revision='',draft:TournamentEntryDraft={one:'',two:'',rating:null,partnerRating:null,attested:false,partnerAttested:false}
  let calendar:ReturnType<typeof openCalendar>|null=null
  let needsScheduleRefresh=false
  const active=()=>!disposed&&current(),dispose=()=>{if(disposed)return;disposed=true;version++;calendar?.dispose();calendar=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();onClose(needsScheduleRefresh);if(current()&&previous?.isConnected)previous.focus({preventScroll:true})},hidden=()=>{if(document.visibilityState==='hidden')dispose()},focus=()=>dialog.querySelector<HTMLElement>('[data-registration-notice]')?.focus({preventScroll:true})
@@ -57,7 +57,7 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
   const eventName=context?.eventName!==context?.name?context?.eventName:''
   dialog.setAttribute('aria-label',title==='Review entries'?'Tournament entry':title)
   dialog.innerHTML=`<header class="competition-header">
-   <button type="button" class="secondary" data-entry-back>${organizer?'← Your entry':html(backLabel)}</button>
+   <button type="button" class="secondary" data-entry-back>${organizer&&!organizerOnly?'← Your entry':html(backLabel)}</button>
    <button type="button" class="secondary" data-entry-refresh ${busy?'disabled':''} aria-label="${entry?'Refresh entry and match details':'Refresh entry status'}">Refresh</button>
   </header>
   <div class="competition-hero entry-hero${entry?' tournament-pass-hero':''}">
@@ -160,7 +160,7 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
  const write=async(action:ReturnType<typeof tournamentEntryAction>)=>{if(!active()||busy||uncertain||!snapshot)return;const attempt=++version;busy=true;notice='Saving entry…';render();let reload=false;try{const s=await tournamentEntryRequest(client,owner,()=>active()&&attempt===version,parent,division,organizer,action,send);if(active()&&attempt===version){if(organizer){snapshot=null;reload=true}else snapshot=s;notice=organizer?'Decision saved.':s.receipt?.status==='pending'?'Request saved. The organizer will review your entry.':'Your saved entry is shown above.'}}catch(e){if(active()&&attempt===version){snapshot=null;uncertain=true;notice=e instanceof Error?e.message:'The change could not be confirmed. Refresh entry status.'}}finally{if(active()&&attempt===version){busy=false;if(reload)void load();else showEntry(attempt)}}}
  const back=()=>{
   if(calendar?.isOpen()){calendar.back();return true}
-  if(organizer){version++;busy=false;organizer=false;selected='';void load()}
+  if(organizer&&!organizerOnly){version++;busy=false;organizer=false;selected='';void load()}
   else dispose()
   return true
  }

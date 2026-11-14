@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { readReviewedRevisions } from './first-party-revisions'
 import { readTournamentApprovals } from './native-tournament-approvals'
+import { nativeTournamentPublicationId } from './native-tournament-draft-contract'
 import { loadNativeCompetitions } from './native-competitions'
 import { loadNativeTournaments } from './native-tournaments'
 import { testflightTournamentId } from './testflight-tournament'
@@ -28,7 +29,8 @@ export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, own
     leagues.size ? db.from('tiq_player_league_entries').select('league_id,player_name,created_by_user_id,entry_status')
       .eq('created_by_user_id', owner).eq('entry_status', 'active').in('league_id', [...leagues.keys()]).limit(101) : empty,
     db.from('tiq_tournament_entries').select('tournament_id,player_name,submitted_by_user_id,status')
-      .eq('submitted_by_user_id', owner).eq('status', 'approved').in('tournament_id', [...allowedTournaments]).limit(101),
+      .eq('submitted_by_user_id', owner).eq('status', 'approved')
+      .or(`tournament_id.in.(${[...allowedTournaments].join(',')}),tournament_id.like.tiq-native-division-*`).limit(101),
     (async () => {
       const rooms = readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)
       if (![...rooms.values()].some(room => room.scheduleLeagueId && leagues.has(room.scheduleLeagueId))) return []
@@ -43,7 +45,8 @@ export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, own
   ])
   const leagueEntries = rows(leagueResult, 100), tournamentEntries = rows(tournamentResult, 100)
   if (leagueEntries.some(entry => entry.created_by_user_id !== owner || entry.entry_status !== 'active' || !leagues.has(entry.league_id)) ||
-      tournamentEntries.some(entry => entry.submitted_by_user_id !== owner || entry.status !== 'approved' || !allowedTournaments.has(entry.tournament_id))) {
+      tournamentEntries.some(entry => entry.submitted_by_user_id !== owner || entry.status !== 'approved' ||
+        !allowedTournaments.has(entry.tournament_id) && !nativeTournamentPublicationId(entry.tournament_id, 'division'))) {
     throw Error('Calendar entries changed')
   }
   const leagueIds = [...new Set<string>([
@@ -99,9 +102,12 @@ export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, own
       })
       return events.map(event => ({ ...event, publishedView: { id } }))
     }),
-    ...parents.filter(row => row.event_id === null || tournaments.has(row.event_id)).map(row => async (): Promise<NativeCalendarCompetition[]> => {
+    ...parents.filter(row => row.event_id === null || tournaments.has(row.event_id) ||
+      nativeTournamentPublicationId(row.id, 'division') && nativeTournamentPublicationId(row.event_id, 'event')
+    ).map(row => async (): Promise<NativeCalendarCompetition[]> => {
       const id = String(row.id), parent = row.event_id ? String(row.event_id) : ''
-      const { detail } = await loadNativeTournaments(db, owner, '', parent || id, parent ? id : '', tournaments)
+      const native = nativeTournamentPublicationId(id, 'division') && nativeTournamentPublicationId(parent, 'event')
+      const { detail } = await loadNativeTournaments(db, owner, '', parent || id, parent ? id : '', tournaments, native)
       if (!detail?.active || detail.active.id !== id || detail.drawNotice) return []
       const { active, matches } = detail
       const draw: TournamentScheduleMatch[] = matches.map(match => ({ id: match.id, label: match.label, sideA: match.a,
@@ -113,6 +119,7 @@ export async function loadFirstPartyCalendarCompetitions(db: SupabaseClient, own
       })
       const scorecardFormat = active.entrantType === 'teams' ? 'doubles' : 'singles'
       return events.map(event => ({ ...event, publishedView: parent ? { id: parent, divisionId: id } : { id },
+        ...(native && active.details.timeZone ? { timeZone: active.details.timeZone } : {}),
         scorecardFormat: id !== demoId && event.eventType === 'match' ? scorecardFormat : undefined }))
     }),
   ]

@@ -3,10 +3,12 @@ import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
 import {scopeNativeStyles} from '../../mobile/scripts/style-scope.mjs'
 const origin='http://127.0.0.1:4259',prefix='/__apple-membership-fixture/'
-let javascript='',accountJavascript='',stylesheet='',accountStylesheet=''
+let javascript='',proJavascript='',accountJavascript='',stylesheet='',accountStylesheet=''
 test.beforeAll(async()=>{
  const bundled=await build({entryPoints:['tests/fixtures/mobile-apple-memberships.ts'],bundle:true,platform:'browser',format:'esm',outfile:'apple-membership-fixture.js',loader:{'.module.css':'local-css'},jsx:'automatic',write:false})
  javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
+ const pro=await build({entryPoints:['tests/fixtures/mobile-apple-memberships.ts'],bundle:true,platform:'browser',format:'esm',outfile:'pro.js',loader:{'.module.css':'local-css'},jsx:'automatic',write:false,define:{TIQ_FIRST_PARTY_BUILD:'true'}})
+ proJavascript=pro.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  const account=await build({entryPoints:['tests/fixtures/mobile-account-logout.ts'],bundle:true,platform:'browser',format:'esm',outfile:'account.js',jsx:'automatic',write:false});accountJavascript=account.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  stylesheet=(await Promise.all(['mobile/src/style.css','mobile/src/website-parity.css'].map(file=>readFile(file,'utf8')))).join('\n')
  accountStylesheet=scopeNativeStyles(await readFile('mobile/src/style.css','utf8'))+'\n'+(await Promise.all(['mobile/generated/website-ui.css','mobile/src/website-parity.css','mobile/src/app-atmosphere.css','mobile/src/premium-surfaces.css'].map(file=>readFile(file,'utf8')))).join('\n')
@@ -25,9 +27,22 @@ test.beforeEach(async({page})=>{
   if(url.pathname.endsWith('account.js')&&url.origin===origin)return route.fulfill({contentType:'text/javascript',body:accountJavascript})
   if(url.origin!==origin||!url.pathname.startsWith(prefix))return route.abort()
   if(url.pathname.endsWith('app.js'))return route.fulfill({contentType:'text/javascript',body:javascript})
+  if(url.pathname.endsWith('pro.js'))return route.fulfill({contentType:'text/javascript',body:proJavascript})
   if(url.pathname.endsWith('style.css'))return route.fulfill({contentType:'text/css',body:page.url().includes('mode=account-')?accountStylesheet:stylesheet})
-  return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css"></head><body'+(url.searchParams.get('mode')?.startsWith('account-')?' data-screen="lab"':'')+'><main><p>QA fixture · no account or live purchase</p><section id="membership" class="apple-membership-panel"></section></main><script type="module" src="./'+(url.searchParams.get('mode')?.startsWith('account-')?'account.js':'app.js')+'"></script></body></html>'})
+  return route.fulfill({contentType:'text/html',body:'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css"></head><body'+(url.searchParams.get('mode')?.startsWith('account-')?' data-screen="lab"':'')+'><main><p>QA fixture · no account or live purchase</p><section id="membership" class="apple-membership-panel"></section></main><script type="module" src="./'+(url.searchParams.get('mode')?.startsWith('account-')?'account.js':url.searchParams.get('mode')==='pro'?'pro.js':'app.js')+'"></script></body></html>'})
  })
+})
+test('the first-party app offers a single Pro subscription with Captain and Coach tools',async({page})=>{
+ await page.setViewportSize({width:320,height:720})
+ await page.goto(origin+prefix+'?mode=pro')
+ await expect(page.getByRole('heading',{name:'TenAceIQ Pro',exact:true})).toBeVisible()
+ await expect(page.getByText('Run your team with Captain tools and guide your players with Coach tools.')).toBeVisible()
+ const subscribe=page.getByRole('button',{name:'Subscribe · $4.99/month',exact:true})
+ await expect(subscribe).toBeVisible()
+ await expect(page.getByRole('button',{name:/^Subscribe/})).toHaveCount(1)
+ await expect(page.getByText('Another plan is temporarily unavailable from Apple.')).toHaveCount(0)
+ await subscribe.click()
+ await expect(page.getByText('Purchase canceled.',{exact:true})).toBeVisible()
 })
 for(const width of [320,390])test(`plan errors and retry stay usable at ${width}px`,async({page},info)=>{
  await page.setViewportSize({width,height:width===320?568:844})

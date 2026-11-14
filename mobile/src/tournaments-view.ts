@@ -2,6 +2,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import type {ScenarioSend} from './captain-scenarios-data'
 import type {TournamentSnapshot,TournamentSummary,TournamentDetail,TournamentMatch,TournamentStanding} from '../../lib/native-tournaments-contract'
 import {formatTournamentEventDate,formatTournamentEventTime} from '../../lib/tournament-event-presentation'
+import {tennisMatchScoreText} from '../../lib/tennis-match-result'
 import {loadTournaments} from './tournaments-data'
 import {firstPartyBuild} from './build-scope'
 import {bindCompetitionSearch,competitionDirectoryHtml,focusCompetitionSearchResults} from './competition-directory'
@@ -10,6 +11,7 @@ import {competitionMatchFilterEmptyHtml} from './competition-filters'
 import {bindCompetitionHistory,competitionHistoryNavigationHtml,competitionHistorySectionHtml} from './competition-history'
 import {bindCompetitionScheduleJumps,competitionMatchGroupsHtml,competitionOpponentsHtml,competitionOutcomeHtml,competitionScheduleClock,competitionScheduleHtml,competitionScheduleJumpButton,competitionScheduleJumpHtml,focusCalendarCompetitionMatch,focusCompetitionMatch} from './competition-match-card'
 import {openTournamentEntry} from './tournament-entry-view'
+import {openTournamentDraft} from './tournament-draft'
 import {html} from './match-details'
 import {bindTournamentStandingsFinder,emptyTournamentStandingFilters,tournamentStandingsHtml,type TournamentStandingFilters} from './tournament-standings-finder'
 import {restoreLeagueEvidenceFocus as restoreListFocus} from './league-evidence-dialog'
@@ -38,7 +40,7 @@ export function tournamentCardsHtml(tournaments:TournamentSummary[],event?:Tourn
 }
 function matchHtml(m:TournamentMatch,view:TournamentMatchView|'preview'='results') {
  const court=tournamentCourtLabel(m.court)
- const outcome=m.winner?competitionOutcomeHtml('Winner',m.winner,m.score||undefined):''
+ const outcome=m.winner?competitionOutcomeHtml('Winner',m.winner,tennisMatchScoreText(m.score,m.outcome)||undefined):''
  if(view==='schedule')return `<article class="competition-fixture tournament-match-card competition-schedule-match" data-competition-schedule-match="${html(m.id)}">
   ${competitionScheduleHtml('',formatTournamentEventTime(m.time),court||'Court not published')}
   <div class="fixture-heading">
@@ -101,7 +103,7 @@ export function tournamentDetailHtml(d:TournamentDetail,view:View,filters:Tourna
 export function openTournaments(client:SupabaseClient,owner:string,current:()=>boolean,onClose:()=>void,send?:ScenarioSend,trigger?:HTMLElement,backLabel='← Competitions',initialTournament='',calendarEntry?:{divisionId?:string;matchId?:string}){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog competitions-dialog tournaments-dialog';dialog.setAttribute('aria-label','Tournaments')
- let child:ReturnType<typeof openTournamentEntry>|null=null
+ let child:ReturnType<typeof openTournamentEntry>|ReturnType<typeof openTournamentDraft>|null=null
  let disposed=false,version=0,busy=false,query='',selected=/^[a-zA-Z0-9_-]{1,80}$/.test(initialTournament)?initialTournament:'',division=calendarEntry?.divisionId??'',view:View=calendarEntry?'draw':'home',snapshot:TournamentSnapshot|null=null,notice='',filters=emptyTournamentMatchFilters(),entrant:Entrant|null=null,standingsScroll=0,standingFilters=emptyTournamentStandingFilters()
  let tournamentListScroll:number|null=null,divisionListScroll=0
  let calendarMatchId=calendarEntry?.matchId
@@ -137,10 +139,19 @@ export function openTournaments(client:SupabaseClient,owner:string,current:()=>b
    <button type="button" class="secondary" data-tournament-refresh aria-label="Refresh tournaments" ${busy?'disabled':''}>Refresh</button>
   </header>`
   dialog.innerHTML=toolbar+(entrant?'<p class="tournament-entrant-context">'+html(t?.name||'Tournament')+'</p>':selected?'<div class="competition-hero'+(compactDetail?' competition-hero-compact':'')+'"><small>'+html(t?(t.isEvent?'TiQ tournament event':t.entrantType==='teams'?'TiQ team tournament':'TiQ player tournament'):'TiQ tournaments')+'</small><h2 tabindex="-1">'+html(t?.name||'Tournaments')+'</h2>'+(t?'<p>'+html([formatTournamentEventDate(t.date,true),t.location,status(t)].filter(Boolean).join(' · '))+'</p>':'')+'</div>':'')+
-   (!selected?competitionDirectoryHtml('tournament',query,busy,{count:snapshot?.tournaments.length})+(snapshot&&!noMatches?tournamentCardsHtml(snapshot.tournaments)+(snapshot.more?'<p>Showing up to 20 recently updated tournaments. Search by name to narrow the list.</p>':''):''):
+   (!selected?competitionDirectoryHtml('tournament',query,busy,{count:snapshot?.tournaments.length,controls:firstPartyBuild?'<button type="button" class="secondary competition-entry-open" data-tournament-draft-open '+(busy?'disabled':'')+'>Tournament Desk</button>':''})+(snapshot&&!noMatches?tournamentCardsHtml(snapshot.tournaments)+(snapshot.more?'<p>Showing up to 20 recently updated tournaments. Search by name to narrow the list.</p>':''):''):
    d?(d.active&&!entrant?'<nav class="competition-tabs" aria-label="Tournament views">'+(['home','draw','schedule','results',...(d.standings.length?['standings']:[])] as View[]).map(v=>'<button type="button" class="secondary" data-tournament-view="'+v+'" aria-pressed="'+(view===v)+'">'+({home:'Overview',draw:'Draw',schedule:'Schedule',results:'Results',standings:'Standings'})[v]+'</button>').join('')+'</nav>'+(entryAvailable&&!compactDetail?competitionEntryActionHtml('tournament'):''):'')+'<div data-tournament-content>'+(entrant?tournamentEntrantDetailHtml(d,entrant):tournamentDetailHtml(d,view,matchFilters,standingFilters))+'</div>':'')+
    '<p role="'+(notice&&!busy?'alert':'status')+'" tabindex="-1" data-tournament-notice>'+html(notice)+'</p>'+(snapshot?'<p class="competition-checked">Checked '+html(new Date(snapshot.checkedAt).toLocaleString())+' · refresh for changes.</p>':'')
   dialog.querySelector('[data-tournament-entry]')?.addEventListener('click',e=>{if(!active()||busy||entrant||!snapshot?.detail?.active||child?.isOpen())return;const detail=snapshot.detail;child=openTournamentEntry(client,owner,active,detail.root.isEvent?detail.root.id:'',detail.active!.id,()=>{child=null},send,e.currentTarget instanceof HTMLElement?e.currentTarget:undefined,{allowCalendar:!calendarEntry})})
+  const draftOpener=dialog.querySelector<HTMLButtonElement>('[data-tournament-draft-open]')
+  if(draftOpener)draftOpener.onclick=()=>{
+   if(!active()||busy||child?.isOpen())return
+   child=openTournamentDraft(client,owner,active,()=>{child=null},draftOpener,send,id=>{
+    tournamentListScroll=dialog.scrollTop
+    selected=id;view='home';dialog.scrollTop=0
+    void load()
+   })
+  }
   dialog.querySelector('[data-tournament-back]')?.addEventListener('click',back)
   dialog.querySelector('[data-tournament-refresh]')?.addEventListener('click',()=>{void load()})
   bindCompetitionSearch(dialog,value=>{query=value;void load(undefined,true)})

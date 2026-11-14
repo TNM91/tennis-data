@@ -6,6 +6,11 @@ const probe = async (path, method = 'GET') => fetch(new URL(path, base), {
 const checks = [
   ['competitions?audience=public', 'GET', 200], ['tournaments', 'GET', 401],
   ['tournaments/entries', 'GET', 401], ['tournaments/entry', 'GET', 401], ['tournaments/entry', 'POST', 401],
+  ['tournaments/draft', 'GET', 401], ['tournaments/draft', 'POST', 401],
+  ['tournaments/desk', 'GET', 401], ['tournaments/desk', 'POST', 401], ['tournaments/desk', 'PATCH', 401],
+  ['tournaments/publish', 'GET', 401], ['tournaments/publish', 'POST', 401],
+  ['tournaments/plan', 'GET', 401], ['tournaments/plan', 'POST', 401],
+  ['tournaments/trophy', 'GET', 401], ['tournaments/trophy', 'POST', 401], ['tournaments/trophy/claim', 'POST', 401],
   ['team-rooms', 'GET', 401], ['team-invites', 'POST', 401],
   ['calendar', 'GET', 401], ['updates', 'GET', 401], ['court-results', 'GET', 401], ['setup', 'GET', 401],
 ]

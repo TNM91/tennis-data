@@ -17,6 +17,11 @@ describe('effective Apple access',()=>{
   vi.stubEnv('APPLE_MEMBERSHIPS_ENABLED','true');const merged=await withAppleAccess(client,owner,DEFAULT_ENTITLEMENTS);expect(rpc).toHaveBeenCalledExactlyOnceWith('my_apple_purchase_access');expect(buildProductAccessState('member',merged).canUseCaptainWorkflow).toBe(true)
   await withAppleAccess(client,owner,DEFAULT_ENTITLEMENTS,true);expect(rpc).toHaveBeenLastCalledWith('apple_purchase_access',{p_owner:owner})
  })
+ it('gives an active Pro subscriber Captain and Coach access without a league entitlement',async()=>{
+  const rpc=vi.fn(async()=>({data:{ownerId:owner,playerExpiresAt:until,captainExpiresAt:until,proExpiresAt:until},error:null}))
+  const snapshot=await withAppleAccess({rpc} as unknown as SupabaseClient,owner,DEFAULT_ENTITLEMENTS)
+  expect(buildProductAccessState('member',snapshot)).toMatchObject({canUseCaptainWorkflow:true,canUseCoachWorkflow:true,canUseLeagueTools:false})
+ })
  it('does not convert an unavailable, foreign-owner or malformed Apple response into a free or paid snapshot',async()=>{
   for(const result of [{error:{code:'timeout'},data:null},{error:null,data:{ownerId:'other',playerExpiresAt:until,captainExpiresAt:null}},{error:null,data:{ownerId:owner,playerExpiresAt:'forever',captainExpiresAt:null}}])await expect(withAppleAccess({rpc:async()=>result} as unknown as SupabaseClient,owner,DEFAULT_ENTITLEMENTS)).rejects.toThrow('temporarily unavailable')
  })

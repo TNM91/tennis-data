@@ -562,6 +562,9 @@ body[data-screen="lab"] #recent-results h2 { font-size:1.5rem;letter-spacing:-.0
 .setup-trophy-card h3,.setup-trophy-card p { margin-block:4px; }
 .setup-trophy-card li { margin-block:8px; }
 .setup-trophy-card progress { inline-size:100%;accent-color:var(--premium-lime); }
+[data-trophy-claim]:not([hidden]) { display:grid;gap:8px;margin-block-start:8px; }
+[data-trophy-claim] label { display:grid;gap:6px; }
+[data-trophy-claim] input { inline-size:100%;min-inline-size:0;min-block-size:44px; }
 .lab-competition-trophies { list-style:none;margin:0;padding:0; }
 .lab-competition-trophies li { display:grid;gap:4px; }
 .lab-competition-trophies small:first-child { color:var(--premium-lime); }

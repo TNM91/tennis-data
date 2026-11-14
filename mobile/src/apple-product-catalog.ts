@@ -1,4 +1,5 @@
-import {APPLE_MEMBERSHIP_PRODUCTS,appleMembershipProduct} from '../../lib/apple-membership-products'
+import {appleMembershipOffers,appleMembershipProduct} from '../../lib/apple-membership-products'
+import {firstPartyBuild} from './build-scope'
 
 const codes=['products_unavailable','products_not_found','products_invalid','products_request_failed','storefront_unavailable','unsupported_storefront','environment_mismatch','app_identity_mismatch'] as const
 type ProductErrorCode=typeof codes[number]
@@ -28,11 +29,13 @@ export function appleProductNotice(error:unknown){
  }
  return {message:messages[failure.code],supportCode:failure.supportCode||failure.code}
 }
-export function parseAppleProducts(value:unknown){
+export function parseAppleProducts(value:unknown,pro=firstPartyBuild){
  const result=value&&typeof value==='object'?value as {available?:unknown;products?:unknown}:{}
  if(result.available!==true)throw new AppleProductError('products_unavailable')
  if(!Array.isArray(result.products)||!result.products.length)throw new AppleProductError('products_not_found')
  const rows=result.products as {id?:unknown;price?:unknown}[]
- if(rows.length>APPLE_MEMBERSHIP_PRODUCTS.length||new Set(rows.map(p=>p?.id)).size!==rows.length||rows.some(p=>!p||!appleMembershipProduct(p.id)||typeof p.price!=='string'||!p.price.trim()||p.price.length>64))throw new AppleProductError('products_invalid')
- return APPLE_MEMBERSHIP_PRODUCTS.flatMap(product=>{const row=rows.find(p=>p.id===product.productId);return row?[{...product,price:row.price as string}]:[]})
+ if(rows.length>3||new Set(rows.map(p=>p?.id)).size!==rows.length||rows.some(p=>!p||!appleMembershipProduct(p.id)||typeof p.price!=='string'||!p.price.trim()||p.price.length>64))throw new AppleProductError('products_invalid')
+ const products=appleMembershipOffers(pro).flatMap(product=>{const row=rows.find(p=>p.id===product.productId);return row?[{...product,price:row.price as string}]:[]})
+ if(!products.length)throw new AppleProductError('products_not_found')
+ return products
 }

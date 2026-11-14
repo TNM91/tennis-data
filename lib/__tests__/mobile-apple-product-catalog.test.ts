@@ -6,6 +6,11 @@ describe('Apple price discovery',()=>{
   expect(parseAppleProducts({available:true,products:[player]})).toMatchObject([{productId:player.id,name:'Player',price:'$1.99'}])
   expect(parseAppleProducts({available:true,products:[captain,player]}).map(p=>p.productId)).toEqual([player.id,captain.id])
  })
+ it('offers only the localized Pro product in the first-party build',()=>{
+  const pro={id:'com.tenaceiq.app.pro.monthly',price:'$4.99'}
+  expect(parseAppleProducts({available:true,products:[player,captain,pro]},true)).toMatchObject([{productId:pro.id,price:pro.price,expectedUSPriceCents:499}])
+  expect(()=>parseAppleProducts({available:true,products:[player,captain]},true)).toThrow('products_not_found')
+ })
  it('never invents prices or accepts duplicate, unknown, empty or malformed products',()=>{
   for(const products of [[player,player],[{...player,id:'com.other.app'}],[{...player,price:''}],[{...player,price:'x'.repeat(65)}],[null],[],null])expect(()=>parseAppleProducts({available:true,products})).toThrow(AppleProductError)
   for(const input of [null,{},[],{available:false,products:[player]}])expect(()=>parseAppleProducts(input)).toThrow(AppleProductError)

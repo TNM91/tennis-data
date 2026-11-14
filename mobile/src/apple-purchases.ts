@@ -1,25 +1,32 @@
 import {Capacitor,CapacitorHttp,registerPlugin,type HttpOptions,type HttpResponse,type PluginListenerHandle} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {appleMembershipProduct} from '../../lib/apple-membership-products'
+import {APPLE_MEMBERSHIP_SCOPE_HEADER,APPLE_PRO_SCOPE,appleMembershipOffers,appleMembershipProduct} from '../../lib/apple-membership-products'
+import {firstPartyBuild} from './build-scope'
 import {appleUuid,appleTransactionId,type AppleEnvironment} from '../../lib/apple-purchase-contract'
 import {ApplePurchaseError,appleNativePurchaseError,appleNativeRestoreError,type ApplePurchasePhase} from './apple-purchase-progress'
 import {appleProductError,parseAppleProducts} from './apple-product-catalog'
 export type AppleTransaction={transactionId:string;accountToken:string;signedTransaction:string;environment?:AppleEnvironment}
-export type AppleStore={products:(options:{environment:AppleEnvironment})=>Promise<{available:boolean;products:{id:string;price:string}[]}>;purchase:(options:{productId:string;accountToken:string;environment:AppleEnvironment})=>Promise<{state:'purchased'|'cancelled'|'pending'}&Partial<AppleTransaction>>;pending:()=>Promise<{transactions:AppleTransaction[]}>;restore:(options:{environment:AppleEnvironment})=>Promise<{transactions:AppleTransaction[]}>;finish:(options:AppleTransaction)=>Promise<{finished:boolean}>;manage:()=>Promise<void>;addListener:(event:'transactionsChanged',listener:()=>void)=>Promise<PluginListenerHandle>}
+export type AppleStore={products:(options:{environment:AppleEnvironment;productId?:string})=>Promise<{available:boolean;products:{id:string;price:string}[]}>;purchase:(options:{productId:string;accountToken:string;environment:AppleEnvironment})=>Promise<{state:'purchased'|'cancelled'|'pending'}&Partial<AppleTransaction>>;pending:(options?:{productId:string})=>Promise<{transactions:AppleTransaction[]}>;restore:(options:{environment:AppleEnvironment})=>Promise<{transactions:AppleTransaction[]}>;finish:(options:AppleTransaction)=>Promise<{finished:boolean}>;manage:()=>Promise<void>;addListener:(event:'transactionsChanged',listener:()=>void)=>Promise<PluginListenerHandle>}
 export type AppleContext={enabled:false}|{enabled:true;environment:AppleEnvironment;canPurchase:boolean;webAccess:boolean;activeProductId:string|null}
-const NativeApple=registerPlugin<AppleStore>('TiqPurchases')
-function transaction(value:unknown):value is AppleTransaction{
+export const NativeApple=registerPlugin<AppleStore>('TiqPurchases')
+export function transaction(value:unknown):value is AppleTransaction{
  if(!value||typeof value!=='object')return false
  const {transactionId,accountToken,signedTransaction,environment}=value as AppleTransaction
  return appleTransactionId(transactionId)&&appleUuid(accountToken)&&typeof signedTransaction==='string'&&signedTransaction.length<=24000
   &&(environment===undefined||environment==='Sandbox'||environment==='Production')
 }
-export function parseAppleContext(value:unknown):AppleContext{
+export function parseAppleContext(value:unknown,pro=firstPartyBuild):AppleContext{
  if(!value||typeof value!=='object')throw Error('apple_unavailable')
  const r=value as Record<string,unknown>
  if(r.ok!==true||r.applePurchases!==1||typeof r.enabled!=='boolean')throw Error('apple_unavailable')
  if(!r.enabled)return {enabled:false}
- if(!['Production','Sandbox'].includes(String(r.environment))||typeof r.canPurchase!=='boolean'||typeof r.webAccess!=='boolean'||r.activeProductId!==null&&!appleMembershipProduct(r.activeProductId)||!Array.isArray(r.products)||r.products.length!==2||new Set(r.products.map(p=>p?.id)).size!==2||r.products.some(p=>!appleMembershipProduct(p?.id)))throw Error('apple_unavailable')
+ const expected=appleMembershipOffers(pro)
+ // An upgraded app can still restore purchases while the server is serving the original catalog.
+ if(pro&&Array.isArray(r.products)&&r.products.length===2&&appleMembershipOffers(false).every(product=>(r.products as {id?:unknown}[]).some(row=>row?.id===product.productId))){
+  const legacy=parseAppleContext(value,false)
+  return legacy.enabled?{...legacy,canPurchase:false}:legacy
+ }
+ if(!['Production','Sandbox'].includes(String(r.environment))||typeof r.canPurchase!=='boolean'||typeof r.webAccess!=='boolean'||r.activeProductId!==null&&!appleMembershipProduct(r.activeProductId)||!Array.isArray(r.products)||r.products.length!==expected.length||expected.some(product=>!(r.products as {id?:unknown}[]).some(row=>row?.id===product.productId)))throw Error('apple_unavailable')
  return {enabled:true,environment:r.environment as AppleEnvironment,canPurchase:r.canPurchase,webAccess:r.webAccess,activeProductId:r.activeProductId as string|null}
 }
 export function createApplePurchases(client:SupabaseClient,options:{store?:AppleStore;available?:boolean;platform?:string;http?:{get:(o:HttpOptions)=>Promise<HttpResponse>;post:(o:HttpOptions)=>Promise<HttpResponse>}}={}){
@@ -29,7 +36,7 @@ export function createApplePurchases(client:SupabaseClient,options:{store?:Apple
  const operations=new Map<string,{jws:string;id:string}>(),inflight=new Map<string,Promise<void>>(),listeners=new Set<()=>void>()
  async function session(expected:string){const s=await client.auth.getSession();if(s.error||s.data.session?.user.id!==expected)throw Error('owner_changed');return s.data.session}
  async function request(expected:string,body?:Record<string,unknown>){
-  const before=await session(expected),settings={url:'https://www.tenaceiq.com/api/mobile/apple-purchases',headers:{Authorization:'Bearer '+before.access_token,...(body?{'Content-Type':'application/json'}:{})},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:body?55000:12000}
+  const before=await session(expected),settings={url:'https://www.tenaceiq.com/api/mobile/apple-purchases',headers:{Authorization:'Bearer '+before.access_token,...(firstPartyBuild?{[APPLE_MEMBERSHIP_SCOPE_HEADER]:APPLE_PRO_SCOPE}:{}),...(body?{'Content-Type':'application/json'}:{})},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:body?55000:12000}
   const response=body?await http.post({...settings,data:body}):await http.get(settings)
   await session(expected)
   if(response.status!==200||response.data?.ok!==true)throw Error(['purchase_account_mismatch','existing_access','purchase_sync_pending','try_later','sign_in_required'].includes(response.data?.code)?response.data.code:'apple_unavailable')
@@ -84,7 +91,7 @@ export function createApplePurchases(client:SupabaseClient,options:{store?:Apple
    await session(expected);return parseAppleProducts(result)
   },
   async purchase(expected:string,productId:string,onProgress:(phase:ApplePurchasePhase)=>void=()=>{}){
-   if(!available||!appleMembershipProduct(productId))throw Error('apple_unavailable')
+   if(!available||!appleMembershipOffers(firstPartyBuild).some(product=>product.productId===productId))throw Error('apple_unavailable')
    if(purchaseRunning)throw new ApplePurchaseError('purchase_in_progress')
    purchaseRunning=true
    const progress=(phase:ApplePurchasePhase)=>{try{onProgress(phase)}catch{/* Display updates cannot interrupt transaction delivery. */}}

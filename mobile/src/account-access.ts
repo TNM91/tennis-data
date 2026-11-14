@@ -3,6 +3,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {buildProductAccessState} from '../../lib/access-model-core'
 import {getMembershipTier, type MembershipTierId} from '../../lib/product-story'
 import {html} from './match-details'
+import {firstPartyBuild} from './build-scope'
 
 export {parseAccountAccess} from '../../lib/account-access-contract'
 import {parseAccountAccess,type AccountAccess} from '../../lib/account-access-contract'
@@ -46,10 +47,10 @@ export function mountAccountAccess(host:HTMLElement,client:SupabaseClient,owner:
    const access=await read(client,owner,()=>current() && visit===request)
    if(!current() || visit!==request)return
    const ids=accountToolIds(access)
-   const bundles=ids.filter(id=>id==='captain'||id==='coach'),visible=bundles.length?ids.filter(id=>id!=='player_plus'):ids
-   const included=bundles.length?`<p>${html(getMembershipTier('player_plus').name)} tools are included with ${html(bundles.map(id=>getMembershipTier(id).name).join(' and '))}.</p>`:''
+   const bundles=ids.filter(id=>id==='captain'||id==='coach'),visible=firstPartyBuild||bundles.length?ids.filter(id=>id!=='player_plus'):ids
+   const included=!firstPartyBuild&&bundles.length?`<p>${html(getMembershipTier('player_plus').name)} tools are included with ${html(bundles.map(id=>getMembershipTier(id).name).join(' and '))}.</p>`:''
    tools.innerHTML=visible.length?`<ul class="account-tool-access">${visible.map(id=>{const tier=getMembershipTier(id);return `<li><span><strong>${html(tier.name)}</strong><small>${html(tier.shortPromise)}</small></span><span class="account-access-badge">Available</span></li>`}).join('')}</ul>${included}`:''
-   status.textContent='Explore players, teams, leagues and rankings with your account.'
+   status.textContent=firstPartyBuild?'My Lab, match history, chats and competition entry are free.':'Explore players, teams, leagues and rankings with your account.'
    button.textContent='Refresh access'
   } catch(error) {
    if(!current() || visit!==request)return

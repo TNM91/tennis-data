@@ -2,13 +2,13 @@ import 'server-only'
 import {createHash} from 'node:crypto'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {accountClient,accountResponse,verifiedAccount} from './mobile-account-auth'
-import {APPLE_MEMBERSHIP_PRODUCTS,appleMembershipProduct} from './apple-membership-products'
+import {APPLE_MEMBERSHIP_SCOPE_HEADER,APPLE_PRO_PRODUCT,APPLE_PRO_SCOPE,appleMembershipOffers} from './apple-membership-products'
 import {DEFAULT_ENTITLEMENTS,buildProductAccessState} from './access-model-core'
 import {normalizeSubscriptionStatus} from './subscription-status'
 import {normalizeUserRole} from './roles'
 import {appleUuid,appleTransactionId,type AppleEnvironment} from './apple-purchase-contract'
 import {applePurchaseConfiguration,appleVerification,currentAppleMembership,type ApplePurchaseConfiguration} from './apple-purchase-server'
-export type ApplePurchaseContext={owner:string;service:SupabaseClient;config:ApplePurchaseConfiguration;accountToken:string|null;webBlocked:boolean;activeProductId:string|null;canPurchase:boolean}
+export type ApplePurchaseContext={owner:string;service:SupabaseClient;config:ApplePurchaseConfiguration;accountToken:string|null;webBlocked:boolean;activeProductId:string|null;canPurchase:boolean;pro?:boolean}
 export const appleUnavailable=()=>accountResponse({ok:false,code:'apple_unavailable',message:'Apple membership is temporarily unavailable. Your purchase can be synced later.'},503)
 export async function applePurchaseContext(request:Request):Promise<{response:Response}|{context:ApplePurchaseContext|null}>{
  const identity=await verifiedAccount(request)
@@ -23,17 +23,20 @@ export async function applePurchaseContext(request:Request):Promise<{response:Re
  ])
  if(profile.error||!profile.data||account.error||access.error||!access.data||access.data.ownerId!==identity.user.id||account.data&&account.data.ownerId!==identity.user.id)return {response:appleUnavailable()}
  if(base.mode==='sandbox'&&account.data?.sandboxEnabled!==true)return {context:null}
+ const wantsPro=request.headers.get(APPLE_MEMBERSHIP_SCOPE_HEADER)===APPLE_PRO_SCOPE
+ const pro=wantsPro&&Object.hasOwn(access.data,'proExpiresAt')
  const config={...base,environment:(account.data?.sandboxEnabled===true?'Sandbox':'Production') as AppleEnvironment}
  const row=profile.data,web={...DEFAULT_ENTITLEMENTS,playerPlusSubscriptionActive:row.player_plus_subscription_active===true,playerPlusSubscriptionStatus:normalizeSubscriptionStatus(row.player_plus_subscription_status),playerPlusAccessExpiresAt:row.player_plus_access_expires_at,coachSubscriptionActive:row.coach_subscription_active===true,coachSubscriptionStatus:normalizeSubscriptionStatus(row.coach_subscription_status),coachAccessExpiresAt:row.coach_access_expires_at,captainSubscriptionActive:row.captain_subscription_active===true,captainSubscriptionStatus:normalizeSubscriptionStatus(row.captain_subscription_status),captainAccessExpiresAt:row.captain_access_expires_at,tiqTeamLeagueEntryEnabled:row.tiq_team_league_entry_enabled===true,tiqIndividualLeagueCreatorEnabled:row.tiq_individual_league_creator_enabled===true,leagueAccessExpiresAt:row.league_access_expires_at}
  const known=buildProductAccessState(normalizeUserRole(row.role),web)
- const unresolvedWeb=!!row.stripe_subscription_id&&[row.player_plus_subscription_status,row.coach_subscription_status,row.captain_subscription_status].some(v=>['active','trial','trialing','past_due'].includes(String(v)))
- const webBlocked=known.canUseAdvancedPlayerInsights||known.canUseLeagueTools||unresolvedWeb
- const activeProductId=access.data.captainExpiresAt?'com.tenaceiq.app.captain.monthly':access.data.playerExpiresAt?'com.tenaceiq.app.player.monthly':null
- return {context:{owner:identity.user.id,service,config,accountToken:account.data?.accountToken||null,webBlocked,activeProductId,canPurchase:base.mode!=='off'&&!webBlocked&&!activeProductId}}
+ const webStatuses=pro?[row.coach_subscription_status,row.captain_subscription_status]:[row.player_plus_subscription_status,row.coach_subscription_status,row.captain_subscription_status]
+ const unresolvedWeb=!!row.stripe_subscription_id&&webStatuses.some(v=>['active','trial','trialing','past_due'].includes(String(v)))
+ const webBlocked=(pro?known.canUseCoachWorkflow||known.canUseCaptainWorkflow:known.canUseAdvancedPlayerInsights||known.canUseLeagueTools)||unresolvedWeb
+ const activeProductId=pro&&access.data.proExpiresAt?APPLE_PRO_PRODUCT.productId:access.data.captainExpiresAt?'com.tenaceiq.app.captain.monthly':access.data.playerExpiresAt?'com.tenaceiq.app.player.monthly':null
+ return {context:{owner:identity.user.id,service,config,accountToken:account.data?.accountToken||null,webBlocked,activeProductId,canPurchase:base.mode!=='off'&&(!wantsPro||pro)&&!webBlocked&&!activeProductId,pro}}
 }
-export function applePurchasePublicContext(ctx:ApplePurchaseContext|null){return ctx?{ok:true,applePurchases:1,enabled:true,environment:ctx.config.environment,canPurchase:ctx.canPurchase,webAccess:ctx.webBlocked,activeProductId:ctx.activeProductId,products:APPLE_MEMBERSHIP_PRODUCTS.map(p=>({id:p.productId,name:p.name}))}:{ok:true,applePurchases:1,enabled:false}}
+export function applePurchasePublicContext(ctx:ApplePurchaseContext|null){return ctx?{ok:true,applePurchases:1,enabled:true,environment:ctx.config.environment,canPurchase:ctx.canPurchase,webAccess:ctx.webBlocked,activeProductId:ctx.activeProductId,products:appleMembershipOffers(Boolean(ctx.pro)).map(p=>({id:p.productId,name:p.name}))}:{ok:true,applePurchases:1,enabled:false}}
 export async function prepareApplePurchase(ctx:ApplePurchaseContext,productId:unknown){
- if(!appleMembershipProduct(productId))return accountResponse({ok:false,code:'invalid_product'},400)
+ if(!appleMembershipOffers(Boolean(ctx.pro)).some(product=>product.productId===productId))return accountResponse({ok:false,code:'invalid_product'},400)
  if(!ctx.canPurchase)return accountResponse({ok:false,code:'existing_access',message:'Manage your current membership before starting another subscription.'},409)
  const result=await ctx.service.rpc('apple_purchase_account',{p_owner:ctx.owner,p_create:true})
  if(result.error||result.data?.ownerId!==ctx.owner||!appleUuid(result.data?.accountToken)||ctx.config.environment==='Sandbox'&&result.data.sandboxEnabled!==true)return appleUnavailable()

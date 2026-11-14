@@ -42,10 +42,13 @@ export function buildSingleEliminationPreview(
       const id = buildMatchId(round, index + 1)
       const previousLeft = buildMatchId(round - 1, index * 2 + 1)
       const previousRight = buildMatchId(round - 1, index * 2 + 2)
-      const sideA = winnersByMatch.get(previousLeft) || `Winner R${round - 1}.${index * 2 + 1}`
-      const sideB = winnersByMatch.get(previousRight) || `Winner R${round - 1}.${index * 2 + 2}`
-      const result = results[id]
-      if (result?.winner && result.winner === sideA || result?.winner && result.winner === sideB) {
+      const leftWinner = winnersByMatch.get(previousLeft)
+      const rightWinner = winnersByMatch.get(previousRight)
+      const ready = !!leftWinner && !!rightWinner
+      const sideA = leftWinner || `Winner R${round - 1}.${index * 2 + 1}`
+      const sideB = rightWinner || `Winner R${round - 1}.${index * 2 + 2}`
+      const result = ready ? results[id] : undefined
+      if (result?.winner && [sideA, sideB].includes(result.winner)) {
         winnersByMatch.set(id, result.winner)
       }
       matches.push({
@@ -57,6 +60,7 @@ export function buildSingleEliminationPreview(
         sideB,
         result,
         schedule: schedule[id],
+        ...(ready ? {} : { ready: false }),
       })
     }
     remaining /= 2
@@ -154,7 +158,7 @@ export function buildRoundRobinStandings(record: Pick<TiqTournamentRecord, 'form
     loserRow.played += 1
     loserRow.losses += 1
 
-    const games = parseTournamentScoreGames(match.result?.score || '')
+    const games = parseTournamentScoreGames(match.result?.score || '', match.result?.outcome !== 'retirement')
     const winnerGames = winner === match.sideA ? games.sideA : games.sideB
     const loserGames = winner === match.sideA ? games.sideB : games.sideA
     winnerRow.gamesWon += winnerGames
@@ -179,11 +183,12 @@ export function buildRoundRobinStandings(record: Pick<TiqTournamentRecord, 'form
     )
 }
 
-function parseTournamentScoreGames(score: string) {
+function parseTournamentScoreGames(score: string, played: boolean) {
   // A deciding match tiebreak and set-tiebreak points are not ordinary games.
   const sets = [...score.replace(/\([^)]*\)|\[[^\]]*\]/g, '').matchAll(/\b(\d+)\s*[-–]\s*(\d+)\b/g)]
-    .map(m => [Number(m[1]),Number(m[2])]).filter(([a,b]) => Math.max(a,b)<=7)
-  return {sideA:sets.reduce((n,[a])=>n+a,0),sideB:sets.reduce((n,[,b])=>n+b,0)}
+    .map(m => [Number(m[1]),Number(m[2])])
+  const games = sets.filter(([a,b], index) => Math.max(a,b)<=7 && !(played && index === 2 && a + b === 1))
+  return {sideA:games.reduce((n,[a])=>n+a,0),sideB:games.reduce((n,[,b])=>n+b,0)}
 }
 
 function buildMatchId(round: number, court: number) {

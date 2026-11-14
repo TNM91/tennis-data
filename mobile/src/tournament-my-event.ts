@@ -1,5 +1,6 @@
 import type {TournamentDetail, TournamentMatch} from '../../lib/native-tournaments-contract'
 import {formatTournamentEventDate, formatTournamentEventTime} from '../../lib/tournament-event-presentation'
+import {tennisMatchScoreText} from '../../lib/tennis-match-result'
 import {tournamentCalendarMatchId} from '../../lib/player-competition-schedule'
 import type {TournamentCalendarMatch} from './calendar-view'
 import {appleMapsVenueHref} from './calendar-data'
@@ -62,7 +63,7 @@ export function tournamentMyEvent(detail: TournamentDetail, entrant: string, all
   </section>
   <div class="tournament-pass-results" aria-labelledby="tournament-my-results" role="region">
     <h3 id="tournament-my-results">Your results</h3>
-    ${results.length ? `<ol role="list">${results.map(match => `<li><p><small>${html(tournamentDrawRoundLabel(match))}</small><strong>vs ${html(opponent(match, entrant))}</strong></p><p><small data-won="${match.winner === entrant}">${match.winner === entrant ? 'Win' : 'Loss'}</small><strong>${html(match.score || 'Score pending')}</strong></p></li>`).join('')}</ol>` : '<p>No results posted yet.</p>'}
+    ${results.length ? `<ol role="list">${results.map(match => `<li><p><small>${html(tournamentDrawRoundLabel(match))}</small><strong>vs ${html(opponent(match, entrant))}</strong></p><p><small data-won="${match.winner === entrant}">${match.winner === entrant ? 'Win' : 'Loss'}</small><strong>${html(tennisMatchScoreText(match.score, match.outcome) || 'Score pending')}</strong></p></li>`).join('')}</ol>` : '<p>No results posted yet.</p>'}
   </div>`
   return {content, calendarMatch, venueHref}
 }
