@@ -36,6 +36,7 @@ it('keeps contacts consensual and player chats private while delivering one noti
       grant select,insert on public.internal_messages,public.internal_conversation_participants to authenticated;
     `)
     await db.exec(await readFile('supabase/migrations/20261113001100_native_player_chats.sql','utf8'))
+    await db.exec(await readFile('supabase/migrations/20261113001200_native_group_practices.sql','utf8'))
     for (const [user,name] of [[owner,'Avery'],[contact,'Cam'],[guest,'Jamie'],[stranger,'Riley'],[unverified,'New player']]) {
       await db.query('insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data) values($1,$2,$3,$4)',[
         user,user+'@example.test',user===unverified?null:new Date(),JSON.stringify({first_name:name}),
@@ -102,10 +103,32 @@ it('keeps contacts consensual and player chats private while delivering one noti
     expect(await read(guest,group)).toEqual({code:'forbidden'})
     expect(await action(guest,'join',{token:groupToken})).toEqual({code:'ok',roomId:group})
     expect(await action(stranger,'join',{token:groupToken})).toEqual({code:'ok',roomId:group})
+    const practice = id(41)
+    const startsAt = new Date(Date.now()+86400000).toISOString()
+    const changePractice = async (user:string, op:string, reply:string|null = null, room=group) =>
+      (await db.query<{value:unknown}>('select native_group_practice_action($1,$2,$3,$4,$5,$6,$7,$8) as value',
+        [user,room,practice,op,startsAt,'Court 2',2,reply])).rows[0].value
+    const practiceRoom = async (user:string) =>
+      (await db.query<{value:unknown}>('select native_player_chat_room_with_practice($1,$2,null,null) as value',
+        [user,group])).rows[0].value
+    expect(await changePractice(guest,'practice_create')).toEqual({code:'forbidden'})
+    expect(await changePractice(owner,'practice_create',null,direct)).toEqual({code:'forbidden'})
+    expect(await changePractice(owner,'practice_create')).toEqual({code:'ok'})
+    expect(await changePractice(owner,'practice_create')).toEqual({code:'ok'})
+    expect(await changePractice(guest,'practice_reply','in')).toEqual({code:'ok'})
+    expect(await changePractice(stranger,'practice_reply','in')).toEqual({code:'ok'})
+    expect(await changePractice(owner,'practice_reply','in')).toEqual({code:'full'})
+    expect(await practiceRoom(guest)).toMatchObject({room:{practice:{id:practice,mine:'in',inCount:2,
+      players:[{name:'Jamie'},{name:'Riley'}]}}})
+    expect(await changePractice(guest,'practice_reply','out')).toEqual({code:'ok'})
+    expect(await changePractice(owner,'practice_reply','in')).toEqual({code:'ok'})
     expect(await action(guest,'invite',{room:group,token:'c'.repeat(64)})).toEqual({code:'forbidden'})
     expect(await action(guest,'send',{room:group,request:groupPost,text:'Court 2 at 6 pm'})).toEqual({code:'ok',messageId:groupPost})
     expect(await read(stranger,group)).toMatchObject({room:{title:'Friday practice',messages:[{id:groupPost,author:guest,name:'Jamie'}]}})
     expect(await action(owner,'remove',{room:group,target:stranger})).toEqual({code:'ok'})
+    expect(await practiceRoom(owner)).toMatchObject({room:{practice:{mine:'in',inCount:1,players:[{name:'Avery'}]}}})
+    expect(await practiceRoom(stranger)).toEqual({code:'forbidden'})
+    expect(await changePractice(stranger,'practice_reply','in')).toEqual({code:'forbidden'})
     expect(await read(stranger,group)).toEqual({code:'forbidden'})
     expect(await action(stranger,'join',{token:groupToken})).toEqual({code:'unavailable'})
     await asUser(stranger,async ()=>{
@@ -114,6 +137,9 @@ it('keeps contacts consensual and player chats private while delivering one noti
     })
     expect(await action(owner,'revoke_links',{room:group})).toEqual({code:'ok'})
     expect(await action(guest,'preview',{token:groupToken})).toEqual({code:'unavailable'})
+    expect(await changePractice(guest,'practice_cancel')).toEqual({code:'forbidden'})
+    expect(await changePractice(owner,'practice_cancel')).toEqual({code:'ok'})
+    expect(await practiceRoom(owner)).toMatchObject({room:{practice:null}})
     expect(await action(owner,'leave',{room:group})).toEqual({code:'ok'})
     expect(await read(guest,group)).toEqual({code:'forbidden'})
   } finally { await db.close() }

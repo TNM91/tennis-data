@@ -54,6 +54,10 @@
 .dialog button { min-height: 44px; margin: 4px 4px 4px 0; padding: 6px 12px; border-radius: 10px; }
 .dialog ol, .dialog ul { list-style: none; padding: 0; }
 .dialog :global(.player-chat-messages) { max-block-size: 34dvh; overflow: auto; overscroll-behavior: contain; }
+.dialog :global(.group-practice-card) { padding: 12px; border: 1px solid #587c9a; border-radius: 12px; background: #163753; }
+.dialog :global(.group-practice-card) h3 { margin: 0 0 6px; }
+.dialog :global(.group-practice-card) time { margin: 0; font: inherit; }
+.dialog :global(.group-practice-fields) { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .dialog [role=status]:empty { display: none; }
 .dialog :global(.player-chat-post) { background: #163753; margin-block: 6px; padding: 8px; border-radius: 10px; }
 .dialog :global(.player-chat-post) p { white-space: pre-wrap; overflow-wrap: anywhere; }
