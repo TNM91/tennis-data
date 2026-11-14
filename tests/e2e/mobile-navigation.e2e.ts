@@ -269,6 +269,40 @@ test('a direct hitting proposal and a suggested change update the calendar only 
  await expect(calendar).toContainText('No hitting plans here')
 })
 
+test('a hit reminder opens the confirmed plan and its directions during a proposed change',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:800})
+ await page.goto(origin+'/?player-chat=1&chat-hit=1')
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {playerChatFixture:{
+   room:string;player:string;title:string;hit:unknown;confirmedHit:unknown
+  }}).playerChatFixture
+  fixture.title='Jamie'
+  const plan={id:'f2407652-e697-4388-aa96-0ea474852368',room:fixture.room,proposedBy:fixture.player,
+   clubId:'vetta-west',date:'2026-11-18',time:'18:00',startsAt:'2026-11-19T00:00:00Z',status:'accepted'}
+  fixture.confirmedHit=plan
+  fixture.hit={...plan,id:'a3407652-e697-4388-aa96-0ea474852368',clubId:'vetta-sunset',time:'19:30',
+   startsAt:'2026-11-19T01:30:00Z',status:'proposed'}
+ })
+ await page.locator('.native-updates-entry').click()
+ const updates=page.getByRole('dialog',{name:'Updates',exact:true})
+ const reminder=updates.locator('.updates-item').filter({hasText:'Hit coming up'})
+ await expect(reminder).toHaveClass(/is-unread/)
+ await reminder.getByRole('button',{name:'Open hitting plan',exact:true}).click()
+ const chat=page.getByRole('dialog',{name:'Jamie',exact:true})
+ await expect(chat.getByRole('heading',{name:'Hitting plan',exact:true})).toBeFocused()
+ await expect(chat.getByRole('region',{name:'Hitting plan'})).toContainText('Currently confirmed')
+ await chat.getByRole('button',{name:'Directions to confirmed club',exact:true}).click()
+ const directions=page.getByRole('dialog',{name:'Directions',exact:true})
+ await expect(directions).toContainText('Vetta West Racquet Sports')
+ await expect(directions.getByRole('button',{name:'Apple Maps'})).toBeVisible()
+ await expect(directions.getByRole('button',{name:'Google Maps'})).toBeVisible()
+ await directions.getByRole('button',{name:'Close',exact:true}).click()
+ await chat.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(reminder).not.toHaveClass(/is-unread/)
+ await expect(reminder.getByRole('button',{name:'Open hitting plan',exact:true})).toBeFocused()
+})
+
 test('Chats pins a team and group, applies a group icon and shows recent conversations',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:780})

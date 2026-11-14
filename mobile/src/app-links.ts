@@ -7,7 +7,7 @@ import {teamChatMessageId} from '../../lib/team-chat-cursor'
 import type {TeamChatDestination} from './team-room-data'
 import {playerChatInvitePath,playerChatInviteToken,playerChatPath} from '../../lib/player-chats-contract'
 
-export type AppLink = {kind:'coach-invite';href:string}|{kind:'team-invite';href:string}|{kind:'player-invite';token:string}|{kind:'player-chat';id:string}|{kind:'chat';scope:TeamChatDestination}|{kind:'league';id:string}|{kind:'tournament';id:string}|{kind:'match';id:string}
+export type AppLink = {kind:'coach-invite';href:string}|{kind:'team-invite';href:string}|{kind:'player-invite';token:string}|{kind:'player-chat';id:string;hit?:string}|{kind:'chat';scope:TeamChatDestination}|{kind:'league';id:string}|{kind:'tournament';id:string}|{kind:'match';id:string}
 const key=/^[a-zA-Z0-9_-]{1,80}$/
 // Only content routes owned by TenAceIQ. Auth callbacks, billing, arbitrary next
 // parameters and API URLs must never become app navigation or auth operations.
@@ -23,8 +23,10 @@ export function readAppLink(value:unknown):AppLink|null {
    const token=playerChatInviteToken(u.href)
    if(token)return {kind:'player-invite',token}
   }
-  const room=u.searchParams.get('room')
-  if(u.pathname===playerChatPath&&only(['room'])&&teamChatMessageId(room))return {kind:'player-chat',id:room.toLowerCase()}
+  const room=u.searchParams.get('room'),hit=u.searchParams.get('hit')
+  if(u.pathname===playerChatPath&&only(['room','hit'])&&teamChatMessageId(room)&&(hit===null||teamChatMessageId(hit))){
+   return {kind:'player-chat',id:room.toLowerCase(),...(hit?{hit:hit.toLowerCase()}:{})}
+  }
   if(u.pathname==='/team-room'&&only(['team','league','flight','chatRoom','message'])){
    const teamName=u.searchParams.get('team')||'',leagueName=u.searchParams.get('league')||'',flight=u.searchParams.get('flight')||'',chatRoomId=u.searchParams.get('chatRoom'),messageId=u.searchParams.get('message')
    if(!teamName.trim()||!leagueName.trim()||[teamName,leagueName,flight].some(s=>s.length>200||/[\u0000-\u001f\u007f]/.test(s))||chatRoomId!==null&&!namedChatRoomId(chatRoomId)||messageId!==null&&!teamChatMessageId(messageId))return null

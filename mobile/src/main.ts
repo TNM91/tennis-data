@@ -194,7 +194,7 @@ function resumeAppLink(){
   else if(link.kind==='team-invite')launchTeamInvite(link.href)
   else if(link.kind==='player-invite'||link.kind==='player-chat'){
    playerChats=openPlayerChats(client,owner,current,()=>{playerChats=null;if(current())openTeamRoom()},
-    link.kind==='player-invite'?{token:link.token}:{room:link.id})
+    link.kind==='player-invite'?{token:link.token}:{room:link.id,hit:link.hit,closeToSource:!!link.hit})
   }
   else if(link.kind==='league')competitions=openCompetitions(client,owner,current,'discover',()=>openTeamRoom(),undefined,undefined,link.id)
   else if(link.kind==='tournament')tournaments=openTournaments(client,owner,current,()=>{tournaments=null},undefined,undefined,'Close',link.id)
@@ -431,7 +431,7 @@ function launchUpdates(trigger:HTMLElement){
   if(link.kind==='coach-invite')return openCoachConnection(client,owner,active,button,undefined,link.href)
   if(link.kind==='team-invite')return openTeamInvite(client,owner,active,scope=>{leave();guardNavigation(()=>{if(current())openTeamRoom(scope)})},()=>{},link.href)
   if(link.kind==='player-invite'||link.kind==='player-chat')return openPlayerChats(client,owner,active,()=>button.focus(),
-   link.kind==='player-invite'?{token:link.token}:{room:link.id})
+   link.kind==='player-invite'?{token:link.token}:{room:link.id,hit:link.hit,closeToSource:!!link.hit})
   if(link.kind==='league')return openCompetitions(client,owner,active,'discover',()=>{leave();guardNavigation(()=>{if(current())openTeamRoom()})},undefined,button,link.id)
   if(link.kind==='tournament')return openTournaments(client,owner,active,()=>{},undefined,button,'Back to updates',link.id)
   return openSharedMatch(client,owner,active,link.id,button)

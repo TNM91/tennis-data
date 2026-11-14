@@ -15,6 +15,15 @@ function client(reply:(request:{url:URL;method:string;body:Record<string,unknown
 }
 const json=(value:unknown)=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}})
 describe('owned Updates records and cursors',()=>{
+ it('opens the confirmed hit only for its exact room and plan',()=>{
+  const href='/chats?room='+id(2)+'&hit='+id(3)
+  const row={...item(),href,notificationType:'schedule' as const,conversationId:id(2),scheduleEventId:id(3)}
+  expect(updateAction(row)).toEqual({kind:'link',link:{kind:'player-chat',id:id(2),hit:id(3)},label:'Open hitting plan'})
+  for(const invalid of [{conversationId:id(4)},{scheduleEventId:id(4)},{scheduleEventId:''},
+   {href:href+'&hit='+id(4)},{href:href+'#plan'},{notificationType:'message' as const}]){
+   expect(updateAction({...row,...invalid})).toBeNull()
+  }
+ })
  it('opens a practice reminder only when the destination matches the notification event and private room',()=>{
   const scope={teamName:'Aces & Friends',leagueName:'Private team '+id(4),flight:'4.5'}
   const href=practiceReminderHref(scope,id(3),id(5))

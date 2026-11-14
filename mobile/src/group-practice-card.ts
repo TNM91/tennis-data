@@ -87,7 +87,7 @@ export function chatHitCard(hit: ChatHit|null, owner: string, draft: ChatHitDraf
   const cancel = hit.status==='accepted' || (hit.status==='proposed' && own)
   const confirmedClub=listedHittingClub(confirmedHit?.clubId)
   return `<section class="group-practice-card" aria-labelledby="chat-hit-title">
-    <h3 id="chat-hit-title">Hitting plan</h3>
+    <h3 id="chat-hit-title" tabindex="-1">Hitting plan</h3>
     ${confirmedHit&&confirmedClub?`<p><strong>Currently confirmed</strong><br>
       <time datetime="${html(confirmedHit.startsAt)}">${html(chatHitWhen(confirmedHit))}</time> · ${html(confirmedClub.name)}</p>`:''}
     <p><strong>${confirmedHit?'Proposed change · ':''}${status}</strong></p>

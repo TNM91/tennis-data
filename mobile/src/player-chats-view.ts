@@ -44,7 +44,7 @@ export function playerChatsForAccount(client: SupabaseClient,owner: string,activ
 
 export function openPlayerChats(
   client: SupabaseClient,owner: string,current: () => boolean,onClose: () => void,
-  initial: { token?: string; room?: string; browser?: boolean; className?: string; compose?: boolean;
+  initial: { token?: string; room?: string; hit?: string; browser?: boolean; className?: string; compose?: boolean;
     preferences?: ReturnType<typeof chatInboxOrder>; closeToSource?: boolean } = {},
 ) {
   const dialog = document.createElement('dialog')
@@ -64,6 +64,7 @@ export function openPlayerChats(
   let historyAnchor = 0
   let practiceDraft: GroupPracticeDraft | null = null
   let hitDraft: ChatHitDraft | null = null
+  let focusHit = false
   let directions: ReturnType<typeof openCourtDirections> | undefined
   let contactTimer: ReturnType<typeof setTimeout> | undefined
   let contactWatchUntil = 0,contactRequest = 0,lastContactCheck = -Infinity,contactForeground = true
@@ -718,7 +719,10 @@ export function openPlayerChats(
     dialog.querySelector<HTMLTextAreaElement>('#player-chat-message')?.addEventListener('input',event=>{
       draft=(event.currentTarget as HTMLTextAreaElement).value
     })
-    if (focus) dialog.querySelector<HTMLElement>(notice?'[role=status]':'h2')?.focus({preventScroll:true})
+    if (focusHit && !busy) {
+      focusHit = false
+      dialog.querySelector<HTMLElement>('#chat-hit-title')?.focus()
+    } else if (focus) dialog.querySelector<HTMLElement>(notice?'[role=status]':'h2')?.focus({preventScroll:true})
   }
 
   if (!initial.browser) {
@@ -733,7 +737,15 @@ export function openPlayerChats(
   dialog.oncancel = event=>{event.preventDefault();back()}
   document.body.append(dialog); render(); dialog.showModal()
   if (initial.token) void preview(initial.token)
-  else if (initial.room) void run(async ()=>{inbox=await transport.inbox();await loadRoom(initial.room!)})
+  else if (initial.room) void run(async ()=>{
+    if (!initial.hit) inbox=await transport.inbox()
+    await loadRoom(initial.room!)
+    if (initial.hit && room) {
+      const confirmed = room.confirmedHit ?? room.hit
+      focusHit = confirmed?.id===initial.hit && confirmed.status==='accepted'
+      if (!focusHit) notice='This hitting plan changed. Check the chat for the latest details.'
+    }
+  })
   else if (initial.compose) void refreshContacts()
   else void openInbox()
   return {isOpen:active,close:back,dispose,keepWhileHidden:true}

@@ -108,6 +108,12 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
       if(league&&!row.scheduleEventId&&!row.conversationId)return {kind:'league-schedule',...league,label:'Open league match'}
       const practice=readPracticeReminderDestination(u,row.scheduleEventId,row.conversationId)
       if(practice)return {kind:'practice-reminder',...practice,label:'Open practice RSVP'}
+      if (row.scheduleEventId&&row.conversationId) {
+        const hit=readAppLink(u.href)
+        if(hit?.kind==='player-chat'&&hit.id===row.conversationId&&hit.hit===row.scheduleEventId){
+          return {kind:'link',link:hit,label:'Open hitting plan'}
+        }
+      }
     }
     const only=(keys:string[])=>Array.from(u.searchParams.keys()).every(k=>keys.includes(k)&&u.searchParams.getAll(k).length===1)
     if(u.pathname==='/level-up/my-quest'&&u.hash==='#level-up-coach-update'&&only(['coachUpdate'])){
@@ -119,7 +125,7 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
       if(score)return {kind:'league-score',...score,label:'Open scorecard'}
       const groupPractice=row.notificationType==='schedule'&&row.title==='Group practice changed'
       const chat=(row.notificationType==='message'||groupPractice)&&!row.scheduleEventId?readAppLink(u.href):null
-      if(chat?.kind==='player-chat'&&chat.id===row.conversationId)return {kind:'link',link:chat,label:groupPractice?'Open practice':'Open chat'}
+      if(chat?.kind==='player-chat'&&!chat.hit&&chat.id===row.conversationId)return {kind:'link',link:chat,label:groupPractice?'Open practice':'Open chat'}
       const student=u.searchParams.get('coach')
       return row.notificationType==='message'&&u.pathname==='/messages'&&only(['coach'])&&!u.hash&&updateId(student)
         ? {kind:'coach-message',student,label:'Open Coach messages'} : null
@@ -130,6 +136,7 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
     if(tournamentDecision&&u.pathname==='/compete'&&!u.search&&u.hash==='#my-entries'){
       return {kind:'tool',destination:'tournament-entries',label:'Open tournament entries'}
     }
+    if(link?.kind==='player-chat'&&link.hit)return null
     if(link)return {kind:'link',link,label:link.kind==='chat'?'Open team chat':link.kind==='league'?'Open league':link.kind==='tournament'?'Open tournament':link.kind==='match'?'Open scorecard':'Review invitation'}
     if(u.pathname==='/messages'&&only(['thread'])&&!u.hash){const id=u.searchParams.get('thread');if(updateId(id)&&(!row.conversationId||row.conversationId===id))return {kind:'conversation',id,label:'Open conversation'}}
     if(u.pathname==='/coach'&&only([])&&!u.hash)return {kind:'tool',destination:'coach',label:'Open Coach & training'}

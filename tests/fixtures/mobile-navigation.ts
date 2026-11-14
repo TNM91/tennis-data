@@ -280,7 +280,17 @@ window.fetch=async(input,init)=>{
   return Response.json({...base,contacts,rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:inboxSearchFixture,
    logo:state.logo,activityAt:'2026-11-13T20:00:00Z'}]:[]})
  }
- if(url.pathname==='/api/mobile/first-party/updates')return firstPartyUpdatesPreview(init?.method||'GET',url,init?.body,currentNavigationOwner())
+ if(url.pathname==='/api/mobile/first-party/updates'){
+  const hit=playerChatFixture.confirmedHit??playerChatFixture.hit,owner=currentNavigationOwner()
+  const rows=firstPartyUpdatesFixture.hitReminders
+  if(hit?.status!=='accepted')rows.length=0
+  else if(rows[0]?.schedule_event_id!==hit.id){
+   rows.splice(0,rows.length,{id:hit.id,recipient_profile_id:owner,notification_type:'schedule',title:'Hit coming up',
+    body:'See the confirmed time and get directions to your club.',href:'/chats?room='+hit.room+'&hit='+hit.id,
+    conversation_id:hit.room,schedule_event_id:hit.id,read_at:null,created_at:hit.startsAt})
+  }
+  return firstPartyUpdatesPreview(init?.method||'GET',url,init?.body,owner)
+ }
  if(url.pathname==='/api/mobile/first-party/setup'){
   setupFixture.requests++
   return Response.json({ok:true,owner:currentNavigationOwner(),releaseScope:'first-party',

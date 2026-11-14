@@ -14,9 +14,23 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   for(const file of ['20261028000100_native_account_requests.sql','20261028000200_automated_account_erasure.sql','20261028000300_apple_purchase_records.sql','20261028000400_apple_purchase_erasure_guard.sql','20261030000100_native_tournament_registration.sql','20261031000100_native_coach_alert_preferences.sql','20261110000100_native_first_party_updates.sql','20261110000200_restore_updates_erasure_catalog.sql','20261110000300_native_personal_matches.sql','20261110000400_native_captain_court_results.sql','20261110000700_native_team_next_fixtures.sql','20261110000800_native_private_teams.sql','20261110000900_native_team_erasure_catalog.sql','20261110001000_native_team_result_players.sql','20261112000100_native_personal_match_venues.sql','20261112000200_native_personal_court_feedback.sql'])await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
   await db.exec(await readSql(new URL('../../supabase/migrations/20261112000300_native_hitting_plans.sql',import.meta.url)))
   await db.exec(await readSql(new URL('../../supabase/migrations/20261112000400_native_scorecard_practice.sql',import.meta.url)))
+  await db.exec(await readSql(new URL('../../supabase/migrations/20261112000500_native_team_chat_display_names.sql',import.meta.url)))
+  await db.exec(`create schema private;
+    create function private.is_profile_team_member(uuid,text,text,text) returns boolean
+      language sql as 'select false';
+    alter table public.team_chat_rooms add unique (parent_conversation_id,name_key)`)
+  await db.exec(await readSql(new URL('../../supabase/migrations/20261114000200_native_first_party_team_chats.sql',import.meta.url)))
+  const reconcile=await readSql(new URL('../../supabase/migrations/20261114000600_reconcile_chat_account_erasure_catalog.sql',import.meta.url))
+  expect((await db.query('select account_erasure_catalog_ready() ok')).rows).toEqual([{ok:false}])
+  await db.exec('alter table profiles add column unexpected text')
+  await expect(db.exec(reconcile)).rejects.toThrow('Review unexpected account deletion catalog changes')
+  await db.exec('rollback; alter table profiles drop column unexpected')
+  await db.exec(reconcile)
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
 
   await db.query('insert into internal_notification_preferences(profile_id,native_coach_alerts_enabled) values($1,true),($2,false)',[a,b])
+  await db.query("insert into team_room_member_preferences(conversation_id,profile_id,chat_display_name) values($1,$2,'Avery'),($1,$3,'Cam')",[room,a,b])
+  await db.exec('update team_chat_rooms set first_party=true')
   await db.query("insert into internal_messages(conversation_id,sender_user_id,body,metadata) values($1,$2,'Keep this reply',$3)",[room,b,JSON.stringify({quote:{author:a,body:'Private copied message'},other:'Keep'})])
   await db.query("insert into team_room_member_removals(conversation_id,profile_id,removed_by_user_id) values($1,$2,$3)",[room,b,a])
   await db.query("insert into internal_notifications(recipient_profile_id,actor_user_id,body) values($1,$2,'Private copied message')",[b,a])
@@ -177,7 +191,8 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   expect((await db.query('select a1,b1,posted_by from native_captain_court_results')).rows).toEqual([{a1:null,b1:b,posted_by:null}])
   expect((await db.query('select body from internal_messages order by body')).rows).toEqual([{body:'Keep my message'},{body:'Keep this reply'}])
   expect((await db.query('select created_by_user_id,metadata from internal_conversations where id=$1',[room])).rows).toEqual([{created_by_user_id:null,metadata:{teamName:'Aces'}}])
-  expect((await db.query('select created_by from team_chat_rooms')).rows).toEqual([{created_by:null}])
+  expect((await db.query('select created_by,first_party from team_chat_rooms')).rows).toEqual([{created_by:null,first_party:true}])
+  expect((await db.query('select profile_id,chat_display_name from team_room_member_preferences')).rows).toEqual([{profile_id:b,chat_display_name:'Cam'}])
   expect((await db.query('select created_by_user_id from club_groups')).rows).toEqual([{created_by_user_id:null}])
   expect((await db.query('select id from profiles')).rows).toEqual([{id:b}])
 
