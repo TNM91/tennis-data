@@ -1,6 +1,6 @@
 import { accountClient,accountResponse,readAccountJson,verifiedAccount } from '@/lib/mobile-account-auth'
 import {
-  playerChatAction,playerChatReadParams,readPlayerChatInbox,readPlayerChatInvitation,readPlayerChatRoom,type PlayerChatAction,
+  playerChatAction,playerChatReadParams,readPlayerChatInbox,readPlayerChatInvitation,readPlayerChatRematch,readPlayerChatRoom,type PlayerChatAction,
 } from '@/lib/player-chats-contract'
 import { teamChatMessageId } from '@/lib/team-chat-cursor'
 import { updateTimestamp } from '@/lib/native-updates-contract'
@@ -41,8 +41,14 @@ export async function GET(request: Request) {
   catch { return failure('Choose a chat.',400) }
   try {
     const owner = account.user.id
-    const {room,before} = selection
+    const {room,before,rematch} = selection
     const db = service()
+    if (rematch) {
+      const {data,error} = await db.rpc('native_chat_hit_rematch',{p_owner:owner,p_hit:rematch}).retry(false)
+      if (error) throw Error()
+      if (!data) return failure('This hitting partner is no longer available in Chats.',404)
+      return json({ok:true,owner,rematch:readPlayerChatRematch(data)})
+    }
     const {data,error} = await db.rpc(room ? 'native_player_chat_room_with_practice' : 'native_player_chats_read',{
       p_owner:owner,p_room:room,p_before_at:before?.createdAt??null,p_before_id:before?.id??null,
     }).retry(false)
