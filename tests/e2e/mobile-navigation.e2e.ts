@@ -1789,16 +1789,26 @@ test('first-party captain creates a private team and opens its invite controls',
  expect(requests).not.toContain('captain-setup')
 })
 
-test('first-party captain can create and post a practice RSVP list and update their team chat icon',async({page})=>{
+test('first-party captain can create and post a practice RSVP list and update their team chat icon',async({page},info)=>{
  test.setTimeout(45_000)
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:390,height:844})
- await page.goto(origin+'/?private-team-tools=captain')
+ await page.goto(origin+'/?private-team-tools=captain&manual-team-schedule=1&captain-invites=1')
  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
  const team=page.getByRole('button',{name:/Baseline Aces.*Weekend Tennis/})
  await team.click()
  const tools=page.locator('.chat-room-options>summary')
  await tools.click()
+ const teamPanel=page.locator('.chat-room-options-panel')
+ const actions=teamPanel.getByRole('group',{name:'Team tools',exact:true})
+ for(const name of ['Practices','Next match','Team results','Invite teammates']){
+  const row=actions.getByRole('button',{name:new RegExp('^'+name)})
+  await expect(row).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
+  await expect(row).toHaveCSS('background-image','none')
+ }
+ await expect(teamPanel.getByRole('button',{name:'Close team tools'})).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
+ await expect(teamPanel.getByRole('button',{name:'Add icon',exact:true})).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
+ await page.screenshot({path:info.outputPath('team-tools.png')})
  await page.locator('#chat-practices').click()
  const practices=page.getByRole('dialog',{name:'Captain practices',exact:true})
  const createPractice=practices.getByRole('button',{name:'Create practice',exact:true})
