@@ -1579,6 +1579,80 @@ body[data-screen] :is(.app-tool,.lab-trend-entry,.lab-band-practice):active { bo
 /* Conversation stays quiet, while input, unread and selection remain obvious. */
 .chats-intro { padding:0 2px;margin:0; }
 .chats-intro h1 { margin:0;color:var(--premium-white);font-size:clamp(1.875rem,7.5vw,2.25rem);line-height:1.15; }
+.chats-organized-heading,.chats-inbox-toolbar,.chats-team-add,.chat-inbox-order { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.chats-inbox-find { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; margin-block:12px 8px; }
+.chats-inbox-search {
+ display:grid; grid-template-columns:18px minmax(0,1fr); align-items:center; gap:8px;
+ min-inline-size:0; min-block-size:44px; padding-inline:10px; color:var(--premium-ice);
+ border:1px solid var(--premium-line); border-radius:12px; background:var(--premium-inset);
+}
+.chats-inbox-search svg { inline-size:18px; block-size:18px; }
+body[data-screen="teams"] .chats-inbox-search input {
+ inline-size:100%; min-inline-size:0; min-block-size:44px; padding:0; margin:0; border:0; border-radius:0; background:transparent; box-shadow:none;
+}
+body[data-screen="teams"] .chats-inbox-search:focus-within { outline:2px solid var(--premium-ice); outline-offset:2px; }
+body[data-screen="teams"] .chats-inbox-search input:focus-visible { outline:none; }
+body[data-screen="teams"] button.secondary:is([data-inbox-unread],[data-inbox-clear],[data-inbox-retry]) {
+ min-block-size:44px; inline-size:auto; margin:0; padding:6px 10px;
+}
+body[data-screen="teams"] button.secondary[data-inbox-unread] {
+ background:var(--premium-inset); border-color:var(--premium-line); font-size:.8125rem;
+}
+body[data-screen="teams"] [data-inbox-unread][aria-pressed="true"] { border-color:var(--premium-lime); color:var(--premium-lime); }
+.chats-inbox-find-status { margin:4px 0 8px; color:var(--premium-copy); font-size:.8125rem; }
+.chats-section-heading #chat-inbox-results { margin:0; }
+body[data-screen="teams"]:not(.native-chat-conversation) section[data-chats-find] {
+ margin-block:4px 0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none;
+}
+body[data-screen="teams"]:not(.native-chat-conversation) [data-chats-find] .chats-team-card {
+ grid-template-columns:34px minmax(0,1fr) auto; min-block-size:58px; gap:8px; padding:8px;
+}
+[data-chats-find] .chats-team-avatar { inline-size:34px; block-size:34px; }
+[data-chats-find] .chats-team-copy > span { line-height:1.3; }
+.chats-inbox-toolbar[hidden],[data-chats-find][hidden],[data-coach-chats][hidden],[data-inbox-retry][hidden] { display:none!important; }
+.chats-inbox-toolbar { margin:8px 0 12px; }
+.chats-organized-heading { justify-content:space-between; }
+.chats-organized-heading button,.chats-team-add button,.chat-inbox-order select { min-block-size:44px; inline-size:auto; margin:0; padding:6px 10px; }
+.chat-inbox-order label { display:flex; align-items:center; gap:8px; color:var(--premium-copy); font-size:.8125rem; }
+.chat-inbox-order select { background:var(--premium-inset); border-color:var(--premium-line); }
+.chat-inbox-organized h2 { margin:10px 0 4px; font-size:1rem; }
+.chat-inbox-organized ul { display:grid; gap:4px; list-style:none; padding:0; margin:0 0 12px; }
+.chat-organized-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px; }
+.chat-organized-row-single { grid-template-columns:minmax(0,1fr); }
+.chat-organized-row > button.chats-team-card { min-inline-size:0; }
+body[data-screen="teams"] button.secondary.chat-pin { inline-size:auto; min-block-size:44px; min-inline-size:44px; margin:0; padding:5px 8px; font-size:.75rem; }
+.chat-pin[aria-pressed="true"] { color:var(--premium-lime); }
+.chats-team-channels { margin:4px 0 8px 14px; padding-inline-start:10px; border-inline-start:1px solid var(--premium-line); }
+.chats-team-channels summary { min-block-size:44px; align-content:center; color:var(--premium-ice); font-size:.8125rem; }
+.chats-team-channels[hidden] { display:none; }
+.chats-team-channels ul { display:grid; gap:4px; padding:0; margin:0; list-style:none; }
+body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-channels .chats-team-card {
+ grid-template-columns:20px minmax(0,1fr) auto auto; min-block-size:44px; padding:6px 8px;
+}
+.chat-team-channel-icon svg { display:block; inline-size:20px; block-size:20px; }
+.chats-team-channels .chats-team-avatar { inline-size:20px; block-size:20px; }
+body.native-chat-conversation .chat-room-heading #open-team-rooms { min-block-size:44px; color:var(--premium-ice); }
+.chat-room-heading-actions { display:flex; align-items:center; gap:4px; }
+body.native-chat-conversation .chat-room-heading-actions .chat-compact-refresh {
+ flex:0 0 44px; font-size:1.25rem; color:var(--premium-ice); background:transparent;
+}
+.named-team-plan { display:flex; flex-wrap:wrap; gap:6px; padding:6px 0; }
+body[data-screen="teams"] .named-team-plan button.secondary {
+ inline-size:auto; min-block-size:44px; margin:0; padding:6px 12px; font-size:.8125rem;
+ background:var(--premium-inset); border-color:var(--premium-line); color:var(--premium-ice);
+}
+body[data-screen="teams"] .named-team-plan button.secondary:active { border-color:var(--premium-lime); }
+.team-rooms-dialog .named-room-list { gap:6px; }
+.team-rooms-dialog .named-room-list button.secondary { padding:9px 12px; min-block-size:44px; }
+.team-rooms-dialog .named-room-list button[aria-pressed="true"] { border-color:var(--premium-lime); }
+.team-rooms-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.team-rooms-heading div { min-inline-size:0; overflow-wrap:anywhere; }
+.team-rooms-heading p { margin:0; color:var(--premium-copy); }
+.team-rooms-heading h1 { margin:0; }
+.team-rooms-heading button.secondary { inline-size:auto; min-block-size:44px; margin:0; }
+.team-rooms-dialog [role="status"]:empty { display:none; }
+[data-team-pinned],[data-chats-pinned][hidden],[data-chats-recent][hidden],[data-chats-players][hidden],
+body[data-screen="teams"] :is(#chats-team-inbox,.chats-inbox-shortcuts)[hidden] { display:none!important; }
 .chats-inbox-shortcuts {
  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-block:10px 14px;
 }
@@ -1698,6 +1772,14 @@ dialog.team-chat-icon-dialog[open] {
  inline-size:64px;block-size:64px;
  background:var(--premium-royal-deep);border:1px solid var(--premium-line);
 }
+.team-chat-icon-dialog canvas { display:block; inline-size:112px; max-inline-size:100%; block-size:auto; border-radius:12px; }
+.chat-icon-frame { border:0; padding:0; margin:4px 0 12px; min-inline-size:0; }
+.chat-icon-frame label { display:block; margin-block:4px; font-size:.8125rem; }
+.chat-icon-frame :is(input,select) { display:block; inline-size:100%; min-block-size:34px; }
+.chat-icon-frame input[type="range"] { padding-inline:0; accent-color:var(--premium-lime); }
+.chat-icon-frame[hidden] { display:none; }
+.player-chats-dialog :is([data-player-room],.team-invite-heading h2) { display:flex; gap:8px; align-items:center; }
+.player-chats-dialog .chats-team-avatar { flex:none; inline-size:32px; block-size:32px; }
 .team-chat-icon-actions { justify-content:flex-end; }
 .team-chat-icon-dialog button {
  inline-size:auto;max-inline-size:100%;min-block-size:44px;
@@ -2592,7 +2674,7 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
 .match-center-dialog button.secondary { background:#143448;border-color:#466b82;line-height:1.5; }
 
 /* Shared card material and icon geometry across My Lab, discovery, hubs and sheets. */
-body[data-screen]:not(.native-chat-conversation) main>section:not(.lab-scoreboard),
+body[data-screen]:not(.native-chat-conversation) main>section:not(.lab-scoreboard,[data-chats-find]),
 body[data-screen]:not(.native-chat-conversation) .tennis-tools {
  background:var(--premium-surface);border-color:var(--premium-line);
 }

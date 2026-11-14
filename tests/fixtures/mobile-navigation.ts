@@ -36,14 +36,16 @@ import {calendarTeamMatchesHeader} from '../../lib/native-calendar-contract'
 import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLimit,teamScorecardsHeader,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
 const originalFetch=window.fetch.bind(window)
+const inboxSearchFixture=new URL(location.href).searchParams.has('chat-inbox-search')
 const playerChatFixture={
  enabled:new URL(location.href).searchParams.has('player-chat'),
  practices:new URL(location.href).searchParams.has('group-practice'),
  practice:null as import('../../lib/group-practice-contract').GroupPractice|null,
  room:'bb4f152f-bb10-4b30-a233-09f20121e463',
  player:'ca2592d5-8135-4d6c-86ff-aef07ff620f0',
- title:'',
- group:false,
+ title:inboxSearchFixture?'Friday Rally':'',
+ group:inboxSearchFixture,
+ logo:'',
  outgoing:[] as {id:string;name:string;author:string;body:string;createdAt:string}[],
  receive(){
   this.outgoing.push({id:'45526ebf-561c-477e-a6f7-9546ebf52cf4',name:'Jamie',author:this.player,
@@ -120,6 +122,8 @@ if(new URL(location.href).searchParams.has('calendar-scorecard')){
 const chatUnreadFixture={total:7,reads:0,fail:false,detailed:false,secondTeam:false,empty:false,denyRoom:false,captain:false,roomName:'Practice & match prep <img src=x>',opened:[] as string[],emit:emitChatSignal}
 const matchDayFixture={enabled:new URL(location.href).searchParams.has('match-day-review'),published:false,finalSeen:false,response:'',posts:[] as string[]}
 const chatTeam={teamName:'Baseline Aces',leagueName:'City League',flight:'4.0'},chatRoomId='33333333-3333-4333-8333-333333333333'
+const namedChatsFixture=new URL(location.href).searchParams.has('team-channels')
+const namedChats=new Map<string,{name:string;messages:typeof firstPartyTeamMessages;logo?:string}>()
 const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
 const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false,
@@ -189,6 +193,13 @@ Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPat
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
+ if(playerChatFixture.enabled&&url.pathname==='/api/mobile/first-party/player-chats/branding'){
+  const {room,photo}=JSON.parse(String(init?.body))
+  if(!playerChatFixture.group||room!==playerChatFixture.room)return Response.json({ok:false},{status:403})
+  playerChatFixture.logo=photo?'https://pwxppfazbyourjrsutgx.supabase.co/storage/v1/object/sign/team-room-files/team-logos/'+
+   room+'/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg?token=group-test':''
+  return Response.json({ok:true,releaseScope:'first-party',owner:currentNavigationOwner(),roomId:room,hasLogo:Boolean(photo)})
+ }
  if(playerChatFixture.enabled&&url.pathname==='/api/mobile/first-party/player-chats'){
   const state=playerChatFixture
   const owner=currentNavigationOwner()
@@ -220,10 +231,11 @@ window.fetch=async(input,init)=>{
    return Response.json(base)
   }
   if(url.searchParams.get('room')===state.room)return Response.json({...base,room:{
-   id:state.room,title:state.title,group:state.group,manage:state.group,more:false,members:[contact],messages:state.outgoing,
+   id:state.room,title:state.title,group:state.group,manage:state.group,more:false,members:[contact],messages:state.outgoing,logo:state.logo,
    ...(state.group&&state.practices?{practice:state.practice}:{}),
   }})
-  return Response.json({...base,contacts:[contact],rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:false}]:[]})
+  return Response.json({...base,contacts:[contact],rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:inboxSearchFixture,
+   logo:state.logo,activityAt:'2026-11-13T20:00:00Z'}]:[]})
  }
  if(url.pathname==='/api/mobile/first-party/updates')return firstPartyUpdatesPreview(init?.method||'GET',url,init?.body,currentNavigationOwner())
  if(url.pathname==='/api/mobile/first-party/setup'){
@@ -244,7 +256,8 @@ window.fetch=async(input,init)=>{
   const base={ok:true,owner,scope,more:false}
   if(url.pathname==='/api/mobile/practices'){
    if(!privatePractice||owner!==privateTeammate)return Response.json({...base,practices:[]})
-   if(url.searchParams.has('invite')||url.searchParams.get('eventId')!==privatePractice.id)return Response.json({ok:false},{status:404})
+   const requestedEvent=url.searchParams.get('eventId')
+   if(url.searchParams.has('invite')||requestedEvent&&requestedEvent!==privatePractice.id)return Response.json({ok:false},{status:404})
    const {id,title,date,time,endTime,facility,focus,status,updatedAt,capacity}=privatePractice
    const person=privatePractice.roster[1]
    if(init?.method==='PATCH'){
@@ -285,12 +298,16 @@ window.fetch=async(input,init)=>{
    const {action,body,clientMessageId,expectedUpdatedAt}=JSON.parse(String(init.body))
    if(typeof body!=='string'||!body.endsWith('https://www.tenaceiq.com'+privatePracticeChatPath(privatePractice.id))||body.includes(privateRsvpPath))
     return Response.json({ok:false},{status:409})
-   const existing=firstPartyTeamMessages.find(message=>message.id===clientMessageId)
+   const chatRoomId=url.searchParams.get('chatRoom')
+   const named=chatRoomId?namedChats.get(chatRoomId):undefined
+   if(chatRoomId&&!named)return Response.json({ok:false},{status:404})
+   const messages=named?.messages??firstPartyTeamMessages
+   const existing=messages.find(message=>message.id===clientMessageId)
    if(existing?existing.body!==body:action!=='announce'||expectedUpdatedAt!==privatePractice.updatedAt)
     return Response.json({ok:false},{status:409})
-   if(!existing)firstPartyTeamMessages.push({id:clientMessageId,senderUserId:owner,senderName:'Sam',body,kind:'message',
-    createdAt:new Date(Date.UTC(2026,10,13,0,1,firstPartyTeamMessages.length)).toISOString(),isMine:true})
-   return Response.json({...base,eventId:privatePractice.id,announcementId:clientMessageId,body})
+   if(!existing)messages.push({id:clientMessageId,senderUserId:owner,senderName:'Sam',body,kind:'message',
+    createdAt:new Date(Date.UTC(2026,10,13,0,1,messages.length)).toISOString(),isMine:true})
+   return Response.json({...base,eventId:privatePractice.id,announcementId:clientMessageId,body,...(chatRoomId?{chatRoomId}:{})})
   }
   if(url.pathname.endsWith('/create')){
    if(init?.method!=='POST')return Response.json({...base,roster:privateRoster})
@@ -323,17 +340,40 @@ window.fetch=async(input,init)=>{
    roomId+'/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg?token=sample':''
   return Response.json({ok:true,releaseScope:'first-party',owner:currentNavigationOwner(),roomId,hasLogo:Boolean(photo)})
  }
+ if(namedChatsFixture&&url.pathname==='/api/mobile/first-party/team-rooms/branding'){
+  const {roomId,chatRoomId,photo}=JSON.parse(String(init?.body))
+  const named=namedChats.get(chatRoomId),owner=currentNavigationOwner()
+  if(owner!==navigationOwner||!named||roomId!==chatRoomId)return Response.json({ok:false},{status:403})
+  if(photo!==null&&!String(photo).startsWith('/9j/'))return Response.json({ok:false},{status:400})
+  named.logo=photo?'https://pwxppfazbyourjrsutgx.supabase.co/storage/v1/object/sign/team-room-files/team-logos/'+
+   roomId+'/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg?token=sample':undefined
+  return Response.json({ok:true,releaseScope:'first-party',owner,roomId,hasLogo:Boolean(photo)})
+ }
  if(url.pathname==='/api/mobile/first-party/team-rooms'){
   const op=url.searchParams.get('op')||'room',owner=currentNavigationOwner()
   firstPartyTeamFixture.requests.push(op)
   const base={ok:true,owner,releaseScope:firstPartyTeamFixture.unscoped?undefined:'first-party'}
-  if(op==='unread')return Response.json({...base,total:0,teams:[],coach:coachUnreadCounts(owner)})
+  const roomSummaries=Array.from(namedChats,([id,value])=>({id,name:value.name,unread:inboxSearchFixture?2:0,muted:false,activityAt:'2026-11-14T20:00:00Z',logo:value.logo}))
+  if(op==='unread'){
+   const total=roomSummaries.reduce((sum,room)=>sum+room.unread,0)
+   return Response.json({...base,total,teams:namedChatsFixture?[{...(privateTeam??chatTeam),unread:total,generalUnread:0,rooms:roomSummaries}]:[],coach:coachUnreadCounts(owner)})
+  }
   if(op==='captain-setup')return Response.json({...base,captainChatSetup:firstPartyTeamFixture.captainChatSetup,
    captainInviteTeams:firstPartyTeamFixture.captainInviteTeams})
   const teams=(privateTeam?[privateTeam]:privateTeamFlow?[]:chatTeams()).map(team=>({...team,canManage:false,
+   activityAt:'2026-11-13T19:00:00Z',
    ...(privateLogoUrl?{teamLogoUrl:privateLogoUrl}:{})}))
   if(init?.method==='POST'){
    const action=JSON.parse(String(init.body))
+   if(namedChatsFixture&&['create_chat_room','lookup_chat_room'].includes(action.action)){
+    const parent=privateTeam??chatTeam
+    if(owner!==navigationOwner||action.teamName!==parent.teamName||action.leagueName!==parent.leagueName||action.flight!==parent.flight)
+     return Response.json({ok:false},{status:403})
+    if(action.action==='create_chat_room'&&!namedChats.has(action.clientRoomId))namedChats.set(action.clientRoomId,{name:action.roomName,messages:[]})
+    const saved=namedChats.get(action.clientRoomId)
+    if(!saved||saved.name!==action.roomName)return Response.json({ok:false},{status:404})
+    return Response.json({...base,namedRooms:1,parentId:chatRoomId,teamMuted:false,id:action.clientRoomId,name:saved.name})
+   }
    if(action.action==='set_chat_display_name'){
     if(!chatNamesEnabled||action.roomId!==chatRoomId)return Response.json({ok:false},{status:403})
     chatNames.set(owner,action.displayName)
@@ -433,10 +473,29 @@ window.fetch=async(input,init)=>{
    if(action.action!=='send')return Response.json({ok:false},{status:400})
    firstPartyTeamFixture.posts.push(action.body)
    const message={id:action.clientMessageId,senderUserId:owner,senderName:'You',body:action.body,kind:'message',createdAt:'2026-11-06T10:05:00.000Z',isMine:true,canManageOwn:true,replyToMessageId:action.replyToMessageId}
-   firstPartyTeamMessages.push(message)
+   const named=action.chatRoomId?namedChats.get(action.chatRoomId):null
+   if(action.chatRoomId&&!named)return Response.json({ok:false},{status:404})
+   const messages=named?.messages??firstPartyTeamMessages
+   if(!messages.some(item=>item.id===message.id))messages.push(message)
    return Response.json({...base,message})
   }
   const team=teams.find(item=>item.teamName===url.searchParams.get('team')&&item.leagueName===url.searchParams.get('league')&&item.flight===url.searchParams.get('flight'))
+  if(namedChatsFixture&&team&&op==='chats'){
+   return Response.json({...base,namedRooms:1,parentId:chatRoomId,teamMuted:false,canCreate:owner===navigationOwner,generalUnread:0,rooms:roomSummaries})
+  }
+  const selectedRoom=url.searchParams.get('chatRoom')
+  if(namedChatsFixture&&team&&selectedRoom){
+   const named=namedChats.get(selectedRoom)
+   if(!named)return Response.json({ok:false},{status:404})
+   const room={...team,id:selectedRoom,subject:named.name,chatLogoUrl:named.logo,canManageTeamLogo:owner===navigationOwner,
+    chatRoom:{id:selectedRoom,parentId:chatRoomId,name:named.name,teamMuted:false},
+    teamPractices:Boolean(privateTools),canPlanPractice:privateTools==='captain'&&owner===navigationOwner,
+    scheduleLinked:Boolean(linkedSchedule),manualFixture:manualScheduleFixture.enabled,canScheduleMatch:manualScheduleFixture.captain&&owner===navigationOwner,
+    chatReady:true,lastReadAt:'',members:[],messages:named.messages.map(message=>({
+     ...message,isMine:message.senderUserId===owner,canManageOwn:message.senderUserId===owner,
+    })),blockedUserIds:[],blockedMembers:[]}
+   return Response.json(op==='updates'?{...base,room,chatUpdate:true,beforeCursor:'',nextCursor:''}:{...base,teams,room,nextCursor:''})
+  }
   if(op==='result-roster'){
    if(!team||!manualScheduleFixture.enabled||!manualScheduleFixture.captain||owner!==navigationOwner)return Response.json({ok:false},{status:403})
    return Response.json({...base,roomId:chatRoomId,players:manualLineupRoster().map(({id,name})=>({id,name}))})

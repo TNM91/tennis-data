@@ -59,6 +59,12 @@
 .dialog :global(.group-practice-card) time { margin: 0; font: inherit; }
 .dialog :global(.group-practice-fields) { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .dialog [role=status]:empty { display: none; }
+.dialog :global(.chats-team-avatar) {
+  position: relative; flex: none; display: inline-grid; place-items: center;
+  width: 32px; height: 32px; margin-inline-end: 8px; overflow: hidden;
+  border: 1px solid #587c9a; border-radius: 9px; background: #163753;
+}
+.dialog :global(.chats-team-avatar) img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .dialog :global(.player-chat-post) { background: #163753; margin-block: 6px; padding: 8px; border-radius: 10px; }
 .dialog :global(.player-chat-post) p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .dialog time { color: #b8cce2; font-size: .8125rem; margin-inline-start: 8px; }

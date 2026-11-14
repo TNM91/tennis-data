@@ -9,6 +9,7 @@ import {practiceAnnouncementText,privatePracticeChatPath,type PracticeAnnounceme
 import {nativeInviteToken} from './native-team-invite-contract'
 import {privateTeamRoomId} from './private-team-contract'
 import {practiceId} from './native-player-practice-contract'
+import {namedChatRoomId,namedTeamChatRooms} from './named-team-chat-rooms'
 export async function loadNativePracticeSharing(service:SupabaseClient,owner:string,scope:TeamRoomScope,eventId:unknown){
  if(typeof eventId!=='string'||!eventId||eventId.length>120)return {ok:false as const,status:400}
  const snapshot=await loadNativeCaptainPractices(service,owner,scope,eventId);if(!snapshot.ok)return snapshot
@@ -22,25 +23,33 @@ export async function loadNativePracticeSharing(service:SupabaseClient,owner:str
  if(invite.error)return {ok:false as const,status:503};if(!invite.data||invite.data.id!==practice.inviteId||invite.data.event_id!==eventId||invite.data.created_by_user_id!==owner||!nativeInviteToken(invite.data.public_token))return {ok:false as const,status:404}
  return {ok:true as const,status:200,owner,scope,practice,rsvpPath:practiceRsvpPath(invite.data.public_token),roomId:room.data.id as string}
 }
-export async function announceNativePractice(service:SupabaseClient,owner:string,scope:TeamRoomScope,value:Record<string,unknown>,deliver:(message:{body:string;clientMessageId:string},roomId:string)=>Promise<Response>){
+export async function announceNativePractice(service:SupabaseClient,owner:string,scope:TeamRoomScope,value:Record<string,unknown>,deliver:(message:{body:string;clientMessageId:string},roomId:string)=>Promise<Response>,chatRoomId?:string){
  const a=value as unknown as PracticeAnnouncement,action=value.action
  if(!['announce','lookup'].includes(String(action))||typeof a.eventId!=='string'||!a.eventId||a.eventId.length>120||!validPracticeEditId(a.clientMessageId)||typeof a.expectedUpdatedAt!=='string'||a.expectedUpdatedAt.length>80||!Number.isFinite(Date.parse(a.expectedUpdatedAt))||!['invitation','update','cancelled'].includes(a.kind)||typeof a.note!=='string'||a.note.length>300||a.note!==a.note.trim()||typeof a.body!=='string'||!a.body||a.body.length>2400)return {ok:false as const,status:400}
  const privateChat=Boolean(privateTeamRoomId(scope.leagueName))
+ if(chatRoomId!==undefined&&(!privateChat||!namedChatRoomId(chatRoomId)))return {ok:false as const,status:400}
  if(privateChat&&!practiceId(a.eventId))return {ok:false as const,status:400}
  const share=await loadNativePracticeSharing(service,owner,scope,a.eventId);if(!share.ok)return share
+ let roomId=share.roomId
+ if(chatRoomId){
+  const opened=await namedTeamChatRooms(service,owner,scope,'open',chatRoomId,undefined,share.roomId)
+  if(!opened.ok)return opened
+  if(!('id' in opened))return {ok:false as const,status:503}
+  roomId=opened.id
+ }
  const path=privateChat?privatePracticeChatPath(a.eventId):share.rsvpPath
  const kind=privateChat?'message':'announcement'
  if(!a.body.endsWith('\nhttps://www.tenaceiq.com'+path))return {ok:false as const,status:409}
- const existing=await service.from('internal_messages').select('id,body,message_kind,reply_to_message_id,edited_at,deleted_at,sender_user_id,conversation_id').eq('id',a.clientMessageId).eq('sender_user_id',owner).eq('conversation_id',share.roomId).maybeSingle()
+ const existing=await service.from('internal_messages').select('id,body,message_kind,reply_to_message_id,edited_at,deleted_at,sender_user_id,conversation_id').eq('id',a.clientMessageId).eq('sender_user_id',owner).eq('conversation_id',roomId).maybeSingle()
  if(existing.error)return {ok:false as const,status:503}
- const receipt={ok:true as const,status:200,owner,scope,eventId:a.eventId,announcementId:a.clientMessageId,body:a.body}
- if(existing.data){const m=existing.data;return m.id===a.clientMessageId&&m.sender_user_id===owner&&m.conversation_id===share.roomId&&m.body===a.body&&m.message_kind===kind&&!m.reply_to_message_id&&!m.edited_at&&!m.deleted_at?receipt:{ok:false as const,status:409}}
+ const receipt={ok:true as const,status:200,owner,scope,eventId:a.eventId,announcementId:a.clientMessageId,body:a.body,...(chatRoomId?{chatRoomId:roomId}:{})}
+ if(existing.data){const m=existing.data;return m.id===a.clientMessageId&&m.sender_user_id===owner&&m.conversation_id===roomId&&m.body===a.body&&m.message_kind===kind&&!m.reply_to_message_id&&!m.edited_at&&!m.deleted_at?receipt:{ok:false as const,status:409}}
  if(action==='lookup')return {ok:false as const,status:404}
  if(share.practice.updatedAt!==a.expectedUpdatedAt)return {ok:false as const,status:409}
  let text:string;try{text=practiceAnnouncementText(share,scope,a.kind,a.note,privateChat)}catch{return {ok:false as const,status:409}}
  if(text!==a.body)return {ok:false as const,status:409}
  // Reuse the team's authorized, idempotent chat send after checking the reviewed revision.
- const response=await deliver({body:a.body,clientMessageId:a.clientMessageId},share.roomId);if(response.status!==200)return {ok:false as const,status:[400,401,403,409].includes(response.status)?response.status:503}
+ const response=await deliver({body:a.body,clientMessageId:a.clientMessageId},roomId);if(response.status!==200)return {ok:false as const,status:[400,401,403,409].includes(response.status)?response.status:503}
  const result=await response.json(),m=result?.message
  if(result?.ok!==true||m?.id!==a.clientMessageId||m?.isMine!==true||m?.body!==a.body||m?.kind!==kind||m?.replyToMessageId)return {ok:false as const,status:503}
  return receipt

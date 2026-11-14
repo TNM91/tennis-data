@@ -10,7 +10,7 @@ import {firstPartyBuild} from './build-scope'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 export type ViewedChatMessage={id:string;senderName:string;body:string;kind:string;createdAt:string;editedAt:string;hasAttachment:boolean;truncated:boolean}
 export async function readChatMessage(client:SupabaseClient,owner:string,current:()=>boolean,scope:TeamScope,roomId:string,requestedId:string,view:ChatMessageView,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options)){
- if(!chatMessageId(requestedId)||firstPartyBuild&&scope.chatRoomId)throw Error('Message unavailable.')
+ if(!chatMessageId(requestedId))throw Error('Message unavailable.')
  const session=await client.auth.getSession();if(session.error||session.data.session?.user.id!==owner||!current())throw Error('Sign in again to view this message.')
  const url=new URL(firstPartyBuild?firstPartyTeamRooms:'https://www.tenaceiq.com/api/team-rooms/message');for(const [key,value] of Object.entries({team:scope.teamName,league:scope.leagueName,flight:scope.flight,message:requestedId,view}))url.searchParams.set(key,value)
  if(firstPartyBuild)url.searchParams.set('op','message')

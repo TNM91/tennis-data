@@ -5,8 +5,14 @@ import {openCoachConnection} from './coach-connection-view'
 import {chatsFilterFeedbackHtml,chatsFilterStatus,chatsStartActionHtml} from './chats-inbox'
 import type {ChatUnread} from './chat-unread'
 
+export type CoachInboxSearch = {
+ connections: CoachChatConnection[]
+ status: 'loading'|'ready'|'unavailable'
+ more: boolean
+}
+
 /** One connection read on first mount, then explicit refresh; no message prefetch or polling. */
-export function createCoachChatsInbox(client:SupabaseClient,owner:string,current:()=>boolean,getCounts:()=>ChatUnread|null=()=>null,refreshCounts:()=>void=()=>{}){
+export function createCoachChatsInbox(client:SupabaseClient,owner:string,current:()=>boolean,getCounts:()=>ChatUnread|null=()=>null,refreshCounts:()=>void=()=>{},searchChanged:()=>void=()=>{}){
  const element=document.createElement('section');element.className='chats-coach-inbox';element.setAttribute('aria-label','Coach & player conversations')
  let disposed=false,started=false,busy=false,epoch=0,query='',notice='',more=false,unreadOnly=false,filtersOpen=false,connections:CoachChatConnection[]=[],summary=getCounts()
  let conversation:ReturnType<typeof openCoachMessages>|null=null
@@ -19,6 +25,15 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
   if(!filters||filters.hidden)return element.querySelector<HTMLElement>('h2')
   const selector=filters.open?'[data-coach-filter="'+(unreadOnly?'unread':'all')+'"]':'summary'
   return filters.querySelector<HTMLElement>(selector)
+ }
+ function openConnection(id:string,trigger:HTMLButtonElement){
+  if(!active()||busy||overlayOpen()||!trigger.isConnected||!connections.some(connection=>connection.id===id))return
+  conversation=openCoachMessages(client,owner,active,trigger,undefined,id,()=>{
+   conversation=null
+   if(!active()||!element.isConnected)return
+   const visibleRow=Array.from(element.querySelectorAll<HTMLButtonElement>('[data-coach-chat]')).find(button=>button.dataset.coachChat===id)
+   ;(trigger.isConnected?trigger:visibleRow||filterTarget())?.focus({preventScroll:true})
+  },refreshCounts)
  }
  const paintRows=()=>{
   const rows=element.querySelector<HTMLElement>('[data-coach-chat-rows]');if(!rows)return
@@ -34,13 +49,7 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
     row=document.createElement('li');row.dataset.coachChatRow=connection.id
     const button=document.createElement('button');button.type='button';button.className='secondary chats-team-card chats-coach-card';button.dataset.coachChat=connection.id
     button.innerHTML='<span class="chats-team-avatar" aria-hidden="true"></span><span class="chats-team-copy"><strong data-coach-name></strong><span data-coach-role></span></span><span class="chat-unread-badge chat-coach-unread" data-coach-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span>'
-    button.onclick=()=>{if(!active()||busy||overlayOpen()||!element.isConnected||!button.isConnected||!connections.some(c=>c.id===connection.id))return
-     conversation=openCoachMessages(client,owner,active,button,undefined,connection.id,()=>{
-      conversation=null;if(!active()||!element.isConnected)return
-      const target=Array.from(element.querySelectorAll<HTMLButtonElement>('[data-coach-chat]')).find(button=>button.dataset.coachChat===connection.id)
-      ;(target||filterTarget())?.focus({preventScroll:true})
-     },refreshCounts)
-    };row.append(button)
+    button.onclick=()=>openConnection(connection.id,button);row.append(button)
    }
    if(rows.children[index]!==row)rows.insertBefore(row,rows.children[index]||null)
    const button=row.querySelector<HTMLButtonElement>('button')!,count=unread(connection.id),role=connection.role==='coach'?'Your player':'Your coach'
@@ -104,13 +113,17 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
   if(!active()||busy||overlayOpen())return
   if(checkCounts)refreshCounts()
   const restoreFocus=element.contains(document.activeElement),version=++epoch;busy=true;connections=[];notice='Loading conversations…';render()
+  searchChanged()
   try{const result=await loadCoachChatConnections(client,owner,active);if(!active()||version!==epoch)return;connections=result.connections;more=result.more;notice=''}
   catch{if(active()&&version===epoch)notice='Coach conversations are unavailable. Refresh to try again.'}
-  finally{if(active()&&version===epoch){busy=false;render();if(restoreFocus&&element.isConnected)element.querySelector<HTMLButtonElement>('[data-coach-chat-refresh]')?.focus({preventScroll:true})}}
+  finally{if(active()&&version===epoch){busy=false;render();searchChanged();if(restoreFocus&&element.isConnected)element.querySelector<HTMLButtonElement>('[data-coach-chat-refresh]')?.focus({preventScroll:true})}}
  }
  return {
   mount(host:HTMLElement){if(!active())return;host.append(element);if(!started){started=true;void refresh()}},
   update(value:ChatUnread|null){if(!active())return;summary=value?.owner===owner?value:null;paintRows()},
+  searchSnapshot():CoachInboxSearch{return {connections,status:busy||!started?'loading':notice?'unavailable':'ready',more}},
+  openConnection,
+  refresh,
   isOpen:overlayOpen,
   back(){if(invitation?.isOpen())return invitation.back();if(!conversation?.isOpen())return false;conversation.back();return true},
   dispose(){disposed=true;epoch++;conversation?.dispose();conversation=null;invitation?.dispose();invitation=null;connections=[];summary=null;query='';element.replaceChildren();element.remove()},

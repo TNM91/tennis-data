@@ -5,9 +5,11 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 import {watchTeamChat} from './team-chat-live'
 import {namedChatRoomId,namedChatRoomName} from '../../lib/named-team-chat-rooms'
+import {updateTimestamp} from '../../lib/native-updates-contract'
+import {readChatIconUrl} from '../../lib/chat-icon-url'
 import {firstPartyBuild} from './build-scope'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
-export type ChatUnreadTeam=TeamScope&{unread:number;generalUnread?:number;rooms?:{id:string;name:string;unread:number}[]}
+export type ChatUnreadTeam=TeamScope&{unread:number;generalUnread?:number;rooms?:{id:string;name:string;unread:number;activityAt?:string;logo?:string}[]}
 export type CoachChatUnread={available:boolean;total:number;connections:{id:string;unread:number;latest?:string|null}[]}
 /** total remains the legacy team total for installed builds. */
 export type ChatUnread={owner:string;total:number;teams:ChatUnreadTeam[];coach?:CoachChatUnread}
@@ -22,7 +24,10 @@ export function parseChatUnread(value:unknown,owner:string):ChatUnread{
   if(!team||typeof team.teamName!=='string'||!team.teamName.trim()||team.teamName.length>160||typeof team.leagueName!=='string'||!team.leagueName.trim()||team.leagueName.length>160||typeof team.flight!=='string'||team.flight.length>120||!count(team.unread)||ids.has(key(team)))throw Error('Chat counts unavailable')
   const hasRooms=team.generalUnread!==undefined||team.rooms!==undefined
   if(hasRooms&&(!count(team.generalUnread)||!Array.isArray(team.rooms)||team.rooms.length>12||team.rooms.some(room=>!room||!namedChatRoomId(room.id)||!namedChatRoomName(room.name)||!count(room.unread))||new Set(team.rooms.map(room=>room.id)).size!==team.rooms.length||team.unread!==Math.min(100,team.generalUnread+team.rooms.reduce((sum,room)=>sum+room.unread,0))))throw Error('Chat counts unavailable')
-  ids.add(key(team));return {teamName:team.teamName,leagueName:team.leagueName,flight:team.flight,unread:team.unread,...(hasRooms?{generalUnread:team.generalUnread,rooms:team.rooms!.map(({id,name,unread})=>({id,name,unread}))}:{})}
+  ids.add(key(team));return {teamName:team.teamName,leagueName:team.leagueName,flight:team.flight,unread:team.unread,...(hasRooms?{generalUnread:team.generalUnread,rooms:team.rooms!.map(({id,name,unread,activityAt,logo})=>{
+   const icon=readChatIconUrl(logo)
+   return {id,name,unread,...(updateTimestamp(activityAt)?{activityAt}:{}),...(icon?{logo:icon}:{})}
+  })}:{})}
  })
  if(row.total!==Math.min(100,teams.reduce((sum,team)=>sum+team.unread,0)))throw Error('Chat counts unavailable')
  let coach:CoachChatUnread|undefined

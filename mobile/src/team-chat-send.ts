@@ -27,7 +27,6 @@ export class ChatActionError extends Error {
  constructor(message:string,readonly uncertain:boolean){super(message)}
 }
 export async function postTeamChat(client:SupabaseClient,userId:string,isCurrent:()=>boolean,scope:TeamScope,action:ChatAction,send:typeof CapacitorHttp.post=options=>CapacitorHttp.post(options)) {
- if(firstPartyBuild&&scope.chatRoomId)throw new ChatActionError('Team access is unavailable.',false)
  const {data,error}=await client.auth.getSession()
  if(error || !data.session || data.session.user.id!==userId || !isCurrent())throw new ChatActionError('Sign in again before posting.',false)
  let response
