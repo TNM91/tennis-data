@@ -2,14 +2,16 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { POST as invite } from '../../app/api/mobile/first-party/team-invites/route'
 import { GET as room, POST as write } from '../../app/api/mobile/first-party/team-rooms/route'
 import { POST as brand } from '../../app/api/mobile/first-party/team-rooms/branding/route'
+import { POST as brandGroup } from '../../app/api/mobile/first-party/player-chats/branding/route'
 
-const { auth, from, act, read, save, access, manage, schedule, saveLogo } = vi.hoisted(() => ({
-  auth: vi.fn(), from: vi.fn(), act: vi.fn(), read: vi.fn(), save: vi.fn(), access: vi.fn(), manage: vi.fn(), schedule: vi.fn(), saveLogo: vi.fn(),
+const { auth, from, rpc, act, read, save, access, manage, schedule, saveLogo, loadLogos } = vi.hoisted(() => ({
+  rpc: vi.fn(),
+  auth: vi.fn(), from: vi.fn(), act: vi.fn(), read: vi.fn(), save: vi.fn(), access: vi.fn(), manage: vi.fn(), schedule: vi.fn(), saveLogo: vi.fn(), loadLogos: vi.fn(),
 }))
 vi.mock('@/lib/mobile-account-auth', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/mobile-account-auth')>(),
   verifiedAccount: auth,
-  accountClient: () => ({ from }),
+  accountClient: () => ({ from, rpc }),
 }))
 vi.mock('@/lib/native-team-invites', () => ({ actOnNativeInvite: act }))
 vi.mock('@/lib/native-captain-invites', () => ({ actOnCaptainInvite: manage }))
@@ -18,6 +20,7 @@ vi.mock('@/lib/native-coach-chat-unread', () => ({ nativeCoachChatUnread: vi.fn(
 vi.mock('@/lib/team-branding-storage', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/team-branding-storage')>(),
   saveTeamLogo: saveLogo,
+  loadTeamLogoUrls: loadLogos,
 }))
 vi.mock('@/lib/first-party-team-schedule', () => ({ loadReviewedTeamNextMatch: schedule }))
 vi.mock('@/lib/first-party-team-chat', async importOriginal => ({
@@ -42,6 +45,7 @@ const post = (body: object) => new Request(root, { method: 'POST', headers: { 'C
 
 let links: object[]
 let roomId: string | null
+let namedBrandRoomId: string | null
 let removed: boolean
 beforeEach(() => {
   vi.resetAllMocks()
@@ -50,7 +54,9 @@ beforeEach(() => {
   auth.mockResolvedValue({ user: { id: owner }, token: 'verified' })
   links = [member]
   roomId = approved.roomId
+  namedBrandRoomId = null
   removed = false
+  loadLogos.mockResolvedValue(new Map<string,string>())
   from.mockImplementation((table: string) => {
     const result = { data: table === 'team_profile_links' ? links : roomId ? { id: roomId } : null, error: null }
     const lists: Partial<Record<string, object[]>> = {
@@ -61,7 +67,10 @@ beforeEach(() => {
     const list = lists[table]
     const single = table === 'team_room_member_removals' ? { data: removed ? { profile_id: owner } : null, error: null } : result
     const q = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), in: vi.fn(),
-      limit: vi.fn().mockResolvedValue(list ? { data: list, error: null } : result), maybeSingle: vi.fn().mockResolvedValue(single) }
+      limit: vi.fn().mockResolvedValue(list ? { data: list, error: null } : result), maybeSingle: vi.fn(() =>
+        table === 'internal_conversations' && q.eq.mock.calls.some(([key,value])=>key==='related_entity_type'&&value==='team_room_chat')
+          ? Promise.resolve({ data: namedBrandRoomId ? { id: namedBrandRoomId, metadata: {} } : null, error: null })
+          : Promise.resolve(single)) }
     for (const method of [q.select, q.eq, q.is, q.in]) method.mockReturnValue(q)
     return q
   })
@@ -125,9 +134,10 @@ it('checks captain setup privately and never grants access or returns the unrevi
 })
 
 it('requires one exact reviewed team and room for reads and writes', async () => {
-  expect((await room(new Request(root+query+'&chatRoom='+token))).status).toBe(400)
+  expect((await room(new Request(root+query+'&chatRoom=invalid'))).status).toBe(400)
+  expect((await room(new Request(root+'?chatRoom='+token))).status).toBe(400)
   expect((await room(new Request(root+query+'&team=Other'))).status).toBe(400)
-  expect((await write(post({ ...scope, action: 'send', chatRoomId: token }))).status).toBe(400)
+  expect((await write(post({ ...scope, action: 'send', chatRoomId: 'invalid' }))).status).toBe(400)
   expect(from).not.toHaveBeenCalled()
   roomId = token
   expect((await room(new Request(root+query))).status).toBe(403)
@@ -139,6 +149,49 @@ it('requires one exact reviewed team and room for reads and writes', async () =>
   const result = await room(new Request(root+query))
   expect(await result.json()).toMatchObject({ ok: true, owner, releaseScope: 'first-party', teams: [{ ...scope, canManage: false }] })
   expect(read).toHaveBeenCalledWith(expect.anything(), owner, expect.objectContaining(approved), new URLSearchParams(query))
+})
+
+it('uses the exact parent for named chats and rejects official match actions in them', async () => {
+  const roomReply = { ok: true, status: 200, namedRooms: 1, parentId: approved.roomId, teamMuted: false, id: token, name: 'Practice' }
+  rpc.mockReturnValue({ retry: async () => ({ data: roomReply }) })
+  read.mockImplementation(async (_service, _owner, _team, _params, chatRoom) => ({ ok: true, room: { id: token, chatRoom } }))
+  const request = new Request(root+query+'&chatRoom='+token)
+  expect(await (await room(request)).json()).toMatchObject({ room: {
+    id: token, chatRoom: { id: token, parentId: approved.roomId, name: 'Practice' }, manualFixture: true, canScheduleMatch: false,
+  } })
+  expect(rpc).toHaveBeenLastCalledWith('native_first_party_team_chat_rooms', expect.objectContaining({
+    p_owner: owner, p_action: 'open', p_id: token, p_parent: approved.roomId,
+  }))
+  expect(read.mock.lastCall?.[4]).toMatchObject({ id: token, parentId: approved.roomId })
+  save.mockResolvedValue({ ok: true, status: 200 })
+  const message = { ...scope, action: 'send', chatRoomId: token, body: 'Friday at 6' }
+  expect((await write(post(message))).status).toBe(200)
+  expect(save).toHaveBeenCalledWith(expect.anything(), owner, token, message)
+  save.mockClear()
+  expect((await write(post({ ...message, action: 'set_next_match' }))).status).toBe(400)
+  rpc.mockReturnValue({ retry: async () => ({ data: { ok: false, status: 403 } }) })
+  expect((await write(post(message))).status).toBe(403)
+  expect(save).not.toHaveBeenCalled()
+  read.mockClear()
+  expect((await room(request)).status).toBe(403)
+  expect(read).not.toHaveBeenCalled()
+})
+
+it('allows a team captain with captain access to create a chat on the authorized parent', async () => {
+  const change = { ...scope, action: 'create_chat_room', clientRoomId: token, roomName: 'Practice' }
+  expect((await write(post(change))).status).toBe(403)
+  links = [{ ...member, team_roles: ['captain'] }]
+  access.mockResolvedValueOnce({ canUseCaptainWorkflow: false })
+  expect((await write(post(change))).status).toBe(403)
+  expect(rpc).not.toHaveBeenCalled()
+  access.mockResolvedValue({ canUseCaptainWorkflow: true })
+  rpc.mockReturnValue({ retry: async () => ({ data: {
+    ok: true, status: 200, namedRooms: 1, parentId: approved.roomId, teamMuted: false, id: token, name: 'Practice',
+  } }) })
+  expect(await (await write(post(change))).json()).toMatchObject({ ok: true, owner, id: token })
+  expect(rpc).toHaveBeenCalledWith('native_first_party_team_chat_rooms', expect.objectContaining({
+    p_owner: owner, p_action: 'create', p_parent: approved.roomId, p_id: token,
+  }))
 })
 
 it('allows only a current entitled captain to manage the exact team chat icon', async () => {
@@ -157,6 +210,66 @@ it('allows only a current entitled captain to manage the exact team chat icon', 
   saveLogo.mockResolvedValue(200)
   expect(await (await brand(post(change))).json()).toEqual({
     ok: true, owner, roomId: approved.roomId, releaseScope: 'first-party', hasLogo: false,
+  })
+  expect(saveLogo).toHaveBeenCalledOnce()
+})
+
+it('requires the captain’s verified child room before saving a named chat icon', async () => {
+  const change = { ...scope, roomId: token, chatRoomId: token, photo: null }
+  expect((await brand(post(change))).status).toBe(403)
+  links = [{ ...member, team_roles: ['captain'] }]
+  access.mockResolvedValue({ canUseCaptainWorkflow: true })
+  namedBrandRoomId = token
+  rpc.mockReturnValueOnce({ retry: async () => ({ data: { ok: false, status: 404 } }) })
+  expect((await brand(post(change))).status).toBe(404)
+  expect(saveLogo).not.toHaveBeenCalled()
+  rpc.mockReturnValueOnce({ retry: async () => ({ data: {
+    ok: true, status: 200, namedRooms: 1, parentId: approved.roomId, teamMuted: false, id: token, name: 'Practice',
+  } }) })
+  saveLogo.mockResolvedValueOnce(200)
+  expect((await brand(post(change))).status).toBe(200)
+  expect(rpc).toHaveBeenCalledWith('native_first_party_team_chat_rooms', expect.objectContaining({ p_parent: approved.roomId, p_id: token }))
+  expect(saveLogo).toHaveBeenCalledWith(expect.anything(), token, {}, null)
+})
+
+it('keeps authorized logos present in the team list after opening a conversation', async () => {
+  const logo = 'https://example.test/signed-logo'
+  loadLogos.mockImplementation(async (_service, ids: string[]) =>
+    new Map(ids.includes(approved.roomId) ? [[approved.roomId,logo]] : []))
+  read.mockResolvedValue({ ok: true, room: { id: approved.roomId } })
+  const opened = await room(new Request(root+query))
+  expect(await opened.json()).toMatchObject({teams:[{...scope,teamLogoUrl:logo}],room:{teamLogoUrl:logo}})
+  removed = true
+  const inbox = await room(new Request(root))
+  expect((await inbox.json()).teams[0]).not.toHaveProperty('teamLogoUrl')
+})
+
+it('requires an open group owned and managed by the caller before changing its logo', async () => {
+  const group = approved.roomId
+  const change = { room: group, photo: null }
+  auth.mockResolvedValueOnce(null)
+  expect((await brandGroup(post(change))).status).toBe(401)
+  expect((await brandGroup(post({ ...change, extra: true }))).status).toBe(400)
+  expect(from).not.toHaveBeenCalled()
+
+  roomId = null
+  expect((await brandGroup(post(change))).status).toBe(403)
+  const query = from.mock.results[0].value
+  expect(query.eq.mock.calls).toEqual([
+    ['id', group], ['related_entity_type', 'player_group'], ['created_by_user_id', owner], ['status', 'open'],
+  ])
+  expect(rpc).not.toHaveBeenCalled()
+
+  roomId = group
+  rpc.mockReturnValueOnce({ retry: async () => ({ data: { code: 'ok', room: { manage: false } } }) })
+  expect((await brandGroup(post(change))).status).toBe(403)
+  expect(saveLogo).not.toHaveBeenCalled()
+
+  rpc.mockReturnValue({ retry: async () => ({ data: { code: 'ok', room: { manage: true } } }) })
+  expect((await brandGroup(post({ ...change, photo: 'YWJjZA==' }))).status).toBe(400)
+  saveLogo.mockResolvedValueOnce(200)
+  expect(await (await brandGroup(post(change))).json()).toEqual({
+    ok: true, owner, releaseScope: 'first-party', roomId: group, hasLogo: false,
   })
   expect(saveLogo).toHaveBeenCalledOnce()
 })

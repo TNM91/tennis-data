@@ -93,21 +93,25 @@ export async function loadEligibleCaptainRoomIds(service: SupabaseClient, owner:
 }
 
 export async function loadActiveReviewedTeamRoomIds(service: SupabaseClient, owner: string, links: ReviewedTeamRoom[]) {
-  if (!links.length) return []
+  return [...(await loadActiveReviewedTeamRoomActivity(service, owner, links)).keys()]
+}
+
+export async function loadActiveReviewedTeamRoomActivity(service: SupabaseClient, owner: string, links: ReviewedTeamRoom[]) {
+  if (!links.length) return new Map<string, string>()
   const ids = links.map(link => link.roomId)
   const [rooms, members, removals] = await Promise.all([
-    service.from('internal_conversations').select('id,related_entity_id').in('id', ids)
+    service.from('internal_conversations').select('id,related_entity_id,updated_at').in('id', ids)
       .eq('related_entity_type', 'team_room').eq('status', 'open').limit(50),
     service.from('internal_conversation_participants').select('conversation_id').in('conversation_id', ids).eq('profile_id', owner).limit(50),
     service.from('team_room_member_removals').select('conversation_id').in('conversation_id', ids).eq('profile_id', owner).limit(50),
   ])
   if (rooms.error || members.error || removals.error || !Array.isArray(rooms.data) ||
       !Array.isArray(members.data) || !Array.isArray(removals.data)) throw Error('Team chat access unavailable')
-  const open = new Map(rooms.data.map(room => [room.id, room.related_entity_id]))
+  const open = new Map(rooms.data.map(room => [room.id, room]))
   const participating = new Set(members.data.map(row => row.conversation_id))
   const removed = new Set(removals.data.map(row => row.conversation_id))
-  return links.filter(link => open.get(link.roomId) === buildTeamRoomScopeId(link) &&
-    participating.has(link.roomId) && !removed.has(link.roomId)).map(link => link.roomId)
+  return new Map(links.filter(link => open.get(link.roomId)?.related_entity_id === buildTeamRoomScopeId(link) &&
+    participating.has(link.roomId) && !removed.has(link.roomId)).map(link => [link.roomId, String(open.get(link.roomId)?.updated_at ?? '')]))
 }
 
 export async function loadCaptainChatSetup(service: SupabaseClient, owner: string, rooms: ReadonlyMap<string, ReviewedTeamRoom>) {

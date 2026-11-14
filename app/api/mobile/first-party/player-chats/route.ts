@@ -4,6 +4,7 @@ import {
 } from '@/lib/player-chats-contract'
 import { teamChatMessageId } from '@/lib/team-chat-cursor'
 import { updateTimestamp } from '@/lib/native-updates-contract'
+import { loadTeamLogoUrls } from '@/lib/team-branding-storage'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -16,6 +17,7 @@ const errors = {
   forbidden:[403,'This chat or player is unavailable.'],
   invalid:[400,'Check the chat details.'],
   full:[409,'This list, group, or invite account limit has been reached.'],
+  capacity:[409,'Keep enough spots for everyone who has joined.'],
   stale:[409,'The practice changed. Refresh the group and try again.'],
   unavailable:[404,'This invite is unavailable. Ask for a fresh link.'],
 } as const
@@ -34,13 +36,27 @@ export async function GET(request: Request) {
   try {
     const owner = account.user.id
     const {room,before} = selection
-    const {data,error} = await service().rpc(room ? 'native_player_chat_room_with_practice' : 'native_player_chats_read',{
+    const db = service()
+    const {data,error} = await db.rpc(room ? 'native_player_chat_room_with_practice' : 'native_player_chats_read',{
       p_owner:owner,p_room:room,p_before_at:before?.createdAt??null,p_before_id:before?.id??null,
     }).retry(false)
     if (error) throw Error()
     if (data?.code === 'forbidden') return failure(errors.forbidden[1],errors.forbidden[0])
     if (data?.code !== 'ok') throw Error()
-    return room ? json({ok:true,owner,room:readPlayerChatRoom(data.room,room)}) : json({ok:true,owner,...readPlayerChatInbox(data)})
+    if (room) {
+      const selected = readPlayerChatRoom(data.room,room)
+      const logos = await loadTeamLogoUrls(db, selected.group ? [selected.id] : [], 'player_group').catch(()=>new Map<string,string>())
+      return json({ok:true,owner,room:{...selected,logo:logos.get(selected.id)}})
+    }
+    const inbox = readPlayerChatInbox(data)
+    const ids = inbox.rooms.map(item=>item.id)
+    const [logos, timestamps] = await Promise.all([
+      loadTeamLogoUrls(db,inbox.rooms.filter(item=>item.group).map(item=>item.id),'player_group').catch(()=>new Map<string,string>()),
+      ids.length ? db.from('internal_conversations').select('id,updated_at').in('id',ids).eq('status','open').limit(ids.length)
+        .then(result=>result.data??[],()=>[]) : [],
+    ])
+    const activity = new Map(timestamps.map(item=>[item.id,item.updated_at]))
+    return json({ok:true,owner,...inbox,rooms:inbox.rooms.map(item=>({...item,logo:logos.get(item.id),activityAt:activity.get(item.id)}))})
   } catch { return failure('Chats couldn’t load. Refresh to try again.',503) }
 }
 
@@ -54,6 +70,17 @@ export async function POST(request: Request) {
   } catch { return failure('Check the chat details.',400) }
   try {
     const owner = account.user.id
+    if (input.action === 'practice_edit') {
+      const {data,error} = await service().rpc('native_edit_group_practice',{
+        p_owner:owner,p_room:input.room,p_id:input.id,p_revision:input.revision,p_request:input.request,
+        p_starts_at:input.startsAt,p_court:input.court,p_capacity:input.capacity,
+      }).retry(false)
+      if (error) throw Error()
+      if (data?.code === 'ok') return json({ok:true,owner})
+      if (typeof data?.code !== 'string' || !Object.hasOwn(errors,data.code)) throw Error()
+      const [status,message] = errors[data.code as keyof typeof errors]
+      return failure(message,status)
+    }
     if (input.action === 'practice_create' || input.action === 'practice_reply' || input.action === 'practice_cancel') {
       const {data,error} = await service().rpc('native_group_practice_action',{
         p_owner:owner,p_room:input.room,p_id:input.id,p_action:input.action,

@@ -1,6 +1,7 @@
 import { lineupRecord } from './native-captain-lineup-contract'
 import { readTeamChatCursor, teamChatMessageId } from './team-chat-cursor'
 import { updateTimestamp } from './native-updates-contract'
+import { readChatIconUrl } from './chat-icon-url'
 import { parseGroupPracticeAction,readGroupPractice,type GroupPractice,type GroupPracticeAction } from './group-practice-contract'
 
 export const playerChatInvitePath = '/chats/join'
@@ -112,7 +113,7 @@ export function playerChatReadParams(params: URLSearchParams) {
 
 export type PlayerContact = { id: string; name: string }
 export type PlayerChatMessage = { id: string; author: string; name: string; body: string; createdAt: string }
-export type PlayerChatSummary = { id: string; title: string; group: boolean; unread: boolean }
+export type PlayerChatSummary = { id: string; title: string; group: boolean; unread: boolean; logo?: string; activityAt?: string }
 export type PlayerChatRoom = Omit<PlayerChatSummary,'unread'> & {
   manage: boolean; messages: PlayerChatMessage[]; more: boolean; members: PlayerContact[]; practice?: GroupPractice | null
 }
@@ -131,13 +132,14 @@ const contact = (row: Record<string, unknown>): PlayerContact => ({ id:id(row.id
 export function readPlayerChatInbox(value: unknown): PlayerChatInbox {
   const row = lineupRecord(value)
   return { contacts:list(row.contacts,100,contact), rooms:list(row.rooms,100,r=>({
-    id:id(r.id),title:text(r.title,100),group:flag(r.group),unread:flag(r.unread),
+    id:id(r.id),title:text(r.title,100),group:flag(r.group),unread:flag(r.unread),logo:readChatIconUrl(r.logo),
+    activityAt:updateTimestamp(r.activityAt)?r.activityAt:undefined,
   })) }
 }
 export function readPlayerChatRoom(value: unknown, room: string): PlayerChatRoom {
   const row = lineupRecord(value)
   if (row.id !== room) throw Error('Chat access changed.')
-  return { id:room,title:text(row.title,100),group:flag(row.group),manage:flag(row.manage),more:flag(row.more),
+  return { id:room,title:text(row.title,100),group:flag(row.group),manage:flag(row.manage),more:flag(row.more),logo:readChatIconUrl(row.logo),
     ...(Object.hasOwn(row,'practice') && row.group === true ? {practice:readGroupPractice(row.practice)} : {}),
     members:list(row.members,31,contact),messages:list(row.messages,40,m=>{
       if (!updateTimestamp(m.createdAt)) throw Error('Chat messages changed.')
