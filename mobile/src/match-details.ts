@@ -7,7 +7,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { matchDate, matchResult, type RecentMatchRow } from './recent-results'
 import type {PlayerMatchParticipant as Participant} from '../../lib/player-match-history'
 
-export const html = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
+import {html} from './html'
+export {html} from './html'
 
 export const matchPracticeButtonHtml = `<button type="button" class="secondary" data-match-practice aria-haspopup="dialog" aria-labelledby="match-practice-title" aria-describedby="match-practice-detail">
   <span class="app-tool-copy"><strong id="match-practice-title">Work on my game</strong><span id="match-practice-detail">Pick one focus for your next practice</span></span>

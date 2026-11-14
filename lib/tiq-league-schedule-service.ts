@@ -7,7 +7,7 @@ const TIQ_LEAGUE_SCHEDULE_TABLE = 'tiq_league_schedule_items'
 const TIQ_LEAGUE_SCHEDULE_STORAGE_KEY = 'tenaceiq_tiq_league_schedule_items'
 
 export type TiqLeagueScheduleSource = 'supabase' | 'local'
-export type TiqLeagueScheduleStatus = 'proposed' | 'confirmed' | 'coordinator_set' | 'completed' | 'cancelled'
+export type TiqLeagueScheduleStatus = 'proposed' | 'confirmed' | 'coordinator_set' | 'completed' | 'cancelled' | 'postponed'
 export type TiqLeagueScheduleFormat = 'team' | 'individual'
 
 export type TiqLeagueScheduleItem = {
@@ -58,7 +58,8 @@ function normalizeScheduleStatus(value: string | null | undefined): TiqLeagueSch
     normalized === 'confirmed' ||
     normalized === 'coordinator_set' ||
     normalized === 'completed' ||
-    normalized === 'cancelled'
+    normalized === 'cancelled' ||
+    normalized === 'postponed'
   ) {
     return normalized
   }

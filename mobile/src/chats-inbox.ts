@@ -55,6 +55,10 @@ export function chatsStartActionHtml(kind:keyof typeof chatStartActions){
 
 export function chatsInboxHtml(data:NativeTeamData){
  return `<header class="chats-intro"><h1 tabindex="-1">Chats</h1></header>
+ ${firstPartyBuild?`<div class="native-entry-list chats-start-action"><button type="button" class="secondary app-tool native-entry-featured" data-player-chats>
+  <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.teams}</span>
+  <span class="app-tool-copy"><strong>Players &amp; groups</strong><span>Message players or set up a practice group.</span></span>
+  <span aria-hidden="true">›</span></button></div>`:''}
  <div class="chats-inbox-shortcuts" role="group" aria-label="Chat inbox shortcuts">${inboxShortcuts.map(({target,label,description,icon})=>`
   <button type="button" class="secondary chats-inbox-shortcut" aria-controls="${target}" data-chats-jump="${target}">
    <span class="chats-shortcut-icon" aria-hidden="true">${icon}</span>

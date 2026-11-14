@@ -1,0 +1,60 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: #07182e;
+  color: #f4f8fc;
+}
+.card {
+  width: min(100%, 480px);
+  padding: clamp(22px, 5vw, 38px);
+  background: #102944;
+  border: 1px solid #365b79;
+  border-radius: 24px;
+}
+.label { color: #b9e981; font-weight: 700; }
+.card h1 { margin-block: 8px 12px; font-size: clamp(26px, 6vw, 34px); }
+.card p { margin-block: 0 16px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.primary, .secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 1px solid #7d9cbd;
+  border-radius: 12px;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+.primary { border-color: transparent; background: #a9ed44; color: #07182e; }
+.download { display: inline-flex; align-items:center; min-height:44px; margin-top: 12px; color: #b9dcfb; }
+.dialog {
+  color: #f4f8fc;
+  background: #102944;
+  border: 1px solid #365b79;
+  border-radius: 20px;
+  width: min(100% - 24px, 520px);
+  max-height: calc(100dvh - 40px);
+  padding: 18px;
+  overflow: auto;
+  color-scheme: dark;
+}
+.dialog::backdrop { background: #020b17cc; }
+.dialog fieldset { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
+.dialog form, .dialog section { margin-block: 12px; }
+.dialog label { display: block; margin-block: 8px; }
+.dialog input:not([type=checkbox]), .dialog textarea, .dialog select {
+  display: block; width: 100%; min-height: 44px; max-width: 100%; margin-top: 4px; padding: 8px;
+  border-radius: 10px; border: 1px solid #587c9a; background: #07182e; color: inherit; font: inherit;
+}
+.dialog button { min-height: 44px; margin: 4px 4px 4px 0; padding: 6px 12px; border-radius: 10px; }
+.dialog ol, .dialog ul { list-style: none; padding: 0; }
+.dialog :global(.player-chat-messages) { max-block-size: 34dvh; overflow: auto; overscroll-behavior: contain; }
+.dialog [role=status]:empty { display: none; }
+.dialog :global(.player-chat-post) { background: #163753; margin-block: 6px; padding: 8px; border-radius: 10px; }
+.dialog :global(.player-chat-post) p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.dialog time { color: #b8cce2; font-size: .8125rem; margin-inline-start: 8px; }

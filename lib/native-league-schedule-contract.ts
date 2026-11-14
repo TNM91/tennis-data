@@ -2,6 +2,8 @@ import { eventCalendarStart, isValidCalendarDate } from './calendar-date'
 import { lineupRecord } from './native-captain-lineup-contract'
 import { entryLeague } from './native-league-entry-contract'
 import { updateId, updateTimestamp } from './native-updates-contract'
+import { leagueAttentionFixture } from './native-league-attention-contract'
+import { readLeagueScoreFixture } from './native-league-score-contract'
 
 export type ScheduledLeagueMatch = {
   id: string; date: string; time: string; facility: string; court: string
@@ -14,12 +16,16 @@ export type LeagueScheduleChange = LeagueScheduleSlot & {
   leagueId: string; requestId: string; matchId: string | null; version: string
   a: string; b: string; notify: boolean
 }
+export type LeaguePostponement = {
+  action: 'postpone'; leagueId: string; requestId: string; matchId: string; version: string
+  fixture: ReturnType<typeof leagueAttentionFixture>
+}
 export type LeagueScheduleReview = {
   owner: string; leagueId: string; name: string; format: 'team' | 'individual'; zone: string
   startsOn: string; endsOn: string; defaultTime: string; defaultVenueId: string
   entries: { id: string; name: string }[]
   venues: { id: string; name: string; detail: string }[]
-  matches: (ScheduledLeagueMatch & { aId: string; bId: string; version: string; venueId: string })[]
+  matches: (ScheduledLeagueMatch & { aId: string; bId: string; version: string; venueId: string; canPostpone?: true })[]
 }
 
 const text = (value: unknown, max: number) => {
@@ -61,6 +67,18 @@ export function leagueScheduleChange(value: unknown): LeagueScheduleChange {
     a, b, date: day(row.date), time: clock(row.time), venueId: venue(row.venueId), court, duration: duration(row.duration), notify: row.notify }
 }
 
+export function leaguePostponement(value: unknown): LeaguePostponement {
+  const row = lineupRecord(value), fixture = lineupRecord(row.fixture)
+  const match = readLeagueScoreFixture(fixture)
+  const matchId = uuid(row.matchId)
+  if (row.action !== 'postpone' || Object.keys(row).length !== 6 || !updateTimestamp(row.version) ||
+      matchId !== match.id || (fixture.status !== 'confirmed' && fixture.status !== 'coordinator_set')) {
+    throw Error('Review the scheduled match before postponing it.')
+  }
+  return { action: 'postpone', leagueId: entryLeague(row.leagueId), requestId: uuid(row.requestId), matchId,
+    version: row.version, fixture: { ...match, status: fixture.status, facility: text(fixture.facility, 240) } }
+}
+
 export function validateLeagueScheduleSlot(slot: LeagueScheduleSlot, league: Pick<LeagueScheduleReview, 'zone' | 'startsOn' | 'endsOn'>, now: Date | null = new Date()) {
   if ((league.startsOn && slot.date < league.startsOn) || (league.endsOn && slot.date > league.endsOn)) {
     throw Error('Choose a date within this league season.')
@@ -72,7 +90,7 @@ export function validateLeagueScheduleSlot(slot: LeagueScheduleSlot, league: Pic
 export function readScheduledLeagueMatch(value: unknown): ScheduledLeagueMatch {
   const row = lineupRecord(value)
   const status = text(row.status, 24)
-  if (!['proposed', 'confirmed', 'coordinator_set', 'completed', 'cancelled'].includes(status)) throw Error('Match status changed.')
+  if (!['proposed', 'confirmed', 'coordinator_set', 'completed', 'cancelled', 'postponed'].includes(status)) throw Error('Match status changed.')
   const a = text(row.a, 160), b = text(row.b, 160)
   if (!a || !b || a === b) throw Error('Match participants changed.')
   return { id: uuid(row.id), date: day(row.date), time: row.time === '' ? '' : clock(row.time),
@@ -97,7 +115,7 @@ export function readLeagueScheduleReview(value: unknown, owner: string, leagueId
   const matches = list(row.matches, 500, item => {
     if (!updateTimestamp(item.version)) throw Error('Match version unavailable.')
     return { ...readScheduledLeagueMatch(item), aId: uuid(item.aId), bId: uuid(item.bId), version: item.version,
-      venueId: item.venueId === '' ? '' : venue(item.venueId) }
+      venueId: item.venueId === '' ? '' : venue(item.venueId), ...(item.canPostpone === true ? { canPostpone: true as const } : {}) }
   })
   return { owner, leagueId, name: text(row.name, 240), format: row.format, zone,
     startsOn: row.startsOn === '' ? '' : day(row.startsOn), endsOn: row.endsOn === '' ? '' : day(row.endsOn),

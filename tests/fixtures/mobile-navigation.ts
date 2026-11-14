@@ -17,7 +17,7 @@ import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNa
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {entryReviewFixture} from './league-entry-data'
 import {decisionReviewFixture} from './league-decisions-data'
-import type {LeagueScheduleChange,LeagueScheduleReview} from '../../lib/native-league-schedule-contract'
+import type {LeaguePostponement,LeagueScheduleChange,LeagueScheduleReview} from '../../lib/native-league-schedule-contract'
 import {leagueCourtResultText,type LeagueScoreCard,type LeagueScoreChange} from '../../lib/native-league-score-contract'
 import {readScoreReminder} from '../../lib/native-league-attention-contract'
 import type {EntryReceipt} from '../../lib/native-league-entry-contract'
@@ -36,6 +36,20 @@ import {calendarTeamMatchesHeader} from '../../lib/native-calendar-contract'
 import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLimit,teamScorecardsHeader,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
 const originalFetch=window.fetch.bind(window)
+const playerChatFixture={
+ enabled:new URL(location.href).searchParams.has('player-chat'),
+ room:'bb4f152f-bb10-4b30-a233-09f20121e463',
+ player:'ca2592d5-8135-4d6c-86ff-aef07ff620f0',
+ title:'',
+ group:false,
+ outgoing:[] as {id:string;name:string;author:string;body:string;createdAt:string}[],
+ receive(){
+  this.outgoing.push({id:'45526ebf-561c-477e-a6f7-9546ebf52cf4',name:'Jamie',author:this.player,
+   body:'I can make Friday.',createdAt:'2026-11-13T20:15:00Z'})
+  emitChatSignal()
+ },
+}
+Object.assign(window,{playerChatFixture})
 const freeTraining=new URL(location.href).searchParams.has('free-training')
 const nearbyExplore=new URL(location.href).searchParams.get('nearby-explore')
 const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false,unscopedLeagueReply:false,competitionReads:[] as {path:string;query:string;audience:string|null;authenticated:boolean}[]}
@@ -55,7 +69,9 @@ const scopedLeagueSchedule={
 const scopedLeagueScore={
  enabled:new URL(location.href).searchParams.has('league-score-review'),coordinator:false,
  demo:new URL(location.href).searchParams.get('league-score-review')==='demo',
- matchDay:new URL(location.href).searchParams.get('league-score-review')==='match-day',
+ matchDay:['match-day','postpone'].includes(new URL(location.href).searchParams.get('league-score-review')??''),
+ postpone:new URL(location.href).searchParams.get('league-score-review')==='postpone',
+ moved:null as LeagueScheduleReview['matches'][number]|null,
  reminders:new Map<string,string>(),
  reminderRequests:0,
  player:false,
@@ -171,6 +187,30 @@ Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPat
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
+ if(playerChatFixture.enabled&&url.pathname==='/api/mobile/first-party/player-chats'){
+  const state=playerChatFixture
+  const owner=currentNavigationOwner()
+  const base={ok:true,releaseScope:'first-party',owner}
+  const contact={id:state.player,name:'Jamie'}
+  if(init?.method==='POST'){
+   const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string}
+   if(body.action==='group'||body.action==='direct'){
+    state.group=body.action==='group'
+    state.title=state.group?body.text??'':'Jamie'
+    return Response.json({...base,roomId:state.room})
+   }
+   if(body.action==='invite')return Response.json({...base,expiresAt:'2026-11-20T10:00:00Z'})
+   if(body.action==='send'&&body.id&&body.text){
+    state.outgoing.push({id:body.id,name:'Avery',author:owner,body:body.text,createdAt:'2026-11-13T19:00:00Z'})
+    return Response.json({...base,messageId:body.id})
+   }
+   return Response.json(base)
+  }
+  if(url.searchParams.get('room')===state.room)return Response.json({...base,room:{
+   id:state.room,title:state.title,group:state.group,manage:state.group,more:false,members:[contact],messages:state.outgoing,
+  }})
+  return Response.json({...base,contacts:[contact],rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:false}]:[]})
+ }
  if(url.pathname==='/api/mobile/first-party/updates')return firstPartyUpdatesPreview(init?.method||'GET',url,init?.body,currentNavigationOwner())
  if(url.pathname==='/api/mobile/first-party/setup'){
   setupFixture.requests++
@@ -602,6 +642,7 @@ window.fetch=async(input,init)=>{
    if(coordinator){
     snapshot.connections=[{leagueId:'league-one',kind:'organizer',status:'active'}]
     snapshot.canReviewEntries=true
+    if(scopedLeagueScore.postpone){snapshot.canScheduleMatches=true;snapshot.canPostponeMatches=true}
    }
    if(card?.state==='approved'){
     const [line]=card.lines,winner=line.winner==='A'?match.a:match.b,loser=winner===match.a?match.b:match.a
@@ -617,7 +658,7 @@ window.fetch=async(input,init)=>{
    if(matchDay){
     const outcome=card?.state
     const action=outcome==='pending'?(coordinator?'review':'pending'):outcome==='changes_requested'?'fix':'enter'
-    const otherMatch={...snapshot.detail.fixtures[0],id:scheduleId(13),date:'2026-11-11',a:'Topspin Club',b:'Deuce Crew'}
+    const otherMatch=scopedLeagueScore.moved??{...snapshot.detail.fixtures[0],id:scheduleId(13),date:'2026-11-11',a:'Topspin Club',b:'Deuce Crew'}
     snapshot.detail.fixtures.push(otherMatch)
     snapshot.matchDay={
      matches:outcome==='approved'?[{id:match.id,action:'result',resultId:scheduleId(11)}]:
@@ -626,8 +667,8 @@ window.fetch=async(input,init)=>{
     }
     if(coordinator&&!player&&audience!=='public'&&new Headers(init?.headers).get('X-TenAceIQ-League-Attention')==='1'){
      const next=(id:string)=>scopedLeagueScore.reminders.get(id)??null
-     snapshot.attention=[{id:otherMatch.id,fixtureDigest:'a'.repeat(64),since:'2026-11-12T06:00:00Z',
-      revision:null,note:'',nextReminderAt:next(otherMatch.id)},
+     snapshot.attention=[...(scopedLeagueScore.moved?[]:[{id:otherMatch.id,fixtureDigest:'a'.repeat(64),since:'2026-11-12T06:00:00Z',
+      revision:null,note:'',nextReminderAt:next(otherMatch.id)}]),
       ...(card?.state==='changes_requested'?[{id:match.id,fixtureDigest:'b'.repeat(64),since:'2026-11-13T15:00:00Z',
        revision:card.revision,note:card.note,nextReminderAt:next(match.id)}]:[])]
     }
@@ -637,6 +678,30 @@ window.fetch=async(input,init)=>{
    path:url.pathname,query:snapshot.query,audience,authenticated:new Headers(init?.headers).has('Authorization'),
   })
   reply={ok:true,releaseScope:scoped&&!fixtureState.unscopedLeagueReply?'first-party':undefined,...snapshot}
+ }
+ if(scopedLeagueScore.postpone&&url.pathname==='/api/mobile/first-party/competitions/schedule'){
+  const owner=currentNavigationOwner(),leagueId='league-one',aId=scheduleId(21),bId=scheduleId(22),venueId=scheduleId(23)
+  const base={ok:true,releaseScope:'first-party',owner,leagueId}
+  const current=scopedLeagueScore.moved??{id:scheduleId(13),a:'Topspin Club',b:'Deuce Crew',aId,bId,venueId,
+   date:'2026-11-11',time:'18:30',court:'1',facility:'Northside Tennis Center · Court 1',duration:120,
+   status:'coordinator_set',canPostpone:true as const,version:'2026-11-12T12:00:00Z'}
+  if(!scopedLeagueScore.coordinator)return Response.json({...base,ok:false},{status:403})
+  if(init?.method!=='POST')return Response.json({...base,format:'team',name:'Northside Night League',zone:'America/Chicago',
+   startsOn:'2026-11-01',endsOn:'2026-12-31',defaultTime:'18:30',defaultVenueId:venueId,
+   entries:[{id:aId,name:current.a},{id:bId,name:current.b}],venues:[{id:venueId,name:'Northside Tennis Center',detail:''}],matches:[current]})
+  const body=JSON.parse(String(init.body)) as LeaguePostponement|LeagueScheduleChange
+  if(body.leagueId!==leagueId||body.matchId!==current.id||body.version!==current.version)return Response.json({...base,ok:false},{status:409})
+  const match='action' in body?{...current,status:'postponed',canPostpone:undefined,version:'2026-11-13T15:00:00Z'}:
+   {...current,date:body.date,time:body.time,court:body.court,duration:body.duration,facility:'Northside Tennis Center · Court '+body.court,
+    status:'coordinator_set',canPostpone:true as const,version:'2026-11-13T15:01:00Z'}
+  scopedLeagueScore.moved=match
+  firstPartyUpdatesFixture.leagueNotices=[{
+   id:scheduleId(25),recipient_profile_id:owner,notification_type:'schedule',
+   title:match.status==='postponed'?'League match postponed':'League match rescheduled',
+   body:match.a+' vs '+match.b,href:'/explore/leagues/tiq/'+leagueId+'?scheduledMatch='+match.id+'#league-schedule',
+   conversation_id:null,schedule_event_id:null,read_at:null,created_at:'2026-11-13T15:00:00Z',
+  }]
+  return Response.json({...base,requestId:body.requestId,match,notified:2,unreachable:0})
  }
  if(scopedLeagueSchedule.enabled&&url.pathname==='/api/mobile/first-party/competitions/schedule'){
   const review={

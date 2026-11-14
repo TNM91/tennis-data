@@ -40,6 +40,7 @@ import {openTeamResults,sharedTeamResult,type TeamResultsEntryPoint,type TeamRes
 import type {TeamScoreDraftSession} from './team-score-drafts'
 import type {CalendarScorecardSeed} from './personal-match-data'
 import {openPrivateTeam} from './private-team-view'
+import {openPlayerChats} from './player-chats-view'
 import {openCaptainInvites} from './captain-invite-view'
 import {chooseTeamGif} from './chat-gif-library-picker'
 import {chatGifPlayback} from './chat-gif-playback'
@@ -598,6 +599,14 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
     })
    })
    const notifications=app.querySelector<HTMLElement>('[data-chat-notifications]');if(notifications&&alerts)alerts.mountNotifications(notifications)
+   const players=app.querySelector<HTMLButtonElement>('[data-player-chats]')
+   if(players)players.onclick=()=>{
+    if(!valid()||!inbox||teamDialog?.isOpen())return
+    teamDialog=openPlayerChats(client,userId,()=>valid()&&inbox,()=>{
+     teamDialog=null
+     if(players.isConnected)players.focus({preventScroll:true})
+    })
+   }
    const create=app.querySelector<HTMLButtonElement>('#create-private-team')
    if(create)create.onclick=()=>{
     if(!valid()||!inbox||teamDialog?.isOpen())return

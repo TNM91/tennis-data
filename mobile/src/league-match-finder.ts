@@ -11,9 +11,10 @@ export type LeagueMatchFilters={query:string;day:string;status:string}
 export const emptyLeagueMatchFilters=():LeagueMatchFilters=>({query:'',day:'',status:''})
 export const emptyLeagueFinder=()=>({fixtures:emptyLeagueMatchFilters(),results:emptyLeagueMatchFilters()})
 const normalized=(value:string)=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase()
-const statuses:Record<string,string>={confirmed:'Confirmed',coordinator_set:'Set by coordinator',proposed:'Proposed',completed:'Completed',cancelled:'Cancelled'}
+const statuses:Record<string,string>={confirmed:'Confirmed',coordinator_set:'Set by coordinator',proposed:'Proposed',completed:'Completed',cancelled:'Cancelled',postponed:'New date pending'}
 const matchesName=(query:string,a:string,b:string)=>normalized(a).includes(query)||normalized(b).includes(query)
 export function leagueFixtureDay(fixture:OfficeFixture){
+ if(fixture.status==='postponed')return ''
  const date=fixture.date.slice(0,10)
  return (fixture.date.length===10||fixture.date[10]==='T')&&isValidCalendarDate(date)?date:''
 }
@@ -57,7 +58,7 @@ export function leagueFixtureHtml(f:OfficeFixture,view:'standalone'|'day-group'|
  const time=clock?formatCaptainPracticeTime(clock):savedTime
  const status=`<span class="competition-status" data-fixture-state="${html(f.status)}">${html(statuses[f.status]||f.status)}</span>`
  const grouped=view==='day-group'
- const schedule=competitionScheduleHtml(grouped?'':matchDate(f.date),time||'Time to be confirmed',f.facility||'Venue to be confirmed')
+ const schedule=f.status==='postponed'?'':competitionScheduleHtml(grouped?'':matchDate(f.date),time||'Time to be confirmed',f.facility||'Venue to be confirmed')
  if(grouped)return `<article class="competition-fixture competition-schedule-match" data-competition-schedule-match="${html(f.id)}">
   ${schedule}<div class="fixture-heading">${status}</div>
   ${competitionOpponentsHtml(f.a,f.b,'h5')}
@@ -102,7 +103,8 @@ export function leagueMatchViewHtml(d:OfficeDetail,view:LeagueMatchView,filters:
  const results=schedule?[]:filterLeagueResults(d.results,filters)
  const count=fixtures.length+results.length
  const meetings=showNextMeeting?nextLeagueMeetings(d,results):undefined
- const cards=schedule?competitionMatchGroupsHtml(fixtures,leagueFixtureDay,formatCalendarDay,f=>leagueFixtureHtml(f,'day-group')):results.map(r=>leagueResultHtml(r,d.league.format==='team',filters.query,meetings?.get(r.id))).join('')
+ const cards=schedule?competitionMatchGroupsHtml(fixtures,fixture=>fixture.status==='postponed'?'postponed':leagueFixtureDay(fixture),
+  day=>day==='postponed'?'Awaiting a new date':formatCalendarDay(day),f=>leagueFixtureHtml(f,'day-group')):results.map(r=>leagueResultHtml(r,d.league.format==='team',filters.query,meetings?.get(r.id))).join('')
  const noun=schedule?'matches':d.league.format==='team'?'team results':'player results'
  const empty=total
   ? competitionMatchFilterEmptyHtml(schedule?'schedule':'results')

@@ -3,9 +3,8 @@
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 
-// Do not load advertising or analytics on personal reply pages. Their secret
-// is in the fragment so the page request itself never contains a reply token.
+// Keep advertising and analytics off personal reply and private chat pages.
 export default function SeasonPrivacyBoundary({ children }: { children: ReactNode }) {
   const pathname = usePathname()
-  return pathname === '/season-availability' ? null : children
+  return pathname === '/season-availability' || pathname === '/chats' || pathname.startsWith('/chats/') ? null : children
 }

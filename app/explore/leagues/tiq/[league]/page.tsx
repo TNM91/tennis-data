@@ -1354,10 +1354,8 @@ function TiqLeagueDetailContent() {
   )
   const upcomingScheduleItems = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
-    const datedItems = visibleScheduleItems.filter(
-      (item) => item.status !== 'completed' && item.scheduledDate && item.scheduledDate >= today,
-    )
-    const fallbackItems = visibleScheduleItems.filter((item) => item.status !== 'completed')
+    const fallbackItems = visibleScheduleItems.filter(item => item.status !== 'completed' && item.status !== 'postponed')
+    const datedItems = fallbackItems.filter(item => item.scheduledDate && item.scheduledDate >= today)
     return (datedItems.length > 0 ? datedItems : fallbackItems).slice(0, 4)
   }, [visibleScheduleItems])
   const individualResultByScheduleItemId = useMemo(() => {
@@ -1939,7 +1937,8 @@ function TiqLeagueDetailContent() {
     if (!league || scheduleSaving || scheduleSiteSaving) return
 
     const previous = editingScheduleItem
-    if (scheduleEditingItemId && (!previous || !canManageLeague || previous.status === 'completed' || previous.status === 'cancelled')) {
+    if (scheduleEditingItemId && (!previous || !canManageLeague || previous.status === 'completed' ||
+      previous.status === 'cancelled' || previous.status === 'postponed')) {
       setScheduleStatus('This match is no longer available to edit. Refresh the schedule and try again.')
       return
     }
@@ -2449,7 +2448,8 @@ function TiqLeagueDetailContent() {
       '',
       'What I need help with:',
     ].filter(Boolean).join('\n')
-    const statusLabel =
+    const postponed = item.status === 'postponed'
+    const statusLabel = postponed ? 'New date pending' :
       item.status === 'coordinator_set'
         ? 'Published'
         : item.status === 'completed'
@@ -2466,6 +2466,7 @@ function TiqLeagueDetailContent() {
       && item.status !== 'proposed'
       && item.status !== 'cancelled'
       && item.status !== 'completed'
+      && !postponed
       ? buildCompetitionScheduleResponseSummary({
           eventId: `league:${league.id}:${item.id}`,
           expectedPlayerNames: [item.participantAName, item.participantBName],
@@ -2481,7 +2482,7 @@ function TiqLeagueDetailContent() {
             {item.participantAName} vs {item.participantBName}
           </div>
           <div style={listMeta}>
-            {[
+            {!postponed && [
               isCompact ? null : item.scheduledDate,
               item.scheduledTime,
               item.facility,
@@ -2490,7 +2491,7 @@ function TiqLeagueDetailContent() {
               .filter(Boolean)
               .join(' | ')}
           </div>
-          <LocationDirectionsLink location={item.facility || league.defaultFacility} style={directionsLinkStyle} label="Directions" />
+          {!postponed && <LocationDirectionsLink location={item.facility || league.defaultFacility} style={directionsLinkStyle} label="Directions" />}
           {scheduleOutcomeText ? (
             <div style={{ ...listMeta, color: '#bbf7d0', marginTop: 6 }}>
               Result: {scheduleOutcomeText}
@@ -2513,10 +2514,10 @@ function TiqLeagueDetailContent() {
           ) : null}
         </div>
         <div style={isCompact ? scheduleCalendarActionsStyle : scheduleRowActionsStyle}>
-          <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
+          <span style={item.status === 'proposed' || postponed ? pillAmber : pillGreen}>
             {statusLabel}
           </span>
-          {canManageLeague && item.status !== 'completed' && item.status !== 'cancelled' ? (
+          {canManageLeague && !postponed && item.status !== 'completed' && item.status !== 'cancelled' ? (
             <button
               type="button"
               onClick={() => handleAdjustScheduleItem(item)}
@@ -2527,7 +2528,7 @@ function TiqLeagueDetailContent() {
               Edit match
             </button>
           ) : null}
-          {item.status !== 'completed' ? (
+          {item.status !== 'completed' && !postponed ? (
             <GhostLink href={resultHref}>Log result</GhostLink>
           ) : null}
           {item.participantBName ? (
@@ -2564,7 +2565,7 @@ function TiqLeagueDetailContent() {
               Confirm
             </button>
           ) : null}
-          {item.status !== 'completed' ? (
+          {item.status !== 'completed' && !postponed ? (
             <button
               type="button"
               onClick={() => void handleScheduleStatusChange(item.id, 'cancelled')}

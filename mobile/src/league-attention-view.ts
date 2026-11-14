@@ -31,7 +31,7 @@ export function leagueScoreReminderHtml(row: LeagueAttentionRow, fixture: Office
   </div>`
 }
 
-export function leagueAttentionHtml(rows: LeagueAttentionRow[], fixtures: ReadonlyMap<string, OfficeFixture>, timeZone: string, moreFixtures: boolean) {
+export function leagueAttentionHtml(rows: LeagueAttentionRow[], fixtures: ReadonlyMap<string, OfficeFixture>, timeZone: string, moreFixtures: boolean, canPostpone = false) {
   const cards = rows.flatMap(row => {
     const fixture = fixtures.get(row.id)
     if (!fixture) return []
@@ -45,6 +45,7 @@ export function leagueAttentionHtml(rows: LeagueAttentionRow[], fixtures: Readon
         ${leagueScoreReminderHtml(row, fixture, timeZone)}
         ${needsCorrection(row) ? `<button type="button" class="secondary" data-attention-scorecard="${html(row.id)}">Open scorecard<span class="sr-only"> for ${html(fixture.a)} vs ${html(fixture.b)}</span></button>` :
           competitionScheduleJumpHtml(row.id, `${fixture.a} vs ${fixture.b}`, 'View match')}
+        ${canPostpone && !needsCorrection(row) && fixture.status !== 'completed' ? `<button type="button" class="secondary" data-competition-postpone="${html(row.id)}">Postpone match<span class="sr-only"> ${html(fixture.a)} vs ${html(fixture.b)}</span></button>` : ''}
       </div>
     </article></li>`]
   })

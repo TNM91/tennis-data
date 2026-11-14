@@ -115,6 +115,13 @@ describe('first-party league route', () => {
   expect(readCompetitionSnapshot(await ownDemo.json(),owner,'discover','',id)).toMatchObject({
    scoreReviewDemo:true,canOpenLeagueScores:true,detail:{fixtures:[{id:'private-match'}]},
   })
+  f.tables.tiq_league_schedule_items.find(match=>match.id==='private-match')!.status='postponed'
+  const previousBuild=await firstPartyCompetitions(request('?league='+id,header))
+  expect(readCompetitionSnapshot(await previousBuild.json(),owner,'discover','',id).detail?.fixtures).toEqual([])
+  const currentBuild=await firstPartyCompetitions(request('?league='+id,{...header,'X-TenAceIQ-League-Postpone':'1'}))
+  expect(readCompetitionSnapshot(await currentBuild.json(),owner,'discover','',id)).toMatchObject({
+   canPostponeMatches:true,detail:{fixtures:[{id:'private-match',status:'postponed'}]},
+  })
   expect(loadPlayerAccess).not.toHaveBeenCalled()
   publicClientFixture.mockReturnValueOnce(f.db).mockReturnValueOnce(f.db)
   const guests=await firstPartyCompetitions(request('?audience=public',header))

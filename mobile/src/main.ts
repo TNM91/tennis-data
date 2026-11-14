@@ -9,6 +9,7 @@ import {publishCoachMessageCounts} from './coach-message-catchup'
 import {createAppLinkHandoff,appLinkTitle} from './app-links'
 import {openSharedMatch} from './shared-match-view'
 import {openTeamInvite} from './team-invite-view'
+import {openPlayerChats} from './player-chats-view'
 import {playerSetupHtml} from './player-setup'
 import {openCoachResources} from './coach-resources-view'
 import {openCoachMessages} from './coach-messages-view'
@@ -143,6 +144,7 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 let biometricLogin:ReturnType<typeof mountBiometricSignIn>|null=null
 let sharedMatch:ReturnType<typeof openSharedMatch>|null=null
 let teamInvite:ReturnType<typeof openTeamInvite>|null=null
+let playerChats:ReturnType<typeof openPlayerChats>|null=null
 let updates:ReturnType<typeof openUpdates>|null=null
 let agenda:ReturnType<typeof openCalendar>|null=null
 let courtInvite:ReturnType<typeof openCourtInvite>|null=null
@@ -190,6 +192,10 @@ function resumeAppLink(){
   const visit=revision,current=()=>visit===revision&&owner===session?.user.id
   if(link.kind==='coach-invite')coachWorkspace=openCoachConnection(client,owner,current,undefined,undefined,link.href)
   else if(link.kind==='team-invite')launchTeamInvite(link.href)
+  else if(link.kind==='player-invite'||link.kind==='player-chat'){
+   playerChats=openPlayerChats(client,owner,current,()=>{playerChats=null;if(current())openTeamRoom()},
+    link.kind==='player-invite'?{token:link.token}:{room:link.id})
+  }
   else if(link.kind==='league')competitions=openCompetitions(client,owner,current,'discover',()=>openTeamRoom(),undefined,undefined,link.id)
   else if(link.kind==='tournament')tournaments=openTournaments(client,owner,current,()=>{tournaments=null},undefined,undefined,'Close',link.id)
   else sharedMatch=openSharedMatch(client,owner,current,link.id)
@@ -199,6 +205,7 @@ function resumeAppLink(){
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
     if(updates?.isOpen()){updates.back();return}
+    if(playerChats?.isOpen()){playerChats.close();return}
     if(agenda?.isOpen()){agenda.back();return}
     if(courtInvite?.isOpen()){courtInvite.dispose();courtInvite=null;return}
     if(sharedMatch?.isOpen()){sharedMatch.dispose();sharedMatch=null;return}
@@ -423,6 +430,8 @@ function launchUpdates(trigger:HTMLElement){
   if(link.kind==='chat'){leave();guardNavigation(()=>{if(current())openTeamRoom(link.scope)});return null}
   if(link.kind==='coach-invite')return openCoachConnection(client,owner,active,button,undefined,link.href)
   if(link.kind==='team-invite')return openTeamInvite(client,owner,active,scope=>{leave();guardNavigation(()=>{if(current())openTeamRoom(scope)})},()=>{},link.href)
+  if(link.kind==='player-invite'||link.kind==='player-chat')return openPlayerChats(client,owner,active,()=>button.focus(),
+   link.kind==='player-invite'?{token:link.token}:{room:link.id})
   if(link.kind==='league')return openCompetitions(client,owner,active,'discover',()=>{leave();guardNavigation(()=>{if(current())openTeamRoom()})},undefined,button,link.id)
   if(link.kind==='tournament')return openTournaments(client,owner,active,()=>{},undefined,button,'Back to updates',link.id)
   return openSharedMatch(client,owner,active,link.id,button)
@@ -579,6 +588,7 @@ function openCoachHref(href:string){
 document.addEventListener('tenaceiq:navigate',event=>{const e=event as CustomEvent<{href?:unknown}>;if(typeof e.detail?.href==='string'&&openCoachHref(e.detail.href))event.preventDefault()})
 function showHub(next:AppHub,{fromLab=false,returnTeam,browseFirst=false}:{fromLab?:boolean;returnTeam?:CompeteTeamDestination;browseFirst?:boolean}={}){
  if(!session)return
+ playerChats?.dispose();playerChats=null
  accountSettings?.dispose();accountSettings=null
  emailAuth?.dispose();emailAuth=null;goals?.dispose();goals=null;training?.dispose();training=null
  teamRoom?.dispose();teamRoom=null;comparison?.dispose();comparison=null;following?.dispose();following=null
@@ -681,7 +691,7 @@ function focusLabCoachShortcut(shortcuts: HTMLElement, ...sectionsAbove: HTMLEle
 async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScorecardSeed;backToTeamResults?:()=>void}) {
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
-  sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null
+  sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null;playerChats?.dispose();playerChats=null
   emailAuth?.dispose();emailAuth=null
   accountSettings?.dispose();accountSettings=null
   goals?.dispose();goals=null

@@ -25,6 +25,10 @@ it('publishes and moves the same match, checks court and participant overlaps, a
       grant select on public.native_first_party_updates, public.internal_notifications to authenticated;
     `)
     await db.exec(await readFile('supabase/migrations/20261113000400_native_first_party_league_schedule.sql', 'utf8'))
+    for (const migration of [
+      '20261113000600_native_league_score_review', '20261113000700_native_league_score_outcomes',
+      '20261113000900_native_league_score_attention', '20261113001000_native_league_postponement',
+    ]) await db.exec(await readFile('supabase/migrations/'+migration+'.sql', 'utf8'))
     await db.exec(`
       create function public.fixture_clock() returns trigger language plpgsql as $$begin new.updated_at=clock_timestamp();return new;end$$;
       create trigger fixture_clock before update on public.tiq_league_schedule_items for each row execute function public.fixture_clock();
@@ -103,6 +107,26 @@ it('publishes and moves the same match, checks court and participant overlaps, a
     const newVersion = (await review()).matches.find(match=>match.id===original)!.version
     expect(await call(56,'20:30',{match:original,version:newVersion})).toMatchObject({code:'saved',notified:2,match:{id:original}})
     expect(await inbox(captain)).toEqual([expect.objectContaining({body:expect.stringContaining('8:30 PM')})])
+    const before = (await review()).matches.find(match=>match.id===original)!
+    const postpone = async (actor=coordinator, request=161, match=original, expected=before.version, league='demo') =>
+      (await db.query<{result:unknown}>(`select native_first_party_postpone_league_match($1,$2,$3,$4,$5,$6,
+        (select private.native_league_score_fixture(f) || jsonb_build_object('status','coordinator_set','facility',btrim(f.facility))
+          from tiq_league_schedule_items f where f.id=$5)) as result`,[actor,league,version,uuid(request),match,expected])).rows[0].result
+    expect(await postpone(captain)).toEqual({code:'forbidden'})
+    expect(await postpone(coordinator,161,original,newVersion)).toEqual({code:'stale'})
+    const postponed = await postpone()
+    expect(postponed).toMatchObject({code:'saved',notified:2,match:{id:original,status:'postponed',court:'3'}})
+    expect(await postpone()).toEqual(postponed)
+    const awaitingDate = (await review()).matches.find(match=>match.id===original)!
+    expect(await attest()).toEqual(expect.arrayContaining([expect.objectContaining({match:expect.objectContaining({id:original,status:'postponed'}),
+      original:expect.objectContaining({date:earlier})})]))
+    expect(await inbox(captain)).toEqual([expect.objectContaining({title:'League match postponed',body:'Aces vs Rallies · New date pending'})])
+    expect(await inbox(player)).toHaveLength(1)
+    expect(await inbox(unrelated)).toHaveLength(0)
+    expect(await call(164,'20:30',{match:original,version:awaitingDate.version,notify:false})).toMatchObject({code:'stale'})
+    expect(await call(162,'20:30',{match:original,version:awaitingDate.version})).toMatchObject({code:'saved',notified:2,match:{id:original}})
+    expect(await inbox(captain)).toEqual([expect.objectContaining({title:'League match rescheduled',body:expect.stringContaining('8:30 PM')})])
+    expect(await postpone()).toEqual({code:'stale'})
     await db.query("update tiq_league_schedule_items set facility='Unreviewed edit' where id=$1",[original])
     expect(await inbox(captain)).toHaveLength(0)
     expect(await attest()).toHaveLength(1)
@@ -115,5 +139,26 @@ it('publishes and moves the same match, checks court and participant overlaps, a
     expect(await call(58,'18:00',{league:'singles'})).toMatchObject({code:'saved',notified:1,unreachable:1})
     expect(await inbox(captain)).toEqual([expect.objectContaining({title:'League match scheduled',body:expect.stringContaining('Alex vs Drew')})])
     expect(await inbox(player)).toHaveLength(0)
+
+    const demoLeague = 'tiq-testflight-scores-'+captain, demoMatch = uuid(101)
+    await db.query(`insert into tiq_leagues(id,created_by_user_id,league_name,league_format,season_status,is_public,
+      updated_at,default_facility,max_match_events) values($1,$2,'TestFlight Match Day','team','active',false,$3,'Court Club',20)`,
+      [demoLeague,captain,version])
+    await db.query(`insert into tiq_team_league_entries(id,league_id,team_name,entry_status,created_by_user_id)
+      values($1,$3,'Aces','active',$4),($2,$3,'Rallies','active',$5)`, [uuid(102),uuid(103),demoLeague,captain,unrelated])
+    await db.query(`insert into tiq_league_schedule_items(id,league_id,league_format,participant_a_name,participant_b_name,
+      participant_a_id,participant_b_id,scheduled_date,scheduled_time,status,facility,updated_at)
+      values($1,$2,'team','Aces','Rallies',$3,$4,current_date-2,'18:00','coordinator_set','Court Club',$5)`,
+      [demoMatch,demoLeague,uuid(102),uuid(103),version])
+    expect(await postpone(captain,172,demoMatch,version,demoLeague)).toMatchObject({
+      code:'saved',notified:1,unreachable:1,match:{id:demoMatch,status:'postponed'},
+    })
+    const demoReview = (await db.query<{result:{matches:{id:string;version:string}[]}}>(
+      'select public.native_first_party_league_schedule_review($1,$2,$3) as result',[captain,demoLeague,version])).rows[0].result
+    expect(await call(173,'21:00',{match:demoMatch,version:demoReview.matches[0].version,league:demoLeague,
+      actor:captain,a:uuid(102),b:uuid(103)})).toMatchObject({code:'saved',notified:1,match:{id:demoMatch,status:'coordinator_set'}})
+    expect(await inbox(captain)).toContainEqual(expect.objectContaining({title:'League match rescheduled',
+      href:'/explore/leagues/tiq/'+demoLeague+'?scheduledMatch='+demoMatch+'#league-schedule'}))
+    expect(await inbox(unrelated)).toEqual([])
   } finally { await db.close() }
 }, 45000)

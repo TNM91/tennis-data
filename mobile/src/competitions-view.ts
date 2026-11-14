@@ -50,7 +50,7 @@ export function competitionSeasonHtml(d:OfficeDetail,view:View,today?:string,fil
  if(view==='home'){
   const localToday=today||competitionScheduleClock(d.league.timeZone).day
   const upcoming=filterLeagueFixtures(d.fixtures,emptyLeagueMatchFilters())
-   .filter(f=>leagueFixtureDay(f)>=localToday&&!['cancelled','completed'].includes(f.status)).slice(0,2)
+   .filter(f=>leagueFixtureDay(f)>=localToday&&!['cancelled','completed','postponed'].includes(f.status)).slice(0,2)
   return '<div class="competition-metrics" aria-label="Loaded season records">'+[[d.participants.length+(d.moreParticipants?'+':''),d.league.format==='team'?'Teams':'Players'],[d.fixtures.length+(d.moreFixtures?'+':''),'Dates'],[d.results.length+(d.moreResults?'+':''),'Results']].map(([v,label])=>'<div><strong>'+v+'</strong><span>'+label+'</span></div>').join('')+'</div><h3 tabindex="-1">Coming up</h3>'+(upcoming.length?upcoming.map(f=>leagueFixtureHtml(f,'preview')).join(''):'<p>No upcoming dates in the loaded schedule.</p>')+(d.moreFixtures?'<p class="rating-context">This is a limited schedule sample. Open Schedule to review the loaded dates.</p>':'')+'<p class="rating-context">Times use '+html(d.league.timeZone)+'. Proposals and cancellations keep their recorded status.</p>'
  }
  if(view==='fixtures'||view==='results')return leagueMatchViewHtml(d,view,filters,view==='results')
@@ -121,6 +121,7 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   const entryAvailable=!guest&&!!d&&!scoreDemo
   const canReviewEntries=firstPartyBuild&&!guest&&snapshot?.canReviewEntries===true
   const canSchedule=firstPartyBuild&&!guest&&snapshot?.canScheduleMatches===true
+  const canPostpone=firstPartyBuild&&!guest&&snapshot?.canPostponeMatches===true
   const canOpenScores=firstPartyBuild&&!guest&&snapshot?.canOpenLeagueScores===true
   const canReviewScores=canOpenScores&&(canReviewEntries||scoreDemo)
   const matchDay=firstPartyBuild?snapshot?.matchDay:undefined
@@ -152,7 +153,7 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    (canReviewScores&&view==='home'&&pendingReviews!==undefined?'<section class="competition-match-day-review" aria-label="Score review"><div><h3>Score review</h3><p>'+
     (pendingReviews===0?'You’re caught up.':pendingReviews===1?'1 scorecard waiting for approval.':pendingReviews+' scorecards waiting for approval.')+
     '</p></div>'+(pendingReviews>0?'<button type="button" data-competition-score-queue>Review scores ('+pendingReviews+')</button>':'')+'</section>':'')+
-   (attention&&view==='home'?leagueAttentionHtml(attention,attentionFixtures,d.league.timeZone,d.moreFixtures):'')+
+   (attention&&view==='home'?leagueAttentionHtml(attention,attentionFixtures,d.league.timeZone,d.moreFixtures,canPostpone):'')+
    (canReviewScores&&view==='results'?'<div class="league-scheduler-actions"><button type="button" data-competition-score-queue>Review scores</button></div>':'')+
    '<div data-competition-content>'+(
     detailsUnderReview&&view==='fixtures'&&scheduleAvailable&&scheduleDetail
@@ -193,15 +194,15 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    view=b.dataset.competitionView as View
    render();focus()
   }})
-  const openSchedule=(button:HTMLButtonElement,id='',manage=false)=>{
-   if(!canSchedule||!active()||busy||!selected||scheduler?.isOpen())return
+  const openSchedule=(button:HTMLButtonElement,id='',manage=false,postpone=false)=>{
+   if((!canSchedule&&!(id&&canPostpone))||!active()||busy||!selected||scheduler?.isOpen())return
    scheduler=openLeagueSchedule(client,owner,active,selected,(saved,refresh)=>{
     scheduler=null
     if(!active())return
-    if(saved){filters.fixtures=emptyLeagueMatchFilters();showFullSchedule=true;calendarMatchId=saved;void load()}
+    if(saved){view='fixtures';filters.fixtures=emptyLeagueMatchFilters();showFullSchedule=true;calendarMatchId=saved;void load()}
     else if(refresh)void load()
     else button.focus({preventScroll:true})
-   },send,id,manage)
+   },send,id,manage,postpone)
   }
   dialog.querySelector<HTMLButtonElement>('[data-competition-schedule-add]')?.addEventListener('click',event=>openSchedule(event.currentTarget as HTMLButtonElement))
   dialog.querySelector<HTMLButtonElement>('[data-competition-schedule-manage]')?.addEventListener('click',event=>openSchedule(event.currentTarget as HTMLButtonElement,'',true))
@@ -270,19 +271,33 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
     card.append(button)
    })
   }
-  if(canSchedule&&scheduleDetail&&view==='fixtures'){
+  if((canSchedule||canPostpone)&&scheduleDetail&&view==='fixtures'){
    const clock=competitionScheduleClock(scheduleDetail.league.timeZone)
-   const upcoming=new Set(scheduleDetail.fixtures.filter(f=>courtAccountId(f.id)&&['confirmed','coordinator_set'].includes(f.status)&&
-    (f.date>clock.day||f.date===clock.day&&f.time.slice(0,5)>clock.time)).map(f=>f.id))
+   const fixtures=new Map(scheduleDetail.fixtures.filter(f=>courtAccountId(f.id)).map(f=>[f.id,f]))
+   const missing=new Set(attention?.filter(row=>row.revision===null).map(row=>row.id))
+   const scoresStarted=new Set(matchDay?.matches.filter(row=>['review','pending','fix','result'].includes(row.action)).map(row=>row.id))
    dialog.querySelectorAll<HTMLElement>('[data-competition-schedule-match]').forEach(card=>{
-    const id=card.dataset.competitionScheduleMatch
-    if(!id||!upcoming.has(id))return
-    const button=document.createElement('button')
-    button.type='button';button.className='secondary';button.textContent='Reschedule'
-    button.onclick=()=>openSchedule(button,id)
-    card.append(button)
+    const fixture=fixtures.get(card.dataset.competitionScheduleMatch??'')
+    if(!fixture)return
+    const scheduled=['confirmed','coordinator_set'].includes(fixture.status)
+    const upcoming=scheduled&&(fixture.date>clock.day||fixture.date===clock.day&&fixture.time.slice(0,5)>clock.time)
+    if(fixture.status==='postponed'&&canPostpone||upcoming&&canSchedule){
+     const button=document.createElement('button')
+     button.type='button';button.className='secondary';button.textContent='Reschedule'
+     button.onclick=()=>openSchedule(button,fixture.id)
+     card.append(button)
+    }
+    if(canPostpone&&scheduled&&!scoresStarted.has(fixture.id)&&(fixture.date>=clock.day||missing.has(fixture.id))){
+     const button=document.createElement('button')
+     button.type='button';button.className='secondary';button.textContent='Postpone match'
+     button.dataset.competitionPostpone=fixture.id
+     card.append(button)
+    }
    })
   }
+  dialog.querySelectorAll<HTMLButtonElement>('[data-competition-postpone]').forEach(button=>{
+   button.onclick=()=>openSchedule(button,button.dataset.competitionPostpone!,false,true)
+  })
   if(d)bindCompetitionScheduleJumps(dialog,(id,trigger)=>{
    if(!active()||busy||(view!=='home'&&view!=='results'))return
    const source=view,sourceScroll=dialog.scrollTop

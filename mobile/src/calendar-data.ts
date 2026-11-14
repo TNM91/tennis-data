@@ -34,7 +34,10 @@ export function readCalendar(value:unknown,owner:string,range:CalendarRange):Nat
   const event={id:id(e.id),kind:e.kind,eventType:e.eventType,competitionId:id(e.competitionId),competitionName:text(e.competitionName,2000),title:text(e.title,2000),date:date(e.date),time:time(e.time),location:text(e.location,2000),opponent:text(e.opponent,2000),detail:text(e.detail,8000),href:'',status:text(e.status,80),responseStatus:e.responseStatus||'',responseUpdatedAt:e.responseUpdatedAt?revision(e.responseUpdatedAt):'',responseIsStale:e.responseIsStale} as PlayerCompetitionScheduleEvent
   const publishedView=readCalendarCompetitionView(event,e.publishedView)
   const scorecardFormat=firstPartyBuild&&publishedView&&event.eventType==='match'&&(e.scorecardFormat==='singles'||e.scorecardFormat==='doubles')?e.scorecardFormat:undefined
-  return {...event,publishedView,...(scorecardFormat?{scorecardFormat}:{})}
+  const timeZone=firstPartyBuild&&publishedView&&e.kind==='league'&&typeof e.timeZone==='string'
+   ? text(e.timeZone,80):undefined
+  if(timeZone)new Intl.DateTimeFormat('en',{timeZone})
+  return {...event,publishedView,...(scorecardFormat?{scorecardFormat}:{}),...(timeZone?{timeZone}:{})}
  }))
  const coach=unique(r.coach.map(raw=>{const e=obj(raw);if(!['lesson','reminder'].includes(String(e.kind)))throw Error();return {id:id(e.id),title:text(e.title,2000),date:date(e.date),time:time(e.time),location:text(e.location,2000),detail:text(e.detail,8000),kind:e.kind as 'lesson'|'reminder'}}))
  if([...competitions,...coach].some(e=>e.date<range.from||e.date>range.to))throw Error('Calendar range changed.')
@@ -104,6 +107,7 @@ export function calendarOccurrences(calendar:NativeCalendar):CalendarOccurrence[
   const readiness=c.status==='Completed'?'Completed':c.responseIsStale?'Schedule changed · Reply again':c.responseStatus==='available'?'Available':c.responseStatus==='unavailable'?'Can’t play':'No reply yet'
   entries.push({
    key:'competition:'+c.id,id:c.id,source:'competition',title:c.title,date:c.date,time:c.time,location:c.location,
+   ...(c.timeZone?{timeZone:c.timeZone}:{}),
    detail:[c.competitionName,c.detail,c.status].filter(Boolean).join(' · '),kind:c.kind,recurring:false,readiness,
    matchNeedsReply:isScheduledCompetitionMatch(c)&&(!c.responseStatus||Boolean(c.responseIsStale)),
   })
@@ -123,6 +127,7 @@ export function isPracticeInProgress(event:CalendarOccurrence,now:Date){
 }
 
 export function isCurrentCalendarOccurrence(event:CalendarOccurrence,calendar:NativeCalendar,now:Date){
+ if(event.source==='competition'&&calendar.competitions.some(match=>match.id===event.id&&match.status==='Completed'))return false
  if(event.timeZone){
   if(!event.time)return event.date>=todayDateKey(now,event.timeZone)
   const startsAt=eventCalendarStart(event.date,event.time,event.timeZone)
@@ -130,7 +135,6 @@ export function isCurrentCalendarOccurrence(event:CalendarOccurrence,calendar:Na
  }
  const today=localCalendarDate(now)
  if(event.date<today||event.kind==='availability'||event.teamStatus==='cancelled'||event.teamStatus==='completed')return false
- if(event.source==='competition'&&calendar.competitions.some(match=>match.id===event.id&&match.status==='Completed'))return false
  return event.date>today||!event.time||event.time.slice(0,5)>=now.toTimeString().slice(0,5)||isPracticeInProgress(event,now)
 }
 

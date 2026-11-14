@@ -17,6 +17,8 @@ import { getCaptainPilotClaimHref } from '@/lib/captain-pilot-source'
 import { getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
 import { supabase } from '@/lib/supabase'
 import AuthPlanContinuity from '@/app/components/auth-plan-continuity'
+import { isPlayerChatInviteNext } from '@/lib/player-chats-contract'
+import { NATIVE_WEB_PARAMETER } from '@/lib/native-web-privacy'
 
 type WelcomeStory = {
   eyebrow: string
@@ -137,6 +139,7 @@ function WelcomeContent() {
   const tier = getPricingPlan(planId)
   const fallbackHref = planId === 'free' ? '/explore' : `/upgrade?plan=${planId}`
   const nextHref = isSafeLocalNextHref(searchParams.get('next'), fallbackHref)
+  const chatInvite = planId === 'free' && isPlayerChatInviteNext(nextHref)
   const checkoutIntent = PAID_CHECKOUT_ENABLED && planId !== 'free' && nextHref.startsWith('/upgrade?') &&
     new URL(nextHref, 'https://tenaceiq.invalid').searchParams.get('checkout') === 'auto'
   const pilotClaimHref = planId === 'captain' ? getCaptainPilotClaimHref(nextHref) : null
@@ -175,17 +178,24 @@ function WelcomeContent() {
     if (authResolved && !session) {
       const params = new URLSearchParams({ plan: planId, next: nextHref })
       if (email) params.set('email', email)
+      if (chatInvite) params.set(NATIVE_WEB_PARAMETER, 'ios')
       router.replace(`/login?${params.toString()}`)
+    } else if (authResolved && session && chatInvite) {
+      router.replace(nextHref)
     } else if (authResolved && session && availabilityHref) {
       router.replace(availabilityHref)
     } else if (authResolved && session && checkoutIntent) {
       router.replace(nextHref)
     }
-  }, [authResolved, availabilityHref, checkoutIntent, email, nextHref, planId, router, session])
+  }, [authResolved, availabilityHref, chatInvite, checkoutIntent, email, nextHref, planId, router, session])
 
   if (!authResolved || !session) {
     return <section style={loadingShell}>Finishing your secure TenAceiQ welcome…</section>
   }
+  if (chatInvite) return <section style={loadingShell}><div style={card}>
+    <h1 style={title}>Your account is ready.</h1>
+    <Link href={nextHref} prefetch={false} style={primaryCta}>Continue to your chat invite</Link>
+  </div></section>
 
   if (availabilityHref || checkoutIntent) return <section style={loadingShell}><div style={card}><h1 style={title}>Your account is ready.</h1><p style={body} role="status">{checkoutIntent ? 'Opening secure checkout…' : 'Opening your team’s availability…'}</p>{checkoutIntent ? <AuthPlanContinuity planId={planId} step="confirmation" /> : null}<Link href={availabilityHref || nextHref} style={primaryCta}>{checkoutIntent ? 'Continue to checkout' : 'Continue to availability'}</Link></div></section>
 

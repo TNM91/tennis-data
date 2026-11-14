@@ -1,9 +1,10 @@
 import { CapacitorHttp } from '@capacitor/core'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
-  defaultLeagueMatchDuration, leagueScheduleChange, readLeagueScheduleReview, readScheduledLeagueMatch,
-  validateLeagueScheduleSlot, type LeagueScheduleChange, type LeagueScheduleReview, type LeagueScheduleSlot,
+  defaultLeagueMatchDuration, leaguePostponement, leagueScheduleChange, readLeagueScheduleReview, readScheduledLeagueMatch,
+  validateLeagueScheduleSlot, type LeaguePostponement, type LeagueScheduleChange, type LeagueScheduleReview, type LeagueScheduleSlot,
 } from '../../lib/native-league-schedule-contract'
+import { leagueAttentionFixture } from '../../lib/native-league-attention-contract'
 import { formatCalendarDay } from '../../lib/calendar-date'
 import { formatCaptainPracticeTime } from '../../lib/captain-practice-invite'
 import { scenarioOwner, type ScenarioSend } from './captain-scenarios-data'
@@ -18,15 +19,15 @@ const durations = [30, 60, 75, 90, 105, 120, 150, 180, 240, 300, 360]
 export function openLeagueSchedule(
   client: SupabaseClient, owner: string, current: () => boolean, leagueId: string,
   close: (matchId?: string, refresh?: boolean) => void, send: ScenarioSend = options => CapacitorHttp.request(options),
-  matchId = '', manage = false,
+  matchId = '', manage = false, postpone = false,
 ) {
   const dialog = document.createElement('dialog')
   dialog.className = 'captain-lineup-dialog competitions-dialog league-entry-dialog league-scheduler'
   dialog.setAttribute('aria-labelledby', 'league-scheduler-title')
   let disposed = false, busy = false, uncertain = false
   let review: LeagueScheduleReview | null = null, selected: EditableMatch | undefined
-  let mode: 'list' | 'edit' | 'review' | 'saved' = manage ? 'list' : 'edit'
-  let fields: Fields | null = null, change: LeagueScheduleChange | null = null, receipt: Receipt | null = null
+  let mode: 'list' | 'edit' | 'review' | 'postpone' | 'saved' = manage ? 'list' : 'edit'
+  let fields: Fields | null = null, change: LeagueScheduleChange | LeaguePostponement | null = null, receipt: Receipt | null = null
   let notice = 'Loading the league schedule…'
   const active = () => !disposed && current()
   const dispose = () => { disposed = true; dialog.remove() }
@@ -42,13 +43,13 @@ export function openLeagueSchedule(
     return true
   }
 
-  async function request(input?: LeagueScheduleChange) {
+  async function request(input?: LeagueScheduleChange | LeaguePostponement) {
     const session = await scenarioOwner(client, owner, active)
     const url = 'https://www.tenaceiq.com/api/mobile/first-party/competitions/schedule'
     const response = await send({
       url: input ? url : url + '?' + new URLSearchParams({ league: leagueId }),
       method: input ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + session.access_token,
-        'Cache-Control': 'no-store', ...(input ? { 'Content-Type': 'application/json' } : {}) },
+        'Cache-Control': 'no-store', 'X-TenAceIQ-League-Postpone': '1', ...(input ? { 'Content-Type': 'application/json' } : {}) },
       ...(input ? { data: input } : {}), disableRedirects: true, responseType: 'json',
       webFetchExtra: { cache: 'no-store' }, connectTimeout: 12000, readTimeout: 30000,
     })
@@ -65,14 +66,30 @@ export function openLeagueSchedule(
     const duration = match?.duration ?? defaultLeagueMatchDuration(review.format)
     const venueId = match?.venueId || review.venues.find(venue =>
       match?.facility === venue.name || match?.facility === venue.name + ' — ' + venue.detail)?.id
+    const defaultDay = review.startsOn > day ? review.startsOn : day
     fields = {
-      a: match?.aId || '', b: match?.bId || '', date: match?.date || (review.startsOn > day ? review.startsOn : day),
+      a: match?.aId || '', b: match?.bId || '', date: match?.status === 'postponed' ? '' : match?.date || defaultDay,
       time: match?.time || review.defaultTime, venueId: venueId || (match ? '' : review.defaultVenueId),
       court: match?.court || '', duration, notify: true,
     }
     mode = 'edit'
     notice = ''
     render(true)
+  }
+
+  function preparePostponement(match: EditableMatch) {
+    selected = match
+    change = leaguePostponement({ action: 'postpone', leagueId, requestId: crypto.randomUUID(), matchId: match.id,
+      version: match.version, fixture: leagueAttentionFixture(match) })
+    mode = 'postpone'
+    notice = ''
+    render(true)
+  }
+
+  function upcoming(match: EditableMatch) {
+    if (!review) return false
+    const now = competitionScheduleClock(review.zone)
+    return match.date > now.day || match.date === now.day && match.time > now.time
   }
 
   async function load() {
@@ -92,7 +109,14 @@ export function openLeagueSchedule(
         busy = false
         if (review && !manage) {
           const match = matchId ? review.matches.find(match => match.id === matchId) : undefined
-          if (matchId && !match) { mode = 'list'; notice = 'This match can no longer be rescheduled.'; render(true) }
+          if (matchId && (!match || (postpone && !match.canPostpone) ||
+              (!postpone && match.status !== 'postponed' && !upcoming(match)))) {
+            mode = 'list'
+            notice = postpone ? 'This match can no longer be postponed. Check the schedule and any recorded scores.' :
+              'This match can no longer be rescheduled.'
+            render(true)
+          }
+          else if (postpone && match) preparePostponement(match)
           else edit(match)
         } else render(true)
       }
@@ -102,13 +126,15 @@ export function openLeagueSchedule(
   async function save() {
     if (!active() || busy || !change) return
     busy = true
-    notice = 'Saving the match…'
+    const postponing = 'action' in change
+    notice = postponing ? 'Postponing the match…' : 'Saving the match…'
     render()
     try {
       const { status, data } = await request(change)
       if (status !== 200 && status < 500) {
         uncertain = false
-        mode = 'edit'
+        mode = postponing ? 'list' : 'edit'
+        if (postponing) review = null
         notice = data.message || 'Check the match details and try again.'
         if (status === 409 && /refresh/i.test(notice)) notice += ' Reopen the match to load the latest records.'
         return
@@ -118,8 +144,9 @@ export function openLeagueSchedule(
         throw Error('Match save could not be confirmed')
       }
       const match = readScheduledLeagueMatch(data.match)
-      if ((change.matchId && match.id !== change.matchId) || match.status !== 'coordinator_set' || match.date !== change.date ||
-          match.time !== change.time || match.court !== change.court || match.duration !== change.duration) throw Error('Match receipt changed')
+      if ((change.matchId && match.id !== change.matchId) ||
+          ('action' in change ? match.status !== 'postponed' : match.status !== 'coordinator_set' || match.date !== change.date ||
+          match.time !== change.time || match.court !== change.court || match.duration !== change.duration)) throw Error('Match receipt changed')
       receipt = { match, notified: data.notified, unreachable: data.unreachable }
       uncertain = false
       mode = 'saved'
@@ -137,7 +164,7 @@ export function openLeagueSchedule(
     const data = new FormData(form)
     const get = (name: string) => String(data.get(name) ?? '')
     fields = { a: selected?.aId || get('a'), b: selected?.bId || get('b'), date: get('date'), time: get('time'),
-      venueId: get('venueId'), court: get('court'), duration: Number(get('duration')), notify: data.has('notify') }
+      venueId: get('venueId'), court: get('court'), duration: Number(get('duration')), notify: selected?.status === 'postponed' || data.has('notify') }
     try {
       change = leagueScheduleChange({ ...fields, leagueId, requestId: crypto.randomUUID(),
         matchId: selected?.id ?? null, version: selected?.version ?? '' })
@@ -156,7 +183,8 @@ export function openLeagueSchedule(
     if (!active()) return
     const noun = review?.format === 'team' ? 'team' : 'player'
     const recipient = review?.format === 'team' ? 'captains or team contacts' : 'players'
-    const title = mode === 'saved' ? selected ? 'Match rescheduled' : 'Match scheduled' :
+    const postponing = change && 'action' in change
+    const title = mode === 'postpone' ? 'Postpone match' : mode === 'saved' ? postponing ? 'Match postponed' : selected ? 'Match rescheduled' : 'Match scheduled' :
       mode === 'review' ? 'Review match' : mode === 'list' ? 'Manage schedule' : selected ? 'Reschedule match' : 'Schedule match'
     const f = fields
     const option = (id: string, label: string, value: string) =>
@@ -172,18 +200,20 @@ export function openLeagueSchedule(
     if (!review && !busy) content = '<button type="button" data-schedule-load>Try again</button>'
     if (review && mode === 'list') {
       content = `<button type="button" data-schedule-add>Schedule match</button>
-        <h3>Upcoming matches</h3>${review.matches.map(match =>
+        <h3>Match scheduling</h3>${review.matches.filter(match=>match.status==='postponed'||upcoming(match)).map(match =>
           `<article class="lineup-court league-scheduler-summary">${pair(match.a, match.b)}
-          <p>${html(formatCalendarDay(match.date, false))} · ${html(formatCaptainPracticeTime(match.time))}</p>
-          <p>${html(match.facility)}</p><button type="button" class="secondary" data-schedule-edit="${html(match.id)}">
+          <p>${match.status==='postponed'?'New date pending':html(formatCalendarDay(match.date, false)+' · '+formatCaptainPracticeTime(match.time))}</p>
+          ${match.status==='postponed'?'':`<p>${html(match.facility)}</p>`}
+          <button type="button" class="secondary" data-schedule-edit="${html(match.id)}">
           Reschedule<span class="sr-only"> ${html(match.a)} vs ${html(match.b)}</span></button></article>`).join('') ||
-          '<p>No upcoming matches can be rescheduled.</p>'}`
+          '<p>No matches ready to reschedule.</p>'}`
     }
     if (review && mode === 'edit' && f) {
       if (review.entries.length < 2) content = `<p>Approve at least two ${noun}s before scheduling a match.</p>`
       else content = `<form data-schedule-form>
-        ${selected ? `<div class="lineup-court league-scheduler-summary">${pair(selected.a, selected.b)}<p>Currently ${html(formatCalendarDay(selected.date, false))} ·
-          ${html(formatCaptainPracticeTime(selected.time))} · ${html(selected.facility)}</p></div>` : `<div class="league-scheduler-fields">${choices('a','Side A',f.a)}${choices('b','Side B',f.b)}</div>`}
+        ${selected ? `<div class="lineup-court league-scheduler-summary">${pair(selected.a, selected.b)}<p>${selected.status==='postponed'?'New date pending':
+          html('Currently '+formatCalendarDay(selected.date, false)+' · '+formatCaptainPracticeTime(selected.time)+' · '+selected.facility)}</p></div>` :
+          `<div class="league-scheduler-fields">${choices('a','Side A',f.a)}${choices('b','Side B',f.b)}</div>`}
         <div class="league-scheduler-fields">
           <label>Date<input name="date" type="date" required value="${html(f.date)}" min="${html(review.startsOn || competitionScheduleClock(review.zone).day)}"${review.endsOn ? ` max="${html(review.endsOn)}"` : ''}></label>
           <label>Start time<input name="time" type="time" required value="${html(f.time)}"></label>
@@ -197,12 +227,20 @@ export function openLeagueSchedule(
           <label>Match length<select name="duration">${[...new Set([...durations, f.duration])].sort((a,b) => a-b)
             .map(duration => option(String(duration), duration + ' min', String(f.duration))).join('')}</select></label>
         </div>
-        <label class="entry-check"><input type="checkbox" name="notify"${f.notify ? ' checked' : ''}><span>Notify affected ${recipient} in Updates</span></label>
+        ${selected?.status === 'postponed' ? '<p class="rating-context">Both teams’ captains with schedule alerts on will get the new date in Updates.</p>' :
+          `<label class="entry-check"><input type="checkbox" name="notify"${f.notify ? ' checked' : ''}><span>Notify affected ${recipient} in Updates</span></label>`}
         <button type="submit">Review match</button>
       </form>`
     }
-    if (review && mode === 'review' && change) {
-      const venue = review.venues.find(venue => venue.id === change?.venueId)
+    if (mode === 'postpone' && selected) {
+      const priorSlot = [formatCalendarDay(selected.date, false), formatCaptainPracticeTime(selected.time), selected.facility].filter(Boolean).join(' · ')
+      content = `<div class="lineup-court league-scheduler-summary">${pair(selected.a, selected.b)}<p>${html(priorSlot)}</p></div>` +
+        `<p>Use this if the match hasn’t been played. It will show as New date pending, and both teams’ captains with schedule alerts on will get an update.</p>
+        <button type="button" data-schedule-save${busy ? ' disabled' : ''}>${busy ? 'Postponing…' : uncertain ? 'Retry same change' : 'Confirm postponement'}</button>`
+    }
+    if (review && mode === 'review' && change && !('action' in change)) {
+      const venueId = change.venueId
+      const venue = review.venues.find(venue => venue.id === venueId)
       const location = [venue?.name, change.court ? 'Court ' + change.court : '', venue?.id === 'league-venue' ? '' : venue?.detail].filter(Boolean).join(' · ')
       const name = (id: string) => review?.entries.find(entry => entry.id === id)?.name || ''
       content = summary(name(change.a), name(change.b), change.date, change.time, location, change.duration) +
@@ -212,11 +250,12 @@ export function openLeagueSchedule(
     }
     if (receipt && mode === 'saved') {
       const { match, notified, unreachable } = receipt
-      content = summary(match.a, match.b, match.date, match.time, match.facility, match.duration ?? 0)
-      if (change?.notify) content += `<p>${notified ? `Sent to ${notified} ${notified === 1 ? 'account' : 'accounts'} in Updates.` : 'No in-app updates were sent.'}
+      content = postponing ? `<div class="lineup-court league-scheduler-summary">${pair(match.a,match.b)}<p>New date pending</p></div>` :
+        summary(match.a, match.b, match.date, match.time, match.facility, match.duration ?? 0)
+      if (change && ('action' in change || change.notify)) content += `<p>${notified ? `Sent to ${notified} ${notified === 1 ? 'account' : 'accounts'} in Updates.` : 'No in-app updates were sent.'}
         ${unreachable ? ` ${unreachable === 1 ? 'One side needs' : 'Both sides need'} a separate heads-up.` : ''}</p>`
     }
-    dialog.innerHTML = `<header class="competition-header"><button type="button" class="secondary" data-schedule-close${busy && mode === 'review' ? ' disabled' : ''}>Back to schedule</button></header>
+    dialog.innerHTML = `<header class="competition-header"><button type="button" class="secondary" data-schedule-close${busy && (mode === 'review' || mode === 'postpone') ? ' disabled' : ''}>${postpone && mode !== 'saved' ? 'Back to league' : 'Back to schedule'}</button></header>
       <div class="entry-hero"><h2 id="league-scheduler-title" tabindex="-1">${title}</h2>${review ? `<p>${html(review.name)}</p>` : ''}</div>
       ${content}<p role="status" tabindex="-1" data-schedule-status>${html(notice)}</p>`
     dialog.querySelector('[data-schedule-close]')?.addEventListener('click', exit)

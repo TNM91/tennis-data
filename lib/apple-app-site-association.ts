@@ -4,5 +4,6 @@ export const appleAppSiteAssociation={applinks:{details:[{appIDs:['6C5MPYLRVQ.co
  {'/':'/coach/invite/*/*',exclude:true}, {'/':'/explore/leagues/tiq/*/*',exclude:true},
  {'/':'/tournaments/*/*',exclude:true}, {'/':'/matches/*/*',exclude:true},
  {'/':'/coach/invite/*'}, {'/':'/team-room/join'}, {'/':'/team-room'},
+ {'/':'/chats/join'}, {'/':'/chats'},
  {'/':'/explore/leagues/tiq/*'}, {'/':'/tournaments/*'}, {'/':'/matches/*'},
 ]}]}}

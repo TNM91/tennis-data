@@ -2190,7 +2190,7 @@ dialog .competition-filter-disclosure>:is(.league-match-finder,.tournament-match
 .competition-fixture .fixture-heading p { margin:0; }
 .competition-fixture .competition-status { background:var(--premium-inset);border:1px solid var(--premium-line);color:var(--premium-copy);overflow-wrap:anywhere; }
 .competition-fixture .competition-status:is([data-fixture-state="confirmed"],[data-fixture-state="coordinator_set"]) { background:#213b32;border-color:#52694a;color:#d4edb2; }
-.competition-fixture .competition-status[data-fixture-state="proposed"] { background:#392d20;border-color:#725b3c;color:#f6d6a6; }
+.competition-fixture .competition-status:is([data-fixture-state="proposed"],[data-fixture-state="postponed"]) { background:#392d20;border-color:#725b3c;color:#f6d6a6; }
 .competition-fixture .competition-status[data-fixture-state="cancelled"] { background:#39262f;border-color:#75505e;color:#ffcbd0; }
 .competition-fixture .fixture-schedule {
  display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-block:10px;padding:9px 11px;
@@ -2635,3 +2635,20 @@ body[data-screen] .app-header .tiq-feature-icon__glyph { inline-size:21px;block-
  body[data-screen="coach"] .app-tool-featured .app-tool-copy strong { font-size:1.75rem; }
 }
 @media(prefers-reduced-motion:reduce) { .lab-rating-loading-shapes span { animation:none; } body[data-screen] :is(.app-tool,.lab-trend-entry,.lab-band-practice) { transition:none; } }
+.player-chats-dialog .player-chat-content,
+.player-chats-dialog .player-chat-content fieldset { min-inline-size:0; border:0; margin:0; padding:0; }
+.player-chats-dialog .player-chat-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.player-chats-dialog .player-chat-actions button { flex:1 1 110px; margin-block:4px; }
+.player-chats-dialog :is(.player-chat-section,.player-chat-invite) { margin-block:10px; padding:12px; }
+.player-chats-dialog :is(ul,ol) { list-style:none; padding:0; margin:8px 0; }
+.player-chats-dialog .player-chat-messages { max-block-size:34dvh; overflow:auto; overscroll-behavior:contain; }
+.player-chats-dialog [role="status"]:empty { display:none; }
+.player-chats-dialog .player-chat-section li { border-block-end:1px solid var(--premium-line); padding-block:6px; }
+.player-chats-dialog .player-chat-section strong { display:block; overflow-wrap:anywhere; }
+.player-chats-dialog .player-chat-post { padding:10px 12px; margin-block:6px; border-radius:12px; background:var(--premium-inset); }
+.player-chats-dialog .player-chat-post[data-mine="true"] { background:var(--premium-card); }
+.player-chats-dialog .player-chat-post p { white-space:pre-wrap; overflow-wrap:anywhere; margin:6px 0; }
+.player-chats-dialog .player-chat-post time { font-size:.75rem; color:var(--premium-copy); margin-inline-start:6px; }
+.player-chats-dialog .player-chat-post summary { min-block-size:32px; color:var(--premium-copy); }
+.player-chats-dialog .player-chat-options { margin-block:10px; }
+.player-chats-dialog textarea { resize:vertical; width:100%; }

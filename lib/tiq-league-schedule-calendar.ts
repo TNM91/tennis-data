@@ -52,7 +52,7 @@ export function buildScheduleCalendarDays(items: TiqLeagueScheduleItem[]): Sched
   const days = new Map<string, TiqLeagueScheduleItem[]>()
 
   for (const item of items) {
-    const dateKey = item.scheduledDate || 'unscheduled'
+    const dateKey = item.status === 'postponed' ? 'unscheduled' : item.scheduledDate || 'unscheduled'
     days.set(dateKey, [...(days.get(dateKey) || []), item])
   }
 
@@ -169,7 +169,7 @@ export function buildScheduleCalendarFeed(
   options: ScheduleCalendarFeedOptions = {},
 ) {
   const events: TennisCalendarEvent[] = items
-    .filter((item) => item.scheduledDate && item.status !== 'cancelled')
+    .filter((item) => item.scheduledDate && item.status !== 'cancelled' && item.status !== 'postponed')
     .map((item) => ({
       id: item.id,
       title: `${item.participantAName || 'Player A'} vs ${item.participantBName || 'Player B'}`,
