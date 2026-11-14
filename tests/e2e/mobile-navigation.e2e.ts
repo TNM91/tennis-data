@@ -182,7 +182,8 @@ test('a group link survives sign-in and opens the exact group for the guest',asy
  await expect(dialog.getByRole('button',{name:'Unpin Friday practice',exact:true})).toHaveAttribute('aria-pressed','true')
 })
 
-test('a direct hitting proposal becomes a calendar date after the other player accepts',async({page})=>{
+test('a direct hitting proposal and a suggested change update the calendar only after acceptance',async({page})=>{
+ test.setTimeout(45000)
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:800})
  await page.clock.setFixedTime(new Date(2026,10,16,12))
@@ -234,6 +235,33 @@ test('a direct hitting proposal becomes a calendar date after the other player a
  await directions.getByRole('button',{name:'Close',exact:true}).click()
  await calendar.getByRole('button',{name:'Open chat',exact:true}).click()
  await expect(dialog).toContainText('Confirmed · On both calendars')
+ await dialog.getByRole('button',{name:'Suggest another time'}).click()
+ await expect(dialog.getByLabel('Start time (CT)',{exact:true})).toHaveValue('18:00')
+ await dialog.getByLabel('Start time (CT)',{exact:true}).fill('19:30')
+ await dialog.getByRole('combobox',{name:'Club',exact:true}).selectOption('vetta-sunset')
+ await dialog.getByRole('button',{name:'Send suggestion',exact:true}).click()
+ await expect(dialog).toContainText('Currently confirmed')
+ await expect(dialog).toContainText('Proposed change')
+ await expect(dialog).toContainText('Vetta West Racquet Sports')
+ await expect(dialog).toContainText('Vetta Sunset')
+ await dialog.getByRole('button',{name:'Close',exact:true}).click()
+ const calendarHit=calendar.locator('[data-cal-event^="chat-hit:"]')
+ await expect(calendarHit).toHaveCount(1)
+ await expect(calendarHit).toContainText('Vetta West')
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {playerChatFixture:{hit:{proposedBy:string};player:string}}).playerChatFixture
+  fixture.hit.proposedBy=fixture.player
+ })
+ await calendarHit.click()
+ await calendar.getByRole('button',{name:'Open chat',exact:true}).click()
+ await expect(dialog.getByRole('button',{name:'Keep confirmed hit'})).toBeVisible()
+ await dialog.getByRole('button',{name:'Accept change',exact:true}).click()
+ await expect(dialog).toContainText('Updated on both calendars.')
+ await dialog.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(calendarHit).toHaveCount(1)
+ await expect(calendarHit).toContainText('Vetta Sunset')
+ await calendarHit.click()
+ await calendar.getByRole('button',{name:'Open chat',exact:true}).click()
  page.once('dialog',prompt=>prompt.accept())
  await dialog.getByRole('button',{name:'Cancel hit',exact:true}).click()
  await expect(dialog.getByRole('region',{name:'Hitting plan'})).toContainText('Cancelled')

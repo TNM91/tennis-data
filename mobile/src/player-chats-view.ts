@@ -13,7 +13,7 @@ import { watchTeamChat } from './team-chat-live'
 import { groupPracticeStart } from '../../lib/group-practice-contract'
 import { chatHitCard,groupPracticeCard,newGroupPracticeDraft,type ChatHitDraft,type GroupPracticeDraft } from './group-practice-card'
 import { listedHittingClub } from '../../lib/hitting-clubs'
-import { chatHitsHeader } from '../../lib/chat-hit-contract'
+import { chatHitChangesHeader, chatHitsHeader } from '../../lib/chat-hit-contract'
 import { hittingPlanStart } from '../../lib/hitting-plan'
 import { openCourtDirections } from './explore-court-directions'
 import { readSavedCourts } from './explore-saved-courts'
@@ -30,7 +30,7 @@ export function playerChatsForAccount(client: SupabaseClient,owner: string,activ
     if (error || data.session?.user.id !== owner || !active()) throw Error('Your chat session changed.')
     const path = playerChatApiUrl(query), method = action ? 'POST' : 'GET'
     const headers = {Authorization:'Bearer '+data.session.access_token,'Cache-Control':'no-store',
-      ...(firstPartyBuild&&!browser&&query?.has('room')?{[chatHitsHeader]:'1'}:{}),
+      ...(firstPartyBuild&&!browser&&query?.has('room')?{[chatHitsHeader]:'1',[chatHitChangesHeader]:'1'}:{}),
       ...(action?{'Content-Type':'application/json'}:{})}
     const response = browser
       ? await fetch(path,{method,headers,body:action?JSON.stringify(action):undefined,cache:'no-store',redirect:'error',
@@ -274,7 +274,7 @@ export function openPlayerChats(
   }
 
   function act(input: PlayerChatAction) {
-    const hitChange = input.action==='hit_propose' || input.action==='hit_reply' || input.action==='hit_cancel'
+    const hitChange = input.action==='hit_propose' || input.action==='hit_suggest' || input.action==='hit_reply' || input.action==='hit_cancel'
     return run(async ()=>{
       pending=input
       let result
@@ -337,8 +337,10 @@ export function openPlayerChats(
       if (hitChange) {
         hitDraft=null
         notice=input.action==='hit_propose'?'Proposal sent.':
-          input.action==='hit_cancel'?'Hitting plan cancelled.':
-            input.response==='accepted'?'Confirmed. Added to both calendars.':'Proposal declined.'
+          input.action==='hit_suggest'?'Suggestion sent.':
+          input.action==='hit_cancel'?(room?.confirmedHit&&room.hit?.id===input.id?'Suggestion withdrawn.':'Hitting plan cancelled.'):
+            input.response==='accepted'?(room?.confirmedHit?'Updated on both calendars.':'Confirmed. Added to both calendars.'):
+              room?.confirmedHit?'Confirmed hit kept.':'Proposal declined.'
       }
       if (input.action === 'practice_create') { practiceDraft=null; notice='Practice posted.' }
       if (input.action === 'practice_edit') { practiceDraft=null; notice='Practice updated.' }
@@ -468,7 +470,7 @@ export function openPlayerChats(
       ${preferences?`<button type="button" class="secondary" data-player-pin aria-label="${html((isPinned?'Unpin ':'Pin ')+value.title)}" aria-pressed="${isPinned}">${isPinned?'Unpin chat':'Pin chat'}</button>`:''}
       ${value.manage&&initial.browser?simpleButton(shared?'Replace invite link':'Invite players','data-player-group-invite'):''}</div>
       ${value.practice!==undefined?groupPracticeCard(value.practice,value.manage,practiceDraft):''}
-      ${value.hit!==undefined?chatHitCard(value.hit,owner,hitDraft,readSavedCourts(owner)):''}
+      ${value.hit!==undefined?chatHitCard(value.hit,owner,hitDraft,readSavedCourts(owner),value.confirmedHit,value.canSuggestHit===true):''}
       ${sharedMarkup()}
       <details class="player-chat-options"><summary>${value.group?'Group settings':'Player settings'}</summary>
       ${value.manage?`${initial.browser?'':simpleButton(value.logo?'Edit group icon':'Add group icon','data-player-icon')}
@@ -576,21 +578,31 @@ export function openPlayerChats(
       render()
       dialog.querySelector<HTMLInputElement>('[data-chat-hit-form] input')?.focus()
     })
+    click('[data-chat-hit-suggest]',()=>{
+      const hit=room?.hit
+      if (!hit || !room?.canSuggestHit) return
+      hitDraft={date:hit.date,time:hit.time,clubId:hit.clubId,replaces:hit.id}
+      render()
+      dialog.querySelector<HTMLInputElement>('[data-chat-hit-form] input')?.focus()
+    })
     click('[data-chat-hit-dismiss]',()=>{
+      const suggesting=Boolean(hitDraft?.replaces)
       hitDraft=null;render()
-      dialog.querySelector<HTMLButtonElement>('[data-chat-hit-start]')?.focus()
+      dialog.querySelector<HTMLButtonElement>(suggesting?'[data-chat-hit-suggest]':'[data-chat-hit-start]')?.focus()
     })
     click('[data-chat-hit-reply]',button=>{
       const response=button.dataset.chatHitReply
       if (room?.hit && (response==='accepted'||response==='declined')) void act({action:'hit_reply',room:room.id,id:room.hit.id,response})
     })
-    click('[data-chat-hit-cancel]',()=>{
-      if (room?.hit && confirm(room.hit.status==='proposed'?'Withdraw this proposal?':'Cancel this hit for both players?')) {
-        void act({action:'hit_cancel',room:room.id,id:room.hit.id})
+    click('[data-chat-hit-cancel]',button=>{
+      const hit=button.dataset.chatHitCancel==='confirmed'?room?.confirmedHit:room?.hit
+      if (room && hit && confirm(hit.status==='proposed'?'Withdraw this proposal?':'Cancel this hit for both players?')) {
+        void act({action:'hit_cancel',room:room.id,id:hit.id})
       }
     })
     click('[data-chat-hit-directions]',button=>{
-      const court=listedHittingClub(room?.hit?.clubId)
+      const hit=button.dataset.chatHitDirections==='confirmed'?room?.confirmedHit:room?.hit
+      const court=listedHittingClub(hit?.clubId)
       if (court && !directions?.isOpen()) directions=openCourtDirections(court,button,active)
     })
     click('[data-player-direct]',button=>{if(button.dataset.playerDirect)void act({action:'direct',target:button.dataset.playerDirect})})
@@ -662,7 +674,7 @@ export function openPlayerChats(
       date:String(fields.get('date')??''),time:String(fields.get('time')??''),clubId:String(fields.get('clubId')??''),
     })
     dialog.querySelector<HTMLFormElement>('[data-chat-hit-form]')?.addEventListener('input',event=>{
-      hitDraft=hitFields(new FormData(event.currentTarget as HTMLFormElement))
+      if (hitDraft) hitDraft={...hitDraft,...hitFields(new FormData(event.currentTarget as HTMLFormElement))}
     })
     form('[data-chat-hit-form]',fields=>{
       if (!room || room.group || !hitDraft) return
@@ -672,7 +684,8 @@ export function openPlayerChats(
         render(true)
         return
       }
-      void act({action:'hit_propose',room:room.id,id:crypto.randomUUID(),...next})
+      const request={room:room.id,id:crypto.randomUUID(),...next}
+      void act(hitDraft.replaces?{action:'hit_suggest',replaces:hitDraft.replaces,...request}:{action:'hit_propose',...request})
     })
     const practiceFields = (fields:FormData) => ({
       date:String(fields.get('date')??''),time:String(fields.get('time')??''),

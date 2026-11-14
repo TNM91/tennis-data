@@ -33,7 +33,7 @@ import {personalMatchFixture} from './mobile-personal-matches'
 import {captainCourtPreview,captainCourtsFixture,captainFixtureId} from './mobile-captain-courts'
 import {shiftCalendarDay} from '../../mobile/src/calendar-data'
 import {calendarTeamMatchesHeader} from '../../lib/native-calendar-contract'
-import {chatHitsHeader,parseChatHitAction,type ChatHit} from '../../lib/chat-hit-contract'
+import {chatHitChangesHeader,chatHitsHeader,parseChatHitAction,type ChatHit} from '../../lib/chat-hit-contract'
 import {hittingPlanStart} from '../../lib/hitting-plan'
 import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLimit,teamScorecardsHeader,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
@@ -44,6 +44,7 @@ const playerChatFixture={
  practices:new URL(location.href).searchParams.has('group-practice'),
  hitEnabled:new URL(location.href).searchParams.has('chat-hit'),
  hit:null as ChatHit|null,
+ confirmedHit:undefined as ChatHit|undefined,
  practice:null as import('../../lib/group-practice-contract').GroupPractice|null,
  room:'bb4f152f-bb10-4b30-a233-09f20121e463',
  player:'ca2592d5-8135-4d6c-86ff-aef07ff620f0',
@@ -219,11 +220,18 @@ window.fetch=async(input,init)=>{
    const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string;members?:string[];target?:string;startsAt?:string;court?:string;capacity?:number;response?:'in'|'out';request?:string}
    if(state.hitEnabled){
     const action=parseChatHitAction(body)
-    if(action?.action==='hit_propose'){
+    if(action?.action==='hit_propose'||action?.action==='hit_suggest'){
+     if(action.action==='hit_suggest'&&state.hit?.status==='accepted')state.confirmedHit=state.hit
      state.hit={...action,startsAt:hittingPlanStart(action)!.toISOString(),proposedBy:owner,status:'proposed'}
     }
-    if(action?.action==='hit_reply'&&state.hit)state.hit={...state.hit,status:action.response}
-    if(action?.action==='hit_cancel'&&state.hit)state.hit={...state.hit,status:'cancelled'}
+    if(action?.action==='hit_reply'&&state.hit){
+     state.hit=action.response==='declined'&&state.confirmedHit?state.confirmedHit:{...state.hit,status:action.response}
+     state.confirmedHit=undefined
+    }
+    if(action?.action==='hit_cancel'&&state.hit){
+     state.hit=action.id===state.hit.id&&state.confirmedHit?state.confirmedHit:{...(state.confirmedHit??state.hit),status:'cancelled'}
+     state.confirmedHit=undefined
+    }
    }
    if(body.action==='group'||body.action==='direct'){
     state.group=body.action==='group'
@@ -265,7 +273,9 @@ window.fetch=async(input,init)=>{
    id:state.room,title:state.title,group:state.group,manage:state.group&&(!state.inviteGroup||!new URL(location.href).searchParams.has('link')),more:false,
    members:state.group?contacts.filter(player=>state.groupMembers.includes(player.id)):[contact],messages:state.outgoing,logo:state.logo,
    ...(state.group&&state.practices?{practice:state.practice}:{}),
-   ...(!state.group&&state.hitEnabled&&new Headers(init?.headers).get(chatHitsHeader)==='1'?{hit:state.hit}:{}),
+   ...(!state.group&&state.hitEnabled&&new Headers(init?.headers).get(chatHitsHeader)==='1'?
+    new Headers(init?.headers).get(chatHitChangesHeader)==='1'?{hit:state.hit,confirmedHit:state.confirmedHit,canSuggestHit:true}:
+      {hit:state.confirmedHit??state.hit}:{}),
   }})
   return Response.json({...base,contacts,rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:inboxSearchFixture,
    logo:state.logo,activityAt:'2026-11-13T20:00:00Z'}]:[]})
@@ -650,7 +660,7 @@ window.fetch=async(input,init)=>{
   const include=new Headers(init?.headers).get(calendarTeamMatchesHeader)==='1'
   const teamMatches=include&&enabled&&revision&&match?[{roomId:chatRoomId,revision,match,scope:chatTeam}]:undefined
   const response=await calendarPreview(init?.method||'GET',url,init?.body,teamMatches)
-  const hit=playerChatFixture.hit,from=url.searchParams.get('from'),to=url.searchParams.get('to')
+  const hit=playerChatFixture.confirmedHit??playerChatFixture.hit,from=url.searchParams.get('from'),to=url.searchParams.get('to')
   if(response.ok&&hit?.status==='accepted'&&from&&to&&hit.date>=from&&hit.date<=to&&new Headers(init?.headers).get(chatHitsHeader)==='1'){
    return Response.json({...await response.json(),chatHits:[{...hit,partner:'Jamie'}]})
   }

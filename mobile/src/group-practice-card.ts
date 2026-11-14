@@ -7,7 +7,7 @@ import type { SavedCourts } from './explore-saved-courts'
 import { html } from './html'
 
 export type GroupPracticeDraft = {date:string;time:string;court:string;capacity:string;revision?:string;id?:string;startsAt?:string}
-export type ChatHitDraft = {date:string;time:string;clubId:string}
+export type ChatHitDraft = {date:string;time:string;clubId:string;replaces?:string}
 const pad = (value:number) => String(value).padStart(2,'0')
 const practiceDateTime = (draft: Pick<GroupPracticeDraft,'date'|'time'>,central=false) => `<div class="group-practice-fields">
   <label>Date<input type="date" name="date" value="${html(draft.date)}" required></label>
@@ -57,24 +57,27 @@ export function groupPracticeCard(practice:GroupPractice|null,manage:boolean,dra
   </section>`
 }
 
-export function chatHitCard(hit: ChatHit|null, owner: string, draft: ChatHitDraft|null, saved:SavedCourts) {
+const chatHitWhen = (hit:ChatHit) => new Intl.DateTimeFormat(undefined,{
+  timeZone:hittingPlanTimeZone,weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short',
+}).format(new Date(hit.startsAt))
+
+export function chatHitCard(hit: ChatHit|null, owner: string, draft: ChatHitDraft|null, saved:SavedCourts,
+  confirmedHit:ChatHit|undefined, canSuggest:boolean) {
   if (draft) return `<section class="group-practice-card" aria-labelledby="chat-hit-title">
-    <h3 id="chat-hit-title">Plan a hit</h3>
+    <h3 id="chat-hit-title">${draft.replaces?'Suggest another time':'Plan a hit'}</h3>
     <form data-chat-hit-form>
       ${practiceDateTime(draft,true)}
       <label>Club<select name="clubId" required>
         <option value="">Choose a club</option>${hittingClubOptions(saved,draft.clubId)}
       </select></label>
-      <button type="submit">Send proposal</button>
+      ${draft.replaces&&(confirmedHit||hit?.status==='accepted')?'<p>Your confirmed hit stays on both calendars until the change is accepted.</p>':''}
+      <button type="submit">${draft.replaces?'Send suggestion':'Send proposal'}</button>
       <button type="button" class="secondary" data-chat-hit-dismiss>Back</button>
     </form>
   </section>`
   const start = '<button type="button" class="secondary" data-chat-hit-start>Plan a hit</button>'
   const court = listedHittingClub(hit?.clubId)
   if (!hit || !court) return start
-  const when = new Intl.DateTimeFormat(undefined,{
-    timeZone:hittingPlanTimeZone,weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short',
-  }).format(new Date(hit.startsAt))
   const own = hit.proposedBy===owner
   const status = {
     accepted:'Confirmed · On both calendars', proposed:own?'Waiting for a reply':'Waiting for your reply',
@@ -82,15 +85,21 @@ export function chatHitCard(hit: ChatHit|null, owner: string, draft: ChatHitDraf
   }[hit.status]
   const reply = hit.status==='proposed' && !own
   const cancel = hit.status==='accepted' || (hit.status==='proposed' && own)
+  const confirmedClub=listedHittingClub(confirmedHit?.clubId)
   return `<section class="group-practice-card" aria-labelledby="chat-hit-title">
     <h3 id="chat-hit-title">Hitting plan</h3>
-    <p><strong>${status}</strong></p>
-    <p><time datetime="${html(hit.startsAt)}">${html(when)}</time></p>
+    ${confirmedHit&&confirmedClub?`<p><strong>Currently confirmed</strong><br>
+      <time datetime="${html(confirmedHit.startsAt)}">${html(chatHitWhen(confirmedHit))}</time> · ${html(confirmedClub.name)}</p>`:''}
+    <p><strong>${confirmedHit?'Proposed change · ':''}${status}</strong></p>
+    <p><time datetime="${html(hit.startsAt)}">${html(chatHitWhen(hit))}</time></p>
     <p>${html(court.name)}</p>
     <div class="player-chat-actions">
-      ${reply?'<button type="button" data-chat-hit-reply="accepted">Accept</button><button type="button" class="secondary" data-chat-hit-reply="declined">Decline</button>':''}
-      ${hit.status==='accepted'||hit.status==='proposed'?'<button type="button" class="secondary" data-chat-hit-directions>Directions</button>':''}
-      ${cancel?`<button type="button" class="secondary" data-chat-hit-cancel>${hit.status==='proposed'?'Withdraw proposal':'Cancel hit'}</button>`:''}
+      ${reply?`<button type="button" data-chat-hit-reply="accepted">${confirmedHit?'Accept change':'Accept'}</button><button type="button" class="secondary" data-chat-hit-reply="declined">${confirmedHit?'Keep confirmed hit':'Decline'}</button>`:''}
+      ${canSuggest&&(hit.status==='accepted'||hit.status==='proposed')?'<button type="button" class="secondary" data-chat-hit-suggest>Suggest another time</button>':''}
+      ${hit.status==='accepted'||hit.status==='proposed'?`<button type="button" class="secondary" data-chat-hit-directions>${confirmedHit?'Directions to proposed club':'Directions'}</button>`:''}
+      ${cancel?`<button type="button" class="secondary" data-chat-hit-cancel>${confirmedHit?'Withdraw suggestion':hit.status==='proposed'?'Withdraw proposal':'Cancel hit'}</button>`:''}
+      ${confirmedHit?`<button type="button" class="secondary" data-chat-hit-directions="confirmed">Directions to confirmed club</button>
+        <button type="button" class="secondary" data-chat-hit-cancel="confirmed">Cancel confirmed hit</button>`:''}
       ${hit.status==='declined'||hit.status==='cancelled'?start:''}
     </div>
   </section>`

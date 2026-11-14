@@ -119,7 +119,7 @@ export type PlayerContact = { id: string; name: string }
 export type PlayerChatMessage = { id: string; author: string; name: string; body: string; createdAt: string }
 export type PlayerChatSummary = { id: string; title: string; group: boolean; unread: boolean; logo?: string; activityAt?: string }
 export type PlayerChatRoom = Omit<PlayerChatSummary,'unread'> & {
-  manage: boolean; messages: PlayerChatMessage[]; more: boolean; members: PlayerContact[]; practice?: GroupPractice | null; hit?: ChatHit | null
+  manage: boolean; messages: PlayerChatMessage[]; more: boolean; members: PlayerContact[]; practice?: GroupPractice | null; hit?: ChatHit | null; confirmedHit?: ChatHit; canSuggestHit?: boolean
 }
 export type PlayerChatInbox = { contacts: PlayerContact[]; rooms: PlayerChatSummary[] }
 const flag = (value: unknown) => {
@@ -145,8 +145,13 @@ export function readPlayerChatRoom(value: unknown, room: string): PlayerChatRoom
   if (row.id !== room) throw Error('Chat access changed.')
   const hit = row.hit!=null && row.group===false ? readChatHit(row.hit) : row.hit===null && row.group===false ? null : undefined
   if (hit && hit.room!==room) throw Error('Hitting plan changed.')
+  const confirmedHit = row.confirmedHit!=null && row.group===false ? readChatHit(row.confirmedHit) : undefined
+  if (confirmedHit && (hit?.status!=='proposed' || confirmedHit.status!=='accepted' || confirmedHit.room!==room || confirmedHit.id===hit.id)) {
+    throw Error('Hitting plan changed.')
+  }
   return { id:room,title:text(row.title,100),group:flag(row.group),manage:flag(row.manage),more:flag(row.more),logo:readChatIconUrl(row.logo),
     ...(hit!==undefined ? {hit} : {}),
+    ...(confirmedHit ? {confirmedHit} : {}), ...(row.canSuggestHit===true && row.group===false ? {canSuggestHit:true} : {}),
     ...(Object.hasOwn(row,'practice') && row.group === true ? {practice:readGroupPractice(row.practice)} : {}),
     members:list(row.members,31,contact),messages:list(row.messages,40,m=>{
       if (!updateTimestamp(m.createdAt)) throw Error('Chat messages changed.')
