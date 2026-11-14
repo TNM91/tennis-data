@@ -19,6 +19,8 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.exec(`create schema private;
     create function private.is_profile_team_member(uuid,text,text,text) returns boolean
       language sql as 'select false';
+    create function private.named_room_unread(uuid,uuid) returns integer
+      language sql as 'select 0';
     alter table public.team_chat_rooms add unique (parent_conversation_id,name_key)`)
   await db.exec(await readSql(new URL('../../supabase/migrations/20261114000200_native_first_party_team_chats.sql',import.meta.url)))
   const reconcile=await readSql(new URL('../../supabase/migrations/20261114000600_reconcile_chat_account_erasure_catalog.sql',import.meta.url))
@@ -28,7 +30,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.exec('rollback; alter table profiles drop column unexpected')
   await db.exec(reconcile)
   await db.exec('alter table auth.users add column raw_user_meta_data jsonb; alter table public.team_chat_blocks add unique(owner_user_id,blocked_user_id)')
-  for(const file of ['20261113001100_native_player_chats.sql','20261114000300_native_direct_chat_hits.sql','20261114000800_native_chat_hit_scorecards.sql','20261114000900_native_chat_hit_rematch.sql']){
+  for(const file of ['20261113001100_native_player_chats.sql','20261114000300_native_direct_chat_hits.sql','20261114000800_native_chat_hit_scorecards.sql','20261114000900_native_chat_hit_rematch.sql','20261114001000_native_chat_recent_activity.sql']){
    await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
   }
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
@@ -36,6 +38,28 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.query('insert into internal_notification_preferences(profile_id,native_coach_alerts_enabled) values($1,true),($2,false)',[a,b])
   await db.query("insert into team_room_member_preferences(conversation_id,profile_id,chat_display_name) values($1,$2,'Avery'),($1,$3,'Cam')",[room,a,b])
   await db.exec('update team_chat_rooms set first_party=true')
+  const general='66666666-aaaa-4666-8666-666666666661',channel='66666666-aaaa-4666-8666-666666666662'
+  await db.query("insert into internal_conversations(id,created_by_user_id,related_entity_type,related_entity_id,status,updated_at) values($1,$3,'team_room','aces__city__4 0','open','2099-01-01'),($2,$3,'team_room_chat','practice','open','2099-01-01')",[general,channel,b])
+  await db.query('insert into internal_conversation_participants(conversation_id,profile_id) values($1,$2)',[general,b])
+  await db.query("insert into team_profile_links(profile_user_id,team_name,normalized_team_name,league_name,flight,status,source_type) values($1,'Aces','aces','City','4.0','accepted','manual_invite')",[b])
+  await db.query("insert into team_chat_rooms(conversation_id,parent_conversation_id,team_name,league_name,flight,name,name_key,created_by,first_party) values($1,$2,'Aces','City','4.0','Practice','practice',$3,true)",[channel,general,b])
+  await db.query("insert into team_chat_blocks(owner_user_id,blocked_user_id) values($1,$2)",[b,a])
+  await db.query(`insert into internal_messages(conversation_id,sender_user_id,message_kind,body,created_at,deleted_at) values
+    ($1,$3,'message','General','2026-11-01T12:00:00Z',null),($1,$4,'message','Blocked','2026-11-01T14:00:00Z',null),
+    ($2,$3,'message','Practice','2026-11-01T13:00:00Z',null),($2,$3,'message','Deleted','2026-11-01T15:00:00Z',now())`,[general,channel,b,a])
+  const recentActivity=async(owner:string)=>(await db.query<{result:{ok:boolean;generalActivityAt:string;rooms:{id:string;activityAt:string}[]}}>(
+    "select native_first_party_team_chat_rooms($1,'Aces','City','4.0','list',null,null,$2) result",[owner,general])).rows[0].result
+  expect(await recentActivity(a)).toEqual({ok:false,status:403})
+  const activity=await recentActivity(b)
+  expect(activity).toMatchObject({ok:true,rooms:[{id:channel}]})
+  expect(new Date(activity.generalActivityAt).toISOString()).toBe('2026-11-01T12:00:00.000Z')
+  expect(new Date(activity.rooms[0].activityAt).toISOString()).toBe('2026-11-01T13:00:00.000Z')
+  await db.query('delete from team_chat_blocks where owner_user_id=$1 and blocked_user_id=$2',[b,a])
+  await db.query('delete from internal_messages where conversation_id in ($1,$2)',[general,channel])
+  await db.query('delete from team_chat_rooms where conversation_id=$1',[channel])
+  await db.query('delete from internal_conversation_participants where conversation_id=$1',[general])
+  await db.query('delete from internal_conversations where id in ($1,$2)',[general,channel])
+  await db.query("delete from team_profile_links where profile_user_id=$1 and team_name='Aces'",[b])
   await db.query("insert into internal_messages(conversation_id,sender_user_id,body,metadata) values($1,$2,'Keep this reply',$3)",[room,b,JSON.stringify({quote:{author:a,body:'Private copied message'},other:'Keep'})])
   await db.query("insert into team_room_member_removals(conversation_id,profile_id,removed_by_user_id) values($1,$2,$3)",[room,b,a])
   await db.query("insert into internal_notifications(recipient_profile_id,actor_user_id,body) values($1,$2,'Private copied message')",[b,a])

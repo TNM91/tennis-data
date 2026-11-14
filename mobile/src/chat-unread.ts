@@ -9,8 +9,8 @@ import {updateTimestamp} from '../../lib/native-updates-contract'
 import {readChatIconUrl} from '../../lib/chat-icon-url'
 import {firstPartyBuild} from './build-scope'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
-export type ChatUnreadTeam=TeamScope&{unread:number;generalUnread?:number;rooms?:{id:string;name:string;unread:number;activityAt?:string;logo?:string}[]}
-export type CoachChatUnread={available:boolean;total:number;connections:{id:string;unread:number;latest?:string|null}[]}
+export type ChatUnreadTeam=TeamScope&{unread:number;activityAt?:string|null;generalUnread?:number;rooms?:{id:string;name:string;unread:number;activityAt?:string;logo?:string}[]}
+export type CoachChatUnread={available:boolean;total:number;connections:{id:string;unread:number;latest?:string|null;activityAt?:string}[]}
 /** total remains the legacy team total for installed builds. */
 export type ChatUnread={owner:string;total:number;teams:ChatUnreadTeam[];coach?:CoachChatUnread}
 export const combinedChatUnread=(value:ChatUnread|null)=>value?Math.min(100,value.total+(value.coach?.total||0)):null
@@ -24,7 +24,7 @@ export function parseChatUnread(value:unknown,owner:string):ChatUnread{
   if(!team||typeof team.teamName!=='string'||!team.teamName.trim()||team.teamName.length>160||typeof team.leagueName!=='string'||!team.leagueName.trim()||team.leagueName.length>160||typeof team.flight!=='string'||team.flight.length>120||!count(team.unread)||ids.has(key(team)))throw Error('Chat counts unavailable')
   const hasRooms=team.generalUnread!==undefined||team.rooms!==undefined
   if(hasRooms&&(!count(team.generalUnread)||!Array.isArray(team.rooms)||team.rooms.length>12||team.rooms.some(room=>!room||!namedChatRoomId(room.id)||!namedChatRoomName(room.name)||!count(room.unread))||new Set(team.rooms.map(room=>room.id)).size!==team.rooms.length||team.unread!==Math.min(100,team.generalUnread+team.rooms.reduce((sum,room)=>sum+room.unread,0))))throw Error('Chat counts unavailable')
-  ids.add(key(team));return {teamName:team.teamName,leagueName:team.leagueName,flight:team.flight,unread:team.unread,...(hasRooms?{generalUnread:team.generalUnread,rooms:team.rooms!.map(({id,name,unread,activityAt,logo})=>{
+  ids.add(key(team));return {teamName:team.teamName,leagueName:team.leagueName,flight:team.flight,unread:team.unread,...(team.activityAt===null||updateTimestamp(team.activityAt)?{activityAt:team.activityAt}:{}),...(hasRooms?{generalUnread:team.generalUnread,rooms:team.rooms!.map(({id,name,unread,activityAt,logo})=>{
    const icon=readChatIconUrl(logo)
    return {id,name,unread,...(updateTimestamp(activityAt)?{activityAt}:{}),...(icon?{logo:icon}:{})}
   })}:{})}
@@ -34,7 +34,12 @@ export function parseChatUnread(value:unknown,owner:string):ChatUnread{
  if(row.coach!==undefined){
   const input=row.coach
   if(!input||typeof input.available!=='boolean'||!count(input.total)||!Array.isArray(input.connections)||input.connections.length>100)throw Error('Coach counts unavailable')
-  const ids=new Set<string>(),connections=input.connections.map(c=>{const id=coachId(c?.id);if(ids.has(id)||!count(c.unread)||c.latest!==undefined&&c.latest!==null&&(typeof c.latest!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.latest)))throw Error('Coach counts unavailable');ids.add(id);return {id,unread:c.unread,...(c.latest!==undefined?{latest:c.latest}:{})}})
+  const ids=new Set<string>(),connections=input.connections.map(c=>{
+   const id=coachId(c?.id)
+   if(ids.has(id)||!count(c.unread)||c.latest!==undefined&&c.latest!==null&&(typeof c.latest!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.latest)))throw Error('Coach counts unavailable')
+   ids.add(id)
+   return {id,unread:c.unread,...(c.latest!==undefined?{latest:c.latest}:{}),...(updateTimestamp(c.activityAt)?{activityAt:c.activityAt}:{})}
+  })
   if(input.total!==Math.min(100,connections.reduce((sum,c)=>sum+c.unread,0))||!input.available&&(input.total!==0||connections.length!==0))throw Error('Coach counts unavailable')
   coach={available:input.available,total:input.total,connections}
  }

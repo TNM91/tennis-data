@@ -91,7 +91,7 @@ type ChatReplyReturn={messageId:string;query:string;filter:ChatFilter;findOpen:b
 export type TeamResultsReturn = {roomId:string;scope:TeamScope;position:TeamResultsPosition}
 
 export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string,isCurrent:()=>boolean,
- initialScope?:TeamChatDestination,alerts?:{unread:()=>ChatUnread|null;refresh:()=>void;mountNotifications:(host:HTMLElement)=>void},
+ initialScope?:TeamChatDestination,alerts?:{unread:()=>ChatUnread|null;refresh:()=>Promise<void>;mountNotifications:(host:HTMLElement)=>void},
  entry?:{view:CompeteTeamAction;back:()=>void},
  results?:{drafts:TeamScoreDraftSession;openScorecard:(seed:CalendarScorecardSeed,source:TeamResultsReturn)=>void;onScheduleChanged:()=>void;returnTo?:TeamResultsReturn}) {
  let returnToResults=results?.returnTo
@@ -599,6 +599,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   if((draft.text.trim()||draft.photo)&&!window.confirm('Return to Chats? Your unfinished message will be discarded.'))return
   if(entry){entry.back();return}
   freshDraft();inbox=true;render()
+  if(firstPartyBuild)void alerts?.refresh()
  }
  const render=(latest=false)=>{
   inboxView?.dispose();inboxView=null
@@ -645,10 +646,8 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    if(inboxOrder){
     const ownerChats=playerChatsForAccount(client,userId,()=>valid()&&inbox)
     organizedInbox=mountChatInboxOrder(app,snapshot.teams,inboxOrder,async()=> (await ownerChats.inbox()).rooms,openPlayer,openTeam,
-     chatFilters,{snapshot:coachInbox.searchSnapshot,open:coachInbox.openConnection},()=>{
-      alerts?.refresh()
-      void coachInbox.refresh()
-     })
+     chatFilters,{snapshot:coachInbox.searchSnapshot,open:coachInbox.openConnection,setPins:coachInbox.setPins},
+     ()=>Promise.all([alerts?.refresh(),coachInbox.refresh()]))
     organizedInbox.updateUnread(alerts?.unread()??null)
    }
    const create=app.querySelector<HTMLButtonElement>('#create-private-team')

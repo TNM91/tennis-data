@@ -76,7 +76,9 @@ export function chatsInboxHtml(data:NativeTeamData){
  <ul role="list"></ul>
  </section>
  <section class="native-section-group chat-inbox-organized" data-chats-pinned aria-label="Pinned" hidden><h2>Pinned</h2><ul role="list"></ul></section>
- <section class="native-section-group chat-inbox-organized" data-chats-recent aria-label="Recent" hidden><h2>Recent</h2><ul role="list"></ul></section>
+ <section class="native-section-group chat-inbox-organized" data-chats-recent aria-label="Recent" hidden>
+ <div class="chats-section-heading"><h2>Recent</h2><button type="button" class="secondary" data-recent-refresh>Refresh chats</button></div>
+ <p class="chats-inbox-find-status" role="status"></p><ul role="list"></ul></section>
  <section class="native-section-group chat-inbox-organized" data-chats-players aria-label="Conversations" hidden><h2>Conversations</h2><ul role="list"></ul></section>`:''}
  <div class="chats-inbox-shortcuts" role="group" aria-label="Chat inbox shortcuts" ${firstPartyBuild?'hidden':''}>${inboxShortcuts.map(({target,label,description,icon})=>`
   <button type="button" class="secondary chats-inbox-shortcut" aria-controls="${target}" data-chats-jump="${target}">

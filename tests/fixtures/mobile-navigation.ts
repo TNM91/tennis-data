@@ -39,6 +39,9 @@ import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLimit,teamScorecardsHeader,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
 const originalFetch=window.fetch.bind(window)
 const inboxSearchFixture=new URL(location.href).searchParams.has('chat-inbox-search')
+const hasInboxActivity=new URL(location.href).searchParams.has('chat-inbox-activity')
+const inboxActivityFixture={coach:'2026-11-13T18:00:00Z',team:'2026-11-13T19:00:00Z'}
+Object.assign(window,{inboxActivityFixture})
 const playerChatFixture={
  enabled:new URL(location.href).searchParams.has('player-chat'),
  practices:new URL(location.href).searchParams.has('group-practice'),
@@ -419,6 +422,11 @@ window.fetch=async(input,init)=>{
   const roomSummaries=Array.from(namedChats,([id,value])=>({id,name:value.name,unread:inboxSearchFixture?2:0,muted:false,activityAt:'2026-11-14T20:00:00Z',logo:value.logo}))
   if(op==='unread'){
    const total=roomSummaries.reduce((sum,room)=>sum+room.unread,0)
+   if(hasInboxActivity&&owner===navigationOwner){
+    const coach=coachUnreadCounts(owner)
+    return Response.json({...base,total:0,teams:[{...chatTeam,unread:0,activityAt:inboxActivityFixture.team}],
+     coach:{...coach,connections:[...coach.connections,{id:updateCoachStudent,unread:0,activityAt:inboxActivityFixture.coach}]}})
+   }
    return Response.json({...base,total,teams:namedChatsFixture?[{...(privateTeam??chatTeam),unread:total,generalUnread:0,rooms:roomSummaries}]:[],coach:coachUnreadCounts(owner)})
   }
   if(op==='captain-setup')return Response.json({...base,captainChatSetup:firstPartyTeamFixture.captainChatSetup,

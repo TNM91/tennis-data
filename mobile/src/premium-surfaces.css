@@ -1604,6 +1604,7 @@ body[data-screen="teams"] button.secondary[data-inbox-unread] {
 }
 body[data-screen="teams"] [data-inbox-unread][aria-pressed="true"] { border-color:var(--premium-lime); color:var(--premium-lime); }
 .chats-inbox-find-status { margin:4px 0 8px; color:var(--premium-copy); font-size:.8125rem; }
+[data-chats-recent] .chats-inbox-find-status:empty { margin:0; }
 .chats-inbox-toolbar[hidden],[data-chats-find][hidden],[data-coach-chats][hidden],[data-inbox-retry][hidden] { display:none!important; }
 .chats-inbox-toolbar { display:grid; gap:4px; margin:0 0 12px; }
 .chats-team-add { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
@@ -1733,12 +1734,12 @@ body[data-screen="teams"] .chats-filter-feedback button.secondary {
 .chats-filter-feedback button:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 .chats-filter-feedback button[hidden] { display:none; }
 body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-list { margin-block:4px 10px;gap:6px; }
-body[data-screen="teams"]:not(.native-chat-conversation) :is(#chats-team-inbox,#chats-coach-inbox) button.secondary:is(#refresh-team,[data-coach-chat-refresh]) {
+body[data-screen="teams"]:not(.native-chat-conversation) button.secondary:is(#refresh-team,[data-coach-chat-refresh],[data-recent-refresh]) {
  inline-size:auto;min-block-size:44px;margin:0;padding:6px 9px;
  border-color:transparent;background:transparent;color:var(--premium-ice);box-shadow:none;
  font-size:.8125rem;line-height:1.35;
 }
-body[data-screen="teams"]:not(.native-chat-conversation) :is(#chats-team-inbox,#chats-coach-inbox) button.secondary:is(#refresh-team,[data-coach-chat-refresh]):focus-visible {
+body[data-screen="teams"]:not(.native-chat-conversation) button.secondary:is(#refresh-team,[data-coach-chat-refresh],[data-recent-refresh]):focus-visible {
  outline:2px solid var(--premium-ice);outline-offset:2px;
 }
 body[data-screen="more"] .app-tool-search,

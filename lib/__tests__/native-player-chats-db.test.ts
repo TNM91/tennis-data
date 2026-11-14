@@ -40,6 +40,7 @@ it('keeps contacts consensual and player chats private while delivering one noti
     `)
     await db.exec(await readFile('supabase/migrations/20261113001100_native_player_chats.sql','utf8'))
     await db.exec(await readFile('supabase/migrations/20261113001200_native_group_practices.sql','utf8'))
+    await db.exec(await readFile('supabase/migrations/20261114001000_native_chat_recent_activity.sql','utf8'))
     for (const [user,name] of [[owner,'Avery'],[contact,'Cam'],[guest,'Jamie'],[stranger,'Riley'],[unverified,'New player']]) {
       await db.query('insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data) values($1,$2,$3,$4)',[
         user,user+'@example.test',user===unverified?null:new Date(),JSON.stringify({first_name:name}),
@@ -238,7 +239,9 @@ it('keeps contacts consensual and player chats private while delivering one noti
     expect(await action(owner,'send',{...send,text:'Changed text'})).toEqual({code:'invalid'})
     expect(await read(stranger,direct)).toEqual({code:'forbidden'})
     expect(await read(contact,direct)).toMatchObject({code:'ok',room:{title:'Avery',messages:[{id:post,body:send.text}]}})
-    expect(await read(contact)).toMatchObject({rooms:[{id:direct,unread:true}]})
+    const sentAt=(await db.query<{activity:string}>('select to_jsonb(created_at) activity from internal_messages where id=$1',[post])).rows[0].activity
+    await db.query("update internal_conversations set updated_at='2099-01-01' where id=$1",[direct])
+    expect(await read(contact)).toMatchObject({rooms:[{id:direct,unread:true,activityAt:sentAt}]})
     expect(await action(contact,'read',{room:direct,request:post})).toEqual({code:'ok'})
     expect(await read(contact)).toMatchObject({rooms:[{id:direct,unread:false}]})
     await asUser(contact,async ()=>{

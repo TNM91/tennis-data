@@ -663,6 +663,58 @@ test('search chats finds named rooms, groups, and coach conversations and combin
  await bounded(page)
 })
 
+test('coach and team pins stay at the top while Recent follows refreshed activity',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:390,height:844})
+ await page.goto(origin+'/?player-chat=1&chat-inbox-search=1&chat-inbox-activity=1')
+ const chats=page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/})
+ const pinned=page.getByRole('region',{name:'Pinned',exact:true})
+ const recent=page.getByRole('region',{name:'Recent',exact:true})
+ const coaches=page.getByRole('region',{name:'Coach & player conversations'})
+ const view=page.getByLabel('View',{exact:true})
+ await chats.click()
+ await page.getByRole('button',{name:'Pin Baseline Aces',exact:true}).click()
+ await coaches.getByRole('button',{name:'Pin Taylor Morgan',exact:true}).click()
+ await expect(pinned.getByRole('button',{name:'Unpin Taylor Morgan',exact:true})).toBeFocused()
+ await expect(coaches.getByRole('button',{name:/^Taylor Morgan/})).toHaveCount(0)
+ await view.selectOption('recent')
+ await expect(pinned.locator('.chats-team-copy strong')).toHaveText(['Taylor Morgan','Baseline Aces'])
+ await expect(recent.getByRole('button',{name:/^Taylor Morgan/})).toHaveCount(0)
+ await expect(recent.getByRole('button',{name:/^Friday Rally/})).toBeVisible()
+ await page.evaluate(()=>{
+  const activity=Reflect.get(window,'inboxActivityFixture') as {coach:string;team:string}
+  activity.team='2026-11-13T20:30:00Z'
+ })
+ await recent.getByRole('button',{name:'Refresh chats',exact:true}).click()
+ await expect(recent.getByRole('button',{name:'Refresh chats',exact:true})).toBeEnabled()
+ await expect(pinned.locator('.chats-team-copy strong')).toHaveText(['Taylor Morgan','Baseline Aces'])
+ await pinned.getByRole('button',{name:/^Taylor Morgan/}).click()
+ const dialog=page.getByRole('dialog',{name:'Coach messages',exact:true})
+ await expect(dialog.getByRole('combobox',{name:'Conversation'})).toBeVisible()
+ await expect(dialog.getByText('Bring your return notes to our next lesson.')).toBeVisible()
+ await dialog.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(pinned.getByRole('button',{name:/^Taylor Morgan/})).toBeFocused()
+ await pinned.getByRole('button',{name:'Unpin Taylor Morgan',exact:true}).click()
+ await expect(recent.getByRole('button',{name:'Pin Taylor Morgan',exact:true})).toBeFocused()
+ await expect(recent.locator('.chats-team-copy strong').first()).toHaveText('Friday Rally')
+ await page.evaluate(()=>{
+  const activity=Reflect.get(window,'inboxActivityFixture') as {coach:string;team:string}
+  activity.coach='2026-11-13T21:00:00Z'
+ })
+ await recent.getByRole('button',{name:'Refresh chats',exact:true}).click()
+ await expect(recent.locator('.chats-team-copy strong').first()).toHaveText('Taylor Morgan')
+ await expect(pinned.locator('.chats-team-copy strong')).toHaveText(['Baseline Aces'])
+ await recent.getByRole('button',{name:'Pin Taylor Morgan',exact:true}).click()
+ await page.reload()
+ await chats.click()
+ await expect(view).toHaveValue('recent')
+ await expect(pinned.locator('.chats-team-copy strong')).toHaveText(['Taylor Morgan','Baseline Aces'])
+ await view.selectOption('sections')
+ await pinned.getByRole('button',{name:'Unpin Taylor Morgan',exact:true}).click()
+ await expect(coaches.getByRole('button',{name:'Pin Taylor Morgan',exact:true})).toBeFocused()
+ await bounded(page)
+})
+
 test('a pinned group practice accepts a reply from the chat and shows the sign-up list',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:844})

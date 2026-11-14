@@ -5,6 +5,7 @@ import {coachId,coachRecord} from '../../lib/native-coach-contract'
 import type {CoachSend} from './coach-workspace-data'
 
 export type CoachChatConnection={id:string;name:string;role:'coach'|'player'}
+export const coachChatInitials=(name:string)=>name.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]).join('').toLocaleUpperCase()
 export function readCoachChatConnections(value:unknown,owner:string):{connections:CoachChatConnection[];more:boolean}{
  const body=coachRecord(value)
  if(body.ok!==true||body.owner!==owner||!Array.isArray(body.connections)||body.connections.length>100||typeof body.more!=='boolean'||JSON.stringify(body).length>100000)throw Error('Coach conversations could not be confirmed.')

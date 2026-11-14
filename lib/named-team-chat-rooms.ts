@@ -4,7 +4,7 @@ export type NamedChatRoom={id:string;name:string;parentId:string;teamMuted:boole
 export type NamedChatRoomSummary={id:string;name:string;unread:number;muted:boolean;activityAt?:string;hasLogo?:boolean}
 export const namedChatRoomId=(value:unknown):value is string=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value)
 export const namedChatRoomName=(value:unknown):value is string=>typeof value==='string'&&value===value.trim()&&Array.from(value).length>=1&&Array.from(value).length<=48&&!/[\u0000-\u001f\u007f]/.test(value)&&value.replace(/\s+/g,' ').toLowerCase()!=='general'
-export type NamedRoomReply={ok:false;status:number}|{ok:true;status:200;namedRooms:1;parentId:string;teamMuted:boolean;generalUnread:number;canCreate:boolean;rooms:NamedChatRoomSummary[]}|{ok:true;status:200;namedRooms:1;parentId:string;teamMuted:boolean;id:string;name:string;replayed:boolean}
+export type NamedRoomReply={ok:false;status:number}|{ok:true;status:200;namedRooms:1;parentId:string;teamMuted:boolean;generalUnread:number;generalActivityAt?:string|null;canCreate:boolean;rooms:NamedChatRoomSummary[]}|{ok:true;status:200;namedRooms:1;parentId:string;teamMuted:boolean;id:string;name:string;replayed:boolean}
 export async function namedTeamChatRooms(service:SupabaseClient,owner:string,scope:{teamName:string;leagueName:string;flight:string},action:'list'|'open'|'create'|'lookup',id?:unknown,name?:unknown,parentId?:string):Promise<NamedRoomReply>{
  if(action!=='list'&&!namedChatRoomId(id)||['create','lookup'].includes(action)&&!namedChatRoomName(name))return {ok:false as const,status:400}
  try{
@@ -18,7 +18,9 @@ export async function namedTeamChatRooms(service:SupabaseClient,owner:string,sco
  if(row.namedRooms!==1||!namedChatRoomId(row.parentId)||parentId&&row.parentId!==parentId||typeof row.teamMuted!=='boolean')return {ok:false as const,status:503}
  if(action==='list'){
   if(!Number.isInteger(row.generalUnread)||row.generalUnread<0||row.generalUnread>100||typeof row.canCreate!=='boolean'||!Array.isArray(row.rooms)||row.rooms.length>12||row.rooms.some((item:{id:string;name:string;unread:number;muted:boolean})=>!item||!namedChatRoomId(item.id)||!namedChatRoomName(item.name)||!Number.isInteger(item.unread)||item.unread<0||item.unread>100||typeof item.muted!=='boolean')||new Set(row.rooms.map((item:NamedChatRoom)=>item.id)).size!==row.rooms.length)return {ok:false as const,status:503}
-  return {ok:true as const,status:200,namedRooms:1,parentId:row.parentId,teamMuted:row.teamMuted,generalUnread:row.generalUnread,canCreate:row.canCreate,rooms:row.rooms.map((item:NamedChatRoomSummary)=>({
+  return {ok:true as const,status:200,namedRooms:1,parentId:row.parentId,teamMuted:row.teamMuted,generalUnread:row.generalUnread,canCreate:row.canCreate,
+   ...(parentId&&(row.generalActivityAt===null||updateTimestamp(row.generalActivityAt))?{generalActivityAt:row.generalActivityAt as string|null}:{}),
+   rooms:row.rooms.map((item:NamedChatRoomSummary)=>({
    id:item.id,name:item.name,unread:item.unread,muted:item.muted,
    ...(parentId&&updateTimestamp(item.activityAt)?{activityAt:item.activityAt}:{}),
    ...(parentId&&item.hasLogo===true?{hasLogo:true}:{}),

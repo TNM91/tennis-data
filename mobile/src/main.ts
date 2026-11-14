@@ -514,7 +514,7 @@ function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeam
   const userId=session.user.id,version=++revision
   selectNavigation('teams',fromCompete?'compete':'teams')
   const current=()=>version===revision&&userId===session?.user.id
-  teamRoom=showTeamRoom(app,client,userId,current,initialScope,{unread:()=>chatUnread.snapshot(),refresh:()=>{void chatUnread.refresh()},mountNotifications:host=>nativePush.mount(host)},fromCompete?{
+  teamRoom=showTeamRoom(app,client,userId,current,initialScope,{unread:()=>chatUnread.snapshot(),refresh:()=>chatUnread.refresh(),mountNotifications:host=>nativePush.mount(host)},fromCompete?{
    view:fromCompete.action,
    back:()=>{if(current())showHub('compete',{returnTeam:fromCompete,browseFirst:fromCompete.browseFirst})},
   }:undefined,teamScoreDrafts?{

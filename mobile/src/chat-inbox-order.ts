@@ -5,22 +5,26 @@ import { bindTeamChatAvatars,teamChatAvatarHtml } from './team-chat-icon'
 import { teamLeagueLabel } from '../../lib/private-team-contract'
 import type { ChatUnread } from './chat-unread'
 import type { CoachInboxSearch } from './coach-chats-inbox'
+import { coachChatInitials } from './coach-chats-data'
 import websiteUi from '../generated/website-ui.json'
 import { nativeActionIcon } from './native-action-icons'
+import { chatTimestamp } from '../../lib/chat-timestamp'
 
 type Entry = {
   key: string; title: string; subtitle: string; icon?: string; activity?: string
-  unread?: boolean; pinnable?: boolean; searchText?: string; searchSubtitle?: string
+  unread?: boolean; searchText?: string; searchSubtitle?: string; initials?: string
   open: (trigger:HTMLButtonElement) => void
 }
 type Preferences = { sort: 'sections' | 'recent'; pinned: string[] }
 export type ChatInboxFilters = { query: string; unreadOnly: boolean }
-type CoachSearch = { snapshot: () => CoachInboxSearch; open: (id:string,trigger:HTMLButtonElement) => void }
+type CoachSearch = { snapshot: () => CoachInboxSearch; open: (id:string,trigger:HTMLButtonElement) => void;
+  setPins: (keys:readonly string[],toggle:(key:string)=>void) => void }
 const searchWords = (value:string) => value.normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase().trim().split(/\s+/).filter(Boolean)
 
 export const teamInboxKey = (scope: TeamScope) => JSON.stringify(['team',scope.teamName,scope.leagueName,scope.flight])
 export const playerInboxKey = (id: string) => 'chat:'+id
 const teamRoomInboxKey = (id: string) => 'team-chat:'+id
+export const coachInboxKey = (id: string) => 'coach:'+id
 
 export function chatInboxOrder(owner: string) {
   const key = 'tenaceiq:chat-inbox-order:v1:'+owner
@@ -49,9 +53,15 @@ export function chatInboxOrder(owner: string) {
 export function orderedChatInbox(entries: Entry[], order: Preferences) {
   const index = new Map(entries.map(entry=>[entry.key,entry]))
   const pinned = order.pinned.flatMap(key=>index.get(key)??[])
-  const remaining = entries.filter(entry=>!order.pinned.includes(entry.key))
-  const recent = remaining.sort((a,b)=>(Date.parse(b.activity??'')||0)-(Date.parse(a.activity??'')||0) ||
-    a.title.localeCompare(b.title))
+  const pinnedKeys = new Set(order.pinned)
+  const recent = entries.filter(entry=>!pinnedKeys.has(entry.key)).map(entry=>({
+    entry, time:entry.activity ? chatTimestamp(entry.activity) : null,
+  })).sort((a,b)=>{
+    if(a.time===b.time)return a.entry.title.localeCompare(b.entry.title)
+    if(a.time===null)return 1
+    if(b.time===null)return -1
+    return a.time>b.time?-1:1
+  }).map(({entry})=>entry)
   return {pinned,recent}
 }
 
@@ -59,10 +69,12 @@ export function mountChatInboxOrder(
   host: HTMLElement, teamOptions: TeamChatOption[], preferences: ReturnType<typeof chatInboxOrder>,
   load: () => Promise<PlayerChatSummary[]>, openPlayer: (id:string,trigger:HTMLButtonElement) => void,
   openTeam: (scope:TeamScope) => void,
-  filters: ChatInboxFilters, coach: CoachSearch, refreshSources: () => void,
+  filters: ChatInboxFilters, coach: CoachSearch, refreshSources: () => Promise<unknown>,
 ) {
   const pinned = host.querySelector<HTMLElement>('[data-chats-pinned]')!
   const recent = host.querySelector<HTMLElement>('[data-chats-recent]')!
+  const recentRefresh = recent.querySelector<HTMLButtonElement>('[data-recent-refresh]')!
+  const recentStatus = recent.querySelector<HTMLElement>('[role="status"]')!
   const conversations = host.querySelector<HTMLElement>('[data-chats-players]')!
   const teamsSection = host.querySelector<HTMLElement>('#chats-team-inbox')!
   const coachSection = host.querySelector<HTMLElement>('[data-coach-chats]')!
@@ -87,6 +99,7 @@ export function mountChatInboxOrder(
   let teamChats: Entry[][] = []
   let loadId = 0
   let playerStatus: 'loading'|'ready'|'unavailable' = 'loading'
+  let refreshing = false
   let summary: ChatUnread|null = null
   let teamUnread = new Map<string, number>()
   let generalUnread = new Map<string, number>()
@@ -97,9 +110,16 @@ export function mountChatInboxOrder(
     return `<button type="button" class="secondary chat-pin" data-organized-pin aria-label="${html((isPinned?'Unpin ':'Pin ')+entry.title)}" aria-pressed="${isPinned}">${nativeActionIcon('pin')}</button>`
   }
   function fillList(list:HTMLElement,entries:Entry[],nested=false){
-    const markup=entries.map(entry=>`<li class="chat-organized-row${entry.pinnable===false?' chat-organized-row-single':''}"><button type="button" class="secondary chats-team-card" data-organized-open>
-      ${nested&&!entry.icon?`<span class="chats-team-avatar chat-team-channel-icon" aria-hidden="true">${websiteUi.icons.teams}</span>`:teamChatAvatarHtml(entry.title,entry.icon)}<span class="chats-team-copy"><strong>${html(entry.title)}</strong>${nested?'':'<span>'+html(entry.subtitle)+'</span>'}</span>
-      <span class="chat-unread-badge" data-organized-unread hidden></span><span aria-hidden="true">›</span></button>${entry.pinnable===false?'':pinButton(entry)}</li>`).join('')
+    const markup=entries.map(entry=>{
+      let avatar=teamChatAvatarHtml(entry.title,entry.icon)
+      if(entry.initials)avatar=`<span class="chats-team-avatar" aria-hidden="true">${html(entry.initials)}</span>`
+      else if(nested&&!entry.icon)avatar=`<span class="chats-team-avatar chat-team-channel-icon" aria-hidden="true">${websiteUi.icons.teams}</span>`
+      const subtitle=nested?'':`<span>${html(entry.subtitle)}</span>`
+      return `<li class="chat-organized-row"><button type="button" class="secondary chats-team-card" data-organized-open>
+        ${avatar}<span class="chats-team-copy"><strong>${html(entry.title)}</strong>${subtitle}</span>
+        <span class="chat-unread-badge" data-organized-unread hidden></span><span aria-hidden="true">›</span>
+        </button>${pinButton(entry)}</li>`
+    }).join('')
     const unchanged=renderedLists.get(list)===markup
     if(!unchanged){list.innerHTML=markup;renderedLists.set(list,markup)}
     list.querySelectorAll<HTMLLIElement>('li').forEach((row,index)=>{
@@ -108,7 +128,7 @@ export function mountChatInboxOrder(
       open.dataset.focusKey=entry.key
       open.onclick=()=>entry.open(open)
       const pin=row.querySelector<HTMLButtonElement>('[data-organized-pin]')
-      if(pin){pin.dataset.focusKey=entry.key;pin.onclick=()=>toggle(entry)}
+      if(pin){pin.dataset.focusKey=entry.key;pin.onclick=()=>toggle(entry.key)}
     })
     if(!unchanged)bindTeamChatAvatars(list)
   }
@@ -120,7 +140,7 @@ export function mountChatInboxOrder(
     const unread=new Map(players.filter(entry=>entry.unread).map(entry=>[entry.key,'New']))
     for(const [key,count] of teamUnread) if(count)unread.set(key,count===100?'99+':String(count))
     if(summary?.coach?.available){
-      for(const {id,unread:count} of summary.coach.connections)if(count)unread.set('coach:'+id,count===100?'99+':String(count))
+      for(const {id,unread:count} of summary.coach.connections)if(count)unread.set(coachInboxKey(id),count===100?'99+':String(count))
     }
     for(const button of host.querySelectorAll<HTMLButtonElement>('[data-organized-open]')){
       const badge=button.querySelector<HTMLElement>('[data-organized-unread]')!
@@ -132,15 +152,18 @@ export function mountChatInboxOrder(
       else badge.removeAttribute('aria-label')
     }
   }
-  function searchResults(entries:Entry[],query:string[],coachSnapshot:CoachInboxSearch){
-    const coaches:Entry[]=coachSnapshot.connections.map(connection=>({
-      key:'coach:'+connection.id,title:connection.name,
+  function coachEntries(snapshot:CoachInboxSearch):Entry[]{
+    const counts=new Map(summary?.coach?.connections.map(connection=>[connection.id,connection]))
+    return snapshot.connections.map(connection=>({
+      key:coachInboxKey(connection.id),title:connection.name,initials:coachChatInitials(connection.name),
       subtitle:connection.role==='coach'?'Your player':connection.name==='Your coach'?'Coach chat':'Your coach',
-      searchText:'coach player',pinnable:false,
-      unread:summary?.coach?.available&&Boolean(summary.coach.connections.find(chat=>chat.id===connection.id)?.unread),
+      searchText:'coach player',activity:counts.get(connection.id)?.activityAt,
+      unread:Boolean(counts.get(connection.id)?.unread),
       open:trigger=>coach.open(connection.id,trigger),
     }))
-    const matches=[...entries,...coaches].flatMap(entry=>{
+  }
+  function searchResults(entries:Entry[],query:string[]){
+    const matches=entries.flatMap(entry=>{
       const title=searchWords([entry.title,entry.subtitle,entry.searchText].filter(Boolean).join(' ')).join(' ')
       const unreadCount=generalUnread.get(entry.key)??teamUnread.get(entry.key)
       if(!query.every(word=>title.includes(word))||filters.unreadOnly&&!entry.unread&&!unreadCount)return []
@@ -149,38 +172,48 @@ export function mountChatInboxOrder(
     const ordered=orderedChatInbox(matches,preferences.read())
     return [...ordered.pinned,...ordered.recent]
   }
-  function toggle(entry:Entry) {
+  const pinSelector='[data-organized-pin],[data-chat-pin-team]'
+  const openSelector='[data-organized-open],[data-coach-chat]'
+  function toggle(key:string) {
     if (!alive()) return
-    preferences.toggle(entry.key)
+    preferences.toggle(key)
     paint()
-    Array.from(host.querySelectorAll<HTMLButtonElement>('[data-organized-pin],[data-chat-pin-team]'))
-      .find(button=>button.dataset.focusKey===entry.key&&!button.closest('[hidden],[data-team-pinned]')&&button.getClientRects().length)?.focus()
+    Array.from(host.querySelectorAll<HTMLButtonElement>(pinSelector))
+      .find(button=>button.dataset.focusKey===key&&button.getClientRects().length)?.focus()
   }
   function paint(){
     if(!alive())return
     const focused=document.activeElement
     const focusedKey=focused instanceof HTMLButtonElement&&host.contains(focused)?focused.dataset.focusKey:null
-    const focusedSelector=focused instanceof HTMLButtonElement&&focused.matches('[data-organized-open]')
-      ?'[data-organized-open]':'[data-organized-pin],[data-chat-pin-team]'
+    const focusedSelector=focused instanceof HTMLButtonElement&&focused.matches(openSelector)?openSelector:pinSelector
     const words=searchWords(filters.query)
     const finding=words.length>0||filters.unreadOnly
     const order=preferences.read(), grouped=order.sort==='sections'
-    const entries=[...teamEntries,...teamChats.flat(),...players]
+    const coachSnapshot=coach.snapshot()
+    const entries=[...teamEntries,...teamChats.flat(),...players,...coachEntries(coachSnapshot)]
     const {pinned:favorite,recent:available}=orderedChatInbox(entries,order)
     teamsSection.hidden=finding||!grouped
-    coachSection.hidden=finding
+    coachSection.hidden=finding||!grouped&&coachSnapshot.connections.length>0
     results.hidden=!finding
     toolbar.hidden=finding
     unreadOnly.setAttribute('aria-pressed',String(filters.unreadOnly))
     sort.value=order.sort
     section(pinned,finding?[]:favorite)
-    section(recent,finding||grouped?[]:available)
+    recent.hidden=finding||grouped
+    fillList(recent.querySelector('ul')!,recent.hidden?[]:available)
+    const loading=playerStatus==='loading'||coachSnapshot.status==='loading'
+    const incomplete=playerStatus==='unavailable'||coachSnapshot.status==='unavailable'||summary===null||summary.coach?.available===false
+    recentRefresh.disabled=refreshing
+    let recentMessage=''
+    if(refreshing)recentMessage='Refreshing chats…'
+    else if(loading&&!available.length)recentMessage='Loading chats…'
+    else if(!loading&&incomplete)recentMessage='Some chats couldn’t be checked.'
+    else if(!loading&&!available.length)recentMessage='No unpinned chats.'
+    if(recentStatus.textContent!==recentMessage)recentStatus.textContent=recentMessage
     section(conversations,!finding&&grouped?players.filter(entry=>!order.pinned.includes(entry.key)):[])
+    coach.setPins(order.pinned,toggle)
     if(finding){
-      const coachSnapshot=coach.snapshot()
-      const matched=searchResults(entries,words,coachSnapshot)
-      const loading=playerStatus==='loading'||coachSnapshot.status==='loading'
-      const incomplete=playerStatus==='unavailable'||coachSnapshot.status==='unavailable'||summary===null||summary.coach?.available===false
+      const matched=searchResults(entries,words)
       heading.textContent=words.length?'Search results':'Unread chats'
       const count=matched.length===1?'1 chat found':`${matched.length} chats found`
       const message=loading?(matched.length?`${count} · Checking more chats…`:'Finding chats…')
@@ -198,7 +231,7 @@ export function mountChatInboxOrder(
       pin.setAttribute('aria-label',(isPinned?'Unpin ':'Pin ')+entry.title)
       pin.setAttribute('aria-pressed',String(isPinned))
       pin.dataset.focusKey=entry.key
-      pin.onclick=()=>toggle(entry)
+      pin.onclick=()=>toggle(entry.key)
       const chats=teamChats[index]??[]
       const nested=row.querySelector<HTMLUListElement>('[data-team-channels]')!
       const visibleChats=chats.filter(chat=>!order.pinned.includes(chat.key))
@@ -243,13 +276,27 @@ export function mountChatInboxOrder(
     paint()
     search.focus()
   },{signal:signal.signal})
-  retry.addEventListener('click',()=>{search.focus();refreshSources();void refresh()},{signal:signal.signal})
+  async function refreshAll(){
+    if(!alive()||refreshing)return
+    refreshing=true
+    paint()
+    await Promise.allSettled([refreshSources(),refresh()])
+    refreshing=false
+    paint()
+    if(alive()&&!recent.hidden&&document.activeElement===document.body)recentRefresh.focus({preventScroll:true})
+  }
+  retry.addEventListener('click',()=>{search.focus();void refreshAll()},{signal:signal.signal})
+  recentRefresh.addEventListener('click',()=>void refreshAll(),{signal:signal.signal})
   paint()
   void refresh()
   return { dispose:()=>signal.abort(),refresh,refreshCoach:paint,updateUnread(value:ChatUnread|null){
     if(!alive())return
     summary=value
     const counts=new Map(value?.teams.map(team=>[teamInboxKey(team),team]))
+    for(const entry of teamEntries){
+      const activity=counts.get(entry.key)?.activityAt
+      if(activity!==undefined)entry.activity=activity??undefined
+    }
     teamUnread=new Map(Array.from(counts,([key,team])=>[key,team.unread]))
     generalUnread=new Map(Array.from(counts,([key,team])=>[key,team.generalUnread??team.unread]))
     teamChats=teamOptions.map((team,index)=>{
