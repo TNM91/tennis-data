@@ -648,7 +648,12 @@ const coachIncoming=document.createElement('aside');coachIncoming.hidden=true;ap
 const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(student,owner)=>{if(session?.user.id!==owner)return;showHub('coach');const visit=revision;coachWorkspace=openCoachMessages(client,owner,()=>visit===revision&&owner===session?.user.id,undefined,undefined,student,undefined,()=>{void chatUnread.refresh()})},undefined,undefined,()=>authReady&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&document.visibilityState==='visible')
 const coachAlerts=createCoachAlerts(client,()=>nativePush.isEnabled())
 const chatReceipts=createChatReceiptRefresh(async owner=>{if(session?.user.id===owner)await chatUnread.refresh()})
-const nativePush=createNativePush(client,scope=>openTeamRoom(scope),{onCoachOpen:(id,owner)=>coachHandoff.receive(id,owner),onReceive:owner=>chatReceipts.receive(owner),mountCoachAlerts:host=>coachAlerts.mount(host)})
+const nativePush=createNativePush(client,scope=>openTeamRoom(scope),{
+ onCoachOpen:(id,owner)=>coachHandoff.receive(id,owner),
+ onHitOpen:(href,owner)=>{if(session?.user.id===owner&&appLinks.receive(href))resumeAppLink()},
+ onReceive:owner=>{if(firstPartyBuild){if(session?.user.id===owner)void updatesCounter.refresh()}else chatReceipts.receive(owner)},
+ mountCoachAlerts:host=>coachAlerts.mount(host),
+})
 const chatUnread=createChatUnreadCounter(client,value=>{publishCoachMessageCounts(value);nativePush.syncBadge(value);paintChatsBadge(navigation.querySelector<HTMLElement>('[data-screen="teams"]')!,combinedChatUnread(value),value?.coach?.available===false);teamRoom?.refreshUnread()})
 const updatesCounter=createUpdatesCounter(client,count=>{
  updatesEntry.setAttribute('aria-label',count===null?'Updates':'Updates, '+count+' unread')
@@ -659,7 +664,7 @@ const signOut=createNativeSignOut(client,async owner=>{
  await nativePush.beforeSignOut(owner)
  if(teamScoreDrafts?.owner===owner)await teamScoreDrafts.clear()
 },()=>session?.user.id||null)
-function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.isSupported())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
+function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.supportsCoachAlerts())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
 function focusLabCoachShortcut(shortcuts: HTMLElement, ...sectionsAbove: HTMLElement[]) {
   const shortcut = shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')
@@ -811,7 +816,9 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
        },
       })
   }
-  const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
+  if(!firstPartyBuild){
+    const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
+  }
   app.insertAdjacentHTML('beforeend', accountLinksHtml)
   bindAccountLinks(app)
   const overviewButton=app.querySelector<HTMLButtonElement>('#lab-training-refresh'),overviewStatus=app.querySelector<HTMLElement>('#lab-training-status'),identityHost=app.querySelector<HTMLElement>('#lab-identity')

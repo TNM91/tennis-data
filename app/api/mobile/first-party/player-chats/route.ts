@@ -7,6 +7,8 @@ import { updateTimestamp } from '@/lib/native-updates-contract'
 import { loadTeamLogoUrls } from '@/lib/team-branding-storage'
 import { chatHitChangesHeader, chatHitsHeader, readChatHit } from '@/lib/chat-hit-contract'
 import { hittingPlanStart } from '@/lib/hitting-plan'
+import { after } from 'next/server'
+import { nativeHitPushConfigured,sendDueNativeHitPush } from '@/lib/native-hit-push'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -105,7 +107,13 @@ export async function POST(request: Request) {
           ...parameters,p_action:input.action,p_response:input.action==='hit_reply'?input.response:null,
         }).retry(false)
       if (error) throw Error()
-      if (data?.code==='ok') return json({ok:true,owner})
+      if (data?.code==='ok') {
+        if (input.action==='hit_reply' && input.response==='accepted' && nativeHitPushConfigured()) after(async()=>{
+          try { await sendDueNativeHitPush(db,input.id) }
+          catch { console.warn('Confirmed hit reminder will retry') }
+        })
+        return json({ok:true,owner})
+      }
       if (typeof data?.code!=='string' || !Object.hasOwn(errors,data.code)) throw Error()
       const [status,message] = errors[data.code as keyof typeof errors]
       return failure(message,status)

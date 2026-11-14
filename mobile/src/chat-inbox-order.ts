@@ -6,6 +6,7 @@ import { teamLeagueLabel } from '../../lib/private-team-contract'
 import type { ChatUnread } from './chat-unread'
 import type { CoachInboxSearch } from './coach-chats-inbox'
 import websiteUi from '../generated/website-ui.json'
+import { nativeActionIcon } from './native-action-icons'
 
 type Entry = {
   key: string; title: string; subtitle: string; icon?: string; activity?: string
@@ -93,7 +94,7 @@ export function mountChatInboxOrder(
   search.value=filters.query
   function pinButton(entry:Entry){
     const isPinned = preferences.read().pinned.includes(entry.key)
-    return `<button type="button" class="secondary chat-pin" data-organized-pin aria-label="${html((isPinned?'Unpin ':'Pin ')+entry.title)}" aria-pressed="${isPinned}">${isPinned?'Unpin':'Pin'}</button>`
+    return `<button type="button" class="secondary chat-pin" data-organized-pin aria-label="${html((isPinned?'Unpin ':'Pin ')+entry.title)}" aria-pressed="${isPinned}">${nativeActionIcon('pin')}</button>`
   }
   function fillList(list:HTMLElement,entries:Entry[],nested=false,showChevron=true){
     const markup=entries.map(entry=>`<li class="chat-organized-row${entry.pinnable===false?' chat-organized-row-single':''}"><button type="button" class="secondary chats-team-card" data-organized-open>
@@ -194,7 +195,6 @@ export function mountChatInboxOrder(
       const entry=teamEntries[index], pin=row.querySelector<HTMLButtonElement>('[data-chat-pin-team]')!
       const isPinned=order.pinned.includes(entry.key)
       pin.parentElement!.toggleAttribute('data-team-pinned',isPinned)
-      pin.textContent=isPinned?'Unpin':'Pin'
       pin.setAttribute('aria-label',(isPinned?'Unpin ':'Pin ')+entry.title)
       pin.setAttribute('aria-pressed',String(isPinned))
       pin.dataset.focusKey=entry.key

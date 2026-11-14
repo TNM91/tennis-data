@@ -1,7 +1,7 @@
 import {describe,it,expect,vi} from 'vitest'
 import type {Session,SupabaseClient} from '@supabase/supabase-js'
 import type {PushNotificationsPlugin} from '@capacitor/push-notifications'
-import {createNativePush,nativePushRequest,pushTeamDestination} from '../../mobile/src/native-push'
+import {createNativePush,nativePushRequest,pushHitDestination,pushTeamDestination} from '../../mobile/src/native-push'
 import {createNativeSignOut} from '../../mobile/src/native-sign-out'
 const session=(id='owner')=>({access_token:'test-bearer',user:{id}} as Session)
 const installation={id:'e9adacbd-f9ba-4da1-b99d-601cf5abc8bc',secret:'a'.repeat(64),owner:'owner'}
@@ -16,6 +16,15 @@ function fixture(permission='granted'){
  return {client,plugin,request,storage,handlers,removes,onOpen,onCoachOpen,onReceive,clearDelivered,setBadge,controller,saved:()=>JSON.parse(saved)}
 }
 const unread=(team=3,coach=2,owner='owner')=>({owner,total:team,teams:[],coach:{available:true,total:coach,connections:[]}})
+it('opens only an exact hitting plan on the intended push recipient’s account',()=>{
+ const room='a68c9c74-570b-4c38-a626-8b7b93f798fe',hit='97cf12e6-2ebe-40c6-b6f3-4ea46b305a7f'
+ const href='/chats?room='+room+'&hit='+hit
+ expect(pushHitDestination({recipient:'owner',href},'owner')).toBe('https://www.tenaceiq.com'+href)
+ expect(pushHitDestination({recipient:'other',href},'owner')).toBeNull()
+ for (const bad of ['/chats?room='+room,href+'&hit='+hit,href+'&next=/account','https://outside.invalid'+href,href+'#old']) {
+  expect(pushHitDestination({recipient:'owner',href:bad},'owner')).toBeNull()
+ }
+})
 describe('native team alert lifecycle',()=>{
  it('uses confirmed combined counts, coalesces bursts, caps at 100 and clears after reading without prompting',async()=>{
   const f=fixture();f.controller.setSession(session());await vi.waitFor(()=>expect(f.controller.isEnabled()).toBe(true));const requests=f.request.mock.calls.length

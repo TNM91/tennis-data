@@ -303,6 +303,35 @@ test('a hit reminder opens the confirmed plan and its directions during a propos
  await expect(reminder.getByRole('button',{name:'Open hitting plan',exact:true})).toBeFocused()
 })
 
+test('a hitting plan push opens the right chat after enabling iPhone alerts',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?player-chat=1&chat-hit=1&hit-alerts=1')
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ const alerts=page.getByRole('region',{name:'Hitting plan alerts',exact:true})
+ await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'hitAlertsFixture').writes)).toEqual([])
+ await alerts.getByRole('button',{name:'Enable hitting plan alerts',exact:true}).click()
+ await expect(alerts).toContainText('Hitting plan alerts are on for this iPhone.')
+ await page.evaluate(()=>{
+  const fixture=Reflect.get(window,'playerChatFixture')
+  fixture.title='Jamie'
+  fixture.hit={id:'f2407652-e697-4388-aa96-0ea474852368',room:fixture.room,proposedBy:fixture.player,
+   clubId:'vetta-west',date:'2026-11-18',time:'18:00',startsAt:'2026-11-19T00:00:00Z',status:'accepted'}
+  const href='/chats?room='+fixture.room+'&hit='+fixture.hit.id
+  Reflect.get(window,'hitAlertsFixture').tap(href,fixture.player)
+ })
+ await expect(page.locator('dialog.player-chats-dialog')).toHaveCount(0)
+ await page.evaluate(()=>{
+  const fixture=Reflect.get(window,'playerChatFixture')
+  Reflect.get(window,'hitAlertsFixture').tap('/chats?room='+fixture.room+'&hit='+fixture.hit.id)
+ })
+ const chat=page.getByRole('dialog',{name:'Jamie',exact:true})
+ await expect(chat.getByRole('heading',{name:'Hitting plan'})).toBeFocused()
+ await chat.getByRole('button',{name:'Close',exact:true}).click()
+ await alerts.getByRole('button',{name:'Turn off hitting plan alerts',exact:true}).click()
+ await expect(alerts).toContainText('Hitting plan alerts are off on this iPhone.')
+ await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'hitAlertsFixture').writes)).toEqual([true,false])
+})
+
 test('Chats pins a team and group, applies a group icon and shows recent conversations',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:780})
@@ -353,6 +382,36 @@ test('Chats pins a team and group, applies a group icon and shows recent convers
  await expect(page.getByRole('button',{name:'Create a team',exact:true})).toBeVisible()
  await bounded(page)
 })
+
+for(const font of ['regular','large']){
+ test('Chats controls align and pinned rows have a full-width surface at '+font+' text size',async({page})=>{
+  await useFirstPartyNavigation(page)
+  await page.setViewportSize({width:320,height:780})
+  await page.goto(origin+'/?player-chat=1'+(font==='large'?'&large=1':''))
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+  await page.getByRole('button',{name:'Pin Baseline Aces',exact:true}).click()
+  const bounds=await page.evaluate(()=>{
+   const box=(selector:string)=>{
+    const {x,y,width,height}=document.querySelector(selector)!.getBoundingClientRect()
+    return {x,y,width,height}
+   }
+   return {search:box('.chats-inbox-search'),unread:box('[data-inbox-unread]'),
+    actions:[...document.querySelectorAll('.chats-team-add button')].map(el=>el.getBoundingClientRect().toJSON()),
+    row:box('[data-chats-pinned] .chat-organized-row'),pin:box('[data-chats-pinned] .chat-pin')}
+  })
+  expect(bounds.search.y).toBeCloseTo(bounds.unread.y,0)
+  expect(bounds.search.height).toBeCloseTo(bounds.unread.height,0)
+  for(const action of bounds.actions){
+   expect(action.y).toBeCloseTo(bounds.actions[0].y,0)
+   expect(action.height).toBeCloseTo(bounds.actions[0].height,0)
+   expect(action.width).toBeCloseTo(bounds.actions[0].width,0)
+  }
+  expect(bounds.row.x).toBeCloseTo(bounds.search.x,0)
+  expect(bounds.row.x+bounds.row.width).toBeCloseTo(bounds.unread.x+bounds.unread.width,0)
+  expect(bounds.pin.x+bounds.pin.width).toBeLessThanOrEqual(bounds.row.x+bounds.row.width)
+  await bounded(page)
+ })
+}
 
 test('a captain creates a named team chat, sends a message, and pins it from the inbox',async({page})=>{
  await useFirstPartyNavigation(page)

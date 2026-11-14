@@ -57,7 +57,6 @@ export function chatsStartActionHtml(kind:keyof typeof chatStartActions){
 export function chatsInboxHtml(data:NativeTeamData){
  return `<header class="chats-intro${firstPartyBuild?' chats-organized-heading':''}"><h1 tabindex="-1">Chats</h1>
  ${firstPartyBuild?`<div class="chats-compose-actions">
- <button type="button" class="secondary" data-player-chats>Contacts</button>
  <button type="button" class="secondary" data-new-player-chat><span aria-hidden="true">${nativeActionIcon('plus')}</span>New chat</button>
  </div>`:''}</header>
  ${firstPartyBuild?`<div class="chats-inbox-find" role="search" aria-label="Chat inbox">
@@ -66,8 +65,8 @@ export function chatsInboxHtml(data:NativeTeamData){
  <button type="button" class="secondary" data-inbox-unread aria-pressed="false">Unread</button>
  </div>
  <div class="chats-inbox-toolbar">
- <div class="chat-inbox-order"><label for="chat-inbox-sort">View</label><select id="chat-inbox-sort" data-chat-inbox-order><option value="sections">By section</option><option value="recent">Recent</option></select></div>
- <div class="chats-team-add" role="group" aria-label="Team actions"><button type="button" class="secondary" id="create-private-team">Create a team</button><button type="button" class="secondary" id="join-team">Join team</button></div>
+ <div class="chats-team-add" role="group" aria-label="Chat and team actions"><button type="button" class="secondary" data-player-chats>Contacts</button><button type="button" class="secondary" id="create-private-team">Create a team</button><button type="button" class="secondary" id="join-team">Join team</button></div>
+ <div class="chat-inbox-order"><label class="sr-only" for="chat-inbox-sort">View</label><select id="chat-inbox-sort" data-chat-inbox-order><option value="sections">By section</option><option value="recent">Recent</option></select></div>
  </div>
  <section class="chat-inbox-organized" data-chats-find aria-labelledby="chat-inbox-results" hidden>
  <div class="chats-section-heading"><h2 id="chat-inbox-results">Search results</h2>
@@ -95,7 +94,7 @@ export function chatsInboxHtml(data:NativeTeamData){
  </details>
  ${chatsFilterFeedbackHtml('team')}`}
  ${data.teams.length?`<ul class="chats-team-list" data-chats-teams>${data.teams.map((team,index)=>`<li data-chat-team-row="${index}"><div class="${firstPartyBuild?'chat-organized-row':''}"><button type="button" class="secondary chats-team-card" data-open-team-chat="${index}">${teamChatAvatarHtml(team.teamName,team.teamLogoUrl)}<span class="chats-team-copy"><strong>${html(team.teamName)}</strong><span>${html(teamLeagueLabel(team))}${team.flight?' · '+html(team.flight):''}</span>${firstPartyBuild?'':'<span class="chats-room-name">Team rooms</span>'}</span><span class="chat-unread-badge chat-team-unread" data-team-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span></button>
- ${firstPartyBuild?`<button type="button" class="secondary chat-pin" aria-label="${html('Pin '+team.teamName)}" data-chat-pin-team="${index}">Pin</button>`:''}</div>
+ ${firstPartyBuild?`<button type="button" class="secondary chat-pin" aria-label="${html('Pin '+team.teamName)}" data-chat-pin-team="${index}">${nativeActionIcon('pin')}</button>`:''}</div>
  ${firstPartyBuild?`<details class="chats-team-channels" hidden><summary>Team chats</summary><ul aria-label="${html('Chats in '+team.teamName)}" data-team-channels></ul></details>`:''}
  <ul class="chats-unread-rooms" data-unread-rooms aria-label="${html('Unread rooms in '+team.teamName)}" hidden></ul></li>`).join('')}</ul>`:firstPartyBuild?'<p class="rating-context">No teams yet.</p>':chatsStartActionHtml('team')}
  ${firstPartyBuild?`<details class="chat-team-setup"><summary>Team setup help</summary>
@@ -105,7 +104,7 @@ export function chatsInboxHtml(data:NativeTeamData){
   <ol>${[setupSteps.team,setupSteps.invite,setupSteps.teammate].map(step=>`<li><strong>${html(step.title)}</strong><p>${html(step.detail)}</p></li>`).join('')}</ol>
   <p class="rating-context">Track these steps toward your Team Rally trophy in My Lab.</p>
  </details>`:''}
- <button type="button" class="secondary" id="refresh-team">Refresh teams</button></section><div id="chats-coach-inbox" data-coach-chats></div><section class="chat-notification-settings" data-chat-notifications aria-label="Chat notifications"></section>`
+ <button type="button" class="secondary" id="refresh-team">Refresh teams</button></section><div id="chats-coach-inbox" data-coach-chats></div><section class="chat-notification-settings" data-chat-notifications aria-label="${firstPartyBuild?'Hitting plan alerts':'Chat notifications'}"></section>`
 }
 
 /** Filters and room jumps use the current authorized count snapshot; opening still reloads room access. */
