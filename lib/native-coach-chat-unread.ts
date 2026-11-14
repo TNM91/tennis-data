@@ -14,29 +14,42 @@ export async function nativeCoachChatUnread(client:SupabaseClient,owner:string){
  const deadline=AbortSignal.timeout(8000)
  const links=await client.from('coach_player_links').select('id,coach_user_id,player_user_id,status').or('coach_user_id.eq.'+owner+',player_user_id.eq.'+owner).neq('status','paused').not('player_user_id','is',null).limit(101).abortSignal(deadline).retry(false)
  if(links.error||!Array.isArray(links.data)||links.data.length>100)throw Error('Coach counts unavailable')
- const expected=new Map<string,{id:string;other:string;unread:number;latest:string|null;latestTime:ReturnType<typeof stamp>|null}>(),ids=new Set<string>()
+ const expected=new Map<string,{id:string;other:string;unread:number;latest:string|null;activityAt:string|null}>(),ids=new Set<string>()
  for(const link of links.data){
   const id=coachId(link.id)
   if(ids.has(id)||!uuid(link.coach_user_id)||!uuid(link.player_user_id)||![link.coach_user_id,link.player_user_id].includes(owner)||!['active','needs_assignment','review_notes'].includes(link.status))throw Error('Coach counts unavailable')
-  ids.add(id);expected.set(coachConversationId(id),{id,other:link.coach_user_id===owner?link.player_user_id:link.coach_user_id,unread:0,latest:null,latestTime:null})
+  ids.add(id);expected.set(coachConversationId(id),{id,other:link.coach_user_id===owner?link.player_user_id:link.coach_user_id,unread:0,latest:null,activityAt:null})
  }
  if(expected.size){
-  const result=await client.from('internal_conversations').select('id,conversation_type,related_entity_type,related_entity_id,status,participants:internal_conversation_participants!inner(profile_id,last_read_at),posts:internal_messages(id,conversation_id,sender_user_id,created_at,deleted_at)')
+  const result=await client.from('internal_conversations').select('id,conversation_type,related_entity_type,related_entity_id,status,participants:internal_conversation_participants!inner(profile_id,last_read_at),posts:internal_messages(id,conversation_id,sender_user_id,created_at,deleted_at),sent:internal_messages(id,conversation_id,sender_user_id,created_at,deleted_at)')
    .in('id',[...expected.keys()]).eq('conversation_type','direct').eq('related_entity_type','coach_student').neq('status','closed').eq('participants.profile_id',owner)
-   .neq('posts.sender_user_id',owner).is('posts.deleted_at',null).order('created_at',{referencedTable:'posts',ascending:false}).order('id',{referencedTable:'posts',ascending:false}).limit(100,{referencedTable:'posts'}).limit(101).abortSignal(deadline).retry(false)
+   .neq('posts.sender_user_id',owner).is('posts.deleted_at',null).order('created_at',{referencedTable:'posts',ascending:false}).order('id',{referencedTable:'posts',ascending:false}).limit(100,{referencedTable:'posts'})
+   .eq('sent.sender_user_id',owner).is('sent.deleted_at',null).order('created_at',{referencedTable:'sent',ascending:false}).limit(1,{referencedTable:'sent'})
+   .limit(101).abortSignal(deadline).retry(false)
   if(result.error||!Array.isArray(result.data)||result.data.length>100||JSON.stringify(result.data).length>2500000)throw Error('Coach counts unavailable')
   const seen=new Set<string>()
   for(const row of result.data){
    const connection=expected.get(row.id)
    if(!connection||seen.has(row.id)||row.conversation_type!=='direct'||row.related_entity_type!=='coach_student'||row.related_entity_id!==connection.id||!['open','waiting_on_user','waiting_on_admin'].includes(row.status)||!Array.isArray(row.participants)||row.participants.length!==1||row.participants[0].profile_id!==owner||!Array.isArray(row.posts)||row.posts.length>100)throw Error('Coach counts unavailable')
+   if(!Array.isArray(row.sent)||row.sent.length>1)throw Error('Coach counts unavailable')
    seen.add(row.id);const read=row.participants[0].last_read_at==null?null:stamp(row.participants[0].last_read_at),posts=new Set<string>()
+   let latestIncoming:bigint|null=null
+   let incomingAt:string|null=null
    for(const post of row.posts){
     if(!uuid(post.id)||posts.has(post.id)||post.conversation_id!==row.id||post.sender_user_id!==connection.other||post.sender_user_id===owner||post.deleted_at!==null)throw Error('Coach counts unavailable')
     posts.add(post.id);const time=stamp(post.created_at);if(read===null||time>read)connection.unread++
-    if(connection.latestTime===null||time>connection.latestTime||time===connection.latestTime&&post.id>connection.latest!){connection.latest=post.id;connection.latestTime=time}
+    if(latestIncoming===null||time>latestIncoming||time===latestIncoming&&post.id>connection.latest!){
+     connection.latest=post.id
+     incomingAt=post.created_at
+     latestIncoming=time
+    }
    }
+   const sent=row.sent[0]
+   if(sent&&(!uuid(sent.id)||sent.conversation_id!==row.id||sent.sender_user_id!==owner||sent.deleted_at!==null))throw Error('Coach counts unavailable')
+   const sentTime=sent?stamp(sent.created_at):null
+   connection.activityAt=sentTime!==null&&(latestIncoming===null||sentTime>latestIncoming)?sent.created_at:incomingAt
   }
  }
- const connections=[...expected.values()].map(({id,unread,latest})=>({id,unread,latest}))
+ const connections=[...expected.values()].map(({id,unread,latest,activityAt})=>({id,unread,latest,...(activityAt?{activityAt}:{})}))
  return {available:true as const,total:Math.min(100,connections.reduce((sum,c)=>sum+c.unread,0)),connections}
 }

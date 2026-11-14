@@ -90,7 +90,7 @@ export async function countFirstPartyChats(service: SupabaseClient, owner: strin
   if (!rooms.length) return { owner, teams: [], total: 0 }
   const blocked = await loadChatBlocks(service, owner)
   const teams: (Pick<ReviewedTeamRoom, 'teamName' | 'leagueName' | 'flight'> & {
-    unread: number; generalUnread?: number; rooms?: NamedChatRoomSummary[]
+    unread: number; activityAt?: string|null; generalUnread?: number; rooms?: NamedChatRoomSummary[]
   })[] = []
   // Bound parallel reads for members connected to multiple teams.
   for (let offset = 0; offset < rooms.length; offset += 4) {
@@ -99,7 +99,7 @@ export async function countFirstPartyChats(service: SupabaseClient, owner: strin
       const { teamName, leagueName, flight } = room
       const list = await namedTeamChatRooms(service, owner, room, 'list', undefined, undefined, room.roomId)
       if (list.ok && 'rooms' in list) return {
-        teamName, leagueName, flight, generalUnread: list.generalUnread, rooms: list.rooms,
+        teamName, leagueName, flight, activityAt: list.generalActivityAt, generalUnread: list.generalUnread, rooms: list.rooms,
         unread: Math.min(100, list.generalUnread + list.rooms.reduce((sum, chat) => sum + chat.unread, 0)),
       }
       if (!list.ok && list.status === 403) return null
