@@ -14,7 +14,7 @@ const device=(n:number)=>({
   starts_at:new Date(Date.now()+60000).toISOString(),
 })
 function mockDatabase(claimed:ReturnType<typeof device>[],eligible:string[]) {
-  const rpc=vi.fn((name:string,_params?:unknown)=>{
+  const rpc=vi.fn((name:string)=>{
     const data=name==='claim_native_hit_push'?claimed:name==='native_hit_push_current'?eligible.map(attempt_id=>({attempt_id})):null
     return {abortSignal:()=>({retry:()=>Promise.resolve({data,error:null})})}
   })
