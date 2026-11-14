@@ -16,6 +16,7 @@ const errors = {
   forbidden:[403,'This chat or player is unavailable.'],
   invalid:[400,'Check the chat details.'],
   full:[409,'This list, group, or invite account limit has been reached.'],
+  capacity:[409,'Keep enough spots for everyone who has joined.'],
   stale:[409,'The practice changed. Refresh the group and try again.'],
   unavailable:[404,'This invite is unavailable. Ask for a fresh link.'],
 } as const
@@ -54,6 +55,17 @@ export async function POST(request: Request) {
   } catch { return failure('Check the chat details.',400) }
   try {
     const owner = account.user.id
+    if (input.action === 'practice_edit') {
+      const {data,error} = await service().rpc('native_edit_group_practice',{
+        p_owner:owner,p_room:input.room,p_id:input.id,p_revision:input.revision,p_request:input.request,
+        p_starts_at:input.startsAt,p_court:input.court,p_capacity:input.capacity,
+      }).retry(false)
+      if (error) throw Error()
+      if (data?.code === 'ok') return json({ok:true,owner})
+      if (typeof data?.code !== 'string' || !Object.hasOwn(errors,data.code)) throw Error()
+      const [status,message] = errors[data.code as keyof typeof errors]
+      return failure(message,status)
+    }
     if (input.action === 'practice_create' || input.action === 'practice_reply' || input.action === 'practice_cancel') {
       const {data,error} = await service().rpc('native_group_practice_action',{
         p_owner:owner,p_room:input.room,p_id:input.id,p_action:input.action,

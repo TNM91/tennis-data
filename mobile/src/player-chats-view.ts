@@ -86,7 +86,7 @@ export function openPlayerChats(
     live = watchTeamChat(client,owner,id,()=>active() && page === 'room' && room?.id === id,async ()=>{
       const history = dialog.querySelector<HTMLElement>('.player-chat-messages')
       const readingHistory = history && history.scrollHeight - history.clientHeight - history.scrollTop > 24
-      if (busy || draft || readingHistory || dialog.contains(document.activeElement) && document.activeElement?.matches('input,textarea,select,summary')) {
+      if (busy || draft || practiceDraft || readingHistory || dialog.contains(document.activeElement) && document.activeElement?.matches('input,textarea,select,summary')) {
         const refresh = dialog.querySelector('[data-player-refresh]')
         if (refresh) refresh.textContent = 'Check for updates'
         return
@@ -139,6 +139,11 @@ export function openPlayerChats(
         if (error instanceof PlayerChatError && error.status >= 400 && error.status < 500) {
           pending=null
           if (error.status===403 && page==='room') room=null
+          if (error.status===409 && input.action==='practice_edit' && room) {
+            const attempted = practiceDraft
+            await loadRoom(room.id).catch(()=>undefined)
+            if (attempted?.revision !== room?.practice?.revision) practiceDraft=null
+          }
         }
         throw error
       }
@@ -172,6 +177,7 @@ export function openPlayerChats(
       if (input.action === 'report') { notice='Message reported.'; return }
       if (input.action === 'send') draft=''
       if (input.action === 'practice_create') { practiceDraft=null; notice='Practice posted.' }
+      if (input.action === 'practice_edit') { practiceDraft=null; notice='Practice updated.' }
       if (input.action === 'practice_reply') notice=input.response==='in'?'You’re on the practice list.':'Your reply is saved.'
       if (input.action === 'practice_cancel') notice='Practice cancelled.'
       if ('room' in input && input.room) {
@@ -273,7 +279,13 @@ export function openPlayerChats(
     click('[data-player-invite]',()=>{void act({action:'invite',token:newPlayerChatInvite()})})
     click('[data-player-group-invite]',()=>{if(room)void act({action:'invite',room:room.id,token:newPlayerChatInvite()})})
     click('[data-practice-start]',()=>{practiceDraft=newGroupPracticeDraft();render();dialog.querySelector<HTMLElement>('[data-group-practice] input')?.focus()})
-    click('[data-practice-dismiss]',()=>{practiceDraft=null;render();dialog.querySelector<HTMLElement>('[data-practice-start]')?.focus()})
+    click('[data-practice-edit]',()=>{
+      if (!room?.practice?.revision) return
+      practiceDraft=newGroupPracticeDraft(room.practice)
+      render()
+      dialog.querySelector<HTMLElement>('[data-group-practice] input')?.focus()
+    })
+    click('[data-practice-dismiss]',()=>{practiceDraft=null;render();dialog.querySelector<HTMLElement>('[data-practice-start],[data-practice-edit]')?.focus()})
     click('[data-practice-cancel]',()=>{
       if (room?.practice && confirm('Cancel this practice for everyone?')) void act({action:'practice_cancel',room:room.id,id:room.practice.id})
     })
@@ -325,14 +337,20 @@ export function openPlayerChats(
       court:String(fields.get('court')??''),capacity:String(fields.get('capacity')??''),
     })
     dialog.querySelector<HTMLFormElement>('[data-group-practice]')?.addEventListener('input',event=>{
-      practiceDraft=practiceFields(new FormData(event.currentTarget as HTMLFormElement))
+      practiceDraft={...practiceDraft,...practiceFields(new FormData(event.currentTarget as HTMLFormElement))}
     })
     form('[data-group-practice]',fields=>{
       if (!room?.manage) return
       const next=practiceFields(fields)
       try {
-        void act({action:'practice_create',room:room.id,id:crypto.randomUUID(),startsAt:groupPracticeStart(next.date,next.time),
-          court:next.court.trim(),capacity:Number(next.capacity)})
+        const currentPractice = room.practice
+        const original = currentPractice ? newGroupPracticeDraft(currentPractice) : null
+        const startsAt = original?.date===next.date && original.time===next.time && original.startsAt
+          ? original.startsAt : groupPracticeStart(next.date,next.time)
+        const change = {room:room.id,startsAt,court:next.court.trim(),capacity:Number(next.capacity)}
+        if (practiceDraft?.revision && practiceDraft.id) {
+          void act({action:'practice_edit',...change,id:practiceDraft.id,revision:practiceDraft.revision,request:crypto.randomUUID()})
+        } else void act({action:'practice_create',...change,id:crypto.randomUUID()})
       } catch (error) { notice=message(error);render(true) }
     })
     form('[data-player-report]',(fields,element)=>{

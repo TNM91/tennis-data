@@ -195,7 +195,7 @@ window.fetch=async(input,init)=>{
   const base={ok:true,releaseScope:'first-party',owner}
   const contact={id:state.player,name:'Jamie'}
   if(init?.method==='POST'){
-   const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string;startsAt?:string;court?:string;capacity?:number;response?:'in'|'out'}
+   const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string;startsAt?:string;court?:string;capacity?:number;response?:'in'|'out';request?:string}
    if(body.action==='group'||body.action==='direct'){
     state.group=body.action==='group'
     state.title=state.group?body.text??'':'Jamie'
@@ -203,7 +203,10 @@ window.fetch=async(input,init)=>{
    }
    if(body.action==='invite')return Response.json({...base,expiresAt:'2026-11-20T10:00:00Z'})
    if(body.action==='practice_create'&&body.id&&body.startsAt&&body.court&&body.capacity){
-    state.practice={id:body.id,startsAt:body.startsAt,court:body.court,capacity:body.capacity,mine:null,inCount:0,players:[]}
+    state.practice={id:body.id,revision:crypto.randomUUID(),startsAt:body.startsAt,court:body.court,capacity:body.capacity,mine:null,inCount:0,players:[]}
+   }
+   if(body.action==='practice_edit'&&state.practice&&body.request&&body.startsAt&&body.court&&body.capacity){
+    state.practice={...state.practice,revision:body.request,startsAt:body.startsAt,court:body.court,capacity:body.capacity}
    }
    if(body.action==='practice_reply'&&state.practice&&body.response){
     const going=body.response==='in'

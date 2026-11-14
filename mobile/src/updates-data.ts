@@ -117,8 +117,9 @@ export function updateAction(row:InternalNotification):UpdateAction|null{
     if(firstPartyBuild){
       const score=row.notificationType==='system'&&!row.conversationId&&!row.scheduleEventId?leagueScoreUpdateLink(u):undefined
       if(score)return {kind:'league-score',...score,label:'Open scorecard'}
-      const chat=row.notificationType==='message'&&!row.scheduleEventId?readAppLink(u.href):null
-      if(chat?.kind==='player-chat'&&chat.id===row.conversationId)return {kind:'link',link:chat,label:'Open chat'}
+      const groupPractice=row.notificationType==='schedule'&&row.title==='Group practice changed'
+      const chat=(row.notificationType==='message'||groupPractice)&&!row.scheduleEventId?readAppLink(u.href):null
+      if(chat?.kind==='player-chat'&&chat.id===row.conversationId)return {kind:'link',link:chat,label:groupPractice?'Open practice':'Open chat'}
       const student=u.searchParams.get('coach')
       return row.notificationType==='message'&&u.pathname==='/messages'&&only(['coach'])&&!u.hash&&updateId(student)
         ? {kind:'coach-message',student,label:'Open Coach messages'} : null
