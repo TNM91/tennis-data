@@ -43,6 +43,11 @@ const playerChatFixture={
  practice:null as import('../../lib/group-practice-contract').GroupPractice|null,
  room:'bb4f152f-bb10-4b30-a233-09f20121e463',
  player:'ca2592d5-8135-4d6c-86ff-aef07ff620f0',
+ newContact:{id:'bcdcb9c8-bf8e-4420-a5ee-a06d0808450d',name:'Morgan'},
+ thirdContact:{id:'b662b24f-27b8-43ef-b8c4-e7acfd11f172',name:'Riley'},
+ savedNewContact:false,
+ inviteGroup:new URL(location.href).searchParams.has('group-invite'),
+ groupMembers:[] as string[],
  title:inboxSearchFixture?'Friday Rally':'',
  group:inboxSearchFixture,
  logo:'',
@@ -205,14 +210,28 @@ window.fetch=async(input,init)=>{
   const owner=currentNavigationOwner()
   const base={ok:true,releaseScope:'first-party',owner}
   const contact={id:state.player,name:'Jamie'}
+  const contacts=[contact,...(state.savedNewContact?[state.newContact]:[]),...(state.inviteGroup?[state.thirdContact]:[])]
   if(init?.method==='POST'){
-   const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string;startsAt?:string;court?:string;capacity?:number;response?:'in'|'out';request?:string}
+   const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string;members?:string[];target?:string;startsAt?:string;court?:string;capacity?:number;response?:'in'|'out';request?:string}
    if(body.action==='group'||body.action==='direct'){
     state.group=body.action==='group'
-    state.title=state.group?body.text??'':'Jamie'
+    state.title=state.group?body.text??'':contacts.find(player=>player.id===body.target)?.name??'Jamie'
+    state.groupMembers=body.members??[]
     return Response.json({...base,roomId:state.room})
    }
    if(body.action==='invite')return Response.json({...base,expiresAt:'2026-11-20T10:00:00Z'})
+   if(body.action==='preview')return Response.json({...base,invite:state.inviteGroup
+    ?{group:true,title:'Friday practice'}:{group:false,title:state.newContact.name}})
+   if(body.action==='join'){
+    if(state.inviteGroup){
+     state.group=true
+     state.title='Friday practice'
+     return Response.json({...base,roomId:state.room})
+    }
+    state.savedNewContact=true
+    return Response.json({...base,contact:state.newContact.id})
+   }
+   if(body.action==='add'&&body.target&&!state.groupMembers.includes(body.target))state.groupMembers.push(body.target)
    if(body.action==='practice_create'&&body.id&&body.startsAt&&body.court&&body.capacity){
     state.practice={id:body.id,revision:crypto.randomUUID(),startsAt:body.startsAt,court:body.court,capacity:body.capacity,mine:null,inCount:0,players:[]}
    }
@@ -231,10 +250,11 @@ window.fetch=async(input,init)=>{
    return Response.json(base)
   }
   if(url.searchParams.get('room')===state.room)return Response.json({...base,room:{
-   id:state.room,title:state.title,group:state.group,manage:state.group,more:false,members:[contact],messages:state.outgoing,logo:state.logo,
+   id:state.room,title:state.title,group:state.group,manage:state.group&&(!state.inviteGroup||!new URL(location.href).searchParams.has('link')),more:false,
+   members:state.group?contacts.filter(player=>state.groupMembers.includes(player.id)):[contact],messages:state.outgoing,logo:state.logo,
    ...(state.group&&state.practices?{practice:state.practice}:{}),
   }})
-  return Response.json({...base,contacts:[contact],rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:inboxSearchFixture,
+  return Response.json({...base,contacts,rooms:state.title?[{id:state.room,title:state.title,group:state.group,unread:inboxSearchFixture,
    logo:state.logo,activityAt:'2026-11-13T20:00:00Z'}]:[]})
  }
  if(url.pathname==='/api/mobile/first-party/updates')return firstPartyUpdatesPreview(init?.method||'GET',url,init?.body,currentNavigationOwner())

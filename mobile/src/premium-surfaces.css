@@ -1579,7 +1579,7 @@ body[data-screen] :is(.app-tool,.lab-trend-entry,.lab-band-practice):active { bo
 /* Conversation stays quiet, while input, unread and selection remain obvious. */
 .chats-intro { padding:0 2px;margin:0; }
 .chats-intro h1 { margin:0;color:var(--premium-white);font-size:clamp(1.875rem,7.5vw,2.25rem);line-height:1.15; }
-.chats-organized-heading,.chats-inbox-toolbar,.chats-team-add,.chat-inbox-order { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.chats-organized-heading,.chats-compose-actions,.chats-inbox-toolbar,.chats-team-add,.chat-inbox-order { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .chats-inbox-find { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; margin-block:12px 8px; }
 .chats-inbox-search {
  display:grid; grid-template-columns:18px minmax(0,1fr); align-items:center; gap:8px;
@@ -1613,6 +1613,14 @@ body[data-screen="teams"]:not(.native-chat-conversation) [data-chats-find] .chat
 .chats-inbox-toolbar { margin:8px 0 12px; }
 .chats-organized-heading { justify-content:space-between; }
 .chats-organized-heading button,.chats-team-add button,.chat-inbox-order select { min-block-size:44px; inline-size:auto; margin:0; padding:6px 10px; }
+body[data-screen="teams"] .chats-compose-actions button {
+ inline-size:auto; min-block-size:44px; margin:0; padding:6px 10px; font-size:.875rem;
+}
+body[data-screen="teams"] .chats-compose-actions [data-new-player-chat] {
+ display:inline-flex; align-items:center; gap:6px; border-color:var(--premium-lime); color:var(--premium-white);
+ background:linear-gradient(145deg,var(--premium-card),var(--premium-inset));
+}
+.chats-compose-actions [data-new-player-chat] svg { inline-size:16px; block-size:16px; color:var(--premium-lime); }
 .chat-inbox-order label { display:flex; align-items:center; gap:8px; color:var(--premium-copy); font-size:.8125rem; }
 .chat-inbox-order select { background:var(--premium-inset); border-color:var(--premium-line); }
 .chat-inbox-organized h2 { margin:10px 0 4px; font-size:1rem; }
@@ -2721,6 +2729,24 @@ body[data-screen] .app-header .tiq-feature-icon__glyph { inline-size:21px;block-
 .player-chats-dialog .player-chat-content fieldset { min-inline-size:0; border:0; margin:0; padding:0; }
 .player-chats-dialog .player-chat-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 .player-chats-dialog .player-chat-actions button { flex:1 1 110px; margin-block:4px; }
+.player-chats-dialog .player-chat-header-actions { display:flex; align-items:center; gap:6px; }
+.player-chats-dialog .player-chat-header-actions button { inline-size:auto; min-block-size:44px; margin:0; padding:6px 9px; font-size:.8125rem; }
+.player-chats-dialog [data-player-people] { border-color:var(--premium-lime); }
+.player-chats-dialog .player-chat-modes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-block-end:12px; }
+.player-chats-dialog .player-chat-modes button { min-inline-size:0; margin:0; }
+.player-chats-dialog :is([data-player-mode],[data-player-pin])[aria-pressed="true"] { border-color:var(--premium-lime); color:var(--premium-lime); }
+.player-chats-dialog fieldset.player-chat-contact-picker { margin-block:12px; }
+.player-chats-dialog .player-chat-contact-picker legend { font-weight:700; }
+.player-chats-dialog .player-chat-contact-list { display:grid; gap:4px; max-block-size:36dvh; overflow:auto; overscroll-behavior:contain; }
+.player-chats-dialog label.player-chat-contact {
+ display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px;
+ min-block-size:48px; margin:0; padding:6px 8px; border:1px solid var(--premium-line);
+ border-radius:10px; background:var(--premium-inset); color:var(--premium-white); overflow-wrap:anywhere;
+}
+.player-chats-dialog label.player-chat-contact[hidden] { display:none; }
+.player-chats-dialog label.player-chat-contact:has(input:checked) { border-color:var(--premium-lime); }
+.player-chats-dialog label.player-chat-contact input { inline-size:20px; block-size:20px; min-block-size:0; margin:0; accent-color:var(--premium-lime); }
+.player-chats-dialog .player-chat-paste-invite summary { padding-block:10px; }
 .player-chats-dialog :is(.player-chat-section,.player-chat-invite) { margin-block:10px; padding:12px; }
 .player-chats-dialog :is(ul,ol) { list-style:none; padding:0; margin:8px 0; }
 .player-chats-dialog .player-chat-messages { max-block-size:34dvh; overflow:auto; overscroll-behavior:contain; }

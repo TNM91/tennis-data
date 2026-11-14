@@ -56,7 +56,10 @@ export function chatsStartActionHtml(kind:keyof typeof chatStartActions){
 
 export function chatsInboxHtml(data:NativeTeamData){
  return `<header class="chats-intro${firstPartyBuild?' chats-organized-heading':''}"><h1 tabindex="-1">Chats</h1>
- ${firstPartyBuild?'<button type="button" class="secondary" data-player-chats>Players &amp; groups</button>':''}</header>
+ ${firstPartyBuild?`<div class="chats-compose-actions">
+ <button type="button" class="secondary" data-player-chats>Contacts</button>
+ <button type="button" class="secondary" data-new-player-chat><span aria-hidden="true">${nativeActionIcon('plus')}</span>New chat</button>
+ </div>`:''}</header>
  ${firstPartyBuild?`<div class="chats-inbox-find" role="search" aria-label="Chat inbox">
  <label class="chats-inbox-search" for="chat-inbox-search">${nativeActionIcon('search')}<span class="sr-only">Search chats</span>
  <input type="search" id="chat-inbox-search" placeholder="Search chats" maxlength="160" autocomplete="off" enterkeyhint="search"></label>

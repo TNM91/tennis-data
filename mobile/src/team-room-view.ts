@@ -630,16 +630,18 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
     })
    })
    const notifications=app.querySelector<HTMLElement>('[data-chat-notifications]');if(notifications&&alerts)alerts.mountNotifications(notifications)
-   const openPlayer=(id:string|undefined,trigger:HTMLButtonElement)=>{
+   const openPlayer=(id:string|undefined,trigger:HTMLButtonElement,compose=false)=>{
     if(!valid()||!inbox||teamDialog?.isOpen())return
     teamDialog=openPlayerChats(client,userId,()=>valid()&&inbox,()=>{
      teamDialog=null
      if(trigger.isConnected)trigger.focus({preventScroll:true})
      void organizedInbox?.refresh()
-    },id?{room:id}:{})
+    },{room:id,compose,preferences:inboxOrder??undefined})
    }
    const players=app.querySelector<HTMLButtonElement>('[data-player-chats]')
    if(players)players.onclick=()=>openPlayer(undefined,players)
+   const newChat=app.querySelector<HTMLButtonElement>('[data-new-player-chat]')
+   if(newChat)newChat.onclick=()=>openPlayer(undefined,newChat,true)
    if(inboxOrder){
     const ownerChats=playerChatsForAccount(client,userId,()=>valid()&&inbox)
     organizedInbox=mountChatInboxOrder(app,snapshot.teams,inboxOrder,async()=> (await ownerChats.inbox()).rooms,openPlayer,openTeam,

@@ -1,4 +1,5 @@
-import { CapacitorHttp } from '@capacitor/core'
+import { App } from '@capacitor/app'
+import { Capacitor,CapacitorHttp } from '@capacitor/core'
 import { Clipboard } from '@capacitor/clipboard'
 import { Share } from '@capacitor/share'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -12,6 +13,10 @@ import { watchTeamChat } from './team-chat-live'
 import { groupPracticeStart } from '../../lib/group-practice-contract'
 import { groupPracticeCard,newGroupPracticeDraft,type GroupPracticeDraft } from './group-practice-card'
 import { bindTeamChatAvatars,openChatIconEditor,teamChatAvatarHtml } from './team-chat-icon'
+import { chatInboxOrder,playerInboxKey } from './chat-inbox-order'
+
+type ComposerPage = 'new' | 'group'
+const contactSearchKey = (value:string) => value.normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase().trim()
 
 export function playerChatsForAccount(client: SupabaseClient,owner: string,active: () => boolean,browser = false) {
   return playerChatTransport(owner,async ({query,action})=>{
@@ -31,14 +36,17 @@ export function playerChatsForAccount(client: SupabaseClient,owner: string,activ
 
 export function openPlayerChats(
   client: SupabaseClient,owner: string,current: () => boolean,onClose: () => void,
-  initial: { token?: string; room?: string; browser?: boolean; className?: string } = {},
+  initial: { token?: string; room?: string; browser?: boolean; className?: string; compose?: boolean;
+    preferences?: ReturnType<typeof chatInboxOrder> } = {},
 ) {
   const dialog = document.createElement('dialog')
   dialog.className = 'team-invite-dialog player-chats-dialog'
   if (initial.className) dialog.classList.add(initial.className)
   dialog.setAttribute('aria-labelledby','player-chats-title')
   let disposed = false,busy = false,notice = '',draft = '',groupName = ''
-  let page: 'inbox'|'room'|'group'|'invite' = initial.token ? 'invite' : initial.room ? 'room' : 'inbox'
+  let page: 'inbox'|'room'|'invite'|'people'|ComposerPage = initial.token ? 'invite' : initial.room ? 'room' : initial.compose ? 'new' : 'inbox'
+  let inviteReturn: ComposerPage | null = null
+  let contactQuery = ''
   let inbox: PlayerChatInbox | null = null,room: PlayerChatRoom | null = null
   let invitation: { group: boolean; title: string } | null = null
   let token = initial.token ?? '',shared: { token: string; room?: string; expiresAt: string } | null = null
@@ -47,14 +55,22 @@ export function openPlayerChats(
   let watchedRoom: string | null = null
   let historyAnchor = 0
   let practiceDraft: GroupPracticeDraft | null = null
+  let contactTimer: ReturnType<typeof setTimeout> | undefined
+  let contactWatchUntil = 0,contactRequest = 0,lastContactCheck = -Infinity,contactForeground = true
+  let resumeHandle: Awaited<ReturnType<typeof App.addListener>> | undefined
+  const listeners = new AbortController()
   const lastRead = new Map<string,string>()
   const selected = new Set<string>()
   const active = () => !disposed && current()
   const transport = playerChatsForAccount(client,owner,active,initial.browser)
+  const preferences = initial.browser ? null : initial.preferences ?? chatInboxOrder(owner)
   let iconEditor: ReturnType<typeof openChatIconEditor> | null = null
 
   function dispose() {
     disposed = true
+    listeners.abort()
+    void resumeHandle?.remove()
+    clearTimeout(contactTimer)
     iconEditor?.dispose()
     stopLive()
     room = null; inbox = null; pending = null; shared = null; invitation = null; token = ''; draft = ''
@@ -68,7 +84,14 @@ export function openPlayerChats(
   function back() {
     if (iconEditor?.isOpen()) { iconEditor.close(); return true }
     if (busy || !active()) return true
-    if (page === 'inbox') close()
+    if (page === 'people') {
+      page='room'; notice=''; pending=null; contactQuery=''; selected.clear()
+      if (room) watchRoom(room.id)
+      render()
+      ;(dialog.querySelector<HTMLElement>('[data-player-people]')??dialog.querySelector('h2'))?.focus({preventScroll:true})
+    } else if (page === 'invite' && inviteReturn) {
+      page=inviteReturn; inviteReturn=null; invitation=null; token=''; pending=null; notice=''; render(true)
+    } else if (page === 'inbox' || initial.compose) close()
     else { draft=''; pending=null; shared=null; void openInbox() }
     return true
   }
@@ -77,6 +100,7 @@ export function openPlayerChats(
   }
   async function run(work: () => Promise<void>,focus = true) {
     if (!active() || busy) return
+    contactRequest++
     busy = true; notice = ''; render()
     try { await work() }
     catch (error) { if (active()) notice = message(error) }
@@ -124,8 +148,104 @@ export function openPlayerChats(
   function openInbox() {
     stopLive()
     practiceDraft=null
-    page='inbox'; room=null; invitation=null; token=''; shared=null
+    page='inbox'; room=null; invitation=null; token=''; shared=null; inviteReturn=null
     return run(async ()=>{ inbox=await transport.inbox() })
+  }
+  function refreshContacts() {
+    return run(async ()=>{
+      inbox=await transport.inbox()
+      const available = new Set(inbox.contacts.map(contact=>contact.id))
+      for (const id of selected) if (!available.has(id)) selected.delete(id)
+    })
+  }
+  function isComposing() { return page==='new'||page==='group' }
+  function canCheckContactInvite() {
+    return active() && contactForeground && isComposing() && shared && !shared.room && document.visibilityState==='visible'
+  }
+  function scheduleContactCheck() {
+    clearTimeout(contactTimer)
+    if (canCheckContactInvite() && Date.now()<contactWatchUntil) contactTimer=setTimeout(()=>{
+      void checkForNewContacts().finally(scheduleContactCheck)
+    },15_000)
+  }
+  async function checkForNewContacts() {
+    if (!canCheckContactInvite() || busy || pending || Date.now()-lastContactCheck<2000) return
+    lastContactCheck=Date.now()
+    const request = ++contactRequest, invite = shared?.token
+    try {
+      const latest = await transport.inbox()
+      if (!canCheckContactInvite() || request!==contactRequest || shared?.token!==invite) return
+      const previous = inbox?.contacts ?? []
+      if (latest.contacts.length===previous.length &&
+        latest.contacts.every((contact,index)=>contact.id===previous[index]?.id&&contact.name===previous[index]?.name)) return
+      const added = latest.contacts.some(contact=>!previous.some(old=>old.id===contact.id))
+      inbox=latest
+      paintSavedPlayers()
+      if (added) {
+        contactWatchUntil=0
+        const status = dialog.querySelector<HTMLElement>('[data-contact-update]')
+        if (status) status.textContent='New contact available.'
+      }
+    } catch { /* The picker stays usable and Refresh contacts can report a connection error. */ }
+  }
+  function resumeContactCheck() {
+    if (canCheckContactInvite()) void checkForNewContacts()
+    scheduleContactCheck()
+  }
+  function openComposer(next: ComposerPage) {
+    if (page === next) return
+    if (page !== 'new' && page !== 'group') {
+      selected.clear(); groupName=''; contactQuery=''; shared=null
+    } else if (next === 'new' && selected.size > 1) selected.clear()
+    page=next; notice=''
+    if (inbox) render(true)
+    else void refreshContacts()
+  }
+  function openPeople() {
+    if (!room?.manage || busy || pending) return
+    const id=room.id
+    selected.clear(); contactQuery=''; page='people'; stopLive()
+    void run(async ()=>{
+      const [latest,contacts] = await Promise.all([transport.room(id),transport.inbox()])
+      if (!active()) return
+      if (!latest.manage) { room=latest; page='room'; watchRoom(id); throw Error('Only the group owner can add people.') }
+      room=latest; inbox=contacts
+    })
+  }
+  function addPeople() {
+    const target=room
+    if (!target?.manage || !selected.size) return
+    const choices=savedPlayers().filter(contact=>selected.has(contact.id))
+    if (!choices.length || choices.length>31-target.members.length) {
+      notice='Choose up to '+Math.max(0,31-target.members.length)+' more players.'
+      render(true)
+      return
+    }
+    void run(async ()=>{
+      let reason = ''
+      const added: typeof choices = []
+      for (const contact of choices) {
+        if (!active()) return
+        try {
+          await transport.act({action:'add',room:target.id,target:contact.id})
+          selected.delete(contact.id)
+          added.push(contact)
+        } catch (error) {
+          if (error instanceof PlayerChatError && error.status===403) {
+            reason='Check that the remaining players are still in your contacts.'
+            continue
+          }
+          reason=error instanceof PlayerChatError && error.status===409
+            ? 'The group may be full.' : 'Check your connection and try again.'
+          break
+        }
+      }
+      if (!active()) return
+      room=await transport.room(target.id).catch(()=>({...target,members:[...target.members,...added]}))
+      for (const member of room.members) selected.delete(member.id)
+      const result=added.length===1?'1 player added.':`${added.length} players added.`
+      notice=reason?(added.length?result+' ':'')+'Some players couldn’t be added. '+reason:result
+    })
   }
   function openRoom(id: string) {
     stopLive()
@@ -134,6 +254,7 @@ export function openPlayerChats(
   }
   function preview(code: string) {
     if (!code) { notice='Paste a TenAceIQ chat invite link.'; render(true); return }
+    inviteReturn=page==='new'||page==='group'?page:null
     token=code; page='invite'; invitation=null
     return run(async ()=>{ invitation = await transport.preview(code) })
   }
@@ -160,16 +281,26 @@ export function openPlayerChats(
       if (input.action === 'invite' && 'token' in input) {
         if (!result.expiresAt) throw Error('Invite unavailable.')
         shared={token:input.token,room:input.room,expiresAt:result.expiresAt}
+        if (!input.room && isComposing()) {
+          contactWatchUntil=Date.now()+90_000
+          scheduleContactCheck()
+        }
         return
       }
       if (input.action === 'group' || input.action === 'direct' || input.action === 'join') {
         shared=null
         if (result.roomId) {
-          if (input.action === 'join') { token=''; invitation=null }
+          if (input.action === 'join') { token=''; invitation=null; inviteReturn=null }
           page='room'
           await loadRoom(result.roomId)
         } else if (input.action==='join' && result.contact) {
-          token=''; invitation=null; page='inbox'; inbox=await transport.inbox()
+          token=''; invitation=null; page=inviteReturn??'inbox'; inviteReturn=null
+          inbox=await transport.inbox()
+          if ((page==='new'||page==='group') && inbox.contacts.some(contact=>contact.id===result.contact)) {
+            if (page==='new') selected.clear()
+            selected.add(result.contact)
+            contactQuery=''
+          }
           notice='Player saved to your contacts.'
         }
         return
@@ -205,24 +336,95 @@ export function openPlayerChats(
   function sharedMarkup() {
     if (!shared) return ''
     return `<section class="player-chat-invite" aria-label="Share invitation"><label>Invite link<input readonly value="${html(playerChatInviteHref(shared.token))}"></label>
-      <p>Expires ${html(new Date(shared.expiresAt).toLocaleDateString())}. ${shared.room?'Anyone you share this link with can sign in and join.':'One player can use this link to connect with you.'}</p>
+      <p>Expires ${html(new Date(shared.expiresAt).toLocaleDateString())}. ${shared.room?'Anyone you share this link with can sign in and join.':'Share this link with one player. When they accept, you’ll appear in each other’s contacts.'}</p>
       <div class="player-chat-actions">${simpleButton('Share invite','data-player-share')}${simpleButton('Copy link','data-player-copy')}
       ${simpleButton('Revoke link','data-player-revoke')}</div></section>`
   }
   function inboxMarkup() {
     const conversations = inbox?.rooms.map(item=>`<li>${simpleButton(teamChatAvatarHtml(item.title,item.logo)+html(item.title)+(item.unread?' <small>New</small>':''),'data-player-room',item.id)}</li>`).join('')
-    return `<div class="player-chat-actions">${simpleButton('New group','data-player-group')}${simpleButton('Connect a player','data-player-invite')}</div>
+    return `<div class="player-chat-actions">${initial.browser?'':simpleButton('New chat','data-player-new')}${simpleButton('New group','data-player-group')}${simpleButton(initial.browser?'Connect a player':'Add contact','data-player-invite')}</div>
       ${sharedMarkup()}<form data-player-join><label>Have an invite link?<input name="invite" type="url" autocomplete="off" placeholder="Paste invite link" required></label>
       <button class="secondary" type="submit">Review invite</button></form>
       <section class="player-chat-section"><h3>Conversations</h3><ul>${conversations||'<li>No conversations yet.</li>'}</ul></section>
       <section class="player-chat-section"><h3>My players</h3><ul>${inbox?.contacts.length?contactRows(inbox.contacts):'<li>Share a contact invite to save your first player.</li>'}</ul></section>`
   }
-  function groupMarkup() {
-    return `<form data-player-create><label>Group name<input name="name" maxlength="80" value="${html(groupName)}" placeholder="Friday practice" required></label>
-      ${inbox?.contacts.length?`<fieldset><legend>Add saved players</legend>${inbox.contacts.map(contact=>
+  function savedPlayers() {
+    const contacts = inbox?.contacts ?? []
+    return page==='people' ? contacts.filter(contact=>!room?.members.some(member=>member.id===contact.id)) : contacts
+  }
+  function contactPicker() {
+    return `<fieldset class="player-chat-contact-picker"><legend>Saved players</legend>
+      <label for="player-contact-search" class="sr-only">Find a saved player</label>
+      <input id="player-contact-search" type="search" value="${html(contactQuery)}" maxlength="100" placeholder="Find a saved player" autocomplete="off">
+      <div class="player-chat-contact-list"></div><p data-no-contact-match hidden></p>
+      <p data-contact-update role="status"></p>
+    </fieldset>`
+  }
+  function paintSavedPlayers() {
+    const list = dialog.querySelector<HTMLElement>('.player-chat-contact-list')
+    const empty = dialog.querySelector<HTMLElement>('[data-no-contact-match]')
+    if (!list || !empty) return
+    const choices = savedPlayers()
+    const available = new Set(choices.map(contact=>contact.id))
+    for (const id of selected) if (!available.has(id)) selected.delete(id)
+    const focused = list.contains(document.activeElement) ? (document.activeElement as HTMLInputElement).value : ''
+    list.innerHTML=choices.map(contact=>
+      `<label class="player-chat-contact" data-contact-name="${html(contact.name)}">
+        ${teamChatAvatarHtml(contact.name)}<span>${html(contact.name)}</span>
+        <input type="${page==='new'?'radio':'checkbox'}" name="players" value="${html(contact.id)}"${selected.has(contact.id)?' checked':''}>
+      </label>`).join('')
+    filterSavedPlayers()
+    if (focused) [...list.querySelectorAll('input')].find(input=>input.value===focused)?.focus({preventScroll:true})
+    updatePlayerSubmit()
+  }
+  function filterSavedPlayers() {
+    const rows = [...dialog.querySelectorAll<HTMLLabelElement>('[data-contact-name]')]
+    const empty = dialog.querySelector<HTMLElement>('[data-no-contact-match]')
+    if (!empty) return
+    const query=contactSearchKey(contactQuery)
+    for (const row of rows) row.hidden = !contactSearchKey(row.dataset.contactName??'').includes(query)
+    empty.hidden = !inbox || rows.some(row=>!row.hidden)
+    empty.textContent = rows.length ? 'No saved players match.' : page==='people'
+      ? 'No saved players to add. Share an invite link to bring someone in.'
+      : 'No saved players yet. Add a contact to start chatting.'
+  }
+  function updatePlayerSubmit() {
+    const submit=dialog.querySelector<HTMLButtonElement>('[data-player-pick] button[type="submit"]')
+    if (submit) submit.disabled=!inbox || page!=='group'&&!selected.size
+  }
+  function composerMarkup(group: boolean) {
+    const contacts = inbox?.contacts ?? []
+    const name = `<label>Group name<input name="name" maxlength="80" value="${html(groupName)}" placeholder="Friday practice" required></label>`
+    if (initial.browser) return `<form data-player-create>${name}
+      ${contacts.length?`<fieldset><legend>Add saved players</legend>${contacts.map(contact=>
         `<label class="entry-check"><input type="checkbox" name="players" value="${html(contact.id)}"${selected.has(contact.id)?' checked':''}>${html(contact.name)}</label>`).join('')}</fieldset>`:
         '<p>Create the group, then share its invite link with your players.</p>'}
       <button type="submit">Create group</button></form>`
+    const typeButton = (label: string, target: ComposerPage) =>
+      `<button class="secondary" type="button" data-player-mode="${target}" aria-pressed="${page===target}">${label}</button>`
+    return `<div class="player-chat-modes" role="group" aria-label="Chat type">${typeButton('One player','new')}${typeButton('Group','group')}</div>
+      <form data-player-create data-player-pick>
+        ${group?name:''}
+        ${contactPicker()}
+        <button type="submit">${group?'Create group':'Start chat'}</button>
+      </form>
+      <div class="player-chat-actions">${simpleButton('Add contact','data-player-invite')}${simpleButton('Refresh contacts','data-player-refresh-contacts')}</div>
+      ${sharedMarkup()}
+      <details class="player-chat-paste-invite"><summary>Use a contact invite</summary>
+        <form data-player-join><label>Invite link<input name="invite" type="url" autocomplete="off" placeholder="Paste invite link" required></label>
+        <button class="secondary" type="submit">Review invite</button></form>
+      </details>`
+  }
+  function peopleMarkup() {
+    return `<form data-player-add-many data-player-pick>
+      ${contactPicker()}
+      <button type="submit">Add selected players</button>
+    </form>
+    <section class="player-chat-invite">
+      <h3>Invite by link</h3>
+      <p>Players can sign in or create a free account, then join this group.</p>
+      ${shared&&shared.room===room?.id?sharedMarkup():simpleButton('Create invite link','data-player-group-invite')}
+    </section>`
   }
   function roomMarkup(value: PlayerChatRoom) {
     const names = value.members.map(member=>`<li><strong>${html(member.name)}</strong><div class="player-chat-actions">
@@ -236,13 +438,16 @@ export function openPlayerChats(
       <option value="inappropriate">Inappropriate content</option><option value="other">Other</option></select></label>
       <button type="submit" class="secondary">Report</button></form></details>`:''}</li>`).join('')
     const choices = (inbox?.contacts??[]).filter(contact=>!value.members.some(member=>member.id===contact.id))
-    return `${value.practice!==undefined?groupPracticeCard(value.practice,value.manage,practiceDraft):''}
-      ${value.manage?simpleButton(shared?'Replace invite link':'Invite players','data-player-group-invite'):''}
+    const isPinned = preferences?.read().pinned.includes(playerInboxKey(value.id))
+    return `<div class="player-chat-actions">
+      ${preferences?`<button type="button" class="secondary" data-player-pin aria-label="${html((isPinned?'Unpin ':'Pin ')+value.title)}" aria-pressed="${isPinned}">${isPinned?'Unpin chat':'Pin chat'}</button>`:''}
+      ${value.manage&&initial.browser?simpleButton(shared?'Replace invite link':'Invite players','data-player-group-invite'):''}</div>
+      ${value.practice!==undefined?groupPracticeCard(value.practice,value.manage,practiceDraft):''}
       ${sharedMarkup()}
       <details class="player-chat-options"><summary>${value.group?'Group settings':'Player settings'}</summary>
       ${value.manage?`${initial.browser?'':simpleButton(value.logo?'Edit group icon':'Add group icon','data-player-icon')}
       ${simpleButton('Turn off invite links','data-player-revoke-links')}
-      ${choices.length?`<form data-player-add><label>Add a saved player<select name="player">${choices.map(contact=>`<option value="${html(contact.id)}">${html(contact.name)}</option>`).join('')}</select></label>
+      ${initial.browser&&choices.length?`<form data-player-add><label>Add a saved player<select name="player">${choices.map(contact=>`<option value="${html(contact.id)}">${html(contact.name)}</option>`).join('')}</select></label>
       <button class="secondary" type="submit">Add to group</button></form>`:''}`:''}
       <ul aria-label="Chat members">${names}</ul>
       ${value.group?simpleButton(value.manage?'Close group':'Leave group','data-player-leave'):''}</details>
@@ -256,13 +461,15 @@ export function openPlayerChats(
     if (!active()) return
     const settingsOpen = dialog.querySelector<HTMLDetailsElement>('.player-chat-options')?.open
     const practiceListOpen = dialog.querySelector<HTMLDetailsElement>('.group-practice-card details')?.open
-    const title = page==='room' ? room?.title ?? 'Conversation' : page==='group' ? 'New group' : page==='invite' ? 'Chat invitation' : 'Players & groups'
-    const contents = page==='inbox' ? inboxMarkup() : page==='group' ? groupMarkup() : page==='room' && room ? roomMarkup(room) :
+    const title = page==='room' ? room?.title ?? 'Conversation' : page==='group' ? 'New group' : page==='new' ? 'New chat' : page==='people' ? 'Add people' : page==='invite' ? 'Chat invitation' : 'Players & groups'
+    const contents = page==='inbox' ? inboxMarkup() : isComposing() ? composerMarkup(page==='group') : page==='people' ? peopleMarkup() : page==='room' && room ? roomMarkup(room) :
       page==='invite' && invitation ? `<p>${invitation.group?'Join':'Connect with'} <strong>${html(invitation.title)}</strong>.</p>
       <button type="button" data-player-accept>${invitation.group?'Join group':'Save player'}</button>` : ''
-    const backLabel = page==='inbox'?'Close':'Back'
-    dialog.innerHTML = `<header class="team-invite-heading"><h2 id="player-chats-title" tabindex="-1">${room?.logo?teamChatAvatarHtml(title,room.logo):''}${html(title)}</h2>
-      <button class="secondary" type="button" data-player-back aria-label="${page==='inbox'?'Close':'Back to players &amp; groups'}">${backLabel}</button></header>
+    const backLabel = page==='inbox'||initial.compose&&page!=='invite'&&page!=='people'?'Close':'Back'
+    const backName = backLabel==='Close'?'Close':page==='people'?'Back to group':page==='invite'&&inviteReturn?'Back to new chat':'Back to players &amp; groups'
+    dialog.innerHTML = `<header class="team-invite-heading"><h2 id="player-chats-title" tabindex="-1">${page==='room'&&room?.logo?teamChatAvatarHtml(title,room.logo):''}${html(title)}</h2>
+      <div class="player-chat-header-actions">${page==='room'&&room?.manage&&!initial.browser?simpleButton('Add people','data-player-people'):''}
+      <button class="secondary" type="button" data-player-back aria-label="${backName}">${backLabel}</button></div></header>
       <p tabindex="-1" role="status">${html(busy?'Working…':notice)}</p>
       ${pending&&!busy?simpleButton('Retry same action','data-player-retry'):''}
       <fieldset class="player-chat-content"${busy||pending?' disabled':''}>${contents}
@@ -284,8 +491,21 @@ export function openPlayerChats(
     bindTeamChatAvatars(dialog)
     click('[data-player-back]',()=>{back()})
     click('[data-player-retry]',()=>{if(pending)void act(pending)})
+    click('[data-player-people]',openPeople)
     click('[data-player-refresh]',()=>{if(page==='room'&&room)void run(()=>loadRoom(room!.id));else void openInbox()})
-    click('[data-player-group]',()=>{page='group';selected.clear();groupName='';notice='';render(true)})
+    click('[data-player-new]',()=>{openComposer('new')})
+    click('[data-player-group]',()=>{openComposer('group')})
+    click('[data-player-mode]',button=>{const next=button.dataset.playerMode;if(next==='new'||next==='group')openComposer(next)})
+    click('[data-player-refresh-contacts]',()=>{void refreshContacts()})
+    click('[data-player-pin]',button=>{
+      if (!room || !preferences) return
+      const key=playerInboxKey(room.id)
+      preferences.toggle(key)
+      const pinned=preferences.read().pinned.includes(key)
+      button.textContent=pinned?'Unpin chat':'Pin chat'
+      button.setAttribute('aria-pressed',String(pinned))
+      button.setAttribute('aria-label',(pinned?'Unpin ':'Pin ')+room.title)
+    })
     click('[data-player-invite]',()=>{void act({action:'invite',token:newPlayerChatInvite()})})
     click('[data-player-group-invite]',()=>{if(room)void act({action:'invite',room:room.id,token:newPlayerChatInvite()})})
     click('[data-player-icon]',button=>{
@@ -356,13 +576,39 @@ export function openPlayerChats(
       },false).finally(()=>{historyAnchor=0;dialog.querySelector<HTMLElement>('.player-chat-messages')?.focus({preventScroll:true})})
     })
     form('[data-player-join]',fields=>{void preview(playerChatInviteToken(fields.get('invite')))})
+    const composer = dialog.querySelector<HTMLFormElement>('[data-player-create],[data-player-add-many]')
+    const search = composer?.querySelector<HTMLInputElement>('#player-contact-search')
+    if (search) {
+      search.oninput=()=>{
+        contactQuery = search.value
+        filterSavedPlayers()
+      }
+      search.onkeydown=event=>{if(event.key==='Enter'&&!event.isComposing)event.preventDefault()}
+      paintSavedPlayers()
+    }
+    composer?.addEventListener('input',event=>{
+      const input = event.target
+      if (!(input instanceof HTMLInputElement)) return
+      if (input.name==='name') groupName=input.value
+      if (input.name!=='players') return
+      if (page==='new') selected.clear()
+      if (input.checked) selected.add(input.value)
+      else selected.delete(input.value)
+      updatePlayerSubmit()
+    })
     form('[data-player-create]',fields=>{
-      groupName=String(fields.get('name')??'').trim(); selected.clear()
-      for (const id of fields.getAll('players')) selected.add(String(id))
+      if (page==='new') {
+        const [target] = selected
+        if (target) void act({action:'direct',target})
+        return
+      }
+      groupName=String(fields.get('name')??'').trim()
+      if (!groupName) { notice='Enter a group name.';render(true);return }
       if (selected.size>20) { notice='Choose up to 20 players.';render(true);return }
       void act({action:'group',id:crypto.randomUUID(),text:groupName,members:[...selected]})
     })
     form('[data-player-add]',fields=>{if(room)void act({action:'add',room:room.id,target:String(fields.get('player'))})})
+    form('[data-player-add-many]',addPeople)
     const practiceFields = (fields:FormData) => ({
       date:String(fields.get('date')??''),time:String(fields.get('time')??''),
       court:String(fields.get('court')??''),capacity:String(fields.get('capacity')??''),
@@ -397,10 +643,20 @@ export function openPlayerChats(
     if (focus) dialog.querySelector<HTMLElement>(notice?'[role=status]':'h2')?.focus({preventScroll:true})
   }
 
+  if (!initial.browser) {
+    document.addEventListener('visibilitychange',resumeContactCheck,{signal:listeners.signal})
+    window.addEventListener('focus',resumeContactCheck,{signal:listeners.signal})
+    if (Capacitor.isNativePlatform()) void App.addListener('appStateChange',state=>{
+      contactForeground=state.isActive
+      if (state.isActive) resumeContactCheck()
+      else clearTimeout(contactTimer)
+    }).then(handle=>{if(disposed)void handle.remove();else resumeHandle=handle}).catch(()=>{})
+  }
   dialog.oncancel = event=>{event.preventDefault();back()}
   document.body.append(dialog); render(); dialog.showModal()
   if (initial.token) void preview(initial.token)
   else if (initial.room) void run(async ()=>{inbox=await transport.inbox();await loadRoom(initial.room!)})
+  else if (initial.compose) void refreshContacts()
   else void openInbox()
   return {isOpen:active,close:back,dispose,keepWhileHidden:true}
 }
