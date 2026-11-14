@@ -588,7 +588,8 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    coachInbox.mount(app.querySelector<HTMLElement>('[data-coach-chats]')!)
    inboxView=bindChatsInbox(app,snapshot.teams,inboxFilter,alerts?.unread()??null,choice=>{
     if(!valid()||!inbox)return
-    freshDraft();inbox=false;selected={teamName:choice.teamName,leagueName:choice.leagueName,flight:choice.flight};tab='Conversation';void load()
+    freshDraft();inbox=false;selected={teamName:choice.teamName,leagueName:choice.leagueName,flight:choice.flight,
+     ...(!firstPartyBuild&&choice.chatRoomId?{chatRoomId:choice.chatRoomId}:{})};tab='Conversation';void load()
    },()=>valid()&&inbox,()=>loadCaptainChatSetup(client,userId,()=>valid()&&inbox),(scope,trigger)=>{
     if(!valid()||!inbox||teamDialog?.isOpen())return
     const current=()=>valid()&&inbox
