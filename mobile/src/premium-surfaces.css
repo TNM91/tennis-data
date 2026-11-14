@@ -1604,12 +1604,6 @@ body[data-screen="teams"] button.secondary[data-inbox-unread] {
 }
 body[data-screen="teams"] [data-inbox-unread][aria-pressed="true"] { border-color:var(--premium-lime); color:var(--premium-lime); }
 .chats-inbox-find-status { margin:4px 0 8px; color:var(--premium-copy); font-size:.8125rem; }
-.chats-section-heading #chat-inbox-results { margin:0; }
-body[data-screen="teams"]:not(.native-chat-conversation) [data-chats-find] .chats-team-card {
- grid-template-columns:34px minmax(0,1fr) auto; min-block-size:58px; gap:8px; padding:8px;
-}
-[data-chats-find] .chats-team-avatar { inline-size:34px; block-size:34px; }
-[data-chats-find] .chats-team-copy > span { line-height:1.3; }
 .chats-inbox-toolbar[hidden],[data-chats-find][hidden],[data-coach-chats][hidden],[data-inbox-retry][hidden] { display:none!important; }
 .chats-inbox-toolbar { display:grid; gap:4px; margin:0 0 12px; }
 .chats-team-add { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
@@ -1637,9 +1631,10 @@ body[data-screen="teams"] .chat-inbox-order select {
  position:absolute;inset-inline-end:2px;inset-block-start:50%;translate:0 -50%;
  inline-size:14px;block-size:14px;color:var(--premium-ice);pointer-events:none;
 }
-.chat-inbox-organized,#chats-team-inbox.native-section-group { margin:12px 0 18px; }
+:is(.chat-inbox-organized,:where(#chats-team-inbox).native-section-group,.chats-coach-inbox) { margin:12px 0 18px; }
 .chat-inbox-organized[data-chats-find] { margin-block:4px 0; }
-.chat-inbox-organized h2 { margin:0 0 8px; font-size:1rem; }
+:is(.chat-inbox-organized,:where(#chats-team-inbox).native-section-group,.chats-coach-inbox) h2 { margin:0; font-size:1.25rem; }
+.chat-inbox-organized > h2 { margin-block-end:8px; }
 .chat-inbox-organized ul { display:grid; gap:6px; list-style:none; padding:0; margin:0; }
 .chat-organized-row { display:grid; grid-template-columns:minmax(0,1fr) 44px; align-items:center; }
 body[data-screen="teams"]:not(.native-chat-conversation) .chat-organized-row {
@@ -1662,16 +1657,11 @@ body[data-screen="teams"] button.secondary.chat-pin {
 body[data-screen="teams"] button.secondary.chat-pin[aria-pressed="true"] { color:var(--premium-lime); }
 .chat-pin svg { inline-size:19px; block-size:19px; }
 .chat-pin[aria-pressed="true"] svg { rotate:-25deg; }
-.chats-team-channels { margin:4px 0 8px 14px; padding-inline-start:10px; border-inline-start:1px solid var(--premium-line); }
-.chats-team-channels summary { min-block-size:44px; align-content:center; color:var(--premium-ice); font-size:.8125rem; }
+.chats-team-channels { margin:4px 0 8px; }
+.chats-team-channels summary { min-block-size:44px; padding-inline-start:10px; align-content:center; color:var(--premium-ice); font-size:.8125rem; }
 .chats-team-channels[hidden] { display:none; }
-.chats-team-channels ul { display:grid; gap:4px; padding:0; margin:0; list-style:none; }
-body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-channels .chats-team-card {
- grid-template-columns:20px minmax(0,1fr) auto auto; min-block-size:44px; padding:6px 8px;
-}
+.chats-team-channels ul { display:grid; gap:6px; padding:0; margin:0; list-style:none; }
 .chat-team-channel-icon svg { display:block; inline-size:20px; block-size:20px; }
-.chats-team-channels .chats-team-avatar { inline-size:20px; block-size:20px; }
-.chats-team-channels .chat-organized-row > button.chats-team-card.secondary { min-block-size:44px; }
 body.native-chat-conversation .chat-room-heading #open-team-rooms { min-block-size:44px; color:var(--premium-ice); }
 .chat-room-heading-actions { display:flex; align-items:center; gap:4px; }
 body.native-chat-conversation .chat-room-heading-actions .chat-compact-refresh {
@@ -1742,7 +1732,7 @@ body[data-screen="teams"] .chats-filter-feedback button.secondary {
 }
 .chats-filter-feedback button:focus-visible { outline:2px solid var(--premium-ice);outline-offset:2px; }
 .chats-filter-feedback button[hidden] { display:none; }
-body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-list { margin-block:4px 10px;gap:4px; }
+body[data-screen="teams"]:not(.native-chat-conversation) .chats-team-list { margin-block:4px 10px;gap:6px; }
 body[data-screen="teams"]:not(.native-chat-conversation) :is(#chats-team-inbox,#chats-coach-inbox) button.secondary:is(#refresh-team,[data-coach-chat-refresh]) {
  inline-size:auto;min-block-size:44px;margin:0;padding:6px 9px;
  border-color:transparent;background:transparent;color:var(--premium-ice);box-shadow:none;

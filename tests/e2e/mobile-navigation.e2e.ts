@@ -455,12 +455,16 @@ test('Chats pins a team and group, applies a group icon and shows recent convers
 })
 
 for(const font of ['regular','large']){
- test('Chats controls align and pinned rows have a full-width surface at '+font+' text size',async({page})=>{
+ test('Chats controls and conversation rows match teams at '+font+' text size',async({page})=>{
   await useFirstPartyNavigation(page)
   await page.setViewportSize({width:320,height:780})
-  await page.goto(origin+'/?player-chat=1'+(font==='large'?'&large=1':''))
+  await page.goto(origin+'/?player-chat=1&chat-inbox-search=1'+(font==='large'?'&large=1':''))
   await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
   await page.getByRole('button',{name:'Pin Baseline Aces',exact:true}).click()
+  const group=page.getByRole('region',{name:'Conversations',exact:true}).getByRole('button',{name:/^Friday Rally/})
+  const coach=page.getByRole('region',{name:'Coach & player conversations'}).getByRole('button',{name:/^Taylor Morgan/})
+  await expect(group).toBeVisible()
+  await expect(coach).toBeVisible()
   const bounds=await page.evaluate(()=>{
    const box=(selector:string)=>{
     const {x,y,width,height}=document.querySelector(selector)!.getBoundingClientRect()
@@ -480,7 +484,14 @@ for(const font of ['regular','large']){
   expect(bounds.row.x).toBeCloseTo(bounds.search.x,0)
   expect(bounds.row.x+bounds.row.width).toBeCloseTo(bounds.unread.x+bounds.unread.width,0)
   expect(bounds.pin.x+bounds.pin.width).toBeLessThanOrEqual(bounds.row.x+bounds.row.width)
-  for(const selector of ['[data-chats-pinned]','#chats-team-inbox']){
+  for(const button of [group,coach]){
+   const row=await button.locator('xpath=..').boundingBox()
+   expect(row?.x).toBeCloseTo(bounds.row.x,0)
+   expect(row?.width).toBeCloseTo(bounds.row.width,0)
+   if(font==='regular')expect(row?.height).toBeCloseTo(bounds.row.height,0)
+   await expect(button.locator('.chats-team-avatar')).toHaveCSS('width','36px')
+  }
+  for(const selector of ['[data-chats-pinned]','#chats-team-inbox','.chats-coach-inbox']){
    await expect(page.locator(selector)).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
    await expect(page.locator(selector)).toHaveCSS('box-shadow','none')
   }

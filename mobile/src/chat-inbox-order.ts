@@ -96,10 +96,10 @@ export function mountChatInboxOrder(
     const isPinned = preferences.read().pinned.includes(entry.key)
     return `<button type="button" class="secondary chat-pin" data-organized-pin aria-label="${html((isPinned?'Unpin ':'Pin ')+entry.title)}" aria-pressed="${isPinned}">${nativeActionIcon('pin')}</button>`
   }
-  function fillList(list:HTMLElement,entries:Entry[],nested=false,showChevron=true){
+  function fillList(list:HTMLElement,entries:Entry[],nested=false){
     const markup=entries.map(entry=>`<li class="chat-organized-row${entry.pinnable===false?' chat-organized-row-single':''}"><button type="button" class="secondary chats-team-card" data-organized-open>
-      ${nested&&!entry.icon?`<span class="chat-team-channel-icon" aria-hidden="true">${websiteUi.icons.teams}</span>`:teamChatAvatarHtml(entry.title,entry.icon)}<span class="chats-team-copy"><strong>${html(entry.title)}</strong>${nested?'':'<span>'+html(entry.subtitle)+'</span>'}</span>
-      <span class="chat-unread-badge" data-organized-unread hidden></span>${showChevron?'<span aria-hidden="true">›</span>':''}</button>${entry.pinnable===false?'':pinButton(entry)}</li>`).join('')
+      ${nested&&!entry.icon?`<span class="chats-team-avatar chat-team-channel-icon" aria-hidden="true">${websiteUi.icons.teams}</span>`:teamChatAvatarHtml(entry.title,entry.icon)}<span class="chats-team-copy"><strong>${html(entry.title)}</strong>${nested?'':'<span>'+html(entry.subtitle)+'</span>'}</span>
+      <span class="chat-unread-badge" data-organized-unread hidden></span><span aria-hidden="true">›</span></button>${entry.pinnable===false?'':pinButton(entry)}</li>`).join('')
     const unchanged=renderedLists.get(list)===markup
     if(!unchanged){list.innerHTML=markup;renderedLists.set(list,markup)}
     list.querySelectorAll<HTMLLIElement>('li').forEach((row,index)=>{
@@ -189,7 +189,7 @@ export function mountChatInboxOrder(
         :coachSnapshot.more?'No matches in the chats loaded here.':words.length?'No chats match your search.':'You’re all caught up.'
       if(status.textContent!==message)status.textContent=message
       retry.hidden=!incomplete||loading
-      fillList(results.querySelector('ul')!,matched,false,false)
+      fillList(results.querySelector('ul')!,matched)
     }
     teamRows.forEach((row,index)=>{
       const entry=teamEntries[index], pin=row.querySelector<HTMLButtonElement>('[data-chat-pin-team]')!

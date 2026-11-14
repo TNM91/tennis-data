@@ -13,7 +13,7 @@ export type CoachInboxSearch = {
 
 /** One connection read on first mount, then explicit refresh; no message prefetch or polling. */
 export function createCoachChatsInbox(client:SupabaseClient,owner:string,current:()=>boolean,getCounts:()=>ChatUnread|null=()=>null,refreshCounts:()=>void=()=>{},searchChanged:()=>void=()=>{}){
- const element=document.createElement('section');element.className='chats-coach-inbox';element.setAttribute('aria-label','Coach & player conversations')
+ const element=document.createElement('section');element.className='native-section-group chats-coach-inbox';element.setAttribute('aria-label','Coach & player conversations')
  let disposed=false,started=false,busy=false,epoch=0,query='',notice='',more=false,unreadOnly=false,filtersOpen=false,connections:CoachChatConnection[]=[],summary=getCounts()
  let conversation:ReturnType<typeof openCoachMessages>|null=null
  let invitation:ReturnType<typeof openCoachConnection>|null=null
@@ -47,6 +47,7 @@ export function createCoachChatsInbox(client:SupabaseClient,owner:string,current
    let row=Array.from(rows.children).find(row=>(row as HTMLElement).dataset.coachChatRow===connection.id) as HTMLLIElement|undefined
    if(!row){
     row=document.createElement('li');row.dataset.coachChatRow=connection.id
+    row.className='chat-organized-row chat-organized-row-single'
     const button=document.createElement('button');button.type='button';button.className='secondary chats-team-card chats-coach-card';button.dataset.coachChat=connection.id
     button.innerHTML='<span class="chats-team-avatar" aria-hidden="true"></span><span class="chats-team-copy"><strong data-coach-name></strong><span data-coach-role></span></span><span class="chat-unread-badge chat-coach-unread" data-coach-unread aria-hidden="true" hidden></span><span aria-hidden="true">›</span>'
     button.onclick=()=>openConnection(connection.id,button);row.append(button)
