@@ -151,7 +151,7 @@ export function openChatIconEditor(
  return {isOpen:()=>!disposed,close:()=>{if(!busy)close()},dispose,keepWhileHidden:true}
 }
 
-export function openTeamChatIcon(client:SupabaseClient,owner:string,room:NativeTeamRoom,current:()=>boolean,onClose:(changed:boolean)=>void){
+export function openTeamChatIcon(client:SupabaseClient,owner:string,room:Pick<NativeTeamRoom,'id'|'teamName'|'leagueName'|'flight'|'chatRoom'> & {teamLogoUrl?:string;chatLogoUrl?:string},current:()=>boolean,onClose:(changed:boolean)=>void){
  return openChatIconEditor(room.chatRoom
   ?{name:room.chatRoom.name,logo:room.chatLogoUrl,kind:'Channel'}
   :{name:room.teamName,logo:room.teamLogoUrl,kind:'Team'},current,async image=>{
