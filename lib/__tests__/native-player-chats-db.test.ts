@@ -35,6 +35,7 @@ it('keeps contacts consensual and player chats private while delivering one noti
         from public.internal_notifications where false;
       grant usage on schema private,auth to authenticated;
       grant select on public.native_first_party_updates, public.internal_notifications, public.team_chat_signals to authenticated;
+      grant update(read_at) on public.internal_notifications to authenticated;
       grant select,insert on public.internal_messages,public.internal_conversation_participants to authenticated;
     `)
     await db.exec(await readFile('supabase/migrations/20261113001100_native_player_chats.sql','utf8'))
@@ -131,13 +132,58 @@ it('keeps contacts consensual and player chats private while delivering one noti
     expect(await suggest(owner,id(70),suggestion,'21:00')).toBe('hit_stale')
     expect(await writeHit(contact,'hit_reply',counter,'accepted')).toBe('ok')
 
+    await db.exec(await readFile('supabase/migrations/20261114000500_native_chat_hit_reminders.sql','utf8'))
+    const remind = async (event: string) => {
+      const {rows} = await db.query<{id:string;recipient_profile_id:string}>(
+        'update private.native_chat_hit_reminders set due_at=now() where hit_id=$1 returning id,recipient_profile_id',[event])
+      expect(rows.map(row=>row.recipient_profile_id).sort()).toEqual([owner,contact].sort())
+      return rows
+    }
+    const reminders = () => db.query("select id,href,read_at from native_first_party_updates where title='Hit coming up'")
+    await asUser(owner,async ()=>{ expect((await reminders()).rows).toEqual([]) })
+    const originalReminders = await remind(counter)
+    const ownersReminder = originalReminders.find(row=>row.recipient_profile_id===owner)!.id
+    const contactsReminder = originalReminders.find(row=>row.recipient_profile_id===contact)!.id
+    const mark = (ids: string[]) => db.query('select id,read_at from public.native_first_party_mark_updates_read($1)',[ids])
+    await asUser(owner,async ()=>{
+      expect((await reminders()).rows).toEqual([{id:ownersReminder,href:'/chats?room='+direct+'&hit='+counter,read_at:null}])
+      await expect(mark([ownersReminder,contactsReminder])).rejects.toMatchObject({code:'P0001'})
+      expect((await reminders()).rows[0]).toMatchObject({read_at:null})
+      expect((await mark([ownersReminder])).rows).toMatchObject([{id:ownersReminder,read_at:expect.any(Date)}])
+      expect((await mark([ownersReminder])).rows).toMatchObject([{id:ownersReminder,read_at:expect.any(Date)}])
+      await expect(db.query('select id from private.native_chat_hit_reminders')).rejects.toMatchObject({code:'42501'})
+    })
+    await asUser(stranger,async ()=>{
+      expect((await reminders()).rows).toEqual([])
+      await expect(mark([contactsReminder])).rejects.toMatchObject({code:'P0001'})
+    })
+
     expect(await suggest(owner,change,counter,'21:00')).toBe('ok')
+    await asUser(contact,async ()=>{
+      expect((await reminders()).rows).toEqual([{id:contactsReminder,href:'/chats?room='+direct+'&hit='+counter,read_at:null}])
+    })
     expect(await readHitState(contact)).toMatchObject({hit:{id:change,status:'proposed'},confirmedHit:{id:counter,status:'accepted'}})
     expect(readChatHit(await readHit(contact))).toMatchObject({id:counter,status:'accepted'})
     expect(await readHitState(stranger)).toEqual({hit:null,confirmedHit:null})
     for (const user of [owner,contact]) expect(await hitsOnCalendar(user)).toMatchObject([{id:counter,time:'20:00'}])
     expect(await writeHit(contact,'hit_reply',change,'accepted')).toBe('ok')
     expect(await writeHit(contact,'hit_reply',change,'accepted')).toBe('ok')
+    await asUser(contact,async ()=>{
+      expect((await reminders()).rows).toEqual([])
+      await expect(mark([contactsReminder])).rejects.toMatchObject({code:'P0001'})
+    })
+    expect((await db.query(`select due_at=hit.starts_at-interval '2 hours' as on_time
+      from private.native_chat_hit_reminders r join private.native_chat_hits hit on hit.id=r.hit_id`)).rows)
+      .toEqual([{on_time:true},{on_time:true}])
+    await remind(change)
+    await db.query('insert into internal_notification_preferences(profile_id,schedule_alerts_enabled) values($1,false)',[contact])
+    await db.query('update internal_conversation_participants set muted=true where conversation_id=$1 and profile_id=$2',[direct,owner])
+    for (const user of [owner,contact]) await asUser(user,async ()=>{ expect((await reminders()).rows).toEqual([]) })
+    await db.query('delete from internal_notification_preferences where profile_id=$1',[contact])
+    await db.query('update internal_conversation_participants set muted=false where conversation_id=$1 and profile_id=$2',[direct,owner])
+    await asUser(contact,async ()=>{
+      expect((await reminders()).rows).toMatchObject([{href:'/chats?room='+direct+'&hit='+change,read_at:null}])
+    })
     for (const user of [owner,contact]) expect(await hitsOnCalendar(user)).toMatchObject([{id:change,time:'21:00'}])
 
     expect(await suggest(contact,decline,change,'17:00')).toBe('ok')
@@ -145,6 +191,8 @@ it('keeps contacts consensual and player chats private while delivering one noti
     expect(await readHitState(owner)).toMatchObject({hit:{id:change,status:'accepted'},confirmedHit:null})
     expect(await suggest(contact,cancel,change,'17:00')).toBe('ok')
     expect(await writeHit(owner,'hit_cancel',change)).toBe('ok')
+    for (const user of [owner,contact]) await asUser(user,async ()=>{ expect((await reminders()).rows).toEqual([]) })
+    expect((await db.query('select id from private.native_chat_hit_reminders')).rows).toEqual([])
     expect(await writeHit(owner,'hit_reply',cancel,'accepted')).toBe('hit_stale')
     for (const user of [owner,contact]) expect(await hitsOnCalendar(user)).toEqual([])
     // Remove the fixture hits before running the pre-existing chat notice assertions.
