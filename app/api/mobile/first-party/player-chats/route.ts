@@ -78,14 +78,9 @@ export async function GET(request: Request) {
       return json({ok:true,owner,room:selected})
     }
     const inbox = readPlayerChatInbox(data)
-    const ids = inbox.rooms.map(item=>item.id)
-    const [logos, timestamps] = await Promise.all([
-      loadTeamLogoUrls(db,inbox.rooms.filter(item=>item.group).map(item=>item.id),'player_group').catch(()=>new Map<string,string>()),
-      ids.length ? db.from('internal_conversations').select('id,updated_at').in('id',ids).eq('status','open').limit(ids.length)
-        .then(result=>result.data??[],()=>[]) : [],
-    ])
-    const activity = new Map(timestamps.map(item=>[item.id,item.updated_at]))
-    return json({ok:true,owner,...inbox,rooms:inbox.rooms.map(item=>({...item,logo:logos.get(item.id),activityAt:activity.get(item.id)}))})
+    const logos = await loadTeamLogoUrls(db,inbox.rooms.filter(item=>item.group).map(item=>item.id),'player_group')
+      .catch(()=>new Map<string,string>())
+    return json({ok:true,owner,...inbox,rooms:inbox.rooms.map(item=>({...item,logo:logos.get(item.id)}))})
   } catch { return failure('Chats couldn’t load. Refresh to try again.',503) }
 }
 

@@ -13,7 +13,7 @@ const owner=state.owner,other='22222222-2222-4222-8222-222222222222',id='3333333
 type Row=Record<string,unknown>
 let links:Row[],rows:Row[],target:Row|null,fail:boolean,calls:{url:URL;method:string;body:unknown}[]
 const link=()=>({id,coach_user_id:owner,player_user_id:other,status:'active'})
-const row=()=>({id:conversation,conversation_type:'direct',related_entity_type:'coach_student',related_entity_id:id,status:'open',participants:[{profile_id:owner,last_read_at:'2026-10-31T12:00:00.123455+00:00'}],posts:[{id:message,conversation_id:conversation,sender_user_id:other,created_at:time,deleted_at:null}]})
+const row=()=>({id:conversation,conversation_type:'direct',related_entity_type:'coach_student',related_entity_id:id,status:'open',participants:[{profile_id:owner,last_read_at:'2026-10-31T12:00:00.123455+00:00'}],posts:[{id:message,conversation_id:conversation,sender_user_id:other,created_at:time,deleted_at:null}],sent:[]})
 function client(){return createClient('https://synthetic.invalid','synthetic-key',{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:async(input,init)=>{
  const url=new URL(String(input)),method=init?.method||'GET';calls.push({url,method,body:init?.body?JSON.parse(String(init.body)):null})
  if(fail)return Response.json({message:'Synthetic unavailable'},{status:503})
@@ -28,11 +28,14 @@ beforeEach(()=>{state.owner=owner;state.verified=true;links=[link()];rows=[row()
 afterEach(()=>{vi.unstubAllEnvs();vi.restoreAllMocks()})
 
 it('batches current coach connections under RLS and returns counts without identities or message text',async()=>{
- expect(await nativeCoachChatUnread(state.client,owner)).toEqual({available:true,total:1,connections:[{id,unread:1,latest:message}]})
+ expect(await nativeCoachChatUnread(state.client,owner)).toEqual({available:true,total:1,connections:[{id,unread:1,latest:message,activityAt:time}]})
  expect(calls).toHaveLength(2)
  const first=calls[0].url.searchParams,second=calls[1].url.searchParams
  expect(first.get('or')).toBe('(coach_user_id.eq.'+owner+',player_user_id.eq.'+owner+')');expect(first.get('status')).toBe('neq.paused');expect(first.get('player_user_id')).toBe('not.is.null');expect(first.get('limit')).toBe('101')
  expect(second.get('participants.profile_id')).toBe('eq.'+owner);expect(second.get('posts.sender_user_id')).toBe('neq.'+owner);expect(second.get('posts.deleted_at')).toBe('is.null');expect(second.get('posts.limit')).toBe('100');expect(second.get('posts.order')).toBe('created_at.desc,id.desc');expect(second.get('select')).not.toMatch(/body|title|name/)
+ expect(second.get('sent.sender_user_id')).toBe('eq.'+owner)
+ expect(second.get('sent.deleted_at')).toBe('is.null')
+ expect(second.get('sent.limit')).toBe('1')
  expect(calls.every(c=>c.method==='GET')).toBe(true)
 })
 it('compares read checkpoints with microsecond precision and caps each badge at 99+',async()=>{
@@ -81,6 +84,9 @@ it('projects the latest eligible incoming message even when already read, withou
  rows[0].participants=[{profile_id:owner,last_read_at:'2026-11-01T00:00:00Z'}]
  const previous={...row().posts[0],id:'55555555-5555-4555-8555-555555555555',created_at:'2026-10-31T12:00:00.123455+00:00'}
  rows[0].posts=[previous,row().posts[0]]
- expect((await nativeCoachChatUnread(state.client,owner)).connections).toEqual([{id,unread:0,latest:message}])
- expect(calls).toHaveLength(2);expect(calls.every(c=>c.method==='GET')).toBe(true)
+ expect((await nativeCoachChatUnread(state.client,owner)).connections).toEqual([{id,unread:0,latest:message,activityAt:time}])
+ const sentAt='2026-10-31T12:00:00.123457+00:00'
+ rows[0].sent=[{...previous,sender_user_id:owner,created_at:sentAt}]
+ expect((await nativeCoachChatUnread(state.client,owner)).connections).toEqual([{id,unread:0,latest:message,activityAt:sentAt}])
+ expect(calls).toHaveLength(4);expect(calls.every(c=>c.method==='GET')).toBe(true)
 })
