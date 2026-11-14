@@ -4,14 +4,10 @@ import {readLinkedMatch} from '../../mobile/src/shared-match-view'
 import {appleAppSiteAssociation} from '../apple-app-site-association'
 
 const root='https://www.tenaceiq.com',id='12345678-1234-4234-8234-123456789012'
-const playerInvite='a'.repeat(64)
 describe('native content links',()=>{
  it('opens only explicit supported content destinations',()=>{
   expect(readAppLink(root+'/coach/invite/test-token')).toEqual({kind:'coach-invite',href:root+'/coach/invite/test-token'})
   expect(readAppLink(root+'/team-room/join?token='+id)?.kind).toBe('team-invite')
-  expect(readAppLink(root+'/chats/join?invite='+playerInvite)).toEqual({kind:'player-invite',token:playerInvite})
-  expect(readAppLink(root+'/chats?room='+id)).toEqual({kind:'player-chat',id})
-  expect(readAppLink(root+'/chats/join?invite='+playerInvite+'&next=/account')).toBeNull()
   expect(readAppLink(root+'/chats?room='+id+'&room='+id)).toBeNull()
   expect(readAppLink(root+'/team-room?team=Baseline+Aces&league=City&flight=4.0')).toEqual({kind:'chat',scope:{teamName:'Baseline Aces',leagueName:'City',flight:'4.0'}})
   for(const [path,kind] of [['explore/leagues/tiq','league'],['tournaments','tournament'],['matches','match']])expect(readAppLink(root+'/'+path+'/'+id)).toEqual({kind,id})

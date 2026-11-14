@@ -5,9 +5,8 @@ import {nativeInviteToken} from '../../lib/native-team-invite-contract'
 import {namedChatRoomId} from '../../lib/named-team-chat-rooms'
 import {teamChatMessageId} from '../../lib/team-chat-cursor'
 import type {TeamChatDestination} from './team-room-data'
-import {playerChatInvitePath,playerChatInviteToken,playerChatPath} from '../../lib/player-chats-contract'
 
-export type AppLink = {kind:'coach-invite';href:string}|{kind:'team-invite';href:string}|{kind:'player-invite';token:string}|{kind:'player-chat';id:string}|{kind:'chat';scope:TeamChatDestination}|{kind:'league';id:string}|{kind:'tournament';id:string}|{kind:'match';id:string}
+export type AppLink = {kind:'coach-invite';href:string}|{kind:'team-invite';href:string}|{kind:'chat';scope:TeamChatDestination}|{kind:'league';id:string}|{kind:'tournament';id:string}|{kind:'match';id:string}
 const key=/^[a-zA-Z0-9_-]{1,80}$/
 // Only content routes owned by TenAceIQ. Auth callbacks, billing, arbitrary next
 // parameters and API URLs must never become app navigation or auth operations.
@@ -19,12 +18,6 @@ export function readAppLink(value:unknown):AppLink|null {
   const only=(keys:string[])=>Array.from(u.searchParams.keys()).every(k=>keys.includes(k)&&u.searchParams.getAll(k).length===1)
   if(/^\/coach\/invite\/[^/]+\/?$/.test(u.pathname)&&only([])){coachInvitationToken(u.href);return {kind:'coach-invite',href:u.href}}
   if(u.pathname==='/team-room/join'&&only(['token'])&&nativeInviteToken(u.href))return {kind:'team-invite',href:u.href}
-  if(u.pathname===playerChatInvitePath){
-   const token=playerChatInviteToken(u.href)
-   if(token)return {kind:'player-invite',token}
-  }
-  const room=u.searchParams.get('room')
-  if(u.pathname===playerChatPath&&only(['room'])&&teamChatMessageId(room))return {kind:'player-chat',id:room.toLowerCase()}
   if(u.pathname==='/team-room'&&only(['team','league','flight','chatRoom','message'])){
    const teamName=u.searchParams.get('team')||'',leagueName=u.searchParams.get('league')||'',flight=u.searchParams.get('flight')||'',chatRoomId=u.searchParams.get('chatRoom'),messageId=u.searchParams.get('message')
    if(!teamName.trim()||!leagueName.trim()||[teamName,leagueName,flight].some(s=>s.length>200||/[\u0000-\u001f\u007f]/.test(s))||chatRoomId!==null&&!namedChatRoomId(chatRoomId)||messageId!==null&&!teamChatMessageId(messageId))return null
@@ -35,7 +28,7 @@ export function readAppLink(value:unknown):AppLink|null {
   return {kind:match[1]==='explore/leagues/tiq'?'league':match[1]==='tournaments'?'tournament':'match',id:match[2]}
  }catch{return null}
 }
-export const appLinkTitle=(link:AppLink)=>({'coach-invite':'Coach invitation','team-invite':'Team invitation','player-invite':'Chat invitation','player-chat':'Player conversation',chat:'Team conversation',league:'TiQ league',tournament:'Tournament',match:'Match scorecard'})[link.kind]
+export const appLinkTitle=(link:AppLink)=>({'coach-invite':'Coach invitation','team-invite':'Team invitation',chat:'Team conversation',league:'TiQ league',tournament:'Tournament',match:'Match scorecard'})[link.kind]
 
 // One short-lived, memory-only handoff. Invitation tokens never reach device
 // storage, history, telemetry, or logs. A sign-out/account switch clears it.
