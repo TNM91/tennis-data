@@ -68,6 +68,13 @@ export async function GET(request: Request) {
         connections: [{ leagueId: rehearsal.league.id, kind: 'organizer', status: 'active' }],
         canReviewEntries: true,
       }
+      if (rehearsal.matchDayEnabled) {
+        snapshot.canScheduleMatches = true
+        snapshot.canOpenLeagueScores = true
+        if (matchDayRequested) {
+          snapshot.matchDay = await loadNativeLeagueMatchDay(snapshot, auth.userId, true, true).catch(() => undefined)
+        }
+      }
       return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot }, { headers })
     }
     if (demo?.detail) {

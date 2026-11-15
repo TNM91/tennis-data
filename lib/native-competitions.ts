@@ -1,7 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {competitionInput,publicCompetitionOwner,type CompetitionScope,type CompetitionSnapshot,type CompetitionConnection} from './native-competitions-contract'
 import {readReviewedRevisions,reviewedRevisionDigest} from './first-party-revisions'
-import type {OfficeLeague} from './native-league-office-contract'
+import {readOfficeResult,type OfficeLeague} from './native-league-office-contract'
 import {nativeLeagueColumns,readNativeLeagueSeason,readNativeLeagueRegistration} from './native-league-season'
 import {attestedLeagueSchedule,mergeAttestedLeagueMatches,readAttestedLeagueSchedule} from './native-league-schedule'
 import {beforeApprovedLeagueScores,loadApprovedLeagueScores,standingsFromLeagueScores,standingsFromIndividualScores} from './native-league-score-public'
@@ -41,12 +41,30 @@ export async function loadLeagueEntryRehearsal(db: SupabaseClient, owner: string
  if (!row) return null
  const league = leagueSummary(row)
  if (!input.selected && input.query && !league.name.toLowerCase().includes(input.query.toLowerCase())) return null
- const detail = input.selected ? await readNativeLeagueRegistration(db, league, row, get) : null
- return { league, detail }
+ const registration = input.selected ? await readNativeLeagueRegistration(db, league, row, get) : null
+ const matchDay = rehearsalMatchDay(row)
+ if (!registration || !matchDay) return { league, detail: registration, matchDayEnabled: false, source: row }
+ const fixtures = readAttestedLeagueSchedule(matchDay.fixtures)
+ if (!Array.isArray(matchDay.results) || matchDay.results.length > 500) throw Error('Rehearsal results unavailable')
+ const results = matchDay.results.map(readOfficeResult)
+ return { league, source: row, matchDayEnabled: true, detail: {
+   ...registration, fixtures: fixtures.slice(0, 100), moreFixtures: fixtures.length > 100,
+   results: results.slice(0, 100), moreResults: results.length > 100,
+   playerStandings: standingsFromIndividualScores(results),
+ } }
+}
+function rehearsalMatchDay(row: Row) {
+ const value = row.match_day
+ if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
+ return value as Row
 }
 type LeagueApprovals = ReadonlyMap<string, { summary: string; detail: string }>
 
 export async function reviewedSchedulingLeague(db: SupabaseClient, owner: string, id: string) {
+ if (nativeLeagueEntryRehearsalId(id)) {
+  const source = await readNativeLeagueEntryRehearsal(db, owner, id)
+  return source && rehearsalMatchDay(source) ? leagueSummary(source) : null
+ }
  const native=nativeLeaguePublicationId(id)
  const approval=native?undefined:readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS,'detail').get(id)
  if(!native&&!approval)return null
