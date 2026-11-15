@@ -26,6 +26,7 @@ it('uses the account’s exact player ID, current approved sources and verified 
   const client = createClient('https://example.test', 'key', { auth: { persistSession: false }, global: { fetch: async (input) => {
     const url = new URL(String(input))
     switch (url.pathname.split('/').at(-1)) {
+      case 'native_tournament_account_trophies': return Response.json([])
       case 'profiles':
         expect(url.searchParams.get('id')).toBe('eq.' + owner)
         return Response.json({ linked_player_id: playerId })
@@ -56,16 +57,22 @@ it('uses the account’s exact player ID, current approved sources and verified 
   expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual({ competitionProfileLinked: false, competitionTrophies: [] })
 })
 
-it('reports the connection state even without reviewed competitions and makes only the account profile read', async () => {
+it('loads account trophies even without a linked player profile or a reviewed competition', async () => {
   vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS', '')
   vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', '')
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const trophy = {id:'tiq-title-10000000-0000-4000-8000-000000000001',kind:'tournament',
+    placement:'first',name:'Northside Open',division:'Singles',awardedOn:'2026-11-14'}
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input))
+    if (url.pathname === '/rest/v1/rpc/native_tournament_account_trophies') {
+      expect(JSON.parse(String(init?.body))).toEqual({p_owner:owner})
+      return Response.json([trophy])
+    }
     expect(url.pathname).toBe('/rest/v1/profiles')
     expect(url.searchParams.get('id')).toBe('eq.' + owner)
-    return Response.json({ linked_player_id: 'linked-player' })
+    return Response.json({ linked_player_id: null })
   })
   const client = createClient('https://example.test', 'key', { auth: { persistSession: false }, global: { fetch } })
-  expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual({ competitionProfileLinked: true, competitionTrophies: [] })
-  expect(fetch).toHaveBeenCalledOnce()
+  expect(await loadFirstPartyCompetitionTrophies(client, client, owner)).toEqual({ competitionProfileLinked: false, competitionTrophies: [trophy] })
+  expect(fetch).toHaveBeenCalledTimes(2)
 })

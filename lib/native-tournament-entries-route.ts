@@ -1,5 +1,5 @@
 import { loadTournamentEntryPublications } from './first-party-tournament-entry'
-import { readTournamentEntryApprovals } from './native-tournament-approvals'
+import { publishedNativeTournamentId, readTournamentEntryApprovals } from './native-tournament-approvals'
 import { testflightTournamentId } from './testflight-tournament'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {getSignedInPlayerApiAuth} from './player-api-auth'
@@ -41,17 +41,18 @@ export async function getNativeTournamentEntries(request: Request, firstParty = 
   const signal = AbortSignal.timeout(12000)
   const approvals = firstParty ? readTournamentEntryApprovals() : undefined
   const allowed = approvals && new Set([...approvals.keys(), testflightTournamentId(auth.userId)])
-  if (allowed && division && !allowed.has(division)) {
+  const eligible = (id: string) => !allowed || allowed.has(id) || publishedNativeTournamentId(id)
+  if (division && !eligible(division)) {
    return json({ok:true,owner:auth.userId,entries:[],more:false},200)
   }
   const limit = division ? 1 : MY_TOURNAMENT_ENTRY_LIMIT
   const query = auth.supabase.from('tiq_tournament_entries')
    .select('id,tournament_id,status,submitted_by_user_id')
    .eq('submitted_by_user_id', auth.userId)
-  if (allowed)query.in('tournament_id', [...allowed])
+  if (allowed && !division)query.or(`tournament_id.in.(${[...allowed].join(',')}),tournament_id.like.tiq-native-division-*`)
   const {data, error} = await (division ? query.eq('tournament_id', division) : query)
    .order('updated_at', {ascending: false}).order('id').limit(limit + 1).abortSignal(signal)
-  if(error || !data || data.some(row => row.submitted_by_user_id !== auth.userId || (division && row.tournament_id !== division) || (allowed && !allowed.has(row.tournament_id)))){
+  if(error || !data || data.some(row => row.submitted_by_user_id !== auth.userId || (division && row.tournament_id !== division))){
    throw Error('Tournament entries unavailable.')
   }
   if(division && data.length > 1)return json({ok: false, message: 'Ask the organizer to review your existing entries.'}, 409)

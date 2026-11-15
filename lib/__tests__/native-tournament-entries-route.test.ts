@@ -1,5 +1,6 @@
 import {beforeEach,expect,it,vi} from 'vitest'
 import {GET} from '../../app/api/mobile/tournaments/entries/route'
+import {GET as getFirstParty} from '../../app/api/mobile/first-party/tournaments/entries/route'
 import {tournamentOwner as owner} from '../../tests/fixtures/native-tournaments'
 
 const {auth} = vi.hoisted(() => ({auth: vi.fn()}))
@@ -18,7 +19,7 @@ const names = [
  {id: 'orphan', event_id: 'private', is_event: false, name: 'Private Division', is_public: true, status: 'open'},
 ]
 
-function fixture(rows: ReturnType<typeof entry>[]) {
+function fixture(rows: ReturnType<typeof entry>[], publications = names) {
  const filters: [string, unknown][] = []
  const from = vi.fn((table: string) => {
   let ids: string[] = []
@@ -26,11 +27,12 @@ function fixture(rows: ReturnType<typeof entry>[]) {
    select: () => query,
    eq: (field: string, value: unknown) => {filters.push([field, value]);return query},
    neq: (field: string, value: unknown) => {filters.push([field, value]);return query},
-   in: (_field: string, values: string[]) => {ids = values;return query},
+   in: (field: string, values: string[]) => {if (field === 'id') ids = values;return query},
+   or: (value: string) => {filters.push(['or', value]);return query},
    order: () => query,
    limit: () => query,
    abortSignal: async () => ({
-    data: table === 'tiq_tournament_entries' ? rows : names.filter(row => ids.includes(row.id) && row.is_public),
+    data: table === 'tiq_tournament_entries' ? rows : publications.filter(row => ids.includes(row.id) && row.is_public),
     error: null,
    }),
   }
@@ -41,6 +43,21 @@ function fixture(rows: ReturnType<typeof entry>[]) {
 }
 
 beforeEach(() => vi.clearAllMocks())
+
+it('returns an entry receipt for a native publication with no manual approval entry', async () => {
+ const root = 'tiq-native-event-10000000-0000-4000-8000-000000000001'
+ const division = 'tiq-native-division-10000000-0000-4000-8000-000000000002'
+ const {filters} = fixture([entry(1, division)], [
+  { ...names[0], id: root },
+  { ...names[1], id: division, event_id: root },
+ ])
+ const response = await getFirstParty(new Request(url))
+ expect(response.status).toBe(200)
+ expect(filters).toContainEqual(['or', expect.stringContaining('tournament_id.like.tiq-native-division-*')])
+ expect(await response.json()).toMatchObject({scope: 'first-party', entries: [
+  {id: entryId(1), eventName: 'Fall Open', divisionName: '4.0 Doubles', selection: {parent: root, division}},
+ ]})
+})
 
 it('returns only account-scoped summaries and omits details for unpublished events', async () => {
  const {filters} = fixture([entry(1, 'division'), entry(2, 'standalone', 'approved'), entry(3, 'orphan', 'declined')])

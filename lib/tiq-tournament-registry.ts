@@ -73,6 +73,7 @@ export type TiqTournamentMatchResult = {
   updatedAt: string
   sideA?: string
   sideB?: string
+  outcome?: 'walkover' | 'retirement'
 }
 
 export type TiqTournamentMatchSchedule = {
@@ -1572,6 +1573,7 @@ function normalizeTournamentResults(value: unknown): Record<string, TiqTournamen
       score: cleanText(result?.score),
       updatedAt: cleanText(result?.updatedAt),
       ...(cleanText(result?.sideA) && cleanText(result?.sideB) ? { sideA: cleanText(result.sideA), sideB: cleanText(result.sideB) } : {}),
+      ...(result?.outcome === 'walkover' || result?.outcome === 'retirement' ? { outcome: result.outcome } : {}),
     }
 
     if (matchId && normalizedResult.winner) {

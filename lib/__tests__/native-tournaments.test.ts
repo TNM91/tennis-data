@@ -25,6 +25,7 @@ function fixture(){
   const get=()=>{let found=rows.filter(r=>filters.every(f=>f(r))).slice(0,max);if(selected){const count=(reads.get(selected)||0)+1;reads.set(selected,count);if(count>1&&change===selected)found=[]}return found.map(r=>Object.fromEntries(cols.split(',').map(k=>[k,r[k]])))}
   const q={
    in(k:string,values:unknown[]){filters.push(r=>values.includes(r[k]));c.ops.push(['in',k,values]);return q},
+   like(k:string,v:string){filters.push(r=>String(r[k]).startsWith(v.slice(0,-1)));c.ops.push(['like',k,v]);return q},
    select(v:string){cols=v;c.ops.push(['select',v]);return q},eq(k:string,v:unknown){if(k==='id')selected=String(v);filters.push(r=>r[k]===v);c.ops.push(['eq',k,v]);return q},neq(k:string,v:unknown){filters.push(r=>r[k]!==v);c.ops.push(['neq',k,v]);return q},is(k:string,v:unknown){filters.push(r=>r[k]===v);c.ops.push(['is',k,v]);return q},ilike(k:string,v:string){filters.push(r=>String(r[k]).toLowerCase().includes(v.slice(1,-1).replace(/\\(.)/g,'$1').toLowerCase()));c.ops.push(['ilike',k,v]);return q},order(...v:unknown[]){c.ops.push(['order',...v]);return q},limit(v:number){max=v;c.ops.push(['limit',v]);return q},abortSignal(){return q},maybeSingle(){return Promise.resolve({data:get()[0]||null,error:error?{}:null})},then(resolve:(r:unknown)=>unknown){return Promise.resolve({data:get(),error:error?{}:null}).then(resolve)}};return q}} as unknown as SupabaseClient
  return {db,rows,root,division,calls,change:(id:string)=>{change=id},fail:()=>{error=true}}
 }
@@ -60,11 +61,37 @@ describe('first-party tournament route', () => {
   const empty = await firstPartyTournaments(request())
   expect(empty.headers.get('Cache-Control')).toBe('private, no-store')
   expect(readTournamentSnapshot(await empty.json(), owner).tournaments).toEqual([])
-  expect(f.calls).toHaveLength(1)
+  expect(f.calls).toHaveLength(2)
   expect((await firstPartyTournaments(request('?tournament=event-one'))).status).toBe(503)
   vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', '{"event-one":{"summary":"invalid"}}')
   expect((await firstPartyTournaments(request())).status).toBe(503)
-  expect(f.calls).toHaveLength(1)
+  expect(f.calls).toHaveLength(2)
+ })
+
+ it('lists a paid native tournament and opens its division for entries without a manual approval', async () => {
+  const f = fixture()
+  const id = 'tiq-native-event-10000000-0000-4000-8000-000000000001'
+  const division = 'tiq-native-division-10000000-0000-4000-8000-000000000002'
+  f.rows.push({...f.root,id,status:'open'}, {...f.division,id:division,event_id:id,status:'open',entrants:[],results:{},schedule:{}})
+  signedIn(f.db)
+  vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS', '')
+  const list = await firstPartyTournaments(request())
+  expect(await list.json()).toMatchObject({tournaments:[{id,status:'open'}]})
+  const selection = request('?tournament='+id+'&division='+division)
+  expect(await (await firstPartyTournaments(selection)).json()).toMatchObject({
+   detail:{entryAvailable:true,root:{id},divisions:[{id:division}],entrants:0,matches:[],drawNotice:expect.stringContaining('organizer will publish')},
+  })
+  Object.assign(f.rows[3],{status:'scheduled',entrants:['Alex Ace','Casey Court'],
+   schedule:{'r1-m1':{date:'2026-11-14',time:'15:00',court:'Court 2'}}})
+  expect(await (await firstPartyTournaments(selection)).json()).toMatchObject({
+   detail:{active:{registrationClosed:true},matches:[{id:'r1-m1',court:'Court 2',time:'15:00'}]},
+  })
+  Object.assign(f.rows[3],{results:{'r1-m1':{winner:'Alex Ace',score:'',outcome:'walkover',sideA:'Alex Ace',sideB:'Casey Court'}}})
+  const result = await (await firstPartyTournaments(selection)).json()
+  expect(readTournamentSnapshot(result,owner,'',id,division).detail?.matches[0])
+   .toMatchObject({winner:'Alex Ace',score:'',outcome:'walkover'})
+  f.rows[2].is_public = false
+  expect((await firstPartyTournaments(selection)).status).toBe(503)
  })
 
  it('lists the private doubles demo only for its owner and only in first-party tournaments', async () => {
