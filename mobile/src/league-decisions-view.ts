@@ -4,6 +4,7 @@ import type {DecisionReview,DecisionEntry,LeagueDecision} from '../../lib/native
 import {leagueDecisionRequest} from './league-decisions-data'
 import {html} from './match-details'
 import {firstPartyBuild} from './build-scope'
+import {nativeLeaguePublicationId} from '../../lib/native-league-publication'
 export function decisionEntryHtml(e:DecisionEntry,team:boolean){return '<h3 tabindex="-1">'+html(e.name)+'</h3><p class="entry-note">'+html(e.detail)+'</p>'+(!team?'<dl class="decision-evidence"><dt>Submitted rating</dt><dd>'+html(e.rating===null?'Not supplied':e.rating.toFixed(1)+' · '+e.ratingSource)+'</dd><dt>Age division</dt><dd>'+html(e.age?e.age+' · '+e.ageSource:'Not supplied')+'</dd><dt>Division</dt><dd>'+html(e.division==='unknown'?'Not supplied':e.division+' · '+e.divisionSource)+'</dd></dl>':'')+(e.actionRequired?'<p class="entry-note">Waiting for the player: '+html(e.requestNote)+'</p>':'')}
 export function openLeagueDecisions(client:SupabaseClient,owner:string,current:()=>boolean,leagueId:string,onClose:()=>void,send?:ScenarioSend,backLabel='← League Office'){
  const dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog competitions-dialog league-entry-dialog';dialog.setAttribute('aria-label','Entry requests')
@@ -18,6 +19,19 @@ export function openLeagueDecisions(client:SupabaseClient,owner:string,current:(
  dialog.querySelector<HTMLTextAreaElement>('[name="note"]')?.addEventListener('input',e=>{note=(e.target as HTMLTextAreaElement).value;update()});dialog.querySelector<HTMLInputElement>('[name="confirmed"]')?.addEventListener('change',e=>{confirmed=(e.target as HTMLInputElement).checked;update()});dialog.querySelector('form')?.addEventListener('submit',e=>e.preventDefault());dialog.querySelectorAll<HTMLButtonElement>('[data-decision]').forEach(b=>{b.onclick=()=>{void decide(b.dataset.decision as LeagueDecision)}});update()
  }
  const load=async()=>{if(!active()||busy)return;const attempt=++version;busy=true;review=null;selected=null;receipt=null;confirmed=false;note='';notice='Checking pending requests…';render();try{const r=await leagueDecisionRequest(client,owner,()=>active()&&attempt===version,leagueId,undefined,send);if(active()&&attempt===version){review=r.review;uncertain=false;notice=''}}catch(e){if(active()&&attempt===version)notice=e instanceof Error?e.message:'Requests unavailable.'}finally{if(active()&&attempt===version){busy=false;render();focus()}}}
- const decide=async(decision:LeagueDecision)=>{if(!active()||busy||uncertain||!selected||!review?.open)return;const entry=selected,attempt=++version;busy=true;notice='Saving your decision…';render();try{const r=await leagueDecisionRequest(client,owner,()=>active()&&attempt===version,leagueId,{entryId:entry.id,review:entry.review,decision,note,confirmed},send);if(active()&&attempt===version){receipt=r.receipt;selected=null;notice=r.notified&&!firstPartyBuild?'Decision saved. The entrant was notified.':'Decision saved. The entrant can check their entry status.'}}catch(e){if(active()&&attempt===version){uncertain=true;notice=e instanceof Error?e.message:'Your decision could not be confirmed. Refresh requests.'}}finally{if(active()&&attempt===version){busy=false;render();focus()}}}
+ const decide=async(decision:LeagueDecision)=>{
+  if(!active()||busy||uncertain||!selected||!review?.open)return
+  const entry=selected,attempt=++version
+  busy=true;notice='Saving your decision…';render()
+  try{
+   const r=await leagueDecisionRequest(client,owner,()=>active()&&attempt===version,leagueId,
+    {entryId:entry.id,review:entry.review,decision,note,confirmed},send)
+   if(!active()||attempt!==version)return
+   receipt=r.receipt;selected=null
+   const notified=r.notified&&(!firstPartyBuild||nativeLeaguePublicationId(leagueId))
+   notice=notified?'Decision saved. The entrant was notified.':'Decision saved. The entrant can check their entry status.'
+  }catch(e){if(active()&&attempt===version){uncertain=true;notice=e instanceof Error?e.message:'Your decision could not be confirmed. Refresh requests.'}}
+  finally{if(active()&&attempt===version){busy=false;render();focus()}}
+ }
  dialog.oncancel=e=>{e.preventDefault();dispose()};document.addEventListener('visibilitychange',hidden);document.body.append(dialog);render();dialog.showModal();void load();return {dispose,isOpen:()=>!disposed,back:()=>{dispose();return true}}
 }

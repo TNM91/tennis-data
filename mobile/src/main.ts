@@ -2,6 +2,7 @@ import {openCalendar,type CalendarStart} from './calendar-view'
 import {openCoachLessons} from './coach-lesson-view'
 import {openUpdates} from './updates-view'
 import {openLeagueScores} from './league-score-view'
+import {openLeagueEntry} from './league-entry-view'
 import {createUpdatesCounter} from './updates-counter'
 import {createChatUnreadCounter,paintChatsBadge,combinedChatUnread} from './chat-unread'
 import {createChatReceiptRefresh} from './chat-receipt-refresh'
@@ -417,6 +418,9 @@ function launchUpdates(trigger:HTMLElement){
   }
   if(action.kind==='league-score'){
    return openLeagueScores(client,owner,active,action.leagueId,action.matchId,()=>button.focus({preventScroll:true}),undefined,'Back to updates')
+  }
+  if(action.kind==='league-entry'){
+   return openLeagueEntry(client,owner,active,action.leagueId,()=>button.focus({preventScroll:true}),undefined,{receiptId:action.receiptId})
   }
   if(action.kind==='tournament-schedule'){
    return openTournamentEntry(client,owner,active,action.parent,action.division,()=>{},undefined,button,

@@ -3742,6 +3742,34 @@ test('first-party coordinator approves a league entry and returns to the reviewe
   .toEqual(Array(3).fill('/api/mobile/first-party/competitions/decisions'))
 })
 
+for(const state of ['approved','reply','stale'] as const){
+ test('first-party league entry notice opens the exact receipt · '+state,async({page})=>{
+  await useFirstPartyNavigation(page)
+  await page.setViewportSize({width:320,height:844})
+  await page.goto(origin+'/?league-entry-alert='+state+'&large=1')
+  await page.getByRole('button',{name:/^Updates/}).first().click()
+  const updates=page.getByRole('dialog',{name:'Updates',exact:true})
+  await updates.getByRole('button',{name:'Open league entry',exact:true}).click()
+  const entry=page.getByRole('dialog',{name:'League entry',exact:true})
+  if(state==='reply'){
+   await expect(entry.getByText('The organizer asks: Please confirm your age division.')).toBeVisible()
+   const send=entry.getByRole('button',{name:'Send eligibility reply'})
+   await expect(send).toBeDisabled()
+   await entry.getByRole('checkbox',{name:/40 & Over/}).check()
+   await send.click()
+   await expect(entry.getByText('Reply saved. The organizer will review your information.')).toBeVisible()
+  }else if(state==='approved'){
+   await expect(entry.getByText('Alex Serve',{exact:true})).toBeVisible()
+   await expect(entry.getByText('Approved',{exact:true})).toBeVisible()
+  }else await expect(entry.getByRole('alert')).toContainText('This entry is unavailable.')
+  await expect(entry.getByText('Unrelated entry')).toHaveCount(0)
+  await expect(entry.getByRole('button',{name:'Request entry',exact:true})).toHaveCount(0)
+  expect(await entry.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  await entry.getByRole('button',{name:'Back to updates',exact:true}).click()
+  await expect(updates).toBeVisible()
+ })
+}
+
 test('first-party coordinator schedules and moves a match from the league on a narrow phone',async({page})=>{
  test.setTimeout(45000)
  await useFirstPartyNavigation(page)

@@ -8,7 +8,7 @@ const receiptHtml=(e:EntryReceipt)=>'<article data-entry-state="'+e.status+'"><s
 export function entryReviewHtml(r:EntryReview,d:EntryDraft,busy=false){
  const team=r.format==='team',q=r.requirement,assessment=entryAssessment(r,d),requirements=[q.ratingLevel===null?'':q.ratingLevel.toFixed(1)+' division',q.ageDivision||'',q.mixedPairRole==='unknown'?'':q.mixedPairRole==='man'?"Men’s division":"Women’s division"].filter(Boolean)
  const hasPlayerReceipt=!team&&r.receipts.length>0
- const followUp=!team?r.receipts.find(e=>e.information):undefined
+ const followUp=!team&&r.open?r.receipts.find(e=>e.information):undefined
  if(followUp)return '<p>'+html(r.leagueName)+'</p><h3>'+html(followUp.name)+'</h3><p class="entry-note">The organizer asks: '+html(followUp.information!.note)+'</p><form data-entry-form><fieldset class="entry-fields"><legend>Eligibility reply</legend><input name="name" type="hidden" value="'+html(followUp.name)+'"><label for="league-entry-rating">'+'Self-rating (optional)'+'</label><input id="league-entry-rating" name="rating" type="number" inputmode="decimal" min="1" max="7" step="0.1" value="'+html(String(r.player.rating??d.rating??''))+'" '+''+' '+(busy?'disabled':'')+'>'+(q.ageDivision?'<label class="entry-check"><input name="ageAttested" type="checkbox" '+(d.ageAttested?'checked':'')+' '+(busy?'disabled':'')+'><span>I meet the '+html(q.ageDivision)+' requirement.</span></label>':'')+(q.mixedPairRole!=='unknown'?'<label class="entry-check"><input name="divisionAttested" type="checkbox" '+(d.divisionAttested?'checked':'')+' '+(busy?'disabled':'')+'><span>I meet this division requirement.</span></label>':'')+'<p data-entry-assessment>'+html(assessment.detail)+'</p></fieldset><button type="submit" data-entry-submit '+(busy?'disabled':'')+'>Send eligibility reply</button></form>'
  return '<p>'+html(r.leagueName)+'</p>'+(r.receipts.length?'<section class="entry-receipts" aria-label="Your saved entries">'+r.receipts.map(receiptHtml).join('')+'</section>':'')+
   (!r.open?'<p class="entry-note">Registration is closed. Existing entry decisions appear above.</p>':!r.allowed?'<p class="entry-note">'+html(r.blockedReason)+'</p>':hasPlayerReceipt?'<p class="entry-note">Your saved decision stays in place. Contact the organizer to change or resubmit this entry.</p>':
@@ -20,17 +20,19 @@ export function entryReviewHtml(r:EntryReview,d:EntryDraft,busy=false){
   '<p class="entry-note" data-entry-assessment>'+html(assessment.detail)+'</p>')+
   '</fieldset><button type="submit" data-entry-submit '+(busy||!d.name.trim()||!entryCanSubmit(r,d)?'disabled':'')+'>'+(busy?'Sending request…':'Request entry')+'</button></form>')
 }
-const canAnswer=(r:EntryReview,d:EntryDraft)=>r.format==='individual'&&!!r.receipts.find(e=>e.information)&&(!r.requirement.ageDivision||d.ageAttested)&&(r.requirement.mixedPairRole==='unknown'||d.divisionAttested)
-export function openLeagueEntry(client:SupabaseClient,owner:string,current:()=>boolean,leagueId:string,onClose:()=>void,send?:ScenarioSend,origin:'league'|'entries'='league'){
+const canAnswer=(r:EntryReview,d:EntryDraft)=>r.open&&r.format==='individual'&&!!r.receipts.find(e=>e.information)&&(!r.requirement.ageDivision||d.ageAttested)&&(r.requirement.mixedPairRole==='unknown'||d.divisionAttested)
+export function openLeagueEntry(client:SupabaseClient,owner:string,current:()=>boolean,leagueId:string,onClose:()=>void,send?:ScenarioSend,origin:'league'|'entries'|{receiptId:string}='league'){
  const dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog competitions-dialog league-entry-dialog';dialog.setAttribute('aria-label','League entry')
+ const receiptId=typeof origin==='object'?origin.receiptId:undefined
  let disposed=false,version=0,busy=false,uncertain=false,review:EntryReview|null=null,draft:EntryDraft={name:'',rating:null,ageAttested:false,divisionAttested:false},notice='',saved:EntryReceipt|null=null,reviewedDigest=''
  const active=()=>!disposed&&current(),dispose=()=>{if(disposed)return;disposed=true;version++;review=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();onClose()},hidden=()=>{if(document.visibilityState==='hidden')dispose()}
  const focus=()=>dialog.querySelector<HTMLElement>('[data-entry-notice]')?.focus({preventScroll:true})
  const render=()=>{
   if(!active())return
-  const backLabel=origin==='entries'?'← Your entries':'← League'
-  const title=saved||review?.receipts.length||(!review&&origin==='entries')?'Your entry':'Join the season'
-  dialog.innerHTML='<header class="competition-header"><button type="button" class="secondary" data-entry-close>'+backLabel+'</button><button type="button" class="secondary" data-entry-check '+(busy?'disabled':'')+'>Check entry status</button></header><div class="competition-hero entry-hero"><small>League registration</small><h2 tabindex="-1">'+title+'</h2></div>'+(saved?'<section class="entry-receipts" aria-label="Your saved entry">'+receiptHtml(saved)+'</section>':review?entryReviewHtml(review,draft,busy):'')+'<p role="'+(notice&&!busy&&(!saved||uncertain)?'alert':'status')+'" tabindex="-1" data-entry-notice>'+html(notice)+'</p>'+(uncertain?'<p class="entry-note">Check entry status before sending another request. A lost connection does not mean it was not saved.</p>':'')
+  const backLabel=receiptId?'Back to updates':origin==='entries'?'← Your entries':'← League'
+  const receipt=saved??(receiptId&&review&&(!review.open||!review.receipts[0]?.information)?review.receipts[0]:null)
+  const title=receiptId||saved||review?.receipts.length||(!review&&origin==='entries')?'Your entry':'Join the season'
+  dialog.innerHTML='<header class="competition-header"><button type="button" class="secondary" data-entry-close>'+backLabel+'</button><button type="button" class="secondary" data-entry-check '+(busy?'disabled':'')+'>Check entry status</button></header><div class="competition-hero entry-hero"><small>League registration</small><h2 tabindex="-1">'+title+'</h2></div>'+(receipt?(receiptId&&review?'<p>'+html(review.leagueName)+'</p>':'')+'<section class="entry-receipts" aria-label="Your saved entry">'+receiptHtml(receipt)+'</section>':review?entryReviewHtml(review,draft,busy):'')+'<p role="'+(notice&&!busy&&(!saved||uncertain)?'alert':'status')+'" tabindex="-1" data-entry-notice>'+html(notice)+'</p>'+(uncertain?'<p class="entry-note">Check entry status before sending another request. A lost connection does not mean it was not saved.</p>':'')
   if(uncertain)dialog.querySelector<HTMLButtonElement>('[data-entry-submit]')?.setAttribute('disabled','')
   dialog.querySelector('[data-entry-close]')?.addEventListener('click',dispose)
   dialog.querySelector('[data-entry-check]')?.addEventListener('click',()=>{void load()})
@@ -40,7 +42,23 @@ export function openLeagueEntry(client:SupabaseClient,owner:string,current:()=>b
   form?.addEventListener('input',()=>{read();if(!review)return;const b=form.querySelector<HTMLButtonElement>('[data-entry-submit]');if(b)b.disabled=busy||uncertain||!form.checkValidity()||!(canAnswer(review,draft)||entryCanSubmit(review,draft));const a=form.querySelector('[data-entry-assessment]');if(a)a.textContent=entryAssessment(review,draft).detail})
   form?.addEventListener('submit',e=>{e.preventDefault();if(!form.reportValidity())return;read();void submit()})
  }
- const load=async()=>{if(!active()||busy)return;const attempt=++version;busy=true;review=null;saved=null;notice='Checking your league and entry status…';render();try{const r=await leagueEntryRequest(client,owner,()=>active()&&attempt===version,leagueId,undefined,send);if(active()&&attempt===version&&r.kind==='review'){review=r.review;uncertain=false;const digest=review.review+JSON.stringify(review.receipts.filter(e=>e.information).map(e=>[e.id,e.information]));const changed=!!reviewedDigest&&reviewedDigest!==digest;if(reviewedDigest!==digest)draft={name:review.player.name,rating:review.player.rating,ageAttested:false,divisionAttested:false};reviewedDigest=digest;notice=changed?'League or player details changed. Review your entry again.':''}}catch(error){if(active()&&attempt===version)notice=error instanceof Error?error.message:'Entry status is unavailable.'}finally{if(active()&&attempt===version){busy=false;render();if(notice)focus();else dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}}}
+ const load=async()=>{
+  if(!active()||busy)return
+  const attempt=++version
+  busy=true;review=null;saved=null;notice='Checking your league and entry status…';render()
+  try{
+   const r=await leagueEntryRequest(client,owner,()=>active()&&attempt===version,leagueId,undefined,send)
+   if(!active()||attempt!==version||r.kind!=='review')return
+   const receipts=receiptId?r.review.receipts.filter(entry=>entry.id===receiptId):r.review.receipts
+   if(receiptId&&!receipts.length)throw Error('This entry is unavailable. Check Your league entries in Compete.')
+   review={...r.review,receipts};uncertain=false
+   const digest=review.review+JSON.stringify(review.receipts.filter(e=>e.information).map(e=>[e.id,e.information]))
+   const changed=!!reviewedDigest&&reviewedDigest!==digest
+   if(reviewedDigest!==digest)draft={name:review.player.name,rating:review.player.rating,ageAttested:false,divisionAttested:false}
+   reviewedDigest=digest;notice=changed?'League or player details changed. Review your entry again.':''
+  }catch(error){if(active()&&attempt===version)notice=error instanceof Error?error.message:'Entry status is unavailable.'}
+  finally{if(active()&&attempt===version){busy=false;render();if(notice)focus();else dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}}
+ }
  const submit=async()=>{if(!active()||busy||uncertain||!review||!(canAnswer(review,draft)||entryCanSubmit(review,draft)))return;const attempt=++version,expected=review;busy=true;notice='Sending your request…';render();try{const r=await leagueEntryRequest(client,owner,()=>active()&&attempt===version,leagueId,{review:expected,draft,...(expected.receipts.find(e=>e.information)?{information:{entryId:expected.receipts.find(e=>e.information)!.id,updatedAt:expected.receipts.find(e=>e.information)!.information!.updatedAt}}:{})},send);if(active()&&attempt===version&&r.kind==='receipt'){saved=r.receipt;notice=r.receipt.status==='pending'?(expected.receipts.some(e=>e.information)?'Reply saved. The organizer will review your information.':'Request saved. The organizer will review your entry.'):'Your saved entry status is shown above.'}}catch(error){if(active()&&attempt===version){uncertain=true;notice=error instanceof Error?error.message:'Your request could not be confirmed. Check entry status.'}}finally{if(active()&&attempt===version){busy=false;render();focus()}}}
  dialog.oncancel=e=>{e.preventDefault();dispose()};document.addEventListener('visibilitychange',hidden);document.body.append(dialog);dialog.showModal();void load()
  return {dispose,isOpen:()=>!disposed,back:()=>{dispose();return true}}

@@ -100,6 +100,16 @@ if(tournamentScheduleAlert.enabled){
  })
 }
 Object.assign(window,{tournamentScheduleAlert})
+const leagueEntryAlert=new URL(location.href).searchParams.get('league-entry-alert')
+const leagueAlertId='tiq-native-league-20000000-0000-4000-8000-000000000089'
+const leagueAlertReceipt='20000000-0000-4000-8000-000000000090'
+const leagueAlertTime='2026-11-13T14:00:00Z'
+if(leagueEntryAlert)firstPartyUpdatesFixture.leagueNotices.push({
+ id:'aaaa0000-0000-4000-8000-000000000807',recipient_profile_id:navigationOwner,notification_type:'system',
+ title:leagueEntryAlert==='reply'?'League entry needs information':'League entry approved',
+ body:'Northside Singles Ladder',href:'/explore/leagues/tiq/'+leagueAlertId+'?entry='+leagueAlertReceipt+'#league-entry',
+ conversation_id:null,schedule_event_id:null,read_at:null,created_at:leagueAlertTime,
+})
 const scopedLeagueEntry={
  enabled:new URL(location.href).searchParams.has('scoped-league-entry'),
  receipt:null as EntryReceipt|null,requests:[] as string[],unscoped:false,
@@ -1039,6 +1049,25 @@ window.fetch=async(input,init)=>{
    return Response.json({ok:true,releaseScope:'first-party',owner:review.owner,leagueId:review.leagueId,receipt:{...entry,status:'active'}})
   }
   return Response.json({ok:true,releaseScope:'first-party',...review,entries:scopedLeagueEntry.receipt?.status==='active'?[]:[entry]})
+ }
+ if(leagueEntryAlert&&url.pathname==='/api/mobile/first-party/competitions/entry'){
+  const review={...entryReviewFixture(),owner:currentNavigationOwner(),leagueId:leagueAlertId,leagueName:'Northside Singles Ladder'}
+  const envelope={ok:true,releaseScope:'first-party',owner:review.owner,leagueId:review.leagueId}
+  const receipt:EntryReceipt={id:leagueAlertReceipt,name:'Alex Serve',status:leagueEntryAlert==='reply'?'pending':'active'}
+  if(init?.method==='POST'){
+   const body=JSON.parse(String(init.body)) as {leagueId:string;entryId:string;updatedAt:string;information:boolean}
+   if(leagueEntryAlert!=='reply'||body.leagueId!==leagueAlertId||body.entryId!==leagueAlertReceipt||
+      body.updatedAt!==leagueAlertTime||!body.information)return Response.json({ok:false},{status:409})
+   firstPartyUpdatesFixture.leagueNotices=[]
+   scopedLeagueEntry.receipt=receipt
+   return Response.json({...envelope,receipt,alreadySubmitted:false})
+  }
+  if(url.searchParams.get('league')!==leagueAlertId)return Response.json({ok:false},{status:404})
+  const another:EntryReceipt={id:scheduleId(91),name:'Unrelated entry',status:'active'}
+  const receipts=leagueEntryAlert==='stale'?[another]:leagueEntryAlert==='reply'?
+   [scopedLeagueEntry.receipt??{...receipt,information:{updatedAt:leagueAlertTime,note:'Please confirm your age division.'}}]:
+   [another,receipt]
+  return Response.json({...review,...envelope,receipts})
  }
  if(scopedLeagueEntry.enabled&&url.pathname.endsWith('/competitions/entry')){
   scopedLeagueEntry.requests.push(url.pathname)

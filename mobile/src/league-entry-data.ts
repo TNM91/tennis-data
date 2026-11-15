@@ -16,5 +16,6 @@ export async function leagueEntryRequest(client:SupabaseClient,owner:string,curr
  const data=r.data as {ok?:boolean;owner?:string;leagueId?:string;receipt?:unknown;alreadySubmitted?:unknown}
  if(data?.ok!==true||data.owner!==owner||data.leagueId!==leagueId||typeof data.alreadySubmitted!=='boolean')throw Error('Request confirmation unavailable. Check entry status.')
  const receipt=readEntryReceipt(data.receipt);if(submission&&submission.review.format==='team'&&receipt.name.toLowerCase()!==body.draft.name.toLowerCase())throw Error('Entry confirmation changed')
+ if(submission?.information&&receipt.id!==submission.information.entryId)throw Error('Entry confirmation changed')
  return {kind:'receipt' as const,receipt,alreadySubmitted:data.alreadySubmitted}
 }

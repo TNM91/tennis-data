@@ -3,6 +3,7 @@ import {createClient} from '@supabase/supabase-js'
 import {parseUpdatePage,updateCursorFilter,loadUpdates,countUnreadUpdates,markUpdatesRead,updateAction,resolveUpdateAction} from '../../mobile/src/updates-data'
 import {toInternalNotification} from '../internal-notification-record'
 import {practiceReminderHref} from '../native-practice-reminder-contract'
+import {leagueEntryUpdateLink} from '../native-league-entry-contract'
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222'
 const id=(n=1)=>'aaaaaaaa-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0')
 const raw=(n=1)=>({id:id(n),recipient_profile_id:owner,notification_type:'message',title:'Practice update',body:'See you on court.',href:'/tournaments/open-draw',conversation_id:null,schedule_event_id:null,read_at:null,created_at:'2026-10-31T10:00:00.123456+00:00'})
@@ -15,6 +16,15 @@ function client(reply:(request:{url:URL;method:string;body:Record<string,unknown
 }
 const json=(value:unknown)=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}})
 describe('owned Updates records and cursors',()=>{
+ it('accepts only the exact published league and receipt in an entry decision link',()=>{
+  const leagueId='tiq-native-league-'+id(2),receiptId=id(3)
+  const path='/explore/leagues/tiq/'+leagueId,parse=(href:string)=>leagueEntryUpdateLink(new URL(href,'https://www.tenaceiq.com'))
+  expect(parse(path+'?entry='+receiptId+'#league-entry')).toEqual({leagueId,receiptId})
+  for(const href of [path+'?entry='+receiptId+'&entry='+id(4)+'#league-entry',path+'?entry=wrong#league-entry',
+   path+'?entry='+receiptId+'#league-scores','/explore/leagues/tiq/league-one?entry='+receiptId+'#league-entry']){
+   expect(parse(href)).toBeUndefined()
+  }
+ })
  it('opens the confirmed hit only for its exact room and plan',()=>{
   const href='/chats?room='+id(2)+'&hit='+id(3)
   const row={...item(),href,notificationType:'schedule' as const,conversationId:id(2),scheduleEventId:id(3)}

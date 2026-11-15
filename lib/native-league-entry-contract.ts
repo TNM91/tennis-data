@@ -1,10 +1,18 @@
 import {lineupRecord} from './native-captain-lineup-contract'
 import {assessPlayerEligibility,type PlayerEligibilityRequirement,type PlayerEligibilityAssessment} from './player-eligibility'
+import {courtAccountId} from './native-court-result-contract'
+import {nativeLeaguePublicationId} from './native-league-publication'
 export type EntryReceipt={id:string;name:string;status:'pending'|'active'|'rejected'|'removed';information?:{updatedAt:string;note:string}}
 export type EntryReview={owner:string;leagueId:string;leagueName:string;format:'team'|'individual';review:string;checkedAt:string;open:boolean;allowed:boolean;blockedReason:string;requirement:PlayerEligibilityRequirement;player:{id:string;name:string;location:string;rating:number|null;ratingSource:'verified'|'self'|'unknown';hasAgeEvidence:boolean;hasDivisionEvidence:boolean};receipts:EntryReceipt[]}
 export type EntryDraft={name:string;rating:number|null;ageAttested:boolean;divisionAttested:boolean}
 const text=(v:unknown,max=240)=>{if(typeof v!=='string'||v.length>max)throw Error('Entry details changed');return v}
 export function entryLeague(v:unknown){const id=text(v,80);if(!/^[a-zA-Z0-9_-]+$/.test(id))throw Error('Choose a league');return id}
+export function leagueEntryUpdateLink(url: URL) {
+ const leagueId = /^\/explore\/leagues\/tiq\/([^/]+)$/.exec(url.pathname)?.[1]
+ const receiptId = url.searchParams.get('entry')
+ if (nativeLeaguePublicationId(leagueId) && courtAccountId(receiptId) &&
+     url.searchParams.size === 1 && url.hash === '#league-entry') return { leagueId, receiptId }
+}
 export function entryDraft(v:unknown):EntryDraft{const r=lineupRecord(v);if(Object.keys(r).some(k=>!['name','rating','ageAttested','divisionAttested'].includes(k)))throw Error('Check entry details');const name=text(r.name,160).trim();if(!name||/[\u0000-\u001f\u007f]/.test(name)||r.rating!==null&&(typeof r.rating!=='number'||!Number.isFinite(r.rating)||r.rating<1||r.rating>7)||typeof r.ageAttested!=='boolean'||typeof r.divisionAttested!=='boolean')throw Error('Check entry details');return {name,rating:r.rating as number|null,ageAttested:r.ageAttested,divisionAttested:r.divisionAttested}}
 export function entryAssessment(r:EntryReview,d:EntryDraft):PlayerEligibilityAssessment{return assessPlayerEligibility(r.requirement,{rating:r.player.rating??d.rating,ratingSource:r.player.rating!==null?r.player.ratingSource:d.rating!==null?'self':'unknown',ageDivisions:r.requirement.ageDivision&&(r.player.hasAgeEvidence||d.ageAttested)?[r.requirement.ageDivision]:[],ageDivisionSource:r.player.hasAgeEvidence?'verified':d.ageAttested?'self':'unknown',mixedPairRole:r.player.hasDivisionEvidence||d.divisionAttested?r.requirement.mixedPairRole:'unknown',mixedPairRoleSource:r.player.hasDivisionEvidence?'verified':d.divisionAttested?'self':'unknown'})}
 export function entryCanSubmit(r:EntryReview,d:EntryDraft){return r.open&&r.allowed&&(r.format==='team'||entryAssessment(r,d).status!=='ineligible'&&(!r.requirement.ageDivision||r.player.hasAgeEvidence||d.ageAttested)&&(r.requirement.mixedPairRole==='unknown'||r.player.hasDivisionEvidence||d.divisionAttested))}
