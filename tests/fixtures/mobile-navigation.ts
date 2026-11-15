@@ -76,6 +76,24 @@ const nearbyExplore=new URL(location.href).searchParams.get('nearby-explore')
 const fixtureState={requests:0,leagueReads:0,teamReads:0,trainingWrites:0,teamInviteActions:[] as string[],tournamentReads:[] as string[],unscopedTournamentReply:false,unscopedLeagueReply:false,competitionReads:[] as {path:string;query:string;audience:string|null;authenticated:boolean}[]}
 const tournamentShortcutFixture={enabled:new URL(location.href).searchParams.has('tournament-shortcut-review'),approved:true,entryReads:[] as string[]}
 const scopedRegistration={enabled:new URL(location.href).searchParams.has('scoped-tournament-entry'),status:'',published:false}
+const tournamentScheduleAlert={
+ enabled:new URL(location.href).searchParams.has('tournament-schedule-alert'),
+ parent:'tiq-native-event-10000000-0000-4000-8000-000000000801',
+ division:'tiq-native-division-10000000-0000-4000-8000-000000000802',
+ matchId:'r2-m2',
+ slot:{date:'2026-11-15',time:'14:30',court:'Court 7'},
+ belongsToEntrant:true,
+}
+if(tournamentScheduleAlert.enabled){
+ const {parent,division,matchId}=tournamentScheduleAlert
+ firstPartyUpdatesFixture.tournamentNotices.push({
+  id:'aaaa0000-0000-4000-8000-000000000805',recipient_profile_id:navigationOwner,notification_type:'schedule',
+  title:'Tournament match rescheduled',body:'Northside Open · 4.0 Doubles · 2:30 PM · Court 7',
+  href:'/compete?event='+parent+'&division='+division+'&match='+matchId+'&entry='+tournamentReceipt().id+'#tournament-schedule',
+  conversation_id:null,schedule_event_id:null,read_at:null,created_at:'2026-11-10T12:00:00Z',
+ })
+}
+Object.assign(window,{tournamentScheduleAlert})
 const scopedLeagueEntry={
  enabled:new URL(location.href).searchParams.has('scoped-league-entry'),
  receipt:null as EntryReceipt|null,requests:[] as string[],unscoped:false,
@@ -957,6 +975,15 @@ window.fetch=async(input,init)=>{
   }
   return Response.json({ok:true,releaseScope,...review,receipts:scopedLeagueEntry.receipt?[scopedLeagueEntry.receipt]:[]})
  }
+ if(tournamentScheduleAlert.enabled&&url.pathname==='/api/mobile/first-party/tournaments/entry'){
+  const {parent,division}=tournamentScheduleAlert
+  if(url.searchParams.get('parent')!==parent||url.searchParams.get('division')!==division||currentNavigationOwner()!==navigationOwner){
+   return Response.json({ok:false},{status:404})
+  }
+  const snapshot=tournamentEntrySnapshot()
+  Object.assign(snapshot.context,{parent,division,owner:navigationOwner})
+  return Response.json({ok:true,scope:'first-party',...snapshot,receipt:{...tournamentReceipt(),status:'approved',inDraw:true}})
+ }
  if(scopedRegistration.enabled&&['/api/mobile/first-party/tournaments/entry','/api/mobile/first-party/tournaments/entries'].includes(url.pathname)){
   const receipt={...tournamentReceipt(),status:scopedRegistration.status,inDraw:scopedRegistration.status==='approved'}
   if(url.pathname.endsWith('/entries'))return Response.json({ok:true,scope:'first-party',owner:currentNavigationOwner(),more:false,
@@ -1017,6 +1044,17 @@ window.fetch=async(input,init)=>{
    const match=snapshot.detail.matches.find(match=>match.id==='r2-m1')!
    match.a=tournamentReceipt().name
    match.date=shortcutDate
+  }
+  if(tournamentScheduleAlert.enabled&&snapshot.detail?.active){
+   const detail=snapshot.detail
+   const {parent,division,matchId,slot,belongsToEntrant}=tournamentScheduleAlert
+   if(snapshot.selected!==parent||snapshot.division!==division)return Response.json({ok:false},{status:404})
+   detail.root.id=parent
+   detail.divisions=[detail.active!]
+   snapshot.tournaments=[detail.root]
+   const regularMatch=detail.matches.find(match=>match.id==='r2-m1')!
+   regularMatch.a=tournamentReceipt().name
+   detail.matches.push({...regularMatch,...slot,id:matchId,a:belongsToEntrant?regularMatch.a:'Different Pair',b:'Taylor Topspin'})
   }
   const scope=url.pathname==='/api/mobile/first-party/tournaments'&&!fixtureState.unscopedTournamentReply?'first-party':undefined
   reply={ok:true,scope,...snapshot}

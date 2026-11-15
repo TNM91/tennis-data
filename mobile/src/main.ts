@@ -36,6 +36,7 @@ import {nativeActionIcon} from './native-action-icons'
 import websiteUi from '../generated/website-ui.json'
 import {mountLabRecentForm} from './lab-recent-form'
 import {mountSetupTrophyCase} from './setup-trophy-case'
+import {mountStarterTiq} from './starter-tiq-view'
 import {mountPersonalMatchLog,type PersonalMatchFormSession} from './personal-match-view'
 import type {CalendarScorecardSeed} from './personal-match-data'
 import {labLevelPathHtml} from './lab-level-path'
@@ -136,7 +137,7 @@ window.addEventListener(CALENDAR_WEEKLY_REP_CHANGED,event=>{
 const coachNextAssignment=createCoachNextAssignment(client,()=>session?.user.id)
 let revision = 0
 let labTeamReturnVersion:number|undefined
-const inTeamScorecard=()=>labTeamReturnVersion===revision
+const hasOpenLabEdit=()=>labTeamReturnVersion===revision||Boolean(app.querySelector('.starter-tiq-form'))
 let profileOpen=false
 let connection: ReturnType<typeof showPlayerConnection> | null = null
 let details: ReturnType<typeof createMatchDetails> | null = null
@@ -415,6 +416,10 @@ function launchUpdates(trigger:HTMLElement){
   }
   if(action.kind==='league-score'){
    return openLeagueScores(client,owner,active,action.leagueId,action.matchId,()=>button.focus({preventScroll:true}),undefined,'Back to updates')
+  }
+  if(action.kind==='tournament-schedule'){
+   return openTournamentEntry(client,owner,active,action.parent,action.division,()=>{},undefined,button,
+    {backLabel:'Back to updates',receiptId:action.receiptId,matchId:action.matchId})
   }
   if(action.kind==='practice-reminder'){
    button.focus({preventScroll:true})
@@ -868,6 +873,13 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
       const matchLog = document.createElement('div')
       shortcuts.after(matchLog)
       const active = () => version===revision&&current.user.id===session?.user.id
+      const starterTiq = document.createElement('div')
+      shortcuts.before(starterTiq)
+      void mountStarterTiq(starterTiq,current.user.id,active,(cardId,trigger)=>{
+        if(!active()||document.querySelector('dialog[open]'))return
+        trigger.focus({preventScroll:true})
+        training=openLevelUp(client,current.user.id,active,'catalog',{cardId,identitySlug:''})
+      })
       mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
         seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,scoreReviewShortcut,
         openPractice:(match,currentMatch)=>openScorecardPractice(current.user.id,currentMatch,match.match_date,match.format==='doubles'),
@@ -880,7 +892,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
         else if(action==='scorecard')matchLog.querySelector<HTMLButtonElement>('[data-log-match]')?.click()
         else openDestination(action,button)
       },entry==='trophies')
-      if(entry==='coach')focusLabCoachShortcut(shortcuts,calendar)
+      if(entry==='coach')focusLabCoachShortcut(shortcuts,calendar,starterTiq)
       return
     }
     const active = () => version===revision && current.user.id===session?.user.id
@@ -964,7 +976,7 @@ client.auth.onAuthStateChange((_event, next) => {
   // Keep the public visit and its sign-in handoff through late signed-out events.
   if(!next&&!session&&(guest||emailAuth||guestExploreResume)){setTimeout(()=>setNativeSession(null),0);return}
   if(next){guest?.dispose();guest=null}
-  if (next?.user.id === session?.user.id && (inTeamScorecard() || agenda?.isOpen() || courtInvite?.isOpen() || updates?.isOpen() || sharedMatch?.isOpen() || teamInvite?.isOpen() || accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
+  if (next?.user.id === session?.user.id && (hasOpenLabEdit() || agenda?.isOpen() || courtInvite?.isOpen() || updates?.isOpen() || sharedMatch?.isOpen() || teamInvite?.isOpen() || accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
   session = next
   const authRevision=++revision
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -986,7 +998,7 @@ client.auth.getSession().catch(() => {
   if(!session&&!guest)login()
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !inTeamScorecard() && !agenda?.isOpen() && !courtInvite?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !hasOpenLabEdit() && !agenda?.isOpen() && !courtInvite?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
   else {if(!updates?.hasChild()){updates?.dispose();updates=null}labRatingTrends?.dispose();labRatingTrends=null;client.auth.stopAutoRefresh()}
 })
-window.addEventListener('online', () => { if (session && !inTeamScorecard() && !agenda?.isOpen() && !courtInvite?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })
+window.addEventListener('online', () => { if (session && !hasOpenLabEdit() && !agenda?.isOpen() && !courtInvite?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })

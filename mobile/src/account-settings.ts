@@ -2,6 +2,7 @@ import {nativeActionIcon} from './native-action-icons'
 import {clearCoachDeviceData} from './coach-device-cleanup'
 import {mountAppleMemberships} from './apple-memberships'
 import {clearTournamentDraft} from './tournament-draft'
+import {clearStarterTiq} from './starter-tiq'
 import {firstPartyBuild} from './build-scope'
 import {mountBiometricSettings,forgetBiometricSignIn} from './biometric-sign-in'
 import type {SupabaseClient} from '@supabase/supabase-js'
@@ -21,7 +22,7 @@ export function openAccountSettings(client:SupabaseClient,owner:string,current:(
  let lockPanel:ReturnType<typeof mountBiometricSettings>|null=null
  const valid=()=>!disposed&&current()&&dialog.isConnected
  const clearDeviceData=()=>Promise.allSettled([forgetBiometricSignIn(owner),clearCoachDeviceData(owner),clearScoreDrafts?.(),
-  firstPartyBuild?clearTournamentDraft(owner):undefined])
+  ...(firstPartyBuild?[clearTournamentDraft(owner),clearStarterTiq(owner)]:[])])
  const signOut=async()=>{if(!valid()||signingOut)return;signingOut=true;logout.disabled=true;logout.textContent='Logging out…';logoutError.textContent='';host.inert=true;host.setAttribute('aria-busy','true');try{await logOut();dispose()}catch{if(valid()){logoutError.textContent='Couldn’t log out. Check your connection and try again.';logoutError.focus({preventScroll:true})}}finally{if(valid()){signingOut=false;logout.disabled=false;logout.textContent='Log out';host.inert=false;host.removeAttribute('aria-busy')}}}
  logoutError.tabIndex=-1;logout.onclick=()=>{void signOut()}
  const clearChild=()=>{child?.dispose();child=null;accessPanel?.dispose();accessPanel=null;applePanel?.dispose();applePanel=null;lockPanel?.dispose();lockPanel=null}

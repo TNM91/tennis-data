@@ -1,5 +1,5 @@
 import { isValidCalendarDate } from './calendar-date'
-import { nativeTournamentPublicationId } from './native-tournament-draft-contract'
+import { nativeTournamentPublicationId, tournamentDraftRevision } from './native-tournament-draft-contract'
 import { isCompleteEventSlot } from './tournament-event-desk'
 import { maxTournamentDivisions } from './native-tournament-setup-contract'
 import { readTournamentMatch, type TournamentMatch, type TournamentSummary } from './native-tournaments-contract'
@@ -8,6 +8,16 @@ import { readPlayedTennisScore, readRetirementScore, type TennisMatchOutcome } f
 export const tournamentSlotMinutes = 60
 export const tournamentMatchId = (id: unknown): id is string => typeof id === 'string' && /^r[1-9][0-9]?-m[1-9][0-9]?$/.test(id)
 export const tournamentPlanRevision = (id: unknown): id is string => typeof id === 'string' && /^[a-f0-9]{32}$/.test(id)
+
+export function tournamentScheduleUpdateLink(url: URL) {
+  if (url.pathname !== '/compete' || url.hash !== '#tournament-schedule' || url.searchParams.size !== 4) return null
+  const parent = url.searchParams.get('event')
+  const division = url.searchParams.get('division')
+  const matchId = url.searchParams.get('match')
+  const receiptId = url.searchParams.get('entry')
+  return nativeTournamentPublicationId(parent, 'event') && nativeTournamentPublicationId(division, 'division') &&
+    tournamentMatchId(matchId) && tournamentDraftRevision(receiptId) ? { parent, division, matchId, receiptId } : null
+}
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 export type TournamentSlot = { date: string; time: string; court: string }
 export type TournamentScore = { outcome: TennisMatchOutcome; score: string; side: 'A' | 'B' }

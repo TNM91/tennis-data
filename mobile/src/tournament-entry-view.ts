@@ -41,8 +41,8 @@ export function tournamentEntryHtml(s:TournamentEntrySnapshot,d:TournamentEntryD
  (c.paired?'<label class="entry-check"><input type="checkbox" name="partnerAttested" '+(d.partnerAttested?'checked':'')+' '+(busy?'disabled':'')+'><span>My partner agrees to enter. Their details are accurate and they meet this division’s requirements.</span></label>':'')+
  '</fieldset><button type="submit" data-entry-send '+(busy||!tournamentEntryCanSend(c,d)?'disabled':'')+'>Request entry</button></form>'
 }
-type TournamentEntryOptions={allowCalendar?:boolean;backLabel?:string;existingEntry?:boolean;receiptId?:string;organizerOnly?:boolean}
-export function openTournamentEntry(client:SupabaseClient,owner:string,current:()=>boolean,parent:string,division:string,onClose:(changed:boolean)=>void,send?:ScenarioSend,trigger?:HTMLElement,{allowCalendar=true,backLabel='← Division',existingEntry=false,receiptId,organizerOnly=false}:TournamentEntryOptions={}){
+type TournamentEntryOptions={allowCalendar?:boolean;backLabel?:string;existingEntry?:boolean;receiptId?:string;organizerOnly?:boolean;matchId?:string}
+export function openTournamentEntry(client:SupabaseClient,owner:string,current:()=>boolean,parent:string,division:string,onClose:(changed:boolean)=>void,send?:ScenarioSend,trigger?:HTMLElement,{allowCalendar=true,backLabel='← Division',existingEntry=false,receiptId,organizerOnly=false,matchId}:TournamentEntryOptions={}){
  const previous=trigger||(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog competitions-dialog league-entry-dialog tournament-entry-dialog';dialog.setAttribute('aria-label','Tournament entry')
  let disposed=false,version=0,busy=false,uncertain=false,organizer=organizerOnly,selected='',snapshot:TournamentEntrySnapshot|null=null,notice='',revision='',draft:TournamentEntryDraft={one:'',two:'',rating:null,partnerRating:null,attested:false,partnerAttested:false}
  let calendar:ReturnType<typeof openCalendar>|null=null
@@ -52,7 +52,7 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
  const render=()=>{
   if(!active())return
   const entry=approvedEntry()
-  const title=entry||existingEntry?'My event':receiptId?'Your entry':organizer?'Review entries':'Tournament entry'
+  const title=matchId?'Tournament match':entry||existingEntry?'My event':receiptId?'Your entry':organizer?'Review entries':'Tournament entry'
   const context=snapshot?.context
   const eventName=context?.eventName!==context?.name?context?.eventName:''
   dialog.setAttribute('aria-label',title==='Review entries'?'Tournament entry':title)
@@ -65,7 +65,7 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
    ${snapshot?`<p>${html(snapshot.context.name)}${entry?` <span aria-hidden="true">·</span> ${html(entry.name)}`:''}</p>`:''}
   </div>
   ${entry?'<div data-tournament-pass aria-busy="true"><p role="status">Checking the published draw…</p></div>':''}
-  ${snapshot?`${existingEntry&&!snapshot.receipt?'<p class="entry-note">Your approved entry is unavailable. Refresh to check your registration.</p>':tournamentEntryHtml(snapshot,draft,busy,organizer,selected)}
+  ${snapshot?`${matchId?(entry?'':'<p class="entry-note">This match is unavailable for your entry.</p>'):existingEntry&&!snapshot.receipt?'<p class="entry-note">Your approved entry is unavailable. Refresh to check your registration.</p>':tournamentEntryHtml(snapshot,draft,busy,organizer,selected)}
    ${!existingEntry&&!receiptId&&!organizer&&snapshot.context.canManage?`<button type="button" class="secondary" data-organizer-entries ${busy?'disabled':''}>Review app entries</button>`:''}`:''}
   <p role="${notice&&!busy&&(!snapshot?.receipt||uncertain)?'alert':'status'}" tabindex="-1" data-registration-notice>${html(notice)}</p>
   ${uncertain?'<p class="entry-note">Refresh entry status before trying again. A lost connection does not mean the change was not saved.</p>':''}`
@@ -98,10 +98,12 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
   let pass:ReturnType<typeof tournamentMyEvent>|undefined
   try{
    const result=await loadTournaments(client,owner,currentPass,'',parent||division,parent?division:'',send)
-   if(result.detail)pass=tournamentMyEvent(result.detail,entry.name,allowCalendar)
+   if(result.detail)pass=tournamentMyEvent(result.detail,entry.name,allowCalendar,matchId)
   }catch{ /* The entry receipt is still available if the public draw can't be loaded. */ }
   if(!currentPass())return
-  host.innerHTML=pass?.content??(firstPartyBuild
+  host.innerHTML=pass?.content??(matchId
+   ? '<p role="status">Couldn’t load this tournament match. Refresh to try again.</p>'
+   :firstPartyBuild
    ? '<p role="status">Your entry is confirmed. Check back for the published draw and court time.</p>'
    : '<p role="status">Your draw details are unavailable. Refresh or check with the event desk.</p>')
   host.setAttribute('aria-busy','false')
@@ -143,7 +145,7 @@ export function openTournamentEntry(client:SupabaseClient,owner:string,current:(
   try {
    const result=await tournamentEntryRequest(client,owner,valid,parent,division,organizer,undefined,send)
    if(!valid())return
-   if(receiptId&&result.receipt?.id!==receiptId)throw Error('This saved entry is unavailable. Go back and refresh your entries.')
+   if(receiptId&&result.receipt?.id!==receiptId)throw Error(matchId?'This match is unavailable for your entry.':'This saved entry is unavailable. Go back and refresh your entries.')
    snapshot=result
    uncertain=false
    if(revision!==result.context.revision){

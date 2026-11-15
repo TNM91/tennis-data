@@ -26,7 +26,13 @@ it('settles each purchase once and publishes the draw, schedule, and results for
       create schema auth; create schema private;
       create table auth.users(id uuid primary key);
       create table public.account_deletion_requests(account_id uuid, automatic_consent boolean);
-      create function auth.uid() returns uuid language sql stable as $$select '${owner}'::uuid$$;
+      create function auth.uid() returns uuid language sql stable as $$
+        select coalesce(nullif(current_setting('request.jwt.claim.sub',true),'')::uuid, '${owner}'::uuid)
+      $$;
+      create table public.profiles(id uuid primary key references auth.users(id) on delete cascade, role text not null default 'member');
+      create table public.internal_conversations(id uuid primary key);
+      create table public.internal_schedule_events(id uuid primary key);
+      create table public.team_chat_blocks(owner_user_id uuid, blocked_user_id uuid);
       create function public.can_run_club_competition(uuid) returns boolean language sql stable as $$select false$$;
       create function public.has_current_league_access(uuid) returns boolean language sql stable as $$select true$$;
       create function public.has_current_full_court_access(uuid) returns boolean language sql stable as $$select true$$;
@@ -57,7 +63,18 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     await migration('20261114001800_native_tournament_trophies')
     await migration('20261115000100_private_tournament_trophy_rehearsal')
     await migration('20261115000200_tournament_checkout_cancellation')
+    await migration('20260507224500_create_internal_notifications')
+    await db.exec(`create view public.native_first_party_updates with (security_invoker=true) as
+      select id,recipient_profile_id,notification_type,title,body,href,conversation_id,schedule_event_id,read_at,created_at
+      from public.internal_notifications where false;
+      grant select on public.profiles,public.internal_notifications,public.native_first_party_updates to authenticated;
+      grant update (read_at) on public.internal_notifications to authenticated;`)
+    const inboxMigration = await readFile(new URL('../../supabase/migrations/20261110000100_native_first_party_updates.sql', import.meta.url), 'utf8')
+    await db.exec(inboxMigration.slice(inboxMigration.indexOf('create or replace function public.native_first_party_mark_updates_read'),
+      inboxMigration.indexOf("notify pgrst")))
+    await migration('20261115000300_native_tournament_schedule_updates')
     await db.query('insert into auth.users values ($1),($2),($3),($4)', [owner, other, partner, stranger])
+    await db.exec('insert into public.profiles(id) select id from auth.users')
     await db.exec('grant usage on schema auth to authenticated; grant select,insert,update on public.tiq_tournaments to authenticated')
     const rpc = async (sql: string, params: unknown[]) => (await db.query<{ r: Record<string, unknown> }>('select ' + sql + ' r', params)).rows[0].r
     const checkout = (environment: string, action = 'status', token: string | null = null,
@@ -144,17 +161,58 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     await db.query(`update tiq_tournament_entries set status='declined' where tournament_id=$1 and status='pending'`, [division])
     expect(await plan('publish', pending.revision, division)).toEqual({ code: 'stale' })
     await approve(division, 'Casey Court', other)
+    await approve(division, 'Morgan Serve', partner)
     const published = await plan('publish', (await plan()).revision, division)
     const slot = { date: settings.registrationClosesOn, time: '13:00', court: 'Court 2' }
     expect(await plan('slot', published.revision, division, 'r1-m1', slot)).toEqual({ code: 'invalid' })
     slot.date = draft.date
-    const saved = await plan('slot', published.revision, division, 'r1-m1', slot)
+    const saveSlot = (expected: unknown, next: object | null, rescheduled: boolean, actor = owner) =>
+      rpc('native_tournament_save_slot($1,$2,$3,$4,$5,$6,$7,$8)',
+        [actor, event, expected, division, 'r1-m1', next, ['Morgan Serve','Casey Court'], rescheduled])
+    const withRecipient = async <T>(recipient: string, read: () => Promise<T>) => {
+      await db.exec('set role authenticated')
+      await db.query("select set_config('request.jwt.claim.sub',$1,false)", [recipient])
+      try { return await read() }
+      finally {
+        await db.exec("reset role; select set_config('request.jwt.claim.sub','',false)")
+      }
+    }
+    const updates = (recipient: string) => withRecipient(recipient, async () =>
+      (await db.query<{id:string}>('select id,title,body,href from public.native_first_party_updates')).rows)
+    await db.exec('set role authenticated')
+    await expect(saveSlot(published.revision,slot,false)).rejects.toThrow(/permission denied/)
+    await db.exec('reset role')
+    expect(await saveSlot(published.revision,slot,false,other)).toEqual({code:'missing'})
+    const saved = await saveSlot(published.revision,slot,false)
     expect(saved).toMatchObject({ divisions: expect.arrayContaining([expect.objectContaining({
       id: division, status: 'scheduled', schedule: { 'r1-m1': slot },
     })]) })
-    expect(await plan('slot', published.revision, division, 'r1-m1', { ...slot, court: '3' })).toEqual({ code: 'stale' })
-    const cleared = await plan('slot', saved.revision, division, 'r1-m1')
+    const scheduled = await updates(other)
+    expect(scheduled).toEqual([expect.objectContaining({title:'Tournament match scheduled',
+      body:expect.stringContaining('1:00 PM (America/Chicago) · Court 2'),
+      href:expect.stringMatching(/&match=r1-m1&entry=[a-f0-9-]{36}#tournament-schedule$/)})])
+    expect(await updates(partner)).toHaveLength(1)
+    expect(await updates(owner)).toEqual([])
+    expect(await updates(stranger)).toEqual([])
+    const markRead = (recipient:string) => withRecipient(recipient, async () =>
+      (await db.query('select id,recipient_profile_id,read_at from public.native_first_party_mark_updates_read($1::uuid[])',
+        [[scheduled[0].id]])).rows)
+    await expect(markRead(stranger)).rejects.toThrow(/Updates changed/)
+    expect(await markRead(other)).toEqual([expect.objectContaining({id:scheduled[0].id,recipient_profile_id:other,read_at:expect.any(Date)})])
+    expect(await saveSlot(saved.revision,slot,true)).toEqual(saved)
+    expect(await updates(other)).toEqual(scheduled)
+    const moved = {...slot,time:'14:30',court:'Court 3'}
+    expect(await saveSlot(published.revision,moved,true)).toEqual({code:'stale'})
+    const rescheduled = await saveSlot(saved.revision,moved,true)
+    expect(await updates(other)).toEqual([expect.objectContaining({title:'Tournament match rescheduled',
+      body:expect.stringContaining('2:30 PM (America/Chicago) · Court 3')})])
+    await db.query('insert into public.team_chat_blocks values ($1,$2)', [partner,owner])
+    expect(await updates(partner)).toEqual([])
+    const cleared = await saveSlot(rescheduled.revision,null,true)
     expect(cleared).toMatchObject({ divisions: expect.arrayContaining([expect.objectContaining({id: division, status: 'scheduled', schedule: {} })]) })
+    expect(await updates(other)).toEqual([expect.objectContaining({title:'Tournament court time cleared',
+      body:expect.stringContaining('New time to be confirmed')})])
+    expect(await updates(partner)).toEqual([])
     await expect(addPending('Late request', {version: '1'}, other)).rejects.toThrow(/Entries are closed/)
     await expect(db.query("update tiq_tournaments set entrants = array['Riley Return','Morgan Serve'] where id=$1", [division])).rejects.toThrow(/draw is published/)
     const rootStatus = async () => (await db.query('select status from tiq_tournaments where id=$1', [paid.publicId])).rows
