@@ -44,6 +44,7 @@ import {loadOlderResults} from './recent-results-history'
 import {mountLabRatingTrends} from './lab-rating-trends'
 import {firstPartyBuild} from './build-scope'
 import {openLeagueOffice} from './league-office-view'
+import {openLeagueDraft} from './league-draft-view'
 import {createCalendarHighlights} from './lab-calendar'
 import {CALENDAR_WEEKLY_REP_CHANGED,type CalendarWeeklyRepChange} from './calendar-weekly-reps'
 import {personalCalendarOccurrence,type CalendarPractice} from './calendar-data'
@@ -112,7 +113,7 @@ let competitions:ReturnType<typeof openCompetitions>|null=null
 let tournaments:ReturnType<typeof openTournaments>|null=null
 let coachWorkspace:ReturnType<typeof openCoachWorkspace>|ReturnType<typeof openCoachConnection>|ReturnType<typeof openNativeTactics>|ReturnType<typeof openCoachLessons>|ReturnType<typeof openCoachResources>|ReturnType<typeof openCoachMessages>|ReturnType<typeof openCoachVideo>|null=null
 let hub:AppHub|null=null
-let leagueOffice:ReturnType<typeof openLeagueOffice>|null=null
+let leagueOffice:ReturnType<typeof openLeagueOffice>|ReturnType<typeof openLeagueDraft>|null=null
 let goals:ReturnType<typeof openLabGoals>|null=null
 let training:ReturnType<typeof openLevelUp>|null=null
 let teamRoom:ReturnType<typeof showTeamRoom>|null=null
@@ -570,6 +571,10 @@ function openDestination(destination:AppDestination,trigger:HTMLButtonElement){
  if(destination==='coach-messages'){if(!coachWorkspace?.isOpen())coachWorkspace=openCoachMessages(client,owner,current,trigger,undefined,undefined,undefined,()=>{void chatUnread.refresh()});return}
  if(destination==='coach-tactics'){if(!coachWorkspace?.isOpen())coachWorkspace=openNativeTactics(client,owner,current,trigger,undefined,openCoachHref);return}
  if(destination==='league-office'){if(!firstPartyBuild&&!leagueOffice?.isOpen())leagueOffice=openLeagueOffice(client,owner,current);return}
+ if(destination==='league-draft'){
+  if(firstPartyBuild&&!leagueOffice?.isOpen())leagueOffice=openLeagueDraft(client,owner,current,trigger,id=>launchCompetitions('discover',trigger,undefined,id))
+  return
+ }
  if(destination==='imports'){void launchDataImports(owner,current);return}
  if(destination==='account'){launchAccount(trigger);return}
  if(destination==='training'||destination==='training-inbox'||destination==='training-progress'){

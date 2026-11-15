@@ -7,11 +7,14 @@ import { lineupRecord } from './native-captain-lineup-contract'
 import { readOfficeResult } from './native-league-office-contract'
 import { readLeagueScoreFixture } from './native-league-score-contract'
 import { buildTeamRoomScopeId } from './team-room'
+import { nativeLeaguePublicationId } from './native-league-publication'
 
 export async function loadNativeLeagueMatchDay(snapshot: CompetitionSnapshot, actor: string | null,
   captainAccess: boolean, coordinatorAccess: boolean): Promise<CompetitionSnapshot['matchDay']> {
   const detail = snapshot.detail
-  if (!detail || detail.league.format !== 'team') return
+  if (!detail) return
+  const individual = detail.league.format === 'individual'
+  if (individual && !nativeLeaguePublicationId(detail.league.id)) return
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!key) return
   const service = accountClient(key)
@@ -21,7 +24,7 @@ export async function loadNativeLeagueMatchDay(snapshot: CompetitionSnapshot, ac
   const results = new Map((snapshot.approvedScores?.results ?? detail.results).map(result => [result.id,result]))
   if (!fixtures.size && !coordinatorAccess) return {matches:[]}
   let rooms: Record<string,string> = {}
-  if (actor && captainAccess && !snapshot.scoreReviewDemo && fixtures.size) {
+  if (actor && captainAccess && !snapshot.scoreReviewDemo && !nativeLeaguePublicationId(league.id) && fixtures.size) {
     const reviewed = readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)
     const teams = [...new Set([...fixtures.values()].flatMap(f=>[f.a,f.b]))]
     const scoped = teams.map(teamName=>reviewedTeamRoom(reviewed,{teamName,leagueName:league.name,flight:league.flight}))
@@ -35,10 +38,10 @@ export async function loadNativeLeagueMatchDay(snapshot: CompetitionSnapshot, ac
         ? [[room.teamName,room.roomId]] : []))
     }
   }
-  const { data, error } = await service.rpc('native_league_match_day',{
-    p_league:league.id,p_version:league.updatedAt,p_matches:[...fixtures.keys()],p_actor:actor,
-    p_captain_access:!!actor&&captainAccess,p_rooms:rooms,
-  }).retry(false)
+  const scope={p_league:league.id,p_version:league.updatedAt,p_matches:[...fixtures.keys()],p_actor:actor}
+  const { data, error } = await (individual
+    ? service.rpc('native_individual_league_match_day',{...scope,p_player_access:!!actor&&captainAccess})
+    : service.rpc('native_league_match_day',{...scope,p_captain_access:!!actor&&captainAccess,p_rooms:rooms})).retry(false)
   if (error) throw Error('Match Day unavailable')
   const response = lineupRecord(data)
   if (!Array.isArray(response.matches) || response.matches.length > fixtures.size) throw Error('Invalid Match Day response')

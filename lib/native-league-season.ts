@@ -8,6 +8,20 @@ type Row=Record<string,unknown>
 const checked=(r:{data:unknown;error:unknown},max:number):Row[]=>{if(r.error||!Array.isArray(r.data)||r.data.length>max)throw Error('League records unavailable');return r.data as Row[]}
 function scoped(rows:Row[],id:string){if(rows.some(r=>r.league_id!==id)||new Set(rows.map(r=>r.id)).size!==rows.length)throw Error('League records changed');return rows}
 
+export async function readNativeLeagueRegistration(
+ db:SupabaseClient,league:OfficeLeague,source:Row,recheck:()=>Promise<Row|null>,
+):Promise<OfficeDetail>{
+ const team=league.format==='team'
+ const name=team?'team_name':'player_name'
+ const participants=checked(await db.from(team?'tiq_team_league_entries':'tiq_player_league_entries')
+  .select('id,league_id,entry_status,'+name).eq('league_id',league.id).eq('entry_status','active')
+  .order(name).order('id').limit(101).abortSignal(AbortSignal.timeout(12000)),101)
+ if(participants.some(row=>row.league_id!==league.id||row.entry_status!=='active')||
+    JSON.stringify(await recheck())!==JSON.stringify(source))throw Error('League changed while loading')
+ return {league,participants:participants.slice(0,100).map(row=>({name:str(row[name]),status:'active'})),
+  fixtures:[],results:[],standings:[],moreParticipants:participants.length>100,moreFixtures:false,moreResults:false,standingsAvailable:false}
+}
+
 /** Reads a season through the caller RLS client. The caller rechecks its original access predicate. */
 export async function readNativeLeagueSeason(db:SupabaseClient,league:OfficeLeague,source:Row,recheck:()=>Promise<Row|null>,publicOnly=false):Promise<OfficeDetail>{
  const selected=league.id

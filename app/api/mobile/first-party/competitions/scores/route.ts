@@ -12,6 +12,7 @@ import { loadPlayerAccess } from '@/lib/player-api-auth'
 import { supabaseKey } from '@/lib/supabase-public-config'
 import { lineupRecord } from '@/lib/native-captain-lineup-contract'
 import { leagueAttentionFixture, readReminderTime, readScoreReminder } from '@/lib/native-league-attention-contract'
+import { isPublishedNativeLeague, nativeLeaguePublicationId } from '@/lib/native-league-publication'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -44,26 +45,35 @@ async function handle(request: Request) {
       if (matchId !== null && !courtAccountId(matchId)) throw Error('Choose a scheduled match.')
     }
   } catch (error) { return fail(error instanceof Error ? error.message : 'Check the scorecard.', 400) }
-  const denied = () => fail('Only this match’s captains and league coordinator can open its scorecard.', 403)
   const modern = request.headers.get('X-TenAceIQ-League-Score') === '2'
   const owner = account.user.id, db = accountClient(supabaseKey, account.token)
   const isDemo = modern && leagueId === testflightLeagueScoreId(owner)
-  const approval = readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS, 'detail').get(leagueId)
-  if (!isDemo && !approval) return denied()
+  const native = nativeLeaguePublicationId(leagueId)
+  const denied = () => fail(native?'Only the assigned players or captains and the league coordinator can open this scorecard.':
+    'Only this match’s captains and league coordinator can open its scorecard.',403)
+  const approval = native ? undefined : readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS, 'detail').get(leagueId)
+  if (!isDemo && !native && !approval) return denied()
   const cols = nativeLeagueColumns + ',is_public,third_set_rule,team_match_format_id'
-  const {data,error} = isDemo ? {data:await readTestflightScoreLeague(db,owner,cols), error:null} : await db.from('tiq_leagues').select(cols)
-    .eq('id', leagueId).eq('league_format', 'team').eq('season_status', 'active').eq('is_public', true).maybeSingle()
+  const readLeague = () => {
+    const query = db.from('tiq_leagues').select(cols).eq('id',leagueId).eq('season_status','active').eq('is_public',true)
+    return (native?query:query.eq('league_format','team')).maybeSingle()
+  }
+  const {data,error} = isDemo ? {data:await readTestflightScoreLeague(db,owner,cols), error:null} : await readLeague()
   if (error) throw Error('League unavailable')
   if (!data) return denied()
   const source = lineupRecord(data), input = { scope: 'discover' as const, query: '', selected: leagueId }
+  const individual = native && source.league_format === 'individual'
+  if (source.id !== leagueId || (!individual && source.league_format !== 'team') || source.season_status !== 'active') return denied()
   const demo = isDemo ? await loadTestflightLeagueScores(db,owner,input) : null
   if (isDemo && (!demo?.detail || demo.league.updatedAt!==source.updated_at)) return denied()
   const league = demo?.league ?? publicLeague(source)
-  if (!demo && reviewedRevisionDigest(league) !== approval?.summary) return denied()
-  const access = demo ? null : await loadPlayerAccess(db, owner)
-  const coordinator = !!demo || source.created_by_user_id === owner && access?.canUseLeagueTools === true
-  const captainAccess = !!demo || access?.canUseCaptainWorkflow === true
-  if (reminder && !coordinator) return fail('Only the league coordinator can remind captains.', 403)
+  if (!demo && (native ? !isPublishedNativeLeague(source) : reviewedRevisionDigest(league) !== approval?.summary)) return denied()
+  const access = demo || native ? null : await loadPlayerAccess(db, owner)
+  const coordinator = !!demo || source.created_by_user_id === owner && (native || access?.canUseLeagueTools === true)
+  // The score RPC checks the approved entry IDs on this exact fixture.
+  const captainAccess = !!demo || native || access?.canUseCaptainWorkflow === true
+  if (reminder && (individual || !coordinator)) return fail(individual?'This score reminder is unavailable.':
+    'Only the league coordinator can remind captains.',403)
   if (!coordinator && (!matchId || !captainAccess)) return denied()
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!key) throw Error('League score review unavailable')
@@ -80,7 +90,7 @@ async function handle(request: Request) {
 
   let roomA: string | null = null, roomB: string | null = null
   if (fixture) {
-    if (!demo && (captainAccess || reminder)) {
+    if (!demo && !native && (captainAccess || reminder)) {
       const rooms = readReviewedTeamRooms(process.env.TIQ_FIRST_PARTY_TEAM_ROOMS)
       const lookUp = async (teamName: string) => {
         const room = reviewedTeamRoom(rooms, { teamName, leagueName: league.name, flight: league.flight })
@@ -118,10 +128,12 @@ async function handle(request: Request) {
     if (!Array.isArray(review.matches) || review.matches.length > 100) throw Error('Queue unavailable')
     return json({ ok: true, owner, leagueId, matches: review.matches.map(readLeagueScoreFixture).filter(visible) })
   }
-  const format = resolveTeamMatchFormat({ leagueName: league.name, flight: league.flight,
-    explicitFormatId: typeof source.team_match_format_id === 'string' ? source.team_match_format_id : null })
+  const slots = individual ? [{label:'Singles match',format:'singles'}] : resolveTeamMatchFormat({
+    leagueName: league.name, flight: league.flight,
+    explicitFormatId: typeof source.team_match_format_id === 'string' ? source.team_match_format_id : null,
+  }).slots.map(slot => ({ label: slot.label, format: slot.discipline }))
   const desk = readLeagueScoreDesk({ ...review, canReview: review.canReview === true && coordinator,
-    slots: format.slots.map(slot => ({ label: slot.label, format: slot.discipline })),
+    slots, ...(individual ? {leagueFormat:'individual'} : {}),
     thirdSetRule: ['full_set', 'match_tiebreak_10'].includes(String(source.third_set_rule)) ? source.third_set_rule : 'either',
   }, matchId)
   if (!visible(desk.match)) return denied()

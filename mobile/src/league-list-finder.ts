@@ -26,6 +26,21 @@ export function leagueParticipantsViewHtml(d:OfficeDetail,filters:LeagueListFilt
  return '<h3 tabindex="-1">'+(organizer?'Participants':team?'Teams':'Players')+'</h3><p class="league-finder-context">'+(organizer?'Entry records · approved, pending, rejected and removed entries stay separate.':'Approved entries. Pending and declined entries are not listed.')+(d.moreParticipants?' Showing the first 100 saved entries; more exist.':'')+'</p>'+finderHtml(team,filters,organizer)+summaryHtml(rows.length,all.length,noun,d.moreParticipants)+(rows.length?'<ul class="'+(organizer?'team-members':'competition-participants')+'">'+rows.map(p=>'<li><strong>'+html(p.name)+'</strong>'+(organizer?'<span>'+html(statuses[p.status]||p.status)+'</span>':'')+(p.status==='active'?(team?leagueTeamOpenHtml(d,p.name,'participants'):leaguePlayerOpenHtml(d,p.name)):'')+'</li>').join('')+'</ul>':emptyHtml(all.length,organizer?'entries':noun))
 }
 export function leagueStandingsViewHtml(d:OfficeDetail,filters:LeagueListFilters=emptyLeagueListFilters()){
+ if(d.playerStandings){
+  const heading='<h3 tabindex="-1">Player standings</h3>'
+  const query=normalized(filters.query)
+  const rows=d.playerStandings.map((row,index)=>({row,position:index+1})).filter(({row})=>!query||normalized(row.name).includes(query))
+  const finder=competitionFiltersHtml('standings',finderHtml(false,filters,false),Number(Boolean(query)))
+  const standings=rows.map(({row,position})=>competitionStandingHtml({
+   kind:'league',position,name:row.name,record:`${row.wins} W · ${row.losses} L`,
+   stats:`${Math.round(100*row.wins/(row.wins+row.losses))}% win rate`,
+  })).join('')
+  return heading+'<p class="league-finder-context">Ranked by wins, then fewest losses. Only approved results count.</p>'+
+   (d.playerStandings.length?finder+summaryHtml(rows.length,d.playerStandings.length,'players',false):
+    '<div class="competition-empty"><p>No approved results yet.</p></div>')+
+   (standings?'<ol class="competition-standings league-standings" role="list">'+standings+'</ol>':
+    d.playerStandings.length?emptyHtml(d.playerStandings.length,'players'):'')
+ }
  const heading='<h3 tabindex="-1">Team standings</h3>'
  if(d.league.format==='individual')return heading+'<p>This is an individual league. Open Results to review recorded player matches.</p>'
  if(!d.standingsAvailable||d.moreResults)return heading+'<p>Standings are withheld because this loaded result sample is incomplete. A partial sample cannot establish season standings.</p>'

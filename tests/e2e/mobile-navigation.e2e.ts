@@ -48,6 +48,114 @@ async function useFirstPartyNavigation(page:Page) {
  await page.route(origin+'/app.js',route=>route.fulfill({contentType:'text/javascript',body:previewScript}))
 }
 
+test('League draft previews the season and price and recovers a lost save response',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.goto(origin+'/?large=1')
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Compete',exact:true}).click()
+ const entry=page.getByRole('button',{name:/^Set up a league/})
+ await entry.click()
+ const dialog=page.getByRole('dialog')
+ await expect(dialog).toContainText(/Drafts are free.*\$25(?:\.00)? per season.*12 weeks/)
+ await dialog.getByLabel('League name').fill('Winter Doubles')
+ await dialog.getByRole('combobox',{name:'Format',exact:true}).selectOption('individual')
+ await dialog.getByRole('combobox',{name:'Time zone',exact:true}).selectOption('America/Chicago')
+ await dialog.getByLabel('First day').fill('2026-11-01')
+ await expect(dialog.getByText('Last day: Saturday, January 23, 2027')).toBeVisible()
+ await dialog.getByRole('combobox',{name:'Season length',exact:true}).selectOption('8')
+ await expect(dialog.getByText('Last day: Saturday, December 26, 2026')).toBeVisible()
+ expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ await dialog.getByRole('button',{name:'Save private draft'}).click()
+ await expect(dialog.getByRole('alert')).toContainText('Couldn’t confirm the save')
+ await dialog.getByRole('button',{name:'Retry save'}).click()
+ await expect(dialog.getByRole('heading',{name:'League draft saved'})).toBeFocused()
+ await expect(dialog.getByRole('region',{name:'Private season'})).toContainText('Winter Doubles')
+ const writes=await page.evaluate(()=>(window as unknown as {leagueDraftFixture:{writes:unknown[]}}).leagueDraftFixture.writes)
+ expect(writes).toHaveLength(2)
+ expect(writes[1]).toEqual(writes[0])
+ await dialog.getByRole('button',{name:'Back to Compete'}).click()
+ await expect(entry).toBeFocused()
+ await entry.click()
+ await expect(dialog.getByRole('region',{name:'Private season'})).toContainText('Individual league')
+ expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ await dialog.getByRole('button',{name:'Edit draft'}).click()
+ await expect(dialog.getByLabel('League name')).toHaveValue('Winter Doubles')
+ await expect(dialog.getByRole('combobox',{name:'Season length',exact:true})).toHaveValue('8')
+})
+
+for(const environment of ['Sandbox','Production'] as const)test('League checkout '+environment+' cancels safely and finishes only after receipt recovery',async({page})=>{
+ const productId='com.tenaceiq.app.league.publish'
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.addInitScript(({productId,environment})=>{
+  const state={purchases:0,finishes:0}
+  let pending:{transactionId:string;accountToken:string;signedTransaction:string;environment:string}|null=null
+  Object.assign(window,{
+   Capacitor:{
+    PluginHeaders:[{name:'TiqPurchases',methods:['products','purchase','pending','finish','addListener','removeListener'].map(name=>({name,rtype:'promise'}))}],
+    nativePromise:async(_plugin:string,method:string,args:Record<string,string>)=>{
+     if(method==='addListener')return 'fixture-listener'
+     if(method==='removeListener')return {}
+     if(method==='pending')return {transactions:args.productId===productId&&pending?[pending]:[]}
+     if(method==='products'&&args.productId===productId&&args.environment===environment){
+      return {available:true,products:[{id:productId,price:'$25.00'}]}
+     }
+     if(method==='purchase'&&args.productId===productId&&args.environment===environment){
+      if(++state.purchases===1)return {state:'cancelled'}
+      pending={transactionId:'102',accountToken:args.accountToken,signedTransaction:'fixture.checkout.'+args.accountToken,environment}
+      return {state:'purchased',...pending}
+     }
+     if(method==='finish'&&pending?.transactionId===args.transactionId&&pending.accountToken===args.accountToken){
+      state.finishes++;pending=null
+      return {finished:true}
+     }
+     throw Error('Unexpected StoreKit request')
+    },
+   },
+   leagueApple:state,
+  })
+ },{productId,environment})
+ const sandbox=environment==='Sandbox'
+ await page.goto(origin+'/?large=1&league-checkout='+environment.toLowerCase())
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Compete',exact:true}).click()
+ await page.evaluate(()=>{
+  const {Capacitor}=window as unknown as {Capacitor:{getPlatform:()=>string}}
+  Capacitor.getPlatform=()=>'ios'
+ })
+ const entry=page.getByRole('button',{name:/^Set up a league/})
+ await entry.click()
+ const dialog=page.getByRole('dialog')
+ await dialog.getByLabel('League name').fill('Winter Doubles')
+ await dialog.getByRole('combobox',{name:'Time zone',exact:true}).selectOption('America/Chicago')
+ await dialog.getByLabel('First day').fill('2027-01-04')
+ await dialog.getByRole('button',{name:'Save private draft'}).click()
+ const checkout=dialog.getByRole('region',{name:sandbox?'Test league checkout':'Publish league'})
+ const buy=checkout.getByRole('button',{name:sandbox?'Test checkout · $25.00':'Publish league · $25.00',exact:true})
+ await buy.click()
+ await expect(checkout.getByRole('status')).toHaveText('Purchase canceled.')
+ await buy.click()
+ await expect(checkout.getByRole('status')).toContainText('Checkout is still being checked.')
+ await expect(dialog.getByRole('button',{name:'Edit draft'})).toBeDisabled()
+ const read=()=>page.evaluate(()=>(window as unknown as {leagueApple:{purchases:number;finishes:number}}).leagueApple)
+ expect(await read()).toEqual({purchases:2,finishes:0})
+ await dialog.getByRole('button',{name:'Back to Compete'}).click()
+ await entry.click()
+ await expect(checkout.getByRole('status')).toHaveText(sandbox?'Test purchase complete. Your league draft is private.':
+  'Your season is published. Open it to review entry requests.')
+ await expect(buy).toHaveCount(0)
+ expect(await read()).toEqual({purchases:2,finishes:1})
+ expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ if(sandbox)await expect(dialog.getByRole('button',{name:'Edit draft'})).toBeEnabled()
+ else {
+  await expect(dialog.getByRole('button',{name:'Set up another season'})).toBeEnabled()
+  await checkout.getByRole('button',{name:'View league'}).click()
+  await expect(dialog.getByRole('heading',{name:'Winter Doubles',exact:true})).toBeVisible()
+  await expect(dialog.getByRole('button',{name:'Review entry requests'})).toBeVisible()
+  await dialog.getByRole('button',{name:'Schedule',exact:true}).click()
+  await expect(dialog.getByRole('button',{name:'Schedule match',exact:true})).toBeVisible()
+ }
+})
+
 test('Starter TiQ recommends a drill and keeps the assessment on this device for its owner',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:720})
@@ -3770,6 +3878,52 @@ test('first-party league score review returns corrections and updates standings 
  await league.getByRole('button',{name:'Results',exact:true}).click()
  await expect(league.locator('[data-league-result-id]')).toHaveCount(1)
  await expect(league.locator('[data-league-result-id]')).toContainText('Rally Crew')
+})
+
+test('individual Match Day approves a singles score and shows both player records',async({page})=>{
+ test.setTimeout(65000)
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:844})
+ await page.clock.setFixedTime(new Date('2026-11-13T15:00:00Z'))
+ await page.goto(origin+'/?league-score-review=individual&large=1')
+ await page.getByRole('button',{name:'Compete',exact:true}).click()
+ await page.getByRole('button',{name:/^Browse leagues/}).click()
+ const league=page.getByRole('dialog',{name:'Competitions',exact:true})
+ const scores=page.locator('[aria-labelledby="league-scores-title"]')
+ const tab=(name:string)=>league.getByRole('button',{name,exact:true})
+ const open=()=>league.getByRole('button',{name:'Open league Winter Singles League',exact:true}).click()
+ await open()
+ await tab('Schedule').click()
+ await tab('Enter scores').click()
+ await expect(scores.getByRole('group',{name:'Singles match'})).toBeVisible()
+ await scores.getByRole('combobox',{name:'Match outcome',exact:true}).selectOption('walkover')
+ await scores.getByRole('combobox',{name:'Match winner',exact:true}).selectOption('B')
+ await expect(scores.getByLabel('Set scores')).toHaveCount(0)
+ expect(await scores.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ await scores.getByRole('button',{name:'Submit for review'}).click()
+ await expect(scores.getByText('Awaiting coordinator review')).toBeVisible()
+ await scores.getByRole('button',{name:'Back to league'}).click()
+ await tab('Standings').click()
+ await expect(league.getByText('No approved results yet.')).toBeVisible()
+ await tab('← Competitions').click()
+ await page.evaluate(()=>{(window as unknown as {scopedLeagueScore:{coordinator:boolean}}).scopedLeagueScore.coordinator=true})
+ await open()
+ await league.getByRole('button',{name:'Review scores (1)'}).click()
+ await scores.getByRole('button',{name:'Review Jamie Serve vs Morgan Return',exact:true}).click()
+ await expect(scores.getByText('Walkover · Morgan Return')).toBeVisible()
+ await scores.getByRole('button',{name:'Approve score'}).click()
+ await expect(scores.getByText('Score approved. League standings are updated.')).toBeVisible()
+ await scores.getByRole('button',{name:'Back to score review'}).click()
+ await scores.getByRole('button',{name:'Back to league'}).click()
+ await expect(tab('Standings')).toHaveAttribute('aria-pressed','true')
+ const records=league.locator('.competition-standings .standing-row')
+ await expect(records.nth(0)).toContainText('Morgan Return')
+ await expect(records.nth(0)).toContainText('1 W · 0 L')
+ await expect(records.nth(1)).toContainText('Jamie Serve')
+ await expect(records.nth(1)).toContainText('0 W · 1 L')
+ await tab('Schedule').click()
+ await tab('View official result').click()
+ await expect(page.getByRole('dialog',{name:'Official result'}).getByText('Walkover',{exact:true})).toBeVisible()
 })
 
 test('first-party Match Day shows only the action available for the scheduled match and role',async({page})=>{

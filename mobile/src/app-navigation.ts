@@ -4,7 +4,7 @@ import {html} from './match-details'
 import {firstPartyBuild} from './build-scope'
 
 export type AppScreen='lab'|'explore'|'following'|'matchup'|'teams'|'compete'|'more'|'coach'
-export type AppDestination=AppScreen|'leagues'|'browse-leagues'|'tournaments'|'tournament-entries'|'league-office'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'|'coach-dates'|'updates'|'calendar'|'competition-calendar'
+export type AppDestination=AppScreen|'leagues'|'browse-leagues'|'tournaments'|'tournament-entries'|'league-office'|'league-draft'|'imports'|'account'|'training'|'training-inbox'|'training-progress'|'coach-workspace'|'coach-connection'|'coach-tactics'|'coach-lessons'|'coach-calendar'|'coach-weeks'|'coach-proof'|'coach-video'|'coach-messages'|'coach-dates'|'updates'|'calendar'|'competition-calendar'
 export type AppHub='compete'|'more'|'coach'
 export const mainTabs=[{screen:'lab',label:'My Lab',icon:'lab'},{screen:'explore',label:'Explore',icon:'explore'},{screen:'teams',label:'Chats',icon:'teams'},{screen:'compete',label:'Compete',icon:'compete'},{screen:'more',label:'More',icon:'more'}] as const
 export function currentTab(screen:AppScreen){return screen==='following'||screen==='matchup'||screen==='coach'?'more':screen}
@@ -24,6 +24,7 @@ const tools:Record<string,Tool>={
  following:{destination:'following',title:'Following',detail:'Players, teams and leagues you follow.',icon:'following',keywords:'saved favorites'},
  matchup:{destination:'matchup',title:'Matchup',detail:'Compare players before you play.',icon:'matchup',keywords:'prepare opponent'},
  office:{destination:'league-office',title:'League Office',detail:'Manage your league seasons, entries and match desk.',icon:'leagues'},
+ leagueDraft:{destination:'league-draft',title:'Set up a league',detail:'Choose season dates and save a private draft.',icon:'leagues'},
  imports:{destination:'imports',title:'Uploads & imports',detail:'Review your scorecards, schedules and roster uploads.',icon:'imports'},
  account:{destination:'account',title:'Account',detail:'Membership, Face ID, sign-in and account settings.',icon:'account',keywords:'login log in logout log out subscription billing password'},
  teams:{destination:'teams',title:firstPartyBuild?'Team chats':'Teams & captain tools',detail:firstPartyBuild?'Open your team conversations in Chats.':'Open Chats, then your team’s match-day and captain tools.',icon:'teams'},
@@ -66,7 +67,7 @@ export function homeShortcutsHtml(){
 export function appHubHtml(hub:AppHub,{fromLab=false,browseFirst=false}={}){
  const discoveryFirst=hub==='compete'&&browseFirst
  const groups:{title:string;keys:string[];lane?:'player'|'studio'}[]=hub==='compete'
-  ?[{title:'Browse competitions',keys:['leagueDiscovery','tournamentDiscovery']},{title:'Your season',keys:['competitionCalendar','leagueEntries','tournamentEntries','office']}]
+  ?[{title:'Browse competitions',keys:['leagueDiscovery','tournamentDiscovery']},{title:'Your season',keys:['competitionCalendar','leagueEntries','tournamentEntries',firstPartyBuild?'leagueDraft':'office']}]
   :hub==='coach'
    ?[{title:'Your game plan',keys:['lessonDates','inbox','connection','training','progress'],lane:'player'},{title:'Coach studio',keys:['tactics','coachDesk','lessons','calendar','weeks','proof','video'],lane:'studio'}]
    :[{title:'Your game',keys:['personalCalendar','following','matchup','coach']},{title:'Your competitions',keys:['leagues','tournaments','office','teams']},{title:'Your account',keys:['updates','imports','account']}]

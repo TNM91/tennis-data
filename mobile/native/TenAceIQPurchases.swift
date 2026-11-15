@@ -550,7 +550,10 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "manage", returnType: CAPPluginReturnPromise)
     ]
     private let allowed: Set<String> = ["com.tenaceiq.app.player.monthly", "com.tenaceiq.app.captain.monthly", "com.tenaceiq.app.pro.monthly"]
-    private let tournamentProduct = "com.tenaceiq.app.tournament.publish"
+    private let publishingPrices: [String: Decimal] = [
+        "com.tenaceiq.app.tournament.publish": 5,
+        "com.tenaceiq.app.league.publish": 25
+    ]
     private var waiting: [String: VerificationResult<Transaction>] = [:]
     private var updatesTask: Task<Void, Never>?
     private var showingStoreSheet = false
@@ -568,17 +571,17 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     @MainActor private func capture(_ result: VerificationResult<Transaction>, announce: Bool) {
         guard #available(iOS 16.0, *), case .verified(let transaction) = result,
               (allowed.contains(transaction.productID) && transaction.productType == .autoRenewable)
-                || (transaction.productID == tournamentProduct && transaction.productType == .consumable),
+                || (publishingPrices[transaction.productID] != nil && transaction.productType == .consumable),
               transaction.appAccountToken != nil, verifiedForBuild(transaction),
               let environment = TiqPurchaseChannel.name(transaction.environment) else { return }
         let key = environment + ":" + String(transaction.id)
         if waiting[key] != nil || waiting.count < 50 { waiting[key] = result }
         if announce { notifyListeners("transactionsChanged", data: [:], retainUntilConsumed: true) }
     }
-    @MainActor private func entries(expected: String? = nil, tournament: Bool = false) -> [[String: String]] {
+    @MainActor private func entries(expected: String? = nil, productId: String? = nil) -> [[String: String]] {
         waiting.values.compactMap { result in
             guard #available(iOS 16.0, *), case .verified(let transaction) = result,
-                  (transaction.productID == tournamentProduct) == tournament,
+                  productId.map({ transaction.productID == $0 }) ?? allowed.contains(transaction.productID),
                   verifiedForBuild(transaction, expected: expected), let token = transaction.appAccountToken,
                   let environment = TiqPurchaseChannel.name(transaction.environment) else { return nil }
             return ["transactionId": String(transaction.id), "accountToken": token.uuidString.lowercased(),
@@ -589,7 +592,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
         product.type == .autoRenewable && product.subscription?.subscriptionPeriod.unit == .month && product.subscription?.subscriptionPeriod.value == 1
     }
     @MainActor private func publishing(_ product: Product) -> Bool {
-        product.id == tournamentProduct && product.type == .consumable && product.price == Decimal(5)
+        product.type == .consumable && publishingPrices[product.id] == product.price
     }
     private var purchaseChannel: String? {
         Bundle.main.object(forInfoDictionaryKey: "TiqApplePurchaseChannel") as? String
@@ -618,11 +621,12 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                 guard matchesEnvironment(call) else { call.reject("Open the correct app build.", "environment_mismatch"); return }
                 guard Bundle.main.bundleIdentifier == "com.tenaceiq.app" else { call.reject("Update the app before loading plans.", "app_identity_mismatch"); return }
                 // App-download verification is separate from subscription transaction verification.
-                let tournament = call.getString("productId") == tournamentProduct
-                let products = try await Product.products(for: tournament ? [tournamentProduct] : Array(allowed))
+                let requestedProduct = call.getString("productId")
+                let publishingProduct = requestedProduct.flatMap { publishingPrices[$0] == nil ? nil : $0 }
+                let products = try await Product.products(for: publishingProduct.map { [$0] } ?? Array(allowed))
                 guard let storefront = await Storefront.current else { call.reject("App Store region unavailable.", "storefront_unavailable"); return }
                 guard storefront.countryCode == "USA" else { call.reject("U.S. App Store required.", "unsupported_storefront"); return }
-                let valid = products.filter { tournament ? publishing($0) : allowed.contains($0.id) && monthly($0) }
+                let valid = products.filter { publishingProduct != nil ? publishing($0) : allowed.contains($0.id) && monthly($0) }
                 guard !valid.isEmpty else { call.reject("Apple has not returned the membership plans.", "products_not_found"); return }
                 call.resolve(["available": true, "products": valid.map { ["id": $0.id, "price": $0.displayPrice] }])
             } catch {
@@ -672,7 +676,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
     @objc func purchase(_ call: CAPPluginCall) {
         Task { @MainActor in
             guard !showingStoreSheet else { call.reject("Apple is already open.", "store_busy"); return }
-            guard let id = call.getString("productId"), allowed.contains(id) || id == tournamentProduct,
+            guard let id = call.getString("productId"), allowed.contains(id) || publishingPrices[id] != nil,
                   let rawToken = call.getString("accountToken"), let token = UUID(uuidString: rawToken) else { call.reject("Purchase request is invalid.", "purchase_request_invalid"); return }
             guard purchasePresenter() != nil else { call.reject("Reopen account settings before purchasing.", "purchase_presenter_unavailable"); return }
             let operation = UUID()
@@ -699,14 +703,14 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                     stage = "products"
                     let products = try await Product.products(for: [id])
                     guard gate.active else { return }
-                    let tournament = id == self.tournamentProduct
-                    guard let product = products.first, tournament ? self.publishing(product) : self.monthly(product) else {
+                    let isPublishing = self.publishingPrices[id] != nil
+                    guard let product = products.first, isPublishing ? self.publishing(product) : self.monthly(product) else {
                         gate.reject("Apple did not return the requested product.", "purchase_product_unavailable"); return
                     }
                     guard self.waiting.count < 50 else { gate.reject("Sync earlier purchases first.", "purchase_sync_pending"); return }
                     // Reject an existing membership bound to either account before another buy.
                     stage = "entitlements"
-                    if !tournament {
+                    if !isPublishing {
                         for await entitlement in Transaction.currentEntitlements {
                             guard gate.active else { return }
                             if case .verified(let current) = entitlement, self.verifiedForBuild(current, expected: expected), self.allowed.contains(current.productID) {
@@ -755,7 +759,7 @@ public final class TenAceIQPurchases: CAPPlugin, CAPBridgedPlugin {
                     guard gate.active else { return }
                     self.capture(result, announce: false)
                 }
-                gate.resolve(["transactions": self.entries(tournament: call.getString("productId") == self.tournamentProduct)])
+                gate.resolve(["transactions": self.entries(productId: call.getString("productId"))])
             }
         }
     }

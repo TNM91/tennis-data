@@ -107,7 +107,8 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   sheet.className='captain-lineup-dialog competitions-dialog league-entry-dialog'
   sheet.setAttribute('aria-labelledby','league-official-title')
   sheet.innerHTML='<header class="competition-header"><button type="button" class="secondary">Back to schedule</button></header>'+
-   '<div class="entry-hero"><h2 id="league-official-title" tabindex="-1" autofocus>Official result</h2></div>'+leagueResultHtml(result,true,'',undefined,true)
+   '<div class="entry-hero"><h2 id="league-official-title" tabindex="-1" autofocus>Official result</h2></div>'+
+   leagueResultHtml(result,snapshot?.detail?.league.format==='team','',undefined,true)
   sheet.querySelector('button')!.onclick=()=>sheet.close()
   sheet.onclose=()=>{sheet.remove();if(official===sheet)official=null;if(active())trigger.focus({preventScroll:true})}
   document.body.append(sheet);sheet.showModal()
@@ -134,7 +135,7 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   const scheduleAvailable=canSchedule||!!snapshot?.publishedSchedule?.length
   const tabs:View[]=detailsUnderReview
    ? ['home',...(scheduleAvailable?['fixtures' as const]:[]),...(approved||canReviewScores?['results' as const]:[]),...(approved?['standings' as const]:[])]
-   : ['home','fixtures','results',...(d?.league.format==='team'?['standings' as const]:[]),'participants']
+   : ['home','fixtures','results',...(d?.league.format==='team'||d?.playerStandings?['standings' as const]:[]),'participants']
   const fromLabel=calendarEntry?.fromUpdates?'Back to updates':'Back to calendar'
   const matchFilters=view==='fixtures'||view==='results'?filters[view]:undefined
   const displayedFilters=view==='fixtures'&&showFullSchedule?emptyLeagueMatchFilters():matchFilters

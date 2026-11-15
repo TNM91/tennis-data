@@ -108,7 +108,8 @@ export function openLeagueScores(
       pending = null; returning = false; note = ''
       if (card.state === 'approved') approved = true
       status = card.state === 'approved' ? 'Score approved. League standings are updated.' :
-        card.state === 'changes_requested' ? 'Returned to the captains for correction.' : 'Submitted for coordinator review.'
+        card.state === 'changes_requested' ? desk.leagueFormat==='individual'?'Returned to the player for correction.':
+          'Returned to the captains for correction.' : 'Submitted for coordinator review.'
     } catch {
       status = 'The change couldn’t be confirmed. Retry the same change or reload the scorecard.'
     } finally {
@@ -124,7 +125,7 @@ export function openLeagueScores(
       )) : []
       if (action === 'submit') validateLeagueScoreLines(lines, desk)
       const reason = action === 'return' ? note.trim().replace(/\s+/g, ' ') : ''
-      if (action === 'return' && !reason) throw Error('Tell the captain what needs correcting.')
+      if (action === 'return' && !reason) throw Error('Describe what needs correcting.')
       void save({ action, lines, note: reason, leagueId, matchId: selected,
         fixtureVersion: desk.fixtureVersion, revision: desk.card?.revision ?? null, requestId: crypto.randomUUID() })
     } catch (error) {
@@ -150,6 +151,7 @@ export function openLeagueScores(
     }
     if (desk) {
       const { match } = desk
+      const individual = desk.leagueFormat === 'individual'
       content = `<div class="lineup-court league-scheduler-summary"><strong>${html(match.a)} vs ${html(match.b)}</strong>
         <p>${html(date(match))}</p></div>`
       if (card) {
@@ -162,12 +164,12 @@ export function openLeagueScores(
           ${draft.map((line, i) => `<fieldset class="lineup-court"><legend>${html(slot(i))}</legend>
             ${desk?.slots.length ? '' : `<label>Format<select name="format-${i}" ${controls ? '' : 'disabled'}><option value="singles"${line.format === 'singles' ? ' selected' : ''}>Singles</option>
               <option value="doubles"${line.format === 'doubles' ? ' selected' : ''}>Doubles</option></select></label>`}
-            <label>Court outcome<select name="outcome-${i}" data-court-outcome ${controls ? '' : 'disabled'}>
+            <label>${individual?'Match outcome':'Court outcome'}<select name="outcome-${i}" data-court-outcome ${controls ? '' : 'disabled'}>
               <option value="played"${line.outcome==='played'?' selected':''}>Played</option>
               <option value="walkover"${line.outcome==='walkover'?' selected':''}>Walkover</option>
               <option value="retirement"${line.outcome==='retirement'?' selected':''}>Retirement</option></select></label>
-            ${line.outcome==='played'?'':`<label>Team awarded the court<select name="winner-${i}" required ${controls?'':'disabled'}>
-              <option value="">Choose team</option><option value="A"${line.winner==='A'?' selected':''}>${html(match.a)}</option>
+            ${line.outcome==='played'?'':`<label>${individual?'Match winner':'Team awarded the court'}<select name="winner-${i}" required ${controls?'':'disabled'}>
+              <option value="">${individual?'Choose player':'Choose team'}</option><option value="A"${line.winner==='A'?' selected':''}>${html(match.a)}</option>
               <option value="B"${line.winner==='B'?' selected':''}>${html(match.b)}</option></select></label>`}
             ${line.outcome==='walkover'?'<p class="rating-context">No score needed.</p>':`<label>${line.outcome==='retirement'?'Score when play stopped (optional)':'Set scores'}
               <input name="score-${i}" ${line.outcome==='played'?'required':''} maxlength="64" value="${html(line.score)}"
@@ -181,7 +183,7 @@ export function openLeagueScores(
         content += `<ol class="competition-standings">${card.lines.map((line, i) => `<li class="lineup-court">
           <strong>${html(slot(i))}</strong><p>${html(leagueCourtResultText(line))} · ${html(line.winner === 'A' ? match.a : match.b)}</p></li>`).join('')}</ol>`
       } else {
-        content += desk.canReview ? '<p>The captains haven’t submitted a scorecard yet.</p>' :
+        content += desk.canReview ? individual ? '<p>The players haven’t submitted a score yet.</p>' : '<p>The captains haven’t submitted a scorecard yet.</p>' :
           '<p>Scores open when the match starts. If the result is already recorded, look in Results.</p>'
       }
       if (card?.state === 'pending' && desk.canReview && controls) {

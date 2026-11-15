@@ -35,9 +35,15 @@ import {shiftCalendarDay} from '../../mobile/src/calendar-data'
 import {calendarTeamMatchesHeader} from '../../lib/native-calendar-contract'
 import {chatHitChangesHeader,chatHitsHeader,parseChatHitAction,type ChatHit} from '../../lib/chat-hit-contract'
 import {hittingPlanStart} from '../../lib/hitting-plan'
+import type {LeagueDraftWrite,SavedLeagueDraft} from '../../lib/native-league-draft-contract'
 import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLimit,teamScorecardsHeader,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
 const originalFetch=window.fetch.bind(window)
+const leagueDraftFixture={saved:null as SavedLeagueDraft|null,writes:[] as LeagueDraftWrite[]}
+const leagueCheckoutFixture={enabled:new URL(location.href).searchParams.has('league-checkout'),token:'',state:'ready',loseReceipt:true}
+const leagueCheckoutEnvironment=new URL(location.href).searchParams.get('league-checkout')==='production'?'Production':'Sandbox'
+const leagueCheckoutPublication='tiq-native-league-12345678-1234-4234-8234-123456789012'
+Object.assign(window,{leagueDraftFixture})
 const inboxSearchFixture=new URL(location.href).searchParams.has('chat-inbox-search')
 const hasInboxActivity=new URL(location.href).searchParams.has('chat-inbox-activity')
 const inboxActivityFixture={
@@ -105,16 +111,19 @@ const scopedLeagueSchedule={
  enabled:new URL(location.href).searchParams.has('league-schedule'),requests:[] as LeagueScheduleChange[],
  match:null as LeagueScheduleReview['matches'][number]|null,lostReply:true,
 }
+const leagueScoreMode=new URL(location.href).searchParams.get('league-score-review')
+const individualLeagueScore=leagueScoreMode==='individual'
+const individualScoreLeagueId='tiq-native-league-'+scheduleId(16)
 const scopedLeagueScore={
- enabled:new URL(location.href).searchParams.has('league-score-review'),coordinator:false,
- demo:new URL(location.href).searchParams.get('league-score-review')==='demo',
- matchDay:['match-day','postpone'].includes(new URL(location.href).searchParams.get('league-score-review')??''),
- postpone:new URL(location.href).searchParams.get('league-score-review')==='postpone',
+ enabled:leagueScoreMode!==null,coordinator:false,
+ demo:leagueScoreMode==='demo',
+ matchDay:individualLeagueScore||leagueScoreMode==='match-day'||leagueScoreMode==='postpone',
+ postpone:leagueScoreMode==='postpone',
  moved:null as LeagueScheduleReview['matches'][number]|null,
  reminders:new Map<string,string>(),
  reminderRequests:0,
  player:false,
- match:{id:scheduleId(10),a:'Baseline Aces',b:'Rally Crew',date:'2026-11-12',time:'18:30'},
+ match:{id:scheduleId(10),a:individualLeagueScore?'Jamie Serve':'Baseline Aces',b:individualLeagueScore?'Morgan Return':'Rally Crew',date:'2026-11-12',time:'18:30'},
  card:null as LeagueScoreCard|null,
 }
 Object.assign(window,{scopedRegistration,scopedLeagueEntry,scopedLeagueSchedule,scopedLeagueScore})
@@ -228,6 +237,50 @@ Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPat
 window.fetch=async(input,init)=>{
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
+ if(url.pathname==='/api/mobile/first-party/leagues/draft'){
+  const owner=currentNavigationOwner()
+  if(init?.method==='POST'){
+   const write=JSON.parse(String(init.body)) as LeagueDraftWrite
+   leagueDraftFixture.writes.push(write)
+   if(leagueDraftFixture.writes.length===1&&!leagueCheckoutFixture.enabled){
+    leagueDraftFixture.saved={draft:write.draft,revision:write.revision}
+    return Response.json({ok:false,scope:'first-party'},{status:503})
+   }
+   if(leagueDraftFixture.saved&&leagueDraftFixture.saved.revision!==write.revision&&leagueDraftFixture.saved.revision!==write.expected){
+    return Response.json({ok:false,scope:'first-party',code:'stale'},{status:409})
+   }
+   leagueDraftFixture.saved={draft:write.draft,revision:write.revision}
+  }
+  return Response.json({ok:true,scope:'first-party',owner,saved:leagueDraftFixture.saved})
+ }
+ if(url.pathname==='/api/mobile/first-party/leagues/publish'){
+  const draft=url.searchParams.get('draft')
+  const state=leagueCheckoutFixture
+  const common={ok:true,scope:'first-party',owner:currentNavigationOwner(),draft}
+  if(!state.enabled)return Response.json({...common,available:false})
+  if(draft!==leagueDraftFixture.saved?.revision)return Response.json({ok:false,code:'stale'},{status:409})
+  let start=false
+  let transactionId:string|undefined
+  if(init?.method==='POST'){
+   const body=JSON.parse(String(init.body))
+   if(body.action==='prepare'&&body.expected===draft&&state.state==='ready'){
+    state.state='pending';state.token=body.token;start=true
+   }
+   if(body.action==='cancel'&&body.token===state.token&&state.state==='pending'){
+    state.state='ready';state.token=''
+   }
+   if(body.action==='reconcile'&&body.signedTransaction==='fixture.checkout.'+state.token){
+    state.state='paid';transactionId='102'
+    if(state.loseReceipt){
+     state.loseReceipt=false
+     return Response.json({ok:false},{status:503})
+    }
+   }
+  }
+  return Response.json({...common,available:true,canStart:true,environment:leagueCheckoutEnvironment,productId:'com.tenaceiq.app.league.publish',
+   checkout:{state:state.state,...(state.token?{token:state.token}:{}),...(start?{start:true}:{}),
+    ...(leagueCheckoutEnvironment==='Production'&&state.state==='paid'?{publicId:leagueCheckoutPublication}:{})},transactionId})
+ }
  if(playerChatFixture.enabled&&url.pathname==='/api/mobile/first-party/player-chats/branding'){
   const {room,photo}=JSON.parse(String(init?.body))
   if(!playerChatFixture.group||room!==playerChatFixture.room)return Response.json({ok:false},{status:403})
@@ -785,6 +838,15 @@ window.fetch=async(input,init)=>{
   if(audience==='public')snapshot.owner=publicCompetitionOwner
   const scoped=url.pathname==='/api/mobile/first-party/competitions'
   if(scoped&&(snapshot.scope==='discover'||snapshot.detail))snapshot.connections=[]
+  const publication=leagueDraftFixture.saved?.draft
+  if(scoped&&publication&&leagueCheckoutFixture.state==='paid'&&url.searchParams.get('league')===leagueCheckoutPublication){
+   const league={...snapshot.leagues[0],id:leagueCheckoutPublication,name:publication.name,format:publication.format}
+   snapshot.leagues=[league]
+   snapshot.detail={...competitionDetail(),league,fixtures:[],results:[],participants:[],standings:[],standingsAvailable:false}
+   snapshot.connections=[{leagueId:league.id,kind:'organizer',status:'active'}]
+   snapshot.canReviewEntries=true
+   snapshot.canScheduleMatches=true
+  }
   if(scopedLeagueEntry.enabled){
    const league={...snapshot.leagues[0],name:'Northside Singles Ladder',format:'individual' as const}
    snapshot.leagues=[league]
@@ -813,21 +875,36 @@ window.fetch=async(input,init)=>{
    snapshot.connections=[{leagueId:id,kind:'organizer',status:'active'}]
    if(snapshot.detail){snapshot.detail.league=snapshot.leagues[0];snapshot.scoreReviewDemo=true}
   }
+  if(scoped&&individualLeagueScore){
+   const league={...snapshot.leagues[0],id:individualScoreLeagueId,format:'individual' as const,name:'Winter Singles League'}
+   snapshot.leagues=[league]
+   snapshot.connections=[]
+   if(snapshot.detail){
+    snapshot.detail.league=league
+    snapshot.detail.participants=[{name:scopedLeagueScore.match.a,status:'active'},{name:scopedLeagueScore.match.b,status:'active'}]
+    snapshot.detail.standingsAvailable=false
+    snapshot.detail.playerStandings=[]
+   }
+  }
   if(scoped&&snapshot.detail&&scopedLeagueScore.enabled){
    const {match,card,coordinator,matchDay,player}=scopedLeagueScore
    snapshot.detail.fixtures=[{...match,facility:'Northside Tennis Center · Court 1',status:'coordinator_set'}]
    if(!player&&audience!=='public')snapshot.canOpenLeagueScores=true
    if(coordinator){
-    snapshot.connections=[{leagueId:'league-one',kind:'organizer',status:'active'}]
+    snapshot.connections=[{leagueId:snapshot.detail.league.id,kind:'organizer',status:'active'}]
     snapshot.canReviewEntries=true
     if(scopedLeagueScore.postpone){snapshot.canScheduleMatches=true;snapshot.canPostponeMatches=true}
    }
    if(card?.state==='approved'){
     const [line]=card.lines,winner=line.winner==='A'?match.a:match.b,loser=winner===match.a?match.b:match.a
-    snapshot.detail.results=[{...match,id:scheduleId(11),winner,score:'',courts:card.lines.map((court,i)=>({
+    snapshot.detail.results=[{...match,id:scheduleId(11),winner,score:individualLeagueScore?leagueCourtResultText(line):'',
+     courts:individualLeagueScore?[]:card.lines.map((court,i)=>({
      label:'Line '+(i+1),a:'',b:'',winner:'Side '+court.winner,score:leagueCourtResultText(court),
     }))}]
-    snapshot.detail.standings=[{teamName:winner,wins:1,losses:0,ties:0,lineWins:1,lineLosses:0,points:1},
+    if(individualLeagueScore){
+     snapshot.detail.playerStandings=[{name:winner,wins:1,losses:0},{name:loser,wins:0,losses:1}]
+     snapshot.detail.standings=[]
+    }else snapshot.detail.standings=[{teamName:winner,wins:1,losses:0,ties:0,lineWins:1,lineLosses:0,points:1},
      {teamName:loser,wins:0,losses:1,ties:0,lineWins:0,lineLosses:1,points:0}]
    }else{
     snapshot.detail.results=[]
@@ -837,13 +914,13 @@ window.fetch=async(input,init)=>{
     const outcome=card?.state
     const action=outcome==='pending'?(coordinator?'review':'pending'):outcome==='changes_requested'?'fix':'enter'
     const otherMatch=scopedLeagueScore.moved??{...snapshot.detail.fixtures[0],id:scheduleId(13),date:'2026-11-11',a:'Topspin Club',b:'Deuce Crew'}
-    snapshot.detail.fixtures.push(otherMatch)
+    if(!individualLeagueScore)snapshot.detail.fixtures.push(otherMatch)
     snapshot.matchDay={
      matches:outcome==='approved'?[{id:match.id,action:'result',resultId:scheduleId(11)}]:
       player||(!['pending'].includes(outcome??'')&&coordinator)?[]:[{id:match.id,action}],
      ...(coordinator?{pendingReviews:outcome==='pending'?1:0}:{}),
     }
-    if(coordinator&&!player&&audience!=='public'&&new Headers(init?.headers).get('X-TenAceIQ-League-Attention')==='1'){
+    if(!individualLeagueScore&&coordinator&&!player&&audience!=='public'&&new Headers(init?.headers).get('X-TenAceIQ-League-Attention')==='1'){
      const next=(id:string)=>scopedLeagueScore.reminders.get(id)??null
      snapshot.attention=[...(scopedLeagueScore.moved?[]:[{id:otherMatch.id,fixtureDigest:'a'.repeat(64),since:'2026-11-12T06:00:00Z',
       revision:null,note:'',nextReminderAt:next(otherMatch.id)}]),
@@ -914,13 +991,14 @@ window.fetch=async(input,init)=>{
  }
  if(scopedLeagueScore.enabled&&url.pathname==='/api/mobile/first-party/competitions/scores'){
   const {match,card,coordinator,demo}=scopedLeagueScore
-  const owner=currentNavigationOwner(),leagueId=demo?'tiq-testflight-scores-'+owner:'league-one'
+  const owner=currentNavigationOwner(),leagueId=demo?'tiq-testflight-scores-'+owner:individualLeagueScore?individualScoreLeagueId:'league-one'
   const base={ok:true,releaseScope:'first-party',owner,leagueId}
   if(init?.method!=='POST'){
    if(!url.searchParams.has('match'))return Response.json({...base,matches:(coordinator||demo)&&card?.state==='pending'?[match]:[]})
    return Response.json({...base,desk:{match,fixtureVersion:'2026-11-13T12:00:00Z',card,
-    canSubmit:!coordinator||demo,canReview:coordinator||demo,thirdSetRule:'either',
-    slots:demo?[{label:'Singles 1',format:'singles'},{label:'Doubles 1',format:'doubles'},{label:'Doubles 2',format:'doubles'}]:[{label:'Singles 1',format:'singles'}]}})
+    canSubmit:!coordinator||demo,canReview:coordinator||demo,thirdSetRule:'either',...(individualLeagueScore?{leagueFormat:'individual'}:{}),
+    slots:demo?[{label:'Singles 1',format:'singles'},{label:'Doubles 1',format:'doubles'},{label:'Doubles 2',format:'doubles'}]:
+     [{label:individualLeagueScore?'Singles match':'Singles 1',format:'singles'}]}})
   }
   const body=JSON.parse(String(init.body)) as LeagueScoreChange | ReturnType<typeof readScoreReminder>
   if(body.action==='remind'){

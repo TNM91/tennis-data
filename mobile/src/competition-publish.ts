@@ -2,25 +2,30 @@ import { Capacitor } from '@capacitor/core'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { appleUuid, type AppleEnvironment } from '../../lib/apple-purchase-contract'
 import { FIRST_PARTY_COMPETITION_FEES } from '../../lib/first-party-competition-prices'
+import { nativeLeaguePublicationId } from '../../lib/native-league-publication'
 import { NativeApple, transaction, type AppleTransaction } from './apple-purchases'
 import { appleNativePurchaseError } from './apple-purchase-progress'
 import type { ScenarioSend } from './captain-scenarios-data'
 import { html } from './match-details'
 
-const { productId } = FIRST_PARTY_COMPETITION_FEES.tournament
 const canUseStore = () => Capacitor.getPlatform() === 'ios' && Capacitor.isPluginAvailable('TiqPurchases')
 type Checkout = { state: 'setup' | 'ready' | 'pending' | 'paid' | 'refunded'; token?: string; publicId?: string; start?: true }
-type Publication = { environment: AppleEnvironment; checkout: Checkout }
+type Publication = { environment: AppleEnvironment; checkout: Checkout; canStart: boolean }
 type Attempt = { token: string; cancelKey: string }
 
-export function mountTournamentPublish(
-  host: HTMLElement, client: SupabaseClient, owner: string, event: string, revision: string | null,
-  active: () => boolean, send: ScenarioSend, onOpen: (id: string) => void, setLocked: (locked: boolean, published: boolean) => void,
+export function mountCompetitionPublish(
+  kind: 'tournament' | 'league', host: HTMLElement, client: SupabaseClient, owner: string, id: string, revision: string | null,
+  active: () => boolean, send: ScenarioSend, onOpen: (id: string) => void,
+  setLocked: (locked: boolean, published: boolean, canStartAnother: boolean) => void,
 ) {
   if (!revision || !canUseStore()) return
+  const { productId } = FIRST_PARTY_COMPETITION_FEES[kind]
+  const league = kind === 'league'
+  const subject = league ? 'league season' : 'tournament'
+  const lookup = league ? 'draft' : 'event'
   let disposed = false
   const current = () => !disposed && active() && host.isConnected
-  const url = 'https://www.tenaceiq.com/api/mobile/first-party/tournaments/publish?' + new URLSearchParams({ event })
+  const url = `https://www.tenaceiq.com/api/mobile/first-party/${kind}s/publish?` + new URLSearchParams({ [lookup]: id })
   let publication: Publication | null = null
   let unavailable = false
   let price = ''
@@ -28,7 +33,7 @@ export function mountTournamentPublish(
   let notice = ''
   let stale = false
   let retryCancel: Attempt | null = null
-  const attemptKey = (environment: AppleEnvironment) => `tournament-checkout:${environment}:${owner}:${event}`
+  const attemptKey = (environment: AppleEnvironment) => `${kind}-checkout:${environment}:${owner}:${id}`
   const needsCheck = () => !unavailable && (publication?.checkout.state === 'pending' || !!notice &&
     (!!retryCancel || publication?.checkout.state !== 'ready' || !price))
 
@@ -64,19 +69,20 @@ export function mountTournamentPublish(
     const data = response.data
     if (response.status === 409 && data?.code === 'stale') throw Error('settings_changed')
     if (response.status !== 200 || data?.ok !== true || data.scope !== 'first-party' ||
-        data.owner !== owner || data.event !== event) throw Error('publish_unavailable')
+        data.owner !== owner || data[lookup] !== id) throw Error('publish_unavailable')
     if (!body && data.available === false) return null
     const checkout = data.checkout as Checkout | undefined
     if (data.available !== true || data.productId !== productId || !['Sandbox', 'Production'].includes(data.environment) ||
         !checkout || !['setup', 'ready', 'pending', 'paid', 'refunded'].includes(checkout.state) ||
         (['pending', 'paid', 'refunded'].includes(checkout.state) && !appleUuid(checkout.token)) ||
-        (checkout.publicId != null && (data.environment !== 'Production' || !/^tiq-native-event-[a-f0-9-]{36}$/.test(checkout.publicId))) ||
+        (checkout.publicId != null && (data.environment !== 'Production' ||
+          !(league ? nativeLeaguePublicationId(checkout.publicId) : /^tiq-native-event-[a-f0-9-]{36}$/.test(checkout.publicId)))) ||
         (data.environment === 'Production' && checkout.state === 'paid' && !checkout.publicId) ||
         (receipt && (data.transactionId !== receipt.transactionId || data.environment !== receipt.environment ||
           checkout.token !== receipt.accountToken || !['paid', 'refunded'].includes(checkout.state)))) {
       throw Error('publish_unavailable')
     }
-    return { environment: data.environment, checkout }
+    return { environment: data.environment, checkout, canStart: !league || data.canStart === true }
   }
 
   async function finish(tx: AppleTransaction) {
@@ -96,7 +102,7 @@ export function mountTournamentPublish(
       // Ask the server to close the token before discarding our cancel key.
       context = await cancel(unstarted, context.environment)
     }
-    if (context.checkout.state === 'ready' && !price) {
+    if (context.checkout.state === 'ready' && context.canStart && !price) {
       const catalog = await NativeApple.products({ environment: context.environment, productId })
       const value = catalog.available && catalog.products.find(product => product.id === productId)?.price
       if (typeof value !== 'string' || !value || value.length > 32) throw Error('price_unavailable')
@@ -126,7 +132,7 @@ export function mountTournamentPublish(
 
   async function buy() {
     const context = publication
-    if (!context || context.checkout.state !== 'ready' || !price || !revision) return
+    if (!context || context.checkout.state !== 'ready' || !context.canStart || !price || !revision) return
     const attempt = { token: crypto.randomUUID(), cancelKey: crypto.randomUUID() }
     // Only attempts that have yet to open StoreKit, or that Apple canceled, can be cleared on re-entry.
     rememberAttempt(context.environment, attempt)
@@ -177,7 +183,7 @@ export function mountTournamentPublish(
     catch (error) {
       const code = error instanceof Error ? error.message : ''
       stale ||= code === 'settings_changed'
-      notice = code === 'settings_changed' ? 'Settings changed. Reopen the tournament before publishing.' :
+      notice = code === 'settings_changed' ? league ? 'Your season draft changed. Reopen it to continue.' : 'Settings changed. Reopen the tournament before publishing.' :
         code === 'purchase_not_started' ? 'Apple couldn’t open checkout. Try again.' :
         code === 'price_unavailable' ? 'Apple pricing is unavailable. Try again shortly.' :
         publication?.checkout.state === 'pending' || retryCancel ? 'Checkout is still being checked. Check the purchase again shortly.' :
@@ -193,20 +199,25 @@ export function mountTournamentPublish(
     const context = publication
     const state = context?.checkout.state
     const publicId = state === 'paid' ? context?.checkout.publicId : undefined
-    setLocked(busy || state === 'pending' || (context?.environment === 'Production' && (state === 'paid' || state === 'refunded')), !!publicId)
+    const finished = context?.environment === 'Production' && (state === 'paid' || state === 'refunded')
+    setLocked(busy || state === 'pending' || finished, !!publicId, finished && !busy && !notice)
     if (unavailable || (busy && !context)) { host.replaceChildren(); return }
     const sandbox = context?.environment === 'Sandbox'
-    const status = busy ? 'Checking tournament publication…' : notice || {
-      setup: 'Set a future entry deadline to publish.',
-      ready: sandbox ? 'Test checkout keeps the tournament private.' : 'Publishing opens all divisions for player entries.',
+    const heading = league ? sandbox ? 'Test league checkout' : 'Publish league' : 'Publish tournament'
+    const status = busy ? `Checking ${subject} checkout…` : notice || {
+      setup: league ? 'Update the dates to publish a season that’s still open.' : 'Set a future entry deadline to publish.',
+      ready: league ? !context?.canStart ? 'Checkout is paused.' :
+        sandbox ? 'Try Apple’s sandbox checkout. Your league stays private.' : 'Publish this season to start accepting entry requests.' :
+        sandbox ? 'Test checkout keeps the tournament private.' : 'Publishing opens all divisions for player entries.',
       pending: 'Waiting for Apple to confirm this purchase.',
-      paid: sandbox ? 'Test purchase complete. Your tournament is private.' : 'Published. View your divisions and entry deadline.',
-      refunded: sandbox ? 'Apple refunded this test purchase.' : 'Apple refunded the purchase. The tournament is closed to new entries.',
+      paid: sandbox ? `Test purchase complete. Your ${league ? 'league draft' : 'tournament'} is private.` :
+        league ? 'Your season is published. Open it to review entry requests.' : 'Published. View your divisions and entry deadline.',
+      refunded: sandbox ? 'Apple refunded this test purchase.' : `Apple refunded the purchase. The ${subject} is closed to new entries.`,
     }[state ?? 'ready']
-    host.innerHTML = `<section class="entry-receipts" aria-label="Publish tournament"><article>
-      <strong>Publish tournament</strong><p role="status">${html(status)}</p>
-      ${busy ? '' : publicId ? '<button type="button" data-publish-open>View tournament</button>' :
-        state === 'ready' && price && !retryCancel && !stale ? `<button type="button" data-publish-buy>${sandbox ? 'Test publish' : 'Publish tournament'} · ${html(price)}</button>` : ''}
+    host.innerHTML = `<section class="entry-receipts" aria-label="${heading}"><article>
+      <strong>${heading}</strong><p role="status">${html(status)}</p>
+      ${busy ? '' : publicId ? `<button type="button" data-publish-open>View ${league ? 'league' : 'tournament'}</button>` :
+        state === 'ready' && context?.canStart && price && !retryCancel && !stale ? `<button type="button" data-publish-buy>${sandbox ? league ? 'Test checkout' : 'Test publish' : heading} · ${html(price)}</button>` : ''}
       ${!busy && needsCheck()
         ? '<button type="button" class="secondary" data-publish-check>Check purchase</button>' : ''}
     </article></section>`

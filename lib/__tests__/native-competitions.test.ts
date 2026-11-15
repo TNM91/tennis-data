@@ -1,6 +1,6 @@
 import {afterEach,describe,it,expect,vi} from 'vitest'
 import type {SupabaseClient,SupabaseClientOptions} from '@supabase/supabase-js'
-import {loadNativeCompetitions} from '../native-competitions'
+import {loadNativeCompetitions,reviewedSchedulingLeague} from '../native-competitions'
 import {competitionInput,publicCompetitionOwner,readCompetitionSnapshot} from '../native-competitions-contract'
 import {reviewedRevisionDigest} from '../first-party-revisions'
 import {attestedLeagueSchedule,leagueScheduleService} from '../native-league-schedule'
@@ -50,7 +50,7 @@ function fixture(){
  let leagueReads=0,profileReads=0,changePublic=false,changePlayer=false
  const db={from(table:string){const call={table,ops:[] as unknown[][]};calls.push(call);const filters:((r:Record<string,unknown>)=>boolean)[]=[];let limit=Infinity
   const get=()=>{if(table==='tiq_leagues'&&++leagueReads>1&&changePublic)return [];if(table==='profiles'&&++profileReads>1&&changePlayer)return [{id:owner,linked_player_id:'changed'}];return (tables[table]||[]).filter(r=>filters.every(f=>f(r))).slice(0,limit)}
-  const q={select(v:string){call.ops.push(['select',v]);return q},eq(k:string,v:unknown){call.ops.push(['eq',k,v]);filters.push(r=>r[k]===v);return q},neq(k:string,v:unknown){call.ops.push(['neq',k,v]);filters.push(r=>r[k]!==v);return q},in(k:string,v:unknown[]){call.ops.push(['in',k,v]);filters.push(r=>v.includes(r[k]));return q},ilike(k:string,v:string){call.ops.push(['ilike',k,v]);filters.push(r=>String(r[k]).toLowerCase().includes(v.slice(1,-1).replace(/\\(.)/g,'$1').toLowerCase()));return q},order(...v:unknown[]){call.ops.push(['order',...v]);return q},limit(v:number){limit=v;call.ops.push(['limit',v]);return q},abortSignal(){return q},maybeSingle(){const found=get();return Promise.resolve({data:found[0]||null,error:errors.has(table)?{}:null})},then(resolve:(v:unknown)=>unknown){return Promise.resolve({data:get(),error:errors.has(table)?{}:null}).then(resolve)}};return q}} as unknown as SupabaseClient
+  const q={select(v:string){call.ops.push(['select',v]);return q},eq(k:string,v:unknown){call.ops.push(['eq',k,v]);filters.push(r=>r[k]===v);return q},neq(k:string,v:unknown){call.ops.push(['neq',k,v]);filters.push(r=>r[k]!==v);return q},in(k:string,v:unknown[]){call.ops.push(['in',k,v]);filters.push(r=>v.includes(r[k]));return q},like(k:string,v:string){call.ops.push(['like',k,v]);filters.push(r=>String(r[k]).startsWith(v.slice(0,-1)));return q},ilike(k:string,v:string){call.ops.push(['ilike',k,v]);filters.push(r=>String(r[k]).toLowerCase().includes(v.slice(1,-1).replace(/\\(.)/g,'$1').toLowerCase()));return q},order(...v:unknown[]){call.ops.push(['order',...v]);return q},limit(v:number){limit=v;call.ops.push(['limit',v]);return q},abortSignal(){return q},maybeSingle(){const found=get();return Promise.resolve({data:found[0]||null,error:errors.has(table)?{}:null})},then(resolve:(v:unknown)=>unknown){return Promise.resolve({data:get(),error:errors.has(table)?{}:null}).then(resolve)}};return q}} as unknown as SupabaseClient
  return {db,tables,calls,errors,changePublic:()=>{changePublic=true},changePlayer:()=>{changePlayer=true}}
 }
 
@@ -64,6 +64,45 @@ describe('first-party league route', () => {
   }))
   f.calls.length=0
  }
+
+ it('shows only attested dates and approved results for a published season with scoped owner tools',async()=>{
+  const f=fixture(),id='tiq-native-league-12345678-1234-4234-8234-123456789012'
+  f.tables.tiq_leagues.push({...f.tables.tiq_leagues[0],id,league_name:'Winter Doubles',ends_on:'2099-01-25'})
+  f.tables.tiq_leagues.push({...f.tables.tiq_leagues[0],id:'tiq-native-league-spoof',league_name:'Copied league'})
+  f.tables.tiq_team_league_entries.push(
+   {id:'active-entry',league_id:id,created_by_user_id:'guest-owner',entry_status:'active',team_name:'Baseline Aces'},
+   {id:'pending-entry',league_id:id,created_by_user_id:owner,entry_status:'pending',team_name:'Pending Team'},
+  )
+  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS','{}')
+  publicClientFixture.mockReturnValueOnce(f.db).mockReturnValueOnce(f.db)
+  const found=await (await firstPartyCompetitions(request('?audience=public'))).json()
+  expect(found.leagues.map((league:{id:string})=>league.id)).toEqual([id])
+  const result=competitionDetail().results[0]
+  expect(result).toBeDefined()
+  const attestation={match:{id:'33333333-3333-4333-8333-000000000001',a:'Baseline Aces',b:'Rallies',date:'2026-11-06',time:'18:30',
+   facility:'Northside',court:'2',duration:90,status:'coordinator_set'},original:null}
+  vi.mocked(attestedLeagueSchedule).mockResolvedValueOnce([attestation]).mockResolvedValueOnce([attestation])
+  const rpc=vi.fn(()=>({retry:async()=>({data:[result],error:null})}))
+  vi.mocked(leagueScheduleService).mockReturnValueOnce({rpc} as unknown as SupabaseClient)
+   .mockReturnValueOnce({rpc} as unknown as SupabaseClient)
+  f.tables.tiq_league_schedule_items.push({...f.tables.tiq_league_schedule_items[0],id:'unattested',league_id:id})
+  const publicView=await (await firstPartyCompetitions(request('?audience=public&league='+id))).json()
+  expect(publicView.detail?.participants).toEqual([{name:'Baseline Aces',status:'active'}])
+  expect(publicView.detail?.fixtures).toMatchObject([{id:attestation.match.id,time:'18:30'}])
+  expect(publicView.detail?.results).toEqual([result])
+  expect(publicView.detail?.standings.length).toBeGreaterThan(0)
+  expect(publicView).not.toHaveProperty('canReviewEntries')
+  account(f.db)
+  const mine=await (await firstPartyCompetitions(request('?scope=mine'))).json()
+  expect(mine.connections).toEqual(expect.arrayContaining([{leagueId:id,kind:'organizer',status:'active'}]))
+  const owned=await (await firstPartyCompetitions(request('?league='+id+'&overview=1'))).json()
+  expect(owned).toMatchObject({canReviewEntries:true,canScheduleMatches:true,canOpenLeagueScores:true,detail:{league:{id}}})
+  expect(await reviewedSchedulingLeague(f.db,owner,id)).toMatchObject({id})
+  expect(await reviewedSchedulingLeague(f.db,'foreign',id)).toBeNull()
+  expect(loadPlayerAccess).not.toHaveBeenCalled()
+  f.tables.tiq_leagues.find(league=>league.id===id)!.is_public=false
+  expect((await firstPartyCompetitions(request('?league='+id))).status).toBe(503)
+ })
 
  it('uses only reviewed seasons for guest search and returns reviewed schedules, results and standings',async()=>{
   const f=fixture()
@@ -306,6 +345,9 @@ describe('first-party league route', () => {
   expect(publicClientFixture).not.toHaveBeenCalled()
   const empty=await firstPartyCompetitions(request())
   expect(readCompetitionSnapshot(await empty.json(),owner,'discover','','').leagues).toEqual([])
+  expect(f.calls).toHaveLength(1)
+  expect(f.calls[0].ops).toContainEqual(['like','id','tiq-native-league-%'])
+  f.calls.length=0
   vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS','{"league-one":{"summary":"invalid"}}')
   expect((await firstPartyCompetitions(request())).status).toBe(503)
   expect(f.calls).toHaveLength(0)

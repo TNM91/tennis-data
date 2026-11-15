@@ -15,7 +15,7 @@ import {scenarioOwner, type ScenarioSend} from './captain-scenarios-data'
 import {html} from './match-details'
 import {openTournamentPlan} from './tournament-plan'
 import {createTournamentPractice} from './tournament-practice'
-import {mountTournamentPublish} from './tournament-publish'
+import {mountCompetitionPublish} from './competition-publish'
 import {readTournamentSetupFields, tournamentSetupFields, tournamentSetupSummary} from './tournament-setup-fields'
 
 const storageKey = (owner: string) => 'tournament-draft:v1:' + owner
@@ -54,7 +54,7 @@ export function openTournamentDraft(
   let settingsStale = false
   let settingsSaved = false
   let planner: ReturnType<typeof openTournamentPlan> | null = null
-  let disposePublish: ReturnType<typeof mountTournamentPublish>
+  let disposePublish: ReturnType<typeof mountCompetitionPublish>
   let busy = false
   let disposed = false
   const active = () => !disposed && current()
@@ -377,7 +377,7 @@ export function openTournamentDraft(
         if (!selected || !active() || planner?.isOpen()) return
         planner = openTournamentPlan(client, owner, selected.revision, active, send, planButton, () => { planner = null })
       }
-      if (!rehearsal) disposePublish = mountTournamentPublish(publish, client, owner, selected.revision, selected.settingsRevision, active, send, id => {
+      if (!rehearsal) disposePublish = mountCompetitionPublish('tournament', publish, client, owner, selected.revision, selected.settingsRevision, active, send, id => {
         dispose()
         onClose()
         onPublished(id)

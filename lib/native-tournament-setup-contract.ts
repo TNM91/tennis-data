@@ -6,17 +6,7 @@ import {
 import { normalizeTournamentEventDetails } from './tournament-event-presentation'
 
 export const maxTournamentDivisions = 20
-export const tournamentTimeZones = {
-  'America/New_York': 'Eastern',
-  'America/Chicago': 'Central',
-  'America/Denver': 'Mountain',
-  'America/Phoenix': 'Arizona',
-  'America/Los_Angeles': 'Pacific',
-  'America/Anchorage': 'Alaska',
-  'America/Adak': 'Aleutian',
-  'Pacific/Honolulu': 'Hawaii',
-  'America/Puerto_Rico': 'Atlantic',
-} as const
+export { nativeCompetitionTimeZones as tournamentTimeZones } from './native-competition-time-zones'
 
 export type TournamentDivisionSetup = Pick<TournamentDraft, 'discipline' | 'format'> & { id: string; name: string }
 export type TournamentSettings = {

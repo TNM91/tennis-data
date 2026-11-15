@@ -5,6 +5,7 @@ import {formatTournamentEventFee} from './tournament-event-presentation'
 export const FIRST_PARTY_COMPETITION_FEES = {
   tournament: {productId: 'com.tenaceiq.app.tournament.publish', amountCents: 500, currency: 'usd', per: 'event'},
   league: {
+    productId: 'com.tenaceiq.app.league.publish',
     amountCents: getPricingPlan('league').billing.amountCents,
     currency: 'usd',
     per: 'season',
