@@ -57,6 +57,35 @@ function fixture(){
 describe('first-party league route', () => {
  const request=(query='',headers?:HeadersInit)=>new Request('https://example.test/api/mobile/first-party/competitions'+query,{headers})
  const account=(db:SupabaseClient)=>vi.mocked(getSignedInPlayerApiAuth).mockResolvedValue({ok:true,supabase:db,userId:owner,emailVerified:true})
+ it('keeps private entry rehearsal in the tester’s own entries and enables only entry review',async()=>{
+  const f=fixture(),id='tiq-native-league-e79ec308-8b38-4bf8-aac9-000000000001'
+  const practice={...f.tables.tiq_leagues[0],id,league_format:'individual',league_name:'TestFlight Singles Practice',is_public:false}
+  f.tables.tiq_leagues.push(practice)
+  let data:typeof practice|null=practice
+  const rpc=vi.fn(()=>({abortSignal:()=>({retry:async()=>({data,error:null})})}))
+  Object.assign(f.db,{rpc})
+  account(f.db)
+  vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS','{}')
+  publicClientFixture.mockReturnValueOnce(f.db)
+
+  const publicList=await (await firstPartyCompetitions(request('?audience=public'))).json()
+  const signedInBrowse=await (await firstPartyCompetitions(request('?scope=discover'))).json()
+  expect(publicList.leagues).toEqual([])
+  expect(signedInBrowse.leagues).toEqual([])
+  expect(rpc).not.toHaveBeenCalled()
+  const mine=await (await firstPartyCompetitions(request('?scope=mine'))).json()
+  expect(readCompetitionSnapshot(mine,owner,'mine','','')).toMatchObject({
+   leagues:[{id,name:'TestFlight Singles Practice'}],connections:[{leagueId:id,kind:'organizer',status:'active'}],
+  })
+  const detail=await (await firstPartyCompetitions(request('?scope=mine&league='+id))).json()
+  expect(readCompetitionSnapshot(detail,owner,'mine','',id)).toMatchObject({
+   canReviewEntries:true,detail:{fixtures:[],results:[]},
+  })
+  expect(detail.canScheduleMatches).toBeUndefined()
+  expect(detail.canOpenLeagueScores).toBeUndefined()
+  data=null
+  expect((await firstPartyCompetitions(request('?scope=mine&league='+id))).status).toBe(503)
+ })
  async function approve(f:ReturnType<typeof fixture>) {
   const {detail}=await loadNativeCompetitions(f.db,owner,'discover','','league-one')
   vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS',JSON.stringify({

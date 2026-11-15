@@ -8,6 +8,7 @@ import {publicLeague} from './native-competitions'
 import {readReviewedRevisions,reviewedRevisionDigest} from './first-party-revisions'
 import {nativeLeagueColumns} from './native-league-season'
 import {isPublishedNativeLeague,nativeLeaguePublicationId,publishedLeagueRegistrationOpen} from './native-league-publication'
+import {nativeLeagueEntryRehearsalId,readNativeLeagueEntryRehearsal} from './native-league-entry-rehearsal'
 type Row=Record<string,unknown>
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex')
@@ -19,6 +20,11 @@ async function owned(db:SupabaseClient,owner:string,id:string,firstParty:boolean
  entryLeague(id)
  const approval=firstParty?readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS,'detail').get(id):undefined
  if(!owner||firstParty&&!approval&&!nativeLeaguePublicationId(id))throw Error('League ownership unavailable')
+ if(firstParty&&nativeLeagueEntryRehearsalId(id)){
+  const rehearsal=await readNativeLeagueEntryRehearsal(db,owner,id)
+  if(!rehearsal)throw Error('League ownership unavailable')
+  return rehearsal
+ }
  const query=db.from('tiq_leagues').select(firstParty?nativeLeagueColumns+',is_public':leagueFields).eq('id',id).eq('created_by_user_id',owner)
  if(firstParty)query.eq('is_public',true).eq('season_status','active')
  const {data,error}=await query.abortSignal(timeout()).maybeSingle()
@@ -28,7 +34,7 @@ async function owned(db:SupabaseClient,owner:string,id:string,firstParty:boolean
  return league
 }
 const table=(l:Row)=>l.league_format==='team'?'tiq_team_league_entries':'tiq_player_league_entries'
-const decisionOpen=(league:Row,firstParty:boolean)=>firstParty&&isPublishedNativeLeague(league)
+const decisionOpen=(league:Row,firstParty:boolean)=>firstParty&&nativeLeaguePublicationId(league.id)
  ?publishedLeagueRegistrationOpen(league):['draft','active'].includes(text(league.season_status))
 const fields=(l:Row)=>common+','+(l.league_format==='team'?'team_name':playerFields)
 function reviewableEntries(db:SupabaseClient,league:Row,firstParty:boolean){
@@ -78,7 +84,7 @@ export async function decideNativeLeagueEntry(db:SupabaseClient,owner:string,bod
  if(receipt.id!==entry.id||input.decision==='information'&&(!receipt.actionRequired||receipt.requestNote!==input.note)||input.decision!=='information'&&receipt.status!==input.decision)throw Error('Decision outcome unavailable')
  // App-published league notices are written with the receipt. Keep the
  // existing website notification for older leagues.
- const native=firstParty&&isPublishedNativeLeague(l)
+ const native=firstParty&&nativeLeaguePublicationId(l.id)
  let notified=native&&(saved.data as unknown as Row).notified===true
  const recipient=text(source.created_by_user_id)
  if(!native&&recipient&&recipient!==owner){try{const n=await db.from('internal_notifications').insert({recipient_profile_id:recipient,actor_user_id:owner,notification_type:'system',title:input.decision==='active'?'League entry approved':input.decision==='information'?'League entry needs information':'League entry update',body:input.decision==='information'?text(l.league_name)+': '+input.note:entry.name+', your request for '+text(l.league_name)+(input.decision==='active'?' was approved.':' was not approved.'),href:'/compete#my-entries'}).abortSignal(timeout());notified=!n.error}catch{/* Saved receipt remains authoritative. */}}

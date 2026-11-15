@@ -7,6 +7,7 @@ import {attestedLeagueSchedule,mergeAttestedLeagueMatches,readAttestedLeagueSche
 import {beforeApprovedLeagueScores,loadApprovedLeagueScores,standingsFromLeagueScores,standingsFromIndividualScores} from './native-league-score-public'
 import {readTestflightScoreLeague,testflightLeagueScoreId} from './testflight-league-scores'
 import {isPublishedNativeLeague,nativeLeaguePrefix,nativeLeaguePublicationId} from './native-league-publication'
+import {nativeLeagueEntryRehearsalId,readNativeLeagueEntryRehearsal} from './native-league-entry-rehearsal'
 type Row=Record<string,unknown>
 const columns=nativeLeagueColumns+',is_public'
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
@@ -31,6 +32,17 @@ export async function loadTestflightLeagueScores(db:SupabaseClient,owner:string,
  if(!input.selected&&input.query&&!league.name.toLowerCase().includes(input.query.toLowerCase()))return null
  const detail=input.selected?await readNativeLeagueSeason(db,league,source,get,true):null
  return {league,detail}
+}
+
+export async function loadLeagueEntryRehearsal(db: SupabaseClient, owner: string, input: ReturnType<typeof competitionInput>) {
+ if (input.selected ? !nativeLeagueEntryRehearsalId(input.selected) : input.scope !== 'mine') return null
+ const get = () => readNativeLeagueEntryRehearsal(db, owner, input.selected || null)
+ const row = await get()
+ if (!row) return null
+ const league = leagueSummary(row)
+ if (!input.selected && input.query && !league.name.toLowerCase().includes(input.query.toLowerCase())) return null
+ const detail = input.selected ? await readNativeLeagueRegistration(db, league, row, get) : null
+ return { league, detail }
 }
 type LeagueApprovals = ReadonlyMap<string, { summary: string; detail: string }>
 
