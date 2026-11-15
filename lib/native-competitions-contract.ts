@@ -5,6 +5,7 @@ import {readScheduledLeagueMatch} from './native-league-schedule-contract'
 import {testflightLeagueScoreId} from './testflight-league-scores'
 import {courtAccountId} from './native-court-result-contract'
 import {readLeagueAttention,type LeagueAttentionRow} from './native-league-attention-contract'
+import {nativeLeaguePublicationId} from './native-league-publication'
 export type CompetitionScope='discover'|'mine'
 export const publicCompetitionOwner='public-competitions'
 export type CompetitionConnection={leagueId:string;kind:'player'|'team'|'organizer';status:'active'|'pending'|'rejected'|'removed'}
@@ -45,14 +46,15 @@ export function readCompetitionSnapshot(value:unknown,owner:string,scope:Competi
   if(!detail)throw Error('Invalid league standings')
   approvedScores={results:detail.results.map(readOfficeResult),standings:detail.standings}
  }
- if(r.canOpenLeagueScores===true&&(!selected||owner===publicCompetitionOwner||base.detail?.league.format!=='team'))throw Error('Invalid score review access')
+ const supportsScoreReview=!!base.detail&&(base.detail.league.format==='team'||nativeLeaguePublicationId(base.detail.league.id))
+ if(r.canOpenLeagueScores===true&&(!selected||owner===publicCompetitionOwner||!supportsScoreReview))throw Error('Invalid score review access')
  if(r.scoreReviewDemo===true&&(!selected||selected!==testflightLeagueScoreId(owner)||r.canOpenLeagueScores!==true||
     r.canScheduleMatches===true||r.canReviewEntries===true||!connections.some(c=>c.leagueId===selected&&c.kind==='organizer')))throw Error('TestFlight league context changed')
  if(r.canPostponeMatches===true&&(base.detail?.league.format!=='team'||r.canScheduleMatches!==true&&r.scoreReviewDemo!==true))throw Error('Match change access changed')
  let matchDay:CompetitionSnapshot['matchDay']
  if(r.matchDay!==undefined){
   const source=lineupRecord(r.matchDay),canReview=r.canReviewEntries===true||r.scoreReviewDemo===true
-  if(!base.detail||base.detail.league.format!=='team'||!Array.isArray(source.matches)||source.matches.length>100)throw Error('Invalid Match Day')
+  if(!base.detail||!supportsScoreReview||!Array.isArray(source.matches)||source.matches.length>100)throw Error('Invalid Match Day')
   const fixtures=new Map((publishedSchedule??base.detail.fixtures).map(f=>[f.id,f]))
   const results=new Map((approvedScores?.results??base.detail.results).map(result=>[result.id,result]))
   const ids=new Set<string>()

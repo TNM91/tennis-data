@@ -4,7 +4,8 @@ export type OfficeLeague={id:string;name:string;format:'team'|'individual';seaso
 export type OfficeParticipant={name:string;status:string}
 export type OfficeFixture={id:string;date:string;time:string;facility:string;a:string;b:string;status:string}
 export type OfficeResult={id:string;date:string;a:string;b:string;winner:string;score:string;courts:{label:string;a:string;b:string;winner:string;score:string}[]}
-export type OfficeDetail={league:OfficeLeague;participants:OfficeParticipant[];fixtures:OfficeFixture[];results:OfficeResult[];standings:TiqTeamStandingRow[];moreParticipants:boolean;moreFixtures:boolean;moreResults:boolean;standingsAvailable:boolean}
+export type OfficePlayerStanding={name:string;wins:number;losses:number}
+export type OfficeDetail={league:OfficeLeague;participants:OfficeParticipant[];fixtures:OfficeFixture[];results:OfficeResult[];standings:TiqTeamStandingRow[];playerStandings?:OfficePlayerStanding[];moreParticipants:boolean;moreFixtures:boolean;moreResults:boolean;standingsAvailable:boolean}
 export type OfficeSnapshot={owner:string;checkedAt:string;leagues:OfficeLeague[];moreLeagues:boolean;detail:OfficeDetail|null}
 const text=(v:unknown,max=240)=>{if(typeof v!=='string'||v.length>max)throw Error('Invalid league response');return v}
 function array<T>(v:unknown,max:number,read:(v:unknown)=>T):T[]{if(!Array.isArray(v)||v.length>max)throw Error('Invalid league response');return v.map(read)}
@@ -22,6 +23,17 @@ export function readOfficeSnapshot(v:unknown,owner:string,selected:string):Offic
  const r=lineupRecord(v);if(r.ok!==true||r.owner!==owner||!owner)throw Error('League account changed');const checkedAt=text(r.checkedAt,80);if(!Number.isFinite(Date.parse(checkedAt)))throw Error('Invalid league check time')
  const leagues=unique(array(r.leagues,20,league));let detail:OfficeDetail|null=null
  if(selected){const d=lineupRecord(r.detail),l=league(d.league);if(l.id!==selected||!leagues.some(x=>x.id===selected))throw Error('League selection changed');detail={league:l,participants:array(d.participants,100,v=>{const p=lineupRecord(v),status=text(p.status);if(!['active','pending','removed','rejected'].includes(status))throw Error('Invalid participant state');return {name:text(p.name),status}}),fixtures:unique(array(d.fixtures,100,v=>{const p=lineupRecord(v),status=text(p.status);if(!['proposed','confirmed','coordinator_set','completed','cancelled','postponed'].includes(status))throw Error('Invalid schedule state');return {id:text(p.id),date:text(p.date),time:text(p.time),facility:text(p.facility),a:text(p.a),b:text(p.b),status}})),results:unique(array(d.results,100,v=>{const p=lineupRecord(v);return {id:text(p.id),date:text(p.date),a:text(p.a),b:text(p.b),winner:text(p.winner),score:text(p.score),courts:array(p.courts,30,v=>{const c=lineupRecord(v);return {label:text(c.label),a:text(c.a),b:text(c.b),winner:text(c.winner),score:text(c.score)}})}})),standings:array(d.standings,200,v=>{const p=lineupRecord(v),row={teamName:text(p.teamName)} as TiqTeamStandingRow;for(const k of ['wins','losses','ties','lineWins','lineLosses','points'] as const){if(typeof p[k]!=='number'||!Number.isFinite(p[k])||p[k]<0)throw Error('Invalid standings');row[k]=p[k]}return row}),moreParticipants:bool(d.moreParticipants),moreFixtures:bool(d.moreFixtures),moreResults:bool(d.moreResults),standingsAvailable:bool(d.standingsAvailable)};if(!detail.standingsAvailable&&detail.standings.length)throw Error('Incomplete standings')
+  if(d.playerStandings!==undefined){
+   if(l.format!=='individual')throw Error('Invalid player standings')
+   detail.playerStandings=array(d.playerStandings,1000,v=>{
+    const {name,wins,losses}=lineupRecord(v)
+    if(typeof wins!=='number'||typeof losses!=='number'||!Number.isSafeInteger(wins)||!Number.isSafeInteger(losses)||
+       wins<0||losses<0||wins+losses===0||wins+losses>500)throw Error('Invalid player record')
+    return {name:text(name),wins,losses}
+   })
+   if(new Set(detail.playerStandings.map(row=>row.name)).size!==detail.playerStandings.length||
+      detail.playerStandings.some(row=>!row.name.trim()))throw Error('Ambiguous player standings')
+  }
  }else if(r.detail!==null)throw Error('Unexpected league detail')
  return {owner,checkedAt,leagues,moreLeagues:bool(r.moreLeagues),detail}
 }

@@ -3,7 +3,7 @@ import {createPrivateKey} from 'node:crypto'
 import fetch from 'node-fetch'
 import {AppStoreServerAPIClient,Environment,SignedDataVerifier,type JWSTransactionDecodedPayload} from '@apple/app-store-server-library'
 import {APPLE_TRUST_ROOTS} from './apple-trust-roots'
-import {appleMembership,appleUuid,type AppleEnvironment} from './apple-purchase-contract'
+import {appleMembership,appleTransactionId,appleUuid,type AppleEnvironment} from './apple-purchase-contract'
 
 export const APPLE_APP_ID=6826324431
 export const APPLE_GROUP_ID='22523692'
@@ -46,6 +46,33 @@ export function appleTransactionVerification(config:ApplePurchaseConfiguration) 
   },
  }
 }
+function validatedCompetitionTransaction(data: JWSTransactionDecodedPayload, config: ApplePurchaseConfiguration, productId: string) {
+  const { transactionId, appAccountToken, signedDate } = data
+  if (!appleTransactionId(transactionId) || !appleUuid(appAccountToken) ||
+      data.environment !== config.environment || data.bundleId !== 'com.tenaceiq.app' || data.productId !== productId ||
+      data.type !== 'Consumable' || data.inAppOwnershipType !== 'PURCHASED' || data.quantity !== 1 ||
+      data.storefront !== 'USA' || typeof signedDate !== 'number' || signedDate <= 0 ||
+      !Number.isSafeInteger(signedDate) || signedDate > Date.now() + 300000) {
+    throw Error('Apple transaction mismatch')
+  }
+  return { id: transactionId, token: appAccountToken.toLowerCase(), signedAt: new Date(signedDate).toISOString(),
+    revoked: data.revocationDate !== undefined }
+}
+
+export async function currentAppleCompetitionPurchase(
+  config: ApplePurchaseConfiguration, signed: string, productId: string,
+  verification = appleTransactionVerification(config),
+) {
+  if (signed.length > 24000 || !/^[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+$/.test(signed)) {
+    throw Error('Apple transaction mismatch')
+  }
+  const submitted = validatedCompetitionTransaction(await verification.decode(signed), config, productId)
+  // Check Apple's current representation before using an older signed receipt.
+  const current = validatedCompetitionTransaction(await verification.current(submitted.id), config, productId)
+  if (current.id !== submitted.id || current.token !== submitted.token) throw Error('Apple transaction mismatch')
+  return current
+}
+
 export async function currentAppleMembership(signedTransaction:string,token:string,environment:AppleEnvironment,verification:AppleVerification){
  if(!appleUuid(token)||typeof signedTransaction!=='string'||signedTransaction.length>24000||!/^[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+\.[-_A-Za-z0-9]+$/.test(signedTransaction))throw Error('apple_transaction_mismatch')
  const submitted=await verification.decode(signedTransaction)

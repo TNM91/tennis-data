@@ -3,6 +3,7 @@ import {applePurchaseConfiguration,appleVerifier,APPLE_APP_ID} from '@/lib/apple
 import {appleUuid,type AppleEnvironment} from '@/lib/apple-purchase-contract'
 import {appleUnavailable,reconcileApplePurchase} from '@/lib/apple-purchase-api'
 import {applyTournamentApplePurchase} from '@/lib/apple-tournament-publication'
+import {applyLeagueApplePurchase} from '@/lib/apple-league-publication'
 import {FIRST_PARTY_COMPETITION_FEES} from '@/lib/first-party-competition-prices'
 export const runtime='nodejs'
 export const maxDuration=60
@@ -18,6 +19,11 @@ export async function POST(request:Request,{params}:{params:Promise<{environment
   if(payload.version!=='2.0'||!appleUuid(payload.notificationUUID)||payload.data?.environment!==environment||payload.data.bundleId!=='com.tenaceiq.app'||environment==='Production'&&payload.data.appAppleId!==APPLE_APP_ID)return accountResponse({ok:false},400)
   if(payload.notificationType==='TEST'||!payload.data.signedTransactionInfo)return accountResponse({ok:true})
   const transaction=await verifier.verifyAndDecodeTransaction(payload.data.signedTransactionInfo)
+  if(transaction.productId===FIRST_PARTY_COMPETITION_FEES.league.productId){
+   if(!['ONE_TIME_CHARGE','REFUND','REFUND_REVERSED'].includes(payload.notificationType||''))return accountResponse({ok:true})
+   const result=await applyLeagueApplePurchase(accountClient(key),{...base,environment},payload.data.signedTransactionInfo,null,null)
+   return result.outcome.state||['missing','forbidden'].includes(result.outcome.code)?accountResponse({ok:true}):appleUnavailable()
+  }
   if(transaction.productId===FIRST_PARTY_COMPETITION_FEES.tournament.productId){
    if(!['ONE_TIME_CHARGE','REFUND','REFUND_REVERSED'].includes(payload.notificationType||''))return accountResponse({ok:true})
    const result=await applyTournamentApplePurchase(accountClient(key),{...base,environment},payload.data.signedTransactionInfo,null,null)

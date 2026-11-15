@@ -7,6 +7,7 @@ import {accountClient} from './mobile-account-auth'
 import {publicLeague} from './native-competitions'
 import {readReviewedRevisions,reviewedRevisionDigest} from './first-party-revisions'
 import {nativeLeagueColumns} from './native-league-season'
+import {isPublishedNativeLeague,nativeLeaguePublicationId,publishedLeagueRegistrationOpen} from './native-league-publication'
 type Row=Record<string,unknown>
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex')
@@ -17,16 +18,18 @@ const playerFields='player_name,eligibility_rating,eligibility_rating_source,eli
 async function owned(db:SupabaseClient,owner:string,id:string,firstParty:boolean){
  entryLeague(id)
  const approval=firstParty?readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS,'detail').get(id):undefined
- if(!owner||firstParty&&!approval)throw Error('League ownership unavailable')
+ if(!owner||firstParty&&!approval&&!nativeLeaguePublicationId(id))throw Error('League ownership unavailable')
  const query=db.from('tiq_leagues').select(firstParty?nativeLeagueColumns+',is_public':leagueFields).eq('id',id).eq('created_by_user_id',owner)
  if(firstParty)query.eq('is_public',true).eq('season_status','active')
  const {data,error}=await query.abortSignal(timeout()).maybeSingle()
  const league=data as Row|null
  if(error||!league||league.id!==id||league.created_by_user_id!==owner||!['team','individual'].includes(text(league.league_format)))throw Error('League ownership unavailable')
- if(approval&&(league.season_status!=='active'||approval.summary!==reviewedRevisionDigest(publicLeague(league))))throw Error('League ownership unavailable')
+ if(firstParty&&!isPublishedNativeLeague(league)&&(!approval||approval.summary!==reviewedRevisionDigest(publicLeague(league))))throw Error('League ownership unavailable')
  return league
 }
 const table=(l:Row)=>l.league_format==='team'?'tiq_team_league_entries':'tiq_player_league_entries'
+const decisionOpen=(league:Row,firstParty:boolean)=>firstParty&&isPublishedNativeLeague(league)
+ ?publishedLeagueRegistrationOpen(league):['draft','active'].includes(text(league.season_status))
 const fields=(l:Row)=>common+','+(l.league_format==='team'?'team_name':playerFields)
 function reviewableEntries(db:SupabaseClient,league:Row,firstParty:boolean){
  const query=db.from(table(league)).select(fields(league)).eq('league_id',league.id).eq('entry_status','pending')
@@ -52,7 +55,7 @@ export async function loadNativeLeagueDecisions(db:SupabaseClient,owner:string,i
  if(r.error||!Array.isArray(data)||data.length>101||data.some(e=>e.league_id!==id||e.entry_status!=='pending'))throw Error('Requests unavailable')
  const latest=await owned(db,owner,id,firstParty);if(JSON.stringify(latest)!==JSON.stringify(l))throw Error('League changed')
  const entries=data.slice(0,100).map(e=>project(l,e,owner));if(new Set(entries.map(e=>e.id)).size!==entries.length)throw Error('Ambiguous requests')
- return {owner,leagueId:id,leagueName:text(l.league_name),format:l.league_format as DecisionReview['format'],checkedAt:new Date().toISOString(),open:['draft','active'].includes(text(l.season_status)),entries,more:data.length>100}
+ return {owner,leagueId:id,leagueName:text(l.league_name),format:l.league_format as DecisionReview['format'],checkedAt:new Date().toISOString(),open:decisionOpen(l,firstParty),entries,more:data.length>100}
 }
 const fail=(status:number,message:string)=>({ok:false as const,status,message})
 export async function decideNativeLeagueEntry(db:SupabaseClient,owner:string,body:unknown,firstParty=false){
@@ -62,7 +65,7 @@ export async function decideNativeLeagueEntry(db:SupabaseClient,owner:string,bod
  if(r.error)throw Error('Request unavailable');if(!r.data)return fail(409,'This entry changed. Refresh requests before deciding.')
  const source=r.data as unknown as Row,entry=project(l,source,owner)
  if(entry.status!=='pending'||entry.review!==input.review)return fail(409,'This entry changed. Refresh requests before deciding.')
- if(!['draft','active'].includes(text(l.season_status)))return fail(409,'This season is closed for entry decisions.')
+ if(!decisionOpen(l,firstParty))return fail(409,'This season is closed for entry decisions.')
  if(input.decision==='information'&&(l.league_format!=='individual'||!input.note))return fail(400,'Tell the player what information is missing.')
  if(input.decision==='active'&&(!input.confirmed||entry.eligibility==='ineligible'||entry.actionRequired||entry.eligibility==='needs_confirmation'&&!input.note))return fail(400,'Review and confirm eligibility before approval. Resolve missing information first.')
  const latest=await owned(db,owner,input.leagueId,firstParty);if(JSON.stringify(latest)!==JSON.stringify(l))return fail(409,'League details changed. Refresh requests before deciding.')

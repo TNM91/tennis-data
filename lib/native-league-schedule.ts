@@ -38,9 +38,7 @@ export async function postponeLeagueMatch(owner: string, league: OfficeLeague, i
   return lineupRecord(data)
 }
 
-// A saved revision may replace its reviewed predecessor, or add a fixture.
-// Any other league edits still require the existing review.
-export function mergeAttestedLeagueMatches(detail: OfficeDetail, value: unknown, approvedDigest: string) {
+function attestedMatches(value: unknown) {
   if (!Array.isArray(value) || value.length > 500) throw Error('League schedule unavailable')
   const matches = new Map<string, { current: OfficeFixture; original: OfficeFixture | null }>()
   for (const entry of value) {
@@ -59,7 +57,19 @@ export function mergeAttestedLeagueMatches(detail: OfficeDetail, value: unknown,
     }
     matches.set(id, { current: { id, a, b, date, time, facility, status }, original })
   }
-  const chronological = (a: OfficeFixture, b: OfficeFixture) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id)
+  return matches
+}
+
+const chronological = (a: OfficeFixture, b: OfficeFixture) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id)
+
+export function readAttestedLeagueSchedule(value: unknown) {
+  return [...attestedMatches(value).values()].map(({current})=>current).sort(chronological)
+}
+
+// A saved revision may replace its reviewed predecessor, or add a fixture.
+// Any other league edits still require the existing review.
+export function mergeAttestedLeagueMatches(detail: OfficeDetail, value: unknown, approvedDigest: string) {
+  const matches = attestedMatches(value)
   const seen = new Set<string>()
   const baseline = detail.fixtures.flatMap(fixture => {
     const attested = matches.get(fixture.id)

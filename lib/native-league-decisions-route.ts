@@ -1,6 +1,7 @@
 import { getSignedInPlayerApiAuth, loadPlayerAccess } from './player-api-auth'
 import { decideNativeLeagueEntry, loadNativeLeagueDecisions } from './native-league-decisions'
 import { entryLeague } from './native-league-entry-contract'
+import { nativeLeaguePublicationId } from './native-league-publication'
 
 const headers = { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' }
 const respond = (firstParty: boolean) => (data: object, status: number) =>
@@ -13,12 +14,9 @@ async function authorize(request: Request, firstParty: boolean) {
     auth.response.headers.set('Cache-Control', headers['Cache-Control'])
     return auth
   }
-  const access = await loadPlayerAccess(auth.supabase, auth.userId)
-  return access.canUseLeagueTools ? auth : {
-    ok: false as const,
-    response: respond(firstParty)({ ok: false, message: 'League Office access is required.' }, 403),
-  }
+  return auth
 }
+const denied = (firstParty:boolean) => respond(firstParty)({ ok: false, message: 'League Office access is required.' }, 403)
 
 export async function getLeagueEntryRequests(request: Request, firstParty = false) {
   const json = respond(firstParty)
@@ -33,6 +31,8 @@ export async function getLeagueEntryRequests(request: Request, firstParty = fals
     } catch {
       return json({ ok: false, message: 'Choose a league.' }, 400)
     }
+    if (firstParty && nativeLeaguePublicationId(id) ? auth.emailVerified !== true :
+      !(await loadPlayerAccess(auth.supabase, auth.userId)).canUseLeagueTools) return denied(firstParty)
     const result = firstParty
       ? await loadNativeLeagueDecisions(auth.supabase, auth.userId, id, true)
       : await loadNativeLeagueDecisions(auth.supabase, auth.userId, id)
@@ -73,6 +73,9 @@ export async function postLeagueEntryDecision(request: Request, firstParty = fal
     } catch {
       return json({ ok: false, message: 'Check your entry decision.' }, 400)
     }
+    const id = body && typeof body === 'object' && 'leagueId' in body ? body.leagueId : null
+    if (firstParty && nativeLeaguePublicationId(id) ? auth.emailVerified !== true :
+      !(await loadPlayerAccess(auth.supabase, auth.userId)).canUseLeagueTools) return denied(firstParty)
     const result = firstParty
       ? await decideNativeLeagueEntry(auth.supabase, auth.userId, body, true)
       : await decideNativeLeagueEntry(auth.supabase, auth.userId, body)
