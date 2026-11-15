@@ -41,13 +41,21 @@ export async function loadLeagueEntryRehearsal(db: SupabaseClient, owner: string
  if (!row) return null
  const league = leagueSummary(row)
  if (!input.selected && input.query && !league.name.toLowerCase().includes(input.query.toLowerCase())) return null
+ const organizer = row.created_by_user_id === owner
+ const status = row.viewer_entry_status
+ const connection: CompetitionConnection | undefined = organizer
+   ? { leagueId: league.id, kind: 'organizer', status: 'active' }
+   : status === 'active' || status === 'pending' || status === 'rejected' || status === 'removed'
+     ? { leagueId: league.id, kind: 'player', status }
+     : undefined
+ const rehearsal = { league, organizer, connection, source: row }
  const registration = input.selected ? await readNativeLeagueRegistration(db, league, row, get) : null
  const matchDay = rehearsalMatchDay(row)
- if (!registration || !matchDay) return { league, detail: registration, matchDayEnabled: false, source: row }
+ if (!registration || !matchDay) return { ...rehearsal, detail: registration, matchDayEnabled: false }
  const fixtures = readAttestedLeagueSchedule(matchDay.fixtures)
  if (!Array.isArray(matchDay.results) || matchDay.results.length > 500) throw Error('Rehearsal results unavailable')
  const results = matchDay.results.map(readOfficeResult)
- return { league, source: row, matchDayEnabled: true, detail: {
+ return { ...rehearsal, matchDayEnabled: true, detail: {
    ...registration, fixtures: fixtures.slice(0, 100), moreFixtures: fixtures.length > 100,
    results: results.slice(0, 100), moreResults: results.length > 100,
    playerStandings: standingsFromIndividualScores(results),
@@ -63,7 +71,7 @@ type LeagueApprovals = ReadonlyMap<string, { summary: string; detail: string }>
 export async function reviewedSchedulingLeague(db: SupabaseClient, owner: string, id: string) {
  if (nativeLeagueEntryRehearsalId(id)) {
   const source = await readNativeLeagueEntryRehearsal(db, owner, id)
-  return source && rehearsalMatchDay(source) ? leagueSummary(source) : null
+  return source && source.created_by_user_id === owner && rehearsalMatchDay(source) ? leagueSummary(source) : null
  }
  const native=nativeLeaguePublicationId(id)
  const approval=native?undefined:readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS,'detail').get(id)

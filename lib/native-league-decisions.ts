@@ -22,7 +22,7 @@ async function owned(db:SupabaseClient,owner:string,id:string,firstParty:boolean
  if(!owner||firstParty&&!approval&&!nativeLeaguePublicationId(id))throw Error('League ownership unavailable')
  if(firstParty&&nativeLeagueEntryRehearsalId(id)){
   const rehearsal=await readNativeLeagueEntryRehearsal(db,owner,id)
-  if(!rehearsal)throw Error('League ownership unavailable')
+  if(!rehearsal||rehearsal.created_by_user_id!==owner)throw Error('League ownership unavailable')
   return rehearsal
  }
  const query=db.from('tiq_leagues').select(firstParty?nativeLeagueColumns+',is_public':leagueFields).eq('id',id).eq('created_by_user_id',owner)

@@ -65,14 +65,14 @@ export async function GET(request: Request) {
       const snapshot: CompetitionSnapshot = {
         owner: auth.userId, checkedAt: new Date().toISOString(), scope: input.scope, query: input.query,
         leagues: [rehearsal.league], detail: rehearsal.detail, moreLeagues: false, moreConnections: false,
-        connections: [{ leagueId: rehearsal.league.id, kind: 'organizer', status: 'active' }],
-        canReviewEntries: true,
+        connections: rehearsal.connection ? [rehearsal.connection] : [],
+        ...(rehearsal.organizer ? { canReviewEntries: true } : {}),
       }
       if (rehearsal.matchDayEnabled) {
-        snapshot.canScheduleMatches = true
+        if (rehearsal.organizer) snapshot.canScheduleMatches = true
         snapshot.canOpenLeagueScores = true
         if (matchDayRequested) {
-          snapshot.matchDay = await loadNativeLeagueMatchDay(snapshot, auth.userId, true, true).catch(() => undefined)
+          snapshot.matchDay = await loadNativeLeagueMatchDay(snapshot, auth.userId, true, rehearsal.organizer).catch(() => undefined)
         }
       }
       return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot }, { headers })
@@ -101,7 +101,10 @@ export async function GET(request: Request) {
         snapshot.moreLeagues = true
       }
       snapshot.leagues.unshift(item.league)
-      snapshot.connections.unshift({ leagueId: item.league.id, kind: 'organizer', status: 'active' })
+      const connection = item === demo
+        ? { leagueId: item.league.id, kind: 'organizer', status: 'active' } as const
+        : rehearsal?.connection
+      if (connection) snapshot.connections.unshift(connection)
     }
     const active = snapshot.detail?.league.status === 'active' && auth.userId !== publicCompetitionOwner
     const organizer = active && snapshot.connections.some(connection => connection.kind === 'organizer' && connection.leagueId === input.selected)
