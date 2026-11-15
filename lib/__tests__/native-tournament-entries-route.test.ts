@@ -21,6 +21,7 @@ const names = [
 
 function fixture(rows: ReturnType<typeof entry>[], publications = names) {
  const filters: [string, unknown][] = []
+ const rpc = vi.fn()
  const from = vi.fn((table: string) => {
   let ids: string[] = []
   const query = {
@@ -38,8 +39,8 @@ function fixture(rows: ReturnType<typeof entry>[], publications = names) {
   }
   return query
  })
- auth.mockResolvedValue({ok: true, userId: owner, supabase: {from}})
- return {from, filters}
+ auth.mockResolvedValue({ok: true, userId: owner, supabase: {from, rpc}})
+ return {from, filters, rpc}
 }
 
 beforeEach(() => vi.clearAllMocks())
@@ -57,6 +58,51 @@ it('returns an entry receipt for a native publication with no manual approval en
  expect(await response.json()).toMatchObject({scope: 'first-party', entries: [
   {id: entryId(1), eventName: 'Fall Open', divisionName: '4.0 Doubles', selection: {parent: root, division}},
  ]})
+})
+
+it('opens a saved private tournament entry and keeps public entries in the same order', async () => {
+ const parent = 'tiq-native-event-74697166-6c74-4e10-8f11-000000000030'
+ const division = 'tiq-native-division-74697166-6c74-4e10-8f11-000000000031'
+ const publicRoot = 'tiq-native-event-10000000-0000-4000-8000-000000000001'
+ const publicDivision = 'tiq-native-division-10000000-0000-4000-8000-000000000002'
+ const saved = entry(1, division)
+ const {rpc} = fixture([saved, entry(2, publicDivision, 'approved')], [
+  {...names[0], id: publicRoot}, {...names[1], id: publicDivision, event_id: publicRoot},
+ ])
+ const data = {owner, entries:[{parent,division,eventName:'TestFlight Singles Tournament',divisionName:'Singles'}]}
+ rpc.mockReturnValue({abortSignal:()=>({retry:async()=>({data,error:null})})})
+ const expected = {id:entryId(1),status:'pending',eventName:'TestFlight Singles Tournament',divisionName:'Singles',
+  selection:{parent,division}}
+ const response = await getFirstParty(new Request(url))
+ expect(response.status).toBe(200)
+ expect(await response.json()).toMatchObject({entries:[expected,{id:entryId(2),eventName:'Fall Open'}]})
+ expect(rpc).toHaveBeenCalledExactlyOnceWith('native_tournament_walkthrough_entry_names',{p_divisions:[division]})
+
+ saved.status='approved'
+ const exact = fixture([saved]).rpc
+ exact.mockReturnValue({abortSignal:()=>({retry:async()=>({data,error:null})})})
+ expect(await (await getFirstParty(new Request(url+'?division='+division))).json()).toMatchObject({
+  more:false,entries:[{...expected,status:'approved'}],
+ })
+
+ data.owner='other'
+ expect((await getFirstParty(new Request(url+'?division='+division))).status).toBe(503)
+ data.owner=owner
+ data.entries=[]
+ expect(await (await getFirstParty(new Request(url+'?division='+division))).json()).toMatchObject({entries:[]})
+})
+
+it('keeps public entries available before the private lookup reaches the database', async () => {
+ const division = 'tiq-native-division-74697166-6c74-4e10-8f11-000000000031'
+ const publicRoot = 'tiq-native-event-10000000-0000-4000-8000-000000000001'
+ const publicDivision = 'tiq-native-division-10000000-0000-4000-8000-000000000002'
+ const {rpc} = fixture([entry(1,division),entry(2,publicDivision)], [
+  {...names[0],id:publicRoot}, {...names[1],id:publicDivision,event_id:publicRoot},
+ ])
+ rpc.mockReturnValue({abortSignal:()=>({retry:async()=>({data:null,error:{code:'PGRST202'}})})})
+ const response = await getFirstParty(new Request(url))
+ expect(response.status).toBe(200)
+ expect(await response.json()).toMatchObject({entries:[{id:entryId(2),eventName:'Fall Open'}]})
 })
 
 it('returns only account-scoped summaries and omits details for unpublished events', async () => {

@@ -85,6 +85,7 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     await migration('20261115000300_native_tournament_schedule_updates')
     await migration('20261115000400_private_tournament_alert_rehearsal')
     await migration('20261115001400_private_tournament_walkthrough')
+    await migration('20261115001500_native_tournament_walkthrough_entry_names')
     await db.query('insert into auth.users values ($1,now()),($2,now()),($3,now()),($4,now())', [owner, other, partner, stranger])
     await db.exec('insert into public.profiles(id) select id from auth.users')
     await db.exec('grant usage on schema auth to authenticated; grant select,insert,update on public.tiq_tournaments to authenticated')
@@ -424,12 +425,15 @@ it('settles each purchase once and publishes the draw, schedule, and results for
       values($1,$2,$3,$4,statement_timestamp()+interval '1 day',true)`,[owner,walkthrough,walkRoot,other])
     const readWalkthrough = (actor: string, selected = '') =>
       withRecipient(actor,()=>rpc('native_tournament_alert_rehearsal($1,$2,$3)',[walkRoot,selected,'walkthrough']))
+    const readSavedWalkthrough = (actor: string) => withRecipient(actor,() =>
+      rpc('native_tournament_walkthrough_entry_names($1)',[[walkDivision,testDivision]]))
     expect(await readWalkthrough(stranger)).toBeNull()
     expect(await readWalkthrough(partner)).toBeNull()
     expect(await readWalkthrough(other,testDivision)).toBeNull()
     const opening = await readWalkthrough(other)
     expect(opening).toMatchObject({viewer:other,root:{id:walkRoot,is_public:false},division:{id:walkDivision,status:'open'}})
     expect(await rpc('native_tournament_desk($1)',[owner])).toContainEqual(expect.objectContaining({revision:walkthrough}))
+    expect(await readSavedWalkthrough(other)).toEqual({owner:other,entries:[]})
     const signEntry = async(actor: string,action: string,publication: unknown,data = {}) => {
       await db.exec('set role service_role')
       try {
@@ -446,6 +450,11 @@ it('settles each purchase once and publishes the draw, schedule, and results for
       partnerRating:null,partnerAttested:false,
     })
     expect(entry).toMatchObject({ok:true,receipt:{name:player,status:'pending'}})
+    const savedWalkthrough = {owner:other,entries:[{parent:walkRoot,division:walkDivision,
+      eventName:'TestFlight Singles Tournament',divisionName:'Singles'}]}
+    expect(await readSavedWalkthrough(other)).toEqual(savedWalkthrough)
+    expect(await readSavedWalkthrough(stranger)).toEqual({owner:stranger,entries:[]})
+    expect(await readSavedWalkthrough(owner)).toEqual({owner,entries:[]})
     const walkPlan = (actor = owner, action = 'read', expected: unknown = null) =>
       rpc('native_tournament_draw_plan($1,$2,$3,$4,$5)',[actor,walkthrough,action,expected,walkDivision])
     expect(await walkPlan(owner,'publish',(await walkPlan()).revision)).toEqual({code:'review'})
@@ -473,10 +482,14 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     expect(await readWalkthrough(other,walkDivision)).toMatchObject({division:{status:'completed',results:{'r1-m1':{winner:player}}}})
     const walkTitle = await rpc('native_tournament_title($1,$2,$3,$4,$5,$6)',[owner,walkthrough,walkDivision,'award',finish.revision,player])
     expect(walkTitle).toMatchObject({award:{champion:player,paired:false,partnerCode:null}})
+    expect(await readSavedWalkthrough(other)).toEqual(savedWalkthrough)
     const walkTrophy = 'tiq-title-' + (walkTitle.award as {id:string}).id
     expect(await trophies(other)).toContainEqual(expect.objectContaining({id:walkTrophy}))
     expect(await trophies(stranger)).not.toContainEqual(expect.objectContaining({id:walkTrophy}))
     expect(await rpc('native_tournament_checkout($1,$2,$3,$4)',[owner,walkthrough,'Production','status'])).toEqual({code:'missing'})
+    await db.query(`update private.native_tournament_rehearsals set created_at=statement_timestamp()-interval '2 hours',
+      expires_at=statement_timestamp()-interval '1 hour' where event_id=$1`,[walkthrough])
+    expect(await readSavedWalkthrough(other)).toEqual({owner:other,entries:[]})
   } finally {
     await db.close()
   }
