@@ -40,7 +40,8 @@ it('keeps pending scores private, returns corrections, and posts one official re
       '20261115000800_native_published_league_operations','20261115000900_native_individual_league_scores',
       '20261113000200_native_first_party_league_entry','20261113000300_native_first_party_league_decisions',
       '20261115000700_native_league_registration','20261115001000_native_league_entry_updates',
-      '20261115001100_native_league_entry_rehearsals','20261115001200_native_league_match_day_rehearsals']){
+      '20261115001100_native_league_entry_rehearsals','20261115001200_native_league_match_day_rehearsals',
+      '20261115001300_native_league_paired_match_day']){
       await db.exec(await readFile('supabase/migrations/'+migration+'.sql','utf8'))
     }
     for (const owner of [director, captain, stranger, otherCaptain]) {
@@ -435,11 +436,99 @@ async function checkPrivateRehearsal(db: PGlite) {
   ])
   await db.exec('reset role')
   expect(await noticeCount()).toEqual(notices)
+  await checkPairedRehearsal(db,league,a,match)
   await db.query("update private.native_league_entry_rehearsals set expires_at=now()-interval '1 day' where league_id=$1", [league])
   expect(await readPrivate(captain)).toBeNull()
   await db.exec('reset role; set role service_role')
   expect(await schedule(captain)).toBeNull()
   expect(await matchDay(captain)).toEqual({matches:[],canReview:false})
+  await db.exec('reset role')
+}
+
+async function checkPairedRehearsal(db: PGlite, league: string, organizerEntry: string, soloMatch: string) {
+  const player = otherCaptain, playerEntry = id(91)
+  const query = async <T>(sql: string, args: unknown[]) =>
+    (await db.query<{result:T}>(sql+' as result',args)).rows[0].result
+  const readPlayer = async (actor: string) => {
+    await db.exec('reset role; set role authenticated')
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)",[actor])
+    return query('select native_league_entry_rehearsal($1)',[league])
+  }
+  const updates = async (actor: string) => {
+    await readPlayer(actor)
+    return (await db.query<{title:string;href:string}>(`select title,href from native_first_party_updates where href like $1`,
+      ['/explore/leagues/tiq/'+league+'?%'])).rows
+  }
+  await db.query('update auth.users set email_confirmed_at=now() where id=$1',[player])
+  await db.query('update private.native_league_entry_rehearsals set player_id=$1 where league_id=$2',[player,league])
+  expect(await readPlayer(stranger)).toBeNull()
+  expect(await readPlayer(player)).toMatchObject({viewer_id:player,viewer_entry_status:null,match_day:{fixtures:[],results:[]}})
+  const submit = (actor: string) => query(
+    "select native_first_party_league_entry($1,$2,'individual',$3,$4)", [actor,league,version,JSON.stringify({
+      id:playerEntry,player_name:'Taylor',eligibility_status:'needs_confirmation',
+      eligibility_review_note:'Submitted for organizer review.',eligibility_mixed_pair_role:'unknown',
+    })])
+  await db.exec('reset role; set role service_role')
+  expect(await submit(stranger)).toBe(false)
+  expect(await submit(player)).toBe(true)
+  await db.exec('reset role')
+  const entryVersion = await query('select (select updated_at from tiq_player_league_entries where id=$1)',[playerEntry])
+  const decide = (actor: string) => query(`select native_first_party_league_decision(
+    $1,$2,'individual',$3,$4,$5,'active','','verified')`, [actor,league,version,playerEntry,entryVersion])
+  await db.exec('set role service_role')
+  expect(await decide(player)).toBeNull()
+  expect(await decide(captain)).toMatchObject({notified:true,entry_status:'active'})
+  expect(await updates(player)).toEqual([expect.objectContaining({title:'League entry approved'})])
+
+  await db.exec('reset role; set role service_role')
+  const schedule = (actor: string) => query<{match:{id:string}}>(`select native_first_party_save_league_match(
+    $1,$2,$3,$4,null,null,$5,$6,current_date+3,time '19:30',$7,'1',60,true)`,
+  [actor,league,version,id(92),organizerEntry,playerEntry,id(54)])
+  expect(await schedule(player)).toMatchObject({code:'forbidden'})
+  const saved = await schedule(captain)
+  expect(saved).toMatchObject({code:'saved',notified:1})
+  const match = saved.match.id
+  expect(await schedule(captain)).toEqual(saved)
+  expect((await updates(player)).filter(r=>r.title==='League match scheduled')).toEqual([
+    {title:'League match scheduled',href:'/explore/leagues/tiq/'+league+'?scheduledMatch='+match+'#league-schedule'},
+  ])
+  expect(await updates(stranger)).toEqual([])
+
+  await db.exec('reset role; set role service_role')
+  const matchDay = (actor: string) => query(`select native_individual_league_match_day(
+    $1,$2,array[$3,$4]::uuid[],$5,true)`, [league,version,soloMatch,match,actor])
+  expect(await matchDay(player)).toEqual({
+    matches:[expect.objectContaining({id:match,action:'enter'})],canReview:false,
+  })
+  const desk = (actor: string, target: string|null) => query<{fixtureVersion:string}>(
+    'select native_league_score_review($1,$2,$3,$4,true,null,null)',[actor,league,version,target])
+  expect(await desk(player,soloMatch)).toBeNull()
+  expect(await desk(player,null)).toBeNull()
+  const fixtureVersion = (await desk(player,match)).fixtureVersion
+  const score = (actor: string, action: string, revision: number|null, request: number, lines: unknown = [], note = '') =>
+    query('select native_league_save_score($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true,null,null)',
+      [actor,league,version,match,fixtureVersion,revision === null ? null : id(revision),id(request),action,JSON.stringify(lines),note])
+  expect(await score(player,'submit',null,93,first)).toMatchObject({code:'saved',card:{state:'pending'}})
+  expect(await updates(captain)).toContainEqual(expect.objectContaining({title:'League score ready for review'}))
+  await db.exec('reset role; set role service_role')
+  expect(await score(player,'approve',93,94,first)).toEqual({code:'forbidden'})
+  expect(await score(captain,'return',93,94,[],'Confirm the second set.')).toMatchObject({code:'saved'})
+  expect(await updates(player)).toContainEqual(expect.objectContaining({title:'League score needs corrections'}))
+  await db.exec('reset role; set role service_role')
+  expect(await matchDay(player)).toMatchObject({matches:[{id:match,action:'fix'}]})
+  expect(await score(player,'submit',94,95,corrected)).toMatchObject({code:'saved'})
+  expect(await score(captain,'approve',95,96,corrected)).toMatchObject({code:'saved'})
+  expect(await matchDay(captain)).toMatchObject({matches:expect.arrayContaining([
+    expect.objectContaining({id:match,official:expect.objectContaining({winner:'Taylor'})}),
+  ]),canReview:true})
+  expect(await updates(player)).toContainEqual(expect.objectContaining({title:'League score approved'}))
+  expect(await readPlayer(player)).toMatchObject({
+    viewer_entry_status:'active',match_day:{fixtures:[{match:{id:match}}],results:[{winner:'Taylor'}]},
+  })
+  await db.exec('reset role')
+  await db.query('update private.native_league_entry_rehearsals set player_id=null where league_id=$1',[league])
+  expect(await readPlayer(player)).toBeNull()
+  expect(await updates(player)).toEqual([])
   await db.exec('reset role')
 }
 

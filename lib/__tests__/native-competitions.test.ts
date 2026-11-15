@@ -126,6 +126,28 @@ describe('first-party league route', () => {
    p_actor:owner,p_league:leagueId,p_match:id,
   }))
  })
+
+ it('gives the invited rehearsal player their entry and score tools without coordinator access',async()=>{
+  const f=fixture(),id='tiq-native-league-e79ec308-8b38-4bf8-aac9-000000000001'
+  const player='4a000000-0000-4000-8000-000000000001'
+  const rehearsal={...f.tables.tiq_leagues[0],id,league_format:'individual',is_public:false,
+   viewer_id:player,viewer_entry_status:'active',match_day:{fixtures:[],results:[]}}
+  f.tables.tiq_leagues.push(rehearsal)
+  Object.assign(f.db,{rpc:()=>({abortSignal:()=>({retry:async()=>({data:rehearsal,error:null})})})})
+  vi.mocked(getSignedInPlayerApiAuth).mockResolvedValue({ok:true,supabase:f.db,userId:player,emailVerified:true})
+
+  const opened=await (await firstPartyCompetitions(request('?scope=mine&league='+id))).json()
+  expect(opened.canReviewEntries).toBeUndefined()
+  expect(opened.canScheduleMatches).toBeUndefined()
+  expect(readCompetitionSnapshot(opened,player,'mine','',id)).toMatchObject({
+   connections:[{leagueId:id,kind:'player',status:'active'}],
+   canOpenLeagueScores:true,
+  })
+  expect(await reviewedSchedulingLeague(f.db,player,id)).toBeNull()
+
+  account(f.db)
+  expect((await firstPartyCompetitions(request('?scope=mine&league='+id))).status).toBe(503)
+ })
  async function approve(f:ReturnType<typeof fixture>) {
   const {detail}=await loadNativeCompetitions(f.db,owner,'discover','','league-one')
   vi.stubEnv('TIQ_FIRST_PARTY_LEAGUE_APPROVALS',JSON.stringify({
