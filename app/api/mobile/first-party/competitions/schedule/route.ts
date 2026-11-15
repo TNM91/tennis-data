@@ -7,6 +7,7 @@ import { leagueAttentionFixture } from '@/lib/native-league-attention-contract'
 import { testflightLeagueScoreId } from '@/lib/testflight-league-scores'
 import { eventCalendarStart } from '@/lib/calendar-date'
 import { getSignedInPlayerApiAuth, loadPlayerAccess } from '@/lib/player-api-auth'
+import { nativeLeaguePublicationId } from '@/lib/native-league-publication'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -23,8 +24,9 @@ async function authorize(request: Request, id: string) {
     const demo = await loadTestflightLeagueScores(auth.supabase, auth.userId, { selected: id, scope: 'mine', query: '' })
     if (demo?.detail) return { owner: auth.userId, league: demo.league, db: auth.supabase, demo }
   }
-  const access = await loadPlayerAccess(auth.supabase, auth.userId)
-  const league = access.canUseLeagueTools ? await reviewedSchedulingLeague(auth.supabase, auth.userId, id) : null
+  const canSchedule = nativeLeaguePublicationId(id) ? auth.emailVerified === true :
+    (await loadPlayerAccess(auth.supabase, auth.userId)).canUseLeagueTools
+  const league = canSchedule ? await reviewedSchedulingLeague(auth.supabase, auth.userId, id) : null
   if (!league) return { response: fail('Only the coordinator of this active league can schedule matches.', 403) }
   return { owner: auth.userId, league, db: auth.supabase, verified: auth.emailVerified === true }
 }

@@ -8,6 +8,7 @@ import {accountClient} from './mobile-account-auth'
 import {publicLeague} from './native-competitions'
 import {readReviewedRevisions,reviewedRevisionDigest} from './first-party-revisions'
 import {nativeLeagueColumns} from './native-league-season'
+import {isPublishedNativeLeague,nativeLeaguePublicationId,publishedLeagueRegistrationOpen} from './native-league-publication'
 type Row=Record<string,unknown>
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const digest=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex')
@@ -17,12 +18,13 @@ const receipt=(r:Row,team:boolean):EntryReceipt=>{if(!text(r.id)||!text(r[team?'
 async function reviewLeagueEntry(db:SupabaseClient,owner:string,leagueId:string,firstParty:boolean){
  entryLeague(leagueId);if(!owner)throw Error('Sign in required')
  const approvals=firstParty?readReviewedRevisions(process.env.TIQ_FIRST_PARTY_LEAGUE_APPROVALS,'detail'):null
- if(approvals&&!approvals.has(leagueId))throw Error('League unavailable')
+ if(approvals&&!approvals.has(leagueId)&&!nativeLeaguePublicationId(leagueId))throw Error('League unavailable')
  const fieldsForLeague=firstParty?nativeLeagueColumns+',is_public':'id,league_name,league_format,season_status,flight,notes,is_public,updated_at'
  const getLeague=()=>db.from('tiq_leagues').select(fieldsForLeague).eq('id',leagueId).eq('is_public',true).neq('season_status','draft').abortSignal(timeout()).maybeSingle()
  const initial=await getLeague(),l=initial.data as Row|null
  if(initial.error||!l||l.id!==leagueId||l.is_public!==true||!['team','individual'].includes(text(l.league_format)))throw Error('League unavailable')
- if(approvals&&approvals.get(leagueId)?.summary!==reviewedRevisionDigest(publicLeague(l)))throw Error('League unavailable')
+ const published=Boolean(firstParty&&isPublishedNativeLeague(l))
+ if(approvals&&!published&&approvals.get(leagueId)?.summary!==reviewedRevisionDigest(publicLeague(l)))throw Error('League unavailable')
  const team=l.league_format==='team',requirement=buildPlayerEligibilityRequirement(text(l.league_name),text(l.flight),firstParty?'':text(l.notes))
  const getProfile=()=>db.from('profiles').select('id,linked_player_id').eq('id',owner).abortSignal(timeout()).maybeSingle()
  const profile=firstParty?null:await getProfile()
@@ -44,11 +46,11 @@ async function reviewLeagueEntry(db:SupabaseClient,owner:string,leagueId:string,
  if(linked.length>1||linked.some(r=>r.league_id!==leagueId||r.player_id!==player.id))throw Error('Player entry needs organizer review')
  const unique=new Map<string,Row>();for(const r of [...owned,...linked])unique.set(text(r.id),r)
  if(!team&&unique.size>1)throw Error('Player entries need organizer review')
- const receipts=[...unique.values()].map(r=>receipt(r,team)),access=team?await loadPlayerAccess(db,owner):null,allowed=!team||access?.canEnterTiqTeamLeague===true
+ const receipts=[...unique.values()].map(r=>receipt(r,team)),access=team&&!published?await loadPlayerAccess(db,owner):null,allowed=published||!team||access?.canEnterTiqTeamLeague===true
  const [latest,latestProfile]=await Promise.all([getLeague(),firstParty?null:getProfile()])
  if(latest.error||JSON.stringify(latest.data)!==JSON.stringify(l)||latestProfile&&(latestProfile.error||latestProfile.data?.id!==owner||text(latestProfile.data.linked_player_id)!==playerId))throw Error('League or linked player changed')
  const review=digest({owner,league:l,player,allowed})
- const snapshot:EntryReview={owner,leagueId,leagueName:text(l.league_name),format:team?'team':'individual',review,checkedAt:new Date().toISOString(),open:l.season_status==='active',allowed,blockedReason:allowed?'':`Team entry requires active ${MEMBERSHIP_TIERS.league.name} access.`,requirement,player,receipts}
+ const snapshot:EntryReview={owner,leagueId,leagueName:text(l.league_name),format:team?'team':'individual',review,checkedAt:new Date().toISOString(),open:published?publishedLeagueRegistrationOpen(l):l.season_status==='active',allowed,blockedReason:allowed?'':`Team entry requires active ${MEMBERSHIP_TIERS.league.name} access.`,requirement,player,receipts}
  return {snapshot,version:text(l.updated_at)}
 }
 export async function loadNativeLeagueEntry(db:SupabaseClient,owner:string,leagueId:string,firstParty=false){
@@ -101,7 +103,10 @@ export async function answerNativeLeagueInformation(db:SupabaseClient,owner:stri
  if(draft.rating!==null){payload.eligibility_rating=draft.rating;payload.eligibility_rating_source='self'}
  if(requirement.ageDivision&&draft.ageAttested){payload.eligibility_age_division=requirement.ageDivision;payload.eligibility_age_division_source='self'}
  if(requirement.mixedPairRole!=='unknown'&&draft.divisionAttested){payload.eligibility_mixed_pair_role=requirement.mixedPairRole;payload.eligibility_mixed_pair_role_source='self'}
- const saved=await db.from('tiq_player_league_entries').update(payload).eq('id',id).eq('league_id',leagueId).eq('created_by_user_id',owner).eq('entry_status','pending').eq('player_action_required',true).eq('updated_at',updatedAt).select('id,league_id,created_by_user_id,entry_status,player_name').abortSignal(timeout()).maybeSingle()
+ const native=firstParty&&nativeLeaguePublicationId(leagueId)
+ const serviceKey=native?process.env.SUPABASE_SERVICE_ROLE_KEY?.trim():undefined
+ if(native&&(!review.open||!serviceKey))return fail(409,'This league is closed for entry replies.')
+ const saved=await (serviceKey?accountClient(serviceKey):db).from('tiq_player_league_entries').update(payload).eq('id',id).eq('league_id',leagueId).eq('created_by_user_id',owner).eq('entry_status','pending').eq('player_action_required',true).eq('updated_at',updatedAt).select('id,league_id,created_by_user_id,entry_status,player_name').abortSignal(timeout()).maybeSingle()
  if(saved.error)throw Error('Reply outcome unavailable');if(!saved.data||saved.data.id!==id||saved.data.created_by_user_id!==owner||saved.data.league_id!==leagueId)return fail(409,'This entry changed. Check entry status before replying.')
  // Match the website reply nudge without losing the confirmed reply if notification delivery fails.
  try{const league=await db.from('tiq_leagues').select('id,created_by_user_id').eq('id',leagueId).abortSignal(timeout()).maybeSingle();const recipient=text(league.data?.created_by_user_id);if(!league.error&&league.data?.id===leagueId&&recipient&&recipient!==owner)await db.from('internal_notifications').insert({recipient_profile_id:recipient,actor_user_id:owner,notification_type:'system',title:'League entry information updated',body:text(saved.data.player_name)+' sent the requested entry information.',href:'/league-coordinator#league-registry'}).abortSignal(timeout())}catch{/* A confirmed reply remains saved. */}

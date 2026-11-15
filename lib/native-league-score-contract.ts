@@ -19,6 +19,7 @@ export type LeagueScoreCard = { revision: string; state: LeagueScoreState; lines
 export type LeagueScoreDesk = {
   match: LeagueScoreFixture; fixtureVersion: string; card: LeagueScoreCard | null
   canSubmit: boolean; canReview: boolean; thirdSetRule: TennisThirdSetRule
+  leagueFormat?: 'individual'
   slots: { label: string; format: LeagueScoreDiscipline }[]
 }
 
@@ -38,14 +39,14 @@ function timestamp(value: unknown) {
       !Number.isFinite(Date.parse(version))) throw Error('Reload the match before entering a score.')
   return version
 }
-function discipline(value: unknown) {
+function discipline(value: unknown): LeagueScoreDiscipline {
   if (value !== 'singles' && value !== 'doubles') throw Error('Choose singles or doubles for each court.')
   return value
 }
 
 export function leagueScoreLine(format: unknown, input: unknown, outcome: unknown = 'played', side: unknown = undefined): LeagueScoreLine {
   if (outcome==='walkover'||outcome==='retirement') {
-    if (side!=='A'&&side!=='B') throw Error('Choose the team awarded this court.')
+    if (side!=='A'&&side!=='B') throw Error('Choose the winner.')
     if (outcome==='walkover'&&input!=='') throw Error('Leave the set score blank for a walkover.')
     return {format:discipline(format),score:outcome==='walkover'?'':readRetirementScore(input),winner:side,outcome}
   }
@@ -74,7 +75,7 @@ export function readLeagueScoreChange(value: unknown): LeagueScoreChange {
   const note = text(row.note, 500, true)
   const revision = row.revision === null ? null : id(row.revision)
   if (action === 'submit' ? !lines.length || note : lines.length || !revision || (action === 'return') !== Boolean(note)) {
-    throw Error(action === 'return' ? 'Tell the captain what needs correcting.' : 'Check the scorecard details.')
+    throw Error(action === 'return' ? 'Describe what needs correcting.' : 'Check the scorecard details.')
   }
   return { action, leagueId: entryLeague(row.leagueId), matchId: id(row.matchId), requestId: id(row.requestId),
     revision, fixtureVersion: timestamp(row.fixtureVersion), lines, note }
@@ -109,18 +110,24 @@ export function leagueScoreUpdateLink(url: URL) {
 
 export function readLeagueScoreDesk(value: unknown, matchId: string): LeagueScoreDesk {
   const row = lineupRecord(value), match = readLeagueScoreFixture(row.match), rule = row.thirdSetRule
+  const individual = row.leagueFormat === 'individual'
   if (match.id !== matchId || typeof row.canSubmit !== 'boolean' || typeof row.canReview !== 'boolean' ||
+      (row.leagueFormat !== undefined && !individual) ||
       (rule !== 'either' && rule !== 'full_set' && rule !== 'match_tiebreak_10') || !Array.isArray(row.slots) || row.slots.length > 30) {
     throw Error('Match access changed.')
   }
-  return { match, fixtureVersion: timestamp(row.fixtureVersion), card: row.card === null ? null : readLeagueScoreCard(row.card),
+  const card = row.card === null ? null : readLeagueScoreCard(row.card)
+  const slots = row.slots.map(item=>{const slot=lineupRecord(item);return {label:text(slot.label,80),format:discipline(slot.format)}})
+  if (individual && (slots.length !== 1 || slots[0].format !== 'singles' ||
+      card && (card.lines.length !== 1 || card.lines[0].format !== 'singles'))) throw Error('Invalid singles scorecard.')
+  return { match, fixtureVersion: timestamp(row.fixtureVersion), card,
     canSubmit: row.canSubmit, canReview: row.canReview, thirdSetRule: rule,
-    slots: row.slots.map(item => { const slot = lineupRecord(item); return { label: text(slot.label, 80), format: discipline(slot.format) } }) }
+    slots, ...(individual ? {leagueFormat:'individual'} : {}) }
 }
 
-export function validateLeagueScoreLines(lines: LeagueScoreLine[], desk: Pick<LeagueScoreDesk, 'slots' | 'thirdSetRule'>) {
+export function validateLeagueScoreLines(lines: LeagueScoreLine[], desk: Pick<LeagueScoreDesk, 'slots' | 'thirdSetRule' | 'leagueFormat'>) {
   if (desk.slots.length && (lines.length !== desk.slots.length || lines.some((line, i) => line.format !== desk.slots[i].format))) {
-    throw Error('Enter a score for every court in the league’s match format.')
+    throw Error(desk.leagueFormat==='individual'?'Enter one singles match score.':'Enter a score for every court in the league’s match format.')
   }
   for (const { score, winner, outcome } of lines) {
     if (outcome==='walkover') continue

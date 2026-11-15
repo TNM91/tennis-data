@@ -5,6 +5,7 @@ import { loadNativeLeagueMatchDay } from '@/lib/native-league-match-day'
 import { loadNativeLeagueAttention } from '@/lib/native-league-attention'
 import { getSignedInPlayerApiAuth, loadPlayerAccess } from '@/lib/player-api-auth'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase-public-config'
+import { nativeLeaguePublicationId } from '@/lib/native-league-publication'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -84,22 +85,25 @@ export async function GET(request: Request) {
     }
     const active = snapshot.detail?.league.status === 'active' && auth.userId !== publicCompetitionOwner
     const organizer = active && snapshot.connections.some(connection => connection.kind === 'organizer' && connection.leagueId === input.selected)
+    const native = nativeLeaguePublicationId(input.selected)
     const team = active && snapshot.detail?.league.format === 'team'
-    const access = organizer || team ? await loadPlayerAccess(auth.supabase, auth.userId) : null
-    const canReviewEntries = organizer && access?.canUseLeagueTools
-    const canOpenLeagueScores = team && (canReviewEntries || access?.canUseCaptainWorkflow)
+    const access = !native && (organizer || team) ? await loadPlayerAccess(auth.supabase, auth.userId) : null
+    const canReviewEntries = organizer && (native ? auth.emailVerified === true : access?.canUseLeagueTools)
     const matchDayActor = auth.emailVerified === true ? auth.userId : null
     const [matchDay, attention] = await Promise.all([
       matchDayRequested && input.selected ? loadNativeLeagueMatchDay(snapshot,
-        matchDayActor, !!matchDayActor && access?.canUseCaptainWorkflow === true,
+        matchDayActor, !!matchDayActor && (native || access?.canUseCaptainWorkflow === true),
         !!matchDayActor && canReviewEntries === true,
       ).catch(()=>({matches:[]})) : undefined,
       attentionRequested && canReviewEntries === true ? loadNativeLeagueAttention(snapshot,auth.userId).catch(()=>undefined) : undefined,
     ])
+    const canOpenLeagueScores = active && (team || native) && (canReviewEntries || (native
+      ? matchDay?.matches.some(row=>row.action==='enter'||row.action==='fix'||row.action==='pending')
+      : access?.canUseCaptainWorkflow))
     return Response.json({ ok: true, releaseScope: 'first-party', ...readableSchedule(snapshot, showPostponed),
       matchDay, attention,
       ...(canOpenLeagueScores ? { canOpenLeagueScores: true } : {}),
-      ...(canReviewEntries ? { canReviewEntries, canScheduleMatches: true } : {}),
+      ...(canReviewEntries ? { canReviewEntries, canScheduleMatches:true } : {}),
       ...(showPostponed && matchDayActor && team && canReviewEntries ? { canPostponeMatches: true } : {}) }, { headers })
   } catch {
     return Response.json({ ok: false, message: 'Leagues are unavailable. Refresh to try again.' }, { status: 503, headers })
