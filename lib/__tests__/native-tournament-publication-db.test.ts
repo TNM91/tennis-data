@@ -56,6 +56,7 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     await migration('20261114001700_native_tournament_results')
     await migration('20261114001800_native_tournament_trophies')
     await migration('20261115000100_private_tournament_trophy_rehearsal')
+    await migration('20261115000200_tournament_checkout_cancellation')
     await db.query('insert into auth.users values ($1),($2),($3),($4)', [owner, other, partner, stranger])
     await db.exec('grant usage on schema auth to authenticated; grant select,insert,update on public.tiq_tournaments to authenticated')
     const rpc = async (sql: string, params: unknown[]) => (await db.query<{ r: Record<string, unknown> }>('select ' + sql + ' r', params)).rows[0].r
@@ -77,6 +78,12 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     expect(await checkout('Production')).toEqual({ state: 'setup' })
     expect(await configure(null, revision)).toMatchObject({ settingsRevision: revision })
     expect(await checkout('Production', 'status', null, null, cancelKey, other)).toEqual({ code: 'missing' })
+    const abandoned = '20000000-0000-4000-8000-000000000001'
+    expect(await checkout('Sandbox', 'cancel', abandoned)).toEqual({ state: 'ready' })
+    expect(await checkout('Sandbox', 'prepare', abandoned)).toEqual({ state: 'ready' })
+    expect(await checkout('Sandbox', 'prepare', abandoned, revision, other)).toEqual({ code: 'conflict' })
+    expect(await settle(abandoned, 'Sandbox', '314')).toEqual({ code: 'conflict' })
+    expect(await checkout('Sandbox')).toEqual({ state: 'ready' })
     expect(await checkout('Production', 'prepare', canceled, other)).toEqual({ code: 'stale' })
     expect(await checkout('Production', 'prepare', canceled)).toMatchObject({ state: 'pending', start: true })
     expect(await checkout('Production', 'cancel', canceled, null, other)).toMatchObject({ state: 'pending' })
