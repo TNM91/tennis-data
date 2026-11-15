@@ -12,21 +12,30 @@ async function registration(db: SupabaseClient, owner: string, firstParty: boole
  if (!firstParty) {
   return db.rpc('native_tournament_registration', {p_action:action,p_parent:parent,p_division:division,...(data?{p_data:data}:{})})
  }
+ let publication: Record<string, unknown>
  if (nativeTournamentAlertRehearsalSelection(parent, division)) {
-  const receipt = action === 'review' ? await readNativeTournamentAlertRehearsal(db, parent, division, 'entry') : null
-  return {data:receipt ?? {ok:false,status:404,message:'This tournament entry is unavailable.'},error:null}
- }
- const publications = await loadTournamentEntryPublications(db, [parent, division].filter(Boolean), undefined, undefined, owner)
- const active = publications.get(division), root = parent ? publications.get(parent) : active
- if (!active || !root || active.is_event || (active.event_id ?? '') !== parent ||
-     parent && (!root.is_event || root.event_id !== null)) {
-  return { data: {ok:false,status:404,message:'This tournament entry is unavailable.'}, error:null }
+  const rehearsal = await readNativeTournamentAlertRehearsal(db, parent, division, 'walkthrough')
+  if (!rehearsal) {
+   const receipt = action === 'review' ? await readNativeTournamentAlertRehearsal(db, parent, division, 'entry') : null
+   return {data:receipt ?? {ok:false,status:404,message:'This tournament entry is unavailable.'},error:null}
+  }
+  if (rehearsal.viewer !== owner || rehearsal.root?.id !== parent || rehearsal.division?.id !== division ||
+      !rehearsal.publication?.[parent] || !rehearsal.publication?.[division]) throw Error('Registration scope changed')
+  publication = rehearsal.publication
+ } else {
+  const publications = await loadTournamentEntryPublications(db, [parent, division].filter(Boolean), undefined, undefined, owner)
+  const active = publications.get(division), root = parent ? publications.get(parent) : active
+  if (!active || !root || active.is_event || (active.event_id ?? '') !== parent ||
+      parent && (!root.is_event || root.event_id !== null)) {
+   return { data: {ok:false,status:404,message:'This tournament entry is unavailable.'}, error:null }
+  }
+  publication = Object.fromEntries(publications)
  }
  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
  if (!key) throw Error('Registration unavailable')
  return accountClient(key).rpc('native_first_party_tournament_registration', {
   p_actor:owner,p_action:action,p_parent:parent,p_division:division,
-  p_publication:Object.fromEntries(publications),p_data:data??{},
+  p_publication:publication,p_data:data??{},
  }).retry(false)
 }
 

@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
     const snapshot = await loadFirstPartyNativeTournaments(auth.supabase, auth.userId, input)
     const active = snapshot.detail?.active
-    if (active && snapshot.detail?.entryAvailable !== false) {
+    if (active && snapshot.detail?.entryAvailable === undefined) {
       const publications = await loadTournamentEntryPublications(auth.supabase, [active.parentId, active.id].filter(Boolean), undefined, undefined, auth.userId)
       const division = publications.get(active.id)
       const entryAvailable = !!division && (division.event_id ?? '') === active.parentId &&
