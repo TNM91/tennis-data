@@ -1,6 +1,7 @@
 import { loadTournamentEntryPublications } from './first-party-tournament-entry'
 import { publishedNativeTournamentId, readTournamentEntryApprovals } from './native-tournament-approvals'
 import { testflightTournamentId } from './testflight-tournament'
+import { nativeTournamentRehearsalDivisionId, readNativeTournamentWalkthroughEntryNames } from './native-tournament-alert-rehearsal'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {getSignedInPlayerApiAuth} from './player-api-auth'
 import {MY_TOURNAMENT_ENTRY_LIMIT,readMyTournamentEntries,tournamentEntryId} from './native-tournament-entry-contract'
@@ -62,15 +63,21 @@ export async function getNativeTournamentEntries(request: Request, firstParty = 
   const names = (ids: string[]) => firstParty
    ? loadTournamentEntryPublications(auth.supabase, ids, approvals, signal, auth.userId)
    : publishedNames(auth.supabase, ids, signal)
-  const divisions = await names(ids)
+  const privateIds = firstParty ? ids.filter(nativeTournamentRehearsalDivisionId) : []
+  const [divisions, walkthroughEntries] = await Promise.all([
+   names(ids.filter(id => !privateIds.includes(id))),
+   readNativeTournamentWalkthroughEntryNames(auth.supabase, auth.userId, privateIds, signal),
+  ])
   const parentIds = [...new Set(Array.from(divisions.values()).flatMap(row => row.event_id ? [row.event_id] : []))]
   const events = await names(parentIds)
 
   const entries = recent.flatMap<{id:string;status:string;eventName:string;divisionName:string;selection:{parent:string;division:string}|null}>(row => {
+   const walkthrough = walkthroughEntries.get(row.tournament_id)
+   const base = {id: row.id, status: row.status}
+   if (walkthrough) return [{...base, ...walkthrough}]
    const division = divisions.get(row.tournament_id)
    const parent = division?.event_id ?? ''
    const event = events.get(parent)
-   const base = {id: row.id, status: row.status}
    if(!division || division.is_event || (parent && (!event?.is_event || event.event_id))){
     return firstParty ? [] : [{...base, eventName: '', divisionName: '', selection: null}]
    }
