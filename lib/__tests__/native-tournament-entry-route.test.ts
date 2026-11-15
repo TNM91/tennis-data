@@ -2,6 +2,7 @@ import {it,expect,vi,beforeEach} from 'vitest'
 const {auth,rpc}=vi.hoisted(()=>({auth:vi.fn(),rpc:vi.fn()}))
 vi.mock('../player-api-auth',()=>({getSignedInPlayerApiAuth:auth}))
 import {GET,POST} from '../../app/api/mobile/tournaments/entry/route'
+import {GET as getFirstParty,POST as postFirstParty} from '../../app/api/mobile/first-party/tournaments/entry/route'
 import {tournamentEntrySnapshot,tournamentReceipt,tournamentDraft} from '../../tests/fixtures/native-tournament-entry'
 import {tournamentOwner as owner} from '../../tests/fixtures/native-tournaments'
 const url='https://example.invalid/api/mobile/tournaments/entry',query='?parent=event-one&division=division-one'
@@ -15,3 +16,26 @@ it('requires manager confirmation for the queue even on a successful RPC respons
 it('validates submit details before the RPC, including owner injection and actual byte limit',async()=>{for(const b of [{...body(),owner:'other'},{...body(),data:{...body().data,owner:'other'}},{...body(),data:{...body().data,rating:4.2}},[]])expect((await POST(post(b))).status).toBe(400);expect((await POST(new Request(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'x'.repeat(12001)}))).status).toBe(413);expect(rpc).not.toHaveBeenCalled()})
 it('returns a bounded confirmation and preserves actionable conflicts without SQL errors',async()=>{const s=tournamentEntrySnapshot();s.receipt=tournamentReceipt();rpc.mockResolvedValue({data:{ok:true,...s,alreadySubmitted:false},error:null});expect((await POST(post(body()))).status).toBe(200);expect(rpc).toHaveBeenCalledWith('native_tournament_registration',{p_action:'submit',p_parent:'event-one',p_division:'division-one',p_data:body().data});rpc.mockResolvedValue({data:{ok:false,status:409,message:'The division changed. Refresh registration.'},error:null});expect((await POST(post(body()))).status).toBe(409);rpc.mockResolvedValue({data:null,error:Error('private SQL contact')});const r=await POST(post(body()));expect(r.status).toBe(503);expect(await r.text()).not.toContain('private SQL')})
 it('rejects cross-account or cross-division confirmations',async()=>{for(const key of ['owner','division']){const s=tournamentEntrySnapshot();s.context[key as 'owner'|'division']='other';rpc.mockResolvedValue({data:{ok:true,...s},error:null});expect((await GET(new Request(url+query))).status).toBe(503)}})
+it('returns just the private rehearsal receipt and refuses entry or queue changes',async()=>{
+ const parent='tiq-native-event-74697166-6c74-4e10-8f11-000000000001'
+ const division='tiq-native-division-74697166-6c74-4e10-8f11-000000000002'
+ const endpoint='https://example.invalid/api/mobile/first-party/tournaments/entry'
+ const exact=endpoint+'?parent='+parent+'&division='+division
+ const snapshot=tournamentEntrySnapshot()
+ Object.assign(snapshot.context,{parent,division,mode:'closed',locked:true})
+ snapshot.receipt={...tournamentReceipt(),status:'approved',inDraw:true}
+ const response=vi.fn().mockResolvedValue({data:{ok:true,...snapshot,privateEmail:'private@example.invalid'},error:null})
+ rpc.mockReturnValue({abortSignal:()=>({retry:response})})
+ const result=await getFirstParty(new Request(exact))
+ expect(result.status).toBe(200)
+ const value=await result.json()
+ expect(value).toMatchObject({scope:'first-party',receipt:{status:'approved',inDraw:true}})
+ expect(value).not.toHaveProperty('privateEmail')
+ expect((await getFirstParty(new Request(exact+'&organizer=1'))).status).toBe(404)
+ expect((await postFirstParty(new Request(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({...body(),parent,division})}))).status).toBe(404)
+ expect(rpc).toHaveBeenCalledExactlyOnceWith('native_tournament_alert_rehearsal',
+  {p_parent:parent,p_division:division,p_view:'entry'})
+ response.mockResolvedValue({data:null,error:null})
+ expect((await getFirstParty(new Request(exact))).status).toBe(404)
+})

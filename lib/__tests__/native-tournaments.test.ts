@@ -68,6 +68,35 @@ describe('first-party tournament route', () => {
   expect(f.calls).toHaveLength(2)
  })
 
+ it('opens the private alert rehearsal by exact selection without adding it to discovery', async () => {
+  const f = fixture()
+  const parent = 'tiq-native-event-74697166-6c74-4e10-8f11-000000000001'
+  const division = 'tiq-native-division-74697166-6c74-4e10-8f11-000000000002'
+  const data = {
+   root:{...f.root,id:parent,is_public:false},
+   division:{...f.division,id:division,event_id:parent,is_public:false,format:'single_elimination',
+    entrants:['Alex Ace','Casey Court'],results:{},
+    schedule:{'r1-m1':{date:'2026-11-14',time:'15:00',court:'Court 8'}}},
+  }
+  const response = vi.fn().mockResolvedValue({data,error:null})
+  const rehearsal = vi.fn().mockReturnValue({abortSignal:()=>({retry:response})})
+  Object.assign(f.db,{rpc:rehearsal})
+  signedIn(f.db)
+  vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS','')
+  const selection = '?tournament='+parent+'&division='+division
+  const opened = await firstPartyTournaments(request(selection))
+  expect(readTournamentSnapshot(await opened.json(),owner,'',parent,division).detail).toMatchObject({
+   entryAvailable:false, matches:[{id:'r1-m1',court:'Court 8'}],
+  })
+  expect(rehearsal).toHaveBeenCalledExactlyOnceWith('native_tournament_alert_rehearsal',
+   {p_parent:parent,p_division:division,p_view:'draw'})
+  expect(f.calls).toHaveLength(0)
+  expect((await (await firstPartyTournaments(request())).json()).tournaments).toEqual([])
+  expect(rehearsal).toHaveBeenCalledTimes(1)
+  response.mockResolvedValue({data:null,error:null})
+  expect((await firstPartyTournaments(request(selection))).status).toBe(503)
+ })
+
  it('lists a paid native tournament and opens its division for entries without a manual approval', async () => {
   const f = fixture()
   const id = 'tiq-native-event-10000000-0000-4000-8000-000000000001'
