@@ -40,13 +40,20 @@ async function handle(request: Request) {
     if (!write || preview.unchanged) return response({ ok: true, owner, event, plan: preview.plan })
 
     if (write.action === 'result' && !preview.change) return failed('unavailable')
-    const saved = await (write.action === 'result' ? db.rpc('native_tournament_save_result', {
-      ...scope, p_expected: write.revision, p_division: write.division, p_match: write.match,
-      p_result: preview.change?.result, p_complete: preview.change?.complete,
-    }) : db.rpc('native_tournament_draw_plan', {
-      ...scope, p_action: write.action, p_expected: write.revision, p_division: write.division,
-      ...(write.action === 'slot' ? { p_match: write.match, p_slot: write.slot } : {}),
-    })).retry(false)
+    const version = { ...scope, p_expected: write.revision, p_division: write.division }
+    const operation = (() => {
+      if (write.action === 'result') return db.rpc('native_tournament_save_result', {
+        ...version, p_match: write.match, p_result: preview.change?.result, p_complete: preview.change?.complete,
+      })
+      if (write.action === 'publish') return db.rpc('native_tournament_draw_plan', { ...version, p_action: write.action })
+
+      const match = preview.plan.matches.find(match => match.id === write.match)!
+      return db.rpc('native_tournament_save_slot', {
+        ...version, p_match: write.match, p_slot: write.slot, p_sides: match.ready === false ? [] : [match.a, match.b],
+        p_rescheduled: Boolean(match.date && match.time && match.court),
+      })
+    })()
+    const saved = await operation.retry(false)
     if (saved.error?.code === '23514' && saved.error.message === 'trophy_locked') return failed('trophy_locked')
     if (saved.error || !saved.data) return failed('unavailable')
     if (saved.data.code) return failed(saved.data.code)
