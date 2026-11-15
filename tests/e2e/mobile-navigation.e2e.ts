@@ -2163,6 +2163,44 @@ test('first-party Trophy Case distinguishes an unlinked profile, empty honors an
  await expect(trophyCase.getByRole('heading',{name:'Team Rally',exact:true})).toBeVisible()
 })
 
+test('first-party Trophy Case picks up awards on reopen and preserves them through a failed refresh', async ({ page }) => {
+ await useFirstPartyNavigation(page)
+ await page.goto(origin)
+ const trophyCase = page.locator('.lab-trophy-case')
+ const summary = trophyCase.locator('summary')
+ const honors = trophyCase.getByRole('region', {name:'Competition honors',exact:true})
+ const newAward = honors.getByRole('listitem').filter({hasText:'Winter Open'})
+ const code = honors.getByLabel('Partner code', {exact:true})
+ await summary.click()
+ await expect(honors.getByText('Fall Open', {exact:true})).toBeVisible()
+ await honors.getByRole('button', {name:'Claim doubles trophy',exact:true}).click()
+ await code.fill('10000000-0000-4000-8000-000000000005')
+ await summary.click()
+ await page.evaluate(() => {
+  const fixture = (window as unknown as {setupFixture:{competitionTrophies:unknown[]}}).setupFixture
+  fixture.competitionTrophies.unshift({id:'winter-title',kind:'tournament',placement:'first',name:'Winter Open',
+   division:'Open Doubles',awardedOn:'2026-11-12'})
+ })
+ await summary.click()
+ await expect(newAward).toContainText('Tournament · Champion')
+ await expect(code).toHaveValue('10000000-0000-4000-8000-000000000005')
+
+ const refresh = trophyCase.getByRole('button', {name:'Refresh Trophy Case',exact:true})
+ await page.evaluate(() => { (window as unknown as {setupFixture:{unavailable:boolean}}).setupFixture.unavailable = true })
+ await refresh.click()
+ await expect(trophyCase.locator('[data-setup-status]')).toContainText('Showing your last loaded awards')
+ await expect(newAward).toBeVisible()
+ await expect(code).toBeVisible()
+ await page.evaluate(() => {
+  const fixture = (window as unknown as {setupFixture:{unavailable:boolean;competitionTrophies:unknown[]}}).setupFixture
+  fixture.unavailable = false
+  fixture.competitionTrophies.shift()
+ })
+ await refresh.click()
+ await expect(newAward).toHaveCount(0)
+ await expect(honors.getByText('Fall Open', {exact:true})).toBeVisible()
+})
+
 test('first-party Trophy Case shares only the reviewed current honor',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.goto(origin)

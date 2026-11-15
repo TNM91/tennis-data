@@ -37,9 +37,7 @@ function readHonors(value: unknown) {
 }
 
 function competitionHtml(trophies: CompetitionTrophy[] | null, profileLinked: unknown) {
-  return `<section aria-labelledby="lab-competition-trophies">
-    <h3 id="lab-competition-trophies">Competition honors</h3>
-    ${trophies === null ? '<p>Couldn’t check competition honors. Refresh to try again.</p>' :
+  return trophies === null ? '<p>Couldn’t check competition honors. Refresh to try again.</p>' :
       trophies.length ? `<ul class="lab-competition-trophies">${trophies.map((trophy, index) => `<li class="setup-trophy-card">
         <small>${trophy.kind === 'league' ? 'League' : 'Tournament'} · ${competitionPlacements[trophy.placement]}</small>
         <strong>${html(trophy.name)}</strong>
@@ -48,17 +46,7 @@ function competitionHtml(trophies: CompetitionTrophy[] | null, profileLinked: un
       </li>`).join('')}</ul>` : profileLinked === false ? `<p>Your account isn’t connected to a player profile. Trophies from app entries go to your TenAceIQ account. Support can help connect a player profile for other awards.</p>
         <button type="button" class="secondary" data-competition-help>Get help connecting your profile</button><p role="status" data-competition-help-status></p>` :
         `<p>No competition honors yet. If you expected an award, ask your organizer to check which account or player profile received it.</p>
-        ${profileLinked === true ? '<button type="button" class="secondary" data-share-sample-honor>Try sharing a sample honor</button>' : ''}`}
-    <div class="setup-trophy-card"><button type="button" class="secondary" data-open-trophy-claim
-      aria-expanded="false" aria-controls="lab-trophy-claim">Claim doubles trophy</button>
-      <form id="lab-trophy-claim" data-trophy-claim hidden>
-        <p>Use the partner code from your tournament organizer.</p>
-        <label>Partner code<input type="text" name="code" maxlength="36" required autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-        <button type="submit" class="secondary">Claim trophy</button>
-        <p role="status" data-claim-status></p>
-      </form>
-    </div>
-  </section>`
+        ${profileLinked === true ? '<button type="button" class="secondary" data-share-sample-honor>Try sharing a sample honor</button>' : ''}`
 }
 
 export function mountSetupTrophyCase(
@@ -67,26 +55,46 @@ export function mountSetupTrophyCase(
 ) {
   host.innerHTML = `<details class="lab-trophy-case" ${reveal ? 'open' : ''}>
     <summary><strong>Trophy Case</strong><span>Competition honors and setup trophies</span></summary>
-    <p role="status" data-setup-status></p><div data-setup-tracks></div>
+    <p role="status" tabindex="-1" data-setup-status></p>
+    <section aria-labelledby="lab-competition-trophies">
+      <h3 id="lab-competition-trophies">Competition honors</h3>
+      <p role="status" data-honors-status hidden></p>
+      <div data-competition-awards></div>
+      <div class="setup-trophy-card"><button type="button" class="secondary" data-open-trophy-claim
+        aria-expanded="false" aria-controls="lab-trophy-claim">Claim doubles trophy</button>
+        <form id="lab-trophy-claim" data-trophy-claim hidden>
+          <p>Use the partner code from your tournament organizer.</p>
+          <label>Partner code<input type="text" name="code" maxlength="36" required autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <button type="submit" class="secondary">Claim trophy</button>
+          <p role="status" data-claim-status></p>
+        </form>
+      </div>
+    </section>
+    <div data-setup-tracks></div>
     <button type="button" class="secondary" data-setup-refresh>Check Trophy Case</button>
   </details>`
   const disclosure = host.querySelector<HTMLDetailsElement>('details')!
   const status = host.querySelector<HTMLElement>('[data-setup-status]')!
-  const list = host.querySelector<HTMLElement>('[data-setup-tracks]')!
+  const awards = host.querySelector<HTMLElement>('[data-competition-awards]')!
+  const honorsStatus = host.querySelector<HTMLElement>('[data-honors-status]')!
+  const tracksList = host.querySelector<HTMLElement>('[data-setup-tracks]')!
+  const claimForm = host.querySelector<HTMLFormElement>('[data-trophy-claim]')!
+  const claimToggle = host.querySelector<HTMLButtonElement>('[data-open-trophy-claim]')!
+  const claimButton = claimForm.querySelector<HTMLButtonElement>('button[type="submit"]')!
+  const claimStatus = claimForm.querySelector<HTMLElement>('[data-claim-status]')!
   const refresh = host.querySelector<HTMLButtonElement>('[data-setup-refresh]')!
   const active = () => host.isConnected && current()
-  let loaded = false
+  let hasLoadedHonors = false
+  let isOpen = disclosure.open
 
-  async function claimTrophy(form: HTMLFormElement) {
-    const claimStatus = form.querySelector<HTMLElement>('[data-claim-status]')!
-    const button = form.querySelector<HTMLButtonElement>('button')!
-    if (!active() || button.disabled || refresh.disabled) return
-    const code = String(new FormData(form).get('code') ?? '').trim().toLowerCase()
+  async function claimTrophy() {
+    if (!active() || claimButton.disabled) return
+    const code = String(new FormData(claimForm).get('code') ?? '').trim().toLowerCase()
     if (!tournamentDraftRevision(code)) {
       claimStatus.textContent = 'Check the partner code and try again.'
       return
     }
-    button.disabled = true
+    claimButton.disabled = true
     refresh.disabled = true
     claimStatus.textContent = 'Checking partner code…'
     try {
@@ -107,14 +115,21 @@ export function mountSetupTrophyCase(
           response.data.ok !== true || response.data.owner !== owner || typeof response.data.trophyId !== 'string') {
         throw Error('Claim unavailable')
       }
+      claimForm.reset()
+      claimForm.hidden = true
+      claimToggle.setAttribute('aria-expanded', 'false')
+      claimStatus.textContent = ''
       refresh.disabled = false
       const trophies = await load()
-      if (active()) status.textContent = trophies?.some(trophy => trophy.id === response.data.trophyId)
-        ? 'Champion trophy added.' : 'Trophy claimed. Refresh to see it in your Trophy Case.'
+      if (active()) {
+        status.textContent = trophies?.some(trophy => trophy.id === response.data.trophyId)
+          ? 'Champion trophy added.' : 'Trophy claimed. Refresh to see it in your Trophy Case.'
+        if (disclosure.open) status.focus()
+      }
     } catch {
-      if (active() && form.isConnected) claimStatus.textContent = 'Couldn’t confirm the claim. Try the same partner code again.'
+      if (active()) claimStatus.textContent = 'Couldn’t confirm the claim. Try the same partner code again.'
     } finally {
-      if (active()) { button.disabled = false; refresh.disabled = false }
+      if (active()) { claimButton.disabled = false; refresh.disabled = false }
     }
   }
 
@@ -126,74 +141,84 @@ export function mountSetupTrophyCase(
       headers: { Authorization: `Bearer ${session.data.session.access_token}` },
       responseType: 'json', disableRedirects: true, connectTimeout: 12000, readTimeout: 30000,
     })
+    const latest = await client.auth.getSession()
     const data = response.data
-    if (!active() || response.status !== 200 || data?.ok !== true || !matchesTeamReleaseScope(data, owner)) throw Error('Trophy Case unavailable')
+    if (!active() || latest.error || latest.data.session?.user.id !== owner || response.status !== 200 ||
+        data?.ok !== true || !matchesTeamReleaseScope(data, owner)) throw Error('Trophy Case unavailable')
     return data
   }
 
   async function load() {
     if (!active() || refresh.disabled) return
     refresh.disabled = true
+    claimButton.disabled = true
     status.textContent = 'Checking your Trophy Case…'
     try {
       const data = await readTrophyCase()
       if (!active()) return
       const tracks = readSetupTracks(data.tracks)
       const trophies = readHonors(data.competitionTrophies)
-      list.innerHTML = competitionHtml(trophies, data.competitionProfileLinked) +
-        '<h3>Setup trophies</h3>' + tracks.map(trackHtml).join('')
-      const claim = list.querySelector<HTMLFormElement>('[data-trophy-claim]')
-      const claimToggle = list.querySelector<HTMLButtonElement>('[data-open-trophy-claim]')
-      if (claim && claimToggle) {
-        claim.onsubmit = (event) => { event.preventDefault(); void claimTrophy(claim) }
-        claimToggle.onclick = () => {
-          claim.hidden = !claim.hidden
-          claimToggle.setAttribute('aria-expanded', String(!claim.hidden))
-          if (!claim.hidden) claim.querySelector('input')?.focus()
-        }
+      if (trophies !== null || !hasLoadedHonors) {
+        awards.innerHTML = competitionHtml(trophies, data.competitionProfileLinked)
+        hasLoadedHonors = trophies !== null
+        bindAwards(trophies)
       }
-      for (const button of list.querySelectorAll<HTMLButtonElement>('[data-setup-action]')) {
+      honorsStatus.hidden = trophies !== null || !hasLoadedHonors
+      honorsStatus.textContent = honorsStatus.hidden ? '' : 'Couldn’t check competition honors. Showing your last loaded awards.'
+      tracksList.innerHTML = '<h3>Setup trophies</h3>' + tracks.map(trackHtml).join('')
+      for (const button of tracksList.querySelectorAll<HTMLButtonElement>('[data-setup-action]')) {
         button.onclick = () => { if (active()) openAction(button.dataset.setupAction as SetupAction, button) }
       }
-      for (const button of list.querySelectorAll<HTMLButtonElement>('[data-share-honor]')) {
-        const trophy = trophies?.[Number(button.dataset.shareHonor)]
-        if (trophy) button.onclick = () => openCompetitionTrophyShare(list, button, active, {
-          kind: 'earned', trophy,
-          read: async () => {
-            const fresh = readCompetitionTrophies((await readTrophyCase()).competitionTrophies)
-            return fresh.find(honor => honor.id === trophy.id)
-          },
-        })
-      }
-      const sample = list.querySelector<HTMLButtonElement>('[data-share-sample-honor]')
-      if (sample) sample.onclick = () => openCompetitionTrophyShare(list, sample, active, { kind: 'sample' })
-      const help = list.querySelector<HTMLButtonElement>('[data-competition-help]')
-      const helpStatus = list.querySelector<HTMLElement>('[data-competition-help-status]')
-      if (help && helpStatus) help.onclick = async () => {
-        if (!active() || help.disabled) return
-        help.disabled = true
-        helpStatus.textContent = ''
-        try { await Browser.open({ url: ACCOUNT_HELP_LINKS.support }) }
-        catch { if (active()) helpStatus.textContent = 'Couldn’t open support. Email support@tenaceiq.com for help.' }
-        finally { if (active()) help.disabled = false }
-      }
-      loaded = true
       status.textContent = ''
       refresh.textContent = 'Refresh Trophy Case'
       return trophies
     } catch {
       if (active()) {
-        list.replaceChildren()
-        loaded = false
-        status.textContent = 'Couldn’t check your Trophy Case. Try again.'
+        status.textContent = hasLoadedHonors ? 'Couldn’t refresh your Trophy Case. Showing your last loaded awards.' :
+          'Couldn’t check your Trophy Case. Try again.'
       }
     } finally {
-      if (active()) refresh.disabled = false
+      if (active()) { claimButton.disabled = false; refresh.disabled = false }
     }
   }
 
+  function bindAwards(trophies: CompetitionTrophy[] | null) {
+    for (const button of awards.querySelectorAll<HTMLButtonElement>('[data-share-honor]')) {
+      const trophy = trophies?.[Number(button.dataset.shareHonor)]
+      if (trophy) button.onclick = () => openCompetitionTrophyShare(host, button, active, {
+        kind: 'earned', trophy,
+        read: async () => {
+          const fresh = readCompetitionTrophies((await readTrophyCase()).competitionTrophies)
+          return fresh.find(honor => honor.id === trophy.id)
+        },
+      })
+    }
+    const sample = awards.querySelector<HTMLButtonElement>('[data-share-sample-honor]')
+    if (sample) sample.onclick = () => openCompetitionTrophyShare(host, sample, active, { kind: 'sample' })
+    const help = awards.querySelector<HTMLButtonElement>('[data-competition-help]')
+    const helpStatus = awards.querySelector<HTMLElement>('[data-competition-help-status]')
+    if (help && helpStatus) help.onclick = async () => {
+      if (!active() || help.disabled) return
+      help.disabled = true
+      helpStatus.textContent = ''
+      try { await Browser.open({ url: ACCOUNT_HELP_LINKS.support }) }
+      catch { if (active()) helpStatus.textContent = 'Couldn’t open support. Email support@tenaceiq.com for help.' }
+      finally { if (active()) help.disabled = false }
+    }
+  }
+
+  claimForm.onsubmit = (event) => { event.preventDefault(); void claimTrophy() }
+  claimToggle.onclick = () => {
+    claimForm.hidden = !claimForm.hidden
+    claimToggle.setAttribute('aria-expanded', String(!claimForm.hidden))
+    if (!claimForm.hidden) claimForm.querySelector('input')?.focus()
+  }
   refresh.onclick = () => { void load() }
-  disclosure.ontoggle = () => { if (disclosure.open && !loaded) void load() }
+  disclosure.ontoggle = () => {
+    const reopened = disclosure.open && !isOpen
+    isOpen = disclosure.open
+    if (reopened) void load()
+  }
   if (reveal) {
     disclosure.querySelector<HTMLElement>('summary')?.focus()
     void load()

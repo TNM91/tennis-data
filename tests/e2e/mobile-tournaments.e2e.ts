@@ -359,6 +359,10 @@ test('an unlinked doubles partner claims the championship in My Lab',async({page
  await honors.getByRole('button',{name:'Claim trophy',exact:true}).click()
  await expect(honors.getByText('Winter Open',{exact:true})).toBeVisible()
  await expect(honors.getByText('Tournament · Champion',{exact:true})).toBeVisible()
+ const success=page.getByRole('status').filter({hasText:'Champion trophy added.'})
+ await expect(success).toBeFocused()
+ await honors.getByRole('button',{name:'Claim doubles trophy'}).click()
+ await expect(code).toHaveValue('')
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
 test('tournament overview jumps to the upcoming court in the selected division',async({page},info)=>{

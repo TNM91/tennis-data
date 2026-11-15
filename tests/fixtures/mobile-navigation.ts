@@ -145,7 +145,7 @@ const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.s
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
 const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false,
  captainChatSetup:'needs-review',captainInviteTeams:undefined as (typeof chatTeam)[]|undefined}
-const setupFixture={done:[] as string[],requests:0,competitionProfileLinked:undefined as boolean|undefined,
+const setupFixture={done:[] as string[],requests:0,unavailable:false,competitionProfileLinked:undefined as boolean|undefined,
  competitionTrophies:[
   {id:'city-league-award',kind:'league',placement:'first',name:'City League',division:'Fall · 4.5',awardedOn:'2026-11-10'},
   {id:'fall-open-award',kind:'tournament',placement:'first',name:'Fall Open',division:'Men’s 4.5',awardedOn:'2026-11-10'},
@@ -315,6 +315,7 @@ window.fetch=async(input,init)=>{
  }
  if(url.pathname==='/api/mobile/first-party/setup'){
   setupFixture.requests++
+  if(setupFixture.unavailable)return Response.json({ok:false,releaseScope:'first-party'},{status:503})
   return Response.json({ok:true,owner:currentNavigationOwner(),releaseScope:'first-party',
    tracks:[{tier:'free',done:['account']},{tier:'captain',done:setupFixture.done}],
    competitionProfileLinked:setupFixture.competitionProfileLinked,competitionTrophies:setupFixture.competitionTrophies})
