@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
+import { nativeTournamentPlan } from '../native-tournament-draw-plan'
+import { tournamentTitleContenders } from '../native-tournament-trophy'
 
 const ids = Array.from({ length: 10 }, (_, index) => '10000000-0000-4000-8000-' + String(index).padStart(12, '0'))
 const [owner, other, event, revision, production, sandbox, cancelKey, canceled, partner, stranger] = ids
@@ -53,6 +55,7 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     await migration('20261114001600_native_tournament_draw_plan')
     await migration('20261114001700_native_tournament_results')
     await migration('20261114001800_native_tournament_trophies')
+    await migration('20261115000100_private_tournament_trophy_rehearsal')
     await db.query('insert into auth.users values ($1),($2),($3),($4)', [owner, other, partner, stranger])
     await db.exec('grant usage on schema auth to authenticated; grant select,insert,update on public.tiq_tournaments to authenticated')
     const rpc = async (sql: string, params: unknown[]) => (await db.query<{ r: Record<string, unknown> }>('select ' + sql + ' r', params)).rows[0].r
@@ -220,6 +223,55 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     expect((await db.query('select id from tiq_tournaments where is_public')).rows).toEqual([])
     expect(await settle(production, 'Production', '1', false, '2026-11-16T00:00:00Z')).toEqual(paid)
     expect((await db.query('select id from tiq_tournaments where is_public')).rows).toHaveLength(3)
+
+    const testEvent = '74697166-6c74-4e10-8f11-000000000001'
+    const testRoot = `tiq-native-event-${testEvent}`
+    const testDivision = `tiq-native-division-${testEvent}`
+    const testChampion = 'Demo Avery / Demo Robin'
+    const testOpponent = 'Demo Casey / Demo Morgan'
+    const testResults = { 'r1-m1': { winner:testChampion, sideA:testChampion, sideB:testOpponent, score:'6-3, 6-4' } }
+    await db.query(`insert into public.tiq_tournaments(id,name,status,is_event,created_by_user_id,starts_on,event_details)
+      values ($1,'TestFlight Rehearsal','completed',true,$2,'2099-06-06','{"timeZone":"America/Chicago"}')`, [testRoot,owner])
+    await db.query(`insert into public.tiq_tournaments(id,event_id,name,status,entrant_type,created_by_user_id,entrants,results)
+      values ($1,$2,'Doubles','completed','teams',$3,$4,$5)`, [testDivision,testRoot,owner,[testChampion,testOpponent],JSON.stringify(testResults)])
+    await db.query(`insert into private.native_tournament_setups(owner_id,id,draft,settings,settings_revision) values ($1,$2,$3,$4,$5)`,
+      [owner,testEvent,JSON.stringify(draft),JSON.stringify(settings),revision])
+    await db.query(`insert into private.native_tournament_rehearsals(owner_id,event_id,event_key,winner_id,partner_id,expires_at)
+      values ($1,$2,$3,$4,$5,statement_timestamp() + interval '1 hour')`, [owner,testEvent,testRoot,other,partner])
+    await db.query(`insert into public.tiq_tournament_entries(tournament_id,player_name,status,submitted_by_user_id,native_registration)
+      values ($1,$2,'approved',$3,'{"version":1}')`, [testDivision,testChampion,other])
+    await expect(db.query(`update public.tiq_tournaments set is_public=true where id=$1`, [testRoot])).rejects.toThrow(/rehearsals_are_private/)
+    await db.exec('set role service_role')
+    const testSetup = (actor: string) => rpc('native_tournament_setup($1,$2)', [actor,testEvent])
+    const testPlan = (actor: string, action = 'read') => rpc('native_tournament_draw_plan($1,$2,$3)', [actor,testEvent,action])
+    const testTitle = (actor: string, action = 'read', version: unknown = null, champion: string | null = null) =>
+      rpc('native_tournament_title($1,$2,$3,$4,$5,$6)', [actor,testEvent,testDivision,action,version,champion])
+    expect(await testSetup(owner)).toMatchObject({publicId:testRoot})
+    expect(await testSetup(other)).toBeNull()
+    expect(await testPlan(stranger)).toEqual({code:'missing'})
+    expect(await testPlan(owner,'publish')).toEqual({code:'missing'})
+    expect(await testTitle(stranger)).toEqual({code:'missing'})
+    expect(await rpc('native_tournament_checkout($1,$2,$3,$4)', [owner,testEvent,'Sandbox','status'])).toEqual({code:'missing'})
+    const snapshot = await testPlan(owner) as unknown as Parameters<typeof nativeTournamentPlan>[0]
+    expect(nativeTournamentPlan(snapshot).plan?.matches[0]?.winner).toBe(testChampion)
+    expect(tournamentTitleContenders(snapshot.divisions[0])).toEqual([testChampion])
+    const testAward = (await testTitle(owner,'award',snapshot.revision,testChampion)).award as {id:string;partnerCode:string}
+    expect(await trophies(other)).toContainEqual(expect.objectContaining({id:'tiq-title-' + testAward.id}))
+    expect(await trophies(partner)).not.toContainEqual(expect.objectContaining({id:'tiq-title-' + testAward.id}))
+    expect(await claim(stranger,testAward.partnerCode)).toBeNull()
+    expect(await claim(other,testAward.partnerCode)).toBeNull()
+    expect(await claim(partner,testAward.partnerCode)).toBe(testAward.id)
+    expect(await trophies(partner)).toContainEqual(expect.objectContaining({id:'tiq-title-' + testAward.id}))
+    await db.exec('reset role')
+    await db.query(`update private.native_tournament_rehearsals set created_at=statement_timestamp() - interval '2 hours',
+      expires_at=statement_timestamp() - interval '1 hour' where event_id=$1`, [testEvent])
+    await db.exec('set role service_role')
+    expect(await testSetup(owner)).toBeNull()
+    expect(await rpc('native_tournament_desk($1)', [owner])).not.toContainEqual(expect.objectContaining({revision:testEvent}))
+    expect(await testPlan(owner)).toEqual({code:'missing'})
+    expect(await claim(partner,testAward.partnerCode)).toBeNull()
+    expect(await trophies(other)).not.toContainEqual(expect.objectContaining({id:'tiq-title-' + testAward.id}))
+    expect(await trophies(partner)).not.toContainEqual(expect.objectContaining({id:'tiq-title-' + testAward.id}))
   } finally {
     await db.close()
   }
