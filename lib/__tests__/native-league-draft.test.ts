@@ -98,7 +98,7 @@ it('publishes verified production seasons once and scopes registration, refunds 
       create view public.native_first_party_updates as
         select id,recipient_profile_id,notification_type,title,body,href,conversation_id,schedule_event_id,read_at,created_at
         from public.internal_notifications where false;
-      grant usage on schema private to authenticated;
+      grant usage on schema private,auth to authenticated;
       grant select on public.native_first_party_updates,public.internal_notifications to authenticated;
       alter table public.account_deletion_requests add column automatic_consent boolean not null default false;
       alter table public.tiq_leagues enable row level security;
@@ -117,7 +117,8 @@ it('publishes verified production seasons once and scopes registration, refunds 
     await db.query("insert into profiles (id,email,role) values ($1,'organizer@example.test','member'),($2,'player@example.test','member')",[owner,other])
     await db.exec(await readFile(new URL('../../supabase/migrations/20261115000500_native_league_drafts.sql', import.meta.url), 'utf8'))
     for(const migration of ['20261113000200_native_first_party_league_entry','20261113000300_native_first_party_league_decisions',
-      '20261115000600_native_league_checkout','20261115000700_native_league_registration','20261115001000_native_league_entry_updates']){
+      '20261115000600_native_league_checkout','20261115000700_native_league_registration','20261115001000_native_league_entry_updates',
+      '20261115001100_native_league_entry_rehearsals']){
       await db.exec(await readFile('supabase/migrations/'+migration+'.sql','utf8'))
     }
 
@@ -237,7 +238,51 @@ it('publishes verified production seasons once and scopes registration, refunds 
       href:'/explore/leagues/tiq/'+singles+'?entry='+entryId+'#league-entry'}])
     await db.query('insert into public.team_chat_blocks(owner_user_id,blocked_user_id) values($1,$2)',[other,owner])
     expect(await updates(other)).toEqual([])
+
+    const practice='tiq-native-league-e79ec308-8b38-4bf8-aac9-000000000001'
+    const practiceEntry='99999999-9999-4999-8999-999999999999'
+    await db.query(`insert into public.tiq_leagues (id,league_name,league_format,season_status,is_public,
+      created_by_user_id,ends_on,schedule_time_zone,updated_at)
+      values($1,'TestFlight Singles Practice','individual','active',false,$2,current_date+7,'America/Chicago',$3)`,[practice,owner,signed])
+    await db.query(`insert into private.native_league_entry_rehearsals(league_id,owner_id,expires_at)
+      values($1,$2,statement_timestamp()+interval '7 days')`,[practice,owner])
+    await expect(db.query('update public.tiq_leagues set is_public=true where id=$1',[practice])).rejects.toThrow(/check constraint/)
+    async function readPractice(actor:string){
+      await db.exec('set role authenticated')
+      try{
+        await db.query("select set_config('request.jwt.claim.sub',$1,false)",[actor])
+        return (await db.query(`select native_league_entry_rehearsal(null) as listing,
+          (select count(*)::int from tiq_leagues where id=$1) as visible`,[practice])).rows[0]
+      } finally {await db.exec('reset role')}
+    }
+    expect(await readPractice(other)).toEqual({listing:null,visible:0})
+    expect(await readPractice(owner)).toMatchObject({listing:{id:practice,is_public:false},visible:1})
+    const submitPractice=async(actor:string)=>(await db.query(`select native_first_party_league_entry(
+      $1,$2,'individual',$3,$4) as accepted`,[actor,practice,signed,
+      JSON.stringify({id:practiceEntry,player_name:'Test Player',eligibility_status:'needs_confirmation',
+        eligibility_review_note:'Submitted for organizer review.',eligibility_mixed_pair_role:'unknown'})])).rows
+    const decidePractice=async(actor:string,action:string,note:string,entryAt:string)=>
+      (await db.query(`select native_first_party_league_decision($1,$2,'individual',$3,$4,$5,$6,$7,'verified') as receipt`,
+        [actor,practice,signed,practiceEntry,entryAt,action,note])).rows
     await db.exec('set role service_role')
+    expect(await submitPractice(other)).toEqual([{accepted:false}])
+    expect(await submitPractice(owner)).toEqual([{accepted:true}])
+    await db.exec('reset role')
+    const practiceVersion=(await db.query<{version:string}>(
+      'select updated_at::text as version from tiq_player_league_entries where id=$1',[practiceEntry])).rows[0].version
+    await db.exec('set role service_role')
+    expect(await decidePractice(other,'active','',practiceVersion)).toEqual([{receipt:null}])
+    expect(await decidePractice(owner,'information','Confirm your test entry.',practiceVersion)).toEqual([
+      {receipt:expect.objectContaining({notified:true,player_action_required:true})},
+    ])
+    expect(await updates(owner)).toEqual([{title:'League entry needs information',body:'TestFlight Singles Practice',
+      href:'/explore/leagues/tiq/'+practice+'?entry='+practiceEntry+'#league-entry'}])
+    expect(await updates(other)).toEqual([])
+    await db.query('update private.native_league_entry_rehearsals set expires_at=now() where league_id=$1',[practice])
+    expect(await readPractice(owner)).toMatchObject({listing:null})
+    expect(await updates(owner)).toEqual([])
+    await db.exec('set role service_role')
+    expect(await decidePractice(owner,'rejected','',practiceVersion)).toEqual([{receipt:null}])
     expect(await save(owner, next, first)).toEqual({ draft, revision: first })
     await expect(save(owner, first, next)).rejects.toThrow('native_league_checkout_revision_used')
     await db.exec('reset role')

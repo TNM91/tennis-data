@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { loadFirstPartyNativeCompetitions, loadTestflightLeagueScores } from '@/lib/native-competitions'
+import { loadFirstPartyNativeCompetitions, loadLeagueEntryRehearsal, loadTestflightLeagueScores } from '@/lib/native-competitions'
 import { competitionInput, publicCompetitionOwner, type CompetitionSnapshot } from '@/lib/native-competitions-contract'
 import { loadNativeLeagueMatchDay } from '@/lib/native-league-match-day'
 import { loadNativeLeagueAttention } from '@/lib/native-league-attention'
@@ -56,8 +56,20 @@ export async function GET(request: Request) {
     const matchDayRequested = request.headers.get('X-TenAceIQ-Match-Day') === '1'
     const attentionRequested = auth.emailVerified === true && request.headers.get('X-TenAceIQ-League-Attention') === '1'
     const showPostponed = request.headers.get('X-TenAceIQ-League-Postpone') === '1'
-    const demo = auth.userId !== publicCompetitionOwner && request.headers.get('X-TenAceIQ-League-Score') === '2'
-      ? await loadTestflightLeagueScores(auth.supabase, auth.userId, input) : null
+    const [demo, rehearsal] = await Promise.all([
+      auth.userId !== publicCompetitionOwner && request.headers.get('X-TenAceIQ-League-Score') === '2'
+        ? loadTestflightLeagueScores(auth.supabase, auth.userId, input) : null,
+      auth.emailVerified === true ? loadLeagueEntryRehearsal(auth.supabase, auth.userId, input).catch(() => null) : null,
+    ])
+    if (rehearsal?.detail) {
+      const snapshot: CompetitionSnapshot = {
+        owner: auth.userId, checkedAt: new Date().toISOString(), scope: input.scope, query: input.query,
+        leagues: [rehearsal.league], detail: rehearsal.detail, moreLeagues: false, moreConnections: false,
+        connections: [{ leagueId: rehearsal.league.id, kind: 'organizer', status: 'active' }],
+        canReviewEntries: true,
+      }
+      return Response.json({ ok: true, releaseScope: 'first-party', ...snapshot }, { headers })
+    }
     if (demo?.detail) {
       const snapshot: CompetitionSnapshot = {
         owner: auth.userId, checkedAt: new Date().toISOString(),
@@ -74,14 +86,15 @@ export async function GET(request: Request) {
         ...(showPostponed && auth.emailVerified === true ? { canPostponeMatches: true } : {}) }, { headers })
     }
     const snapshot = await loadFirstPartyNativeCompetitions(auth.supabase, auth.userId, input, overview === '1')
-    if (demo) {
+    for (const item of [demo, rehearsal]) {
+      if (!item) continue
       if (snapshot.leagues.length >= 20) {
         const hidden = snapshot.leagues.pop()
         snapshot.connections = snapshot.connections.filter(entry => entry.leagueId !== hidden?.id)
         snapshot.moreLeagues = true
       }
-      snapshot.leagues.unshift(demo.league)
-      snapshot.connections.unshift({ leagueId: demo.league.id, kind: 'organizer', status: 'active' })
+      snapshot.leagues.unshift(item.league)
+      snapshot.connections.unshift({ leagueId: item.league.id, kind: 'organizer', status: 'active' })
     }
     const active = snapshot.detail?.league.status === 'active' && auth.userId !== publicCompetitionOwner
     const organizer = active && snapshot.connections.some(connection => connection.kind === 'organizer' && connection.leagueId === input.selected)
