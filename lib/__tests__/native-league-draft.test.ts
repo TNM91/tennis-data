@@ -92,6 +92,14 @@ it('publishes verified production seasons once and scopes registration, refunds 
     await db.exec(await readFile('supabase/migrations/20261028000100_native_account_requests.sql','utf8'))
     await db.exec(`
       create schema private;
+      create function auth.uid() returns uuid language sql stable as $$
+        select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid
+      $$;
+      create view public.native_first_party_updates as
+        select id,recipient_profile_id,notification_type,title,body,href,conversation_id,schedule_event_id,read_at,created_at
+        from public.internal_notifications where false;
+      grant usage on schema private to authenticated;
+      grant select on public.native_first_party_updates,public.internal_notifications to authenticated;
       alter table public.account_deletion_requests add column automatic_consent boolean not null default false;
       alter table public.tiq_leagues enable row level security;
       alter table public.tiq_team_league_entries enable row level security;
@@ -109,7 +117,7 @@ it('publishes verified production seasons once and scopes registration, refunds 
     await db.query("insert into profiles (id,email,role) values ($1,'organizer@example.test','member'),($2,'player@example.test','member')",[owner,other])
     await db.exec(await readFile(new URL('../../supabase/migrations/20261115000500_native_league_drafts.sql', import.meta.url), 'utf8'))
     for(const migration of ['20261113000200_native_first_party_league_entry','20261113000300_native_first_party_league_decisions',
-      '20261115000600_native_league_checkout','20261115000700_native_league_registration']){
+      '20261115000600_native_league_checkout','20261115000700_native_league_registration','20261115001000_native_league_entry_updates']){
       await db.exec(await readFile('supabase/migrations/'+migration+'.sql','utf8'))
     }
 
@@ -184,10 +192,51 @@ it('publishes verified production seasons once and scopes registration, refunds 
     }
     await db.exec('set role service_role')
     expect(await approve(other)).toEqual([{receipt:null}])
-    expect(await approve(owner)).toEqual([{receipt:expect.objectContaining({id:entryId,entry_status:'active'})}])
+    expect(await approve(owner)).toEqual([{receipt:expect.objectContaining({id:entryId,entry_status:'active',notified:true})}])
+    expect(await approve(owner)).toEqual([{receipt:null}])
+    await db.exec('reset role')
+    async function updates(actor: string) {
+      await db.exec('set role authenticated')
+      try {
+        await db.query("select set_config('request.jwt.claim.sub',$1,false)",[actor])
+        return (await db.query('select title,body,href from public.native_first_party_updates')).rows
+      } finally {
+        await db.exec('reset role')
+      }
+    }
+    expect(await updates(owner)).toEqual([])
+    expect(await updates(other)).toEqual([{title:'League entry approved',body:draft.name,
+      href:'/explore/leagues/tiq/'+paid.publicId+'?entry='+entryId+'#league-entry'}])
+    await db.exec('set role service_role')
     expect(await settle(owner,true,'2026-11-17T12:00:00Z','Production',productionToken)).toMatchObject({state:'refunded'})
     await db.exec('reset role')
     expect((await db.query(`select is_public from tiq_leagues where id=$1`,[paid.publicId])).rows).toEqual([{is_public:false}])
+    expect(await updates(other)).toEqual([])
+
+    const singles='tiq-native-league-'+first
+    await db.query(`insert into public.tiq_leagues (id,league_name,league_format,season_status,is_public,
+      created_by_user_id,ends_on,schedule_time_zone,updated_at)
+      values($1,'Winter Singles','individual','active',true,$2,current_date+7,'America/Chicago',$3)`,[singles,owner,signed])
+    await db.query(`insert into public.tiq_player_league_entries(id,league_id,player_name,entry_status,created_by_user_id,
+      updated_at,eligibility_rating_source,eligibility_age_division_source,eligibility_mixed_pair_role_source)
+      values($1,$2,'Alex','pending',$3,$4,'unknown','unknown','unknown')`,[entryId,singles,other,signed])
+    const decideSingles=async(action:string,note:string,entryAt=signed)=>
+      (await db.query<{receipt:unknown}>(`select native_first_party_league_decision(
+        $1,$2,'individual',$3,$4,$5,$6,$7,'needs_confirmation') as receipt`,
+      [owner,singles,signed,entryId,entryAt,action,note])).rows[0].receipt
+    await db.exec('set role service_role')
+    expect(await decideSingles('information','Please confirm your eligibility.')).toMatchObject({notified:true,player_action_required:true})
+    expect(await updates(other)).toEqual([{title:'League entry needs information',body:'Winter Singles',
+      href:'/explore/leagues/tiq/'+singles+'?entry='+entryId+'#league-entry'}])
+    await db.query(`update public.tiq_player_league_entries set player_action_required=false,updated_at=$2 where id=$1`,
+      [entryId,'2026-11-15T13:00:00Z'])
+    expect(await updates(other)).toEqual([])
+    await db.exec('set role service_role')
+    expect(await decideSingles('rejected','', '2026-11-15T13:00:00Z')).toMatchObject({notified:true,entry_status:'rejected'})
+    expect(await updates(other)).toEqual([{title:'League entry declined',body:'Winter Singles',
+      href:'/explore/leagues/tiq/'+singles+'?entry='+entryId+'#league-entry'}])
+    await db.query('insert into public.team_chat_blocks(owner_user_id,blocked_user_id) values($1,$2)',[other,owner])
+    expect(await updates(other)).toEqual([])
     await db.exec('set role service_role')
     expect(await save(owner, next, first)).toEqual({ draft, revision: first })
     await expect(save(owner, first, next)).rejects.toThrow('native_league_checkout_revision_used')
