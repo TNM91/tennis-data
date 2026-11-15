@@ -1,11 +1,12 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {tournamentInput,type TournamentSnapshot,type TournamentSummary,type TournamentDetail,type TournamentStanding,type TournamentMatch} from './native-tournaments-contract'
+import {tournamentInput,type TournamentSnapshot,type TournamentSummary} from './native-tournaments-contract'
 import {normalizeTournamentEventDetails,isTournamentEventRegistrationClosed} from './tournament-event-presentation'
 import {getTournamentDrawFormatDefinition} from './competition-format-registry'
-import {buildTournamentPreview,buildTournamentGroupChampionship,buildRoundRobinStandings} from './tournament-draw'
+import {nativeTournamentDraw} from './native-tournament-draw'
 import {isPublishedNativeTournament,nativeTournamentDrawColumns,nativeTournamentSummaryColumns,publishedNativeTournamentId,readTournamentApprovals,tournamentRevisionDigest} from './native-tournament-approvals'
 import {readTestflightTournament,testflightTournamentId} from './testflight-tournament'
-import type {TiqTournamentRecord,TiqTournamentMatchResult,TiqTournamentMatchSchedule,TiqTournamentMatchPreview,TiqTournamentStanding} from './tiq-tournament-registry'
+import type {TiqTournamentRecord} from './tiq-tournament-registry'
+export {nativeTournamentDraw} from './native-tournament-draw'
 type Row=Record<string,unknown>
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
 const signal=()=>AbortSignal.timeout(12000)
@@ -15,40 +16,6 @@ function published(r:Row, demoId = ''):TournamentSummary{
  const details=normalizeTournamentEventDetails(r.event_details),format=text(r.format)
  return {id:text(r.id),parentId:text(r.event_id),isEvent:r.is_event,name:text(r.name),format,formatLabel:getTournamentDrawFormatDefinition(format).id===format?getTournamentDrawFormatDefinition(format).label:'Format to be confirmed',entrantType:r.entrant_type as 'players'|'teams',status:r.status as TournamentSummary['status'],date:text(r.starts_on),location:text(r.location_label).slice(0,500),updatedAt:text(r.updated_at),details,
   registrationClosed:(r.status==='scheduled'&&isPublishedNativeTournament(r))||isTournamentEventRegistrationClosed({status:r.status as TiqTournamentRecord['status'],startsOn:text(r.starts_on),eventDetails:details})}
-}
-function mapStanding(s:TiqTournamentStanding,group=''):TournamentStanding{return {name:s.entrant,group,played:s.played,wins:s.wins,losses:s.losses,gamesWon:s.gamesWon,gamesLost:s.gamesLost,gameDiff:s.gameDiff,winPct:s.winPct}}
-export function nativeTournamentDraw(r:Row):Pick<TournamentDetail,'entrants'|'drawNotice'|'matches'|'standings'>{
- const unavailable=(drawNotice:string)=>({entrants:0,drawNotice,matches:[],standings:[]})
- if(!['single_elimination','round_robin','group_playoffs'].includes(text(r.format)))return unavailable('Draw details for this format are not available in the app yet.')
- if(!Array.isArray(r.entrants)||r.entrants.length>64||r.entrants.some(v=>typeof v!=='string'||!v.trim()||v.length>256))return unavailable('This draw exceeds the app’s current display limit. No partial standings are shown.')
- const entrants=r.entrants.map(v=>text(v));if(new Set(entrants).size!==entrants.length||entrants.includes('Bye'))throw Error('Ambiguous tournament entrants')
- const record=(v:unknown):Row=>{if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).length>500||JSON.stringify(v).length>250000)throw Error('Incomplete tournament draw');return v as Row}
- let raw:Row,saved:Row;try{raw=record(r.results);saved=record(r.schedule)}catch{return unavailable('This draw cannot be shown completely. Refresh for the latest published details.')}
- const schedule:Record<string,TiqTournamentMatchSchedule>={},results:Record<string,TiqTournamentMatchResult>={}
- for(const [id,v] of Object.entries(saved)){const s=v as Row;if(!s||typeof s!=='object'||Array.isArray(s))continue
-  const date=text(s.date),time=text(s.time),court=text(s.court)
-  if(id.length>120||court.length>160||date&&!/^\d{4}-\d{2}-\d{2}$/.test(date)||time&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time))continue
-  schedule[id]={date,time,court,updatedAt:''}
- }
- const format=r.format as TiqTournamentRecord['format']
- // Resolve only winners of the current known sides. Old side-bound results cannot advance a changed draw.
- for(let pass=0;pass<8;pass++){
-  let added=0;const matches=buildTournamentPreview({format,entrants,results,schedule})
-  for(const m of matches){const v=raw[m.id] as Row|undefined;if(results[m.id]||!v||typeof v!=='object'||m.ready===false||!entrants.includes(m.sideA)||!entrants.includes(m.sideB))continue
-   const winner=text(v.winner),score=text(v.score)
-   if(format==='group_playoffs'&&(v.sideA!==m.sideA||v.sideB!==m.sideB))continue
-   if(![m.sideA,m.sideB].includes(winner)||score.length>500||(v.sideA!==undefined||v.sideB!==undefined)&&(v.sideA!==m.sideA||v.sideB!==m.sideB))continue
-   const outcome=v.outcome==='walkover'||v.outcome==='retirement'?v.outcome:undefined
-   results[m.id]={winner,score,updatedAt:'',sideA:m.sideA,sideB:m.sideB,...(outcome?{outcome}:{})};added++
-  }
-  if(!added)break
- }
- const source={format,entrants,results,schedule},matches=buildTournamentPreview(source).filter(m=>m.sideA!=='Bye'&&m.sideB!=='Bye')
- if(matches.length>500)return unavailable('This draw exceeds the app’s current display limit. No partial standings are shown.')
- const match=(m:TiqTournamentMatchPreview):TournamentMatch=>({id:m.id,label:m.label,round:m.round,a:m.sideA,b:m.sideB,winner:m.result?.winner||'',score:m.result?.score||'',date:m.schedule?.date||'',time:m.schedule?.time||'',court:m.schedule?.court||'',
-  ...(m.ready===false?{ready:false as const}:{}),...(m.result?.outcome?{outcome:m.result.outcome}:{})})
- const standings=format==='round_robin'?buildRoundRobinStandings(source).map(s=>mapStanding(s)):format==='group_playoffs'?buildTournamentGroupChampionship(source).groups.flatMap(g=>g.standings.map(s=>mapStanding(s,g.name))):[]
- return {entrants:entrants.length,drawNotice:'',matches:matches.map(match),standings}
 }
 /** Caller JWT/RLS only. No entry contacts, private desk state, service role or production writes. */
 export function loadFirstPartyNativeTournaments(db: SupabaseClient, owner: string, input: ReturnType<typeof tournamentInput>) {

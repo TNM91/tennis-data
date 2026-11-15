@@ -5,16 +5,33 @@ import type {SavedTournamentDraft} from '../../lib/native-tournament-draft-contr
 import {tournamentOwner} from '../fixtures/native-tournaments'
 test.describe.configure({retries:0,timeout:25000})
 const origin='http://127.0.0.1:4266',prefix='/__tournaments/'
-let javascript='',firstPartyJavascript='',stylesheet=''
+let javascript='',firstPartyJavascript='',practiceJavascript='',stylesheet=''
 test.beforeAll(async()=>{
- const bundle=async(firstParty:boolean)=>(await build({
+ const bundle=async(firstParty:boolean, practice=false)=>(await build({
   entryPoints:['tests/fixtures/mobile-tournaments.ts'],bundle:true,platform:'browser',format:'esm',outfile:'tournaments.js',write:false,
-  jsx:'automatic',loader:{'.module.css':'local-css'},define:{TIQ_FIRST_PARTY_BUILD:String(firstParty)},
+  jsx:'automatic',loader:{'.module.css':'local-css'},
+  define:{TIQ_FIRST_PARTY_BUILD:String(firstParty),TIQ_TOURNAMENT_PRACTICE:String(practice)},
  })).outputFiles.find(file=>file.path.endsWith('.js'))!.text
- ;[javascript,firstPartyJavascript]=await Promise.all([bundle(false),bundle(true)])
+ ;[javascript,firstPartyJavascript,practiceJavascript]=await Promise.all([bundle(false),bundle(true),bundle(true,true)])
  stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css','premium-surfaces.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')
 })
-test.beforeEach(async({page})=>{await page.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin!==origin||!u.pathname.startsWith(prefix))return route.abort();if(u.pathname.endsWith('app.js'))return route.fulfill({contentType:'text/javascript',body:u.pathname.endsWith('/draft-app.js')?firstPartyJavascript:javascript});if(u.pathname.endsWith('style.css'))return route.fulfill({contentType:'text/css',body:stylesheet});if(u.pathname!==prefix)return route.fulfill({status:404,body:''});return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css"></head><body data-screen="lab"><header class="app-header">TenAceIQ</header><main id="app"></main><script type="module" src="./'+(['draft','settings','publish','plan','plan-results','plan-trophy','claim-trophy'].includes(u.searchParams.get('view')??'')?'draft-app.js':'app.js')+'"></script></body></html>'})})})
+test.beforeEach(async ({page}) => {
+ await page.route('**/*', async route => {
+  const url = new URL(route.request().url())
+  if (url.origin !== origin || !url.pathname.startsWith(prefix)) return route.abort()
+  const scripts = { 'app.js': javascript, 'draft-app.js': firstPartyJavascript, 'practice-app.js': practiceJavascript }
+  const filename = url.pathname.slice(prefix.length)
+  if (filename && Object.hasOwn(scripts, filename)) {
+   return route.fulfill({ contentType:'text/javascript', body: scripts[filename as keyof typeof scripts] })
+  }
+  if (filename === 'style.css') return route.fulfill({ contentType:'text/css', body:stylesheet })
+  if (filename) return route.fulfill({ status:404, body:'' })
+  const mode = url.searchParams.get('view') ?? ''
+  const firstParty = ['draft','settings','publish','plan','plan-results','plan-trophy','claim-trophy'].includes(mode)
+  const script = mode === 'practice' ? 'practice-app.js' : firstParty ? 'draft-app.js' : 'app.js'
+  return route.fulfill({ contentType:'text/html', body:`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css"></head><body data-screen="lab"><header class="app-header">TenAceIQ</header><main id="app"></main><script type="module" src="./${script}"></script></body></html>` })
+ })
+})
 async function open(page:Page,mode=''){await page.goto(origin+prefix+'?view='+mode);await page.getByRole('button',{name:'Your competitions',exact:true}).click();await page.getByRole('button',{name:'Browse tournaments →',exact:true}).click();const d=page.getByRole('dialog',{name:'Tournaments',exact:true});await expect(d.getByRole('heading',{name:'Tournaments',exact:true})).toBeVisible();return d}
 async function change(page:Page,v:Record<string,unknown>){await page.evaluate(v=>Object.assign((window as unknown as {tournamentFixture:{state:Record<string,unknown>}}).tournamentFixture.state,v),v)}
 async function division(page:Page,mode=''){const d=await open(page,mode);await d.getByRole('button',{name:/^Open tournament/}).click();await d.getByRole('button',{name:/^Open division/}).click();await expect(d.getByRole('button',{name:'Draw',exact:true})).toBeVisible();return d}
@@ -31,6 +48,7 @@ test('a player can recover and reopen a free account tournament draft from Compe
  const deskOpener=directory.getByRole('button',{name:'Tournament Desk',exact:true})
  await deskOpener.click()
  const desk=page.getByRole('dialog',{name:'Tournament Desk',exact:true})
+ await expect(desk.getByRole('button',{name:'Practice a tournament'})).toHaveCount(0)
  const setup=desk.getByRole('button',{name:'Set up a tournament',exact:true})
  await setup.click()
  const draft=page.getByRole('dialog',{name:'Set up a tournament',exact:true})
@@ -270,6 +288,62 @@ test('Tournament Desk awards and withdraws the champion trophy for a completed d
  expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
  await dialog.getByRole('button',{name:'Back to draw',exact:true}).click()
  await expect(plan.getByRole('button',{name:'Champion trophy',exact:true})).toBeFocused()
+})
+test('the internal practice tournament rehearses match day offline and resets on exit', async ({ page }) => {
+ await page.setViewportSize({ width:320, height:720 })
+ const directory = await open(page, 'practice')
+ await directory.getByRole('button', { name:'Tournament Desk', exact:true }).click()
+ const desk = page.getByRole('dialog', { name:'Tournament Desk', exact:true })
+ const start = desk.getByRole('button', { name:'Practice a tournament', exact:true })
+ await expect(start).toBeEnabled()
+ const calls = await requestCount(page)
+ await change(page, { offline:true })
+ await page.context().setOffline(true)
+ await start.click()
+ const plan = page.getByRole('dialog', { name:'Draw & courts', exact:true })
+ await expect(plan).toContainText('Sample players only')
+ await expect(plan.getByRole('button', { name:'Review entries' })).toHaveCount(0)
+ await plan.getByRole('button', { name:'Review and publish draw' }).click()
+ await page.getByRole('dialog', { name:'Publish draw', exact:true }).getByRole('button', { name:'Publish draw', exact:true }).click()
+ await expect(plan.getByRole('status')).toHaveText('Practice draw published.')
+
+ await plan.getByRole('button', { name:/^Assign time and court/ }).first().click()
+ const assignment = page.getByRole('dialog', { name:'Assign match', exact:true })
+ await assignment.getByLabel('Start time').fill('10:30')
+ await assignment.getByLabel('Court', { exact:true }).fill('Court 1')
+ await assignment.getByRole('button', { name:'Save time and court' }).click()
+ await expect(plan.getByRole('region', { name:'Matches' })).toContainText('10:30 AM · Court 1')
+
+ const record = plan.getByRole('button', { name:/^Record result/ })
+ const score = page.getByRole('dialog', { name:'Record result', exact:true })
+ await expect(record).toHaveCount(2)
+ await record.first().click()
+ await score.getByLabel('Set scores').fill('6-4, 6-3')
+ await score.getByRole('button', { name:'Save result' }).click()
+ await expect(record).toHaveCount(1)
+ await record.click()
+ await score.getByLabel('Outcome').selectOption('walkover')
+ await score.getByLabel('Winner').selectOption('A')
+ await score.getByRole('button', { name:'Save result' }).click()
+ await expect(plan.getByRole('region', { name:'Matches' })).toContainText('Walkover')
+ await record.click()
+ await score.getByLabel('Set scores').fill('6-2, 6-3')
+ await score.getByRole('button', { name:'Save result' }).click()
+ await expect(plan.getByRole('region', { name:'Draw status' })).toContainText('Division complete')
+ expect(await plan.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+
+ await plan.getByRole('button', { name:'Champion trophy', exact:true }).click()
+ const trophy = page.getByRole('dialog', { name:'Champion trophy', exact:true })
+ await expect(trophy).toContainText('practice session only')
+ await trophy.getByRole('button', { name:'Award champion trophy' }).click()
+ await expect(trophy.getByRole('status')).toHaveText('Practice champion trophy awarded.')
+ await trophy.getByRole('button', { name:'Back to draw' }).click()
+ await plan.getByRole('button', { name:'End practice' }).click()
+ await expect(start).toBeFocused()
+ await start.click()
+ await expect(plan.getByRole('button', { name:'Review and publish draw' })).toBeVisible()
+ await expect(plan.getByRole('button', { name:'Champion trophy' })).toHaveCount(0)
+ expect(await requestCount(page)).toBe(calls)
 })
 test('an unlinked doubles partner claims the championship in My Lab',async({page})=>{
  await page.setViewportSize({width:320,height:720})

@@ -14,6 +14,7 @@ import {
 import {scenarioOwner, type ScenarioSend} from './captain-scenarios-data'
 import {html} from './match-details'
 import {openTournamentPlan} from './tournament-plan'
+import {createTournamentPractice} from './tournament-practice'
 import {mountTournamentPublish} from './tournament-publish'
 import {readTournamentSetupFields, tournamentSetupFields, tournamentSetupSummary} from './tournament-setup-fields'
 
@@ -284,6 +285,8 @@ export function openTournamentDraft(
         <p data-draft-subtitle>${state === 'event' ? selected?.publicId ? 'Published tournament' : 'Private tournament' : state === 'settings' ? html(selected?.draft.name ?? '') :
           `Save a draft for free. Publishing a tournament costs ${competitionFeeLabel('tournament')} per event.`}</p></div>
       ${state === 'desk' ? `<button type="button" data-draft-start${busy ? ' disabled' : ''}>Set up a tournament</button>
+        ${typeof TIQ_TOURNAMENT_PRACTICE !== 'undefined' && TIQ_TOURNAMENT_PRACTICE ?
+          `<button type="button" class="secondary" data-desk-practice${busy ? ' disabled' : ''}>Practice a tournament</button>` : ''}
         ${events.length ? `<section class="entry-receipts" aria-label="Your tournaments">${events.map((event, index) => `<article>
           <strong>${html(event.draft.name)}</strong><p>${html(formatCalendarDay(event.draft.date))} · ${html(event.draft.venue)}</p>
           <button type="button" class="secondary" data-draft-event="${index}"${busy ? ' disabled' : ''}>Open tournament<span class="sr-only"> ${html(event.draft.name)}</span></button>
@@ -332,6 +335,14 @@ export function openTournamentDraft(
       </form>` : ''}`
     dialog.querySelector('[data-draft-back]')?.addEventListener('click', back)
     dialog.querySelector('[data-draft-start]')?.addEventListener('click', () => { void load() })
+    if (typeof TIQ_TOURNAMENT_PRACTICE !== 'undefined' && TIQ_TOURNAMENT_PRACTICE) {
+      const button = dialog.querySelector<HTMLButtonElement>('[data-desk-practice]')
+      if (button) button.onclick = () => {
+        if (!active() || planner?.isOpen()) return
+        const practice = createTournamentPractice()
+        planner = openTournamentPlan(client, owner, practice.event, active, send, button, () => { planner = null }, practice)
+      }
+    }
     dialog.querySelector('[data-draft-prepare]')?.addEventListener('click', () => { void prepare() })
     dialog.querySelector('[data-desk-retry]')?.addEventListener('click', () => { void loadDesk() })
     dialog.querySelector('[data-desk-more]')?.addEventListener('click', () => { if (nextPage) void loadDesk(nextPage) })

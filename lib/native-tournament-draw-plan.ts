@@ -1,4 +1,4 @@
-import { nativeTournamentDraw } from './native-tournaments'
+import { nativeTournamentDraw } from './native-tournament-draw'
 import type { TournamentMatch } from './native-tournaments-contract'
 import { readTournamentPlan, tournamentSlotMinutes, type TournamentPlanWrite, type TournamentSlot } from './native-tournament-plan-contract'
 import { isCompleteEventSlot, normalizeEventCourt } from './tournament-event-desk'

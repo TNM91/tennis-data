@@ -13,6 +13,7 @@ const errors: Record<string, string> = {
 export function openTournamentTrophy(
   client: SupabaseClient, owner: string, event: string, division: string, current: () => boolean,
   send: ScenarioSend, trigger: HTMLElement, close: () => void,
+  practice?: (write?: TournamentTrophyWrite) => TournamentTrophyPreview,
 ) {
   const dialog = document.createElement('dialog')
   dialog.className = 'captain-lineup-dialog competitions-dialog league-entry-dialog tournament-entry-dialog'
@@ -47,6 +48,28 @@ export function openTournamentTrophy(
     return true
   }
 
+  async function request(write?: TournamentTrophyWrite) {
+    if (practice) return practice(write)
+    const session = await scenarioOwner(client, owner, active)
+    const response = await send({
+      url: endpoint, method: write ? 'POST' : 'GET',
+      headers: { Authorization: 'Bearer ' + session.access_token, 'Cache-Control': 'no-store',
+        ...(write ? { 'Content-Type': 'application/json' } : {}) },
+      ...(write ? { data: write } : {}),
+      webFetchExtra: { cache: 'no-store' }, disableRedirects: true, responseType: 'json',
+      connectTimeout: 12000, readTimeout: 15000,
+    })
+    await scenarioOwner(client, owner, active)
+    const data = response.data
+    if (data?.scope === 'first-party' && data.ok === false && Object.hasOwn(errors, data.code)) throw Error(data.code)
+    if (response.status !== 200 || data?.scope !== 'first-party' || data.ok !== true ||
+        data.owner !== owner || data.event !== event || data.division !== division) throw Error('unavailable')
+    if (write && preview) return { ...preview, award: readTournamentTrophy(data.award) }
+    const latest = readTournamentTrophyPreview(data.preview)
+    if (latest.division !== division) throw Error('unavailable')
+    return latest
+  }
+
   async function run(write?: TournamentTrophyWrite) {
     if (!active() || busy || (write && (!preview || refreshRequired))) return
     busy = true
@@ -54,31 +77,11 @@ export function openTournamentTrophy(
     notice = write ? 'Saving trophy…' : 'Checking the division…'
     render()
     try {
-      const session = await scenarioOwner(client, owner, active)
-      const response = await send({
-        url: endpoint, method: write ? 'POST' : 'GET',
-        headers: { Authorization: 'Bearer ' + session.access_token, 'Cache-Control': 'no-store',
-          ...(write ? { 'Content-Type': 'application/json' } : {}) },
-        ...(write ? { data: write } : {}),
-        webFetchExtra: { cache: 'no-store' }, disableRedirects: true, responseType: 'json',
-        connectTimeout: 12000, readTimeout: 15000,
-      })
-      await scenarioOwner(client, owner, active)
-      const data = response.data
-      if (data?.scope === 'first-party' && data.ok === false && Object.hasOwn(errors, data.code)) throw Error(data.code)
-      if (response.status !== 200 || data?.scope !== 'first-party' || data.ok !== true ||
-          data.owner !== owner || data.event !== event || data.division !== division) throw Error('unavailable')
-      if (write && preview) {
-        const award = readTournamentTrophy(data.award)
-        if (write.action === 'award' ? award?.champion !== write.champion : award !== null) throw Error('unavailable')
-        preview = { ...preview, award }
-        notice = award ? 'Champion trophy added to the winner’s Trophy Case.' : 'Champion trophy withdrawn.'
-      } else {
-        const latest = readTournamentTrophyPreview(data.preview)
-        if (latest.division !== division) throw Error('unavailable')
-        preview = latest
-        notice = ''
-      }
+      const latest = await request(write)
+      if (!active()) return
+      if (write && (write.action === 'award' ? latest.award?.champion !== write.champion : latest.award !== null)) throw Error('unavailable')
+      preview = latest
+      notice = !write ? '' : latest.award ? (practice ? 'Practice champion trophy awarded.' : 'Champion trophy added to the winner’s Trophy Case.') : 'Champion trophy withdrawn.'
       choice = preview.contenders.length === 1 ? preview.contenders[0] : ''
       withdraw = false
       refreshRequired = false
@@ -111,7 +114,7 @@ export function openTournamentTrophy(
     <p role="${error ? 'alert' : 'status'}" data-trophy-status tabindex="-1"${notice ? '' : ' hidden'}>${html(notice)}</p>
     ${award && withdraw ? `<section class="entry-receipts" aria-label="Withdraw trophy"><article>
       <strong>Withdraw ${html(award.champion)}’s trophy?</strong>
-      <p>This removes the trophy from each winner’s Trophy Case and disables any partner code.</p>
+      <p>${practice ? 'This clears the award from this practice tournament.' : 'This removes the trophy from each winner’s Trophy Case and disables any partner code.'}</p>
       <button type="button" data-trophy-confirm-withdraw${disabled}>Confirm withdrawal</button>
     </article></section>` : award ? `<section class="entry-receipts" aria-label="Awarded trophy"><article>
       <small>Champion · Awarded</small><strong>${html(award.champion)}</strong>
@@ -124,7 +127,7 @@ export function openTournamentTrophy(
           <label>Choose champion<select name="champion" required><option value="">Choose the champion</option>
           ${preview.contenders.map((contender, index) => `<option value="${index}"${contender === choice ? ' selected' : ''}>${html(contender)}</option>`).join('')}
           </select></label>` : `<strong>${html(preview.contenders[0])}</strong>`}
-        <p>The trophy goes to the winner’s TenAceIQ account.</p>
+        <p>${practice ? 'This award is saved for this practice session only.' : 'The trophy goes to the winner’s TenAceIQ account.'}</p>
       </fieldset>
       <button type="submit"${disabled}>Award champion trophy</button>
     </form>` : preview ? '<p>Complete the division’s results to award the trophy.</p>' : ''}`

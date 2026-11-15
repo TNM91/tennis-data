@@ -1,4 +1,4 @@
-import { nativeTournamentDraw } from './native-tournaments'
+import { nativeTournamentDraw } from './native-tournament-draw'
 
 export function tournamentTitleContenders(division: Record<string, unknown>) {
   if (division.status !== 'completed') return []

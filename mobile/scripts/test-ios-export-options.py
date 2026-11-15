@@ -77,15 +77,18 @@ class InternalBetaExport(unittest.TestCase):
                 asset.write_bytes(b'checked asset')
             (root/'release-scope.json').write_text('{"profile":"first-party-full","version":1}')
             cases = [
-                ('internal', 'TestFlightInternalSandbox', True, True, ['--first-party-full'], True),
-                ('internal', 'TestFlightInternalSandbox', True, False, ['--first-party-full'], False),
-                ('internal', 'TestFlightInternalSandbox', True, True, [], False),
-                ('app-store', 'AppStore', False, True, ['--first-party-full'], True),
-                ('app-store', 'AppStore', False, False, ['--first-party-full'], False),
-                ('app-store', 'AppStore', True, True, ['--first-party-full'], False),
-                ('app-store', 'TestFlightInternalSandbox', False, True, ['--first-party-full'], False),
+                ('internal', 'TestFlightInternalSandbox', True, True, True, ['--first-party-full'], True),
+                ('internal', 'TestFlightInternalSandbox', True, True, False, ['--first-party-full'], True),
+                ('internal', 'TestFlightInternalSandbox', True, False, True, ['--first-party-full'], False),
+                ('internal', 'TestFlightInternalSandbox', True, True, True, [], False),
+                ('app-store', 'AppStore', False, True, False, ['--first-party-full'], True),
+                ('app-store', 'AppStore', False, True, True, ['--first-party-full'], False),
+                ('app-store', 'AppStore', False, False, False, ['--first-party-full'], False),
+                ('app-store', 'AppStore', True, True, False, ['--first-party-full'], False),
+                ('app-store', 'TestFlightInternalSandbox', False, True, False, ['--first-party-full'], False),
             ]
-            for distribution, channel, internal, include_scope, args, ok in cases:
+            for distribution, channel, internal, include_scope, practice, args, ok in cases:
+                (root/'app.js').write_bytes(b'checked asset with data-desk-practice' if practice else b'checked asset')
                 info = {'CFBundleIdentifier': 'com.tenaceiq.app', 'CFBundleShortVersionString': '1.0', 'CFBundleVersion': '256',
                         'TiqApplePurchaseChannel': channel, 'ITSAppUsesNonExemptEncryption': False}
                 with zipfile.ZipFile(root/'App.ipa', 'w') as ipa:

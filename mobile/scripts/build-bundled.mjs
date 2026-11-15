@@ -10,13 +10,14 @@ const preview = process.argv.includes('--first-party-preview')
 const fullApp = process.argv.includes('--first-party-full')
 if (preview && fullApp) throw Error('Choose one first-party bundle target.')
 const firstParty = preview || fullApp
+const tournamentPractice = fullApp && process.env.TIQ_IOS_DISTRIBUTION === 'internal'
 const output = new URL(preview ? '../.next/mobile-first-party-preview/' : 'bundled/', root)
 const result = await build({
   entryPoints: [fileURLToPath(new URL('src/main.ts', root))],
   outfile: fileURLToPath(new URL('app.js', output)),
   loader:{'.module.css':'local-css'}, jsx:'automatic',
   bundle: true, platform: 'browser', format: 'esm', target: 'es2022', minify: true,
-  define:{TIQ_FIRST_PARTY_BUILD:String(firstParty)},
+  define:{TIQ_FIRST_PARTY_BUILD:String(firstParty),TIQ_TOURNAMENT_PRACTICE:String(tournamentPractice)},
   metafile:firstParty,
   write:!firstParty,
   plugins:[nativeWebsiteAdapters()],
@@ -27,6 +28,8 @@ if (firstParty) {
   if (externalImports.length) {
     throw Error('External import code is present in the first-party bundle: '+externalImports.map(([name])=>name).join(', '))
   }
+  const hasPractice = inputs.some(([name, input]) => /(?:^|\/)tournament-practice\.ts$/.test(name) && input.bytesInOutput > 0)
+  if (hasPractice !== tournamentPractice) throw Error('Tournament practice does not match the iOS distribution channel.')
   await mkdir(output,{recursive:true})
   for(const file of result.outputFiles)await writeFile(file.path,file.contents)
 }

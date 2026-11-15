@@ -8,6 +8,7 @@ import type { TournamentMatch } from '../../lib/native-tournaments-contract'
 import { scenarioOwner, type ScenarioSend } from './captain-scenarios-data'
 import { html } from './match-details'
 import { openTournamentEntry } from './tournament-entry-view'
+import type { createTournamentPractice } from './tournament-practice'
 import { openTournamentTrophy } from './tournament-trophy'
 import { tournamentCourtLabel } from './tournament-match-filters'
 
@@ -28,7 +29,7 @@ type ResultEditor = { match: TournamentMatch; draft: Omit<TournamentScore, 'side
 
 export function openTournamentPlan(
   client: SupabaseClient, owner: string, event: string, current: () => boolean, send: ScenarioSend,
-  trigger: HTMLElement, close: () => void,
+  trigger: HTMLElement, close: () => void, practice?: ReturnType<typeof createTournamentPractice>,
 ) {
   const dialog = document.createElement('dialog')
   dialog.className = 'captain-lineup-dialog competitions-dialog league-entry-dialog tournament-entry-dialog'
@@ -78,6 +79,7 @@ export function openTournamentPlan(
   }
 
   async function request(division?: string, write?: TournamentPlanWrite) {
+    if (practice) return practice.plan(division, write)
     const session = await scenarioOwner(client, owner, active)
     const query = new URLSearchParams({ event, ...(division && !write ? { division } : {}) })
     const response = await send({
@@ -130,7 +132,7 @@ export function openTournamentPlan(
       confirm = false
       pending = null
       refreshRequired = false
-      notice = write?.action === 'publish' ? 'Draw published. Entries are closed for this division.' :
+      notice = write?.action === 'publish' ? (practice ? 'Practice draw published.' : 'Draw published. Entries are closed for this division.') :
         write?.action === 'slot' ? (write.slot ? 'Court assignment saved to the tournament schedule.' : 'Court assignment cleared.') :
         write?.action === 'result' ? 'Result saved. The draw is up to date.' : ''
     } catch (failure) {
@@ -173,17 +175,19 @@ export function openTournamentPlan(
     const matches = plan?.matches ?? []
     const assigned = matches.filter(match => match.court && match.time && match.date).length
     dialog.innerHTML = `<header class="competition-header">
-      <button type="button" class="secondary" data-plan-back ${busy ? 'disabled' : ''}>${editor || resultEditor || confirm ? 'Back to draw' : 'Back to tournament'}</button>
+      <button type="button" class="secondary" data-plan-back ${busy ? 'disabled' : ''}>${editor || resultEditor || confirm ? 'Back to draw' : practice ? 'End practice' : 'Back to tournament'}</button>
       <button type="button" class="secondary" data-plan-refresh ${busy ? 'disabled' : ''}>Refresh</button>
     </header>
     <div class="competition-hero entry-hero"><h2 id="tournament-plan-title" tabindex="-1">${view}</h2>
       ${plan ? `<p>${html(plan.name)} · ${html(plan.zone.replaceAll('_', ' '))}</p>` : ''}
+      ${practice ? '<p>Sample players only. Changes are cleared when you end practice.</p>' : ''}
     </div>
     <p role="${error ? 'alert' : 'status'}" tabindex="-1" data-plan-notice${notice ? '' : ' hidden'}>${html(notice)}</p>
     ${pending && !busy ? '<button type="button" data-plan-retry>Retry save</button>' : ''}
     ${plan && division ? confirm ? `
       <section class="entry-receipts" aria-label="Publish draw"><article>
-        <strong>${html(division.name)}</strong><p>Players will see these pairings. Publishing closes entries for this division and locks its approved field.</p>
+        <strong>${html(division.name)}</strong><p>${practice ? 'Publish these sample pairings to start scheduling matches.' :
+          'Players will see these pairings. Publishing closes entries for this division and locks its approved field.'}</p>
         <button type="button" data-plan-publish ${locked ? 'disabled' : ''}>Publish draw</button>
       </article></section>` : resultEditor ? resultForm(resultEditor, locked) :
       editor ? matchForm(editor, plan, locked, matches.some(match => match.id === editor?.id && !!match.court)) : `
@@ -196,11 +200,11 @@ export function openTournamentPlan(
           ? ` · ${division.pending} pending` : division.status === 'completed'
             ? ` · ${matches.length} results` : ` · ${assigned} of ${matches.length} assigned`}</p>
         ${division.status === 'open' ? `
-          <button type="button" class="secondary" data-plan-review ${locked ? 'disabled' : ''}>Review entries</button>
+          ${practice ? '' : `<button type="button" class="secondary" data-plan-review ${locked ? 'disabled' : ''}>Review entries</button>`}
           ${division.drawNotice ? `<p>${html(division.drawNotice)}</p>` : !matches.length ? '<p>Approve at least two entries to preview pairings.</p>' :
             division.pending ? '<p>Review pending requests before publishing.</p>' :
             `<button type="button" data-plan-confirm ${locked ? 'disabled' : ''}>Review and publish draw</button>`}` :
-          division.status === 'scheduled' ? `<p>${tournamentSlotMinutes}-minute slots · Saved times and courts appear in the player schedule.</p>` : ''}
+          division.status === 'scheduled' ? `<p>${tournamentSlotMinutes}-minute slots${practice ? '' : ' · Saved times and courts appear in the player schedule.'}</p>` : ''}
         ${division.status === 'completed' ? `<button type="button" data-plan-trophy ${locked ? 'disabled' : ''}>Champion trophy</button>` : ''}
       </article></section>
       ${matches.length ? `<section class="entry-receipts" aria-label="${division.status === 'open' ? 'Draw preview' : 'Matches'}">${matches.map(match => `<article>
@@ -234,7 +238,7 @@ export function openTournamentPlan(
     dialog.querySelector('[data-plan-trophy]')?.addEventListener('click', click => {
       if (trophy?.isOpen()) return
       trophy = openTournamentTrophy(client, owner, event, division.id, active, send,
-        click.currentTarget as HTMLElement, () => { trophy = null })
+        click.currentTarget as HTMLElement, () => { trophy = null }, practice?.trophy)
     })
     dialog.querySelector('[data-plan-confirm]')?.addEventListener('click', () => {
       confirm = true

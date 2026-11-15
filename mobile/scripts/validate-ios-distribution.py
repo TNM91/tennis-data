@@ -55,6 +55,8 @@ with zipfile.ZipFile(ipa_path) as ipa:
             assets += ('release-scope.json',)
         else:
             assert scope not in ipa.namelist(), 'The standard IPA contains a first-party scope marker'
+    practice = b'data-desk-practice' in ipa.read(app + 'public/app.js')
+    assert not practice or (full_app and distribution == 'internal'), 'Tournament practice is limited to internal first-party builds'
     for path in assets:
         assert ipa.read(app + 'public/' + path) == (bundle / path).read_bytes(), f'Mismatched bundled file: {path}'
 
