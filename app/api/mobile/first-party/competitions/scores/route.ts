@@ -2,7 +2,7 @@ import { accountClient, accountResponse, readAccountJson, verifiedAccount } from
 import { courtAccountId } from '@/lib/native-court-result-contract'
 import { entryLeague } from '@/lib/native-league-entry-contract'
 import { readLeagueScoreCard, readLeagueScoreChange, readLeagueScoreDesk, readLeagueScoreFixture, validateLeagueScoreLines } from '@/lib/native-league-score-contract'
-import { loadFirstPartyNativeCompetitions, loadTestflightLeagueScores, publicLeague } from '@/lib/native-competitions'
+import { loadFirstPartyNativeCompetitions, loadLeagueEntryRehearsal, loadTestflightLeagueScores, publicLeague } from '@/lib/native-competitions'
 import { readTestflightScoreLeague, testflightLeagueScoreId } from '@/lib/testflight-league-scores'
 import { nativeLeagueColumns } from '@/lib/native-league-season'
 import { readReviewedRevisions, reviewedRevisionDigest } from '@/lib/first-party-revisions'
@@ -13,6 +13,7 @@ import { supabaseKey } from '@/lib/supabase-public-config'
 import { lineupRecord } from '@/lib/native-captain-lineup-contract'
 import { leagueAttentionFixture, readReminderTime, readScoreReminder } from '@/lib/native-league-attention-contract'
 import { isPublishedNativeLeague, nativeLeaguePublicationId } from '@/lib/native-league-publication'
+import { nativeLeagueEntryRehearsalId } from '@/lib/native-league-entry-rehearsal'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -48,6 +49,7 @@ async function handle(request: Request) {
   const modern = request.headers.get('X-TenAceIQ-League-Score') === '2'
   const owner = account.user.id, db = accountClient(supabaseKey, account.token)
   const isDemo = modern && leagueId === testflightLeagueScoreId(owner)
+  const isRehearsal = nativeLeagueEntryRehearsalId(leagueId)
   const native = nativeLeaguePublicationId(leagueId)
   const denied = () => fail(native?'Only the assigned players or captains and the league coordinator can open this scorecard.':
     'Only this match’s captains and league coordinator can open its scorecard.',403)
@@ -58,16 +60,21 @@ async function handle(request: Request) {
     const query = db.from('tiq_leagues').select(cols).eq('id',leagueId).eq('season_status','active').eq('is_public',true)
     return (native?query:query.eq('league_format','team')).maybeSingle()
   }
-  const {data,error} = isDemo ? {data:await readTestflightScoreLeague(db,owner,cols), error:null} : await readLeague()
+  const input = { scope: 'discover' as const, query: '', selected: leagueId }
+  if (isRehearsal && !modern) return denied()
+  const rehearsal = isRehearsal ? await loadLeagueEntryRehearsal(db, owner, input) : null
+  if (isRehearsal && !rehearsal?.matchDayEnabled) return denied()
+  const {data,error} = rehearsal ? {data:rehearsal.source,error:null} :
+    isDemo ? {data:await readTestflightScoreLeague(db,owner,cols), error:null} : await readLeague()
   if (error) throw Error('League unavailable')
   if (!data) return denied()
-  const source = lineupRecord(data), input = { scope: 'discover' as const, query: '', selected: leagueId }
+  const source = lineupRecord(data)
   const individual = native && source.league_format === 'individual'
   if (source.id !== leagueId || (!individual && source.league_format !== 'team') || source.season_status !== 'active') return denied()
   const demo = isDemo ? await loadTestflightLeagueScores(db,owner,input) : null
   if (isDemo && (!demo?.detail || demo.league.updatedAt!==source.updated_at)) return denied()
-  const league = demo?.league ?? publicLeague(source)
-  if (!demo && (native ? !isPublishedNativeLeague(source) : reviewedRevisionDigest(league) !== approval?.summary)) return denied()
+  const league = rehearsal?.league ?? demo?.league ?? publicLeague(source)
+  if (!rehearsal && !demo && (native ? !isPublishedNativeLeague(source) : reviewedRevisionDigest(league) !== approval?.summary)) return denied()
   const access = demo || native ? null : await loadPlayerAccess(db, owner)
   const coordinator = !!demo || source.created_by_user_id === owner && (native || access?.canUseLeagueTools === true)
   // The score RPC checks the approved entry IDs on this exact fixture.
@@ -79,7 +86,8 @@ async function handle(request: Request) {
   if (!key) throw Error('League score review unavailable')
   const service = accountClient(key)
 
-  const { detail, publishedSchedule } = demo ? {...demo,publishedSchedule:undefined} :
+  const privateLeague = rehearsal ?? demo
+  const { detail, publishedSchedule } = privateLeague ? {...privateLeague,publishedSchedule:undefined} :
     await loadFirstPartyNativeCompetitions(db, owner, input, true)
   if (!detail || detail.league.updatedAt !== league.updatedAt) return denied()
   const schedule = publishedSchedule ?? detail.fixtures

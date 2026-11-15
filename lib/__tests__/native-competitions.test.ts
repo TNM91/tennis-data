@@ -7,7 +7,7 @@ import {attestedLeagueSchedule,leagueScheduleService} from '../native-league-sch
 import {loadNativeLeagueMatchDay} from '../native-league-match-day'
 import {getSignedInPlayerApiAuth,loadPlayerAccess} from '../player-api-auth'
 import {GET as firstPartyCompetitions} from '../../app/api/mobile/first-party/competitions/route'
-import {POST as changeScorecard} from '../../app/api/mobile/first-party/competitions/scores/route'
+import {GET as openScorecard,POST as changeScorecard} from '../../app/api/mobile/first-party/competitions/scores/route'
 import {verifiedAccount} from '../mobile-account-auth'
 import {competitionCardsHtml,competitionSeasonHtml} from '../../mobile/src/competitions-view'
 import {loadCompetitions} from '../../mobile/src/competitions-data'
@@ -57,11 +57,11 @@ function fixture(){
 describe('first-party league route', () => {
  const request=(query='',headers?:HeadersInit)=>new Request('https://example.test/api/mobile/first-party/competitions'+query,{headers})
  const account=(db:SupabaseClient)=>vi.mocked(getSignedInPlayerApiAuth).mockResolvedValue({ok:true,supabase:db,userId:owner,emailVerified:true})
- it('keeps private entry rehearsal in the tester’s own entries and enables only entry review',async()=>{
+ it('keeps the rehearsal out of discovery and enables Match Day only when the private database capability is available',async()=>{
   const f=fixture(),id='tiq-native-league-e79ec308-8b38-4bf8-aac9-000000000001'
   const practice={...f.tables.tiq_leagues[0],id,league_format:'individual',league_name:'TestFlight Singles Practice',is_public:false}
   f.tables.tiq_leagues.push(practice)
-  let data:typeof practice|null=practice
+  let data:(typeof practice & {match_day?:unknown})|null=practice
   const rpc=vi.fn(()=>({abortSignal:()=>({retry:async()=>({data,error:null})})}))
   Object.assign(f.db,{rpc})
   account(f.db)
@@ -83,8 +83,48 @@ describe('first-party league route', () => {
   })
   expect(detail.canScheduleMatches).toBeUndefined()
   expect(detail.canOpenLeagueScores).toBeUndefined()
+  data={...practice,match_day:{fixtures:[],results:[]}}
+  const ready=await (await firstPartyCompetitions(request('?scope=mine&league='+id))).json()
+  expect(readCompetitionSnapshot(ready,owner,'mine','',id)).toMatchObject({
+   canReviewEntries:true,canScheduleMatches:true,canOpenLeagueScores:true,
+   detail:{fixtures:[],results:[],playerStandings:[]},
+  })
   data=null
   expect((await firstPartyCompetitions(request('?scope=mine&league='+id))).status).toBe(503)
+ })
+ it('opens a rehearsal scorecard only for its owner and attested match',async()=>{
+  const f=fixture(),leagueId='tiq-native-league-e79ec308-8b38-4bf8-aac9-000000000001'
+  const id='22222222-2222-4222-8222-222222222222'
+  const fixtureVersion='2026-11-15T10:00:00Z'
+  const match={ id,a:'Alex',b:'Practice Opponent',date:'2026-11-16',time:'19:00',facility:'Northside',status:'coordinator_set' }
+  const practice={...f.tables.tiq_leagues[0],id:leagueId,league_format:'individual',is_public:false,
+   match_day:{fixtures:[{match:{...match,court:'1',duration:60},original:null}],results:[]}}
+  f.tables.tiq_leagues.push(practice)
+  let visible=true
+  Object.assign(f.db,{rpc:()=>({abortSignal:()=>({retry:async()=>({error:null,data:visible?practice:null})})})})
+  const rpc=vi.fn(()=>({retry:async()=>({error:null,data:{match,fixtureVersion,card:null,canReview:true,canSubmit:true}})}))
+  scoreService.mockImplementation((key:string)=>key==='synthetic'?{rpc}:f.db)
+  vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','synthetic')
+  vi.mocked(verifiedAccount).mockResolvedValue({user:{id:owner},token:'verified',recent:false} as
+   NonNullable<Awaited<ReturnType<typeof verifiedAccount>>>)
+  const open=(matchId:string,modern=true)=>openScorecard(new Request(
+   'https://example.test/api/mobile/first-party/competitions/scores?league='+leagueId+'&match='+matchId,{
+    headers:modern?{'X-TenAceIQ-League-Score':'2'}:{},
+   }))
+  expect((await open(id,false)).status).toBe(403)
+  expect((await open('33333333-3333-4333-8333-333333333333')).status).toBe(403)
+  visible=false
+  expect((await open(id)).status).toBe(403)
+  expect(rpc).not.toHaveBeenCalled()
+  visible=true
+  const response=await open(id)
+  expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  expect(await response.json()).toMatchObject({ok:true,owner,leagueId,desk:{
+   leagueFormat:'individual',canSubmit:true,canReview:true,match:{id},
+  }})
+  expect(rpc).toHaveBeenCalledExactlyOnceWith('native_league_score_review',expect.objectContaining({
+   p_actor:owner,p_league:leagueId,p_match:id,
+  }))
  })
  async function approve(f:ReturnType<typeof fixture>) {
   const {detail}=await loadNativeCompetitions(f.db,owner,'discover','','league-one')
