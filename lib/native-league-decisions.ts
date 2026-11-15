@@ -76,9 +76,12 @@ export async function decideNativeLeagueEntry(db:SupabaseClient,owner:string,bod
  if(saved.error)throw Error('Decision outcome unavailable');if(!saved.data)return fail(409,'This entry changed. Refresh requests before deciding.')
  const receipt=project(l,saved.data as unknown as Row,owner)
  if(receipt.id!==entry.id||input.decision==='information'&&(!receipt.actionRequired||receipt.requestNote!==input.note)||input.decision!=='information'&&receipt.status!==input.decision)throw Error('Decision outcome unavailable')
- // Preserve website notifications; a notification failure never disguises a confirmed decision as unsaved.
- let notified=false;const recipient=text(source.created_by_user_id)
- if(recipient&&recipient!==owner){try{const n=await db.from('internal_notifications').insert({recipient_profile_id:recipient,actor_user_id:owner,notification_type:'system',title:input.decision==='active'?'League entry approved':input.decision==='information'?'League entry needs information':'League entry update',body:input.decision==='information'?text(l.league_name)+': '+input.note:entry.name+', your request for '+text(l.league_name)+(input.decision==='active'?' was approved.':' was not approved.'),href:'/compete#my-entries'}).abortSignal(timeout());notified=!n.error}catch{/* Saved receipt remains authoritative. */}}
+ // App-published league notices are written with the receipt. Keep the
+ // existing website notification for older leagues.
+ const native=firstParty&&isPublishedNativeLeague(l)
+ let notified=native&&(saved.data as unknown as Row).notified===true
+ const recipient=text(source.created_by_user_id)
+ if(!native&&recipient&&recipient!==owner){try{const n=await db.from('internal_notifications').insert({recipient_profile_id:recipient,actor_user_id:owner,notification_type:'system',title:input.decision==='active'?'League entry approved':input.decision==='information'?'League entry needs information':'League entry update',body:input.decision==='information'?text(l.league_name)+': '+input.note:entry.name+', your request for '+text(l.league_name)+(input.decision==='active'?' was approved.':' was not approved.'),href:'/compete#my-entries'}).abortSignal(timeout());notified=!n.error}catch{/* Saved receipt remains authoritative. */}}
  return {ok:true as const,status:200,owner,leagueId:input.leagueId,receipt,notified}
 }
 
