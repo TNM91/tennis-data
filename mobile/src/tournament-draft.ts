@@ -54,12 +54,14 @@ export function openTournamentDraft(
   let settingsStale = false
   let settingsSaved = false
   let planner: ReturnType<typeof openTournamentPlan> | null = null
+  let disposePublish: ReturnType<typeof mountTournamentPublish>
   let busy = false
   let disposed = false
   const active = () => !disposed && current()
   const dispose = () => {
     if (disposed) return
     disposed = true
+    disposePublish?.()
     planner?.dispose()
     dialog.remove()
   }
@@ -274,6 +276,10 @@ export function openTournamentDraft(
   }
 
   function render(focus = false) {
+    disposePublish?.()
+    disposePublish = undefined
+    // This ID namespace is reserved for private, expiring TestFlight events.
+    const rehearsal = selected?.publicId?.startsWith('tiq-native-event-74697166-6c74-4e10-8f11-')
     const title = state === 'desk' ? 'Tournament Desk' : state === 'settings' ? 'Divisions and registration' :
       state === 'event' ? opening?.draft.name :
       state === 'saved' ? 'Tournament draft' : 'Set up a tournament'
@@ -282,7 +288,7 @@ export function openTournamentDraft(
     const readOnly = busy || pending !== null || stale
     dialog.innerHTML = `<header class="competition-header"><button type="button" class="secondary" data-draft-back${busy ? ' disabled' : ''}>${state === 'desk' ? 'Back to tournaments' : state === 'settings' ? 'Back to tournament' : 'Back to Tournament Desk'}</button></header>
       <div class="competition-hero entry-hero"><h2 tabindex="-1" id="tournament-draft-title">${html(title ?? '')}</h2>
-        <p data-draft-subtitle>${state === 'event' ? selected?.publicId ? 'Published tournament' : 'Private tournament' : state === 'settings' ? html(selected?.draft.name ?? '') :
+        <p data-draft-subtitle>${state === 'event' ? rehearsal ? 'Private TestFlight event' : selected?.publicId ? 'Published tournament' : 'Private tournament' : state === 'settings' ? html(selected?.draft.name ?? '') :
           `Save a draft for free. Publishing a tournament costs ${competitionFeeLabel('tournament')} per event.`}</p></div>
       ${state === 'desk' ? `<button type="button" data-draft-start${busy ? ' disabled' : ''}>Set up a tournament</button>
         ${typeof TIQ_TOURNAMENT_PRACTICE !== 'undefined' && TIQ_TOURNAMENT_PRACTICE ?
@@ -371,7 +377,7 @@ export function openTournamentDraft(
         if (!selected || !active() || planner?.isOpen()) return
         planner = openTournamentPlan(client, owner, selected.revision, active, send, planButton, () => { planner = null })
       }
-      mountTournamentPublish(publish, client, owner, selected.revision, selected.settingsRevision, active, send, id => {
+      if (!rehearsal) disposePublish = mountTournamentPublish(publish, client, owner, selected.revision, selected.settingsRevision, active, send, id => {
         dispose()
         onClose()
         onPublished(id)

@@ -18,7 +18,8 @@ export function mountTournamentPublish(
   active: () => boolean, send: ScenarioSend, onOpen: (id: string) => void, setLocked: (locked: boolean, published: boolean) => void,
 ) {
   if (!revision || !canUseStore()) return
-  const current = () => active() && host.isConnected
+  let disposed = false
+  const current = () => !disposed && active() && host.isConnected
   const url = 'https://www.tenaceiq.com/api/mobile/first-party/tournaments/publish?' + new URLSearchParams({ event })
   let publication: Publication | null = null
   let unavailable = false
@@ -28,6 +29,8 @@ export function mountTournamentPublish(
   let stale = false
   let retryCancel: Attempt | null = null
   const attemptKey = (environment: AppleEnvironment) => `tournament-checkout:${environment}:${owner}:${event}`
+  const needsCheck = () => !unavailable && (publication?.checkout.state === 'pending' || !!notice &&
+    (!!retryCancel || publication?.checkout.state !== 'ready' || !price))
 
   function savedAttempt(environment: AppleEnvironment): Attempt | null {
     try {
@@ -89,12 +92,9 @@ export function mountTournamentPublish(
     if (!context) return
     const unstarted = savedAttempt(context.environment)
     if (unstarted) {
-      if (context.checkout.state === 'pending' && context.checkout.token === unstarted.token) {
-        await cancel(unstarted, context.environment)
-      } else {
-        rememberAttempt(context.environment, null)
-      }
-      context = publication!
+      // A ready status can arrive while an earlier prepare is still in flight.
+      // Ask the server to close the token before discarding our cancel key.
+      context = await cancel(unstarted, context.environment)
     }
     if (context.checkout.state === 'ready' && !price) {
       const catalog = await NativeApple.products({ environment: context.environment, productId })
@@ -111,9 +111,17 @@ export function mountTournamentPublish(
   async function cancel(attempt: Attempt, environment: AppleEnvironment) {
     retryCancel = attempt
     rememberAttempt(environment, attempt)
-    publication = await request({ action: 'cancel', ...attempt })
+    const updated = await request({ action: 'cancel', ...attempt })
+    if (updated?.environment !== environment) throw Error('publish_unavailable')
+    publication = updated
     rememberAttempt(environment, null)
     retryCancel = null
+    return updated
+  }
+
+  async function check() {
+    if (retryCancel && publication) await cancel(retryCancel, publication.environment)
+    await load()
   }
 
   async function buy() {
@@ -199,15 +207,22 @@ export function mountTournamentPublish(
       <strong>Publish tournament</strong><p role="status">${html(status)}</p>
       ${busy ? '' : publicId ? '<button type="button" data-publish-open>View tournament</button>' :
         state === 'ready' && price && !retryCancel && !stale ? `<button type="button" data-publish-buy>${sandbox ? 'Test publish' : 'Publish tournament'} · ${html(price)}</button>` : ''}
-      ${!busy && (state === 'pending' || notice && (retryCancel || state !== 'ready' || !price))
+      ${!busy && needsCheck()
         ? '<button type="button" class="secondary" data-publish-check>Check purchase</button>' : ''}
     </article></section>`
     host.querySelector('[data-publish-buy]')?.addEventListener('click', () => { void run(buy) })
-    host.querySelector('[data-publish-check]')?.addEventListener('click', () => {
-      void run(async () => { if (retryCancel && publication) await cancel(retryCancel, publication.environment); await load() })
-    })
+    host.querySelector('[data-publish-check]')?.addEventListener('click', () => { void run(check) })
     if (publicId) host.querySelector('[data-publish-open]')?.addEventListener('click', () => onOpen(publicId))
   }
 
+  const recover = () => { if (needsCheck()) void run(check) }
+  const resume = () => { if (document.visibilityState === 'visible') recover() }
+  window.addEventListener('online', recover)
+  document.addEventListener('visibilitychange', resume)
   void run(load)
+  return () => {
+    disposed = true
+    window.removeEventListener('online', recover)
+    document.removeEventListener('visibilitychange', resume)
+  }
 }

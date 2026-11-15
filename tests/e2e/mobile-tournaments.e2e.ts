@@ -154,7 +154,12 @@ test('organizers can edit divisions and registration and safely retry a settings
 })
 test('publish checkout recovers a verified sandbox purchase after a lost reply', async ({page}) => {
  const productId = 'com.tenaceiq.app.tournament.publish'
+ const storageKey = `tournament-checkout:Sandbox:${tournamentOwner}:99999999-9999-4999-8999-999999999999`
+ const unstarted = '20000000-0000-4000-8000-000000000001'
  await page.setViewportSize({width:320,height:720})
+ await page.addInitScript(({storageKey,unstarted}) => {
+  localStorage.setItem(storageKey, JSON.stringify({token:unstarted,cancelKey:'20000000-0000-4000-8000-000000000002'}))
+ }, {storageKey,unstarted})
  await page.addInitScript(productId => {
   const state = { purchases: 0, finishes: 0 }
   let transaction: {transactionId:string;accountToken:string;signedTransaction:string;environment:string} | null = null
@@ -187,6 +192,8 @@ test('publish checkout recovers a verified sandbox purchase after a lost reply',
  const publish=event.getByRole('region',{name:'Publish tournament',exact:true})
  const buy=publish.getByRole('button',{name:'Test publish · $5.00',exact:true})
  await expect(buy).toBeVisible()
+ expect(await page.evaluate(key=>localStorage.getItem(key),storageKey)).toBeNull()
+ expect(await page.evaluate(()=>(window as unknown as {tournamentFixture:{publish:{canceledTokens:string[]}}}).tournamentFixture.publish.canceledTokens)).toEqual([unstarted])
  expect(await event.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
  await buy.click()
  await expect(publish.getByRole('status')).toHaveText('Purchase canceled.')
@@ -195,7 +202,8 @@ test('publish checkout recovers a verified sandbox purchase after a lost reply',
  await expect(buy).toHaveCount(0)
  const read=()=>page.evaluate(()=>(window as unknown as {tournamentApple:{purchases:number;finishes:number}}).tournamentApple)
  expect(await read()).toEqual({purchases:2,finishes:0})
- await publish.getByRole('button',{name:'Check purchase'}).click()
+ await expect(publish.getByRole('button',{name:'Check purchase'})).toBeVisible()
+ await page.evaluate(()=>window.dispatchEvent(new Event('online')))
  await expect(publish.getByRole('status')).toHaveText('Test purchase complete. Your tournament is private.')
  await expect(publish.getByRole('button',{name:'View tournament'})).toHaveCount(0)
  expect(await read()).toEqual({purchases:2,finishes:1})
@@ -234,6 +242,18 @@ test('Tournament Desk publishes a draw and recovers a court assignment after a l
  await expect(plan.getByRole('region',{name:'Matches'})).toContainText('Awaiting time and court')
  await plan.getByRole('button',{name:'Back to tournament'}).click()
  await expect(setup.getByRole('button',{name:'Draw & courts',exact:true})).toBeFocused()
+})
+test('Tournament Desk identifies the private TestFlight event', async ({ page }) => {
+ const directory = await open(page, 'plan')
+ await page.evaluate(() => {
+  const fixture = (window as unknown as {tournamentFixture:{tournamentDraft:{events:{publicId:string}[]}}}).tournamentFixture
+  fixture.tournamentDraft.events[0].publicId = 'tiq-native-event-74697166-6c74-4e10-8f11-000000000001'
+ })
+ await directory.getByRole('button', {name:'Tournament Desk',exact:true}).click()
+ await page.getByRole('button', {name:'Open tournament Winter Open',exact:true}).click()
+ const event = page.getByRole('dialog', {name:'Winter Open',exact:true})
+ await expect(event.getByText('Private TestFlight event', {exact:true})).toBeVisible()
+ await expect(event.getByRole('button', {name:'Draw & courts',exact:true})).toBeVisible()
 })
 test('Tournament Desk records scores and advances played, walkover and retirement winners', async ({page})=>{
  await page.setViewportSize({width:320,height:720})

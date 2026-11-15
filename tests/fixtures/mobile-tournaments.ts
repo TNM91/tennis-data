@@ -21,7 +21,7 @@ const tournamentDraft = {
  events: [] as NativeTournamentSetup[], prepares: [] as string[], losePrepareReply: false,
  settingsWrites: [] as string[], loseSettingsReply: false,
 }
-const publish = { token: '', state: 'ready', cancelKey: '', prepares: 0, reconciles: 0, loseReceipt: true }
+const publish = { token: '', state: 'ready', cancelKey: '', prepares: 0, reconciles: 0, loseReceipt: true, canceledTokens: [] as string[] }
 const plan: TournamentPlan = {
  id:'tiq-native-event-10000000-0000-4000-8000-000000000001',name:'Winter Open',date:'2026-12-12',zone:'America/Chicago',
  revision:'1'.repeat(32),division:'tiq-native-division-10000000-0000-4000-8000-000000000002',
@@ -124,8 +124,11 @@ const send:ScenarioSend=async o=>{
   if(action?.action==='prepare' && publish.state==='ready' && action.expected===setup.settingsRevision){
    publish.prepares++;publish.state='pending';publish.token=action.token;publish.cancelKey=action.cancelKey;start=true
   }
-  if(action?.action==='cancel' && publish.state==='pending' && action.token===publish.token && action.cancelKey===publish.cancelKey){
-   publish.state='ready';publish.token=''
+  if(action?.action==='cancel'){
+   publish.canceledTokens.push(action.token)
+   if(publish.state==='pending' && action.token===publish.token && action.cancelKey===publish.cancelKey){
+    publish.state='ready';publish.token=''
+   }
   }
   if(action?.action==='reconcile' && action.signedTransaction==='fixture.purchase.'+publish.token){
    publish.reconciles++;publish.state='paid';transactionId='101'
