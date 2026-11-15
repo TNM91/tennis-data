@@ -57,6 +57,27 @@ it('publishes only the selected revision and acknowledges a completed retry with
   expect(rpc).toHaveBeenCalledTimes(3)
 })
 
+it('saves a reschedule with the validated match sides and does not send another alert for an identical retry', async () => {
+  signedIn()
+  const earlier = {date:'2099-06-06',time:'13:00',court:'Court 1'}
+  const slot = {...earlier,time:'14:30',court:'Court 4'}
+  const request = () => new Request(url, {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'slot',division,revision,match:'r1-m1',slot})})
+  const before = row('scheduled'), after = {...row('scheduled'),revision:'2'.repeat(32)}
+  before.divisions[0].schedule = {'r1-m1':earlier}
+  after.divisions[0].schedule = {'r1-m1':slot}
+  rpc.mockResolvedValueOnce({data:before})
+  rpc.mockReturnValueOnce({retry:async()=>({data:after})})
+  expect(await (await POST(request())).json()).toMatchObject({ok:true,plan:{matches:[{id:'r1-m1',...slot}]}})
+  expect(rpc).toHaveBeenLastCalledWith('native_tournament_save_slot',{
+    p_owner:owner,p_event:event,p_expected:revision,p_division:division,p_match:'r1-m1',p_slot:slot,
+    p_sides:['Morgan Serve','Casey Court'],p_rescheduled:true,
+  })
+  rpc.mockResolvedValueOnce({data:after})
+  expect((await POST(request())).status).toBe(200)
+  expect(rpc).toHaveBeenCalledTimes(3)
+})
+
 it('writes an organizer’s score to the same contestants and completes their division', async () => {
   signedIn()
   const request = () => new Request(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
