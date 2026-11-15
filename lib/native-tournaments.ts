@@ -5,7 +5,7 @@ import {getTournamentDrawFormatDefinition} from './competition-format-registry'
 import {buildTournamentPreview,buildTournamentGroupChampionship,buildRoundRobinStandings} from './tournament-draw'
 import {isPublishedNativeTournament,nativeTournamentDrawColumns,nativeTournamentSummaryColumns,publishedNativeTournamentId,readTournamentApprovals,tournamentRevisionDigest} from './native-tournament-approvals'
 import {readTestflightTournament,testflightTournamentId} from './testflight-tournament'
-import {nativeTournamentAlertRehearsalSelection,readNativeTournamentAlertRehearsal} from './native-tournament-alert-rehearsal'
+import {nativeTournamentAlertRehearsalSelection,nativeTournamentRehearsalEventId,readNativeTournamentAlertRehearsal} from './native-tournament-alert-rehearsal'
 import type {TiqTournamentRecord,TiqTournamentMatchResult,TiqTournamentMatchSchedule,TiqTournamentMatchPreview,TiqTournamentStanding} from './tiq-tournament-registry'
 type Row=Record<string,unknown>
 const text=(v:unknown)=>typeof v==='string'?v.trim():''
@@ -52,20 +52,33 @@ export function nativeTournamentDraw(r:Row):Pick<TournamentDetail,'entrants'|'dr
  return {entrants:entrants.length,drawNotice:'',matches:matches.map(match),standings}
 }
 /** Caller JWT/RLS only. No entry contacts, private desk state, service role or production writes. */
-export function loadFirstPartyNativeTournaments(db: SupabaseClient, owner: string, input: ReturnType<typeof tournamentInput>) {
-  if (nativeTournamentAlertRehearsalSelection(input.selected, input.division)) return loadAlertRehearsal(db, owner, input)
+export async function loadFirstPartyNativeTournaments(db: SupabaseClient, owner: string, input: ReturnType<typeof tournamentInput>) {
+  if (nativeTournamentRehearsalEventId(input.selected)) {
+    const walkthrough = await readNativeTournamentAlertRehearsal(db, input.selected, input.division, 'walkthrough')
+    if (walkthrough) {
+      if (walkthrough.viewer !== owner) throw Error('Tournament rehearsal unavailable')
+      return rehearsalSnapshot(walkthrough, owner, input, true)
+    }
+    if (nativeTournamentAlertRehearsalSelection(input.selected, input.division)) {
+      const data = await readNativeTournamentAlertRehearsal(db, input.selected, input.division, 'draw')
+      return rehearsalSnapshot(data, owner, input, false)
+    }
+  }
   const approvals = readTournamentApprovals(process.env.TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS)
   return loadNativeTournaments(db, owner, input.query, input.selected, input.division, approvals, true)
 }
 
-async function loadAlertRehearsal(db: SupabaseClient, owner: string, input: ReturnType<typeof tournamentInput>): Promise<TournamentSnapshot> {
-  const data = await readNativeTournamentAlertRehearsal(db, input.selected, input.division, 'draw')
+function rehearsalSnapshot(data: Awaited<ReturnType<typeof readNativeTournamentAlertRehearsal>>,
+  owner: string, input: ReturnType<typeof tournamentInput>, walkthrough: boolean): TournamentSnapshot {
   if (!data || data.root?.id !== input.selected || data.root?.is_public !== false || data.root?.is_event !== true ||
-      data.root?.event_id !== null || data.division?.id !== input.division || data.division?.is_public !== false ||
+      data.root?.event_id !== null || (input.division && data.division?.id !== input.division) || data.division?.is_public !== false ||
       data.division?.is_event !== false || data.division?.event_id !== input.selected) throw Error('Tournament rehearsal unavailable')
-  const root = published(data.root, input.selected), active = published(data.division, input.division)
+  const root = published(data.root, input.selected), division = published(data.division, data.division.id)
+  const active = input.division ? division : null
+  const draw = active && active.status !== 'open' ? nativeTournamentDraw(data.division) :
+    {entrants:0, matches:[], standings:[], drawNotice:active ? 'The organizer will publish the draw after reviewing entries.' : ''}
   return {owner, checkedAt:new Date().toISOString(), ...input, tournaments:[root], more:false,
-    detail:{root, divisions:[active], moreDivisions:false, active, ...nativeTournamentDraw(data.division), entryAvailable:false}}
+    detail:{root, divisions:[division], moreDivisions:false, active, ...draw, entryAvailable:walkthrough && !!active}}
 }
 
 export async function loadNativeTournaments(db:SupabaseClient,owner:string,query='',selected='',division='',approvals?:ReturnType<typeof readTournamentApprovals>,nativePublication=false):Promise<TournamentSnapshot>{

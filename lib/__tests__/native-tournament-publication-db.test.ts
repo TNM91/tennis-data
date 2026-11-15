@@ -23,9 +23,9 @@ it('settles each purchase once and publishes the draw, schedule, and results for
   try {
     await db.exec(`
       create role anon; create role authenticated; create role service_role;
-      create schema auth; create schema private;
-      create table auth.users(id uuid primary key);
-      create table public.account_deletion_requests(account_id uuid, automatic_consent boolean);
+      create schema auth; create schema private; create schema tenaceiq_private;
+      create table auth.users(id uuid primary key,email_confirmed_at timestamptz);
+      create table public.account_deletion_requests(account_id uuid, automatic_consent boolean,status text);
       create function auth.uid() returns uuid language sql stable as $$
         select coalesce(nullif(current_setting('request.jwt.claim.sub',true),'')::uuid, '${owner}'::uuid)
       $$;
@@ -36,6 +36,7 @@ it('settles each purchase once and publishes the draw, schedule, and results for
       create function public.can_run_club_competition(uuid) returns boolean language sql stable as $$select false$$;
       create function public.has_current_league_access(uuid) returns boolean language sql stable as $$select true$$;
       create function public.has_current_full_court_access(uuid) returns boolean language sql stable as $$select true$$;
+      create function public.consume_api_rate_limit(text,text,integer,integer) returns boolean language sql as $$select true$$;
     `)
     const migration = async (name: string) => db.exec(await readFile(
       new URL('../../supabase/migrations/' + name + '.sql', import.meta.url), 'utf8',
@@ -50,13 +51,19 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     await migration('20261008000100_tournament_event_registration_desk')
     await migration('20260525000500_create_tiq_tournament_entries')
     await db.exec(`alter table public.tiq_tournament_entries add column submitted_by_user_id uuid,
-      add column native_registration jsonb not null default '{}'::jsonb`)
-    const entryMigration = await readFile(new URL('../../supabase/migrations/20261113000100_native_testflight_tournament.sql', import.meta.url), 'utf8')
-    const contextSource = entryMigration.slice(entryMigration.indexOf('create or replace function public.native_tournament_entry_context'))
-    await db.exec(contextSource.slice(0, contextSource.indexOf('end $body$;') + 'end $body$;'.length))
+      add column native_registration jsonb not null default '{}'::jsonb,
+      add column eligibility_rating numeric,
+      add column eligibility_rating_source text,
+      add column eligibility_status text,
+      add column eligibility_review_note text,
+      add column eligibility_reviewed_by uuid,
+      add column eligibility_reviewed_at timestamptz,
+      add column player_action_required boolean not null default false`)
     const receiptsMigration = await readFile(new URL('../../supabase/migrations/20261030000100_native_tournament_registration.sql', import.meta.url), 'utf8')
     await db.exec(receiptsMigration.slice(receiptsMigration.indexOf('create function public.native_tournament_entry_receipt'),
-      receiptsMigration.indexOf('create function public.native_tournament_registration')))
+      receiptsMigration.indexOf("notify pgrst")))
+    await migration('20261112000800_native_first_party_tournament_entry')
+    await migration('20261113000100_native_testflight_tournament')
     await migration('20261114001200_native_tournament_drafts')
     await migration('20261114001300_native_tournament_desk')
     await migration('20261114001400_native_tournament_setup_settings')
@@ -77,7 +84,8 @@ it('settles each purchase once and publishes the draw, schedule, and results for
       inboxMigration.indexOf("notify pgrst")))
     await migration('20261115000300_native_tournament_schedule_updates')
     await migration('20261115000400_private_tournament_alert_rehearsal')
-    await db.query('insert into auth.users values ($1),($2),($3),($4)', [owner, other, partner, stranger])
+    await migration('20261115001400_private_tournament_walkthrough')
+    await db.query('insert into auth.users values ($1,now()),($2,now()),($3,now()),($4,now())', [owner, other, partner, stranger])
     await db.exec('insert into public.profiles(id) select id from auth.users')
     await db.exec('grant usage on schema auth to authenticated; grant select,insert,update on public.tiq_tournaments to authenticated')
     const rpc = async (sql: string, params: unknown[]) => (await db.query<{ r: Record<string, unknown> }>('select ' + sql + ' r', params)).rows[0].r
@@ -400,6 +408,75 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     expect(await rehearsalRead(other,'draw')).toBeNull()
     expect(await updates(other)).not.toContainEqual(expect.objectContaining({title:'Tournament match rescheduled'}))
     expect(await rehearsalSave(movedRehearsal.revision,'Court 6',true)).toEqual({code:'missing'})
+
+    const walkthrough = '74697166-6c74-4e10-8f11-000000000020'
+    const walkRoot = 'tiq-native-event-' + walkthrough
+    const walkDivision = 'tiq-native-division-' + walkthrough
+    const opponent = 'Practice Opponent', player = 'Rehearsal Player'
+    await db.query(`insert into public.tiq_tournaments(id,name,status,is_event,created_by_user_id,starts_on,event_details)
+      values($1,'TestFlight Singles Tournament','open',true,$2,$3,$4)`,
+    [walkRoot,owner,draft.date,{timeZone:'America/Chicago',registrationClosesOn:settings.registrationClosesOn}])
+    await db.query(`insert into public.tiq_tournaments(id,event_id,name,status,format,entrant_type,created_by_user_id,entrants)
+      values($1,$2,'Singles','open','single_elimination','players',$3,array[$4])`,[walkDivision,walkRoot,owner,opponent])
+    await db.query(`insert into private.native_tournament_setups(owner_id,id,draft,settings,settings_revision)
+      values($1,$2,$3,$4,$5)`,[owner,walkthrough,draft,settings,revision])
+    await db.query(`insert into private.native_tournament_rehearsals(owner_id,event_id,event_key,winner_id,expires_at,walkthrough_enabled)
+      values($1,$2,$3,$4,statement_timestamp()+interval '1 day',true)`,[owner,walkthrough,walkRoot,other])
+    const readWalkthrough = (actor: string, selected = '') =>
+      withRecipient(actor,()=>rpc('native_tournament_alert_rehearsal($1,$2,$3)',[walkRoot,selected,'walkthrough']))
+    expect(await readWalkthrough(stranger)).toBeNull()
+    expect(await readWalkthrough(partner)).toBeNull()
+    expect(await readWalkthrough(other,testDivision)).toBeNull()
+    const opening = await readWalkthrough(other)
+    expect(opening).toMatchObject({viewer:other,root:{id:walkRoot,is_public:false},division:{id:walkDivision,status:'open'}})
+    expect(await rpc('native_tournament_desk($1)',[owner])).toContainEqual(expect.objectContaining({revision:walkthrough}))
+    const signEntry = async(actor: string,action: string,publication: unknown,data = {}) => {
+      await db.exec('set role service_role')
+      try {
+        return await rpc('native_first_party_tournament_registration($1,$2,$3,$4,$5,$6)',
+          [actor,action,walkRoot,walkDivision,publication,data])
+      } finally { await db.exec('reset role') }
+    }
+    const currentEntry = await signEntry(other,'review',opening.publication)
+    expect(currentEntry).toMatchObject({ok:true,context:{mode:'native',canManage:false},receipt:null})
+    expect(await signEntry(stranger,'review',opening.publication)).toMatchObject({ok:false,status:404})
+    expect(await signEntry(other,'queue',opening.publication)).toMatchObject({ok:false,status:403})
+    const entry = await signEntry(other,'submit',opening.publication,{
+      revision:(currentEntry.context as {revision:string}).revision,one:player,two:'',rating:4,attested:true,
+      partnerRating:null,partnerAttested:false,
+    })
+    expect(entry).toMatchObject({ok:true,receipt:{name:player,status:'pending'}})
+    const walkPlan = (actor = owner, action = 'read', expected: unknown = null) =>
+      rpc('native_tournament_draw_plan($1,$2,$3,$4,$5)',[actor,walkthrough,action,expected,walkDivision])
+    expect(await walkPlan(owner,'publish',(await walkPlan()).revision)).toEqual({code:'review'})
+    expect(await walkPlan(other)).toEqual({code:'missing'})
+    const queue = await signEntry(owner,'queue',opening.publication)
+    const pendingWalkthrough = (queue.queue as {id:string;updatedAt:string}[])[0]
+    expect(await signEntry(owner,'decide',opening.publication,{
+      revision:(queue.context as {revision:string}).revision,entryId:pendingWalkthrough.id,updatedAt:pendingWalkthrough.updatedAt,
+      decision:'approve',note:'Confirmed for the rehearsal.',confirmed:true,
+    })).toMatchObject({ok:true,receipt:{status:'approved',inDraw:true}})
+    const walkDraw = await walkPlan(owner,'publish',(await walkPlan()).revision)
+    expect(walkDraw).toMatchObject({divisions:[{entrants:[opponent,player],status:'scheduled'}]})
+    const placed = await rpc('native_tournament_save_slot($1,$2,$3,$4,$5,$6,$7,$8)',
+      [owner,walkthrough,walkDraw.revision,walkDivision,'r1-m1',slot,[opponent,player],false])
+    expect(placed).toMatchObject({divisions:[{schedule:{'r1-m1':slot}}]})
+    expect(await updates(other)).toContainEqual(expect.objectContaining({
+      title:'Tournament match scheduled',href:expect.stringContaining('event='+walkRoot),
+    }))
+    const matchResult = {sideA:opponent,sideB:player,winner:player,score:'4-6, 4-6',outcome:'played'}
+    const recordWalkthrough = (actor: string) => rpc('native_tournament_save_result($1,$2,$3,$4,$5,$6,$7)',
+      [actor,walkthrough,placed.revision,walkDivision,'r1-m1',matchResult,true])
+    expect(await recordWalkthrough(other)).toEqual({code:'missing'})
+    const finish = await recordWalkthrough(owner)
+    expect(finish).toMatchObject({divisions:[{status:'completed',results:{'r1-m1':expect.objectContaining(matchResult)}}]})
+    expect(await readWalkthrough(other,walkDivision)).toMatchObject({division:{status:'completed',results:{'r1-m1':{winner:player}}}})
+    const walkTitle = await rpc('native_tournament_title($1,$2,$3,$4,$5,$6)',[owner,walkthrough,walkDivision,'award',finish.revision,player])
+    expect(walkTitle).toMatchObject({award:{champion:player,paired:false,partnerCode:null}})
+    const walkTrophy = 'tiq-title-' + (walkTitle.award as {id:string}).id
+    expect(await trophies(other)).toContainEqual(expect.objectContaining({id:walkTrophy}))
+    expect(await trophies(stranger)).not.toContainEqual(expect.objectContaining({id:walkTrophy}))
+    expect(await rpc('native_tournament_checkout($1,$2,$3,$4)',[owner,walkthrough,'Production','status'])).toEqual({code:'missing'})
   } finally {
     await db.close()
   }

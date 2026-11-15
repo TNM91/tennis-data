@@ -79,7 +79,9 @@ describe('first-party tournament route', () => {
     schedule:{'r1-m1':{date:'2026-11-14',time:'15:00',court:'Court 8'}}},
   }
   const response = vi.fn().mockResolvedValue({data,error:null})
-  const rehearsal = vi.fn().mockReturnValue({abortSignal:()=>({retry:response})})
+  const rehearsal = vi.fn().mockImplementation((_name,{p_view})=>({abortSignal:()=>({
+   retry:p_view==='walkthrough' ? async()=>({data:null,error:null}) : response,
+  })}))
   Object.assign(f.db,{rpc:rehearsal})
   signedIn(f.db)
   vi.stubEnv('TIQ_FIRST_PARTY_TOURNAMENT_APPROVALS','')
@@ -88,12 +90,38 @@ describe('first-party tournament route', () => {
   expect(readTournamentSnapshot(await opened.json(),owner,'',parent,division).detail).toMatchObject({
    entryAvailable:false, matches:[{id:'r1-m1',court:'Court 8'}],
   })
-  expect(rehearsal).toHaveBeenCalledExactlyOnceWith('native_tournament_alert_rehearsal',
+  expect(rehearsal).toHaveBeenNthCalledWith(2,'native_tournament_alert_rehearsal',
    {p_parent:parent,p_division:division,p_view:'draw'})
   expect(f.calls).toHaveLength(0)
   expect((await (await firstPartyTournaments(request())).json()).tournaments).toEqual([])
-  expect(rehearsal).toHaveBeenCalledTimes(1)
+  expect(rehearsal).toHaveBeenCalledTimes(2)
   response.mockResolvedValue({data:null,error:null})
+  expect((await firstPartyTournaments(request(selection))).status).toBe(503)
+ })
+
+ it('opens the invited walkthrough from a root link and makes registration available in its division', async () => {
+  const f = fixture()
+  const parent = 'tiq-native-event-74697166-6c74-4e10-8f11-000000000003'
+  const division = 'tiq-native-division-74697166-6c74-4e10-8f11-000000000004'
+  const data = {
+   viewer:owner,root:{...f.root,id:parent,is_public:false,status:'open'},
+   division:{...f.division,id:division,event_id:parent,is_public:false,status:'open',format:'single_elimination'},
+   publication:{hidden:'rehearsal metadata'},
+  }
+  const rehearsal = vi.fn().mockReturnValue({abortSignal:()=>({retry:async()=>({data,error:null})})})
+  Object.assign(f.db,{rpc:rehearsal})
+  signedIn(f.db)
+  const selection = '?tournament='+parent
+  const show = async (query:string,selected:string) => {
+   const snapshot = await (await firstPartyTournaments(request(query))).json()
+   expect(snapshot).not.toHaveProperty('publication')
+   return readTournamentSnapshot(snapshot,owner,'',parent,selected).detail
+  }
+  expect(await show(selection,'')).toMatchObject({divisions:[{id:division}],active:null})
+  expect(await show(selection+'&division='+division,division)).toMatchObject({
+   active:{id:division,status:'open'},entryAvailable:true,matches:[],
+  })
+  data.viewer='someone-else'
   expect((await firstPartyTournaments(request(selection))).status).toBe(503)
  })
 
