@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { accountClient } from './mobile-account-auth'
 import { loadTournamentEntryPublications } from './first-party-tournament-entry'
+import { nativeTournamentAlertRehearsalSelection, readNativeTournamentAlertRehearsal } from './native-tournament-alert-rehearsal'
 import {getSignedInPlayerApiAuth} from './player-api-auth'
 import {tournamentEntryId,tournamentEntryAction,readTournamentEntrySnapshot} from './native-tournament-entry-contract'
 const entryResponse = (firstParty: boolean) => (data: object, status: number) =>
@@ -10,6 +11,10 @@ const entryResponse = (firstParty: boolean) => (data: object, status: number) =>
 async function registration(db: SupabaseClient, owner: string, firstParty: boolean, action: string, parent: string, division: string, data?: object) {
  if (!firstParty) {
   return db.rpc('native_tournament_registration', {p_action:action,p_parent:parent,p_division:division,...(data?{p_data:data}:{})})
+ }
+ if (nativeTournamentAlertRehearsalSelection(parent, division)) {
+  const receipt = action === 'review' ? await readNativeTournamentAlertRehearsal(db, parent, division, 'entry') : null
+  return {data:receipt ?? {ok:false,status:404,message:'This tournament entry is unavailable.'},error:null}
  }
  const publications = await loadTournamentEntryPublications(db, [parent, division].filter(Boolean), undefined, undefined, owner)
  const active = publications.get(division), root = parent ? publications.get(parent) : active

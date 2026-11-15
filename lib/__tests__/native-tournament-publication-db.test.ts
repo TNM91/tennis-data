@@ -54,6 +54,9 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     const entryMigration = await readFile(new URL('../../supabase/migrations/20261113000100_native_testflight_tournament.sql', import.meta.url), 'utf8')
     const contextSource = entryMigration.slice(entryMigration.indexOf('create or replace function public.native_tournament_entry_context'))
     await db.exec(contextSource.slice(0, contextSource.indexOf('end $body$;') + 'end $body$;'.length))
+    const receiptsMigration = await readFile(new URL('../../supabase/migrations/20261030000100_native_tournament_registration.sql', import.meta.url), 'utf8')
+    await db.exec(receiptsMigration.slice(receiptsMigration.indexOf('create function public.native_tournament_entry_receipt'),
+      receiptsMigration.indexOf('create function public.native_tournament_registration')))
     await migration('20261114001200_native_tournament_drafts')
     await migration('20261114001300_native_tournament_desk')
     await migration('20261114001400_native_tournament_setup_settings')
@@ -73,6 +76,7 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     await db.exec(inboxMigration.slice(inboxMigration.indexOf('create or replace function public.native_first_party_mark_updates_read'),
       inboxMigration.indexOf("notify pgrst")))
     await migration('20261115000300_native_tournament_schedule_updates')
+    await migration('20261115000400_private_tournament_alert_rehearsal')
     await db.query('insert into auth.users values ($1),($2),($3),($4)', [owner, other, partner, stranger])
     await db.exec('insert into public.profiles(id) select id from auth.users')
     await db.exec('grant usage on schema auth to authenticated; grant select,insert,update on public.tiq_tournaments to authenticated')
@@ -337,6 +341,65 @@ it('settles each purchase once and publishes the draw, schedule, and results for
     expect(await claim(partner,testAward.partnerCode)).toBeNull()
     expect(await trophies(other)).not.toContainEqual(expect.objectContaining({id:'tiq-title-' + testAward.id}))
     expect(await trophies(partner)).not.toContainEqual(expect.objectContaining({id:'tiq-title-' + testAward.id}))
+
+    await db.exec('reset role')
+    const alertEvent = '74697166-6c74-4e10-8f11-000000000010'
+    const alertRoot = 'tiq-native-event-' + alertEvent
+    const alertDivision = 'tiq-native-division-' + alertEvent
+    const sides = ['Demo Avery','Demo Casey']
+    await db.query(`insert into public.tiq_tournaments(id,name,status,is_event,created_by_user_id,starts_on,event_details)
+      values ($1,'TestFlight Court Change','scheduled',true,$2,'2099-06-06','{"timeZone":"America/Chicago"}')`, [alertRoot,owner])
+    await db.query(`insert into public.tiq_tournaments(id,event_id,name,status,format,entrant_type,created_by_user_id,entrants)
+      values ($1,$2,'Singles','scheduled','single_elimination','players',$3,$4)`, [alertDivision,alertRoot,owner,sides])
+    await db.query(`insert into private.native_tournament_setups(owner_id,id,draft,settings,settings_revision) values ($1,$2,$3,$4,$5)`,
+      [owner,alertEvent,JSON.stringify(draft),JSON.stringify(settings),revision])
+    await db.query(`insert into private.native_tournament_rehearsals(owner_id,event_id,event_key,winner_id,partner_id,expires_at)
+      values ($1,$2,$3,$4,$5,statement_timestamp() + interval '1 hour')`, [owner,alertEvent,alertRoot,other,partner])
+    await db.query('delete from public.team_chat_blocks where owner_user_id=$1 and blocked_user_id=$2',[partner,owner])
+    for (const [name,actor] of [[sides[0],other],[sides[1],partner],[sides[1],stranger]]) {
+      await db.query(`insert into public.tiq_tournament_entries(tournament_id,player_name,status,submitted_by_user_id,native_registration)
+        values ($1,$2,'approved',$3,jsonb_build_object('version',1,'one',$2::text))`, [alertDivision,name,actor])
+    }
+
+    const rehearsalDraw = () => rpc('native_tournament_draw_plan($1,$2)', [owner,alertEvent])
+    const rehearsalSave = (version: unknown, court: string, rescheduled = false) =>
+      rpc('native_tournament_save_slot($1,$2,$3,$4,$5,$6,$7,$8)',
+        [owner,alertEvent,version,alertDivision,'r1-m1',{...slot,court},sides,rescheduled])
+    const rehearsalRead = (actor: string, view: string, division = alertDivision) =>
+      withRecipient(actor, () => rpc('native_tournament_alert_rehearsal($1,$2,$3)', [alertRoot,division,view]))
+    expect(await rehearsalRead(other,'entry')).toBeNull()
+    expect(await rehearsalSave((await rehearsalDraw()).revision,'Court 4')).toEqual({code:'missing'})
+    await db.query('update private.native_tournament_rehearsals set schedule_enabled=true where event_id=$1',[alertEvent])
+    const initial = await rehearsalSave((await rehearsalDraw()).revision,'Court 4')
+    const movedRehearsal = await rehearsalSave(initial.revision,'Court 5',true)
+    expect(movedRehearsal).toMatchObject({divisions:[expect.objectContaining({schedule:{'r1-m1':{...slot,court:'Court 5'}}})]})
+    expect(await updates(other)).toContainEqual(expect.objectContaining({
+      title:'Tournament match rescheduled',body:expect.stringContaining('TestFlight Court Change · Singles'),
+      href:expect.stringContaining('event=' + alertRoot + '&division=' + alertDivision + '&match=r1-m1'),
+    }))
+    expect(await updates(partner)).toContainEqual(expect.objectContaining({title:'Tournament match rescheduled'}))
+    expect(await updates(stranger)).toEqual([])
+    expect(await rehearsalRead(other,'entry')).toMatchObject({
+      context:{owner:other,parent:alertRoot,division:alertDivision,mode:'closed'},
+      receipt:{name:sides[0],status:'approved',inDraw:true},queue:[],
+    })
+    expect(await rehearsalRead(partner,'draw')).toMatchObject({
+      root:{id:alertRoot,is_public:false},division:{id:alertDivision,is_public:false,schedule:{'r1-m1':{court:'Court 5'}}},
+    })
+    expect(await rehearsalRead(stranger,'draw')).toBeNull()
+    expect(await rehearsalRead(other,'entry',testDivision)).toBeNull()
+    expect(await rehearsalRead(owner,'entry')).toBeNull()
+    await db.exec('set role anon')
+    await expect(rpc('native_tournament_alert_rehearsal($1,$2,$3)',[alertRoot,alertDivision,'draw'])).rejects.toThrow(/permission denied/)
+    await db.exec('reset role')
+    await expect(db.query('update public.tiq_tournaments set is_public=true where id=$1',[alertRoot])).rejects.toThrow(/rehearsals_are_private/)
+    expect((await db.query('update public.tiq_tournaments set is_public=true where id=$1 returning is_public',[alertDivision])).rows)
+      .toEqual([{is_public:false}])
+    await db.query(`update private.native_tournament_rehearsals set created_at=statement_timestamp() - interval '2 hours',
+      expires_at=statement_timestamp() - interval '1 hour' where event_id=$1`, [alertEvent])
+    expect(await rehearsalRead(other,'draw')).toBeNull()
+    expect(await updates(other)).not.toContainEqual(expect.objectContaining({title:'Tournament match rescheduled'}))
+    expect(await rehearsalSave(movedRehearsal.revision,'Court 6',true)).toEqual({code:'missing'})
   } finally {
     await db.close()
   }
