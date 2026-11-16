@@ -30,8 +30,9 @@ async function handle(request: Request) {
     const sandbox = eligibility.data?.ownerId === owner && eligibility.data.sandboxEnabled === true
     if (!sandbox && config.mode !== 'production') return unavailable()
     const environment = sandbox ? 'Sandbox' : 'Production'
+    const sandboxSwitch = process.env.APPLE_LEAGUE_SANDBOX_CHECKOUT_ENABLED
     const canStart = sandbox
-      ? config.mode !== 'off' && process.env.APPLE_LEAGUE_SANDBOX_CHECKOUT_ENABLED === 'true'
+      ? config.mode !== 'off' && (sandboxSwitch === 'true' || (config.mode === 'sandbox' && sandboxSwitch === undefined))
       : process.env.APPLE_LEAGUE_PURCHASES_ENABLED === 'true'
     const common = { ok: true, owner, draft, available: true, environment,
       productId: FIRST_PARTY_COMPETITION_FEES.league.productId }
