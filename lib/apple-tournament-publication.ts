@@ -5,7 +5,8 @@ import { FIRST_PARTY_COMPETITION_FEES } from './first-party-competition-prices'
 
 export function tournamentAppleConfiguration() {
   const config = applePurchaseConfiguration()
-  return process.env.APPLE_TOURNAMENT_PURCHASES_ENABLED === 'true' && config?.mode !== 'off' ? config : null
+  if (config?.mode === 'sandbox') return config
+  return config?.mode === 'production' && process.env.APPLE_TOURNAMENT_PURCHASES_ENABLED === 'true' ? config : null
 }
 
 export async function applyTournamentApplePurchase(
