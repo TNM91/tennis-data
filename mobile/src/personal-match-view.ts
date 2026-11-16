@@ -111,12 +111,13 @@ type PersonalMatchLogOptions = {
   seed?: CalendarScorecardSeed
   backToTeamResults?: () => void
   scoreReviewShortcut?: HTMLElement
+  onRecentScorecards?: (scorecards: readonly Pick<PersonalMatch, 'format' | 'outcome'>[]) => void
   openPractice: (match: PersonalMatch, current: () => boolean) => void
   openRematchInvite: (source: {hitId?: string; clubId?: string}, trigger: HTMLButtonElement, current: () => boolean) => void
 }
 
 export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient, owner: string, current: () => boolean,
-  formSession: PersonalMatchFormSession, {seed, backToTeamResults, scoreReviewShortcut, openPractice, openRematchInvite}: PersonalMatchLogOptions) {
+  formSession: PersonalMatchFormSession, {seed, backToTeamResults, scoreReviewShortcut, onRecentScorecards, openPractice, openRematchInvite}: PersonalMatchLogOptions) {
   if (scoreReviewShortcut) {
     scoreReviewShortcut.innerHTML = `<button type="button" class="secondary app-tool" aria-controls="lab-team-scorecards">
       <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.tournaments}</span>
@@ -277,6 +278,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     const scorecards: LogScorecard[] = [...posted, ...matches.filter(card => !card.calendar_match_id || !linked.has(card.calendar_match_id))]
       .sort((a, b) => b.match_date.localeCompare(a.match_date))
     mountPersonalRecentForm(formHost, scorecards, active, openScorecard)
+    onRecentScorecards?.(scorecards.slice(0, 5))
     searchBox.hidden = !scorecards.length
     search.oninput = () => { if (active()) paintScorecardRows(scorecards) }
     paintScorecardRows(scorecards)

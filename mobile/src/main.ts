@@ -884,13 +884,18 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
       const active = () => version===revision&&current.user.id===session?.user.id
       const starterTiq = document.createElement('div')
       shortcuts.before(starterTiq)
-      void mountStarterTiq(starterTiq,current.user.id,active,(cardId,trigger)=>{
+      const starterAssessment = mountStarterTiq(starterTiq,current.user.id,active,(cardId,trigger)=>{
         if(!active()||document.querySelector('dialog[open]'))return
         trigger.focus({preventScroll:true})
         training=openLevelUp(client,current.user.id,active,'catalog',{cardId,identitySlug:''})
+      },()=>{
+        const heading = matchLog.querySelector<HTMLElement>('#personal-matches-title')
+        heading?.focus({preventScroll:true})
+        heading?.scrollIntoView({block:'start'})
       })
       mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
         seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,scoreReviewShortcut,
+        onRecentScorecards:starterAssessment.showRecentMatches,
         openPractice:(match,currentMatch)=>openScorecardPractice(current.user.id,currentMatch,match.match_date,match.format==='doubles'),
         openRematchInvite:(source,trigger,currentMatch)=>openScorecardInvite(current.user.id,source,trigger,currentMatch),
       })
