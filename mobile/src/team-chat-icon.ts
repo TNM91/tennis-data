@@ -5,6 +5,7 @@ import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-tr
 import {html} from './html'
 import type {NativeTeamRoom} from './team-room-data'
 import {drawChatIcon,encodeChatIcon,loadChatIcon} from './chat-icon-frame'
+import {chatMediaRights} from './chat-media-rights'
 
 export function teamChatAvatarHtml(name:string,url?:string){
  return `<span class="chats-team-avatar" aria-hidden="true"><span>${html(Array.from(name.trim())[0]?.toUpperCase()||'?')}</span>${url?`<img src="${html(url)}" alt="" referrerpolicy="no-referrer">`:''}</span>`
@@ -42,9 +43,10 @@ export function openChatIconEditor(
   <form>
    <div class="team-chat-icon-picker">
     <div data-team-icon-preview>${teamChatAvatarHtml(name,logo)}</div>
-    <button type="button" class="secondary" data-choose-icon>Choose photo</button>
+    <button type="button" class="secondary" data-choose-icon aria-describedby="chat-icon-media-rights">Choose photo</button>
     <input type="file" accept="image/*" aria-label="${kind} icon photo" hidden>
    </div>
+   <p id="chat-icon-media-rights" class="chat-media-rights">${chatMediaRights}</p>
    <fieldset class="chat-icon-frame" hidden>
     <legend>Frame photo</legend>
     <label for="chat-icon-fit">Fit</label><select id="chat-icon-fit" data-icon-fit><option value="fill">Fill square</option><option value="fit">Show full photo</option></select>
@@ -53,6 +55,9 @@ export function openChatIconEditor(
     <label>Vertical position<input type="range" data-icon-y min="-100" max="100" value="0"></label>
     <button type="button" class="secondary" data-icon-center>Center photo</button>
    </fieldset>
+   <label class="chat-icon-rights" data-icon-rights hidden>
+    <input type="checkbox" disabled> <span>I have the right to share this image.</span>
+   </label>
    <div class="team-chat-icon-actions">
     ${logo?'<button type="button" class="secondary" data-icon-reframe>Adjust photo</button><button type="button" class="secondary" data-remove-icon>Remove icon</button>':''}
     <button type="submit" aria-label="Save ${label} icon" hidden disabled>Save</button>
@@ -72,6 +77,8 @@ export function openChatIconEditor(
  const x=frame.querySelector<HTMLInputElement>('[data-icon-x]')!
  const y=frame.querySelector<HTMLInputElement>('[data-icon-y]')!
  const reframe=form.querySelector<HTMLButtonElement>('[data-icon-reframe]')
+ const rightsLabel=form.querySelector<HTMLLabelElement>('[data-icon-rights]')!
+ const rights=rightsLabel.querySelector<HTMLInputElement>('input')!
  const canvas=document.createElement('canvas')
  canvas.width=canvas.height=512
  let image:HTMLImageElement|null=null,busy=false,disposed=false,revision=0
@@ -95,6 +102,7 @@ export function openChatIconEditor(
   if(busy||!active())return
   const attempt=++revision
   image=null;frame.hidden=true;save.disabled=true;save.hidden=true
+  rights.checked=false;rights.disabled=true;rightsLabel.hidden=true
   preview.innerHTML=teamChatAvatarHtml(name,logo)
   bindTeamChatAvatars(preview)
   status.textContent='Preparing photo…'
@@ -108,11 +116,13 @@ export function openChatIconEditor(
    paintFrame()
    frame.hidden=false
    status.textContent=''
-   save.hidden=false;save.disabled=false
+   rightsLabel.hidden=false;rights.disabled=false
+   save.hidden=false
   }catch{
    if(active()&&attempt===revision)status.textContent='Choose another photo.'
   }
  }
+ rights.onchange=()=>{save.disabled=busy||!image||!rights.checked}
  input.onchange=()=>{
   const file=input.files?.[0]
   input.value=''
@@ -124,7 +134,7 @@ export function openChatIconEditor(
   busy=true;revision++;input.disabled=true;choose.disabled=true;save.disabled=true;dismiss.disabled=true
   if(remove)remove.disabled=true
   if(reframe)reframe.disabled=true
-  frame.disabled=true
+  frame.disabled=true;rights.disabled=true
   status.textContent=photo?'Saving icon…':'Removing icon…'
   try{
    await saveIcon(photo)
@@ -133,12 +143,12 @@ export function openChatIconEditor(
   }catch(error){
    if(active())status.textContent=error instanceof Error?error.message:'The icon could not be saved.'
   }finally{
-   if(active()){busy=false;input.disabled=false;choose.disabled=false;save.disabled=!image;dismiss.disabled=false;frame.disabled=false;if(remove)remove.disabled=false;if(reframe)reframe.disabled=false}
+   if(active()){busy=false;input.disabled=false;choose.disabled=false;save.disabled=!image||!rights.checked;dismiss.disabled=false;frame.disabled=false;rights.disabled=!image;if(remove)remove.disabled=false;if(reframe)reframe.disabled=false}
   }
  }
  form.onsubmit=event=>{
   event.preventDefault()
-  if(!image||busy)return
+  if(!image||busy||!rights.checked)return
   try{void submit(encodeChatIcon(canvas))}catch(error){status.textContent=error instanceof Error?error.message:'Choose another photo.'}
  }
  if(remove)remove.onclick=()=>{void submit(null)}

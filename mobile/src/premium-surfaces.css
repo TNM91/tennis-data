@@ -1909,6 +1909,19 @@ dialog.team-chat-icon-dialog[open] {
 .chat-icon-frame :is(input,select) { display:block; inline-size:100%; min-block-size:34px; }
 .chat-icon-frame input[type="range"] { padding-inline:0; accent-color:var(--premium-lime); }
 .chat-icon-frame[hidden] { display:none; }
+.chat-media-rights {
+ margin:0 0 8px; color:var(--premium-copy); font-size:.8125rem; line-height:1.45;
+}
+.chat-icon-rights:not([hidden]) {
+ display:flex; align-items:center; gap:10px; min-block-size:44px; margin-block-end:8px;
+ color:var(--premium-white); font-size:.875rem; line-height:1.35;
+}
+.chat-icon-rights input[type="checkbox"] {
+ inline-size:20px; block-size:20px; flex:none; margin:0; accent-color:var(--premium-lime);
+}
+.chat-attachment-menu .chat-media-rights,.chat-photo-preview .chat-media-rights { grid-column:1 / -1; }
+.chat-icon-support { margin-block:8px; }
+.chat-icon-support .chat-media-rights { margin-block-start:4px; }
 .player-chats-dialog :is([data-player-room],.team-invite-heading h2) { display:flex; gap:8px; align-items:center; }
 .player-chats-dialog .chats-team-avatar { flex:none; inline-size:32px; block-size:32px; }
 .team-chat-icon-actions { justify-content:flex-end; }

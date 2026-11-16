@@ -19,6 +19,7 @@ import { openCourtDirections } from './explore-court-directions'
 import { readSavedCourts } from './explore-saved-courts'
 import { firstPartyBuild } from './build-scope'
 import { bindTeamChatAvatars,openChatIconEditor,teamChatAvatarHtml } from './team-chat-icon'
+import { bindChatIconSupport, chatIconSupportHtml } from './chat-media-rights'
 import { chatInboxOrder,playerInboxKey } from './chat-inbox-order'
 
 type ComposerPage = 'new' | 'group'
@@ -491,6 +492,7 @@ export function openPlayerChats(
       ${simpleButton('Turn off invite links','data-player-revoke-links')}
       ${initial.browser&&choices.length?`<form data-player-add><label>Add a saved player<select name="player">${choices.map(contact=>`<option value="${html(contact.id)}">${html(contact.name)}</option>`).join('')}</select></label>
       <button class="secondary" type="submit">Add to group</button></form>`:''}`:''}
+      ${value.logo?chatIconSupportHtml:''}
       <ul aria-label="Chat members">${names}</ul>
       ${value.group?simpleButton(value.manage?'Close group':'Leave group','data-player-leave'):''}</details>
       ${value.more?simpleButton('Load earlier messages','data-player-earlier'):''}
@@ -531,6 +533,7 @@ export function openPlayerChats(
     const history = dialog.querySelector<HTMLElement>('.player-chat-messages')
     if (history) history.scrollTop = history.scrollHeight - historyAnchor
     bindTeamChatAvatars(dialog)
+    bindChatIconSupport(dialog,active)
     click('[data-player-back]',()=>{back()})
     click('[data-player-retry]',()=>{if(pending)void act(pending)})
     click('[data-player-people]',openPeople)

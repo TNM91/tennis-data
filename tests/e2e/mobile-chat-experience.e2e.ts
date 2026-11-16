@@ -153,6 +153,7 @@ for(const width of [320,390])test(`media, team activities and preserved plan con
  const menu=page.locator('.chat-attachment-menu')
  await expect(menu.getByRole('button',{name:'Choose photo',exact:true})).toBeVisible()
  await expect(menu.getByRole('button',{name:'GIFs',exact:true})).toBeVisible()
+ await expect(menu.getByText('Only share photos, GIFs, or logos you own or have permission to use.')).toBeVisible()
  await expect(menu.locator('[data-chat-create-poll]')).toBeVisible()
  await expect(menu.locator('[data-chat-plan-practice]')).toHaveCount(1)
  expect(await menu.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
