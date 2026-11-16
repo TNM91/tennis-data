@@ -52,7 +52,7 @@ jobs:
        (inputs.profile == 'first-party' && github.ref == 'refs/heads/codex/ios-first-party-release' &&
         inputs.distribution == 'internal' && (!inputs.upload || inputs.build_number == '255')) ||
        (inputs.profile == 'first-party-full' && github.ref == 'refs/heads/codex/ios-first-party-release' &&
-        (inputs.distribution == 'internal' || (inputs.distribution == 'app-store' && !inputs.upload))))
+        (inputs.distribution == 'internal' || inputs.distribution == 'app-store')))
     permissions:
       contents: read
       actions: read
@@ -186,8 +186,16 @@ jobs:
           test "$SOURCE" = "$SOURCE_SHA:success"
           gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name tenaceiq-ios-first-party-signed-255 --dir "$RUNNER_TEMP/tiq-export"
           printf '%s  %s\n' "$IPA_SHA256" "$RUNNER_TEMP/tiq-export/App.ipa" | shasum -a 256 -c -
+      - name: Save validated first-party App Store IPA
+        if: inputs.profile == 'first-party-full' && inputs.distribution == 'app-store'
+        uses: actions/upload-artifact@v6
+        with:
+          name: tenaceiq-ios-first-party-app-store-${{ inputs.build_number }}
+          path: ${{ runner.temp }}/tiq-export/App.ipa
+          if-no-files-found: error
+          retention-days: 3
       - name: Upload to App Store Connect
-        if: inputs.upload && !(inputs.profile == 'first-party-full' && inputs.distribution == 'app-store')
+        if: inputs.upload
         env:
           API_KEY: ${{ secrets.APPLE_UPLOAD_API_KEY_P8_BASE64 }}
           API_KEY_ID: ${{ secrets.APPLE_UPLOAD_API_KEY_ID }}
