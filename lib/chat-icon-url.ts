@@ -1,4 +1,11 @@
 import { supabaseUrl } from './supabase-public-config'
+import { chatIconFromValue, chatIconPresetValue } from './chat-icon-presets'
+
+export function readChatIcon(value: unknown, presetsOnly = false) {
+  const preset = chatIconFromValue(value)
+  if (preset) return chatIconPresetValue(preset)
+  return presetsOnly ? undefined : readChatIconUrl(value)
+}
 
 export function readChatIconUrl(value:unknown) {
   if (typeof value !== 'string' || value.length > 2000) return undefined

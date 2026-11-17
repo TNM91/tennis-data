@@ -14,6 +14,7 @@ import { readTeamMatchReplyChange } from '@/lib/team-match-replies-contract'
 import { readTeamResultChange } from '@/lib/team-results-contract'
 import { checkTeamChatAccess } from '@/lib/team-chat-updates'
 import { loadTeamLogoUrls } from '@/lib/team-branding-storage'
+import { chatIconModeHeader, chatIconModePresets } from '@/lib/chat-icon-presets'
 import { namedChatRoomId, namedTeamChatRooms, type NamedChatRoom } from '@/lib/named-team-chat-rooms'
 
 export const runtime = 'nodejs'
@@ -56,6 +57,7 @@ export async function GET(request: Request) {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
     if (!key) return denied(503)
     const service = accountClient(key), owner = account.user.id
+    const presetsOnly = request.headers.get(chatIconModeHeader) === chatIconModePresets
     if (op === 'captain-setup') {
       const access = await loadPlayerAccess(accountClient(supabaseKey, account.token), owner)
       const setup = access.canUseCaptainWorkflow
@@ -74,7 +76,7 @@ export async function GET(request: Request) {
       const chatIds = counts.teams.flatMap(team => team.rooms?.filter(room => room.hasLogo).map(room => room.id) ?? [])
       const logos = new Map<string, string>()
       for (let start = 0; start < chatIds.length; start += 60) {
-        const batch = await loadTeamLogoUrls(service, chatIds.slice(start, start + 60), 'team_room_chat').catch(() => null)
+        const batch = await loadTeamLogoUrls(service, chatIds.slice(start, start + 60), 'team_room_chat', presetsOnly).catch(() => null)
         for (const [id, logo] of batch ?? []) logos.set(id, logo)
       }
       return json({ ok: true, ...counts, coach, teams: counts.teams.map(team => ({
@@ -84,7 +86,7 @@ export async function GET(request: Request) {
     const options = reviewedTeamOptions(teams)
     const inboxOptions = async () => {
       const activity = await loadActiveReviewedTeamRoomActivity(service, owner, teams).catch(() => new Map<string, string>())
-      const logos = await loadTeamLogoUrls(service, [...activity.keys()]).catch(() => new Map<string, string>())
+      const logos = await loadTeamLogoUrls(service, [...activity.keys()], 'team_room', presetsOnly).catch(() => new Map<string, string>())
       return options.map((team, index) => {
         const roomId = teams[index].roomId
         const teamLogoUrl = logos.get(roomId), activityAt = activity.get(roomId)
@@ -148,7 +150,7 @@ export async function GET(request: Request) {
       const [access, brandedTeams, chatLogos] = await Promise.all([
         selected.isCaptain ? loadPlayerAccess(accountClient(supabaseKey, account.token), owner).catch(() => null) : null,
         inboxOptions(),
-        chatRoom ? loadTeamLogoUrls(service, [chatRoom.id], 'team_room_chat').catch(() => new Map<string, string>()) : null,
+        chatRoom ? loadTeamLogoUrls(service, [chatRoom.id], 'team_room_chat', presetsOnly).catch(() => new Map<string, string>()) : null,
       ])
       const canManage = access?.canUseCaptainWorkflow === true
       const teamLogoUrl = brandedTeams[teams.indexOf(selected)]?.teamLogoUrl

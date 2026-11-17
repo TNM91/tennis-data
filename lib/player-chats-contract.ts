@@ -1,7 +1,7 @@
 import { lineupRecord } from './native-captain-lineup-contract'
 import { readTeamChatCursor, teamChatMessageId } from './team-chat-cursor'
 import { updateTimestamp } from './native-updates-contract'
-import { readChatIconUrl } from './chat-icon-url'
+import { readChatIcon } from './chat-icon-url'
 import { parseGroupPracticeAction,readGroupPractice,type GroupPractice,type GroupPracticeAction } from './group-practice-contract'
 import { parseChatHitAction,readChatHit,type ChatHit,type ChatHitAction } from './chat-hit-contract'
 import { listedHittingClub } from './hitting-clubs'
@@ -148,7 +148,7 @@ const contact = (row: Record<string, unknown>): PlayerContact => ({ id:id(row.id
 export function readPlayerChatInbox(value: unknown): PlayerChatInbox {
   const row = lineupRecord(value)
   return { contacts:list(row.contacts,100,contact), rooms:list(row.rooms,100,r=>({
-    id:id(r.id),title:text(r.title,100),group:flag(r.group),unread:flag(r.unread),logo:readChatIconUrl(r.logo),
+    id:id(r.id),title:text(r.title,100),group:flag(r.group),unread:flag(r.unread),logo:readChatIcon(r.logo),
     activityAt:updateTimestamp(r.activityAt)?r.activityAt:undefined,
   })) }
 }
@@ -161,7 +161,7 @@ export function readPlayerChatRoom(value: unknown, room: string): PlayerChatRoom
   if (confirmedHit && (hit?.status!=='proposed' || confirmedHit.status!=='accepted' || confirmedHit.room!==room || confirmedHit.id===hit.id)) {
     throw Error('Hitting plan changed.')
   }
-  return { id:room,title:text(row.title,100),group:flag(row.group),manage:flag(row.manage),more:flag(row.more),logo:readChatIconUrl(row.logo),
+  return { id:room,title:text(row.title,100),group:flag(row.group),manage:flag(row.manage),more:flag(row.more),logo:readChatIcon(row.logo),
     ...(hit!==undefined ? {hit} : {}),
     ...(confirmedHit ? {confirmedHit} : {}), ...(row.canSuggestHit===true && row.group===false ? {canSuggestHit:true} : {}),
     ...(Object.hasOwn(row,'practice') && row.group === true ? {practice:readGroupPractice(row.practice)} : {}),
