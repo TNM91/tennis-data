@@ -17,8 +17,8 @@ import { chatHitChangesHeader, chatHitsHeader } from '../../lib/chat-hit-contrac
 import { hittingPlanStart } from '../../lib/hitting-plan'
 import { openCourtDirections } from './explore-court-directions'
 import { readSavedCourts } from './explore-saved-courts'
-import { firstPartyBuild } from './build-scope'
-import { bindTeamChatAvatars,openChatIconEditor,teamChatAvatarHtml } from './team-chat-icon'
+import { chatIconHeaders, firstPartyBuild } from './build-scope'
+import { bindTeamChatAvatars,chatIconChange,openChatIconEditor,teamChatAvatarHtml } from './team-chat-icon'
 import { bindChatIconSupport, chatIconSupportHtml } from './chat-media-rights'
 import { chatInboxOrder,playerInboxKey } from './chat-inbox-order'
 
@@ -31,6 +31,7 @@ export function playerChatsForAccount(client: SupabaseClient,owner: string,activ
     if (error || data.session?.user.id !== owner || !active()) throw Error('Your chat session changed.')
     const path = playerChatApiUrl(query), method = action ? 'POST' : 'GET'
     const headers = {Authorization:'Bearer '+data.session.access_token,'Cache-Control':'no-store',
+      ...(browser?{}:chatIconHeaders),
       ...(firstPartyBuild&&!browser&&query?.has('room')?{[chatHitsHeader]:'1',[chatHitChangesHeader]:'1'}:{}),
       ...(action?{'Content-Type':'application/json'}:{})}
     const response = browser
@@ -492,7 +493,7 @@ export function openPlayerChats(
       ${simpleButton('Turn off invite links','data-player-revoke-links')}
       ${initial.browser&&choices.length?`<form data-player-add><label>Add a saved player<select name="player">${choices.map(contact=>`<option value="${html(contact.id)}">${html(contact.name)}</option>`).join('')}</select></label>
       <button class="secondary" type="submit">Add to group</button></form>`:''}`:''}
-      ${value.logo?chatIconSupportHtml:''}
+      ${value.logo&&!firstPartyBuild?chatIconSupportHtml:''}
       <ul aria-label="Chat members">${names}</ul>
       ${value.group?simpleButton(value.manage?'Close group':'Leave group','data-player-leave'):''}</details>
       ${value.more?simpleButton('Load earlier messages','data-player-earlier'):''}
@@ -560,15 +561,17 @@ export function openPlayerChats(
     click('[data-player-icon]',button=>{
       const target=room
       if (!target?.manage || iconEditor) return
-      iconEditor=openChatIconEditor({name:target.title,logo:target.logo,kind:'Group'},active,async photo=>{
+      iconEditor=openChatIconEditor({name:target.title,logo:target.logo,kind:'Group'},active,async choice=>{
         const {data}=await client.auth.getSession()
         if (!active() || data.session?.user.id!==owner) throw Error('Sign in again to update the icon.')
-        const path=playerChatApiUrl()+'/branding', body={room:target.id,photo:photo?.base64??null}
-        const headers={Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'}
+        const change=chatIconChange(choice)
+        const path=playerChatApiUrl()+'/branding', body={room:target.id,...change}
+        const headers={Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json',...chatIconHeaders}
         const response=await CapacitorHttp.post({url:'https://www.tenaceiq.com'+path,headers,data:body,responseType:'json',
           disableRedirects:true,connectTimeout:12000,readTimeout:20000})
         if (!active() || response.status!==200 || response.data?.ok!==true || response.data?.releaseScope!=='first-party' ||
-          response.data?.owner!==owner || response.data?.roomId!==target.id || response.data?.hasLogo!==Boolean(photo)) {
+          response.data?.owner!==owner || response.data?.roomId!==target.id || response.data?.hasLogo!==Boolean(choice) ||
+          'preset' in change&&response.data?.preset!==change.preset) {
           throw Error('The icon change could not be confirmed. Refresh your chat.')
         }
       },changed=>{

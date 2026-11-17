@@ -6,8 +6,8 @@ import type {TeamScope} from './team-room-data'
 import {watchTeamChat} from './team-chat-live'
 import {namedChatRoomId,namedChatRoomName} from '../../lib/named-team-chat-rooms'
 import {updateTimestamp} from '../../lib/native-updates-contract'
-import {readChatIconUrl} from '../../lib/chat-icon-url'
-import {firstPartyBuild} from './build-scope'
+import {readChatIcon} from '../../lib/chat-icon-url'
+import {chatIconHeaders,firstPartyBuild} from './build-scope'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 export type ChatUnreadTeam=TeamScope&{unread:number;activityAt?:string|null;generalUnread?:number;rooms?:{id:string;name:string;unread:number;activityAt?:string;logo?:string}[]}
 export type CoachChatUnread={available:boolean;total:number;connections:{id:string;unread:number;latest?:string|null;activityAt?:string}[]}
@@ -25,7 +25,7 @@ export function parseChatUnread(value:unknown,owner:string):ChatUnread{
   const hasRooms=team.generalUnread!==undefined||team.rooms!==undefined
   if(hasRooms&&(!count(team.generalUnread)||!Array.isArray(team.rooms)||team.rooms.length>12||team.rooms.some(room=>!room||!namedChatRoomId(room.id)||!namedChatRoomName(room.name)||!count(room.unread))||new Set(team.rooms.map(room=>room.id)).size!==team.rooms.length||team.unread!==Math.min(100,team.generalUnread+team.rooms.reduce((sum,room)=>sum+room.unread,0))))throw Error('Chat counts unavailable')
   ids.add(key(team));return {teamName:team.teamName,leagueName:team.leagueName,flight:team.flight,unread:team.unread,...(team.activityAt===null||updateTimestamp(team.activityAt)?{activityAt:team.activityAt}:{}),...(hasRooms?{generalUnread:team.generalUnread,rooms:team.rooms!.map(({id,name,unread,activityAt,logo})=>{
-   const icon=readChatIconUrl(logo)
+   const icon=readChatIcon(logo,firstPartyBuild)
    return {id,name,unread,...(updateTimestamp(activityAt)?{activityAt}:{}),...(icon?{logo:icon}:{})}
   })}:{})}
  })
@@ -48,7 +48,7 @@ export function parseChatUnread(value:unknown,owner:string):ChatUnread{
 export async function loadChatUnread(client:SupabaseClient,owner:string,current:()=>boolean,send=CapacitorHttp.get){
  const {data,error}=await client.auth.getSession(),session=data.session
  if(error||session?.user.id!==owner||!current())throw Error('Chat account changed')
- const response=await send({url:firstPartyBuild?firstPartyTeamRooms+'?op=unread':'https://www.tenaceiq.com/api/mobile/chats/unread',headers:{Authorization:'Bearer '+session.access_token,'Cache-Control':'no-store'},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000,webFetchExtra:{cache:'no-store'}})
+ const response=await send({url:firstPartyBuild?firstPartyTeamRooms+'?op=unread':'https://www.tenaceiq.com/api/mobile/chats/unread',headers:{Authorization:'Bearer '+session.access_token,'Cache-Control':'no-store',...chatIconHeaders},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000,webFetchExtra:{cache:'no-store'}})
  const latest=await client.auth.getSession()
  if(latest.error||latest.data.session?.user.id!==owner||!current()||response.status!==200||!matchesTeamReleaseScope(response.data,owner))throw Error('Chat counts unavailable')
  return parseChatUnread(response.data,owner)

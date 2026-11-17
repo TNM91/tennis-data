@@ -6,7 +6,7 @@ import {fixtureId,readReviewedNextMatch,type ReviewedNextMatch,type TeamNextMatc
 import {parseChatReactions,type ChatReaction} from './chat-reactions'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {firstPartyBuild} from './build-scope'
+import {chatIconHeaders,firstPartyBuild} from './build-scope'
 import {readTeamChatDisplayName} from '../../lib/team-chat-display-name'
 import {firstPartyTeamRooms,matchesTeamReleaseScope,readTeamLogoUrl} from './first-party-team-transport'
 import {updateTimestamp} from '../../lib/native-updates-contract'
@@ -54,7 +54,7 @@ export async function loadTeamRoom(client:SupabaseClient,userId:string,isCurrent
  const url=new URL(firstPartyBuild?firstPartyTeamRooms:'https://www.tenaceiq.com/api/team-rooms')
  if(!firstPartyBuild)url.searchParams.set('read','0')
  if(selected){url.searchParams.set('team',selected.teamName);url.searchParams.set('league',selected.leagueName);url.searchParams.set('flight',selected.flight);if(selected.chatRoomId)url.searchParams.set('chatRoom',selected.chatRoomId)}
- const response=await send({url:url.toString(),headers:{Authorization:`Bearer ${data.session.access_token}`},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000})
+ const response=await send({url:url.toString(),headers:{Authorization:`Bearer ${data.session.access_token}`,...chatIconHeaders},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000})
  if(response.status===401 || response.status===403)throw new TeamRoomAccessError('Team access is unavailable.')
  if(response.status!==200||!isCurrent()||!matchesTeamReleaseScope(response.data,userId))throw Error('Team Room unavailable')
  const parsed=parseTeamData(response.data)

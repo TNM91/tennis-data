@@ -1,5 +1,7 @@
 import {firstPartyBuild} from './build-scope'
-export {readChatIconUrl as readTeamLogoUrl} from '../../lib/chat-icon-url'
+import {readChatIcon} from '../../lib/chat-icon-url'
+
+export const readTeamLogoUrl = (value: unknown) => readChatIcon(value, firstPartyBuild)
 
 export const firstPartyTeamRooms='https://www.tenaceiq.com/api/mobile/first-party/team-rooms'
 export const firstPartyTeamInvites='https://www.tenaceiq.com/api/mobile/first-party/team-invites'

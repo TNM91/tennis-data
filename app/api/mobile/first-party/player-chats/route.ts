@@ -5,6 +5,7 @@ import {
 import { teamChatMessageId } from '@/lib/team-chat-cursor'
 import { updateTimestamp } from '@/lib/native-updates-contract'
 import { loadTeamLogoUrls } from '@/lib/team-branding-storage'
+import { chatIconModeHeader, chatIconModePresets } from '@/lib/chat-icon-presets'
 import { chatHitChangesHeader, chatHitsHeader, readChatHit } from '@/lib/chat-hit-contract'
 import { hittingPlanStart } from '@/lib/hitting-plan'
 import { after } from 'next/server'
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
     const owner = account.user.id
     const {room,before,rematch} = selection
     const db = service()
+    const presetsOnly = request.headers.get(chatIconModeHeader) === chatIconModePresets
     if (rematch) {
       const {data,error} = await db.rpc('native_chat_hit_rematch',{p_owner:owner,p_hit:rematch}).retry(false)
       if (error) throw Error()
@@ -58,7 +60,7 @@ export async function GET(request: Request) {
     if (room) {
       const selected = readPlayerChatRoom(data.room,room)
       if (selected.group) {
-        const logos = await loadTeamLogoUrls(db, [selected.id], 'player_group').catch(()=>new Map<string,string>())
+        const logos = await loadTeamLogoUrls(db, [selected.id], 'player_group', presetsOnly).catch(()=>new Map<string,string>())
         return json({ok:true,owner,room:{...selected,logo:logos.get(selected.id)}})
       }
       // Scope this additional lookup to clients that can display the card.
@@ -78,7 +80,7 @@ export async function GET(request: Request) {
       return json({ok:true,owner,room:selected})
     }
     const inbox = readPlayerChatInbox(data)
-    const logos = await loadTeamLogoUrls(db,inbox.rooms.filter(item=>item.group).map(item=>item.id),'player_group')
+    const logos = await loadTeamLogoUrls(db,inbox.rooms.filter(item=>item.group).map(item=>item.id),'player_group',presetsOnly)
       .catch(()=>new Map<string,string>())
     return json({ok:true,owner,...inbox,rooms:inbox.rooms.map(item=>({...item,logo:logos.get(item.id)}))})
   } catch { return failure('Chats couldn’t load. Refresh to try again.',503) }

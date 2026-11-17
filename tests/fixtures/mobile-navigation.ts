@@ -292,11 +292,10 @@ window.fetch=async(input,init)=>{
     ...(leagueCheckoutEnvironment==='Production'&&state.state==='paid'?{publicId:leagueCheckoutPublication}:{})},transactionId})
  }
  if(playerChatFixture.enabled&&url.pathname==='/api/mobile/first-party/player-chats/branding'){
-  const {room,photo}=JSON.parse(String(init?.body))
+  const {room,preset}=JSON.parse(String(init?.body))
   if(!playerChatFixture.group||room!==playerChatFixture.room)return Response.json({ok:false},{status:403})
-  playerChatFixture.logo=photo?'https://pwxppfazbyourjrsutgx.supabase.co/storage/v1/object/sign/team-room-files/team-logos/'+
-   room+'/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg?token=group-test':''
-  return Response.json({ok:true,releaseScope:'first-party',owner:currentNavigationOwner(),roomId:room,hasLogo:Boolean(photo)})
+  playerChatFixture.logo=preset?'tiq-icon:'+preset:''
+  return Response.json({ok:true,releaseScope:'first-party',owner:currentNavigationOwner(),roomId:room,hasLogo:Boolean(preset),preset})
  }
  if(playerChatFixture.enabled&&url.pathname==='/api/mobile/first-party/player-chats'){
   const state=playerChatFixture
@@ -490,21 +489,17 @@ window.fetch=async(input,init)=>{
   return Response.json({...base,practices:privatePractice?[privatePractice]:[]})
  }
  if(privateTools&&privateTeam&&url.pathname==='/api/mobile/first-party/team-rooms/branding'){
-  const {roomId,photo}=JSON.parse(String(init?.body))
+  const {roomId,preset}=JSON.parse(String(init?.body))
   if(privateTools!=='captain'||roomId!==privateTeam.id)return Response.json({ok:false},{status:403})
-  if(photo!==null&&!String(photo).startsWith('/9j/'))return Response.json({ok:false},{status:400})
-  privateLogoUrl=photo?'https://pwxppfazbyourjrsutgx.supabase.co/storage/v1/object/sign/team-room-files/team-logos/'+
-   roomId+'/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg?token=sample':''
-  return Response.json({ok:true,releaseScope:'first-party',owner:currentNavigationOwner(),roomId,hasLogo:Boolean(photo)})
+  privateLogoUrl=preset?'tiq-icon:'+preset:''
+  return Response.json({ok:true,releaseScope:'first-party',owner:currentNavigationOwner(),roomId,hasLogo:Boolean(preset),preset})
  }
  if(namedChatsFixture&&url.pathname==='/api/mobile/first-party/team-rooms/branding'){
-  const {roomId,chatRoomId,photo}=JSON.parse(String(init?.body))
+  const {roomId,chatRoomId,preset}=JSON.parse(String(init?.body))
   const named=namedChats.get(chatRoomId),owner=currentNavigationOwner()
   if(owner!==navigationOwner||!named||roomId!==chatRoomId)return Response.json({ok:false},{status:403})
-  if(photo!==null&&!String(photo).startsWith('/9j/'))return Response.json({ok:false},{status:400})
-  named.logo=photo?'https://pwxppfazbyourjrsutgx.supabase.co/storage/v1/object/sign/team-room-files/team-logos/'+
-   roomId+'/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg?token=sample':undefined
-  return Response.json({ok:true,releaseScope:'first-party',owner,roomId,hasLogo:Boolean(photo)})
+  named.logo=preset?'tiq-icon:'+preset:undefined
+  return Response.json({ok:true,releaseScope:'first-party',owner,roomId,hasLogo:Boolean(preset),preset})
  }
  if(url.pathname==='/api/mobile/first-party/team-rooms'){
   const op=url.searchParams.get('op')||'room',owner=currentNavigationOwner()

@@ -6,9 +6,20 @@ import {html} from './html'
 import type {NativeTeamRoom} from './team-room-data'
 import {drawChatIcon,encodeChatIcon,loadChatIcon} from './chat-icon-frame'
 import {chatMediaRights} from './chat-media-rights'
+import {chatIconHeaders, firstPartyBuild} from './build-scope'
+import {chatIconArtwork, openPresetChatIcon} from './chat-icon-picker'
+import {chatIconFromValue, type ChatIconPreset} from '../../lib/chat-icon-presets'
+import {readChatIconUrl} from '../../lib/chat-icon-url'
+
+type ChatIconChange = ChatPhoto | ChatIconPreset | null
+export function chatIconChange(choice: ChatIconChange) {
+ if (typeof choice === 'string') return {preset: choice}
+ return firstPartyBuild ? {preset: null} : {photo: choice?.base64 ?? null}
+}
 
 export function teamChatAvatarHtml(name:string,url?:string){
- return `<span class="chats-team-avatar" aria-hidden="true"><span>${html(Array.from(name.trim())[0]?.toUpperCase()||'?')}</span>${url?`<img src="${html(url)}" alt="" referrerpolicy="no-referrer">`:''}</span>`
+ const preset=chatIconFromValue(url), photo=firstPartyBuild?undefined:readChatIconUrl(url)
+ return `<span class="chats-team-avatar" aria-hidden="true">${preset?chatIconArtwork(preset):`<span>${html(Array.from(name.trim())[0]?.toUpperCase()||'?')}</span>${photo?`<img src="${html(photo)}" alt="" referrerpolicy="no-referrer">`:''}`}</span>`
 }
 
 export function bindTeamChatAvatars(host:ParentNode){
@@ -28,6 +39,13 @@ function readPhotoFile(file:File){
 }
 
 export function openChatIconEditor(
+ subject: { name: string; logo?: string; kind: 'Team' | 'Group' | 'Channel' }, current: () => boolean,
+ saveIcon: (choice: ChatIconChange) => Promise<void>, onClose: (changed: boolean) => void,
+){
+ return firstPartyBuild?openPresetChatIcon(subject,current,saveIcon,onClose):openPhotoChatIconEditor(subject,current,saveIcon,onClose)
+}
+
+function openPhotoChatIconEditor(
  subject: { name: string; logo?: string; kind: 'Team' | 'Group' | 'Channel' }, current: () => boolean,
  saveIcon: (photo: ChatPhoto | null) => Promise<void>, onClose: (changed: boolean) => void,
 ){
@@ -164,17 +182,18 @@ export function openChatIconEditor(
 export function openTeamChatIcon(client:SupabaseClient,owner:string,room:NativeTeamRoom,current:()=>boolean,onClose:(changed:boolean)=>void){
  return openChatIconEditor(room.chatRoom
   ?{name:room.chatRoom.name,logo:room.chatLogoUrl,kind:'Channel'}
-  :{name:room.teamName,logo:room.teamLogoUrl,kind:'Team'},current,async image=>{
+  :{name:room.teamName,logo:room.teamLogoUrl,kind:'Team'},current,async choice=>{
   const session=(await client.auth.getSession()).data.session
   if(!current()||session?.user.id!==owner)throw Error('Sign in again to update the icon.')
   const {teamName,leagueName,flight,id:roomId}=room
+  const change=chatIconChange(choice)
   const response=await CapacitorHttp.post({
-   url:firstPartyTeamRooms+'/branding',headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
-   data:{teamName,leagueName,flight,roomId,photo:image?.base64??null,...(room.chatRoom?{chatRoomId:room.chatRoom.id}:{})},
+   url:firstPartyTeamRooms+'/branding',headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json',...chatIconHeaders},
+   data:{teamName,leagueName,flight,roomId,...change,...(room.chatRoom?{chatRoomId:room.chatRoom.id}:{})},
    responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:20000,
   })
   if(response.status===409)throw Error('The team icon changed. Reopen this chat and try again.')
   if(response.status!==200||response.data?.ok!==true||!matchesTeamReleaseScope(response.data,owner)||
-    response.data.roomId!==roomId||response.data.hasLogo!==Boolean(image))throw Error('The icon change could not be confirmed. Refresh your chat.')
+    response.data.roomId!==roomId||response.data.hasLogo!==Boolean(choice)||'preset' in change&&response.data.preset!==change.preset)throw Error('The icon change could not be confirmed. Refresh your chat.')
  },onClose)
 }

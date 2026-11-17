@@ -1899,6 +1899,37 @@ dialog.team-chat-icon-dialog[open] {
 .team-chat-icon-heading,.team-chat-icon-picker { justify-content:space-between; }
 .team-chat-icon-heading h2 { margin:0;color:var(--premium-white);font-size:1.125rem; }
 .team-chat-icon-picker { padding-block:10px; }
+.chat-preset-options {
+ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0;
+ padding:0; border:0; min-inline-size:0;
+}
+.chat-preset-options legend { margin-block-end:8px; color:var(--premium-copy); }
+.chat-preset-options label {
+ position:relative; display:grid; place-items:center; align-content:center; gap:6px;
+ min-inline-size:0; min-block-size:74px; margin:0; padding:6px 2px; text-align:center;
+ border:1px solid var(--premium-line); border-radius:12px; background:var(--premium-inset);
+ color:var(--premium-white); font-size:.75rem; line-height:1.2; overflow-wrap:anywhere; cursor:pointer;
+}
+.chat-preset-options input { position:absolute; inset:0; z-index:1; opacity:0; margin:0; inline-size:100%; block-size:100%; cursor:pointer; }
+.chat-preset-options label:has(:checked) { border-color:var(--premium-lime); }
+.chat-preset-options label:has(:focus-visible) { outline:2px solid var(--premium-ice); outline-offset:2px; }
+.chat-preset-art {
+ --chat-preset-hue:#3568bf;
+ display:grid; place-items:center; inline-size:36px; block-size:36px; border-radius:8px;
+ position:relative; isolation:isolate; overflow:hidden; color:var(--premium-white); font-weight:750;
+ background:linear-gradient(146deg, var(--chat-preset-hue), #081c36 84%);
+}
+.chat-preset-art::before {
+ content:""; position:absolute; inset:0; z-index:-1;
+ background:linear-gradient(151deg, transparent 45%, #c7e2ff30 46% 48%, transparent 49% 54%, #c7e2ff26 55% 56%, transparent 57%);
+}
+.chat-preset-art .tiq-feature-icon,.chat-preset-art svg { inline-size:23px; block-size:23px; }
+.chats-team-avatar > .chat-preset-art { inline-size:100%; block-size:100%; border-radius:inherit; }
+.chat-preset-art[data-chat-preset="baseline"] { --chat-preset-hue:#266476; }
+.chat-preset-art[data-chat-preset="doubles"] { --chat-preset-hue:#4257a2; }
+.chat-preset-art[data-chat-preset="break-point"] { --chat-preset-hue:#526d24; }
+.chat-preset-art[data-chat-preset="champion"] { --chat-preset-hue:#876b32; }
+.chat-preset-art[data-chat-preset="clubhouse"] { --chat-preset-hue:#326c54; }
 .team-chat-icon-dialog .chats-team-avatar {
  inline-size:64px;block-size:64px;
  background:var(--premium-royal-deep);border:1px solid var(--premium-line);
