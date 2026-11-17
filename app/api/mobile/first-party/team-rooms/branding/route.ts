@@ -2,8 +2,8 @@ import { loadReviewedTeamLinks, readReviewedTeamRooms } from '@/lib/first-party-
 import { accountClient, accountResponse, readAccountJson, verifiedAccount } from '@/lib/mobile-account-auth'
 import { loadPlayerAccess } from '@/lib/player-api-auth'
 import { supabaseKey } from '@/lib/supabase-public-config'
-import { inspectTeamLogoImage, validateTeamLogoDimensions } from '@/lib/team-branding'
-import { saveTeamLogo } from '@/lib/team-branding-storage'
+import { readTeamLogoChoice, saveTeamLogo } from '@/lib/team-branding-storage'
+import { chatIconModeHeader, chatIconModePresets } from '@/lib/chat-icon-presets'
 import { buildTeamRoomScopeId } from '@/lib/team-room'
 import { checkTeamChatAccess } from '@/lib/team-chat-updates'
 import { namedChatRoomId, namedTeamChatRooms } from '@/lib/named-team-chat-rooms'
@@ -21,11 +21,11 @@ export async function POST(request: Request) {
     if (!account) return denied(401)
     const body = await readAccountJson(request, 360_000)
     if (!body || Object.keys(body).length !== (body.chatRoomId === undefined ? 5 : 6)) return denied(400)
-    const { teamName, leagueName, flight, roomId, photo, chatRoomId } = body
+    const { teamName, leagueName, flight, roomId, chatRoomId } = body
     if ([teamName, leagueName, flight, roomId].some(field => typeof field !== 'string') ||
-        chatRoomId !== undefined && (!namedChatRoomId(chatRoomId) || roomId !== chatRoomId) ||
-        photo !== null && (typeof photo !== 'string' || photo.length > 350_000 ||
-          !/^[A-Za-z0-9+/]+={0,2}$/.test(photo))) return denied(400)
+        chatRoomId !== undefined && (!namedChatRoomId(chatRoomId) || roomId !== chatRoomId)) return denied(400)
+    const logo = readTeamLogoChoice(body, request.headers.get(chatIconModeHeader) === chatIconModePresets)
+    if (logo === undefined) return denied(400)
 
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
     if (!key) return denied(503)
@@ -52,16 +52,9 @@ export async function POST(request: Request) {
       if (!('id' in opened) || opened.id !== target) return denied(403)
     }
 
-    let logo = null
-    if (typeof photo === 'string') {
-      const bytes = Buffer.from(photo, 'base64')
-      const mimeType = 'image/jpeg'
-      const dimensions = inspectTeamLogoImage(bytes, mimeType)
-      if (!dimensions || validateTeamLogoDimensions(dimensions) || Math.max(dimensions.width, dimensions.height) > 512) return denied(400)
-      logo = { ...dimensions, bytes, mimeType }
-    }
     const status = await saveTeamLogo(service, target, room.data.metadata, logo)
-    return status === 200 ? json({ ok: true, owner, roomId, hasLogo: logo !== null }, 200) : denied(status)
+    return status === 200 ? json({ ok: true, owner, roomId, hasLogo: logo !== null,
+      ...('preset' in body ? { preset: logo } : {}) }, 200) : denied(status)
   } catch {
     return denied(503)
   }

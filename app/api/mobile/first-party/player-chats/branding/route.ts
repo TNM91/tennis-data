@@ -1,6 +1,6 @@
 import { accountClient, accountResponse, readAccountJson, verifiedAccount } from '@/lib/mobile-account-auth'
-import { inspectTeamLogoImage, validateTeamLogoDimensions } from '@/lib/team-branding'
-import { saveTeamLogo } from '@/lib/team-branding-storage'
+import { readTeamLogoChoice, saveTeamLogo } from '@/lib/team-branding-storage'
+import { chatIconModeHeader, chatIconModePresets } from '@/lib/chat-icon-presets'
 import { teamChatMessageId } from '@/lib/team-chat-cursor'
 
 export const runtime = 'nodejs'
@@ -15,10 +15,9 @@ export async function POST(request: Request) {
     if (!account) return denied(401)
     const body = await readAccountJson(request, 360_000)
     if (!body || Object.keys(body).length !== 2 || !teamChatMessageId(body.room)) return denied(400)
-    const { room, photo } = body
-    if (photo !== null && (typeof photo !== 'string' || photo.length > 350_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(photo))) {
-      return denied(400)
-    }
+    const { room } = body
+    const logo = readTeamLogoChoice(body, request.headers.get(chatIconModeHeader) === chatIconModePresets)
+    if (logo === undefined) return denied(400)
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
     if (!key) return denied(503)
     const service = accountClient(key), owner = account.user.id
@@ -33,17 +32,9 @@ export async function POST(request: Request) {
     if (accessError) return denied(503)
     if (access?.code !== 'ok' || access.room?.manage !== true) return denied(403)
 
-    let logo = null
-    if (typeof photo === 'string') {
-      const bytes = Buffer.from(photo, 'base64'), mimeType = 'image/jpeg'
-      const dimensions = inspectTeamLogoImage(bytes, mimeType)
-      if (!dimensions || validateTeamLogoDimensions(dimensions) || Math.max(dimensions.width, dimensions.height) > 512) {
-        return denied(400)
-      }
-      logo = { ...dimensions, bytes, mimeType }
-    }
     const status = await saveTeamLogo(service, room, data.metadata, logo)
-    return status === 200 ? reply({ ok: true, owner, roomId: room, hasLogo: logo !== null }, 200) : denied(status)
+    return status === 200 ? reply({ ok: true, owner, roomId: room, hasLogo: logo !== null,
+      ...('preset' in body ? { preset: logo } : {}) }, 200) : denied(status)
   } catch {
     return denied(503)
   }
