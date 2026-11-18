@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import {StudioImage as Image,StudioLink as Link,useTacticalStudioPlatform} from './TiqStudioPlatform'
-import TiqCourtBoard from './TiqCourtBoard'
+import TiqCourtBoard, { OverheadCourt } from './TiqCourtBoard'
 import {PlayerGlyph} from './TiqTokens'
 import TiqToolbar from './TiqToolbar'
 import TiqInspector from './TiqInspector'
@@ -57,9 +57,12 @@ type TacticalEntryIntent = {
 export default function TiqTacticalStudio() {
   const platform=useTacticalStudioPlatform()
   const [nativePanel,setNativePanel]=useState('court')
-  const [nativeCourtStyle, setNativeCourtStyle] = useState<'overhead' | 'perspective'>('overhead')
+  const [nativeFullscreen, setNativeFullscreen] = useState(false)
+  const [fullscreenTools, setFullscreenTools] = useState(false)
+  const fullscreenToggle = useRef<HTMLButtonElement>(null)
   const landscape = useSyncExternalStore(platform ? subscribeToOrientation : noOrientationSubscription, platform ? isLandscape : portrait, portrait)
-  const courtView: CourtView = !platform || nativeCourtStyle === 'perspective' ? 'perspective' : landscape ? 'overhead-landscape' : 'overhead'
+  const courtView: CourtView = !platform ? 'perspective' : landscape ? 'overhead-landscape' : 'overhead'
+  const courtAspectRatio = landscape ? courtDiagramSize.length / courtDiagramSize.width : courtDiagramSize.width / courtDiagramSize.length
   const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('basicDoubles')
   const [scenario, setScenario] = useState<TacticalScenario>(() => platform?.initialDraft??createTacticalTemplate('basicDoubles'))
   const scenarioRef = useRef(scenario)
@@ -153,7 +156,7 @@ export default function TiqTacticalStudio() {
   }, [getAccessToken,platform])
 
   useEffect(() => {
-    if(platform){setRole('coach');setBriefingRole('coach');setBoardFocusMode(true);setLibrary(platform.initialLibrary);if(platform.initialDraft){scenarioRef.current=platform.initialDraft;setScenario(platform.initialDraft)}draftReady.current=true;void loadCloudLibrary();return}
+    if(platform){setRole('coach');setBriefingRole('coach');setLibrary(platform.initialLibrary);if(platform.initialDraft){scenarioRef.current=platform.initialDraft;setScenario(platform.initialDraft)}draftReady.current=true;void loadCloudLibrary();return}
     const nextEntryIntent = readTacticalEntryIntent()
     setEntryIntent(nextEntryIntent)
 
@@ -204,7 +207,7 @@ export default function TiqTacticalStudio() {
   }, [scenario,platform])
 
   useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return
+    if (platform || typeof window.matchMedia !== 'function') return
 
     const mobileBoardQuery = window.matchMedia('(max-width: 820px)')
     const applyMobileBoardFocus = () => {
@@ -216,7 +219,14 @@ export default function TiqTacticalStudio() {
     applyMobileBoardFocus()
     mobileBoardQuery.addEventListener('change', applyMobileBoardFocus)
     return () => mobileBoardQuery.removeEventListener('change', applyMobileBoardFocus)
-  }, [])
+  }, [platform])
+
+  useEffect(() => {
+    if (!platform || !nativeFullscreen) return
+    platform.setFullscreenExit(() => setNativeFullscreen(false))
+    fullscreenToggle.current?.focus({ preventScroll: true })
+    return () => platform.setFullscreenExit(null)
+  }, [platform, nativeFullscreen])
 
   function notify(message: string) {
     setToast(message)
@@ -513,10 +523,13 @@ export default function TiqTacticalStudio() {
   function changeNativePanel(panel: string, trigger: HTMLButtonElement) {
     cancelActiveTool()
     if (panel !== 'court') setPlayback(null)
+    setNativeFullscreen(false)
     setNativePanel(panel)
     const workspace = trigger.closest('dialog')
     workspace?.scrollTo(0, 0)
-    workspace?.querySelector<HTMLButtonElement>(`[data-tiq-panel-target="${panel}"]`)?.focus({ preventScroll: true })
+    requestAnimationFrame(() => {
+      workspace?.querySelector<HTMLButtonElement>(`[data-tiq-panel-target="${panel}"]`)?.focus({ preventScroll: true })
+    })
   }
 
   function togglePatternPlayback() {
@@ -735,7 +748,11 @@ export default function TiqTacticalStudio() {
   }
 
   return (
-    <div className={`${styles.studio} ${boardFocusMode ? styles.boardFocusActive : ''}`} data-tiq-studio data-native-panel={platform?nativePanel:undefined} data-native-court-view={platform ? courtView : undefined} data-native-pattern={platform && scenario.paths.length > 0 ? '' : undefined}>
+    <div className={`${styles.studio} ${boardFocusMode ? styles.boardFocusActive : ''}`} data-tiq-studio
+      data-native-panel={platform ? nativePanel : undefined}
+      data-native-court-view={platform ? courtView : undefined}
+      data-native-fullscreen={nativeFullscreen ? '' : undefined}
+      data-native-fullscreen-tools={nativeFullscreen && fullscreenTools ? '' : undefined}>
       {platform ? (
         <nav data-tiq-native-panels aria-label="Tactics workspace">
           {NATIVE_PANELS.map(([id, label]) => (
@@ -787,7 +804,12 @@ export default function TiqTacticalStudio() {
           onDownloadJson={downloadScenario}
           onDownloadPng={downloadBoardPng}
           onImportJson={importScenario}
-          onPresent={() => setPresentationMode(true)}
+          onPresent={() => {
+            if (platform) {
+              setFullscreenTools(false)
+              setNativeFullscreen(true)
+            } else setPresentationMode(true)
+          }}
           onReset={() => loadTemplate(templateKey)}
           onDrawKindChange={(kind) => {
             setDrawingKind(kind)
@@ -810,7 +832,7 @@ export default function TiqTacticalStudio() {
           canUndoPath={canUndoBoardAction}
         />
 
-        <section>
+        <section data-tiq-board-stage={platform ? '' : undefined} aria-label={platform ? 'Tactics board' : undefined}>
           <div className={styles.scenarioBar} data-tiq-scenario>
             <div>
               <div className={styles.scenarioTitleLabel}>Scenario</div>
@@ -1019,17 +1041,21 @@ export default function TiqTacticalStudio() {
           {platform ? (
             <div data-tiq-native-board-heading>
               <h2>{scenario.name}</h2>
-              <div data-tiq-court-view-toggle role="group" aria-label="Court view">
-                {(['overhead', 'perspective'] as const).map(view => (
-                  <button key={view} type="button" aria-pressed={nativeCourtStyle === view} onClick={() => {
-                    if (nativeCourtStyle === view) return
-                    cancelActiveTool()
-                    setNativeCourtStyle(view)
-                  }}>
-                    <TacticsControlIcon name={view} />
-                    <span>{view === 'overhead' ? 'Overhead' : 'Perspective'}</span>
+              <div data-tiq-board-display>
+                {nativeFullscreen && !activePath ? (
+                  <button type="button" aria-label="Editing tools" aria-pressed={fullscreenTools}
+                    onClick={() => setFullscreenTools(open => !open)}>
+                    <TacticsControlIcon name="tools" />
                   </button>
-                ))}
+                ) : null}
+                <button type="button" ref={fullscreenToggle} aria-label={nativeFullscreen ? 'Exit full screen' : 'Full screen'}
+                  onClick={() => {
+                    setFullscreenTools(false)
+                    setNativeFullscreen(!nativeFullscreen)
+                  }}>
+                  <TacticsControlIcon name={nativeFullscreen ? 'exitFullScreen' : 'fullScreen'} />
+                  <span>{nativeFullscreen ? 'Exit' : 'Full screen'}</span>
+                </button>
               </div>
             </div>
           ) : <BoardToolDock
@@ -1070,6 +1096,8 @@ export default function TiqTacticalStudio() {
             onToggleBoardFocus={() => setBoardFocusMode((value) => !value)}
             onUndoPath={undoLastPath}
           />}
+          <div className={styles.boardSlot} data-tiq-native-canvas={platform ? '' : undefined}
+            style={platform ? { '--tactics-board-ratio': courtAspectRatio } as CSSProperties : undefined}>
           <TiqCourtBoard
             key={platform ? `${courtView}/${drawingKind ?? ''}/${placementType ?? ''}` : undefined}
             dragDraw={Boolean(platform)}
@@ -1115,6 +1143,7 @@ export default function TiqTacticalStudio() {
             onDeleteSelected={deleteSelected}
             onDuplicateSelected={duplicateSelected}
           />
+          </div>
           {platform && scenario.paths.length > 0 ? (
             <div data-tiq-pattern-playback role="group" aria-label="Pattern playback">
               <p role="status" aria-atomic="true">
@@ -1697,17 +1726,22 @@ function isTacticalRole(value: string | null): value is TacticalRole {
 }
 
 function ScenarioThumbnail({ scenario }: { scenario: TacticalScenario }) {
+  const view = useTacticalStudioPlatform() ? 'overhead' : 'perspective'
   return (
-    <span className={styles.scenarioThumbnail} aria-hidden="true">
-      <Image alt="" fill sizes="92px" src="/brand/courts/tiq-court-approved-20261024-v2.png" />
-      {scenario.zones.slice(0, 3).map((zone) => (
-        <span
-          className={styles.thumbnailZone}
-          key={zone.id}
-          style={{ height: `${zone.height}%`, left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%` }}
-        />
-      ))}
-      {scenario.paths.slice(0, 4).map((path) => (
+    <span className={styles.scenarioThumbnail} data-tiq-overhead-thumbnail={view === 'overhead' ? '' : undefined}
+      style={view === 'overhead' ? { aspectRatio: courtDiagramSize.width / courtDiagramSize.length } : undefined} aria-hidden="true">
+      {view === 'overhead' ? <OverheadCourt landscape={false} /> : (
+        <Image alt="" fill sizes="92px" src="/brand/courts/tiq-court-approved-20261024-v2.png" />
+      )}
+      {scenario.zones.slice(0, 3).map(zone => {
+        const [start, end] = projectCourtZone(zone, view)
+        return <span className={styles.thumbnailZone} key={zone.id} style={{
+          height: `${end.y - start.y}%`, left: `${start.x}%`, top: `${start.y}%`, width: `${end.x - start.x}%`,
+        }} />
+      })}
+      {scenario.paths.slice(0, 4).map(path => ({
+        ...path, from: projectCourtPoint(path.from, view), to: projectCourtPoint(path.to, view),
+      })).map((path) => (
         <span
           className={`${styles.thumbnailPath} ${path.kind === 'ball' ? styles.thumbnailBallPath : ''}`}
           key={path.id}
@@ -1719,7 +1753,7 @@ function ScenarioThumbnail({ scenario }: { scenario: TacticalScenario }) {
           }}
         />
       ))}
-      {scenario.tokens.slice(0, 7).map((token) => (
+      {scenario.tokens.slice(0, 7).map(token => ({ ...token, ...projectCourtPoint(token, view) })).map((token) => (
         <span
           className={`${styles.thumbnailToken} ${token.type === 'ball' ? styles.thumbnailBall : ''}`}
           key={token.id}

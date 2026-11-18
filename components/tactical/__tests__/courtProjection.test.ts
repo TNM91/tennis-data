@@ -16,8 +16,9 @@ describe('overhead tactics court', () => {
     const oldFar = { x: 374 / 1448 * 100, y: (92 + 257) / 1600 * 100 }
     const oldNear = { x: 1339 / 1448 * 100, y: (1007 + 257) / 1600 * 100 }
     const oldService = { x: 50, y: (731 + 257) / 1600 * 100 }
-    expect(projectCourtPoint(oldFar, 'overhead')).toEqual(courtDiagramPoint(16, 6, false))
-    expect(projectCourtPoint(oldNear, 'overhead-landscape')).toEqual(courtDiagramPoint(52, 84, true))
+    const [left, far, right, near] = courtDiagramBounds
+    expect(projectCourtPoint(oldFar, 'overhead')).toEqual(courtDiagramPoint(left, far, false))
+    expect(projectCourtPoint(oldNear, 'overhead-landscape')).toEqual(courtDiagramPoint(right, near, true))
     expect(projectCourtPoint(oldService, 'overhead').y).toBe(courtDiagramPoint(34, 66, false).y)
   })
 

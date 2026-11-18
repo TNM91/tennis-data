@@ -2,12 +2,12 @@ import type { TacticalPoint, TacticalZone } from './types'
 
 export type CourtView = 'perspective' | 'overhead' | 'overhead-landscape'
 
-// The diagram includes 16 ft of space outside each doubles sideline and 6 ft behind each baseline.
-const diagramWidth = 68
+// Leave 8 ft outside each doubles sideline and 6 ft behind each baseline for markers.
+const diagramWidth = 52
 const diagramLength = 90
 export const courtDiagramSize = { width: diagramWidth, length: diagramLength }
-const doublesLeft = 16
-const doublesRight = 52
+const doublesLeft = 8
+const doublesRight = doublesLeft + 36
 const farBaseline = 6
 const nearBaseline = 84
 const net = 45

@@ -18,6 +18,7 @@ export function openNativeTactics(client:SupabaseClient,owner:string,current:()=
  dialog.innerHTML='<header class="native-coach-header"><div class="native-tactics-lockup"><img src="/brand/approved/TiQ_White_Transparent_Refined.png" width="1774" height="887" alt="TenAceIQ"><h1 tabindex="-1">Tactics</h1></div><button type="button" class="secondary" data-tactics-close aria-label="Close tactics">Close</button></header><div class="native-coach-notice" role="status"></div><div class="native-tactics-recovery"></div><div class="native-tactics-content"></div>'
  const host=dialog.querySelector<HTMLElement>('.native-tactics-content')!,status=dialog.querySelector<HTMLElement>('[role=status]')!,recovery=dialog.querySelector<HTMLElement>('.native-tactics-recovery')!
  let disposed=false,busy=false,root:Root|null=null,latest:TacticalScenario|null=null,baseline='',leaving=false,leaveAction:(()=>void)|null=null,platform:TacticalStudioPlatform|null=null,decision:HTMLDialogElement|null=null,settleDecision:((choice:boolean)=>void)|null=null
+ let exitFullscreen:(()=>void)|null=null
  const revisions=new Map<string,string>()
  const active=()=>!disposed&&current(),store=coachDeviceStore(owner,active),library=new TacticsLibrary(client,owner,active,send)
  const focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
@@ -43,7 +44,7 @@ export function openNativeTactics(client:SupabaseClient,owner:string,current:()=
   finally{if(active()){busy=false;renderRecovery()}}
  }
  const requestLeave=(next?:()=>void)=>{if(!active()||busy)return;if(latest&&JSON.stringify(latest)!==baseline){leaving=true;leaveAction=next??null;renderRecovery();recovery.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}else{dispose();next?.()}}
- const back=()=>{if(decision){closeDecision();return true}if(leaving){leaving=false;leaveAction=null;renderRecovery()}else requestLeave();return true}
+ const back=()=>{if(decision){closeDecision();return true}if(leaving){leaving=false;leaveAction=null;renderRecovery()}else if(exitFullscreen){exitFullscreen()}else requestLeave();return true}
  const write=async(intent:TacticsIntent)=>{
   if(!active()||busy)throw Error('Wait for the current board action to finish')
   busy=true;notice(intent.action==='delete'?'Deleting the saved board…':'Saving your board…')
@@ -61,7 +62,12 @@ export function openNativeTactics(client:SupabaseClient,owner:string,current:()=
    platform={current:active,initialDraft,initialLibrary,change:s=>{if(active()){latest=s;if(!baseline)baseline=JSON.stringify(s)}},loaded:s=>{const row=library.snapshot?.scenarios.find(row=>row.id===s.id);if(row&&JSON.stringify(row.scenario)===JSON.stringify(s))revisions.set(s.id,row.updatedAt);else revisions.delete(s.id)},saveDraft:s=>store.write('tactics-draft',readTacticalBoard(s)).then(()=>{}),saveLocal:async rows=>{const intended=rows.map(readTacticalBoard);await store.write('tactics-library',intended);if(active()&&latest&&intended.some(s=>JSON.stringify(s)===JSON.stringify(latest)))baseline=JSON.stringify(latest)},loadCloud:async()=>{const found=await library.load();notice(found.more?'Your 50 most recently updated account boards.':'');return found.scenarios},
     saveCloud:s=>write({action:'save',scenario:readTacticalBoard(s),expectedUpdatedAt:revisions.get(s.id)??null}),
     deleteCloud:async id=>{const known=library.snapshot?.scenarios.find(row=>row.id===id);if(!known)throw Error('Refresh Saved before deleting this board');if(!await confirmDelete(known.name)||!active())throw Error('Delete canceled');return write({action:'delete',id,expectedUpdatedAt:known.updatedAt})},
-    copy:async text=>{if(!active())throw Error('Account changed');await Clipboard.write({string:text})},share:async(title,text)=>{if(!active())throw Error('Account changed');await Share.share({title,text,dialogTitle:'Share court plan'})},exportFile:(blob,name)=>exportCoachFile(owner,active,blob,name),navigate:href=>requestLeave(()=>navigate?.(href))}
+    copy:async text=>{if(!active())throw Error('Account changed');await Clipboard.write({string:text})},share:async(title,text)=>{if(!active())throw Error('Account changed');await Share.share({title,text,dialogTitle:'Share court plan'})},exportFile:(blob,name)=>exportCoachFile(owner,active,blob,name),navigate:href=>requestLeave(()=>navigate?.(href)),
+    setFullscreenExit:exit=>{
+     exitFullscreen=exit
+     dialog.toggleAttribute('data-tactics-fullscreen',Boolean(exit))
+    },
+   }
    root=createRoot(host);root.render(<TacticalStudioPlatformContext.Provider value={platform}><TiqTacticalStudio/></TacticalStudioPlatformContext.Provider>);notice('');focus()
   }catch{if(active()){host.innerHTML='<section class="coach-decision"><h2>Tactics could not open</h2><p>Reconnect and reopen Tactics to keep your boards linked to this account.</p></section>';notice('Your court workspace could not be opened.')}}
  }

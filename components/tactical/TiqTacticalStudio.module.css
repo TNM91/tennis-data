@@ -17,6 +17,10 @@
   z-index: -1;
 }
 
+.boardSlot {
+  display: contents;
+}
+
 .topbar,
 .hero,
 .panel,
@@ -1395,7 +1399,7 @@
   padding-top: 14px;
 }
 
-.studio[data-native-panel='court'] .timeline {
+.studio[data-native-panel] .timeline {
   display: flex;
   flex-wrap: nowrap;
   gap: 6px;
@@ -1405,7 +1409,7 @@
   padding: 8px 2px 4px;
 }
 
-.studio[data-native-panel='court'] .timeline button {
+.studio[data-native-panel] .timeline button {
   background: var(--premium-inset);
   border: 1px solid var(--premium-line);
   border-radius: 11px;
@@ -1417,7 +1421,7 @@
   width: auto;
 }
 
-.studio[data-native-panel='court'] .timeline button[aria-pressed='true'] {
+.studio[data-native-panel] .timeline button[aria-pressed='true'] {
   background: var(--premium-court-inlay);
   border-color: transparent;
   color: var(--premium-white);

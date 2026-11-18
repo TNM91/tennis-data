@@ -5,7 +5,7 @@ import styles from './TiqTacticalStudio.module.css'
 
 export default function TiqTimeline({ paths, activeIndex, onStep }: { paths: TacticalPath[]; activeIndex: number; onStep: (index: number) => void }) {
   return (
-    <div className={styles.timeline} role="group" aria-label="Pattern steps">
+    <div className={styles.timeline} data-tiq-pattern-steps role="group" aria-label="Pattern steps">
       <button aria-pressed={activeIndex >= paths.length} className={`${styles.button} ${activeIndex >= paths.length ? styles.active : ''}`} onClick={() => onStep(paths.length)} type="button">
         All
       </button>

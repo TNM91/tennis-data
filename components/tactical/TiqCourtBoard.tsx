@@ -370,17 +370,17 @@ function rectangleBounds(a: TacticalPoint, b: TacticalPoint) {
   }
 }
 
-function OverheadCourt({ landscape }: { landscape: boolean }) {
+export function OverheadCourt({ landscape }: { landscape: boolean }) {
   const [left, far, right, near] = courtDiagramBounds
   return (
-    <div data-tiq-overhead-court role="img" aria-label="Overhead doubles court with singles and service lines">
-      <div data-tiq-court-bounds style={rectangleBounds(courtDiagramPoint(left, far, landscape), courtDiagramPoint(right, near, landscape))} />
+    <span data-tiq-overhead-court role="img" aria-label="Overhead doubles court with singles and service lines">
+      <span data-tiq-court-bounds style={rectangleBounds(courtDiagramPoint(left, far, landscape), courtDiagramPoint(right, near, landscape))} />
       {courtDiagramLines.map(([x1, y1, x2, y2, kind], index) => {
         const a = courtDiagramPoint(x1, y1, landscape)
         const b = courtDiagramPoint(x2, y2, landscape)
         return <span key={index} data-tiq-court-line={kind} data-tiq-court-axis={a.x === b.x ? 'vertical' : 'horizontal'} style={rectangleBounds(a, b)} />
       })}
-    </div>
+    </span>
   )
 }
 
