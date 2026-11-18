@@ -13,14 +13,6 @@
       "schedule": "0 14 * * *"
     },
     {
-      "path": "/api/cron/tennisrecord-automation",
-      "schedule": "*/3 * * * *"
-    },
-    {
-      "path": "/api/cron/tennisrecord-ratings",
-      "schedule": "17 8 * * *"
-    },
-    {
       "path": "/api/cron/league-weekly-reminders",
       "schedule": "0 * * * *"
     },

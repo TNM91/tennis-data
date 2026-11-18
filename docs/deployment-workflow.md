@@ -47,7 +47,7 @@ Check usage after a material runtime change or a billing alert. Future recurring
 
 Account for recurring hosting and database costs before setting an overage budget; domain renewals and other providers are separate. Never claim a guaranteed combined cap from either provider's individual spending control. Keep account-specific billing amounts and usage exports out of repository documentation.
 
-The scheduled full rating rebuild runs daily at 08:17 UTC, with at most one successful scheduled rebuild per UTC day. Results collected afterward remain queued until the next daily pass. Source collection keeps its existing cadence, checkpoints, and error backoff. Only the collector slot immediately before that daily rating run is reserved.
+Scheduled TennisRecord collection and the legacy ratings rebuild are paused while TenAceIQ launches the first-party iOS app and awaits source permission. The previous schedule used three-minute collection checkpoints and one daily rebuild at 08:17 UTC. Restore those schedules and the collector setting together when collection resumes.
 
 Separate automated training/SEO crawls and scheduled rating work from human traffic and cloud build charges. Robots exclusions request crawler cooperation; an enforced firewall rule must be reviewed separately. Preserve Google/Bing indexing and social link previews.
 
