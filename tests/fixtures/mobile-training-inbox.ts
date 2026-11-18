@@ -6,6 +6,7 @@ import {localCalendarDate,shiftCalendarDay} from '../../mobile/src/calendar-data
 import type {TrainingSave} from '../../mobile/src/level-up-data'
 import {freezeTrainingSave} from '../../mobile/src/level-up-model'
 import {navigationOwner} from './mobile-navigation-client'
+import {buildCoachStudentCalendarEvents} from '../../lib/coach-calendar'
 
 const today=localCalendarDate(),updatedAt=new Date().toISOString(),identitySlug='relentless-competitor-4-0'
 const link={id:'training-link',playerUserId:navigationOwner,identitySlug,status:'active'}
@@ -27,8 +28,15 @@ const assignments:CoachAssignment[]=[
  {...overdue,id:'training-finished',title:'Baseline recovery drill',status:'completed',assignment:buildPlayerAssignmentCompletion({}, {recap:'Balanced on the first step.',evidence:'Four of five.'})},
  overdue,
 ]
+export function trainingCoachCalendarPreview(){
+ return buildCoachStudentCalendarEvents(assignments,{id:link.id,playerName:'you'}).map(event=>({
+  id:event.id,title:event.title,date:event.date,time:event.time||'',location:event.location||'',detail:event.description||'',
+  kind:event.id.startsWith('coach-lesson-')?'lesson' as const:'reminder' as const,
+ }))
+}
 const assignmentFeedback=new URL(location.href).searchParams.has('training-assignment-feedback')
 const trainingFeedbackFixture={newReview:false,practiceSaves:0,assignmentWrites:0}
+if(new URL(location.href).searchParams.has('coach-calendar'))Object.assign(window,{trainingFeedbackFixture})
 if(assignmentFeedback){
  const finished=assignments[1]
  if(overdue.assignment.levelUpPack){

@@ -172,8 +172,8 @@ function assignmentCard(a:CoachAssignment,work:TrainingCoachWork,now:Date,featur
  const checkInButton=done?'':`<button type="button" data-coach-checkin="${html(a.id)}">Open check-in<span class="sr-only"> ${html(a.title)}</span></button>`
  const tacticsButton=assignmentBoardReference(a.assignment)?`<button type="button" class="secondary" data-assignment-tactics="${html(a.id)}">Open tactics board<span class="sr-only"> ${html(a.title)}</span></button>`:''
  return `<section class="training-assignment${featured?' training-assignment-next':''}">
-  <div class="training-assignment-meta">${featured?'<small>Up next</small>':''}<span data-due-tone="${done?'done':due.tone}">${done?(a.status==='completed'?'Completed':'Checked in'):html(dueLabel)}</span></div>
-  <h2>${html(a.title)}</h2>
+  <div class="training-assignment-meta">${featured?`<small>${done?'Saved work':'Up next'}</small>`:''}<span data-due-tone="${done?'done':due.tone}">${done?(a.status==='completed'?'Completed':'Checked in'):html(dueLabel)}</span></div>
+  <h2${featured?' tabindex="-1" data-coach-assignment-focus':''}>${html(a.title)}</h2>
   ${a.dueDate||link?.status==='paused'?`<p class="training-assignment-date">${a.dueDate?`<time datetime="${html(a.dueDate)}">${html(formatWeekdayDate(a.dueDate))}</time>`:''}${link?.status==='paused'?`${a.dueDate?' · ':''}Coach connection paused`:''}</p>`:''}
   ${a.focus?`<p>${html(a.focus)}</p>`:''}
   ${pack?assignmentPackHtml(a,pack,done):''}
@@ -226,17 +226,18 @@ function coachFeedbackHtml(feedback:NonNullable<ReturnType<typeof trainingCoachF
 
 export function trainingCoachWorkHtml(work:TrainingCoachWork,now=new Date(),requestedId?:string,feedbackId?:string){
  const {active,recorded}=trainingAssignmentQueue(work,now)
- const requested=requestedId?active.find(a=>a.id===requestedId):undefined
+ const requested=requestedId?work.assignments.find(a=>a.id===requestedId):undefined
  const feedback=trainingCoachFeedback(work,feedbackId)
  const unavailable=(requestedId&&!requested?'<p role="status">That assignment is no longer open. Here’s your latest coach work.</p>':'')
   +(feedbackId&&!feedback?'<p role="status" tabindex="-1" data-coach-feedback-focus>That coach feedback is unavailable.</p>':'')
  if(!work.links.length)return unavailable+'<p>No coach connection is linked to this account.</p>'
  if(!work.assignments.length)return unavailable+'<p>Coach assignments will appear here when they’re shared with you.</p>'
  const next=requested??active[0],remaining=active.filter(a=>a!==next)
- const feedbackCard=feedback?coachFeedbackHtml(feedback,Boolean(feedbackId)):''
+ const history=recorded.filter(a=>a!==next)
+ const feedbackCard=feedback&&(feedbackId||feedback.assignment.id!==next?.id)?coachFeedbackHtml(feedback,Boolean(feedbackId)):''
  return `${unavailable}${feedbackId?feedbackCard:''}${next?assignmentCard(next,work,now,true):'<p>You’re caught up on the assignments shown here.</p>'}
   ${feedbackId?'':feedbackCard}
   ${remaining.length?`<details class="training-inbox-fold" data-inbox-fold="more"><summary>More assigned work (${remaining.length})</summary>${remaining.map(a=>assignmentCard(a,work,now)).join('')}</details>`:''}
-  ${recorded.length?`<details class="training-inbox-fold" data-inbox-fold="completed"><summary>Completed work and check-ins (${recorded.length})</summary>${recorded.map(a=>assignmentCard(a,work,now)).join('')}</details>`:''}
+  ${history.length?`<details class="training-inbox-fold" data-inbox-fold="completed"><summary>Completed work and check-ins (${history.length})</summary>${history.map(a=>assignmentCard(a,work,now)).join('')}</details>`:''}
   <p class="training-inbox-note">Private practice does not complete an assignment or send a check-in.${work.assignments.length===100?' Showing the latest 100 assignments.':''}</p>`
 }

@@ -6,7 +6,7 @@ import {COMPETITION_DATES_UNAVAILABLE,calendarDraft,personalDraft,sameCalendarDr
 import type {PlayerCalendarItem} from '../../lib/player-calendar-items'
 import {formatCaptainPracticeTimeRange} from '../../lib/captain-practice-invite'
 import {hittingPlanConfirmed,hittingPlanTimeZone} from '../../lib/hitting-plan'
-import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,calendarTournamentEntry,exportableCalendarOccurrences,isExportableHittingPlan,personalCalendarOccurrence,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence,type CalendarPractice} from './calendar-data'
+import {CalendarRequestFault,calendarRequest,readCalendarItem,calendarWindow,shiftCalendarDay,shiftCalendarPeriod,localCalendarDate,calendarExport,calendarMatchExport,calendarMatchVenueHref,calendarTournamentEntry,calendarCoachAssignmentId,exportableCalendarOccurrences,isExportableHittingPlan,personalCalendarOccurrence,personalOccurrenceKey,isCurrentCalendarOccurrence,isPracticeInProgress,isScheduledCompetitionMatch,type CalendarOccurrence,type CalendarPractice} from './calendar-data'
 import {loadCalendarSources} from './calendar-practices-data'
 import {createCalendarFinder} from './calendar-finder'
 import {CALENDAR_WEEKLY_REP_CHANGED,notifyCalendarWeeklyRepChange,readCalendarWeeklyReps,saveCalendarWeeklyRep,type CalendarWeeklyRep,type CalendarWeeklyRepChange} from './calendar-weekly-reps'
@@ -65,7 +65,8 @@ export type CalendarStart='all'|'coach'|{practiceTitle:string;weeklyRep?:Calenda
  |{tournamentMatch:TournamentCalendarMatch;onClose:(changed:boolean)=>void}
  |{event?:CalendarOccurrence;filter?:'coach'|'competition'|'needs-reply';followMovedMatch?:boolean;onClose:(changed:boolean)=>void}
 type OpenCalendarPractice=(practice:CalendarPractice,button:HTMLButtonElement,current:()=>boolean,review:boolean)=>{isOpen:()=>boolean;dispose:()=>void;back:()=>void}
-export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all',openPractice?:OpenCalendarPractice,openScorecard?:(seed:CalendarScorecardSeed)=>void){
+type OpenCalendarCoach=(assignmentId:string,button:HTMLButtonElement,current:()=>boolean,onReturn:()=>void)=>ReturnType<OpenCalendarPractice>
+export function openCalendar(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,initial:CalendarStart='all',openPractice?:OpenCalendarPractice,openScorecard?:(seed:CalendarScorecardSeed)=>void,openCoachAssignment?:OpenCalendarCoach){
  const practice=typeof initial==='object'&&'practiceTitle' in initial?initial:null
  const linkedPractice=typeof initial==='object'&&'practiceEventId' in initial?initial:null
  const tournamentShortcut=typeof initial==='object'&&'tournamentMatch' in initial
@@ -83,6 +84,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
  let teamMatchView:ReturnType<typeof openTeamNextMatch>|null=null
  let competitionView:ReturnType<typeof openCompetitions>|null=null
  let practiceDrillView:ReturnType<OpenCalendarPractice>|null=null
+ let coachAssignmentView:ReturnType<OpenCalendarCoach>|null=null
  let courtDirections:ReturnType<typeof openCourtDirections>|undefined
  let hitConversation:ReturnType<typeof openPlayerChats>|undefined
  let draft:CalendarDraft|null=null,baseline='',selected:CalendarOccurrence|null=null,pending:CalendarIntent|null=null,zone='America/Chicago'
@@ -178,6 +180,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   competitionView=null
   practiceDrillView?.dispose()
   practiceDrillView=null
+  coachAssignmentView?.dispose()
+  coachAssignmentView=null
   courtDirections?.dispose()
   hitConversation?.dispose()
   void cancelCoachFile(owner).catch(()=>{})
@@ -226,6 +230,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
   if(courtDirections?.isOpen()){courtDirections.dispose();return true}
   if(hitConversation?.isOpen())return hitConversation.close()
   if(practiceDrillView?.isOpen()){practiceDrillView.back();return true}
+  if(coachAssignmentView?.isOpen()){coachAssignmentView.back();return true}
   if(practiceView?.isOpen()){practiceView.back();return true}
   if(teamMatchView?.isOpen()){teamMatchView.close();return true}
   if(competitionView?.isOpen())return competitionView.back()
@@ -278,7 +283,7 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const closedReply=reviewReply&&competitionMatch?.status==='Completed'
    const events=reviewReply?findEvents(''):visible()
    const event=events.find(item=>item.key===target.key&&(competitionMatch||!reviewReply&&item.date===target.date))
-   if(event&&(closedReply||event.hittingPlan||event.practiceFocus||isCurrentCalendarOccurrence(event,calendar,new Date()))){
+   if(event&&(closedReply||event.source==='coach'||event.hittingPlan||event.practiceFocus||isCurrentCalendarOccurrence(event,calendar,new Date()))){
     changed=changed||event.date!==target.date||event.title!==target.title||event.time!==target.time||event.endTime!==target.endTime||
      event.location!==target.location||event.readiness!==target.readiness
     if(reviewReply){
@@ -704,7 +709,8 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    const update=earlierSchedule?`<p id="cal-match-update" class="cal-event-readiness" data-tone="changed"><strong>Match schedule updated</strong><br>Previously ${html(earlierSchedule)}</p>`:''
    const description=[notice?'cal-status':'',update?'cal-match-update':''].filter(Boolean).join(' ')
    const heading=match?.status==='Completed'?'Match details':selected.source==='competition'?'Your availability':'Shared Coach date'
-   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1"${description?` aria-describedby="${description}"`:''}>${heading}</h2>${update}${details(selected,'Time to be confirmed',Boolean(venueHref()))}${match?availabilityControls(match,selected.readiness):'<p>Shared Coach dates are managed with your coach. Open Coach & training to review your plan.</p>'}${eventButton}${competitionButton}${scorecardButton}${exportButton}<button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
+   const coachAction=openCoachAssignment&&calendarCoachAssignmentId(selected)?'<button type="button" class="secondary cal-open-coach" data-cal-coach-assignment>Open coach assignment</button>':''
+   return `<section class="cal-panel cal-event-panel"><h2 tabindex="-1"${description?` aria-describedby="${description}"`:''}>${heading}</h2>${update}${details(selected,'Time to be confirmed',Boolean(venueHref()))}${match?availabilityControls(match,selected.readiness):coachAction?'<p>Open the assignment for your coach’s plan and check-in.</p>':'<p>Shared Coach dates are managed with your coach. Open Coach & training to review your plan.</p>'}${coachAction}${eventButton}${competitionButton}${scorecardButton}${exportButton}<button class="secondary" data-cal-agenda ${busy?'disabled':''}>Back to calendar</button></section>`
   }
   if(panel==='export'||panel==='match-export'){
    const single=panel==='match-export',list=exportEvents(),selectedZone=exportZone()
@@ -929,6 +935,19 @@ export function openCalendar(client:SupabaseClient,owner:string,current:()=>bool
    if(pending||hasReplyChanges()){notice='Save or clear your availability reply before opening the scorecard.';status();return}
    dispose()
    if(current())openScorecard(seed)
+  })
+  on('[data-cal-coach-assignment]',button=>{
+   if(!active()||busy||!selected||!openCoachAssignment||coachAssignmentView?.isOpen())return
+   const assignmentId=calendarCoachAssignmentId(selected),event=selected
+   if(!assignmentId)return
+   coachAssignmentView=openCoachAssignment(assignmentId,button,()=>active()&&button.isConnected,()=>{
+    coachAssignmentView=null
+    if(!active())return
+    initialEvent=event
+    void refresh().then(()=>{
+     if(active())dialog.querySelector<HTMLButtonElement>('[data-cal-coach-assignment]')?.focus({preventScroll:true})
+    })
+   })
   })
   on('[data-cal-court-directions]',button=>{
    const court=selected?.chatHit?listedHittingClub(selected.chatHit.clubId):selected&&hittingPlanCourt(selected)

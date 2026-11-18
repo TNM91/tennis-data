@@ -15,6 +15,7 @@ import {hittingPlanConfirmed,hittingPlanTimeZone,type HittingPlan} from '../../l
 import {hittingPlanCourt} from './explore-court-catalog'
 import {chatHitsHeader,readCalendarChatHits,type CalendarChatHit} from '../../lib/chat-hit-contract'
 import {listedHittingClub} from '../../lib/hitting-clubs'
+import {coachId} from '../../lib/native-coach-contract'
 import type {ScorecardPractice} from '../../lib/level-up/scorecard-practice'
 import type {CalendarWeeklyRep} from './calendar-weekly-reps'
 
@@ -84,6 +85,12 @@ export function shiftCalendarPeriod(day:string,mode:'week'|'month',direction:num
 }
 export type CalendarPractice=CalendarWeeklyRep|ScorecardPractice
 export type CalendarOccurrence={key:string;id:string;source:'personal'|'competition'|'coach'|'team'|'chat';endTime?:string;timeZone?:string;teamStatus?:CalendarTeamPractice['status'];title:string;date:string;time:string;location:string;detail:string;kind:string;recurring:boolean;readiness:string;matchNeedsReply?:boolean;hittingPlan?:HittingPlan;practiceFocus?:ScorecardPractice;chatHit?:CalendarChatHit}
+export function calendarCoachAssignmentId(event:Pick<CalendarOccurrence,'id'|'kind'|'source'>){
+ if(event.source!=='coach')return
+ const prefix=event.kind==='lesson'?'coach-lesson-':event.kind==='reminder'?'coach-assignment-':''
+ if(!prefix||!event.id.startsWith(prefix))return
+ try{return coachId(event.id.slice(prefix.length))}catch{return}
+}
 export const isScheduledCompetitionMatch=(event:PlayerCompetitionScheduleEvent)=>event.eventType==='match'&&(event.status==='Confirmed'||event.status==='Scheduled')
 export type CalendarTournamentEntry={parent:string;division:string}
 export function calendarTournamentEntry(event:NativeCalendar['competitions'][number]|undefined):CalendarTournamentEntry|undefined {

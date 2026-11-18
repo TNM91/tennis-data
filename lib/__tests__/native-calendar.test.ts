@@ -1,7 +1,7 @@
 import {describe,it,expect,vi} from 'vitest'
 import {createClient} from '@supabase/supabase-js'
 import {calendarDraft,calendarIntent,calendarRange,personalDraft,type NativeCalendar} from '../native-calendar-contract'
-import {calendarWindow,calendarOccurrences,calendarExport,readCalendar,calendarRequest,isCurrentCalendarOccurrence} from '../../mobile/src/calendar-data'
+import {calendarWindow,calendarOccurrences,calendarExport,readCalendar,calendarRequest,isCurrentCalendarOccurrence,calendarCoachAssignmentId} from '../../mobile/src/calendar-data'
 import {writeCalendarPersonal,loadNativeCalendar,respondNativeCalendar} from '../native-calendar'
 import {hittingPlanConfirmed} from '../hitting-plan'
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222',stamp='2026-10-31T10:00:00.123456+00:00'
@@ -12,6 +12,16 @@ const row=()=>({id:draft().id,player_user_id:owner,title:draft().title,scheduled
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}})
 function db(reply:(call:{url:URL;method:string;body:Record<string,unknown>|null;headers:Headers})=>Response){const calls:{url:URL;method:string;body:Record<string,unknown>|null;headers:Headers}[]=[];const client=createClient('https://calendar.example.test','synthetic-anon',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{fetch:async(input,init)=>{const call={url:new URL(String(input)),method:init?.method||'GET',body:init?.body?JSON.parse(String(init.body)):null,headers:new Headers(init?.headers)};calls.push(call);return reply(call)}}});return {client,calls}}
 describe('native calendar intent and recurrence',()=>{
+ it('opens coach plans only from their canonical event IDs and matching source types',()=>{
+  expect(calendarCoachAssignmentId({source:'coach',kind:'reminder',id:'coach-assignment-training-return'})).toBe('training-return')
+  expect(calendarCoachAssignmentId({source:'coach',kind:'lesson',id:'coach-lesson-training-return'})).toBe('training-return')
+  for(const event of [
+   {source:'personal' as const,kind:'reminder',id:'coach-assignment-training-return'},
+   {source:'competition' as const,kind:'lesson',id:'coach-lesson-training-return'},
+   {source:'coach' as const,kind:'lesson',id:'coach-assignment-training-return'},
+   ...['coach-assignment-','coach-assignment-../../other','coach-assignment-wrong\naccount','coach-assignment-'+('x'.repeat(121)),'unrecognized-event'].map(id=>({source:'coach' as const,kind:'reminder',id})),
+  ])expect(calendarCoachAssignmentId(event)).toBeUndefined()
+ })
  it('rejects impossible dates, oversized ranges and owner/permission fields',()=>{
   for(const value of [{...draft(),date:'2026-02-30'},{...draft(),time:'24:00'},{...draft(),kind:'team'},{...draft(),recurrenceRule:'FREQ=SECONDLY'},{...draft(),title:'x'.repeat(161)},{...draft(),player_user_id:other},{...draft(),availabilityStatus:'available'}])expect(()=>calendarDraft(value)).toThrow()
   expect(()=>calendarRange('2026-01-01','2026-03-04')).toThrow();expect(()=>calendarRange('2026-02-01','2026-01-01')).toThrow()

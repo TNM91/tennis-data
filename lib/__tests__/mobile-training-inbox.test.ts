@@ -74,7 +74,7 @@ describe('native training inbox',()=>{
   expect(view).toContain('More assigned work (1)')
   expect(view.indexOf(overdue.title)).toBeLessThan(view.indexOf('Second serves'))
  })
- it('opens the requested assignment even if priorities change, and explains when it is no longer open',()=>{
+ it('opens the exact requested assignment even after completion, and explains a missing assignment',()=>{
   const raw=work(),now=new Date('2026-10-25T12:00:00')
   raw.assignments.push({...raw.assignments[0],id:'tomorrow',title:'Second serves',dueDate:'2026-10-26'})
   const parsed=parseTrainingCoachWork(raw,owner)
@@ -83,9 +83,25 @@ describe('native training inbox',()=>{
   expect(selected).not.toContain('no longer open')
   parsed.assignments[1].status='completed'
   const latest=trainingCoachWorkHtml(parsed,now,'tomorrow')
-  expect(latest).toContain('That assignment is no longer open')
-  expect(latest).toContain('Completed work and check-ins (1)')
+  expect(latest).not.toContain('That assignment is no longer open')
+  expect(latest).toContain('Saved work')
+  expect(latest).not.toContain('Completed work and check-ins (1)')
+  expect(latest.indexOf('Second serves')).toBeLessThan(latest.indexOf('Recover before judging'))
   expect(latest).not.toContain('data-coach-checkin="tomorrow"')
+  expect(trainingCoachWorkHtml(parsed,now,'missing')).toContain('That assignment is no longer open')
+ })
+ it('shows requested completed feedback once and keeps other active work separate',()=>{
+  const raw=work(),source=raw.assignments[0]
+  raw.assignments.push({...source,id:'done',title:'Finished return practice',status:'completed',assignment:Object.assign({...source.assignment},{
+   playerCheckIn:{recap:'Five deep returns.',evidence:'5/5',completedAt:date},
+   coachReview:{note:'Keep this cue once.',nextFocus:'Recover first.',reviewedAt:date},
+  })})
+  const view=trainingCoachWorkHtml(parseTrainingCoachWork(raw,owner),new Date(), 'done')
+  expect(view).toContain('Saved work')
+  expect(view.match(/Keep this cue once\./g)).toHaveLength(1)
+  expect(view).toContain('More assigned work (1)')
+  expect(view).not.toContain('data-coach-checkin="done"')
+  expect(view).not.toContain('Completed work and check-ins (1)')
  })
  it('features the newest recorded review and opens requested feedback by exact assignment',()=>{
   const raw=work(),assignment=raw.assignments[0]

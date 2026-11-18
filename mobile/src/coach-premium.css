@@ -36,6 +36,7 @@
 .coach-workspace-dialog .coach-review-queue .coach-review-count,.coach-review-queue time{color:var(--premium-copy);font-size:.8125rem;line-height:1.5}
 .coach-workspace-dialog .coach-review-queue .coach-review-recap{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-wrap}
 .coach-workspace-dialog :is(.coach-review-queue,.coach-follow-up) button.secondary{border-color:var(--premium-lime);border-radius:var(--premium-row-radius,14px);background:var(--premium-court-inlay);color:var(--premium-white)}
+.native-calendar-screen .cal-event-panel button.cal-open-coach.secondary{border-color:var(--premium-lime);border-radius:var(--premium-row-radius,14px);background:var(--premium-court-inlay);color:var(--premium-white)}
 .native-tactics-content{flex:1;min-block-size:0}
 .native-tactics-content [data-tiq-studio][data-native-panel]{
  display:flex;flex-direction:column;gap:5px;max-width:none;height:100%;min-height:0;

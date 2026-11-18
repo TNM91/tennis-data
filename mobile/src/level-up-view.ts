@@ -939,6 +939,9 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
       const feedback=dialog.querySelector<HTMLElement>('[data-coach-feedback-focus]')
       const target=feedback??dialog.querySelector<HTMLElement>('[data-coach-refresh]')
       target?.scrollIntoView({block:'nearest'});target?.focus({preventScroll:true})
+     }else if(requestedAssignmentId&&inboxSection==='coach'){
+      const target=dialog.querySelector<HTMLElement>('[data-coach-assignment-focus]')
+      target?.scrollIntoView({block:'nearest'});target?.focus({preventScroll:true})
      }
     }
     if(!coachError)focusRequestedFeedback=false

@@ -7,7 +7,13 @@ import {loadTrainingCoachWork,trainingAssignmentQueue,trainingCoachFeedback,type
 const cacheMs=5*60_000
 export function createCoachNextAssignment(client:SupabaseClient,currentOwner:()=>string|undefined){
  let cached:{owner:string;expires:number;read:Promise<TrainingCoachWork|null>}|null=null
- const clear=()=>{cached=null}
+ let mounted:{owner:string;active:()=>boolean;paint:(work:TrainingCoachWork|null)=>void}|null=null
+ const clear=()=>{cached=null;mounted=null}
+ const update=(owner:string,work:TrainingCoachWork|null)=>{
+  if(currentOwner()!==owner)return
+  cached=work?{owner,expires:Date.now()+cacheMs,read:Promise.resolve(work)}:null
+  if(mounted?.owner===owner&&mounted.active())mounted.paint(work)
+ }
  const mount=(host:HTMLElement,feedbackHost:HTMLElement,owner:string,current:()=>boolean,open:(button:HTMLButtonElement,id:string,kind:'assignment'|'feedback')=>void)=>{
   host.innerHTML=`<button type="button" class="secondary app-tool">
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.inbox}</span>
@@ -50,6 +56,7 @@ export function createCoachNextAssignment(client:SupabaseClient,currentOwner:()=
     link?.status==='paused'?'Coach connection paused':'',
    ].filter(Boolean).join(' · ')
   }
+  mounted={owner,active,paint}
   button.onclick=()=>{if(active()&&assignmentId)open(button,assignmentId,'assignment')}
   feedbackButton.onclick=()=>{if(active()&&feedbackId)open(feedbackButton,feedbackId,'feedback')}
 
@@ -65,9 +72,9 @@ export function createCoachNextAssignment(client:SupabaseClient,currentOwner:()=
   })
   return (work:TrainingCoachWork|null)=>{
    if(!active())return
-   cached=work?{owner,expires:Date.now()+cacheMs,read:Promise.resolve(work)}:null
-   paint(work)
+   mounted={owner,active,paint}
+   update(owner,work)
   }
  }
- return {mount,clear}
+ return {mount,clear,update}
 }

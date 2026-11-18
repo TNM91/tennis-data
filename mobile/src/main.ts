@@ -384,7 +384,14 @@ function openPlayerCalendar(owner:string,current:()=>boolean,trigger:HTMLElement
   onClose:(changed:boolean)=>{if(changed)calendarHighlights.refreshPractice(true)},
  }
  return openCalendar(client,owner,current,trigger,start,(practice,button,active,reviewRep)=>openScheduledPractice(owner,active,button,practice,{reviewRep,fromCalendar:true}),
-  firstPartyBuild?scorecard=>guardNavigation(()=>{if(current())void lab({scorecard})}):undefined)
+  firstPartyBuild?scorecard=>guardNavigation(()=>{if(current())void lab({scorecard})}):undefined,
+  (assignmentId,button,active,onReturn)=>{
+   button.focus({preventScroll:true})
+   return openLevelUp(client,owner,active,{view:'coach',assignmentId,onClose:work=>{
+    coachNextAssignment.update(owner,work)
+    onReturn()
+   }})
+  })
 }
 function launchCalendar(trigger:HTMLElement,initial:CalendarStart='all'){
  if(!session||agenda?.isOpen()||connection?.isSaving()||document.querySelector('dialog[open]'))return
