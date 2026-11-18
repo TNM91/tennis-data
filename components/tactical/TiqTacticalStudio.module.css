@@ -1306,6 +1306,11 @@
   padding: 0 10px;
 }
 
+.libraryActions {
+  display: grid;
+  gap: 4px;
+}
+
 .libraryDelete:hover {
   border-color: rgba(255, 194, 87, 0.42);
   color: #ffc257;

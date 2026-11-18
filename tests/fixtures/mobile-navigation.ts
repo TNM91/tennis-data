@@ -27,8 +27,10 @@ import {tournamentSnapshot} from './native-tournaments'
 import {tournamentEntrySnapshot,tournamentReceipt} from './native-tournament-entry'
 import type {MyTournamentEntry} from '../../lib/native-tournament-entry-contract'
 import {DEFAULT_ENTITLEMENTS} from '../../lib/access-model-core'
-import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coachPreviewConnectionRequest} from './native-coach-browser'
-import {tacticsPreviewControls,tacticsPreviewRequest} from './native-tactics-browser'
+import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coachPreviewConnectionRequest,coachPreviewPlayerPractice} from './native-coach-browser'
+import {tacticsPreviewControls,tacticsPreviewCopy,tacticsPreviewRequest} from './native-tactics-browser'
+import type {TacticalBoardReference} from '../../lib/tactical/board-reference'
+import type {SharedTacticsBoard} from '../../lib/shared-tactics'
 import {trainingInboxPreview} from './mobile-training-inbox'
 import {personalMatchFixture} from './mobile-personal-matches'
 import {captainCourtPreview,captainCourtsFixture,captainFixtureId} from './mobile-captain-courts'
@@ -206,7 +208,7 @@ const manualScheduleFixture={enabled:new URL(location.href).searchParams.has('ma
  revision:null as string|null,nextMatch:null as Record<string,unknown>|null,loseNextSave:true,writes:[] as string[],
  reply:null as {id:string;choice:string}|null,loseNextReply:true,replyWrites:[] as string[],
  extraPlayers:[] as {id:string;name:string;choice:string|null}[],
- savedLineup:null as {version:string;courts:{format:string;players:string[]}[];names:Record<string,string>}|null,
+ savedLineup:null as {version:string;courts:{format:string;players:string[]}[];names:Record<string,string>;tactics?:SharedTacticsBoard}|null,
  loseNextLineupSave:true,lineupWrites:[] as string[]}
 const manualLineupRoster=()=>[{id:'10000000-0000-4000-8000-000000000001',name:'Alex',choice:manualScheduleFixture.reply?.choice??null},
  {id:'10000000-0000-4000-8000-000000000002',name:'Casey',choice:null},...manualScheduleFixture.extraPlayers]
@@ -563,7 +565,10 @@ window.fetch=async(input,init)=>{
      const names=Object.fromEntries(manualLineupRoster().filter(player=>players.has(player.id)&&player.choice!=='out')
       .map(player=>[player.id,player.name]))
      if(Object.keys(names).length!==players.size)return Response.json({ok:false},{status:409})
-     fixture.savedLineup={version:action.version,courts:action.courts,names}
+     const tactics=action.tactics===undefined?fixture.savedLineup?.tactics
+      :action.tactics?tacticsPreviewCopy(action.tactics as TacticalBoardReference):null
+     if(action.tactics&&!tactics)return Response.json({ok:false},{status:409})
+     fixture.savedLineup={version:action.version,courts:action.courts,names,...(tactics?{tactics}:{})}
      if(fixture.loseNextLineupSave){fixture.loseNextLineupSave=false;return Response.json({ok:false},{status:503})}
     }
     return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,lineup:fixture.savedLineup})
@@ -683,7 +688,7 @@ window.fetch=async(input,init)=>{
    const awaiting=lineupRoster.filter(player=>player.choice===null).map(player=>player.name)
    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,replies:{own:fixture.reply,
     ...(fixture.captain&&owner===navigationOwner?{team:teamReplies,awaiting,awaitingTeammates:awaiting.length,rosterComplete:true,lineupRoster,
-     savedLineup:fixture.savedLineup}:{})}})
+     savedLineup:fixture.savedLineup}:fixture.savedLineup?.tactics?{sharedLineup:fixture.savedLineup}:{})}})
   }
   if(op==='next-match'){
    if(team&&linkedSchedule)return Response.json({...base,roomId:chatRoomId,revision:null,
@@ -830,7 +835,8 @@ window.fetch=async(input,init)=>{
  }
  if(url.pathname==='/api/mobile/coach/tactics')return tacticsPreviewRequest(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/player/level-up-sessions'&&init?.method==='POST')fixtureState.trainingWrites++
- const trainingReply=trainingInboxPreview(url,init?.method||'GET',init?.body);if(trainingReply)return trainingReply
+ const trainingReply=coachPreviewPlayerPractice(currentNavigationOwner(),url,init?.method||'GET',init?.body)
+  ??trainingInboxPreview(url,init?.method||'GET',init?.body);if(trainingReply)return trainingReply
  let reply:unknown={ok:false,error:'Synthetic preview does not provide this service'}
  if(url.pathname==='/api/leagues/summary'&&new URL(location.href).searchParams.has('explore-return')){
   fixtureState.leagueReads++

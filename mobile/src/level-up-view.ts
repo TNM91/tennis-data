@@ -3,7 +3,8 @@ import {openCoachCheckIn} from './coach-check-in-view'
 import {findCoachPracticeStats} from './coach-check-in'
 import {newWeeklyChange,completionWeeklyChange,saveWeeklyChange,checkWeeklyChange,findSavedWeeklyPlan,weeklyChangeMatches,WeeklyChangeError,type WeeklyChange} from './weekly-plan-actions'
 import {Browser} from './native-browser'
-import {SAVED_WEEK_LIST_LIMIT,loadTrainingPlans,loadTrainingWeek,loadTrainingCoachWork,type TrainingCoachWork} from './training-inbox-data'
+import {SAVED_WEEK_LIST_LIMIT,loadTrainingPlans,loadTrainingWeek,loadTrainingCoachWork,loadAssignmentTactics,type TrainingCoachWork} from './training-inbox-data'
+import {openSharedTactics} from './shared-tactics-view'
 import {trainingPlansHtml,trainingCoachWorkHtml,trainingCoachCueHtml,trainingInboxLaunches,trainingWeekPracticeReceiptHtml,weeklyDrillKey,type SavedWeekPractice} from './training-inbox-view'
 import {getWeeklyLevelUpPlanProgress,getWeeklyLevelUpPlanReps,type WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
 import {calendarWeeklyRepKey,notifyCalendarWeeklyRepChange,readScheduledPracticeLinks,syncCalendarWeeklyRepProgress,type CalendarWeeklyRep} from './calendar-weekly-reps'
@@ -184,6 +185,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  }
  let replyEditor:ReturnType<typeof openWeeklyCoachReply>|null=null
  let coachEditor:ReturnType<typeof openCoachCheckIn>|null=null
+ let tacticsViewer:ReturnType<typeof openSharedTactics>|null=null
  let practiceCalendar:ReturnType<typeof openCalendar>|null=null
  let weekPending:WeeklyChange|null=null,weekBusy=false,weekAttempted=false,weekConflict=false,weekLeaving=false,weekNotice='',plansVersion=0,coachVersion=0
  let reviewingScheduledPractice=false
@@ -191,7 +193,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const completed=new Set<string>(),clock=new TrainingClock(),active=()=>!disposed&&current()
  const dispose=()=>{
   if(disposed)return
-  disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;practiceCalendar?.dispose();practiceCalendar=null
+  disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;tacticsViewer?.dispose();tacticsViewer=null;practiceCalendar?.dispose();practiceCalendar=null
   version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;practiceModule=null;choices=emptyTrainingChoices()
   const lastCoachWork=coachWork
   plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';savedWeekPractice=undefined;matchPractice=null;coachPracticeCue=''
@@ -201,7 +203,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    if(lastCoachWork!==undefined)coachStart?.onClose(lastCoachWork)
   }
  }
- const requestClose=()=>{if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(practiceCalendar?.isOpen()){practiceCalendar.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}dispose()}
+ const requestClose=()=>{if(tacticsViewer?.isOpen()){tacticsViewer.dispose();return}if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(practiceCalendar?.isOpen()){practiceCalendar.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}dispose()}
  const accessCopy=()=>allowed===true?'Self-guided training saves privately to your account.':allowed===false?`${MEMBERSHIP_TIERS.player_plus.name} access is required to save self-guided training. You can still read the cards and your account history.`:accessError?'Account access could not be checked.':'Checking your player access…'
  const bindCards=()=>dialog.querySelectorAll<HTMLButtonElement>('[data-card]').forEach(button=>{button.onclick=()=>{
   const card=LEVEL_UP_CARDS.find(item=>item.id===button.dataset.card)
@@ -656,6 +658,10 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const directionWeek=dialog.querySelector<HTMLButtonElement>('[data-direction-week]')
   if(directionWeek)directionWeek.onclick=()=>{void openDirectionWeek(directionWeek)}
   dialog.querySelectorAll<HTMLButtonElement>('[data-week-reply]').forEach(b=>{b.onclick=()=>{if(!active()||replyEditor?.isOpen())return;const plan=plans?.find(p=>p.id===b.dataset.weekReply);if(!plan)return;replyEditor=openWeeklyCoachReply(client,owner,active,plan,saved=>{notice=saved?'Your reply is saved with this week.':'Review your latest coach update below.';plansVersion++;plansBusy=false;void readPlans().then(()=>{if(active()){const region=dialog.querySelector<HTMLElement>('[data-inbox-region=weeks]');region?.scrollIntoView({block:'start'});region?.focus({preventScroll:true})}})})}})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-assignment-tactics]').forEach(button=>{button.onclick=()=>{
+   const id=button.dataset.assignmentTactics
+   if(id&&active()&&!tacticsViewer?.isOpen())tacticsViewer=openSharedTactics(button,active,()=>loadAssignmentTactics(client,owner,active,id))
+  }})
   dialog.querySelectorAll<HTMLButtonElement>('[data-coach-checkin]').forEach(button=>{button.onclick=()=>{
    if(!active()||coachEditor?.isOpen())return
    const assignment=coachWork?.assignments.find(a=>a.id===button.dataset.coachCheckin),link=coachWork?.links.find(l=>l.id===assignment?.studentLinkId)

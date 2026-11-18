@@ -21,6 +21,7 @@ export type TacticalStudioPlatform={
  exportFile:(blob:Blob,name:string)=>Promise<void>
  navigate:(href:string)=>void
  setFullscreenExit:(exit:(()=>void)|null)=>void
+ assignBoard:(saved:TacticalScenarioSummary,trigger:HTMLButtonElement)=>void
 }
 export const TacticalStudioPlatformContext=createContext<TacticalStudioPlatform|null>(null)
 export const useTacticalStudioPlatform=()=>useContext(TacticalStudioPlatformContext)

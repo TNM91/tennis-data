@@ -187,8 +187,15 @@ test('Coach shares an observed skill and the linked player compares it with Star
  await assessments.getByRole('button',{name:'Retry same assessment',exact:true}).click()
  await expect(assessments).toContainText('Shared in the player’s My Lab.')
  await expect(assessments.locator('.tiq-assessment-history details')).toHaveCount(1)
+ await assessments.getByRole('button',{name:'Assign drill',exact:true}).click()
+ await expect(assessments).toContainText('Drill assigned in the player’s My Lab.')
  await assessments.getByRole('button',{name:'Close',exact:true}).click()
  await expect(workspace.getByRole('button',{name:'Coach assessments',exact:true})).toBeFocused()
+ await expect(workspace.getByRole('button',{name:/Serve Target Call/})).toBeVisible()
+ await workspace.getByRole('button',{name:'Coach assessments',exact:true}).click()
+ await expect(assessments).toContainText('Drill assigned')
+ await expect(assessments.getByRole('button',{name:'Assign drill',exact:true})).toHaveCount(0)
+ await assessments.getByRole('button',{name:'Close',exact:true}).click()
  await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click())
  await expect(workspace).toHaveCount(0)
  const starter=page.getByRole('region',{name:'Starter TiQ'})
@@ -202,6 +209,10 @@ test('Coach shares an observed skill and the linked player compares it with Star
  await page.screenshot({path:info.outputPath('coach-assessment-player.png'),scale:'css'})
  await assessments.getByRole('button',{name:'Close',exact:true}).click()
  await expect(starter).toContainText('7 / 10')
+ await page.getByRole('button',{name:'Training inbox',exact:true}).click()
+ const inbox=page.getByRole('dialog',{name:'Level Up training',exact:true})
+ await expect(inbox.getByRole('heading',{name:'Serve Target Call',exact:true})).toBeVisible()
+ await expect(inbox.getByRole('button',{name:/Open check-in/})).toBeVisible()
 })
 
 test('Starter TiQ scores skills and formats privately and tracks retakes alongside match form',async({page},info)=>{
@@ -2688,6 +2699,46 @@ test('first-party captains can share, correct, and remove their independent team
  const replyWrites=await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{replyWrites:string[]}}).manualScheduleFixture.replyWrites)
  expect(replyWrites).toHaveLength(3)
  expect(replyWrites[0]).toBe(replyWrites[1])
+})
+
+test('first-party captain shares a lineup and tactics board with a teammate',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:390,height:844})
+ await page.goto(origin+'/?manual-team-schedule=1')
+ await page.evaluate(()=>Object.assign((window as unknown as {manualScheduleFixture:object}).manualScheduleFixture,{
+  revision:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
+  reply:{id:'22222222-2222-4222-8222-222222222222',choice:'in'},
+ }))
+ const match=page.getByRole('dialog',{name:'Next match',exact:true})
+ const openMatch=async()=>{
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+  await page.getByRole('button',{name:/^Baseline Aces/}).click()
+  await page.locator('.chat-room-options > summary').click()
+  await page.locator('#chat-next-match').click()
+ }
+ await openMatch()
+ await match.getByRole('button',{name:'Plan lineup',exact:true}).click()
+ await match.getByRole('button',{name:'Add singles court',exact:true}).click()
+ await match.getByRole('combobox',{name:'Player',exact:true}).selectOption({label:'Alex · In'})
+ await match.getByRole('button',{name:'Choose saved board',exact:true}).click()
+ await match.getByRole('combobox',{name:'Saved tactics board',exact:true}).selectOption({label:'Saturday poach pattern'})
+ await match.getByRole('button',{name:'Share lineup & board',exact:true}).click()
+ await expect(match.getByRole('button',{name:/Retry same lineup/})).toBeVisible()
+ await match.getByRole('button',{name:/Retry same lineup/}).click()
+ await expect(match.getByRole('status')).toHaveText('Lineup and tactics board shared in Next match.')
+ await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click())
+ await expect(match).toHaveCount(0)
+ await openMatch()
+ await expect(match.getByRole('heading',{name:'Shared match plan',exact:true})).toBeVisible()
+ await expect(match.getByRole('button',{name:'Edit saved lineup',exact:true})).toHaveCount(0)
+ await match.getByText('Planned lineup',{exact:true}).click()
+ await expect(match.getByText('Alex',{exact:true})).toBeVisible()
+ await match.getByRole('button',{name:/Open tactics board.*Saturday poach pattern/}).click()
+ const viewer=page.getByRole('dialog',{name:'Shared tactics board',exact:true})
+ await expect(viewer.getByTestId('tiq-court-surface')).toBeVisible()
+ await viewer.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(match.getByRole('button',{name:/Open tactics board/})).toBeFocused()
 })
 
 test('first-party captain saves a lineup and uses its court count for score entry',async({page})=>{

@@ -364,6 +364,17 @@ dialog.native-tactics-screen[open]{
  display:flex;flex-direction:column;background:radial-gradient(ellipse at 85% 0,#1c3f776e,transparent 53%),var(--premium-page);
 }
 .native-tactics-screen[data-tactics-fullscreen] .native-coach-header{display:none}
+.shared-tactics-content{
+ display:grid;grid-template-rows:minmax(150px,1fr) auto auto;gap:6px;
+ padding:6px max(6px,env(safe-area-inset-right)) 6px max(6px,env(safe-area-inset-left));
+ overflow:auto;
+}
+.shared-tactics-content [data-tiq-native-canvas],.shared-tactics-content [data-tiq-pattern-playback]{grid-area:auto}
+.shared-tactics-content [data-tiq-pattern-playback] button{min-height:44px}
+.shared-tactics-cues{max-block-size:7rem;overflow:auto;margin:0;padding:8px 8px 8px 25px;color:var(--premium-copy)}
+.tactics-assignment-dialog label{display:grid;gap:5px;margin:10px 0}
+.tactics-assignment-dialog :is(input,select,textarea){width:100%;min-height:44px;font-size:1rem}
+.tactics-assignment-dialog [role=status]:empty{display:none}
 .native-tactics-screen .native-coach-header{
  min-height:56px;padding:5px max(12px,env(safe-area-inset-right)) 5px max(12px,env(safe-area-inset-left));
  border-color:#30496f;background:linear-gradient(110deg,#071426,#12284c);

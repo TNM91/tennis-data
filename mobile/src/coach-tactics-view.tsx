@@ -11,6 +11,7 @@ import {coachDeviceStore} from './coach-device-store'
 import type {CoachSend} from './coach-workspace-data'
 import {exportCoachFile,cancelCoachFile} from './native-coach-files'
 import {html} from './match-details'
+import {openTacticsAssignment} from './tactics-assignment-view'
 import './coach-premium.css'
 
 export function openNativeTactics(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,send?:CoachSend,navigate?:(href:string)=>void){
@@ -19,13 +20,14 @@ export function openNativeTactics(client:SupabaseClient,owner:string,current:()=
  const host=dialog.querySelector<HTMLElement>('.native-tactics-content')!,status=dialog.querySelector<HTMLElement>('[role=status]')!,recovery=dialog.querySelector<HTMLElement>('.native-tactics-recovery')!
  let disposed=false,busy=false,root:Root|null=null,latest:TacticalScenario|null=null,baseline='',leaving=false,leaveAction:(()=>void)|null=null,platform:TacticalStudioPlatform|null=null,decision:HTMLDialogElement|null=null,settleDecision:((choice:boolean)=>void)|null=null
  let exitFullscreen:(()=>void)|null=null
+ let assignment: ReturnType<typeof openTacticsAssignment> | null = null
  const revisions=new Map<string,string>()
  const active=()=>!disposed&&current(),store=coachDeviceStore(owner,active),library=new TacticsLibrary(client,owner,active,send)
  const focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
  const notice=(text:string)=>{if(active())status.textContent=text}
  const closeDecision=(choice=false)=>{const resolve=settleDecision;settleDecision=null;decision?.close();decision?.remove();decision=null;resolve?.(choice)}
  const confirmDelete=(name:string)=>new Promise<boolean>(resolve=>{closeDecision();settleDecision=resolve;decision=document.createElement('dialog');decision.className='native-coach-decision';decision.setAttribute('aria-label','Delete saved board');decision.innerHTML='<h2 tabindex="-1">Delete this saved board?</h2><p>'+html(name)+'</p><p>Your open board and device copies stay available.</p><button type="button" data-confirm-delete>Delete from account</button><button type="button" class="secondary" data-cancel-delete>Keep board</button>';decision.querySelector('[data-confirm-delete]')?.addEventListener('click',()=>closeDecision(true));decision.querySelector('[data-cancel-delete]')?.addEventListener('click',()=>closeDecision());decision.oncancel=e=>{e.preventDefault();closeDecision()};document.body.append(decision);decision.showModal();decision.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})})
- const dispose=()=>{if(disposed)return;disposed=true;closeDecision();root?.unmount();root=null;latest=null;platform=null;leaveAction=null;revisions.clear();void cancelCoachFile(owner).catch(()=>{});dialog.close();dialog.remove();if(current()&&trigger?.isConnected)trigger.focus({preventScroll:true})}
+ const dispose=()=>{if(disposed)return;disposed=true;assignment?.dispose();closeDecision();root?.unmount();root=null;latest=null;platform=null;leaveAction=null;revisions.clear();void cancelCoachFile(owner).catch(()=>{});dialog.close();dialog.remove();if(current()&&trigger?.isConnected)trigger.focus({preventScroll:true})}
  const completeLeave=()=>{const next=leaveAction;dispose();next?.()}
  const renderRecovery=()=>{
   if(!active())return
@@ -44,7 +46,7 @@ export function openNativeTactics(client:SupabaseClient,owner:string,current:()=
   finally{if(active()){busy=false;renderRecovery()}}
  }
  const requestLeave=(next?:()=>void)=>{if(!active()||busy)return;if(latest&&JSON.stringify(latest)!==baseline){leaving=true;leaveAction=next??null;renderRecovery();recovery.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}else{dispose();next?.()}}
- const back=()=>{if(decision){closeDecision();return true}if(leaving){leaving=false;leaveAction=null;renderRecovery()}else if(exitFullscreen){exitFullscreen()}else requestLeave();return true}
+ const back=()=>{if(assignment?.isOpen()){assignment.back();return true}if(decision){closeDecision();return true}if(leaving){leaving=false;leaveAction=null;renderRecovery()}else if(exitFullscreen){exitFullscreen()}else requestLeave();return true}
  const write=async(intent:TacticsIntent)=>{
   if(!active()||busy)throw Error('Wait for the current board action to finish')
   busy=true;notice(intent.action==='delete'?'Deleting the saved board…':'Saving your board…')
@@ -66,6 +68,9 @@ export function openNativeTactics(client:SupabaseClient,owner:string,current:()=
     setFullscreenExit:exit=>{
      exitFullscreen=exit
      dialog.toggleAttribute('data-tactics-fullscreen',Boolean(exit))
+    },
+    assignBoard:(saved,button)=>{
+     if(active()&&!assignment?.isOpen())assignment=openTacticsAssignment(client,owner,active,button,saved,send)
     },
    }
    root=createRoot(host);root.render(<TacticalStudioPlatformContext.Provider value={platform}><TiqTacticalStudio/></TacticalStudioPlatformContext.Provider>);notice('');focus()

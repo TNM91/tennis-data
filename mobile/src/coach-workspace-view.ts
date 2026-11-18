@@ -133,9 +133,19 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
       button.onclick = () => {if (!busy && !invitations?.isOpen()) invitations = openCoachInvitations(client, owner, s.id, active, button, send)}
       if (s.linked && s.status !== 'paused') {
         const assess = document.createElement('button')
-        assess.type = 'button'; assess.className = 'secondary'; assess.textContent = 'Coach assessments'
+        assess.type = 'button'; assess.className = 'secondary'; assess.textContent = 'Coach assessments'; assess.dataset.coachAssessments = ''
         button.after(assess)
-        assess.onclick = () => { if (!busy && !assessments?.isOpen()) assessments = openCoachAssessments(client, owner, active, { trigger: assess, student: s }, send) }
+        assess.onclick = () => {
+          if (busy || assessments?.isOpen()) return
+          assessments = openCoachAssessments(client, owner, active, {trigger: assess, student: s,
+            assignmentIds: detail?.assignments.map(assignment => assignment.id),
+            onDrillAssigned: updated => {
+              snapshot = updated
+              render()
+              dialog.querySelector<HTMLButtonElement>('[data-coach-assessments]')?.focus({preventScroll: true})
+            },
+          }, send)
+        }
       }
     }
     dialog.querySelectorAll<HTMLButtonElement>('[data-coach-student]').forEach(b => {b.onclick = () => {const s = snapshot?.students[Number(b.dataset.coachStudent)]; if (s) void load(s.id)}})

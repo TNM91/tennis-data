@@ -3,6 +3,8 @@ import {CapacitorHttp,type HttpOptions,type HttpResponse} from '@capacitor/core'
 import {parseWeeklyLevelUpPlan,type WeeklyLevelUpPlan} from '../../lib/level-up/weekly-plan'
 import {getCoachAssignmentReview,getPlayerAssignmentCheckIn,sortPlayerAssignmentsForAction,type CoachAssignment} from '../../lib/coach-storage'
 import type {CalendarWeeklyRep} from './calendar-weekly-reps'
+import {readSharedTacticsBoard} from '../../lib/shared-tactics'
+
 export type TrainingCoachLink={id:string;identitySlug:string;status:string}
 export type TrainingCoachWork={links:TrainingCoachLink[];assignments:CoachAssignment[]}
 export type TrainingInboxSend=(options:HttpOptions)=>Promise<HttpResponse>
@@ -43,3 +45,9 @@ export async function loadTrainingWeek(client:SupabaseClient,owner:string,curren
  return rows.filter(plan=>plan.id===planId&&plan.identitySlug===identitySlug&&plan.weekStart===weekStart)
 }
 export async function loadTrainingCoachWork(client:SupabaseClient,owner:string,current:()=>boolean,send:TrainingInboxSend=o=>CapacitorHttp.get(o)){return parseTrainingCoachWork(await read(client,owner,current,'coach-assignments',send),owner)}
+export async function loadAssignmentTactics(client:SupabaseClient,owner:string,current:()=>boolean,id:string,
+ send:TrainingInboxSend=options=>CapacitorHttp.get(options)){
+ const response=record(await read(client,owner,current,'coach-assignments',send,'?'+new URLSearchParams({board:id})))
+ if(response.ok!==true||response.assignmentId!==id)throw Error('That assigned board could not be confirmed.')
+ return readSharedTacticsBoard(response.tactics).board
+}

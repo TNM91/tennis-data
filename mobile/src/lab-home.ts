@@ -11,8 +11,9 @@ export type LabProfile={linked_player_id?:string|null;linked_player_name?:string
 export function labTrainingActionsHtml(){
  return `<section class="lab-training-overview" aria-labelledby="lab-training-title">
   <h2 id="lab-training-title">Your training</h2>
-  <p>See your last drill and what to try next, or open a saved weekly plan.</p>
+  <p>Open coach assignments, review saved practice, or pick up a weekly plan.</p>
   <div class="lab-training-actions">
+   <button type="button" class="secondary" data-app-destination="training-inbox">Training inbox</button>
    <button type="button" class="secondary" id="lab-training-refresh">Load saved practice</button>
    <button type="button" data-training="weeks">Open saved weeks</button>
   </div>

@@ -8,6 +8,7 @@ import {SAVED_WEEK_LIST_LIMIT,trainingAssignmentQueue,trainingCoachFeedback,type
 import {trainingTime} from './level-up-model'
 import type {TrainingSession} from './level-up-data'
 import {calendarWeeklyRepKey,type ScheduledPracticeLinks} from './calendar-weekly-reps'
+import {assignmentBoardReference} from '../../lib/shared-tactics'
 export type TrainingInboxLaunch={key:string;cardId:string;identitySlug:string;label:string;checkInAssignmentId?:string;coachCue?:string}
 export type SavedWeekPractice=Pick<TrainingSession,'cardId'|'rating'|'elapsedSeconds'>&{key:string}
 const packDrillLimit=30
@@ -169,6 +170,7 @@ function assignmentCard(a:CoachAssignment,work:TrainingCoachWork,now:Date,featur
  const packTargets=new Set(pack?.items.slice(0,packDrillLimit).map(item=>`${item.title}: ${item.proof}`))
  const tracker=summary.tracker.filter(item=>!packTargets.has(item))
  const checkInButton=done?'':`<button type="button" data-coach-checkin="${html(a.id)}">Open check-in<span class="sr-only"> ${html(a.title)}</span></button>`
+ const tacticsButton=assignmentBoardReference(a.assignment)?`<button type="button" class="secondary" data-assignment-tactics="${html(a.id)}">Open tactics board<span class="sr-only"> ${html(a.title)}</span></button>`:''
  return `<section class="training-assignment${featured?' training-assignment-next':''}">
   <div class="training-assignment-meta">${featured?'<small>Up next</small>':''}<span data-due-tone="${done?'done':due.tone}">${done?(a.status==='completed'?'Completed':'Checked in'):html(dueLabel)}</span></div>
   <h2>${html(a.title)}</h2>
@@ -181,7 +183,7 @@ function assignmentCard(a:CoachAssignment,work:TrainingCoachWork,now:Date,featur
   ${summary.prompt?`<p>${html(summary.prompt)}</p>`:''}
   ${review?`<h3>Coach feedback</h3><p>${html(review.note)}</p><p><strong>Next focus:</strong> ${html(review.nextFocus)}</p>`:''}
   ${checkIn?`<h3>Your recorded check-in</h3><p>${html(checkIn.recap)}</p><p>${html(checkIn.evidence)}</p>`:''}
-  ${drillButton||checkInButton?`<div class="training-assignment-actions">${drillButton}${checkInButton}</div>`:''}
+  ${drillButton||checkInButton||tacticsButton?`<div class="training-assignment-actions">${tacticsButton}${drillButton}${checkInButton}</div>`:''}
  </section>`
 }
 

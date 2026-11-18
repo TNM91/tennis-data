@@ -12,6 +12,9 @@ import {exportCoachFile} from './native-coach-files'
 import {matchLineupFields,matchLineupMessage,plannedLineupHtml} from './team-match-lineup'
 import {saveTeamMatchLineupRequest,teamMatchRepliesRequest} from './team-match-replies-data'
 import {teamNextMatchRequest,TeamNextMatchError,type TeamMatchRoom,type TeamNextMatchSchedule} from './team-room-data'
+import type {TacticalBoardReference} from '../../lib/tactical/board-reference'
+import {TacticsLibrary} from './coach-tactics-data'
+import {openSharedTactics} from './shared-tactics-view'
 
 export function nextMatchTime(match:ReviewedNextMatch){
  const start=eventCalendarStart(match.date,match.time,match.timeZone)
@@ -81,9 +84,12 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let previousSlot:ReviewedNextMatch|null=null
  let scheduleAnnouncement:{revision:string;previous:ReviewedNextMatch}|null=null
  let rosterExpanded=false
+ let tacticsChoice:TacticalBoardReference|null|undefined
+ let boardOptions:{name:string;reference:TacticalBoardReference}[]|undefined
+ let tacticsViewer:ReturnType<typeof openSharedTactics>|null=null
  const active=()=>!disposed&&current()
- const dispose=()=>{disposed=true;dialog.remove()}
- const close=()=>{if(!disposed&&!busy){dispose();onClose(changed)}}
+ const dispose=()=>{disposed=true;tacticsViewer?.dispose();dialog.remove()}
+ const close=()=>{if(tacticsViewer?.isOpen()){tacticsViewer.dispose();return}if(!disposed&&!busy){dispose();onClose(changed)}}
  const focus=(target='h2')=>dialog.querySelector<HTMLElement>(target)?.focus({preventScroll:true})
  const focusFeedback=()=>dialog.querySelector<HTMLElement>('[role="status"]')?.focus()
  const captain=room.manualFixture&&room.canScheduleMatch
@@ -105,6 +111,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   if(busy||!active())return
   const before=schedule??calendarSchedule
   busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null
+  tacticsChoice=undefined;boardOptions=undefined
   replies=null;draft=null;removing=false;schedule=null;notice='Loading your next match…';render()
   try{
    schedule=await teamNextMatchRequest(client,owner,active,room);notice=''
@@ -228,7 +235,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   const revision=schedule?.revision,roster=replies?.lineupRoster
   if(!active()||!captain||busy||lineupConflict||!lineup||!revision||!roster)return
   const change=pendingLineup??readTeamLineupChange({revision,expected:replies?.savedLineup?.version??null,
-   version:crypto.randomUUID(),courts:lineup})
+   version:crypto.randomUUID(),courts:lineup,tactics:tacticsChoice})
   if(!change){notice='Fill every court and choose each teammate only once.';render();focusFeedback();return}
   const eligible=new Set(roster.filter(player=>player.choice!=='out').map(player=>player.id))
   if(!pendingLineup&&change.courts.some(court=>court.players.some(id=>!eligible.has(id)))){
@@ -238,11 +245,23 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   try{
    const savedLineup=await saveTeamMatchLineupRequest(client,owner,active,room,change)
    if(!active()||!replies)return
-   replies={...replies,savedLineup};pendingLineup=null;lineup=null;notice='Lineup saved for captains.'
+   replies={...replies,savedLineup};pendingLineup=null;lineup=null
+   notice=savedLineup.tactics?'Lineup and tactics board shared in Next match.':'Lineup saved for captains.'
   }catch(cause){
    notice=cause instanceof TeamNextMatchError?cause.message:'The lineup save could not be confirmed. Retry the same lineup.'
    if(cause instanceof TeamNextMatchError&&!cause.uncertain){pendingLineup=null;lineupConflict=true}
   }finally{if(active()){busy=false;render();focusFeedback()}}
+ }
+ async function chooseTactics() {
+  if (!active() || !captain || !lineup || busy || pendingLineup) return
+  busy=true;notice='Loading saved boards…';render()
+  try {
+   const {scenarios}=await new TacticsLibrary(client,owner,active).load()
+   if (!active()) return
+   boardOptions=scenarios.map(board=>({name:board.name,reference:{id:board.id,updatedAt:board.updatedAt}}))
+   notice=boardOptions.length?'':'Save a board in Tactics before attaching it.'
+  } catch { if(active())notice='Saved boards couldn’t load. Try again.' }
+  finally { if(active()){busy=false;render();focus(boardOptions?.length?'[data-tactics-choice]':'[role=status]')} }
  }
  const openMatchAction=async(action:'maps'|'calendar')=>{
   if(!active()||busy||pendingReply||!schedule?.nextMatch)return
@@ -288,6 +307,12 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   const reusableVenue=draft&&!schedule?.nextMatch&&previousMatch?.facility?previousMatch:null
   const reusableTime=draft&&!schedule?.nextMatch?previousMatch?.time:''
   const mapsUrl=schedule?.nextMatch&&calendarMatchVenueHref({location:schedule.nextMatch.facility})
+  const savedTactics=replies?.savedLineup?.tactics
+  const shared=replies?.sharedLineup??(savedTactics?replies?.savedLineup:undefined)
+  const boardChoice=tacticsChoice===undefined?savedTactics?.reference:tacticsChoice
+  const boardIndex=boardChoice?boardOptions?.findIndex(item=>item.reference.id===boardChoice.id&&item.reference.updatedAt===boardChoice.updatedAt)??-1:-1
+  const boardChoiceName=boardIndex>=0?boardOptions?.[boardIndex].name:tacticsChoice===undefined?savedTactics?.board.name:undefined
+  const showShare=Boolean(boardChoice)
   if(reusableVenue&&!zones.includes(reusableVenue.timeZone))zones.push(reusableVenue.timeZone)
   dialog.innerHTML=`<header class="team-invite-heading"><h2 tabindex="-1">Next match</h2></header>
    <p>${html(room.teamName)} · ${html(teamLeagueLabel(room))}${room.flight?' · '+html(room.flight):''}</p>
@@ -300,7 +325,19 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
        <button type="button" class="secondary" data-add-lineup-court="singles">Add singles court</button>
        <button type="button" class="secondary" data-add-lineup-court="doubles">Add doubles court</button>
       </div>`:''}
-      ${lineup.length?'<button type="submit" data-save-lineup>Save lineup</button><button type="submit" class="secondary">Draft lineup in chat</button>':''}
+      <section class="team-lineup-tactics">
+       <h4>Tactics board</h4>
+       ${boardOptions?.length?`<label>Saved tactics board<select data-tactics-choice>
+        <option value="" ${!boardChoice?'selected':''}>No tactics board</option>
+        ${savedTactics?`<option value="keep" ${boardChoice&&boardIndex<0?'selected':''}>Keep shared board · ${html(savedTactics.board.name)}</option>`:''}
+        ${boardOptions.map((board,index)=>`<option value="${index}" ${index===boardIndex?'selected':''}>${html(board.name)}</option>`).join('')}
+       </select></label>`:`<button type="button" class="secondary" data-load-tactics>Choose saved board</button>
+        ${boardChoiceName?`<p>${html(boardChoiceName)}</p><button type="button" class="secondary" data-detach-tactics>Remove board</button>`:''}`}
+       ${showShare?'<p class="rating-context">Teammates can open the lineup and board under Next match.</p>'
+        :savedTactics?'<p class="rating-context">Saving without the board removes the shared match plan from teammates’ view.</p>':''}
+      </section>
+      ${lineup.length?`<button type="submit" data-save-lineup>${showShare?'Share lineup &amp; board':'Save lineup'}</button>
+       ${!showShare?'<button type="submit" class="secondary">Draft lineup in chat</button>':''}`:''}
      </fieldset>
      ${!busy&&!pendingLineup&&!lineupConflict?'<button type="button" class="secondary" data-discard-lineup>Cancel edit</button>':''}
     </form>`:!pending&&draft?`<form data-match-form>
@@ -330,7 +367,9 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
      `<button type="button" class="secondary" data-draft-match-change ${busy||pendingReply?'disabled':''}>Draft schedule update in chat</button>`:''}
     ${schedule.nextMatch&&!removing?`<button type="button" class="secondary" data-share-match-calendar ${busy||pendingReply?'disabled':''}>Share calendar file</button>
      <p class="rating-context">One-time copy. ${schedule.nextMatch.time?'Reserves 90 minutes.':'Adds an all-day entry.'}</p>`:''}
-    ${!removing&&replies?.savedLineup?plannedLineupHtml(replies.savedLineup):''}
+    ${!removing&&shared?.tactics?`<section class="team-lineup-tactics"><h3>Shared match plan</h3>
+      ${plannedLineupHtml(shared)}<button type="button" class="secondary" data-view-match-tactics>Open tactics board · ${html(shared.tactics.board.name)}</button></section>`
+      :!removing&&replies?.savedLineup?plannedLineupHtml(replies.savedLineup):''}
     ${captain&&!busy&&!pendingReply&&!removing&&(replies?.savedLineup||replies?.lineupRoster?.some(player=>player.choice!=='out'))?
      `<button type="button" class="secondary" data-plan-lineup>${replies?.savedLineup?'Edit saved lineup':'Plan lineup'}</button>`:''}
     ${removing?`<p>Remove this match from the team schedule?</p><button type="button" data-match-remove-confirm>Remove from schedule</button><button type="button" class="secondary" data-match-cancel>Keep match</button>`
@@ -357,11 +396,24 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector<HTMLButtonElement>('[data-open-match-maps]')?.addEventListener('click',()=>{void openMatchAction('maps')})
   dialog.querySelector<HTMLButtonElement>('[data-share-match-calendar]')?.addEventListener('click',()=>{void openMatchAction('calendar')})
   dialog.querySelector('[data-plan-lineup]')?.addEventListener('click',()=>{
-   lineup=structuredClone(replies?.savedLineup?.courts??[]);notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
+   lineup=structuredClone(replies?.savedLineup?.courts??[]);tacticsChoice=undefined;notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
   })
   dialog.querySelector('[data-discard-lineup]')?.addEventListener('click',()=>{
    lineup=null;notice='';render();(dialog.querySelector<HTMLElement>('[data-plan-lineup]')??dialog.querySelector<HTMLElement>('h2'))?.focus()
   })
+  dialog.querySelector('[data-load-tactics]')?.addEventListener('click',()=>{void chooseTactics()})
+  dialog.querySelector('[data-detach-tactics]')?.addEventListener('click',()=>{tacticsChoice=null;render();focus('[data-load-tactics]')})
+  const tacticsSelect=dialog.querySelector<HTMLSelectElement>('[data-tactics-choice]')
+  if(tacticsSelect)tacticsSelect.onchange=()=>{
+   const value=tacticsSelect.value
+   tacticsChoice=value==='keep'?undefined:value?boardOptions?.[Number(value)]?.reference??null:null
+   render();focus('[data-tactics-choice]')
+  }
+  const openBoard=dialog.querySelector<HTMLButtonElement>('[data-view-match-tactics]')
+  if(openBoard&&shared?.tactics){
+   const board=shared.tactics.board
+   openBoard.onclick=()=>{if(active()&&!tacticsViewer?.isOpen())tacticsViewer=openSharedTactics(openBoard,active,async()=>board)}
+  }
   dialog.querySelectorAll<HTMLButtonElement>('[data-add-lineup-court]').forEach(button=>{button.onclick=()=>{
    if(!lineup||lineup.length>=maxTeamLineupCourts)return
    const format=button.dataset.addLineupCourt==='singles'?'singles':'doubles'

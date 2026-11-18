@@ -3,10 +3,10 @@ import {
   assessmentContexts, assessmentNoteLimit, readCoachAssessmentDraft,
   type CoachAssessment, type CoachAssessmentDraft, type CoachObservation, type SkillObservations,
 } from '../../lib/native-coach-assessment-contract'
-import type { NativeCoachStudent } from '../../lib/native-coach-contract'
+import { readCoachCreate, type NativeCoachSnapshot, type NativeCoachStudent } from '../../lib/native-coach-contract'
 import { tiqSkillLevels, tiqSkills } from '../../lib/tiq-assessment-skills'
 import { CoachAssessmentError, loadCoachAssessments, shareCoachAssessment } from './coach-assessments-data'
-import type { CoachSend } from './coach-workspace-data'
+import { assignCoachPractice, CoachWorkspaceError, type CoachSend } from './coach-workspace-data'
 import { html } from './match-details'
 
 function observationHtml(observation: CoachObservation, self?: SkillObservations) {
@@ -22,8 +22,9 @@ function observationHtml(observation: CoachObservation, self?: SkillObservations
 }
 
 export function openCoachAssessments(client: SupabaseClient, owner: string, current: () => boolean,
-  options: { trigger: HTMLElement; student?: NativeCoachStudent; self?: SkillObservations }, send?: CoachSend) {
-  const { trigger, student, self } = options
+  options: { trigger: HTMLElement; student?: NativeCoachStudent; self?: SkillObservations; assignmentIds?: string[];
+    onDrillAssigned?: (snapshot: NativeCoachSnapshot) => void }, send?: CoachSend) {
+  const { trigger, student, self, assignmentIds, onDrillAssigned } = options
   const dialog = document.createElement('dialog')
   dialog.className = 'captain-lineup-dialog coach-workspace-dialog tiq-coach-assessments'
   dialog.setAttribute('aria-label', 'Coach assessments')
@@ -32,6 +33,9 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
   let draft: CoachAssessmentDraft | null = null
   let busy = false, disposed = false, attempted = false, conflict = false, leaving = false, edited = false
   let notice = ''
+  const assignedDrills = new Set(assignmentIds)
+  let latestWorkspace: NativeCoachSnapshot | null = null
+  let assigningDrill = false
   const active = () => !disposed && current() && trigger.isConnected
 
   function dispose() {
@@ -42,10 +46,11 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
     dialog.close()
     dialog.remove()
     if (current() && trigger.isConnected) trigger.focus({ preventScroll: true })
+    if (current() && latestWorkspace) onDrillAssigned?.(latestWorkspace)
   }
 
   function back() {
-    if (busy && view !== 'list') return true
+    if (busy && (view !== 'list' || assigningDrill)) return true
     if (view === 'list') dispose()
     else if (leaving) {
       leaving = false
@@ -105,6 +110,31 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
     void load(true)
   }
 
+  async function assignDrill(id: string) {
+    const assessment = rows.find(row => row.id === id)
+    const skill = tiqSkills.find(item => item.id === assessment?.observation.focus)
+    if (!student?.linked || student.status === 'paused' || !assessment || !skill || busy || !active()) return
+    busy = assigningDrill = true
+    notice = 'Assigning drill…'
+    render(false)
+    try {
+      const assignment = readCoachCreate({ kind: 'assignment', id: assessment.id, student: student.id,
+        expectedUpdatedAt: student.updatedAt, title: skill.drill.title, focus: skill.skill, instructions: skill.target,
+        dueDate: null, evidence: '', status: 'assigned', assessmentDrill: skill.id })
+      if (assignment.kind !== 'assignment') return
+      latestWorkspace = await assignCoachPractice(client, owner, active, assignment, send)
+      assignedDrills.add(id)
+      notice = 'Drill assigned in the player’s My Lab.'
+    } catch (error) {
+      notice = error instanceof CoachWorkspaceError && error.status === 409
+        ? 'Close assessments and refresh the student record before assigning this drill.'
+        : 'The drill assignment couldn’t be confirmed. Try this same drill again.'
+    } finally {
+      busy = assigningDrill = false
+      if (active()) render()
+    }
+  }
+
   function formHtml() {
     const previous = draft?.observation
     return `<p>Rate the skills you observed. Open a skill for a court check and rating guide.</p>
@@ -158,13 +188,16 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
       ${observationHtml(draft.observation)}
       <button type="button" data-assessment-share ${busy || conflict ? 'disabled' : ''}>${attempted ? 'Retry same assessment' : 'Share assessment'}</button>` : `
       ${student ? `<button type="button" data-assessment-new ${busy ? 'disabled' : ''}>New assessment</button>` : '<p>See what your connected coaches observed and what to practice next.</p>'}
-      <div class="tiq-assessment-history">${rows.map(({ createdAt, coach, observation }, index) => `
+      <div class="tiq-assessment-history">${rows.map(({ id, createdAt, coach, observation }, index) => `
         <details ${index === 0 ? 'open' : ''}><summary>${student ? assessmentContexts[observation.context] : html(coach)}<small>
           ${html(new Date(createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))}${student ? '' : ' · ' + assessmentContexts[observation.context]}
-        </small></summary>${observationHtml(observation, self)}</details>`).join('') || (!busy && !notice ? '<p>No shared assessments yet.</p>' : '')}</div>
+        </small></summary>${observationHtml(observation, self)}
+        ${student?.linked && student.status !== 'paused' && observation.focus
+          ? assignedDrills.has(id) ? '<p>Drill assigned</p>' : `<button type="button" data-assign-drill="${html(id)}" ${busy ? 'disabled' : ''}>Assign drill</button>`
+          : ''}</details>`).join('') || (!busy && !notice ? '<p>No shared assessments yet.</p>' : '')}</div>
       <button type="button" class="secondary" data-assessment-refresh ${busy ? 'disabled' : ''}>Refresh assessments</button>`
     dialog.innerHTML = `<header class="coach-workspace-header"><small>${student ? html(student.name) : 'Starter TiQ'}</small><h2 tabindex="-1">${heading}</h2>
-      <button type="button" data-assessment-close class="secondary" ${busy && view !== 'list' ? 'disabled' : ''}>${view === 'list' ? 'Close' : 'Back'}</button></header>
+      <button type="button" data-assessment-close class="secondary" ${busy && (view !== 'list' || assigningDrill) ? 'disabled' : ''}>${view === 'list' ? 'Close' : 'Back'}</button></header>
       ${content}<p role="status">${html(notice)}</p>
       <dialog class="native-coach-decision" data-assessment-discard aria-label="Leave assessment"><h2>Leave assessment?</h2><p></p>
         <button type="button" data-assessment-keep>Keep editing</button><button type="button" class="secondary" data-assessment-leave>Leave assessment</button></dialog>`
@@ -197,6 +230,9 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
     })
     dialog.querySelector('[data-assessment-share]')?.addEventListener('click', () => { void share() })
     dialog.querySelector('[data-assessment-refresh]')?.addEventListener('click', () => { void load() })
+    dialog.querySelectorAll<HTMLButtonElement>('[data-assign-drill]').forEach(button => {
+      button.onclick = () => { void assignDrill(button.dataset.assignDrill ?? '') }
+    })
     if (focus) {
       dialog.scrollTo(0, 0)
       dialog.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true })

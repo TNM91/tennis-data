@@ -35,7 +35,8 @@ it('keeps pending scores private, returns corrections, and posts one official re
     await db.exec(await readFile('supabase/migrations/20261113000700_native_league_score_outcomes.sql', 'utf8'))
     await db.exec(await readFile('supabase/migrations/20261113000800_native_league_match_day.sql', 'utf8'))
     await db.exec(await readFile('supabase/migrations/20261113000900_native_league_score_attention.sql', 'utf8'))
-    await db.exec(await readFile('supabase/migrations/20261113001000_native_league_postponement.sql', 'utf8'))
+    // Keep dollar-quoted comparison strings consistent on Windows.
+    await db.exec((await readFile('supabase/migrations/20261113001000_native_league_postponement.sql', 'utf8')).replaceAll('\r\n', '\n'))
     for(const migration of ['20260902190000_archive_finished_team_seasons','20260902191500_reopen_tiq_league_when_schedule_changes',
       '20261115000800_native_published_league_operations','20261115000900_native_individual_league_scores']){
       await db.exec(await readFile('supabase/migrations/'+migration+'.sql','utf8'))

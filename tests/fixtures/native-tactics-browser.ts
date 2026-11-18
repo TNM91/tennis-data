@@ -2,9 +2,15 @@ import {coachOwner} from './native-coach'
 import {createTacticalTemplate} from '../../lib/tactical/templates'
 import {readTacticsIntent} from '../../lib/native-tactics-contract'
 import type {TacticalScenarioSummary} from '../../lib/tactical/scenarioStorage'
+import type {TacticalBoardReference} from '../../lib/tactical/board-reference'
 const saved={...createTacticalTemplate('poach'),id:'saved-poach',name:'Saturday poach pattern'}
 const rows:TacticalScenarioSummary[]=[{id:saved.id,name:saved.name,focus:saved.focus,scenario:saved,updatedAt:'2026-10-31T06:00:00.123456Z'}]
 let lose=false,writes=0
+export function tacticsPreviewCopy(reference:TacticalBoardReference){
+ const row=rows.find(item=>item.id===reference.id&&item.updatedAt===reference.updatedAt)
+ if(!row)return null
+ return {reference,board:{...row.scenario,note:'',cues:row.scenario.cues.filter(cue=>cue.role==='player')}}
+}
 export function tacticsPreviewControls(host:HTMLElement){host.insertAdjacentHTML('beforeend','<button type="button" data-tactics-lose>Lose next tactics confirmation</button><p data-tactics-writes>Tactics writes: 0</p>');host.querySelector('[data-tactics-lose]')?.addEventListener('click',()=>{lose=true})}
 export function tacticsPreviewRequest(method:string,url:URL,body?:BodyInit|null){
  let id=url.searchParams.get('id')||''

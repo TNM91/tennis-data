@@ -2056,6 +2056,11 @@ dialog.team-chat-icon-dialog[open] {
 .team-lineup-editor .lineup-court { margin:0 0 12px;padding:0 12px 12px;border-color:var(--premium-line); }
 .team-lineup-editor legend { padding-inline:6px;color:var(--premium-lime);font-weight:650; }
 .team-lineup-editor .team-result-actions { margin-block-end:8px; }
+.team-lineup-tactics {
+ display:grid;gap:8px;padding:12px 0;margin:12px 0;border-block:1px solid var(--premium-line);
+}
+.team-lineup-tactics :is(h3,h4,p,button) { margin:0; }
+.team-lineup-tactics select { max-inline-size:100%; }
 body.native-chat-conversation .team-bubble:not(.team-bubble-mine):not(.team-bubble-match) { background:var(--premium-surface);border:1px solid var(--premium-line); }
 body.native-chat-conversation .team-bubble-mine { background:linear-gradient(130deg,#254478,var(--premium-raised));border:1px solid #45689b; }
 body.native-chat-conversation .team-bubble p { font-size:1rem;line-height:1.55; }

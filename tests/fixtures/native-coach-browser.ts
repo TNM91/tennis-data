@@ -1,9 +1,12 @@
 import {buildCoachLessonRecipe} from '../../lib/coach-lesson-recipe'
 import {coachSnapshot} from './native-coach'
-import {buildCoachAssignmentReview, type CoachAssignment} from '../../lib/coach-storage'
+import {buildCoachAssignmentReview, buildPlayerAssignmentCompletion, type CoachAssignment} from '../../lib/coach-storage'
 import {readCoachCreate, readCoachReview,readCoachEdit} from '../../lib/native-coach-contract'
 import {readCoachConnectionIntent,type CoachConnection} from '../../lib/native-coach-connection-contract'
 import {readCoachInviteIntent, type CoachInvitation} from '../../lib/native-coach-invite-contract'
+import {tiqSkills} from '../../lib/tiq-assessment-skills'
+import {omitAssignmentBoard} from '../../lib/shared-tactics'
+import {tacticsPreviewCopy} from './native-tactics-browser'
 const seed = coachSnapshot('student-one')
 const students = seed.students
 const assignments = new Map<string, CoachAssignment[]>([['student-one', seed.detail!.assignments]])
@@ -57,7 +60,11 @@ export function coachPreviewRequest(method: string, url: URL, body?: BodyInit | 
    } else {
     selected = draft.student
     const rows = assignments.get(selected) || []
-    if (!rows.some(a => a.id === draft.id)) rows.unshift({id: draft.id, studentLinkId: selected, title: draft.title, focus: draft.focus, dueDate: draft.dueDate, status: draft.status, assignment: {...(draft.recipe?buildCoachLessonRecipe(draft.recipe).assignment:{}),detail: draft.instructions, expectedEvidence: draft.evidence}, updatedAt: new Date().toISOString()})
+    const tacticsBoard=draft.tactics?tacticsPreviewCopy(draft.tactics):null
+    if(draft.tactics&&!tacticsBoard)return Response.json({}, {status:409})
+    const drill=tiqSkills.find(skill=>skill.id===draft.assessmentDrill)?.drill
+    if (!rows.some(a => a.id === draft.id)) rows.unshift({id: draft.id, studentLinkId: selected, title: draft.title, focus: draft.focus, dueDate: draft.dueDate, status: draft.status, assignment: {...(draft.recipe?buildCoachLessonRecipe(draft.recipe).assignment:{}),detail: draft.instructions, expectedEvidence: draft.evidence,
+      ...(tacticsBoard?{tactics:draft.tactics,tacticsBoard}:{}),...(drill?{cardId:drill.id}:{})}, updatedAt: new Date().toISOString()})
     assignments.set(selected, rows)
    }
   } else {
@@ -84,5 +91,30 @@ export function coachPreviewRequest(method: string, url: URL, body?: BodyInit | 
  }
  const s = students.find(s => s.id === selected)
  if (selected && !s) return Response.json({ok: false}, {status: 404})
- return Response.json({ok: true, owner: seed.owner, checkedAt: new Date().toISOString(), students, moreStudents: false, detail: selected && s ? {student: s, assignments: assignments.get(selected) || [], moreAssignments: false} : null})
+ return Response.json({ok: true, owner: seed.owner, checkedAt: new Date().toISOString(), students, moreStudents: false, detail: selected && s ? {student: s, assignments: (assignments.get(selected) || []).map(omitAssignmentBoard), moreAssignments: false} : null})
+}
+
+export function coachPreviewPlayerPractice(owner:string, url:URL, method:string, body?:BodyInit|null) {
+ if(url.pathname!=='/api/player/coach-assignments')return null
+ const player='22222222-2222-4222-8222-222222222222'
+ const student=seed.detail!.student
+ const rows=assignments.get(student.id) || []
+ const practice=rows.filter(row=>row.status!=='draft'&&(row.assignment.tacticsBoard||row.assignment.cardId==='serve-target-call'))
+ if(!practice.length)return null
+ const id=url.searchParams.get('board')
+ if(owner!==player)return id?Response.json({}, {status:404}):null
+ if(id){
+  const board=practice.find(row=>row.id===id)?.assignment.tacticsBoard
+  return board?Response.json({ok:true,assignmentId:id,tactics:board}):Response.json({}, {status:404})
+ }
+ if(method==='PATCH'){
+  const draft=JSON.parse(String(body))
+  const row=practice.find(item=>item.id===draft.assignmentId)
+  if(!row||row.updatedAt!==draft.expectedUpdatedAt||row.status!=='assigned')return Response.json({}, {status:409})
+  row.assignment=buildPlayerAssignmentCompletion(row.assignment,draft)
+  row.status='completed';row.updatedAt=new Date().toISOString()
+  return Response.json({ok:true,assignment:omitAssignmentBoard(row)})
+ }
+ return Response.json({ok:true,coachLinks:[{id:student.id,playerUserId:player,identitySlug:student.identity,status:'active'}],
+  assignments:practice.map(omitAssignmentBoard)})
 }

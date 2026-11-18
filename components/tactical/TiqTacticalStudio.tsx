@@ -1247,7 +1247,10 @@ export default function TiqTacticalStudio() {
                   <span>{item.focus} · {new Date(item.updatedAt).toLocaleDateString()}</span>
                 </span>
               </button>
-              <button className={styles.libraryDelete} onClick={() => deleteCloudScenario(item.id)} type="button">Delete</button>
+              <div className={styles.libraryActions}>
+                {platform ? <button className={styles.libraryDelete} onClick={event => platform.assignBoard(item, event.currentTarget)} type="button">Assign to player</button> : null}
+                <button className={styles.libraryDelete} onClick={() => deleteCloudScenario(item.id)} type="button">Delete</button>
+              </div>
             </div>
           )) : <p className={styles.scenarioNote}>{cloudStatus}</p>}
         </div>

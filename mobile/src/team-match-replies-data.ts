@@ -2,6 +2,7 @@ import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {readTeamMatchReplies,type TeamMatchReplies,type TeamMatchReplyChange} from '../../lib/team-match-replies-contract'
 import {readSavedTeamLineup,type TeamLineupChange} from '../../lib/team-match-lineup-contract'
+import {sameTacticalBoardReference} from '../../lib/tactical/board-reference'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 import {TeamNextMatchError,type TeamMatchRoom} from './team-room-data'
 
@@ -49,6 +50,7 @@ export async function saveTeamMatchLineupRequest(client:SupabaseClient,owner:str
  try{
   const saved=readSavedTeamLineup(reply.lineup)
   if(saved?.version!==change.version||JSON.stringify(saved.courts)!==JSON.stringify(change.courts))throw Error()
+  if(change.tactics!==undefined&&!sameTacticalBoardReference(change.tactics,saved.tactics?.reference??null))throw Error()
   return saved
  }catch{throw unavailable()}
 }

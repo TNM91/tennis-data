@@ -25,10 +25,11 @@ it('publishes and moves the same match, checks court and participant overlaps, a
       grant select on public.native_first_party_updates, public.internal_notifications to authenticated;
     `)
     await db.exec(await readFile('supabase/migrations/20261113000400_native_first_party_league_schedule.sql', 'utf8'))
+    // Keep dollar-quoted comparison strings consistent on Windows.
     for (const migration of [
       '20261113000600_native_league_score_review', '20261113000700_native_league_score_outcomes',
       '20261113000900_native_league_score_attention', '20261113001000_native_league_postponement',
-    ]) await db.exec(await readFile('supabase/migrations/'+migration+'.sql', 'utf8'))
+    ]) await db.exec((await readFile('supabase/migrations/'+migration+'.sql', 'utf8')).replaceAll('\r\n', '\n'))
     await db.exec(`
       create function public.fixture_clock() returns trigger language plpgsql as $$begin new.updated_at=clock_timestamp();return new;end$$;
       create trigger fixture_clock before update on public.tiq_league_schedule_items for each row execute function public.fixture_clock();

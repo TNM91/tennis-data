@@ -3,6 +3,7 @@ const state = vi.hoisted(() => ({allowed: 200, client: {} as unknown}))
 vi.mock('../coach-api-auth', () => ({getCoachApiAuth: async () => state.allowed === 200 ? {ok: true, supabase: state.client, userId: '11111111-1111-4111-8111-111111111111'} : {ok: false, response: Response.json({ok: false}, {status: state.allowed})}}))
 import {GET, POST, PATCH} from '../../app/api/mobile/coach/route'
 import {coachOwner, coachRevision, coachStudentDraft, coachAssignmentDraft, coachReviewDraft} from '../../tests/fixtures/native-coach'
+import {createTacticalTemplate} from '../tactical/templates'
 type Row = Record<string, unknown>
 let tables: Record<string, Row[]>, calls: {table: string; operation: string; filters: [string, unknown][]; payload?: Row}[], race = false, failure = false
 function client() {return {from: (table: string) => {
@@ -51,6 +52,34 @@ it('requires a current owned active student before inserting an assignment', asy
  expect(calls.some(c => c.operation === 'insert')).toBe(false)
  tables.coach_player_links[0].status = 'active'; expect((await POST(request('POST', coachAssignmentDraft))).status).toBe(200)
  expect(calls.find(c => c.operation === 'insert')!.payload).toMatchObject({coach_user_id: coachOwner, student_link_id: 'student-one', assignment_json: {detail: coachAssignmentDraft.kind === 'assignment' ? coachAssignmentDraft.instructions : '', expectedEvidence: 'Five patterns'}})
+})
+it('copies an exact owned board for a connected student and keeps private notes out of the assignment', async () => {
+ const board = {...createTacticalTemplate('crosscourt'), note: 'Private practice note'}
+ board.cues.push({id: 'private-cue', role: 'coach', text: 'Private cue'})
+ const tactics = {id: board.id, updatedAt: coachRevision}
+ const draft = {...coachAssignmentDraft, tactics}
+ tables.tactical_scenarios = [{id: board.id, user_id: 'other', updated_at: coachRevision, scenario_json: board}]
+ expect((await POST(request('POST', draft))).status).toBe(409)
+ tables.tactical_scenarios[0].user_id = coachOwner
+ tables.coach_player_links[0].player_user_id = null
+ expect((await POST(request('POST', draft))).status).toBe(409)
+ tables.coach_player_links[0].player_user_id = 'linked-player'
+ expect((await POST(request('POST', {...draft, tactics: {...tactics, updatedAt: '2026-10-29T00:00:00Z'}}))).status).toBe(409)
+ const response = await POST(request('POST', draft))
+ expect(response.status).toBe(200)
+ const receipt = (await response.json()).detail.assignments[0].assignment
+ expect(receipt).toMatchObject({tactics})
+ expect(receipt).not.toHaveProperty('tacticsBoard')
+ expect(tables.coach_assignments[0].assignment_json).toMatchObject({
+  tactics, tacticsBoard: {reference: tactics, board: {note: '', cues: board.cues.filter(cue => cue.role === 'player')}},
+ })
+ expect((await POST(request('POST', draft))).status).toBe(409)
+ expect(tables.coach_assignments).toHaveLength(2)
+})
+it('uses the Starter TiQ drill to create a regular check-in assignment', async () => {
+ const response = await POST(request('POST', {...coachAssignmentDraft, assessmentDrill: 'serve'}))
+ expect(response.status).toBe(200)
+ expect((await response.json()).detail.assignments[0]).toMatchObject({status: 'assigned', assignment: {cardId: 'serve-target-call'}})
 })
 it('reviews only an unchanged completed check-in and preserves player proof and future fields', async () => {
  expect((await PATCH(request('PATCH', coachReviewDraft))).status).toBe(200)
