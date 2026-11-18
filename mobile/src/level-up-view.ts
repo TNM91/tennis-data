@@ -1,6 +1,7 @@
 import {openWeeklyCoachReply} from './weekly-coach-reply-view'
 import {openCoachCheckIn} from './coach-check-in-view'
 import {findCoachPracticeStats} from './coach-check-in'
+import {getCoachAssignmentSummary,getPlayerAssignmentCheckIn} from '../../lib/coach-storage'
 import {newWeeklyChange,completionWeeklyChange,saveWeeklyChange,checkWeeklyChange,findSavedWeeklyPlan,weeklyChangeMatches,WeeklyChangeError,type WeeklyChange} from './weekly-plan-actions'
 import {Browser} from './native-browser'
 import {SAVED_WEEK_LIST_LIMIT,loadTrainingPlans,loadTrainingWeek,loadTrainingCoachWork,loadAssignmentTactics,type TrainingCoachWork} from './training-inbox-data'
@@ -658,14 +659,10 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const directionWeek=dialog.querySelector<HTMLButtonElement>('[data-direction-week]')
   if(directionWeek)directionWeek.onclick=()=>{void openDirectionWeek(directionWeek)}
   dialog.querySelectorAll<HTMLButtonElement>('[data-week-reply]').forEach(b=>{b.onclick=()=>{if(!active()||replyEditor?.isOpen())return;const plan=plans?.find(p=>p.id===b.dataset.weekReply);if(!plan)return;replyEditor=openWeeklyCoachReply(client,owner,active,plan,saved=>{notice=saved?'Your reply is saved with this week.':'Review your latest coach update below.';plansVersion++;plansBusy=false;void readPlans().then(()=>{if(active()){const region=dialog.querySelector<HTMLElement>('[data-inbox-region=weeks]');region?.scrollIntoView({block:'start'});region?.focus({preventScroll:true})}})})}})
-  dialog.querySelectorAll<HTMLButtonElement>('[data-assignment-tactics]').forEach(button=>{button.onclick=()=>{
-   const id=button.dataset.assignmentTactics
-   if(id&&active()&&!tacticsViewer?.isOpen())tacticsViewer=openSharedTactics(button,active,()=>loadAssignmentTactics(client,owner,active,id))
-  }})
-  dialog.querySelectorAll<HTMLButtonElement>('[data-coach-checkin]').forEach(button=>{button.onclick=()=>{
+  const openAssignmentCheckIn=(id:string,button:HTMLButtonElement)=>{
    if(!active()||coachEditor?.isOpen())return
-   const assignment=coachWork?.assignments.find(a=>a.id===button.dataset.coachCheckin),link=coachWork?.links.find(l=>l.id===assignment?.studentLinkId)
-   if(!assignment||!link)return
+   const assignment=coachWork?.assignments.find(a=>a.id===id),link=coachWork?.links.find(l=>l.id===assignment?.studentLinkId)
+   if(!assignment||!link||assignment.status!=='assigned'||getPlayerAssignmentCheckIn(assignment.assignment))return
    const practice=findCoachPracticeStats(assignment,history??[],owner)
    button.focus({preventScroll:true})
    coachEditor=openCoachCheckIn(client,owner,active,assignment,link,saved=>{
@@ -673,6 +670,19 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     notice=saved?'Check-in sent to your coach.':'Review your latest coach assignments.';coachVersion++;coachBusy=false;coachWork=null
     void readCoach().then(()=>{if(active()&&phase==='inbox'&&inboxSection==='coach')dialog.querySelector<HTMLElement>('[data-inbox-region="coach"]')?.focus()})
    },practice)
+  }
+  dialog.querySelectorAll<HTMLButtonElement>('[data-assignment-tactics]').forEach(button=>{button.onclick=()=>{
+   const id=button.dataset.assignmentTactics,assignment=coachWork?.assignments.find(a=>a.id===id)
+   if(!id||!assignment||!active()||tacticsViewer?.isOpen())return
+   const checkedIn=getPlayerAssignmentCheckIn(assignment.assignment)
+   tacticsViewer=openSharedTactics(button,active,()=>loadAssignmentTactics(client,owner,active,id),{
+    title:assignment.title,cue:getCoachAssignmentSummary(assignment.assignment).detail||assignment.focus,
+    checkIn:assignment.status==='assigned'&&!checkedIn?()=>openAssignmentCheckIn(id,button):undefined,
+    completion:checkedIn?'Check-in recorded':assignment.status==='completed'?'Completed':undefined,
+   })
+  }})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-coach-checkin]').forEach(button=>{button.onclick=()=>{
+   if(button.dataset.coachCheckin)openAssignmentCheckIn(button.dataset.coachCheckin,button)
   }})
   dialog.querySelectorAll<HTMLButtonElement>('[data-week-mark]').forEach(b=>{b.onclick=()=>{if(!active())return;try{const [planId,repId]=JSON.parse(b.dataset.weekMark||'[]') as string[],plan=plans?.find(p=>p.id===planId);if(!plan)return;weekPending=completionWeeklyChange(plan,repId,b.dataset.weekCompleted==='true');weekAttempted=false;weekConflict=false;weekNotice='';render();focus()}catch{notice='Refresh saved weeks before changing a rep.';render()}}})
   const catalogResults=dialog.querySelector<HTMLElement>('[data-cards]')

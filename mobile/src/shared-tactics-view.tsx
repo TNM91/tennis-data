@@ -13,8 +13,9 @@ function subscribe(callback: () => void) {
   return () => query.removeEventListener('change', callback)
 }
 const noEdit = () => {}
+type TacticsAssignment = {title: string; cue: string; checkIn?: () => void; completion?: 'Completed' | 'Check-in recorded'}
 
-function SharedCourt({board}: {board: TacticalScenario}) {
+function SharedCourt({board, assignment}: {board: TacticalScenario; assignment?: TacticsAssignment}) {
   const horizontal = useSyncExternalStore(subscribe, landscape)
   const [step, setStep] = useState<number | null>(null)
   const [paused, setPaused] = useState(false)
@@ -41,10 +42,19 @@ function SharedCourt({board}: {board: TacticalScenario}) {
       }}>{currentPath ? paused ? 'Resume' : 'Pause' : step === null ? 'Play pattern' : 'Replay'}</button>
     </div>}
     {board.cues.length > 0 && <ul className="shared-tactics-cues">{board.cues.map(cue => <li key={cue.id}>{cue.text}</li>)}</ul>}
+    {assignment && <div className="shared-tactics-assignment" role="group" aria-label="Coach assignment">
+      <details>
+        <summary>Coach’s practice cue</summary>
+        <div><strong>{assignment.title}</strong>{assignment.cue && <p>{assignment.cue}</p>}</div>
+      </details>
+      {assignment.checkIn
+        ? <button type="button" onClick={assignment.checkIn}>Write check-in</button>
+        : assignment.completion && <span>{assignment.completion}</span>}
+    </div>}
   </>
 }
 
-export function openSharedTactics(trigger: HTMLButtonElement, current: () => boolean, getBoard: () => Promise<TacticalScenario>) {
+export function openSharedTactics(trigger: HTMLButtonElement, current: () => boolean, getBoard: () => Promise<TacticalScenario>, assignment?: TacticsAssignment) {
   const dialog = document.createElement('dialog')
   dialog.className = 'native-coach-screen native-tactics-screen shared-tactics-dialog'
   dialog.setAttribute('aria-label', 'Shared tactics board')
@@ -70,7 +80,14 @@ export function openSharedTactics(trigger: HTMLButtonElement, current: () => boo
   void getBoard().then(board => {
     if (!open || !current()) return
     heading.textContent = board.name
-    root.render(<SharedCourt board={board} />)
+    root.render(<SharedCourt board={board} assignment={assignment && {
+      ...assignment,
+      checkIn: assignment.checkIn ? () => {
+        if (!open || !current()) return
+        dispose()
+        if (current()) assignment.checkIn?.()
+      } : undefined,
+    }} />)
   }).catch(() => {
     if (open && current()) root.render(<p role="status">This board couldn’t open. Close and try again.</p>)
   })

@@ -37,9 +37,9 @@ async function open(page:Page,large=false,studioScreenshot?:string){
  const d=page.getByRole('dialog',{name:'Tactics',exact:true});await expect(d.locator('[data-tiq-studio]')).toBeVisible();return d
 }
 async function fits(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await page.getByRole('dialog',{name:'Tactics',exact:true}).evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)}
-test('coach assigns a saved board and their player plays the pattern and checks in',async({page},info)=>{
- await page.setViewportSize({width:390,height:844})
- const d=await open(page)
+for(const width of [320,390])test('coach assigns a saved board and their player plays the pattern and checks in at '+width+'px',async({page},info)=>{
+ await page.setViewportSize({width,height:844})
+ const d=await open(page,width===320)
  await d.getByRole('button',{name:'Saved',exact:true}).click()
  await d.getByRole('button',{name:'Assign to player',exact:true}).click()
  const form=page.getByRole('dialog',{name:'Assign tactics board',exact:true})
@@ -56,11 +56,21 @@ test('coach assigns a saved board and their player plays the pattern and checks 
  const inbox=page.getByRole('dialog',{name:'Level Up training',exact:true})
  await expect(inbox).toContainText('Call the poach before the serve.')
  const opener=inbox.getByRole('button',{name:/Open tactics board Saturday poach pattern/})
+ const writes=await page.locator('[data-coach-writes]').textContent()
  await opener.click()
  const viewer=page.getByRole('dialog',{name:'Shared tactics board',exact:true})
  await expect(viewer.getByRole('heading',{name:'Saturday poach pattern',exact:true})).toBeVisible()
  await expect(viewer.getByTestId('tiq-court-surface')).toBeVisible()
  expect(await viewer.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ const assignment=viewer.getByRole('group',{name:'Coach assignment',exact:true})
+ const checkInAction=assignment.getByRole('button',{name:'Write check-in',exact:true})
+ await expect(checkInAction).toBeVisible()
+ const actionBounds=(await checkInAction.boundingBox())!
+ expect(actionBounds.height).toBeGreaterThanOrEqual(44)
+ expect(actionBounds.y+actionBounds.height).toBeLessThanOrEqual(844)
+ await assignment.locator('summary').click()
+ await expect(assignment).toContainText('Call the poach before the serve.')
+ await assignment.locator('summary').click()
  await page.screenshot({path:info.outputPath('shared-tactics.png'),scale:'css'})
  await viewer.getByRole('button',{name:'Play pattern',exact:true}).click()
  await expect(viewer.locator('[data-tiq-playback-marker]')).toBeVisible()
@@ -73,14 +83,29 @@ test('coach assigns a saved board and their player plays the pattern and checks 
  }).toBe(true)
  await viewer.getByRole('button',{name:'Close',exact:true}).click()
  await expect(opener).toBeFocused()
- await inbox.getByRole('button',{name:/Open check-in/}).click()
+ await expect(page.locator('[data-coach-writes]')).toHaveText(writes!)
+ await expect(inbox.getByRole('button',{name:/Open check-in/})).toBeVisible()
+ await opener.click()
+ await checkInAction.click()
+ await expect(viewer).toHaveCount(0)
  const checkIn=page.getByRole('dialog',{name:'Coach assignment check-in',exact:true})
+ await expect(checkIn).toBeVisible()
+ await expect(checkIn.getByRole('heading',{name:'Saturday poach pattern',exact:true})).toBeVisible()
+ await expect(page.locator('[data-coach-writes]')).toHaveText(writes!)
  await checkIn.getByLabel('Your recap',{exact:true}).fill('We called the poach on five points.')
  await checkIn.getByRole('button',{name:'Review check-in',exact:true}).click()
  await checkIn.getByRole('button',{name:'Send check-in',exact:true}).click()
  await expect(inbox.getByText('Check-in sent to your coach.',{exact:true})).toBeVisible()
  await inbox.locator('[data-inbox-fold="completed"] summary').click()
  await expect(opener).toBeVisible()
+ await opener.click()
+ await expect(viewer.getByText('Check-in recorded',{exact:true})).toBeVisible()
+ await expect(checkInAction).toHaveCount(0)
+ await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-refresh]')!.click())
+ await expect(viewer.getByText('Check-in recorded',{exact:true})).toBeVisible()
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:(restore:boolean)=>void}).switchNavigationOwner(true))
+ await expect(viewer).toHaveCount(0)
+ await expect(inbox).toHaveCount(0)
 })
 for(const width of [320,390])test('full-screen tactical engine, touch controls and saved library at '+width+'px',async({page},info)=>{
  if(width===390) await page.addInitScript(()=>{
@@ -210,6 +235,20 @@ test('plays saved shots and movement in order, with pause, replay and reduced mo
  await d.getByRole('button',{name:'Court',exact:true}).click()
  const step=controls.getByRole('status')
  const marker=d.locator('[data-tiq-playback-marker]')
+ await controls.evaluate(element=>{
+  const controls=element as HTMLElement,stage=controls.closest('[data-tiq-board-stage]')!
+  const trace:string[][]=[]
+  // Observe every rendered step rather than trying to poll each short animation in time.
+  const observer=new MutationObserver(()=>{
+   const label=controls.querySelector('[role=status]')?.textContent??''
+   const kind=stage.querySelector('[data-tiq-playback-marker]')?.getAttribute('data-tiq-playback-marker')
+   if(kind&&/^\d+ of \d+/.test(label)&&trace.at(-1)?.[0]!==label){
+    trace.push([label,kind]);controls.dataset.playbackTrace=JSON.stringify(trace)
+   }
+   if(label==='Pattern complete')observer.disconnect()
+  })
+  observer.observe(stage,{subtree:true,childList:true,characterData:true})
+ })
  await controls.getByRole('button',{name:'Play pattern',exact:true}).click()
  await expect(step).toHaveText('1 of 4 · Serve')
  await expect(marker).toHaveAttribute('data-tiq-playback-marker','ball')
@@ -220,15 +259,16 @@ test('plays saved shots and movement in order, with pause, replay and reduced mo
  await expect.poll(()=>marker.evaluate(element=>element.getAnimations()[0]?.playState)).toBe('paused')
  await expect.poll(()=>marker.evaluate(element=>element.getAnimations()[0]?.pending)).toBe(false)
  const paused=await marker.evaluate(element=>element.getAnimations()[0]?.currentTime)
+ const pausedStep=await step.textContent()
  await page.screenshot({path:info.outputPath('tactics-playback-paused.png'),scale:'css'})
  expect(await marker.evaluate(element=>element.getAnimations()[0]?.currentTime)).toBe(paused)
+ await expect(step).toHaveText(pausedStep!)
  await expect(d.getByTestId('tiq-token-server')).toBeDisabled()
  await controls.getByRole('button',{name:'Resume',exact:true}).click()
- for(const [label,kind] of [['2 of 4 · Return lane','ball'],['3 of 4 · Poach','move'],['4 of 4 · Cover','recover']]){
-  await expect(step).toHaveText(label)
-  await expect(marker).toHaveAttribute('data-tiq-playback-marker',kind)
- }
- await expect(step).toHaveText('Pattern complete')
+ await expect(step).toHaveText('Pattern complete',{timeout:10000})
+ expect(await controls.evaluate(element=>JSON.parse((element as HTMLElement).dataset.playbackTrace||'[]'))).toEqual([
+  ['1 of 4 · Serve','ball'],['2 of 4 · Return lane','ball'],['3 of 4 · Poach','move'],['4 of 4 · Cover','recover'],
+ ])
  await expect(d.locator('[data-tactical-path]')).toHaveCount(4)
  await expect(d.getByTestId('tiq-token-server')).toBeEnabled()
  await expect(page.locator('[data-tactics-writes]')).toHaveText('Tactics writes: 0')

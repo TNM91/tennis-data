@@ -365,13 +365,20 @@ dialog.native-tactics-screen[open]{
 }
 .native-tactics-screen[data-tactics-fullscreen] .native-coach-header{display:none}
 .shared-tactics-content{
- display:grid;grid-template-rows:minmax(150px,1fr) auto auto;gap:6px;
+ display:grid;grid-template-rows:minmax(150px,1fr);grid-auto-rows:auto;gap:6px;
  padding:6px max(6px,env(safe-area-inset-right)) 6px max(6px,env(safe-area-inset-left));
  overflow:auto;
 }
 .shared-tactics-content [data-tiq-native-canvas],.shared-tactics-content [data-tiq-pattern-playback]{grid-area:auto}
 .shared-tactics-content [data-tiq-pattern-playback] button{min-height:44px}
 .shared-tactics-cues{max-block-size:7rem;overflow:auto;margin:0;padding:8px 8px 8px 25px;color:var(--premium-copy)}
+.shared-tactics-assignment{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px;padding:8px 6px;border-block-start:1px solid var(--premium-line)}
+.shared-tactics-assignment details{margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.shared-tactics-assignment summary{min-block-size:44px;display:list-item;align-content:center;padding:8px 0;font-size:.875rem;font-weight:650;color:var(--premium-copy);cursor:pointer}
+.shared-tactics-assignment details>div{max-block-size:9rem;overflow:auto;padding:4px 0;color:var(--premium-copy);font-size:.875rem;line-height:1.5;overflow-wrap:anywhere}
+.shared-tactics-assignment details p{margin:6px 0 0;white-space:pre-wrap}
+.native-coach-screen .shared-tactics-assignment button{width:auto;min-block-size:44px;margin:0;padding:10px 14px;border-radius:var(--premium-row-radius,14px);font-size:.875rem;line-height:1.3;white-space:normal}
+.shared-tactics-assignment>span{align-self:center;color:var(--premium-lime);font-size:.8125rem;font-weight:650}
 .tactics-assignment-dialog label{display:grid;gap:5px;margin:10px 0}
 .tactics-assignment-dialog :is(input,select,textarea){width:100%;min-height:44px;font-size:1rem}
 .tactics-assignment-dialog [role=status]:empty{display:none}
