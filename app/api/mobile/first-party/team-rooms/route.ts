@@ -12,6 +12,8 @@ import { fixtureId, readTeamNextMatchChange } from '@/lib/team-fixtures-contract
 import { readSavedTeamLineup, readTeamLineupChange } from '@/lib/team-match-lineup-contract'
 import { readTeamMatchReplyChange } from '@/lib/team-match-replies-contract'
 import { readTeamResultChange } from '@/lib/team-results-contract'
+import { loadSharedTacticsBoard } from '@/lib/shared-tactics'
+import { sameTacticalBoardReference } from '@/lib/tactical/board-reference'
 import { checkTeamChatAccess } from '@/lib/team-chat-updates'
 import { loadTeamLogoUrls } from '@/lib/team-branding-storage'
 import { chatIconModeHeader, chatIconModePresets } from '@/lib/chat-icon-presets'
@@ -122,11 +124,12 @@ export async function GET(request: Request) {
       const access = await checkTeamChatAccess(service, owner, selected.roomId, false)
       if (!access.ok) return denied(access.status)
       const captain = selected.isCaptain && (await loadPlayerAccess(accountClient(supabaseKey, account.token), owner)).canUseCaptainWorkflow
-      const schedule = await loadManualTeamNextMatch(service, selected, captain)
+      const schedule = await loadManualTeamNextMatch(service, selected, true)
       if (!schedule.nextMatch || !schedule.revision || schedule.revision !== params.get('revision')) return denied(409)
       const replies = await loadTeamMatchReplies(service, selected, owner, schedule.revision, captain)
       return json({ ok: true, owner, roomId: selected.roomId, revision: schedule.revision,
-        replies: { ...replies, ...(captain && schedule.lineup ? { savedLineup: schedule.lineup } : {}) } })
+        replies: { ...replies, ...(captain && schedule.lineup ? { savedLineup: schedule.lineup }
+          : schedule.lineup?.tactics ? { sharedLineup: schedule.lineup } : {}) } })
     }
     if (op === 'next-match') {
       const access = await checkTeamChatAccess(service, owner, selected.roomId, false)
@@ -220,12 +223,21 @@ export async function POST(request: Request) {
     if (body.action === 'save_match_lineup') {
       if (selected.scheduleLeagueId || selected.roomId !== body.roomId || !selected.isCaptain) return denied(403)
       const change = readTeamLineupChange(body)
-      if (!change || Object.keys(body).length !== 9) return denied(400)
+      if (!change || Object.keys(body).length !== 9 + Number(change.tactics !== undefined)) return denied(400)
       const access = await loadPlayerAccess(accountClient(supabaseKey, account.token), owner)
       if (!access.canUseCaptainWorkflow) return denied(403)
-      const { data, error } = await service.rpc('save_native_team_lineup', {
+      let tactics = change.tactics ? await loadSharedTacticsBoard(service, owner, change.tactics) : null
+      if (change.tactics && !tactics) {
+        const latest = await loadManualTeamNextMatch(service, selected, true)
+        const existing = latest.lineup?.tactics
+        if (latest.revision !== change.revision || latest.lineup?.version !== change.version ||
+            !existing || !sameTacticalBoardReference(existing.reference, change.tactics)) return denied(409)
+        tactics = existing
+      }
+      const { data, error } = await service.rpc('save_native_team_lineup_with_tactics', {
         p_owner: owner, p_room: selected.roomId, p_team: selected.teamName, p_league: selected.leagueName, p_flight: selected.flight,
         p_revision: change.revision, p_expected: change.expected, p_version: change.version, p_courts: change.courts,
+        p_keep_tactics: change.tactics === undefined, p_tactics: tactics,
       }).retry(false)
       if (error || ![200, 400, 403, 409].includes(data?.status)) return denied(503)
       if (data.status !== 200) return denied(data.status)

@@ -8,6 +8,7 @@ import {GET as setup} from '../../app/api/mobile/first-party/setup/route'
 import {buildProductAccessState} from '../access-model-core'
 import type {CaptainInvite} from '../native-captain-invite-contract'
 import {privateTeamLeagueKey} from '../private-team-contract'
+import {createTacticalTemplate} from '../tactical/templates'
 
 const account = vi.hoisted(() => ({ verify: vi.fn(), client: vi.fn(), access: vi.fn() }))
 vi.mock('../mobile-account-auth', async original => ({
@@ -63,20 +64,23 @@ it('connects first-party invites, Team Rally, and captain fixtures to real team 
   await reset()
   await sql(readFileSync('supabase/migrations/20261110000500_native_first_party_captain_invites.sql', 'utf8'))
   await sql(readFileSync('supabase/migrations/20261110000700_native_team_next_fixtures.sql', 'utf8'))
+  await sql(readFileSync('supabase/migrations/20261118000100_native_lineup_tactics.sql', 'utf8'))
   await sql(readFileSync('supabase/migrations/20261110000800_native_private_teams.sql', 'utf8'))
   // This fixture exercises runtime permissions. The audited erasure fixture applies the complete migration.
   const resultPlayersSql = readFileSync('supabase/migrations/20261110001000_native_team_result_players.sql', 'utf8')
   await sql(resultPlayersSql.slice(resultPlayersSql.indexOf('create table'), resultPlayersSql.indexOf('do $catalog$')))
   expect((await db.query(`select has_table_privilege('authenticated','native_team_next_fixtures','select') as reading,
     has_function_privilege('authenticated','set_native_team_next_fixture(uuid,uuid,text,text,text,uuid,uuid,jsonb,boolean)','execute') as writing,
-    has_function_privilege('authenticated','save_native_team_lineup(uuid,uuid,text,text,text,uuid,uuid,uuid,jsonb)','execute') as lineup_writing`)).rows)
-    .toEqual([{ reading: false, writing: false, lineup_writing: false }])
+    has_function_privilege('authenticated','save_native_team_lineup(uuid,uuid,text,text,text,uuid,uuid,uuid,jsonb)','execute') as lineup_writing,
+    has_function_privilege('authenticated','save_native_team_lineup_with_tactics(uuid,uuid,text,text,text,uuid,uuid,uuid,jsonb,boolean,jsonb)','execute') as tactics_writing`)).rows)
+    .toEqual([{ reading: false, writing: false, lineup_writing: false, tactics_writing: false }])
   await sql(`
     alter table profiles add column linked_player_id uuid;
     alter table internal_conversations add column conversation_type text, add column subject text,
       add column created_by_user_id uuid, add column metadata jsonb;
     create table native_personal_matches(id uuid, owner_user_id uuid);
     create table level_up_sessions(id uuid, player_user_id uuid);
+    create table tactical_scenarios(id text primary key, user_id uuid, scenario_json jsonb, updated_at timestamptz);
     alter role service_role bypassrls;
     grant select, insert, update on all tables in schema public to service_role;
     set role service_role;
@@ -202,7 +206,7 @@ it('connects first-party invites, Team Rally, and captain fixtures to real team 
     const lineupVersion = '24242424-2424-4242-8242-242424242424'
     const lineup = { ...scope, action: 'save_match_lineup', roomId: room, revision: played, version: lineupVersion,
       expected: null, courts: [{ format: 'doubles', players: [owner, waiting] }] }
-    const savedLineup = { version: lineupVersion, courts: lineup.courts, names: { [owner]: 'Alex', [waiting]: 'Casey' } }
+    let savedLineup = { version: lineupVersion, courts: lineup.courts, names: { [owner]: 'Alex', [waiting]: 'Casey' } }
     expect((await publish(teammateToken, lineup)).status).toBe(403)
     expect((await publish(captainToken, { ...lineup, courts: [{ format: 'doubles', players: [owner, owner] }] })).status).toBe(400)
     expect((await publish(captainToken, { ...lineup, courts: [{ format: 'doubles', players: [owner, removedMember] }] })).status).toBe(409)
@@ -216,6 +220,29 @@ it('connects first-party invites, Team Rally, and captain fixtures to real team 
     const lineupRepliesUrl = fixtureUrl.replace('next-match', 'match-replies') + '&revision=' + played
     expect((await (await teamRooms(request(lineupRepliesUrl, captainToken))).json()).replies.savedLineup).toEqual(savedLineup)
     expect((await (await teamRooms(request(lineupRepliesUrl, teammateToken))).json()).replies).not.toHaveProperty('savedLineup')
+    expect((await (await teamRooms(request(lineupRepliesUrl, teammateToken))).json()).replies).not.toHaveProperty('sharedLineup')
+    const board = { ...createTacticalTemplate('poach'), id: 'doubles-poach', note: 'Private captain note' }
+    const reference = { id: board.id, updatedAt: '2026-11-18T10:00:00Z' }
+    await db.query('insert into tactical_scenarios values ($1,$2,$3,$4)', [board.id, owner, board, reference.updatedAt])
+    const shared = { ...lineup, expected: lineupVersion, version: crypto.randomUUID(), tactics: reference }
+    expect((await publish(teammateToken, shared)).status).toBe(403)
+    expect((await publish(captainToken, shared)).status).toBe(409)
+    await db.query('update tactical_scenarios set user_id=$1 where id=$2', [captain, board.id])
+    expect((await publish(captainToken, shared)).status).toBe(200)
+    const readShared = async () => (await (await teamRooms(request(lineupRepliesUrl, teammateToken))).json()).replies.sharedLineup
+    expect(await readShared()).toMatchObject({
+      ...savedLineup, version: shared.version, tactics: { reference, board: { id: board.id, name: board.name, note: '' } },
+    })
+    await db.query("update tactical_scenarios set updated_at=updated_at + interval '1 second' where id=$1", [board.id])
+    expect((await publish(captainToken, shared)).status).toBe(200)
+    expect((await publish(captainToken, { ...shared, tactics: null })).status).toBe(409)
+    const oldClient = { ...lineup, expected: shared.version, version: crypto.randomUUID() }
+    expect((await publish(captainToken, oldClient)).status).toBe(200)
+    expect(await readShared()).toMatchObject({ version: oldClient.version, tactics: { reference } })
+    const detach = { ...lineup, expected: oldClient.version, version: crypto.randomUUID(), tactics: null }
+    expect((await publish(captainToken, detach)).status).toBe(200)
+    expect(await readShared()).toBeUndefined()
+    savedLineup = { ...savedLineup, version: detach.version }
     expect((await publish(captainToken, postResult)).status).toBe(409)
     await db.query("update native_team_next_fixtures set fixture = jsonb_set(fixture,'{date}','\"2020-01-01\"'::jsonb) where room_id=$1", [room])
     expect((await results(captainToken)).results).toMatchObject({ canEdit: true, entries: [{ fixtureId: played, score: null, plannedLineup: savedLineup }] })
@@ -275,7 +302,9 @@ it('connects first-party invites, Team Rally, and captain fixtures to real team 
     expect((await publish(captainToken, { ...lineup, revision: upcoming })).status).toBe(200)
     await db.query("update native_team_next_fixtures set fixture = jsonb_set(fixture,'{date}','\"2020-02-01\"'::jsonb) where room_id=$1", [room])
     expect((await publish(captainToken, { ...postResult, fixtureId: upcoming, revision: one, won: 2, lost: 2 })).status).toBe(200)
-    expect((await results(captainToken)).results.entries[0]).toMatchObject({ fixtureId: upcoming, plannedLineup: savedLineup })
+    expect((await results(captainToken)).results.entries[0]).toMatchObject({
+      fixtureId: upcoming, plannedLineup: { ...savedLineup, version: lineupVersion },
+    })
     expect(await match()).toMatchObject({ nextMatch: null, revision: upcoming })
     expect((await results(teammateToken)).results).toMatchObject({ entries: [
       { fixtureId: upcoming, score: { won: 2, lost: 2 } }, { fixtureId: played, score: { won: 3, lost: 2 } },
@@ -343,6 +372,7 @@ async function firstPartyFixtureFetch(input: RequestInfo | URL, options?: Reques
       : name === 'set_native_team_next_fixture' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_expected', 'p_revision', 'p_fixture', 'p_archive']
       : name === 'reply_to_native_team_fixture' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_expected', 'p_operation', 'p_choice']
       : name === 'save_native_team_lineup' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_expected', 'p_version', 'p_courts']
+      : name === 'save_native_team_lineup_with_tactics' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_expected', 'p_version', 'p_courts', 'p_keep_tactics', 'p_tactics']
       : name === 'save_native_team_result' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_fixture', 'p_expected', 'p_revision', 'p_won', 'p_lost', 'p_allow_current', 'p_court_scores']
       : name === 'save_native_team_result_with_players' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_fixture', 'p_expected', 'p_revision', 'p_won', 'p_lost', 'p_allow_current', 'p_court_scores', 'p_court_players']
       : name === 'read_native_team_results' ? ['p_room', 'p_can_edit']
@@ -356,7 +386,7 @@ async function firstPartyFixtureFetch(input: RequestInfo | URL, options?: Reques
   }
   const tables = ['team_profile_links', 'internal_conversations', 'internal_conversation_participants',
     'team_room_member_removals', 'team_room_invites', 'profiles', 'native_personal_matches', 'level_up_sessions', 'native_team_next_fixtures',
-    'native_private_teams', 'native_team_fixture_replies']
+    'native_private_teams', 'native_team_fixture_replies', 'tactical_scenarios']
   const fields = url.searchParams.get('select') || ''
   if (!tables.includes(name) || !/^[a-z_,]+$/.test(fields)) throw Error('Unexpected fixture relation')
   const values: unknown[] = [], conditions: string[] = []
