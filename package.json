@@ -153,7 +153,7 @@
     "@types/react-dom": "^19",
     "esbuild": "0.28.2",
     "eslint": "^9",
-    "eslint-config-next": "16.4.6",
+    "eslint-config-next": "16.3.0",
     "supabase": "^2.98.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
