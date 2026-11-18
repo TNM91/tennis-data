@@ -63,6 +63,7 @@ jobs:
       - name: Check bundled client
         if: inputs.profile != 'first-party'
         run: |
+          node mobile/scripts/build-website-ui.mjs
           python3 mobile/scripts/test-ios-export-options.py
           npx vitest run lib/__tests__/mobile-account-links.test.ts lib/__tests__/mobile-match-details.test.ts lib/__tests__/mobile-recent-results.test.ts lib/__tests__/mobile-recent-form.test.ts lib/__tests__/mobile-player-connection.test.ts lib/__tests__/native-auth-storage.test.ts
           node --test mobile/scripts/ios-app-lock.test.mjs mobile/scripts/ios-purchases.test.mjs mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-icon.test.mjs
@@ -119,6 +120,7 @@ jobs:
           xcrun simctl bootstatus "$DEVICE" -b
           echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
       - name: Compile simulator app without signing
+        id: compile
         if: '!inputs.device_only'
         run: |
           xcodebuild -project "$TIQ_SIMULATOR_PROJECT" -scheme App \
@@ -149,7 +151,7 @@ jobs:
           xcrun simctl shutdown "$DEVICE"
       - name: Capture simulator diagnostics
         timeout-minutes: 2
-        if: always() && inputs.profile != 'first-party' && !inputs.device_only
+        if: always() && inputs.profile != 'first-party' && steps.compile.outcome != 'skipped'
         run: |
           mkdir -p mobile/ios-smoke-diagnostics
           xcrun simctl io booted screenshot mobile/ios-smoke-diagnostics/simulator.png || true
@@ -160,7 +162,7 @@ jobs:
             cp "$container"/Documents/tiq-storekit-smoke.json* mobile/ios-smoke-diagnostics/ 2>/dev/null || true
           done
       - name: Package simulator app
-        if: always() && inputs.profile != 'first-party' && !inputs.device_only
+        if: always() && inputs.profile != 'first-party' && steps.compile.outcome == 'success'
         run: |
           test -d mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
           ditto -c -k --sequesterRsrc --keepParent \
@@ -169,7 +171,7 @@ jobs:
           test ! -f mobile/ios-storekit-smoke.json || zip -j mobile/ios-simulator.zip mobile/ios-storekit-smoke.json
           zip -j mobile/ios-simulator.zip mobile/ios-smoke-diagnostics/*
       - name: Save simulator artifact
-        if: always() && inputs.profile != 'first-party' && !inputs.device_only
+        if: always() && inputs.profile != 'first-party' && steps.compile.outcome == 'success'
         uses: actions/upload-artifact@v6
         with:
           name: tenaceiq-ios-simulator-${{ github.sha }}
