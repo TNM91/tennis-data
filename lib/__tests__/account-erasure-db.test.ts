@@ -30,7 +30,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.exec('rollback; alter table profiles drop column unexpected')
   await db.exec(reconcile)
   await db.exec('alter table auth.users add column raw_user_meta_data jsonb; alter table public.team_chat_blocks add unique(owner_user_id,blocked_user_id)')
-  for(const file of ['20261113001100_native_player_chats.sql','20261114000300_native_direct_chat_hits.sql','20261114000800_native_chat_hit_scorecards.sql','20261114000900_native_chat_hit_rematch.sql','20261114001000_native_chat_recent_activity.sql']){
+  for(const file of ['20261113001100_native_player_chats.sql','20261114000300_native_direct_chat_hits.sql','20261114000800_native_chat_hit_scorecards.sql','20261114000900_native_chat_hit_rematch.sql','20261114001000_native_chat_recent_activity.sql','20261117000100_native_coach_assessments.sql']){
    await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
   }
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
@@ -65,6 +65,31 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.query("insert into internal_notifications(recipient_profile_id,actor_user_id,body) values($1,$2,'Private copied message')",[b,a])
   await db.query("insert into captain_roster_contacts(captain_user_id,email,phone) values($1,'a@example.test','15550000001'),($1,'b@example.test','15550000002')",[b])
   await db.query("insert into coach_player_links(id,coach_user_id,player_user_id,player_email) values('private-link',$1,$2,'a@example.test')",[b,a])
+  const assessment='66666666-6666-4666-8666-666666666667'
+  const observation={context:'lesson',skills:{serve:1},focus:'serve',note:'A private second-serve cue.'}
+  const share=(owner=b,data=observation,linkDate='2026-11-17 12:00:00Z')=>db.query('select share_native_coach_assessment($1,$2,$3,$4,$5) ok',
+    [owner,'private-link',linkDate,assessment,JSON.stringify(data)])
+  await db.query("update coach_player_links set status='active', updated_at='2026-11-17 12:00:00Z' where id='private-link'")
+  expect((await db.query("select has_function_privilege('authenticated','share_native_coach_assessment(uuid,text,timestamptz,uuid,jsonb)','EXECUTE') ok")).rows).toEqual([{ok:false}])
+  await db.exec('set role service_role')
+  expect((await share(a)).rows).toEqual([{ok:false}])
+  expect((await share(b,observation,'2026-11-17 11:59:59Z')).rows).toEqual([{ok:false}])
+  expect((await share()).rows).toEqual([{ok:true}])
+  expect((await share()).rows).toEqual([{ok:true}])
+  expect((await share(b,{...observation,note:'Changed content'})).rows).toEqual([{ok:false}])
+  const coachAssessments=(owner:string,student:string|null=null)=>db.query<{assessments:unknown[]}>('select native_coach_assessments($1,$2) assessments',[owner,student])
+  expect((await coachAssessments(a)).rows[0].assessments).toEqual([expect.objectContaining({id:assessment,observation})])
+  expect((await coachAssessments(a,'private-link')).rows[0].assessments).toEqual([])
+  expect((await coachAssessments(b,'private-link')).rows[0].assessments).toHaveLength(1)
+  expect((await coachAssessments(b)).rows[0].assessments).toEqual([])
+  await db.exec('reset role')
+  await db.query('insert into team_chat_blocks(owner_user_id,blocked_user_id) values($1,$2)',[a,b])
+  expect((await coachAssessments(a)).rows[0].assessments).toEqual([])
+  expect((await share()).rows).toEqual([{ok:false}])
+  await db.query('delete from team_chat_blocks where owner_user_id=$1 and blocked_user_id=$2',[a,b])
+  await db.query("update coach_player_links set status='paused' where id='private-link'")
+  expect((await coachAssessments(a)).rows[0].assessments).toEqual([])
+  await db.query("update coach_player_links set status='active' where id='private-link'")
   await db.query("insert into upgrade_requests(requester_email) values('a@example.test')")
   await db.query("insert into import_queue(payload) values($1)",[JSON.stringify({accountId:a,privateNote:'Remove'})])
   await db.query("insert into admin_audit_events(actor_user_id,target_label,metadata) values($1,'Private contact',$2)",[a,JSON.stringify({email:'a@example.test'})])
@@ -244,6 +269,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   expect(await action('erase_data',job.id,lease)).toMatchObject({ok:true})
   // Simulate the Auth provider's hard-delete transaction with the real reviewed FK actions.
   await db.exec('reset role');await db.query('delete from auth.users where id=$1',[a])
+  expect((await db.query('select id from private.native_coach_assessments')).rows).toEqual([])
   expect((await db.query('select lineup from native_team_next_fixtures order by room_id')).rows)
    .toEqual([{lineup:null},{lineup:retainedLineup}])
   expect((await db.query('select won,lost,court_scores,lineup from native_team_fixture_history')).rows)
