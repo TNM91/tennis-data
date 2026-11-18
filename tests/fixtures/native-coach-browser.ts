@@ -10,6 +10,16 @@ import {tacticsPreviewCopy} from './native-tactics-browser'
 const seed = coachSnapshot('student-one')
 const students = seed.students
 const assignments = new Map<string, CoachAssignment[]>([['student-one', seed.detail!.assignments]])
+if (new URL(location.href).searchParams.has('coach-review-queue')) {
+ const next = seed.detail!.assignments[0]
+ assignments.get('student-one')!.push(
+  {...next, id: 'assignment-older', title: 'First-ball recovery', updatedAt: '2026-11-01T12:00:00Z', assignment: {...next.assignment,
+   playerCheckIn: {recap: 'Recovered before the next ball.', evidence: '8/10', completedAt: '2026-10-29T12:00:00Z'}}},
+  {...next, id: 'assignment-reviewed', title: 'Reviewed serve practice', assignment: {...next.assignment,
+   coachReview: {note: 'Reviewed earlier.', nextFocus: 'Height', reviewedAt: '2026-10-31T00:00:00Z'}}},
+  {...next, id: 'assignment-archived', title: 'Archived practice', status: 'archived'},
+ )
+}
 let lose = false, race = false, denied = false, writes = 0
 const invitations = new Map<string, CoachInvitation[]>()
 let connection:CoachConnection={owner:seed.owner,name:'Alex Rivera',level:'4.0',message:'Bring your return practice check-in.',expiresAt:'2030-01-01T00:00:00Z',state:'ready',revision:'a'.repeat(64)}
