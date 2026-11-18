@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const route = readFileSync(join(process.cwd(), 'app/api/cron/tennisrecord-ratings/route.ts'), 'utf8')
-const config = readFileSync(join(process.cwd(), 'vercel.json'), 'utf8')
+const config = JSON.parse(readFileSync(join(process.cwd(), 'vercel.json'), 'utf8')) as { crons: { path: string }[] }
 
 describe('TennisRecord scheduled rating batch', () => {
   it('uses the protected cron route and keeps the circuit breaker in front of database work', () => {
@@ -12,9 +12,9 @@ describe('TennisRecord scheduled rating batch', () => {
     expect(route).toContain('runScheduledTennisRecordRatingBatch(service)')
   })
 
-  it('schedules the controlled rating batch separately from source checkpoints', () => {
-    expect(config).toContain('"path": "/api/cron/tennisrecord-ratings"')
-    expect(config).toContain('"schedule": "17 8 * * *"')
-    expect(config).toContain('"schedule": "*/3 * * * *"')
+  it('keeps legacy ratings and source collection off the production schedule during the iOS launch', () => {
+    const paths = config.crons.map(({ path }) => path)
+    expect(paths).not.toContain('/api/cron/tennisrecord-ratings')
+    expect(paths).not.toContain('/api/cron/tennisrecord-automation')
   })
 })
