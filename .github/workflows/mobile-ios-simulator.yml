@@ -8,7 +8,7 @@ on:
         description: App profile to compile and launch
         type: choice
         default: standard
-        options: [standard, first-party]
+        options: [standard, first-party, first-party-full]
       device_only:
         description: Compile the first-party Release target with the iPhone SDK and skip the simulator
         type: boolean
@@ -26,10 +26,10 @@ concurrency:
 jobs:
   simulator:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'ios-simulator'
-    runs-on: macos-15
+    runs-on: xcode-27
     timeout-minutes: 25
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
       TIQ_SIMULATOR_PROJECT: ${{ inputs.profile == 'first-party' && 'mobile/ios-first-party/App/App.xcodeproj' || 'mobile/ios/App/App.xcodeproj' }}
     steps:
       - name: Validate requested target
@@ -68,10 +68,16 @@ jobs:
           node --test mobile/scripts/ios-app-lock.test.mjs mobile/scripts/ios-purchases.test.mjs mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-icon.test.mjs
       - name: Bundle and generate iOS project
         if: inputs.profile != 'first-party'
+        env:
+          TIQ_SIMULATOR_PROFILE: ${{ inputs.profile }}
+          TIQ_IOS_DISTRIBUTION: internal
         run: |
-          npm run build:bundled --prefix mobile
+          set -euo pipefail
+          set --
+          if [[ "$TIQ_SIMULATOR_PROFILE" == first-party-full ]]; then set -- -- --first-party-full; fi
+          npm run build:bundled --prefix mobile "$@"
           npm run prepare:ios --prefix mobile
-          npm run check:ios --prefix mobile
+          npm run check:ios --prefix mobile "$@"
       - name: Bundle and verify first-party iOS project
         if: inputs.profile == 'first-party'
         run: |
@@ -106,8 +112,9 @@ jobs:
         timeout-minutes: 4
         run: |
           set -euo pipefail
+          RUNTIME="com.apple.CoreSimulator.SimRuntime.iOS-$(xcrun --sdk iphonesimulator --show-sdk-version | tr . -)"
           xcrun simctl list devices available --json > "$RUNNER_TEMP/tiq-simulators.json"
-          DEVICE=$(python3 -c 'import json,sys; devices=json.load(open(sys.argv[1]))["devices"]; phones=[d for runtime in sorted(devices, reverse=True) for d in devices[runtime] if d["name"].startswith("iPhone")]; assert phones, "No iPhone simulator available"; latest=[d for d in devices[next(r for r in sorted(devices,reverse=True) if any(p["name"].startswith("iPhone") for p in devices[r]))] if d["name"].startswith("iPhone")]; print(next((d["udid"] for d in latest if d["name"]=="iPhone 16e"), latest[0]["udid"]))' "$RUNNER_TEMP/tiq-simulators.json")
+          DEVICE=$(python3 -c 'import json,sys; devices=json.load(open(sys.argv[1]))["devices"].get(sys.argv[2], []); phones=[d for d in devices if d["name"].startswith("iPhone")]; assert phones, "No iPhone simulator for the selected SDK"; print(next((d["udid"] for d in phones if d["name"]=="iPhone 17e"), phones[0]["udid"]))' "$RUNNER_TEMP/tiq-simulators.json" "$RUNTIME")
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"
@@ -182,8 +189,9 @@ jobs:
         timeout-minutes: 5
         run: |
           set -euo pipefail
-          RUNTIME=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(r for r in sorted(devices, reverse=True) if r.startswith("com.apple.CoreSimulator.SimRuntime.iOS-") and any(d["name"] == "iPhone 16e" for d in devices[r])))')
-          DEVICE=$(xcrun simctl create 'TenAceIQ Offline' com.apple.CoreSimulator.SimDeviceType.iPhone-16e "$RUNTIME")
+          RUNTIME="com.apple.CoreSimulator.SimRuntime.iOS-$(xcrun --sdk iphonesimulator --show-sdk-version | tr . -)"
+          DEVICE_TYPE=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"].get(sys.argv[1], []); print(next(d["deviceTypeIdentifier"] for d in devices if d["name"].startswith("iPhone")))' "$RUNTIME")
+          DEVICE=$(xcrun simctl create 'TenAceIQ Offline' "$DEVICE_TYPE" "$RUNTIME")
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           echo "TIQ_SIMULATOR_UDID=$DEVICE" >> "$GITHUB_ENV"

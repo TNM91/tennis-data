@@ -50,7 +50,7 @@ test('the simulator launches and exercises StoreKit before saving its artifact',
 test('the first-party profile builds and launches the isolated unsigned app',()=>{
  const profile = workflow.on.workflow_dispatch.inputs.profile
  assert.equal(profile.type,'choice')
- assert.deepEqual(profile.options,['standard','first-party'])
+ assert.deepEqual(profile.options,['standard','first-party','first-party-full'])
  assert.equal(profile.default,'standard')
  const simulator = workflow.jobs.simulator
  assert.match(simulator.env.TIQ_SIMULATOR_PROJECT,/inputs\.profile == 'first-party' && 'mobile\/ios-first-party\/App\/App\.xcodeproj' \|\| 'mobile\/ios\/App\/App\.xcodeproj'/)
@@ -67,6 +67,7 @@ test('the first-party profile builds and launches the isolated unsigned app',()=
  for(const command of ['build','prepare','check'])assert.ok(bundle.run.includes(`npm run ${command}:ios:first-party --prefix mobile`))
  assert.match(compile.run,/-project "\$TIQ_SIMULATOR_PROJECT"/)
  assert.match(boot.run,/simctl create 'TenAceIQ Offline'/)
+ assert.match(boot.run,/xcrun --sdk iphonesimulator --show-sdk-version/)
  assert.match(install.run,/simctl install "\$TIQ_SIMULATOR_UDID"/)
  assert.match(launch.run,/simctl launch --terminate-running-process "\$DEVICE" com\.tenaceiq\.prototype\s/)
  assert.match(launch.run,/simctl io "\$DEVICE" screenshot/)

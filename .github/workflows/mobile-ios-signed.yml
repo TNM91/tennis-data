@@ -33,10 +33,6 @@ on:
         description: Assign an already uploaded build to the existing internal group
         type: boolean
         default: false
-      use_intel_runner:
-        description: Use the Intel Mac pool for a first-party-full internal build
-        type: boolean
-        default: false
 permissions:
   contents: read
 concurrency:
@@ -57,10 +53,10 @@ jobs:
       contents: read
       actions: read
     environment: apple-testflight
-    runs-on: ${{ inputs.use_intel_runner && inputs.profile == 'first-party-full' && inputs.distribution == 'internal' && 'macos-15-intel' || 'macos-15' }}
+    runs-on: xcode-27
     timeout-minutes: 55
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
       TIQ_IOS_DISTRIBUTION: ${{ inputs.distribution }}
       TIQ_IOS_PROFILE: ${{ inputs.profile }}
       TIQ_IOS_PROJECT: ${{ inputs.profile == 'first-party' && 'mobile/ios-first-party/App/App.xcodeproj' || 'mobile/ios/App/App.xcodeproj' }}
@@ -76,6 +72,16 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             mobile/package-lock.json
+      - name: Check iOS SDK
+        run: |
+          xcodebuild -version
+          SDK_VERSION=$(xcrun --sdk iphoneos --show-sdk-version)
+          SDK_MAJOR="${SDK_VERSION%%.*}"
+          echo "iOS SDK: $SDK_VERSION"
+          if ! [[ "$SDK_MAJOR" =~ ^[0-9]+$ ]] || (( SDK_MAJOR < 27 )); then
+            echo "::error::New iOS builds require the iOS 27 SDK or later."
+            exit 1
+          fi
       - name: Check full-app release inputs
         if: inputs.profile == 'first-party-full'
         env:
@@ -155,6 +161,12 @@ jobs:
             -exportPath "$RUNNER_TEMP/tiq-export" -exportOptionsPlist "$RUNNER_TEMP/tiq-signing/export.plist"
           codesign --verify --deep --strict "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app"
           IPA="$RUNNER_TEMP/tiq-export/App.ipa"
+          SDK_NAME=$(unzip -p "$IPA" Payload/App.app/Info.plist | plutil -extract DTSDKName raw -o - -)
+          echo "Exported IPA SDK: $SDK_NAME"
+          if ! [[ "$SDK_NAME" =~ ^iphoneos([0-9]+)(\.[0-9]+)*$ ]] || (( BASH_REMATCH[1] < 27 )); then
+            echo "::error::The exported IPA must use the iOS 27 SDK or later."
+            exit 1
+          fi
           if test "$TIQ_IOS_PROFILE" = first-party || test "$TIQ_IOS_PROFILE:$TIQ_IOS_DISTRIBUTION" = first-party-full:app-store; then
             unzip -q "$IPA" 'Payload/App.app/*' -d "$RUNNER_TEMP/tiq-ipa-validation"
             APP="$RUNNER_TEMP/tiq-ipa-validation/Payload/App.app"
