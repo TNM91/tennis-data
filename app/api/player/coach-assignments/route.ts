@@ -9,8 +9,11 @@ import {
   type CoachStudentLinkRow,
 } from '@/lib/coach-storage'
 import { supabaseUrl } from '@/lib/supabase'
+import { coachId } from '@/lib/native-coach-contract'
+import { omitAssignmentBoard, readSharedTacticsBoard } from '@/lib/shared-tactics'
 
 export const runtime = 'nodejs'
+const privateJson = (body: unknown, status = 200) => Response.json(body, {status, headers: {'Cache-Control': 'private, no-store'}})
 
 const coachLinkSelect = 'id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,player_email,player_phone,contact_preference,setup_status,status,notes,updated_at'
 
@@ -31,6 +34,19 @@ export async function GET(request: Request) {
 
   const coachLinks = ((linkData ?? []) as CoachStudentLinkRow[]).map(mapCoachStudentLinkRow)
   const linkIds = coachLinks.map((link) => link.id)
+  const boardAssignment = new URL(request.url).searchParams.get('board')
+  if (boardAssignment !== null) {
+    let id: string
+    try { id = coachId(boardAssignment) }
+    catch { return privateJson({ok: false}, 400) }
+    if (!linkIds.length) return privateJson({ok: false}, 404)
+    const {data, error} = await auth.supabase.from('coach_assignments').select('assignment_json')
+      .eq('id', id).in('student_link_id', linkIds).in('status', ['assigned', 'completed']).maybeSingle()
+    if (error) return privateJson({ok: false}, 503)
+    if (!data?.assignment_json?.tacticsBoard) return privateJson({ok: false}, 404)
+    try { return privateJson({ok: true, assignmentId: id, tactics: readSharedTacticsBoard(data.assignment_json.tacticsBoard)}) }
+    catch { return privateJson({ok: false}, 404) }
+  }
 
   if (!linkIds.length) {
     return Response.json({ ok: true, coachLinks, assignments: [] })
@@ -48,8 +64,8 @@ export async function GET(request: Request) {
     return apiServerError('Could not load player coach assignments', assignmentError, 'Coach assignments are temporarily unavailable.')
   }
 
-  const assignments = ((assignmentData ?? []) as CoachAssignmentRow[]).map(mapCoachAssignmentRow)
-  return Response.json({ ok: true, coachLinks, assignments })
+  const assignments = ((assignmentData ?? []) as CoachAssignmentRow[]).map(row => omitAssignmentBoard(mapCoachAssignmentRow(row)))
+  return privateJson({ ok: true, coachLinks, assignments })
 }
 
 export async function PATCH(request: Request) {
@@ -125,7 +141,7 @@ export async function PATCH(request: Request) {
   if (updateError) return apiServerError('Could not update player coach assignment', updateError, 'The coach assignment could not be updated.')
 
   if (!updatedData) return Response.json({ ok: false, code: 'assignment_conflict', message: 'The assignment changed while saving. Refresh before trying again.' }, { status: 409 })
-  return Response.json({ ok: true, assignment: mapCoachAssignmentRow(updatedData as CoachAssignmentRow) })
+  return privateJson({ ok: true, assignment: omitAssignmentBoard(mapCoachAssignmentRow(updatedData as CoachAssignmentRow)) })
 }
 
 function getServiceClient() {

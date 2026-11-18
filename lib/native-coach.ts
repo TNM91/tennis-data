@@ -2,6 +2,8 @@ import {buildCoachLessonRecipe} from './coach-lesson-recipe'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {buildCoachStudentLinkPayload, buildCoachAssignmentPayload, buildCoachAssignmentReview, getPlayerAssignmentCheckIn, mapCoachAssignmentRow, type CoachStudentLinkRow, type CoachAssignmentRow} from './coach-storage'
 import {readNativeCoach, type NativeCoachStudent, type CoachCreate, type CoachReview, type CoachEdit} from './native-coach-contract'
+import {loadSharedTacticsBoard, omitAssignmentBoard} from './shared-tactics'
+import {tiqSkills} from './tiq-assessment-skills'
 
 const studentFields = 'id,coach_user_id,player_user_id,player_name,identity_slug,level_label,player_email,player_phone,contact_preference,status,notes,updated_at'
 const assignmentFields = 'id,coach_user_id,student_link_id,title,focus,due_date,status,assignment_json,updated_at'
@@ -29,7 +31,7 @@ export async function loadNativeCoach(client: SupabaseClient, owner: string, sel
     if (result.error) throw Error('Coach assignments unavailable')
     const rows = (result.data ?? []) as (CoachAssignmentRow & {coach_user_id: string})[]
     if (rows.some(row => row.coach_user_id !== owner)) throw Error('Assignment ownership mismatch')
-    detail = {student: s, assignments: rows.slice(0, 100).map(mapCoachAssignmentRow), moreAssignments: rows.length > 100}
+    detail = {student: s, assignments: rows.slice(0, 100).map(row => omitAssignmentBoard(mapCoachAssignmentRow(row))), moreAssignments: rows.length > 100}
   }
   return readNativeCoach({ok: true, owner, checkedAt: new Date().toISOString(), students, moreStudents: (data?.length ?? 0) > 100, detail}, owner, selected)
 }
@@ -42,7 +44,18 @@ export async function createNativeCoach(client: SupabaseClient, owner: string, d
   }
   const s = await ownStudent(client, owner, draft.student)
   if (s.updatedAt !== draft.expectedUpdatedAt || s.status === 'paused') throw new NativeCoachFault(409, 'The student record changed or is paused. Refresh before assigning work.')
-  const payload = buildCoachAssignmentPayload({id: draft.id, studentLinkId: draft.student, title: draft.title, focus: draft.focus, dueDate: draft.dueDate, status: draft.status, assignment: {...(draft.recipe?buildCoachLessonRecipe(draft.recipe).assignment:{}),detail: draft.instructions, expectedEvidence: draft.evidence}}, owner)!
+  if ((draft.tactics || draft.assessmentDrill) && !s.linked) throw new NativeCoachFault(409, 'Connect this player before assigning practice.')
+  const drill = tiqSkills.find(skill => skill.id === draft.assessmentDrill)
+  const tactics = draft.tactics ? await loadSharedTacticsBoard(client, owner, draft.tactics) : null
+  if (draft.tactics && !tactics) throw new NativeCoachFault(409, 'The saved board changed. Open its latest version before assigning it.')
+  const assignment = {
+    ...(draft.recipe ? buildCoachLessonRecipe(draft.recipe).assignment : {}),
+    ...(drill ? {cardId: drill.drill.id} : {}),
+    ...(tactics ? {tactics: tactics.reference, tacticsBoard: tactics} : {}),
+    detail: draft.instructions,
+    expectedEvidence: draft.evidence,
+  }
+  const payload = buildCoachAssignmentPayload({id: draft.id, studentLinkId: draft.student, title: draft.title, focus: draft.focus, dueDate: draft.dueDate, status: draft.status, assignment}, owner)!
   const {error} = await client.from('coach_assignments').insert(payload)
   if (error) throw error.code === '23505' ? new NativeCoachFault(409, 'This assignment may already be saved. Check saved work before retrying.') : Error('Assignment save failed')
   return loadNativeCoach(client, owner, draft.student)

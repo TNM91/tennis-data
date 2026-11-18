@@ -1,9 +1,11 @@
 import { fixtureId } from './team-fixtures-contract'
+import {readSharedTacticsBoard, type SharedTacticsBoard} from './shared-tactics'
+import {readTacticalBoardReference, type TacticalBoardReference} from './tactical/board-reference'
 
 export const maxTeamLineupCourts = 30
 export type MatchLineupCourt = { format: 'singles' | 'doubles'; players: string[] }
-export type SavedTeamLineup = { version: string; courts: MatchLineupCourt[]; names: Record<string, string> }
-export type TeamLineupChange = { revision: string; version: string; expected: string | null; courts: MatchLineupCourt[] }
+export type SavedTeamLineup = { version: string; courts: MatchLineupCourt[]; names: Record<string, string>; tactics?: SharedTacticsBoard }
+export type TeamLineupChange = { revision: string; version: string; expected: string | null; courts: MatchLineupCourt[]; tactics?: TacticalBoardReference | null }
 
 function readCourts(value: unknown): MatchLineupCourt[] | null {
   if (!Array.isArray(value) || value.length < 1 || value.length > maxTeamLineupCourts) return null
@@ -26,12 +28,15 @@ export function readTeamLineupChange(row: Record<string, unknown>): TeamLineupCh
   const courts = readCourts(row.courts)
   if (!fixtureId(revision) || !fixtureId(version) || (expected !== null && !fixtureId(expected)) ||
       version === expected || !courts) return null
-  return { revision, version, expected, courts }
+  try {
+    return { revision, version, expected, courts,
+      ...(row.tactics === undefined ? {} : {tactics: row.tactics === null ? null : readTacticalBoardReference(row.tactics)}) }
+  } catch { return null }
 }
 
 export function readSavedTeamLineup(value: unknown): SavedTeamLineup | null {
   if (value == null) return null
-  const { version, names, courts: rawCourts } = value as Partial<SavedTeamLineup>
+  const { version, names, courts: rawCourts, tactics } = value as Partial<SavedTeamLineup>
   const courts = readCourts(rawCourts)
   if (!fixtureId(version) || !courts || !names || typeof names !== 'object' || Array.isArray(names)) throw Error('Invalid saved lineup')
   const players = courts.flatMap(court => court.players)
@@ -39,5 +44,5 @@ export function readSavedTeamLineup(value: unknown): SavedTeamLineup | null {
     !Object.hasOwn(names, id) || typeof names[id] !== 'string' || !names[id].trim() || names[id].length > 100)) {
     throw Error('Invalid saved lineup names')
   }
-  return { version, courts, names }
+  return { version, courts, names, ...(tactics == null ? {} : {tactics: readSharedTacticsBoard(tactics)}) }
 }

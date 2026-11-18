@@ -14,6 +14,7 @@ export type TeamMatchReplies = {
   rosterComplete?: boolean
   lineupRoster?: TeamLineupPlayer[]
   savedLineup?: SavedTeamLineup
+  sharedLineup?: SavedTeamLineup
 }
 
 export const isTeamMatchChoice = (choice: unknown): choice is TeamMatchChoice =>
@@ -35,7 +36,10 @@ export function readTeamMatchReplies(value: unknown): TeamMatchReplies {
   const row = value as Partial<TeamMatchReplies> | null
   if (!row || typeof row !== 'object') throw Error('Invalid availability')
   const own = row.own === null ? null : readReply(row.own)
-  if (row.team === undefined) return { own }
+  if (row.team === undefined) {
+    const sharedLineup = readSavedTeamLineup(row.sharedLineup)
+    return { own, ...(sharedLineup?.tactics ? {sharedLineup} : {}) }
+  }
   if (!Array.isArray(row.team) || row.team.length > 100) throw Error('Invalid team availability')
   const validName = (name: unknown): name is string => typeof name === 'string' && Boolean(name.trim()) && name.length <= 100
   const team = row.team.map(item => {
