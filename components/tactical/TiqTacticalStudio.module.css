@@ -1395,6 +1395,34 @@
   padding-top: 14px;
 }
 
+.studio[data-native-panel='court'] .timeline {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  grid-area: timeline;
+  margin: 0;
+  overflow-x: auto;
+  padding: 8px 2px 4px;
+}
+
+.studio[data-native-panel='court'] .timeline button {
+  background: var(--premium-inset);
+  border: 1px solid var(--premium-line);
+  border-radius: 11px;
+  color: var(--premium-copy);
+  flex: 0 0 auto;
+  font-size: .75rem;
+  margin: 0;
+  padding: 7px 11px;
+  width: auto;
+}
+
+.studio[data-native-panel='court'] .timeline button[aria-pressed='true'] {
+  background: var(--premium-court-inlay);
+  border-color: transparent;
+  color: var(--premium-white);
+}
+
 .boardActionBar {
   display: none;
   gap: 8px;

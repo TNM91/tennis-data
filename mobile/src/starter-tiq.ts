@@ -1,36 +1,31 @@
 import { isValidCalendarDate } from '../../lib/calendar-date'
 import { getNativeAuthStorage } from '../../lib/native-auth-storage'
+import { tiqSkills } from '../../lib/tiq-assessment-skills'
 
 const coreQuestions = [
   {
-    id: 'serve', skill: 'Serve', prompt: 'How reliable is your serve?',
+    ...tiqSkills[0], prompt: 'How reliable is your serve?',
     answers: ['I’m learning to start points with a serve.', 'I can serve into both boxes at an easy pace.', 'I trust my second serve under normal match pressure.', 'I vary first-serve targets and can place a second serve under pressure.'],
-    drill: { id: 'serve-target-call', title: 'Serve Target Call' },
   },
   {
-    id: 'return', skill: 'Return', prompt: 'What can you do against a match-speed serve?',
+    ...tiqSkills[1], prompt: 'What can you do against a match-speed serve?',
     answers: ['I’m learning to get returns back into play.', 'I return slower serves with a compact swing.', 'I neutralize most first serves and aim my second-serve returns.', 'I adjust my position and target to the server and the score.'],
-    drill: { id: 'return-depth-lane', title: 'Return Depth Lane' },
   },
   {
-    id: 'rally', skill: 'Baseline rally', prompt: 'How steady is your baseline rally?',
+    ...tiqSkills[2], prompt: 'How steady is your baseline rally?',
     answers: ['I’m learning to keep a ball in play.', 'I can sustain an easy rally from the baseline.', 'I direct forehands and backhands with margin at match pace.', 'I vary depth, pace, and direction while staying consistent under pressure.'],
-    drill: { id: 'wall-rally-rhythm', title: 'Wall Rally Rhythm' },
   },
   {
-    id: 'movement', skill: 'Movement', prompt: 'How do you move between shots?',
+    ...tiqSkills[3], prompt: 'How do you move between shots?',
     answers: ['I often reach for the ball or arrive late.', 'I get into position for a predictable ball.', 'I split-step and recover between most shots.', 'I recover efficiently after wide or deep balls and stay ready for the next shot.'],
-    drill: { id: 'split-step-rhythm', title: 'Split-Step Rhythm' },
   },
   {
-    id: 'net', skill: 'Net play', prompt: 'How comfortable are you finishing at net?',
+    ...tiqSkills[4], prompt: 'How comfortable are you finishing at net?',
     answers: ['I’m learning the basic volley.', 'I can block an easy volley back in play.', 'I choose an approach and place the first volley with control.', 'I handle low and fast volleys and choose when to close or cover the lob.'],
-    drill: { id: 'volley-ready-split', title: 'Volley Ready Split' },
   },
   {
-    id: 'points', skill: 'Point decisions', prompt: 'How do you build a point when the score gets tight?',
+    ...tiqSkills[5], prompt: 'How do you build a point when the score gets tight?',
     answers: ['I’m learning how to start and finish a point.', 'I focus on keeping the ball in play and recovering.', 'I recognize when to defend, rally, or attack.', 'I adjust my patterns to the opponent while keeping my targets under pressure.'],
-    drill: { id: '30-30-pressure-game', title: '30–30 Pressure Game' },
   },
 ] as const
 

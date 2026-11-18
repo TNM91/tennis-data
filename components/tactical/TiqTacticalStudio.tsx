@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {StudioImage as Image,StudioLink as Link,useTacticalStudioPlatform} from './TiqStudioPlatform'
 import TiqCourtBoard from './TiqCourtBoard'
 import {PlayerGlyph} from './TiqTokens'
@@ -8,13 +8,14 @@ import TiqToolbar from './TiqToolbar'
 import TiqInspector from './TiqInspector'
 import TiqTimeline from './TiqTimeline'
 import TiqBriefingPanel from './TiqBriefingPanel'
-import { MarkerIcon } from './icons/TiqIcons'
+import { MarkerIcon, TacticsControlIcon } from './icons/TiqIcons'
 import styles from './TiqTacticalStudio.module.css'
 import { scenarioBriefing, scenarioToJson } from '@/lib/tactical/scenarioExport'
+import { courtDiagramBounds, courtDiagramLines, courtDiagramPoint, courtDiagramSize, projectCourtPoint, projectCourtZone, type CourtView } from '@/lib/tactical/courtProjection'
 import { isTacticalScenario, type TacticalScenarioSummary } from '@/lib/tactical/scenarioStorage'
 import { createTacticalTemplate, tacticalFormationPresets, tacticalPathPresets, tacticalSnapPresets } from '@/lib/tactical/templates'
-import type { TacticalFormationMode, TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalScenario, TacticalSelection, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
-import { clampPercent, countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTacticalId, scoreScenarioReadiness, tacticalSuggestions } from '@/lib/tactical/utils'
+import type { TacticalFormationMode, TacticalPath, TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalScenario, TacticalSelection, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
+import { clampPercent, countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTacticalId, scoreScenarioReadiness, tacticalPlayerInitials, tacticalSuggestions } from '@/lib/tactical/utils'
 
 const LOCAL_LIBRARY_KEY = 'tiq-tactical-studio-library-v1'
 const LOCAL_DRAFT_KEY = 'tiq-tactical-studio-draft-v1'
@@ -24,11 +25,25 @@ const BOARD_EXPORT_HEIGHT = 1600
 const COURT_ASSET_HEIGHT = 1086
 const INLINE_TOKEN_TOOLS: TacticalTokenType[] = ['player', 'ball', 'cone', 'x', 'o']
 const INLINE_PATH_TOOLS: TacticalPathKind[] = ['ball', 'move', 'recover']
+const NATIVE_MARKERS = { player: 'Player', ball: 'Ball', cone: 'Cone', x: 'X', o: 'Ring' } satisfies Record<TacticalTokenType, string>
+const NATIVE_PATHS = { ball: 'Shot', move: 'Move', recover: 'Recover' } satisfies Record<TacticalPathKind, string>
+const NATIVE_PANELS = [['court', 'Court'], ['tools', 'Tools'], ['details', 'Details'], ['saved', 'Saved'], ['brief', 'Brief']] as const
+const NATIVE_EDIT_MODES = [['Edit', 'edit'], ['Add', 'add'], ['Draw', 'draw']] as const
 const BOARD_TOOL_MODES = ['add', 'lines', 'snap', 'edit'] as const
 const TACTICAL_TEMPLATE_KEYS: TacticalTemplateKey[] = ['basicDoubles', 'poach', 'australian', 'crosscourt', 'coachProgression']
 const TACTICAL_ROLES: TacticalRole[] = ['captain', 'coach', 'player']
 
 type BoardToolMode = (typeof BOARD_TOOL_MODES)[number]
+type PatternPlayback = { paths: TacticalPath[]; index: number; phase: 'playing' | 'paused' | 'complete' }
+const landscapeQuery = '(orientation: landscape) and (max-height: 600px)'
+const portrait = () => false
+const isLandscape = () => Boolean(window.matchMedia?.(landscapeQuery).matches)
+function subscribeToOrientation(update: () => void) {
+  const viewport = window.matchMedia?.(landscapeQuery)
+  viewport?.addEventListener('change', update)
+  return () => viewport?.removeEventListener('change', update)
+}
+const noOrientationSubscription = () => () => {}
 type TacticalEntryIntent = {
   role: TacticalRole
   source: string | null
@@ -42,6 +57,9 @@ type TacticalEntryIntent = {
 export default function TiqTacticalStudio() {
   const platform=useTacticalStudioPlatform()
   const [nativePanel,setNativePanel]=useState('court')
+  const [nativeCourtStyle, setNativeCourtStyle] = useState<'overhead' | 'perspective'>('overhead')
+  const landscape = useSyncExternalStore(platform ? subscribeToOrientation : noOrientationSubscription, platform ? isLandscape : portrait, portrait)
+  const courtView: CourtView = !platform || nativeCourtStyle === 'perspective' ? 'perspective' : landscape ? 'overhead-landscape' : 'overhead'
   const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('basicDoubles')
   const [scenario, setScenario] = useState<TacticalScenario>(() => platform?.initialDraft??createTacticalTemplate('basicDoubles'))
   const scenarioRef = useRef(scenario)
@@ -59,6 +77,8 @@ export default function TiqTacticalStudio() {
   const [presentationMode, setPresentationMode] = useState(false)
   const [activeFormation, setActiveFormation] = useState<TacticalFormationMode | null>(null)
   const [stepIndex, setStepIndex] = useState(99)
+  const [playback, setPlayback] = useState<PatternPlayback | null>(null)
+  const playbackAction = useRef<HTMLButtonElement>(null)
   const [library, setLibrary] = useState<TacticalScenario[]>([])
   const [cloudLibrary, setCloudLibrary] = useState<TacticalScenarioSummary[]>([])
   const [cloudStatus, setCloudStatus] = useState('Sign in to save scenarios across devices.')
@@ -70,12 +90,30 @@ export default function TiqTacticalStudio() {
   const draftReady = useRef(false)
   const readiness = scoreScenarioReadiness(scenario)
   const suggestions = useMemo(() => tacticalSuggestions(scenario), [scenario])
+  const pattern = playback?.paths === scenario.paths ? playback : null
+  const activePattern = pattern?.phase === 'complete' ? null : pattern
+  const activePath = activePattern?.paths[activePattern.index]
+  const visibleStep = activePattern?.index ?? stepIndex
   const visibleScenario = useMemo(() => ({
     ...scenario,
-    paths: stepIndex >= scenario.paths.length ? scenario.paths : scenario.paths.slice(0, stepIndex + 1),
-  }), [scenario, stepIndex])
+    paths: visibleStep >= scenario.paths.length ? scenario.paths : scenario.paths.slice(0, visibleStep + 1),
+  }), [scenario, visibleStep])
+  const advancePlayback = useCallback(() => {
+    setPlayback(current => {
+      if (current?.phase !== 'playing') return current
+      const next = current.index + 1
+      return next < current.paths.length
+        ? { ...current, index: next }
+        : { ...current, phase: 'complete' }
+    })
+  }, [])
   const boardStatus = getBoardStatus(placementType, drawingKind, selected)
-  const canUndoBoardAction = undoStack.length > 0 || scenario.paths.length > 0
+  const canUndoBoardAction = undoStack.length > 0 || (!platform && scenario.paths.length > 0)
+  const selectionLabel = selected.type === 'token'
+    ? scenario.tokens.find(token => token.id === selected.id)?.label
+    : selected.type === 'path'
+      ? scenario.paths.find(path => path.id === selected.id)?.label
+      : scenario.zones.find(zone => zone.id === selected.id)?.label
   const entryIdentityLabel = entryIntent?.identityLabel ?? 'Player ID'
   const entryCardTitle = entryIntent?.cardTitle ?? 'Crosscourt pattern card'
   const hasEntryLevelUpCard = Boolean(entryIntent?.cardId || entryIntent?.cardTitle)
@@ -324,7 +362,7 @@ export default function TiqTacticalStudio() {
 
   async function downloadBoardPng() {
     try {
-      await exportScenarioPng(scenario, tokenScale, showLabels, showPaths, showZones,platform?.exportFile)
+      await exportScenarioPng(scenario, tokenScale, showLabels, showPaths, showZones, courtView, platform?.exportFile)
       notify('PNG exported')
     } catch {
       notify('PNG export failed')
@@ -472,6 +510,27 @@ export default function TiqTacticalStudio() {
     setPlacementType(null)
   }
 
+  function changeNativePanel(panel: string, trigger: HTMLButtonElement) {
+    cancelActiveTool()
+    if (panel !== 'court') setPlayback(null)
+    setNativePanel(panel)
+    const workspace = trigger.closest('dialog')
+    workspace?.scrollTo(0, 0)
+    workspace?.querySelector<HTMLButtonElement>(`[data-tiq-panel-target="${panel}"]`)?.focus({ preventScroll: true })
+  }
+
+  function togglePatternPlayback() {
+    if (activePattern) {
+      setPlayback(current => current && current.phase !== 'complete'
+        ? { ...current, phase: current.phase === 'playing' ? 'paused' : 'playing' }
+        : current)
+      return
+    }
+    cancelActiveTool()
+    setStepIndex(Infinity)
+    setPlayback({ paths: scenario.paths, index: 0, phase: 'playing' })
+  }
+
   function deleteSelected() {
     if (selected.type === 'scenario') return
     recordUndoSnapshot()
@@ -617,10 +676,12 @@ export default function TiqTacticalStudio() {
 
   function addZone() {
     recordUndoSnapshot()
+    const id = makeTacticalId('zone')
     setScenario((current) => ({
       ...current,
-      zones: [...current.zones, { id: makeTacticalId('zone'), label: 'Target window', x: 52, y: 42, width: 16, height: 9, tone: 'green' }],
+      zones: [...current.zones, { id, label: 'Target window', x: 52, y: 42, width: 16, height: 9, tone: 'green' }],
     }))
+    if (platform) setSelected({ type: 'zone', id })
   }
 
   if (presentationMode) {
@@ -641,6 +702,7 @@ export default function TiqTacticalStudio() {
           </div>
           <TiqCourtBoard
             dragDraw={Boolean(platform)}
+            view={courtView}
             scenario={visibleScenario}
             selected={{ type: 'scenario', id: 'scenario' }}
             showLabels={showLabels}
@@ -673,8 +735,18 @@ export default function TiqTacticalStudio() {
   }
 
   return (
-    <div className={`${styles.studio} ${boardFocusMode ? styles.boardFocusActive : ''}`} data-tiq-studio data-native-panel={platform?nativePanel:undefined}>
-      {platform?<nav data-tiq-native-panels aria-label="Tactics workspace">{[['court','Court'],['tools','Tools'],['details','Details'],['saved','Saved'],['brief','Brief']].map(([id,label])=><button key={id} type="button" aria-current={nativePanel===id?'page':undefined} onClick={()=>setNativePanel(id)}>{label}</button>)}</nav>:null}
+    <div className={`${styles.studio} ${boardFocusMode ? styles.boardFocusActive : ''}`} data-tiq-studio data-native-panel={platform?nativePanel:undefined} data-native-court-view={platform ? courtView : undefined} data-native-pattern={platform && scenario.paths.length > 0 ? '' : undefined}>
+      {platform ? (
+        <nav data-tiq-native-panels aria-label="Tactics workspace">
+          {NATIVE_PANELS.map(([id, label]) => (
+            <button key={id} type="button" data-tiq-panel-target={id} aria-current={nativePanel === id ? 'page' : undefined}
+              onClick={event => changeNativePanel(id, event.currentTarget)}>
+              <TacticsControlIcon name={id} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+      ) : null}
       <div className={styles.topbar}>
         <BrandLockup />
         <div className={styles.navPills}>
@@ -944,7 +1016,23 @@ export default function TiqTacticalStudio() {
               ) : null}
             </div>
           </div>
-          {platform?<NativeCourtTools placement={placementType} drawing={drawingKind} canUndo={canUndoBoardAction} selected={selected.type!=='scenario'} onPlacement={type=>{setPlacementType(placementType===type?null:type);setDrawingKind(null)}} onDrawing={kind=>{setDrawingKind(drawingKind===kind?null:kind);setPlacementType(null)}} onZone={addZone} onUndo={undoLastPath} onDelete={deleteSelected} onDone={cancelActiveTool}/>:<BoardToolDock
+          {platform ? (
+            <div data-tiq-native-board-heading>
+              <h2>{scenario.name}</h2>
+              <div data-tiq-court-view-toggle role="group" aria-label="Court view">
+                {(['overhead', 'perspective'] as const).map(view => (
+                  <button key={view} type="button" aria-pressed={nativeCourtStyle === view} onClick={() => {
+                    if (nativeCourtStyle === view) return
+                    cancelActiveTool()
+                    setNativeCourtStyle(view)
+                  }}>
+                    <TacticsControlIcon name={view} />
+                    <span>{view === 'overhead' ? 'Overhead' : 'Perspective'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : <BoardToolDock
             activeDrawKind={drawingKind}
             activePlacementType={placementType}
             boardFocusMode={boardFocusMode}
@@ -983,17 +1071,21 @@ export default function TiqTacticalStudio() {
             onUndoPath={undoLastPath}
           />}
           <TiqCourtBoard
+            key={platform ? `${courtView}/${drawingKind ?? ''}/${placementType ?? ''}` : undefined}
             dragDraw={Boolean(platform)}
+            view={courtView}
             scenario={visibleScenario}
-            selected={selected}
+            selected={activePath ? { type: 'scenario', id: 'scenario' } : selected}
             showLabels={showLabels}
-            showPaths={showPaths}
+            showPaths={Boolean(pattern) || showPaths}
             showZones={showZones}
             snapToGrid={snapToGrid}
             tokenScale={tokenScale}
             roleView={role}
             drawingKind={drawingKind}
             placementTokenType={placementType}
+            readOnly={Boolean(activePath)}
+            playback={activePath ? { pathId: activePath.id, paused: activePattern?.phase === 'paused', onAdvance: advancePlayback } : undefined}
             onCreatePath={(kind, from, to) => {
               recordUndoSnapshot()
               setScenario((current) => ({
@@ -1012,6 +1104,7 @@ export default function TiqTacticalStudio() {
               setStepIndex(99)
             }}
             onPlaceToken={(type, point) => addTokenAt(type, point.x, point.y)}
+            onStartMove={platform ? () => recordUndoSnapshot() : undefined}
             onMovePathPoint={(id, endpoint, x, y) => setScenario((current) => ({ ...current, paths: current.paths.map((path) => path.id === id ? { ...path, [endpoint]: { x, y } } : path) }))}
             onMoveToken={(id, x, y) => setScenario((current) => ({ ...current, tokens: current.tokens.map((token) => token.id === id ? { ...token, x, y } : token) }))}
             onDeleteToken={deleteTokenById}
@@ -1022,7 +1115,55 @@ export default function TiqTacticalStudio() {
             onDeleteSelected={deleteSelected}
             onDuplicateSelected={duplicateSelected}
           />
-          <TiqTimeline activeIndex={stepIndex} paths={scenario.paths} onStep={setStepIndex} />
+          {platform && scenario.paths.length > 0 ? (
+            <div data-tiq-pattern-playback role="group" aria-label="Pattern playback">
+              <p role="status" aria-atomic="true">
+                {activePath && activePattern
+                  ? `${activePattern.index + 1} of ${scenario.paths.length} · ${activePath.label || NATIVE_PATHS[activePath.kind]}`
+                  : pattern?.phase === 'complete' ? 'Pattern complete' : `${scenario.paths.length} ${scenario.paths.length === 1 ? 'step' : 'steps'}`}
+              </p>
+              <button type="button" data-tiq-playback-action onClick={togglePatternPlayback} ref={playbackAction}>
+                <TacticsControlIcon name={pattern?.phase === 'playing' ? 'pause' : 'play'} />
+                <span>{pattern?.phase === 'playing' ? 'Pause' : pattern?.phase === 'paused' ? 'Resume' : pattern?.phase === 'complete' ? 'Replay' : 'Play pattern'}</span>
+              </button>
+              {activePattern ? (
+                <button type="button" data-tiq-playback-stop onClick={() => {
+                  setPlayback(null)
+                  playbackAction.current?.focus({ preventScroll: true })
+                }}>
+                  <TacticsControlIcon name="stop" /><span>Stop</span>
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {platform && !activePath ? (
+            <NativeCourtTools
+              placement={placementType}
+              drawing={drawingKind}
+              canUndo={canUndoBoardAction}
+              showLabels={showLabels}
+              selection={selected.type === 'scenario' ? '' : selectionLabel || selected.type}
+              onPlacement={type => { setPlacementType(placementType === type ? null : type); setDrawingKind(null) }}
+              onDrawing={kind => { setDrawingKind(drawingKind === kind ? null : kind); setPlacementType(null); setShowPaths(true); setStepIndex(99) }}
+              onZone={() => { cancelActiveTool(); setShowZones(true); addZone() }}
+              onUndo={undoLastPath}
+              onToggleLabels={() => setShowLabels(value => !value)}
+              onDelete={deleteSelected}
+              onDuplicate={duplicateSelected}
+              onDetails={trigger => changeNativePanel('details', trigger)}
+              onDone={cancelActiveTool}
+            />
+          ) : null}
+          {(!platform || (scenario.paths.length > 0 && !activePath)) ? (
+            <TiqTimeline activeIndex={stepIndex} paths={scenario.paths} onStep={index => {
+              setStepIndex(index)
+              if (platform) {
+                setPlayback(null)
+                const path = scenario.paths[index]
+                setSelected(path ? { type: 'path', id: path.id } : { type: 'scenario', id: 'scenario' })
+              }
+            }} />
+          ) : null}
         </section>
 
         <TiqInspector
@@ -1088,9 +1229,91 @@ export default function TiqTacticalStudio() {
   )
 }
 
-function NativeCourtTools({placement,drawing,canUndo,selected,onPlacement,onDrawing,onZone,onUndo,onDelete,onDone}:{placement:TacticalTokenType|null;drawing:TacticalPathKind|null;canUndo:boolean;selected:boolean;onPlacement:(type:TacticalTokenType)=>void;onDrawing:(kind:TacticalPathKind)=>void;onZone:()=>void;onUndo:()=>void;onDelete:()=>void;onDone:()=>void}){
- const [group,setGroup]=useState('tokens')
- return <div data-tiq-native-dock><div role="group" aria-label="Court tools">{['tokens','lines','edit'].map(id=><button key={id} type="button" aria-pressed={group===id} onClick={()=>setGroup(id)}>{id==='tokens'?'Add':id==='lines'?'Draw':'Edit'}</button>)}<button type="button" onClick={onUndo} disabled={!canUndo}>Undo</button></div><div role="group" aria-label={group==='tokens'?'Add to court':group==='lines'?'Draw a path':'Edit court'}>{group==='tokens'?<>{(['player','ball','cone','x','o'] as TacticalTokenType[]).map(type=><button type="button" key={type} aria-pressed={placement===type} onClick={()=>onPlacement(type)} aria-label={'Place '+type}><BoardToolIcon type={type}/></button>)}<button type="button" onClick={onZone}>Zone</button></>:group==='lines'?<>{(['move','ball','recover'] as TacticalPathKind[]).map(kind=><button key={kind} type="button" aria-pressed={drawing===kind} onClick={()=>onDrawing(kind)}>{kind==='ball'?'Shot':kind==='move'?'Move':'Recover'}</button>)}<button type="button" onClick={onDone}>Done</button></>:<><button type="button" disabled={!selected} onClick={onDelete}>Delete selected</button><button type="button" onClick={onDone}>Stop drawing</button></>}</div><p aria-live="polite">{placement?'Tap the court to place a '+placement+'.':drawing?'Drag across the court to draw.':'Drag players to position them. Tap a player or line for details.'}</p></div>
+type NativeCourtToolsProps = {
+  placement: TacticalTokenType | null
+  drawing: TacticalPathKind | null
+  canUndo: boolean
+  showLabels: boolean
+  selection: string
+  onPlacement: (type: TacticalTokenType) => void
+  onDrawing: (kind: TacticalPathKind) => void
+  onZone: () => void
+  onUndo: () => void
+  onToggleLabels: () => void
+  onDelete: () => void
+  onDuplicate: () => void
+  onDetails: (trigger: HTMLButtonElement) => void
+  onDone: () => void
+}
+
+function NativeCourtTools({
+  placement, drawing, canUndo, showLabels, selection, onPlacement, onDrawing, onZone, onUndo, onToggleLabels,
+  onDelete, onDuplicate, onDetails, onDone,
+}: NativeCourtToolsProps) {
+  const [mode, setMode] = useState<'Edit' | 'Add' | 'Draw'>('Edit')
+  const hint = placement ? `Tap the court to place a ${NATIVE_MARKERS[placement].toLowerCase()}.`
+    : drawing ? 'Drag a line or tap its start and end.'
+    : mode === 'Add' ? 'Choose a marker to place on the court.'
+    : mode === 'Draw' ? 'Choose the type of line to draw.'
+    : selection ? `${selection} selected` : 'Drag a marker to move it. Tap an item to edit it.'
+  return (
+    <section data-tiq-native-dock aria-label="Court editing tools">
+      <div data-tiq-native-modes>
+        <div data-tiq-native-edit-modes role="group" aria-label="Court tools">
+          {NATIVE_EDIT_MODES.map(([item, icon]) => (
+            <button key={item} type="button" aria-pressed={mode === item} onClick={() => {
+              if (mode !== item) onDone()
+              setMode(item)
+            }}>
+              <TacticsControlIcon name={icon} />
+              <span>{item}</span>
+            </button>
+          ))}
+        </div>
+        <div data-tiq-native-utilities role="group" aria-label="Court display and history">
+          <button type="button" onClick={onUndo} disabled={!canUndo}><TacticsControlIcon name="undo" /><span>Undo</span></button>
+          <button type="button" aria-pressed={showLabels} onClick={onToggleLabels}>
+            <TacticsControlIcon name={showLabels ? 'labels' : 'labelsOff'} /><span>Labels</span>
+          </button>
+        </div>
+      </div>
+      {mode === 'Add' ? (
+        <div data-tiq-native-options="markers" role="group" aria-label="Add to court">
+          {INLINE_TOKEN_TOOLS.map(type => (
+            <button key={type} type="button" aria-pressed={placement === type} onClick={() => onPlacement(type)}>
+              <BoardToolIcon type={type} />
+              {NATIVE_MARKERS[type]}
+            </button>
+          ))}
+          <button type="button" onClick={() => { onZone(); setMode('Edit') }}><span data-tiq-zone-swatch aria-hidden="true" />Zone</button>
+        </div>
+      ) : null}
+      {mode === 'Draw' ? (
+        <div data-tiq-native-options="lines" role="group" aria-label="Draw a path">
+          {INLINE_PATH_TOOLS.map(kind => (
+            <button key={kind} type="button" aria-pressed={drawing === kind} onClick={() => onDrawing(kind)}>
+              <span data-tiq-line-swatch={kind} aria-hidden="true" />{NATIVE_PATHS[kind]}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {mode === 'Edit' && selection ? (
+        <div data-tiq-native-options="edit" role="group" aria-label="Edit selected court item">
+          <button type="button" onClick={event => onDetails(event.currentTarget)}>
+            <TacticsControlIcon name="details" /><span>Edit details</span>
+          </button>
+          <button type="button" onClick={onDuplicate}><TacticsControlIcon name="duplicate" /><span>Duplicate</span></button>
+          <button type="button" onClick={onDelete}><TacticsControlIcon name="remove" /><span>Remove</span></button>
+        </div>
+      ) : null}
+      <div data-tiq-native-tool-status>
+        <p aria-live="polite">{hint}</p>
+        {placement || drawing ? (
+          <button type="button" onClick={onDone}><TacticsControlIcon name="done" /><span>Done</span></button>
+        ) : null}
+      </div>
+    </section>
+  )
 }
 
 function BoardToolDock({
@@ -1513,26 +1736,39 @@ async function exportScenarioPng(
   showLabels: boolean,
   showPaths: boolean,
   showZones: boolean,
+  view: CourtView,
   exportFile?:(blob:Blob,name:string)=>Promise<void>,
 ) {
   const canvas = document.createElement('canvas')
-  canvas.width = BOARD_EXPORT_WIDTH
-  canvas.height = BOARD_EXPORT_HEIGHT
+  const overhead = view !== 'perspective'
+  const landscape = view === 'overhead-landscape'
+  canvas.width = overhead ? (landscape ? courtDiagramSize.length : courtDiagramSize.width) * 21 : BOARD_EXPORT_WIDTH
+  canvas.height = overhead ? (landscape ? courtDiagramSize.width : courtDiagramSize.length) * 21 : BOARD_EXPORT_HEIGHT
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Canvas unavailable')
 
-  const [court, ballIcon] = await Promise.all([
-    loadCanvasImage('/brand/courts/tiq-court-approved-20261024-v2.png'),
+  const [court, ballIcon, brandMark] = await Promise.all([
+    overhead ? null : loadCanvasImage('/brand/courts/tiq-court-approved-20261024-v2.png'),
     loadCanvasImage('/tiq/tokens/tennis-ball-reference.png'),
+    overhead ? loadCanvasImage('/brand/approved/TiQ_White_Transparent_Refined.png') : null,
   ])
 
-  context.fillStyle = '#020814'
-  context.fillRect(0, 0, canvas.width, canvas.height)
-  context.drawImage(court, 0, (canvas.height - COURT_ASSET_HEIGHT) / 2, canvas.width, COURT_ASSET_HEIGHT)
+  if (court) {
+    context.fillStyle = '#020814'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(court, 0, (canvas.height - COURT_ASSET_HEIGHT) / 2, canvas.width, COURT_ASSET_HEIGHT)
+  } else {
+    drawOverheadExport(context, canvas, landscape)
+    if (brandMark) {
+      const width = 128
+      context.drawImage(brandMark, 28, 25, width, width * brandMark.height / brandMark.width)
+    }
+  }
 
   if (showZones) {
     scenario.zones.forEach((zone) => {
-      const rect = toCanvasRect(zone.x, zone.y, zone.width, zone.height, canvas)
+      const [a, b] = projectCourtZone(zone, view)
+      const rect = toCanvasRect(a.x, a.y, b.x - a.x, b.y - a.y, canvas)
       context.fillStyle = 'rgba(155, 225, 29, 0.17)'
       context.strokeStyle = 'rgba(155, 225, 29, 0.86)'
       context.lineWidth = 4
@@ -1547,25 +1783,33 @@ async function exportScenarioPng(
   }
 
   if (showPaths) {
-    scenario.paths.forEach((path) => drawExportPath(context, path, canvas, showLabels))
+    scenario.paths.forEach((path) => drawExportPath(context, path, canvas, showLabels, view))
   }
 
   const tokenSize = tokenScale === 'small' ? 58 : tokenScale === 'large' ? 82 : 68
   scenario.tokens.forEach((token) => {
-    const x = (token.x / 100) * canvas.width
-    const y = (token.y / 100) * canvas.height
+    const point = projectCourtPoint(token, view)
+    const { x, y } = toCanvasPoint(point.x, point.y, canvas)
     const size = token.type === 'ball' ? tokenSize * 0.62 : tokenSize
     if (token.type === 'ball') {
       context.drawImage(ballIcon, x - size / 2, y - size / 2, size, size)
     } else if (token.type === 'player') {
       context.beginPath()
       context.arc(x, y, size / 2, 0, Math.PI * 2)
+      const teamColor = token.team === 'blue' ? '#a8caff' : token.team === 'white' ? '#eaf2ff' : '#b5eb46'
       context.fillStyle = 'rgba(2, 8, 18, 0.9)'
       context.fill()
       context.lineWidth = 4
-      context.strokeStyle = '#9be11d'
+      context.strokeStyle = overhead ? teamColor : '#9be11d'
       context.stroke()
-      context.fillStyle='#edf7ff';context.beginPath();context.arc(x,y-size*.14,size*.12,0,Math.PI*2);context.fill();context.beginPath();context.arc(x,y+size*.2,size*.23,Math.PI,0);context.fill()
+      if (overhead) {
+        context.fillStyle = teamColor
+        context.font = '900 28px Arial'
+        context.textAlign = 'center'
+        context.fillText(tacticalPlayerInitials(token), x, y + 10)
+      } else {
+        context.fillStyle='#edf7ff';context.beginPath();context.arc(x,y-size*.14,size*.12,0,Math.PI*2);context.fill();context.beginPath();context.arc(x,y+size*.2,size*.23,Math.PI,0);context.fill()
+      }
     } else {
       context.beginPath()
       context.arc(x, y, size * 0.36, 0, Math.PI * 2)
@@ -1594,15 +1838,52 @@ async function exportScenarioPng(
   link.remove()
 }
 
-function drawExportPath(context: CanvasRenderingContext2D, path: TacticalScenario['paths'][number], canvas: HTMLCanvasElement, showLabel: boolean) {
-  const from = toCanvasPoint(path.from.x, path.from.y, canvas)
-  const to = toCanvasPoint(path.to.x, path.to.y, canvas)
-  const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - (path.kind === 'ball' ? 72 : 44) }
+function drawOverheadExport(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement, landscape: boolean) {
+  const surround = context.createLinearGradient(0, canvas.height, canvas.width, 0)
+  surround.addColorStop(0, '#040c1c')
+  surround.addColorStop(.55, '#0a1b39')
+  surround.addColorStop(1, '#183865')
+  context.fillStyle = surround
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  const [left, far, right, near] = courtDiagramBounds
+  const coordinate = (x: number, y: number) => {
+    const point = courtDiagramPoint(x, y, landscape)
+    return toCanvasPoint(point.x, point.y, canvas)
+  }
+  const a = coordinate(left, far)
+  const b = coordinate(right, near)
+  const gradient = context.createLinearGradient(b.x, a.y, a.x, b.y)
+  gradient.addColorStop(0, '#2454a1')
+  gradient.addColorStop(.6, '#143a79')
+  gradient.addColorStop(1, '#0a1e43')
+  context.fillStyle = gradient
+  context.strokeStyle = '#e0efff'
+  context.lineWidth = 4
+  context.fillRect(a.x, Math.min(a.y, b.y), b.x - a.x, Math.abs(b.y - a.y))
+  context.strokeRect(a.x, Math.min(a.y, b.y), b.x - a.x, Math.abs(b.y - a.y))
+  for (const [x1, y1, x2, y2, kind] of courtDiagramLines) {
+    const from = coordinate(x1, y1)
+    const to = coordinate(x2, y2)
+    context.lineWidth = kind === 'net' ? 7 : 3
+    context.beginPath()
+    context.moveTo(from.x, from.y)
+    context.lineTo(to.x, to.y)
+    context.stroke()
+  }
+}
+
+function drawExportPath(context: CanvasRenderingContext2D, path: TacticalScenario['paths'][number], canvas: HTMLCanvasElement, showLabel: boolean, view: CourtView) {
+  const start = projectCourtPoint(path.from, view)
+  const end = projectCourtPoint(path.to, view)
+  const from = toCanvasPoint(start.x, start.y, canvas)
+  const to = toCanvasPoint(end.x, end.y, canvas)
+  const overhead = view !== 'perspective'
+  const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - (overhead ? 0 : path.kind === 'ball' ? 72 : 44) }
   const color = path.kind === 'ball' ? '#9be11d' : path.kind === 'move' ? '#20b7ff' : '#f8fbff'
   context.save()
   context.strokeStyle = color
   context.lineWidth = path.kind === 'ball' ? 8 : 6
-  context.setLineDash(path.kind === 'ball' ? [34, 22] : path.kind === 'move' ? [24, 20] : [16, 20])
+  context.setLineDash(path.kind === 'ball' ? (overhead ? [] : [34, 22]) : path.kind === 'move' ? [24, 20] : [16, 20])
   context.lineCap = 'round'
   context.beginPath()
   context.moveTo(from.x, from.y)

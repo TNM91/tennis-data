@@ -1,4 +1,50 @@
 import Image from 'next/image'
+import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react/dist/csr/ArrowCounterClockwise'
+import { BookmarkSimpleIcon } from '@phosphor-icons/react/dist/csr/BookmarkSimple'
+import { CheckIcon } from '@phosphor-icons/react/dist/csr/Check'
+import { ClipboardTextIcon } from '@phosphor-icons/react/dist/csr/ClipboardText'
+import { CopySimpleIcon } from '@phosphor-icons/react/dist/csr/CopySimple'
+import { CubeIcon } from '@phosphor-icons/react/dist/csr/Cube'
+import { CursorIcon } from '@phosphor-icons/react/dist/csr/Cursor'
+import { EyeIcon } from '@phosphor-icons/react/dist/csr/Eye'
+import { EyeSlashIcon } from '@phosphor-icons/react/dist/csr/EyeSlash'
+import { GridFourIcon } from '@phosphor-icons/react/dist/csr/GridFour'
+import { PauseIcon } from '@phosphor-icons/react/dist/csr/Pause'
+import { PencilSimpleIcon } from '@phosphor-icons/react/dist/csr/PencilSimple'
+import { PlayIcon } from '@phosphor-icons/react/dist/csr/Play'
+import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus'
+import { SlidersHorizontalIcon } from '@phosphor-icons/react/dist/csr/SlidersHorizontal'
+import { StopIcon } from '@phosphor-icons/react/dist/csr/Stop'
+import { TargetIcon } from '@phosphor-icons/react/dist/csr/Target'
+import { ToolboxIcon } from '@phosphor-icons/react/dist/csr/Toolbox'
+import { TrashIcon } from '@phosphor-icons/react/dist/csr/Trash'
+
+const tacticsControls = {
+  add: PlusIcon,
+  brief: ClipboardTextIcon,
+  court: TargetIcon,
+  details: SlidersHorizontalIcon,
+  done: CheckIcon,
+  draw: PencilSimpleIcon,
+  duplicate: CopySimpleIcon,
+  edit: CursorIcon,
+  labels: EyeIcon,
+  labelsOff: EyeSlashIcon,
+  overhead: GridFourIcon,
+  pause: PauseIcon,
+  perspective: CubeIcon,
+  play: PlayIcon,
+  remove: TrashIcon,
+  saved: BookmarkSimpleIcon,
+  stop: StopIcon,
+  tools: ToolboxIcon,
+  undo: ArrowCounterClockwiseIcon,
+}
+
+export function TacticsControlIcon({ name }: { name: keyof typeof tacticsControls }) {
+  const Icon = tacticsControls[name]
+  return <Icon data-tiq-tactics-glyph={name} aria-hidden="true" focusable="false" weight="regular" size={18} />
+}
 
 type IconProps = {
   className?: string

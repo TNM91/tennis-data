@@ -38,6 +38,7 @@ import websiteUi from '../generated/website-ui.json'
 import {mountLabRecentForm} from './lab-recent-form'
 import {mountSetupTrophyCase} from './setup-trophy-case'
 import {mountStarterTiq} from './starter-tiq-view'
+import {openCoachAssessments} from './coach-assessments-view'
 import {mountPersonalMatchLog,type PersonalMatchFormSession} from './personal-match-view'
 import type {CalendarScorecardSeed} from './personal-match-data'
 import {labLevelPathHtml} from './lab-level-path'
@@ -112,7 +113,7 @@ let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof import('./data-imports-view').openDataImports>|null=null
 let competitions:ReturnType<typeof openCompetitions>|null=null
 let tournaments:ReturnType<typeof openTournaments>|null=null
-let coachWorkspace:ReturnType<typeof openCoachWorkspace>|ReturnType<typeof openCoachConnection>|ReturnType<typeof openNativeTactics>|ReturnType<typeof openCoachLessons>|ReturnType<typeof openCoachResources>|ReturnType<typeof openCoachMessages>|ReturnType<typeof openCoachVideo>|null=null
+let coachWorkspace:ReturnType<typeof openCoachWorkspace>|ReturnType<typeof openCoachConnection>|ReturnType<typeof openNativeTactics>|ReturnType<typeof openCoachLessons>|ReturnType<typeof openCoachResources>|ReturnType<typeof openCoachMessages>|ReturnType<typeof openCoachVideo>|ReturnType<typeof openCoachAssessments>|null=null
 let hub:AppHub|null=null
 let leagueOffice:ReturnType<typeof openLeagueOffice>|ReturnType<typeof openLeagueDraft>|null=null
 let goals:ReturnType<typeof openLabGoals>|null=null
@@ -892,6 +893,9 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
         const heading = matchLog.querySelector<HTMLElement>('#personal-matches-title')
         heading?.focus({preventScroll:true})
         heading?.scrollIntoView({block:'start'})
+      },(trigger,self)=>{
+        if(!active()||document.querySelector('dialog[open]'))return
+        coachWorkspace=openCoachAssessments(client,current.user.id,active,{trigger,self})
       })
       mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
         seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,scoreReviewShortcut,

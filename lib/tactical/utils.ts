@@ -1,4 +1,4 @@
-import type { TacticalPathKind, TacticalPoint, TacticalScenario, TacticalTokenType } from './types'
+import type { TacticalPathKind, TacticalPoint, TacticalScenario, TacticalToken, TacticalTokenType } from './types'
 
 export function clampPercent(value: number) {
   if (!Number.isFinite(value)) return 0
@@ -20,6 +20,11 @@ export function pointFromPointer(clientX: number, clientY: number, element: HTML
     x: snapPercent(((clientX - rect.left) / rect.width) * 100, snap),
     y: snapPercent(((clientY - rect.top) / rect.height) * 100, snap),
   }
+}
+
+export function tacticalPlayerInitials(token: Pick<TacticalToken, 'role' | 'label'>) {
+  return (token.role || token.label).trim().split(/\s+/)
+    .slice(0, 2).map(word => Array.from(word)[0]).join('').toUpperCase() || 'P'
 }
 
 export function countScenarioObjects(scenario: TacticalScenario) {

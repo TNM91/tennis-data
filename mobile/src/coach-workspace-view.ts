@@ -6,6 +6,7 @@ import {getCoachAssignmentSummary, getCoachAssignmentReview, getPlayerAssignment
 import {CoachWorkspaceError, loadCoachWorkspace, saveCoachWorkspace, type CoachSend} from './coach-workspace-data'
 import {html} from './match-details'
 import {openCoachInvitations} from './coach-invites-view'
+import {openCoachAssessments} from './coach-assessments-view'
 
 type View = 'students' | 'student' | 'assignment' | 'add' | 'assign' | 'review' | 'confirm' | 'edit-student' | 'edit-assignment'
 const statusLabel = (s: string) => ({active: 'Active', needs_assignment: 'Needs assignment', review_notes: 'Review notes', paused: 'Paused', draft: 'Draft', assigned: 'Assigned', completed: 'Completed', archived: 'Archived'})[s] || s
@@ -34,13 +35,15 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
   let snapshot: NativeCoachSnapshot | null = null, draft: CoachWrite | null = null, fields: Record<string, string> = {}
   let attempted = false, uncertain = false, conflict = false, notice = '', leaving = false, leaveAction: (() => void) | null = null
   let invitations: ReturnType<typeof openCoachInvitations> | null = null
+  let assessments: ReturnType<typeof openCoachAssessments> | null = null
   const active = () => !disposed && current(), focus = () => dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll: true})
-  const dispose = () => {if (disposed) return; disposed = true; invitations?.dispose(); invitations = null; version++; snapshot = null; draft = null; fields = {}; leaveAction = null; document.removeEventListener('visibilitychange', visibility); dialog.close(); dialog.remove(); if (current() && previous?.isConnected) previous.focus({preventScroll: true})}
+  const dispose = () => {if (disposed) return; disposed = true; invitations?.dispose(); invitations = null; assessments?.dispose(); assessments = null; version++; snapshot = null; draft = null; fields = {}; leaveAction = null; document.removeEventListener('visibilitychange', visibility); dialog.close(); dialog.remove(); if (current() && previous?.isConnected) previous.focus({preventScroll: true})}
   // Keep edits in memory through app switching; account changes still dispose the workspace.
   const visibility = () => {if (!current()) dispose()}
   const isEditing = () => ['add', 'assign', 'review', 'confirm','edit-student','edit-assignment'].includes(view)
   const requestLeave = (action?: () => void, retain = false) => {
     if (invitations?.isOpen()) {invitations.back(); return}
+    if (assessments?.isOpen()) {assessments.back(); return}
     if (busy) return
     if (isEditing()) {leaving = true; leaveAction = retain ? action ?? dispose : () => {dispose(); action?.()}; render(); focus()} else {dispose(); action?.()}
   }
@@ -90,6 +93,7 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
   }
   const back = () => {
     if (invitations?.isOpen()) {invitations.back(); return true}
+    if (assessments?.isOpen()) {assessments.back(); return true}
     if (busy) return true
     if (leaving) {leaving = false; leaveAction = null; render(); focus(); return true}
     if (isEditing()) {requestLeave(() => {clearDraft(); if (snapshot) {view = selected ? 'student' : 'students'; render(); focus()} else void load(selected)}, true); return true}
@@ -127,6 +131,12 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
       const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary'; button.textContent = 'Student invitations'; button.dataset.coachInvites = ''
       dialog.querySelector('[data-coach-assign]')?.after(button)
       button.onclick = () => {if (!busy && !invitations?.isOpen()) invitations = openCoachInvitations(client, owner, s.id, active, button, send)}
+      if (s.linked && s.status !== 'paused') {
+        const assess = document.createElement('button')
+        assess.type = 'button'; assess.className = 'secondary'; assess.textContent = 'Coach assessments'
+        button.after(assess)
+        assess.onclick = () => { if (!busy && !assessments?.isOpen()) assessments = openCoachAssessments(client, owner, active, { trigger: assess, student: s }, send) }
+      }
     }
     dialog.querySelectorAll<HTMLButtonElement>('[data-coach-student]').forEach(b => {b.onclick = () => {const s = snapshot?.students[Number(b.dataset.coachStudent)]; if (s) void load(s.id)}})
     dialog.querySelectorAll<HTMLButtonElement>('[data-coach-assignment]').forEach(b => {b.onclick = () => {const a = detail && sortCoachAssignmentsForReview(detail.assignments)[Number(b.dataset.coachAssignment)]; if (a) {assignmentId = a.id; view = 'assignment'; render(); focus()}}})

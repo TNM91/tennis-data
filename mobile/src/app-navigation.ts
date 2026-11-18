@@ -85,10 +85,12 @@ export function appHubHtml(hub:AppHub,{fromLab=false,browseFirst=false}={}){
   </div>`:''
  const groupHtml=groups.map((group,index)=>{
   const discovery=hub==='compete'&&index===0
+  const studio=group.lane==='studio'
   const lane=group.lane?` id="coach-${group.lane}-tools" data-coach-lane${group.lane==='studio'?' hidden':''}`:''
   return `<section class="native-section-group app-hub-group"${lane}${discovery?' data-compete-discovery aria-labelledby="compete-discovery-title"':''}>
    ${group.lane==='player'?'<div class="coach-next-assignment" data-coach-next-assignment hidden></div><div class="coach-latest-feedback" data-coach-latest-feedback hidden></div>':''}
-   <h2${discovery?' id="compete-discovery-title"':''}>${group.title}</h2><div class="app-hub-tools">${group.keys.map(key=>toolHtml(tools[key],key==='tactics')).join('')}</div></section>`
+   <h2${discovery?' id="compete-discovery-title"':''}>${group.title}</h2>${studio?toolHtml(tools.tactics,true):''}
+   <div class="app-hub-tools">${group.keys.filter(key=>key!=='tactics').map(key=>toolHtml(tools[key])).join('')}</div></section>`
  })
  const toolFinder=hub==='more'?`<div class="app-tool-finder" role="search" aria-label="Tools">
   <label for="app-tool-query" class="sr-only">Find a tool</label>

@@ -14,6 +14,7 @@ import {firstPartyUpdatesFixture,firstPartyUpdatesPreview,updatesFixture,updateC
 import {clearCoachDeviceData} from '../../mobile/src/coach-device-cleanup'
 import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complete-browser'
 import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal,labProfileFixture,labDataReads} from './mobile-navigation-client'
+import {readCoachAssessmentDraft, type CoachAssessment} from '../../lib/native-coach-assessment-contract'
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {entryReviewFixture} from './league-entry-data'
 import {decisionReviewFixture} from './league-decisions-data'
@@ -38,6 +39,7 @@ import {hittingPlanStart} from '../../lib/hitting-plan'
 import type {LeagueDraftWrite,SavedLeagueDraft} from '../../lib/native-league-draft-contract'
 import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLimit,teamScorecardsHeader,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
+const previewAssessments = new Map<string, CoachAssessment>()
 const originalFetch=window.fetch.bind(window)
 const leagueDraftFixture={saved:null as SavedLeagueDraft|null,writes:[] as LeagueDraftWrite[]}
 const leagueCheckoutFixture={enabled:new URL(location.href).searchParams.has('league-checkout'),token:'',state:'ready',loseReceipt:true}
@@ -796,6 +798,21 @@ window.fetch=async(input,init)=>{
   return captainCourtPreview(url,owner,init?.body,cards)
  }
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
+ if(url.pathname==='/api/mobile/coach/assessments'){
+  const owner=currentNavigationOwner(), student=url.searchParams.get('student')
+  if(init?.method==='POST'){
+   const draft=readCoachAssessmentDraft(JSON.parse(String(init.body)))
+   if(owner!==navigationOwner||draft.student!=='student-one')return Response.json({ok:false},{status:403})
+   if(!previewAssessments.has(draft.id)){
+    previewAssessments.set(draft.id,{id:draft.id,coach:'Morgan Courts',createdAt:'2026-11-17T18:00:00Z',observation:draft.observation})
+    return Response.json({ok:false},{status:503})
+   }
+   return Response.json({ok:true,owner,student:draft.student,id:draft.id})
+  }
+  const ownsCoachHistory=student==='student-one'&&owner===navigationOwner
+  const ownsPlayerHistory=student===null&&owner==='22222222-2222-4222-8222-222222222222'
+  return Response.json({ok:true,owner,student,assessments:ownsCoachHistory||ownsPlayerHistory?[...previewAssessments.values()]:[]})
+ }
  if(url.pathname==='/api/mobile/coach/messages'){
   const unreadReply=await coachUnreadMessages(currentNavigationOwner(),init?.method||'GET',url,init?.body);if(unreadReply)return unreadReply
   const coachReply=coachChatPreview(currentNavigationOwner(),init?.method||'GET',url,init?.body);if(coachReply)return coachReply

@@ -15,7 +15,7 @@ import './coach-premium.css'
 
 export function openNativeTactics(client:SupabaseClient,owner:string,current:()=>boolean,trigger?:HTMLElement,send?:CoachSend,navigate?:(href:string)=>void){
  const dialog=document.createElement('dialog');dialog.className='native-coach-screen native-tactics-screen';dialog.setAttribute('aria-label','Tactics')
- dialog.innerHTML='<header class="native-coach-header"><div><small>Coach studio</small><h1 tabindex="-1">Tactics</h1></div><button type="button" class="secondary" data-tactics-close aria-label="Close tactics">Close</button></header><div class="native-coach-notice" role="status"></div><div class="native-tactics-recovery"></div><div class="native-tactics-content"></div>'
+ dialog.innerHTML='<header class="native-coach-header"><div class="native-tactics-lockup"><img src="/brand/approved/TiQ_White_Transparent_Refined.png" width="1774" height="887" alt="TenAceIQ"><h1 tabindex="-1">Tactics</h1></div><button type="button" class="secondary" data-tactics-close aria-label="Close tactics">Close</button></header><div class="native-coach-notice" role="status"></div><div class="native-tactics-recovery"></div><div class="native-tactics-content"></div>'
  const host=dialog.querySelector<HTMLElement>('.native-tactics-content')!,status=dialog.querySelector<HTMLElement>('[role=status]')!,recovery=dialog.querySelector<HTMLElement>('.native-tactics-recovery')!
  let disposed=false,busy=false,root:Root|null=null,latest:TacticalScenario|null=null,baseline='',leaving=false,leaveAction:(()=>void)|null=null,platform:TacticalStudioPlatform|null=null,decision:HTMLDialogElement|null=null,settleDecision:((choice:boolean)=>void)|null=null
  const revisions=new Map<string,string>()

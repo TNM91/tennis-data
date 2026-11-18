@@ -1,4 +1,5 @@
 import { formatCalendarDay } from '../../lib/calendar-date'
+import { tiqSkillLevels } from '../../lib/tiq-assessment-skills'
 import websiteUi from '../generated/website-ui.json'
 import { localCalendarDate } from './calendar-data'
 import { html } from './match-details'
@@ -9,7 +10,6 @@ import {
 } from './starter-tiq'
 
 type Scorecard = Pick<PersonalMatch, 'format' | 'outcome'>
-const skillLabels = ['Learning', 'Building', 'Steady', 'Under pressure']
 const formatLabels = { singles: 'Singles', doubles: 'Doubles' } as const
 const formats = ['singles', 'doubles'] as const
 
@@ -17,6 +17,7 @@ export function mountStarterTiq(
   host: HTMLElement, owner: string, current: () => boolean,
   openDrill: (id: string, trigger: HTMLButtonElement) => void,
   openMatchLog: () => void,
+  openAssessments: (trigger: HTMLButtonElement, self?: StarterAnswers) => void,
 ) {
   const storage = starterStorage(owner)
   const active = () => current() && host.isConnected
@@ -50,8 +51,9 @@ export function mountStarterTiq(
     return `<form class="starter-tiq-form" aria-labelledby="starter-tiq-step">
       <header class="starter-tiq-step">
         <p>Step ${step + 1} of ${starterQuestionGroups.length}</p>
+        <progress max="${starterQuestionGroups.length}" value="${step + 1}" aria-label="Self-assessment steps"></progress>
         <h3 id="starter-tiq-step" tabindex="-1">${group.title}</h3>
-        <p>${optional ? 'Answer both questions for each format you play, or skip a format.' : 'Choose what you can usually do in a match.'}</p>
+        <p>${optional ? 'Answer both questions for each format you play, or skip a format.' : 'Think about what you can repeat in recent matches. Choose the closest answer.'}</p>
       </header>
       ${group.questions.map(question => `<label>${question.prompt}
         <select name="${question.id}" ${optional ? '' : 'required'}>
@@ -86,22 +88,25 @@ export function mountStarterTiq(
               <strong>${result.level}</strong>
             </div>` : viewing && previousLevel ?
             `<p>Saved level · ${previousLevel.level}</p><p>Complete the updated assessment for a 1–10 rating.</p>` :
-            viewing ? '<p>Rate your tennis skills and find a drill to try next.</p>' : ''}
+            viewing ? '<p>Rate six tennis skills and find a drill to try next. Singles and doubles questions are optional.</p>' : ''}
         </div>
       </div>
       ${!viewing ? editHtml() : `
-        ${result ? `<p class="starter-tiq-focus">Practice focus · <strong>${result.focus.skill}</strong></p>` : ''}
+        ${result ? `<p class="starter-tiq-focus">Practice focus · <strong>${result.focus.skill}</strong></p>
+          ${'target' in result.focus ? `<p>${html(result.focus.target)}</p>` : ''}` : ''}
         <div class="starter-tiq-actions">
           ${recommendedDrill ? `<button type="button" data-starter-drill>Try ${recommendedDrill.title}</button>` : ''}
           <button type="button" ${recommendedDrill ? 'class="secondary" ' : ''}data-starter-edit>${result ? 'Retake' : previousLevel ? 'Update my rating' : 'Find my level'}</button>
+          <button type="button" class="secondary" data-starter-coach>Coach assessments</button>
           ${previousLevel ? '<button type="button" class="secondary" data-starter-clear>Clear saved assessment</button>' : ''}
         </div>
         ${previousLevel ? '<p role="status" data-starter-clear-status></p>' : ''}
         ${result ? `<details class="starter-tiq-breakdown">
           <summary>Skill breakdown</summary>
-          <ul>${result.skills.map(({ skill, value }) => `<li>
-            <span><b>${skill}</b><span>${skillLabels[value]}</span></span>
-            <meter min="0" max="3" value="${value}" aria-label="${skill}: ${skillLabels[value]}"></meter>
+          <ul>${result.skills.map(({ id, skill, value }) => `<li>
+            <span><b>${skill}</b><span>${tiqSkillLevels[value]}</span></span>
+            <meter min="0" max="3" value="${value}" aria-label="${skill}: ${tiqSkillLevels[value]}"></meter>
+            ${previous && previous.answers[id] !== value ? `<p>Previous · ${tiqSkillLevels[previous.answers[id]]}</p>` : ''}
           </li>`).join('')}</ul>
           ${formats.some(format => result[format] !== null) ? `<dl class="starter-tiq-formats">
             ${formats.map(format => result[format] === null ? '' :
@@ -190,6 +195,8 @@ export function mountStarterTiq(
     }
     const drill = host.querySelector<HTMLButtonElement>('[data-starter-drill]')
     if (drill && recommendedDrill) drill.onclick = () => { if (active() && !busy) openDrill(recommendedDrill.id, drill) }
+    const coach = host.querySelector<HTMLButtonElement>('[data-starter-coach]')!
+    coach.onclick = () => { if (active() && !busy) openAssessments(coach, history?.current.answers) }
     const clear = host.querySelector<HTMLButtonElement>('[data-starter-clear]')
     if (clear) clear.onclick = async () => {
       if (!active() || busy) return
