@@ -31,11 +31,11 @@
 .tiq-observation-skills dd small{display:block;color:var(--premium-copy);font-size:.8rem;font-weight:500}
 .tiq-observation-focus strong{display:block;color:var(--premium-white)}
 .coach-workspace-dialog p.coach-connection{padding:0;border:0;background:transparent;color:var(--premium-copy)}
-.coach-workspace-dialog .coach-review-queue{background:var(--premium-surface);border-color:var(--premium-line);border-radius:var(--premium-panel-radius);padding:16px}
+.coach-workspace-dialog :is(.coach-review-queue,.coach-follow-up){background:var(--premium-surface);border-color:var(--premium-line);border-radius:var(--premium-panel-radius);padding:16px}
 .coach-review-queue h4{margin:16px 0 6px;font-size:1rem;line-height:1.4;color:var(--premium-white)}
 .coach-workspace-dialog .coach-review-queue .coach-review-count,.coach-review-queue time{color:var(--premium-copy);font-size:.8125rem;line-height:1.5}
 .coach-workspace-dialog .coach-review-queue .coach-review-recap{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-wrap}
-.coach-workspace-dialog .coach-review-queue button.secondary{border-color:var(--premium-lime);border-radius:var(--premium-row-radius,14px);background:var(--premium-court-inlay);color:var(--premium-white)}
+.coach-workspace-dialog :is(.coach-review-queue,.coach-follow-up) button.secondary{border-color:var(--premium-lime);border-radius:var(--premium-row-radius,14px);background:var(--premium-court-inlay);color:var(--premium-white)}
 .native-tactics-content{flex:1;min-block-size:0}
 .native-tactics-content [data-tiq-studio][data-native-panel]{
  display:flex;flex-direction:column;gap:5px;max-width:none;height:100%;min-height:0;
