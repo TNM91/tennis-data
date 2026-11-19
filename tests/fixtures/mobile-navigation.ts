@@ -16,6 +16,7 @@ import {clearCoachDeviceData} from '../../mobile/src/coach-device-cleanup'
 import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complete-browser'
 import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal,labProfileFixture,labDataReads} from './mobile-navigation-client'
 import {readCoachAssessmentDraft, type CoachAssessment} from '../../lib/native-coach-assessment-contract'
+import {coachAssessmentHistoryFixture} from './mobile-coach-assessment-history'
 import {competitionSnapshot,competitionDetail} from './competitions-data'
 import {entryReviewFixture} from './league-entry-data'
 import {decisionReviewFixture} from './league-decisions-data'
@@ -42,7 +43,7 @@ import {hittingPlanStart} from '../../lib/hitting-plan'
 import type {LeagueDraftWrite,SavedLeagueDraft} from '../../lib/native-league-draft-contract'
 import {readReviewedNextMatch} from '../../lib/team-fixtures-contract'
 import {readTeamCourtScore,teamCourtScorecard,teamResultOutcome,teamScorecardLimit,teamScorecardsHeader,type TeamResultEntry,type TeamResultScore} from '../../lib/team-results-contract'
-const previewAssessments = new Map<string, CoachAssessment>()
+const previewAssessments = new Map<string, CoachAssessment>(coachAssessmentHistoryFixture.enabled ? coachAssessmentHistoryFixture.assessments.map(row => [row.id, row]) : [])
 const originalFetch=window.fetch.bind(window)
 const leagueDraftFixture={saved:null as SavedLeagueDraft|null,writes:[] as LeagueDraftWrite[]}
 const leagueCheckoutFixture={enabled:new URL(location.href).searchParams.has('league-checkout'),token:'',state:'ready',loseReceipt:true}
@@ -807,6 +808,10 @@ window.fetch=async(input,init)=>{
  if(url.pathname==='/api/mobile/coach/resources')return coachResourcesPreview(init?.method||'GET',url,init?.body)
  if(url.pathname==='/api/mobile/coach/assessments'){
   const owner=currentNavigationOwner(), student=url.searchParams.get('student')
+  if(coachAssessmentHistoryFixture.enabled && init?.method!=='POST'){
+   coachAssessmentHistoryFixture.reads++
+   if(coachAssessmentHistoryFixture.failed)return Response.json({ok:false},{status:403})
+  }
   if(init?.method==='POST'){
    const draft=readCoachAssessmentDraft(JSON.parse(String(init.body)))
    if(owner!==navigationOwner||draft.student!=='student-one')return Response.json({ok:false},{status:403})

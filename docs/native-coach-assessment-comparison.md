@@ -1,0 +1,13 @@
+# Comparing coach observations
+
+Coaches can open **Compare skill observations** from a student's assessment history when at least two dated observations in the same court context are loaded. The existing authorized student endpoint returns only that student's assessments authored by the signed-in coach. Lessons, drills and match play remain separate. The comparison is not offered in the player's combined history, where assessments may come from different coaches.
+
+The default pair is the latest assessment and the nearest earlier assessment in the most recent eligible context. Date selectors permit only strictly earlier/later pairs from the loaded context. Chronology preserves PostgreSQL microseconds and timezone offsets. Missing identifiers, duplicate IDs, equal timestamps, reversed dates or different coach names do not produce a comparison. Sorting never mutates the original history.
+
+Each skill shows its earlier and later observed levels. Higher, unchanged and lower counts include only skills observed in both assessments. A first observation and an omitted skill have separate labels; the Learning level is a real observation, not a placeholder for missing data. No overall rating, Starter TiQ result or self-assessment record is changed. The list labels the latest-12 history boundary.
+
+The later assessment's existing practice priority offers its existing drill assignment action. It uses the assessment UUID as the stable assignment ID and retains the current guarded save/recovery behavior. The selected pair and disclosure remain open while the assignment is saved. Already assigned drills are marked accordingly, including after reopening the student record. Closing the assessment returns the confirmed workspace snapshot to the student record.
+
+Comparing dates or contexts performs no requests and stores no device history. Refreshes clear the previous rows before loading; unavailable reads and account changes remove the private comparison. Controls use the shared navy palette and green court-inlay action. Localized dates stay compact, with full time details when multiple observations share a date. Skill columns reflow for narrow screens and larger text.
+
+No API, database migration, new permission, background job or paid service is added. Verification covers shared/missing skills, strict context and author boundaries, timestamp precision, loaded-history scope, both phone browser engines, large text, exact drill assignment and recovery, player self-rating preservation and account cleanup. Physical iPhone and VoiceOver acceptance remain separate from synthetic browser checks.

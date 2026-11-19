@@ -8,6 +8,7 @@ import { tiqSkillLevels, tiqSkills } from '../../lib/tiq-assessment-skills'
 import { CoachAssessmentError, loadCoachAssessments, shareCoachAssessment } from './coach-assessments-data'
 import { assignCoachPractice, CoachWorkspaceError, type CoachSend } from './coach-workspace-data'
 import { html } from './match-details'
+import {comparableAssessmentContexts, mountAssessmentComparison, type AssessmentComparisonSelection} from './coach-assessment-comparison'
 
 function observationHtml(observation: CoachObservation, self?: SkillObservations) {
   const focus = tiqSkills.find(skill => skill.id === observation.focus)
@@ -36,6 +37,7 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
   const assignedDrills = new Set(assignmentIds)
   let latestWorkspace: NativeCoachSnapshot | null = null
   let assigningDrill = false
+  let comparisonSelection: AssessmentComparisonSelection | null = null, comparisonOpen = false
   const active = () => !disposed && current() && trigger.isConnected
 
   function dispose() {
@@ -43,6 +45,8 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
     disposed = true
     draft = null
     rows = []
+    comparisonSelection = null
+    comparisonOpen = false
     dialog.close()
     dialog.remove()
     if (current() && trigger.isConnected) trigger.focus({ preventScroll: true })
@@ -182,12 +186,16 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
 
   function render(focus = true) {
     if (!active()) return
+    const comparable = Boolean(student && comparableAssessmentContexts(rows).length)
     const heading = view === 'form' ? 'Assess skills' : view === 'review' ? 'Review assessment' : 'Coach assessments'
     const content = view === 'form' ? formHtml() : view === 'review' && draft ? `
       <p>Shares this ${assessmentContexts[draft.observation.context].toLowerCase()} assessment with ${html(student!.name)} in My Lab.</p>
       ${observationHtml(draft.observation)}
       <button type="button" data-assessment-share ${busy || conflict ? 'disabled' : ''}>${attempted ? 'Retry same assessment' : 'Share assessment'}</button>` : `
       ${student ? `<button type="button" data-assessment-new ${busy ? 'disabled' : ''}>New assessment</button>` : '<p>See what your connected coaches observed and what to practice next.</p>'}
+      ${comparable ? `<details class="coach-assessment-comparison" ${comparisonOpen ? 'open' : ''}><summary>Compare skill observations</summary><div data-assessment-comparison></div></details>`
+        : student && rows.length ? '<p class="coach-assessment-scope">Share a later assessment in the same court context to compare observations.</p>' : ''}
+      ${rows.length ? `<p class="coach-assessment-scope">${rows.length === 12 ? 'Latest 12 shared assessments' : rows.length + ' shared assessment' + (rows.length === 1 ? '' : 's')}</p>` : ''}
       <div class="tiq-assessment-history">${rows.map(({ id, createdAt, coach, observation }, index) => `
         <details ${index === 0 ? 'open' : ''}><summary>${student ? assessmentContexts[observation.context] : html(coach)}<small>
           ${html(new Date(createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))}${student ? '' : ' · ' + assessmentContexts[observation.context]}
@@ -202,6 +210,14 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
       <dialog class="native-coach-decision" data-assessment-discard aria-label="Leave assessment"><h2>Leave assessment?</h2><p></p>
         <button type="button" data-assessment-keep>Keep editing</button><button type="button" class="secondary" data-assessment-leave>Leave assessment</button></dialog>`
     dialog.querySelector<HTMLButtonElement>('[data-assessment-close]')!.onclick = back
+    const comparison = dialog.querySelector<HTMLDetailsElement>('.coach-assessment-comparison')
+    const comparisonHost = comparison?.querySelector<HTMLElement>('[data-assessment-comparison]')
+    if (comparison && comparisonHost && student) {
+      comparison.ontoggle = () => {if (comparison.isConnected && active() && view === 'list') comparisonOpen = comparison.open}
+      mountAssessmentComparison(comparisonHost, rows, {selection: comparisonSelection, assigned: assignedDrills, busy,
+        current: () => active() && view === 'list', change: selection => {comparisonSelection = selection},
+        assign: student.linked && student.status !== 'paused' ? id => {comparisonOpen = comparison.open; void assignDrill(id)} : undefined})
+    }
     const confirm = dialog.querySelector<HTMLDialogElement>('[data-assessment-discard]')!
     confirm.oncancel = event => { event.preventDefault(); back() }
     dialog.querySelector<HTMLButtonElement>('[data-assessment-keep]')!.onclick = back
