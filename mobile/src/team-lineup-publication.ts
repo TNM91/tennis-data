@@ -2,6 +2,7 @@ import {lineupReplyLabels,type MatchLineupCourt,type SavedTeamLineup} from '../.
 import type {TeamLineupPlayer,TeamMatchReplies} from '../../lib/team-match-replies-contract'
 import {html} from './html'
 import {ownSharedCourtHtml} from './team-match-readiness'
+import {lineupNames} from './team-match-lineup'
 
 type AssignmentStatus='review'|'awaiting'|'unknown'|'confirmed'
 
@@ -13,7 +14,28 @@ export function availableLineupReserves(courts:MatchLineupCourt[],roster:TeamLin
 export function lineupCourtRows(courts:MatchLineupCourt[],names:Record<string,string>){
  let singles=0,doubles=0
  return courts.map(court=>({label:court.format==='singles'?`Singles ${++singles}`:`Doubles ${++doubles}`,
-  players:court.players.map(id=>names[id]??'Teammate').join(' & ')}))
+  ids:[...court.players],players:court.players.map(id=>names[id]??'Teammate').join(' & ')}))
+}
+
+export function lineupPublishComparison(courts:MatchLineupCourt[],roster:TeamLineupPlayer[],previous?:SavedTeamLineup){
+ const people=new Map(roster.map(player=>[player.id,{id:player.id,name:player.name}]))
+ for(const id of previous?.courts.flatMap(court=>court.players)??[])if(!people.has(id))people.set(id,{id,name:previous!.names[id]})
+ const names=Object.fromEntries(lineupNames([...people.values()]))
+ const before=lineupCourtRows(previous?.courts??[],names),after=lineupCourtRows(courts,names)
+ const samePlayers=(left:string[],right:string[])=>{
+  const leftIds=[...left].sort(),rightIds=[...right].sort()
+  return leftIds.length===rightIds.length&&leftIds.every((id,index)=>id===rightIds[index])
+ }
+ const rows=after.map(row=>{
+  const prior=before.find(old=>old.label===row.label)
+  const status=!prior?'new':samePlayers(prior.ids,row.ids)?'unchanged':'changed'
+  return {...row,before:prior?.players,status}
+ })
+ const removed=before.filter(row=>!after.some(next=>next.label===row.label)).map(row=>({...row,before:row.players,status:'removed'}))
+ const all=[...rows,...removed]
+ return {changes:all.filter(row=>row.status!=='unchanged'),unchanged:all.filter(row=>row.status==='unchanged'),
+  counts:{new:rows.filter(row=>row.status==='new').length,changed:rows.filter(row=>row.status==='changed').length,
+   removed:removed.length,unchanged:rows.filter(row=>row.status==='unchanged').length}}
 }
 
 export function lineupConfirmationSummary(replies:TeamMatchReplies){
@@ -57,13 +79,17 @@ function privateLineupNotice(replies:TeamMatchReplies,busy:boolean){
 }
 
 export function lineupPublishPreviewHtml(courts:MatchLineupCourt[],roster:TeamLineupPlayer[],previous?:SavedTeamLineup){
- const names=Object.fromEntries(roster.map(player=>[player.id,player.name]))
- const before=lineupCourtRows(previous?.courts??[],previous?.names??{}),after=lineupCourtRows(courts,names)
+ const comparison=lineupPublishComparison(courts,roster,previous),counts=comparison.counts
+ const summary=previous?[[counts.changed,'updated'],[counts.new,'new'],[counts.removed,'removed'],[counts.unchanged,'unchanged']]
+  .filter(([count])=>Number(count)>0).map(([count,label])=>`${count} ${label}`).join(' · '):`${courts.length} ${courts.length===1?'court':'courts'} to publish`
  return `<section class="team-lineup-publish-preview" aria-label="Lineup to publish"><h3 tabindex="-1">Review lineup</h3>
   <p>${previous?'This replaces the published lineup. Assigned players will need to confirm this version.':'Your teammates will see these court assignments in Next match.'}</p>
-  <ul>${after.map(row=>`<li><strong>${html(row.label)}</strong><span>${html(row.players)}</span>${before.find(old=>old.label===row.label)?.players&&before.find(old=>old.label===row.label)?.players!==row.players?
-   `<small>Previously · ${html(before.find(old=>old.label===row.label)!.players)}</small>`:''}</li>`).join('')}
-   ${before.filter(row=>!after.some(next=>next.label===row.label)).map(row=>`<li><strong>${html(row.label)}</strong><span>Removed from the published lineup</span></li>`).join('')}</ul>
+  <p class="team-lineup-change-summary">${html(summary)}</p>
+  ${previous&&!comparison.changes.length?'<p>No court assignment changes.</p>':''}
+  ${comparison.changes.length?`<ul aria-label="Court changes">${comparison.changes.map(row=>`<li data-lineup-change="${row.status}"><div class="team-lineup-change-heading"><strong>${html(row.label)}</strong><span>${row.status==='new'?'New court':row.status==='removed'?'Removed court':'Updated'}</span></div>
+   ${row.status==='removed'?`<span>Removed from the published lineup</span><small>Previously · ${html(row.before!)}</small>`:
+    `<span>${html(row.players)}</span>${row.before?`<small>Previously · ${html(row.before)}</small>`:''}`}</li>`).join('')}</ul>`:''}
+  ${comparison.unchanged.length?`<details class="team-lineup-unchanged"><summary>Unchanged courts (${comparison.unchanged.length})</summary><ul aria-label="Unchanged courts">${comparison.unchanged.map(row=>`<li data-lineup-change="unchanged"><strong>${html(row.label)}</strong><span>${html(row.players)}</span></li>`).join('')}</ul></details>`:''}
  </section>`
 }
 

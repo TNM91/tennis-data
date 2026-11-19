@@ -45,3 +45,11 @@
 .team-lineup-replacement li>button>span:first-child{min-inline-size:0;display:grid;gap:4px}
 .team-lineup-replacement li>button>span:last-child{flex:none;color:var(--premium-ice);font-size:.8125rem}
 .team-lineup-replacement small{font-size:.75rem;color:var(--premium-lime);font-weight:400}
+.team-lineup-change-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px}
+.team-lineup-publish-preview .team-lineup-change-heading>span{font-size:.75rem;color:var(--premium-ice)}
+.team-next-match-dialog .team-lineup-change-summary{font-weight:650;color:var(--premium-white)}
+.team-lineup-publish-preview [data-lineup-change="removed"] .team-lineup-change-heading>span{color:var(--premium-copy)}
+.team-next-match-dialog .team-lineup-unchanged{background:transparent;border:0;box-shadow:none;padding:0;margin-block-start:12px}
+.team-lineup-unchanged>summary{min-block-size:44px;display:flex;align-items:center;color:var(--premium-copy);cursor:pointer;font-size:.8125rem}
+.team-lineup-unchanged>summary::after{content:'⌄';margin-inline-start:auto;padding-inline-start:12px;color:var(--premium-ice)}
+.team-lineup-unchanged[open]>summary::after{content:'⌃'}

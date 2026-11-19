@@ -6,10 +6,16 @@ const availabilityOrder={in:0,maybe:1,awaiting:2,out:3}
 const availabilityLabel=(player:TeamLineupPlayer)=>player.choice?teamReplyLabels[player.choice]:'Awaiting reply'
 const availabilityRank=(player:TeamLineupPlayer)=>availabilityOrder[player.choice??'awaiting']
 
-export function lineupNames(roster:TeamLineupPlayer[]){
- const counts=new Map<string,number>()
- for(const {name} of roster){const key=name.toLowerCase();counts.set(key,(counts.get(key)??0)+1)}
- return new Map(roster.map(({id,name})=>[id,counts.get(name.toLowerCase())!>1?`${name} (${id.slice(-4).toUpperCase()})`:name]))
+export function lineupNames(roster:Pick<TeamLineupPlayer,'id'|'name'>[]){
+ const groups=new Map<string,string[]>()
+ for(const {id,name} of roster){const key=name.toLowerCase();groups.set(key,[...(groups.get(key)??[]),id])}
+ return new Map(roster.map(({id,name}):[string,string]=>{
+  const group=groups.get(name.toLowerCase())!
+  if(group.length===1)return [id,name]
+  let length=4
+  while(length<id.length&&group.some(other=>other!==id&&other.slice(-length).toUpperCase()===id.slice(-length).toUpperCase()))length+=2
+  return [id,`${name} (${id.slice(-length).toUpperCase()})`]
+ }))
 }
 
 export function courtLabels(courts:MatchLineupCourt[]){
