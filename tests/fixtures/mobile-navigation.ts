@@ -219,7 +219,7 @@ const manualScheduleFixture={enabled:new URL(location.href).searchParams.has('ma
  rosterComplete:true,failReplies:false,caseyChoice:null as string|null,
  savedLineup:null as {version:string;courts:{format:string;players:string[]}[];names:Record<string,string>;tactics?:SharedTacticsBoard}|null,
  publishedLineup:undefined as SavedTeamLineup|null|undefined,
- lineupReplies:{} as Record<string,TeamLineupReply>,loseNextConfirmation:true,confirmationWrites:[] as string[],
+ lineupReplies:{} as Record<string,TeamLineupReply>,loseNextConfirmation:true,confirmationWrites:[] as string[],afterReply:null as (()=>void)|null,
  loseNextLineupSave:true,lineupWrites:[] as string[]}
 const manualPublishedLineup=()=>manualScheduleFixture.publishedLineup===undefined
  ?manualScheduleFixture.savedLineup?.tactics?manualScheduleFixture.savedLineup:null:manualScheduleFixture.publishedLineup
@@ -661,7 +661,9 @@ window.fetch=async(input,init)=>{
      if(fixture.lineupReplies[owner])delete fixture.lineupReplies[owner]
      if(fixture.loseNextReply){fixture.loseNextReply=false;return Response.json({ok:false},{status:503})}
     }
-    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,reply:fixture.reply})
+    const reply=fixture.reply,revision=fixture.revision,after=fixture.afterReply
+    fixture.afterReply=null;after?.()
+    return Response.json({...base,roomId:chatRoomId,revision,reply})
    }
    if(action.action==='mark_chat_read')return Response.json(base)
    if(action.action!=='send')return Response.json({ok:false},{status:400})

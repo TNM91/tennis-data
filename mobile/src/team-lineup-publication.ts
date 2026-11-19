@@ -110,7 +110,9 @@ export function lineupPublicationHtml(replies:TeamMatchReplies|null,owner:string
   ${summary.awaiting?`<button type="button" class="secondary" data-draft-confirmation-reminder ${busy?'disabled':''}>Draft confirmation reminder</button><p>Review the reminder in team chat before sending.</p>`:''}`:''}
   ${!captain||assigned?ownSharedCourtHtml(shared,owner):''}
   ${assigned?`<p class="team-lineup-own-status" data-lineup-own-state="${replies.own?.choice==='out'?'out':own?.choice??'awaiting'}">${replies?.own?.choice==='out'?'You’re marked Out for this match.':ownStatus}</p>
-  <p>Your availability · ${replies.own?teamReplyLabels[replies.own.choice]:'Not replied'}</p><div class="team-readiness-actions">
+  <p>Your availability · ${replies.own?teamReplyLabels[replies.own.choice]:'Not replied'}</p>
+  ${replies.own?.choice!=='in'?`<div class="team-own-availability-step"><p>Tell your captain whether you can play. Your court confirmation is separate.</p><button type="button" class="secondary" data-open-own-availability ${busy?'disabled':''}>${replies.own?'Update availability':'Reply to match'}<span aria-hidden="true">›</span></button></div>`:''}
+  <div class="team-readiness-actions">
    <button type="button" class="secondary" data-lineup-reply="confirmed" ${busy||own?.choice==='confirmed'||replies?.own?.choice==='out'?'disabled':''}>Confirm my assignment</button>
    <button type="button" class="secondary" data-lineup-reply="needs_change" ${busy||own?.choice==='needs_change'?'disabled':''}>Request a change</button>
   </div><p>For a different court or partner, request a change. If you can’t play the match, update your availability below.</p>`:''}

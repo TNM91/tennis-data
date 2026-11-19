@@ -90,6 +90,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let pendingLineup:TeamLineupChange|null=null,lineupConflict=false
  let publicationReview:TeamLineupChange|null=null,confirmationReview:TeamLineupReplyChange|null=null,pendingConfirmation:TeamLineupReplyChange|null=null
  let assignmentUpdate:PlayerAssignmentUpdate|null=null
+ let returnFromOwnAvailability=false
  let previousSlot:ReviewedNextMatch|null=null
  let scheduleAnnouncement:{revision:string;previous:ReviewedNextMatch}|null=null
  let rosterExpanded=false
@@ -143,7 +144,8 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   replies=null
   if(!room.manualFixture||!snapshot.nextMatch||!snapshot.revision||!active())return
   try{replies=await teamMatchRepliesRequest(client,owner,active,room,snapshot.revision)}
-  catch(cause){notice=cause instanceof TeamNextMatchError?cause.message:'Availability couldn’t load. Reload the match.'}
+  catch(cause){notice=cause instanceof TeamNextMatchError?cause.message:'Availability couldn’t load. Reload the match.';return cause instanceof Error?cause:new Error(notice)}
+  return null
  }
  const reviewScheduleChange=(before:TeamNextMatchSchedule|undefined,latest:TeamNextMatchSchedule)=>{
   if(!before?.nextMatch||(before.revision===latest.revision&&latest.nextMatch))return
@@ -177,7 +179,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   if(busy||!active())return
   const before=schedule??calendarSchedule
   busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null;replacementTarget=null;editingDirty=false
-  publicationReview=null;confirmationReview=null;pendingConfirmation=null;assignmentUpdate=null
+  publicationReview=null;confirmationReview=null;pendingConfirmation=null;assignmentUpdate=null;returnFromOwnAvailability=false
   tacticsChoice=undefined;boardOptions=undefined
   replies=null;draft=null;removing=false;schedule=null;notice='Loading your next match…';render()
   try{
@@ -222,12 +224,42 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  }
  const reply=async(change:TeamMatchReplyChange)=>{
   if(busy||!active()||!schedule)return
+  const before=playerAssignmentSnapshot(schedule,replies,owner)
+  const refreshContext=Boolean(replies?.team||replies?.sharedLineup||returnFromOwnAvailability)
+  let assignmentReady=false,matchChanged=false
   busy=true;pendingReply=change;notice='Saving your reply…';render()
   try{
    const result=await teamMatchRepliesRequest(client,owner,active,room,change.revision,change)
-   const refreshTeam=Boolean(replies?.team)
-   replies=result;pendingReply=null;notice='Your reply is saved.'
-   if(refreshTeam)await refreshReplies(schedule)
+   if(!active())return
+   replies=result;pendingReply=null;changed=true;notice='Your reply is saved.'
+   const refreshError=refreshContext?await refreshReplies(schedule):null
+   if(!active())return
+   if(refreshError){
+    if(refreshError instanceof TeamNextMatchError&&refreshError.status===409){
+     try{
+      schedule=await teamNextMatchRequest(client,owner,active,room)
+      if(!active())return
+      const error=await refreshReplies(schedule)
+      if(!active())return
+      if(error)throw error
+      assignmentUpdate={before,after:playerAssignmentSnapshot(schedule,replies,owner)};matchChanged=true
+      notice='The match changed after your reply. Review the latest details and availability.'
+     }catch{schedule=null;replies=null;assignmentUpdate=null;notice='Your reply was saved. Reload to check the latest match.'}
+    }else{
+     replies=refreshError instanceof TeamNextMatchError&&refreshError.status===403?null:result
+     if(!replies)schedule=null
+     assignmentUpdate=null;notice='Your reply is saved. Reload the match to check your current assignment.'
+    }
+   }else if(replies?.sharedLineup){
+    const after=playerAssignmentSnapshot(schedule,replies,owner)
+    if(before.version!==after.version){assignmentUpdate={before,after};matchChanged=true;notice='Your reply is saved. The published lineup changed; review your current assignment.'}
+    else{
+     if(assignmentUpdate)assignmentUpdate={...assignmentUpdate,after}
+     assignmentReady=replies.own?.choice==='in'&&Boolean(after.court)&&(!captain||returnFromOwnAvailability)
+     if(assignmentReady)notice='Your reply is saved. Review your current court assignment next.'
+    }
+   }
+   returnFromOwnAvailability=false
   }catch(cause){
    notice=cause instanceof TeamNextMatchError?cause.message:'Your reply could not be confirmed. Retry the same reply.'
    if(cause instanceof TeamNextMatchError&&!cause.uncertain){
@@ -237,14 +269,19 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
      try{
       schedule=await teamNextMatchRequest(client,owner,active,room)
       notice='Your reply changed. Review the latest reply.'
-      reviewScheduleChange(before,schedule)
+      reviewScheduleChange(before??undefined,schedule)
       await refreshReplies(schedule)
      }catch{
       schedule=null;notice='Couldn’t check the latest match. Reload the match.'
      }
     }
    }
-  }finally{if(active()){busy=false;render();focus('[role="status"]')}}
+  }finally{if(active()){
+   busy=false;render()
+   const target=matchChanged?'.team-assignment-updates h3':assignmentReady?'.team-lineup-publication h3':null
+   if(target){focus(target);dialog.querySelector<HTMLElement>(matchChanged?'.team-assignment-updates':target)?.scrollIntoView({block:'start'})}
+   else focusFeedback()
+  }}
  }
  const draftAvailabilityMessage=async(kind:'reminder'|'schedule')=>{
   if(!active()||!captain||busy||pendingReply||!schedule?.nextMatch||!schedule.revision)return
@@ -663,6 +700,11 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector('[data-draft-confirmation-reminder]')?.addEventListener('click',()=>{void draftConfirmationReminder()})
   dialog.querySelector('[data-cancel-confirmation]')?.addEventListener('click',()=>{confirmationReview=null;render();focus('.team-lineup-publication h3')})
   dialog.querySelectorAll<HTMLButtonElement>('[data-lineup-reply]').forEach(button=>{button.onclick=()=>{void reviewConfirmation(button.dataset.lineupReply as LineupReplyChoice)}})
+  dialog.querySelector<HTMLButtonElement>('[data-open-own-availability]')?.addEventListener('click',()=>{
+   if(!active()||busy||pendingReply||pendingConfirmation)return
+   returnFromOwnAvailability=true
+   focus('#team-match-replies-title');dialog.querySelector<HTMLElement>('.team-match-replies')?.scrollIntoView({block:'start'})
+  })
   dialog.querySelector<HTMLButtonElement>('[data-draft-match-reminder]')?.addEventListener('click',()=>{void draftAvailabilityMessage('reminder')})
   dialog.querySelector<HTMLButtonElement>('[data-draft-match-change]')?.addEventListener('click',()=>{void draftAvailabilityMessage('schedule')})
   dialog.querySelector<HTMLButtonElement>('[data-open-match-maps]')?.addEventListener('click',()=>{void openMatchAction('maps')})

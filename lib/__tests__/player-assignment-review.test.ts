@@ -78,6 +78,18 @@ describe('player assignment updates',()=>{
 })
 
 describe('player assignment response presentation',()=>{
+ it.each([null,'maybe','out'] as const)('links %s availability directly to the player’s own reply without submitting either response',choice=>{
+  const data=replies();data.own=choice?{id:'availability',choice}:null
+  const markup=lineupPublicationHtml(data,owner,false,false)
+  expect(markup).toContain('data-open-own-availability')
+  expect(markup).toContain(choice?'Update availability':'Reply to match')
+  const paused=lineupPublicationHtml(data,owner,false,true)
+  expect(paused.match(/<button[^>]*data-open-own-availability[^>]*>/)?.[0]).toContain('disabled')
+ })
+ it('keeps the reply shortcut off an In player’s confirmed assignment and out of an unassigned player’s view',()=>{
+  expect(lineupPublicationHtml(replies(),owner,false,false)).not.toContain('data-open-own-availability')
+  expect(lineupPublicationHtml(replies(),'unassigned',false,false)).not.toContain('data-open-own-availability')
+ })
  it('never displays an older version’s confirmation as current or disables the current confirm action',()=>{
   const data=replies();data.lineupReply!.version='old'
   const markup=lineupPublicationHtml(data,owner,false,false)

@@ -40,6 +40,9 @@
 .team-next-match-dialog .team-lineup-own-status{color:var(--premium-copy);font-weight:650}
 .team-next-match-dialog .team-lineup-own-status[data-lineup-own-state="confirmed"]{color:var(--premium-lime)}
 .team-next-match-dialog .team-lineup-own-status[data-lineup-own-state="needs_change"]{color:var(--premium-ice)}
+.team-own-availability-step{border-block:1px solid var(--premium-line);padding-block:4px 12px;margin-block:12px}
+.team-next-match-dialog .team-own-availability-step button.secondary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-block-size:48px;margin:0;padding:12px;text-align:start;font-size:.8125rem;background:var(--premium-court-inlay);border-color:var(--premium-line)}
+.team-own-availability-step button>span{color:var(--premium-ice);flex:none}
 .team-next-match-dialog .team-assignment-updates{min-inline-size:0;padding:14px;margin-block:14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);overflow-wrap:anywhere;box-shadow:none}
 .team-next-match-dialog .team-assignment-updates h3{font-size:1rem;line-height:1.4;color:var(--premium-white);margin:0}
 .team-next-match-dialog .team-assignment-updates p{font-size:.8125rem;line-height:1.5;color:var(--premium-copy)}
