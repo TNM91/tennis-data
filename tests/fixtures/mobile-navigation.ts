@@ -214,10 +214,11 @@ const manualScheduleFixture={enabled:new URL(location.href).searchParams.has('ma
  revision:null as string|null,nextMatch:null as Record<string,unknown>|null,loseNextSave:true,writes:[] as string[],
  reply:null as {id:string;choice:string}|null,loseNextReply:true,replyWrites:[] as string[],
  extraPlayers:[] as {id:string;name:string;choice:string|null}[],
+ rosterComplete:true,failReplies:false,caseyChoice:null as string|null,
  savedLineup:null as {version:string;courts:{format:string;players:string[]}[];names:Record<string,string>;tactics?:SharedTacticsBoard}|null,
  loseNextLineupSave:true,lineupWrites:[] as string[]}
 const manualLineupRoster=()=>[{id:'10000000-0000-4000-8000-000000000001',name:'Alex',choice:manualScheduleFixture.reply?.choice??null},
- {id:'10000000-0000-4000-8000-000000000002',name:'Casey',choice:null},...manualScheduleFixture.extraPlayers]
+ {id:'10000000-0000-4000-8000-000000000002',name:'Casey',choice:manualScheduleFixture.caseyChoice},...manualScheduleFixture.extraPlayers]
 const teamResultFixture={
  fixtureId:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
  match:{opponent:'Topspin Club',date:'2026-11-01',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
@@ -688,12 +689,13 @@ window.fetch=async(input,init)=>{
   }
   if(op==='match-replies'){
    const fixture=manualScheduleFixture
+   if(fixture.failReplies)return Response.json({ok:false},{status:503})
    if(!team||!fixture.enabled||!fixture.nextMatch||fixture.revision!==url.searchParams.get('revision'))return Response.json({ok:false},{status:409})
    const lineupRoster=manualLineupRoster()
    const teamReplies=lineupRoster.filter(player=>player.choice).map(({name,choice})=>({name,choice}))
    const awaiting=lineupRoster.filter(player=>player.choice===null).map(player=>player.name)
    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,replies:{own:fixture.reply,
-    ...(fixture.captain&&owner===navigationOwner?{team:teamReplies,awaiting,awaitingTeammates:awaiting.length,rosterComplete:true,lineupRoster,
+    ...(fixture.captain&&owner===navigationOwner?{team:teamReplies,awaiting,awaitingTeammates:awaiting.length,rosterComplete:fixture.rosterComplete,lineupRoster,
      savedLineup:fixture.savedLineup}:fixture.savedLineup?.tactics?{sharedLineup:fixture.savedLineup}:{})}})
   }
   if(op==='next-match'){

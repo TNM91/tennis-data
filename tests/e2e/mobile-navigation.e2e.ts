@@ -2702,6 +2702,145 @@ test('first-party captains can share, correct, and remove their independent team
  expect(replyWrites[0]).toBe(replyWrites[1])
 })
 
+test('first-party match readiness links to exact schedule fields, replies and the same lineup',async({page},info)=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:844})
+ await page.goto(origin+'/?manual-team-schedule=1&large=1')
+ await page.evaluate(()=>Object.assign((window as unknown as {manualScheduleFixture:object}).manualScheduleFixture,{
+  revision:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'',facility:'',timeZone:'America/Chicago'},
+  reply:{id:'22222222-2222-4222-8222-222222222222',choice:'in'},
+  savedLineup:{version:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',courts:[{format:'doubles',players:['10000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002']}],
+   names:{'10000000-0000-4000-8000-000000000001':'Alex','10000000-0000-4000-8000-000000000002':'Casey'}},
+ }))
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ await page.locator('.chat-room-options > summary').click()
+ await page.locator('#chat-next-match').click()
+ const match=page.getByRole('dialog',{name:'Next match',exact:true})
+ const ready=match.getByRole('region',{name:'Match readiness',exact:true})
+ await expect(ready).toContainText('1 of 2')
+ await expect(ready.getByRole('list',{name:'Assigned players to review'})).toContainText('Casey')
+ expect(await ready.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ await page.screenshot({path:info.outputPath('captain-match-readiness-large-text.png')})
+ for(const [action,label] of [['Set the start time','Start time'],['Add the venue','Court or facility']]){
+  await ready.getByRole('button',{name:action,exact:true}).click()
+  await expect(match.getByLabel(label,{exact:true})).toBeFocused()
+  await match.getByRole('button',{name:'Cancel edit',exact:true}).click()
+  await expect(ready.getByRole('button',{name:action,exact:true})).toBeFocused()
+ }
+ await ready.getByRole('button',{name:'Review unanswered replies',exact:true}).click()
+ await expect(match.getByText('View teammates',{exact:true})).toBeFocused()
+ await expect(match.getByRole('list',{name:'Teammate availability',exact:true})).toContainText('Casey')
+ const review=ready.getByRole('button',{name:'Review assigned players',exact:true})
+ await review.click()
+ await expect(match.getByRole('heading',{name:'Plan lineup',exact:true})).toBeFocused()
+ const preview=match.getByRole('region',{name:'Lineup readiness',exact:true})
+ await expect(preview).toContainText('Casey')
+ const playerTwo=match.getByRole('combobox',{name:'Player 2',exact:true})
+ await playerTwo.selectOption('')
+ await expect(preview).toContainText('1 playing spot needs a teammate.')
+ await playerTwo.selectOption('10000000-0000-4000-8000-000000000001')
+ await expect(preview).toContainText('A teammate is assigned more than once.')
+ await page.keyboard.press('Escape')
+ const unsaved=page.getByRole('dialog',{name:'Keep match edits',exact:true})
+ await expect(unsaved.getByRole('button',{name:'Keep editing',exact:true})).toBeFocused()
+ await unsaved.getByRole('button',{name:'Keep editing',exact:true}).click()
+ await expect(playerTwo).toHaveValue('10000000-0000-4000-8000-000000000001')
+ await page.keyboard.press('Escape')
+ await unsaved.getByRole('button',{name:'Discard edits and return to match',exact:true}).click()
+ await expect(review).toBeFocused()
+ await review.click()
+ await expect(playerTwo).toHaveValue('10000000-0000-4000-8000-000000000002')
+ await match.getByRole('button',{name:'Cancel edit',exact:true}).click()
+ await ready.getByRole('button',{name:'Set the start time',exact:true}).click()
+ await match.getByLabel('Start time',{exact:true}).fill('19:00')
+ await page.evaluate(()=>(window as unknown as {refreshNavigationSession:()=>void}).refreshNavigationSession())
+ await page.keyboard.press('Escape')
+ await unsaved.getByRole('button',{name:'Keep editing',exact:true}).click()
+ await expect(match.getByLabel('Start time',{exact:true})).toHaveValue('19:00')
+ await page.keyboard.press('Escape')
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+ await expect(unsaved).toHaveCount(0)
+ await expect(match).toHaveCount(0)
+ const writes=await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{writes:string[];lineupWrites:string[]}}).manualScheduleFixture
+  return [...fixture.writes,...fixture.lineupWrites]
+ })
+ expect(writes).toEqual([])
+})
+
+test('first-party match readiness shows uncertainty and rechecks changed availability before drafting',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?manual-team-schedule=1')
+ await page.evaluate(()=>Object.assign((window as unknown as {manualScheduleFixture:object}).manualScheduleFixture,{
+  revision:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',rosterComplete:false,failReplies:true,
+  nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
+ }))
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ await page.locator('.chat-room-options > summary').click()
+ await page.locator('#chat-next-match').click()
+ const match=page.getByRole('dialog',{name:'Next match',exact:true}),ready=match.getByRole('region',{name:'Match readiness',exact:true})
+ await expect(ready).toContainText('Not checked')
+ await expect(ready.getByRole('button',{name:'Recheck availability',exact:true})).toBeVisible()
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{failReplies:boolean}}).manualScheduleFixture.failReplies=false})
+ await ready.getByRole('button',{name:'Recheck availability',exact:true}).click()
+ await expect(ready).toContainText('Availability covers the teammates loaded here.')
+ await expect(ready).toContainText('Not planned')
+ await expect(ready.getByRole('button',{name:'Add court assignments',exact:true})).toBeVisible()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{reply:{id:string;choice:string};caseyChoice:string}}).manualScheduleFixture
+  fixture.reply={id:'22222222-2222-4222-8222-222222222222',choice:'in'}
+  fixture.caseyChoice='in'
+ })
+ await match.getByRole('button',{name:'Draft team reminder',exact:true}).click()
+ await expect(match.getByRole('status')).toHaveText('The teammates shown here have replied.')
+ await expect(match).toBeVisible()
+ expect(await page.evaluate(()=>(window as unknown as {firstPartyTeamFixture:{posts:string[]}}).firstPartyTeamFixture.posts)).toEqual([])
+})
+
+test('first-party shared court highlights the player and partner without exposing captain readiness',async({page},info)=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:390,height:844})
+ await page.goto(origin+'/?manual-team-schedule=1')
+ await page.evaluate(()=>Object.assign((window as unknown as {manualScheduleFixture:object}).manualScheduleFixture,{
+  revision:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',loseNextLineupSave:false,
+  nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
+  reply:{id:'33333333-3333-4333-8333-333333333333',choice:'in'},
+  extraPlayers:[{id:'22222222-2222-4222-8222-222222222222',name:'Riley',choice:'in'}],
+ }))
+ const open=async()=>{
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+  await page.getByRole('button',{name:/^Baseline Aces/}).click()
+  await page.locator('.chat-room-options > summary').click();await page.locator('#chat-next-match').click()
+ }
+ await open()
+ const match=page.getByRole('dialog',{name:'Next match',exact:true})
+ await match.getByRole('button',{name:'Plan lineup',exact:true}).click()
+ await match.getByRole('button',{name:'Add doubles court',exact:true}).click()
+ await match.getByRole('combobox',{name:'Player 1',exact:true}).selectOption({label:'Alex · In'})
+ await match.getByRole('combobox',{name:'Player 2',exact:true}).selectOption({label:'Riley · In'})
+ await match.getByRole('button',{name:'Choose saved board',exact:true}).click()
+ await match.getByRole('combobox',{name:'Saved tactics board',exact:true}).selectOption({label:'Saturday poach pattern'})
+ await match.getByRole('button',{name:'Share lineup & board',exact:true}).click()
+ await expect(match.getByRole('status')).toHaveText('Lineup and tactics board shared in Next match.')
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+ await expect(match).toHaveCount(0)
+ await open()
+ const court=match.getByRole('region',{name:'Your shared court',exact:true})
+ await expect(court).toContainText('Doubles 1')
+ await expect(court).toContainText('Partner · Alex')
+ await expect(match.getByRole('region',{name:'Match readiness',exact:true})).toHaveCount(0)
+ await page.screenshot({path:info.outputPath('player-shared-match-court.png')})
+ await match.getByRole('button',{name:/Open tactics board/}).click()
+ const board=page.getByRole('dialog',{name:'Shared tactics board',exact:true})
+ await board.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(match.getByRole('button',{name:/Open tactics board/})).toBeFocused()
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:(restore:boolean)=>void}).switchNavigationOwner(true))
+ await expect(match).toHaveCount(0)
+})
+
 test('first-party captain shares a lineup and tactics board with a teammate',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:390,height:844})
@@ -2726,6 +2865,9 @@ test('first-party captain shares a lineup and tactics board with a teammate',asy
  await match.getByRole('combobox',{name:'Saved tactics board',exact:true}).selectOption({label:'Saturday poach pattern'})
  await match.getByRole('button',{name:'Share lineup & board',exact:true}).click()
  await expect(match.getByRole('button',{name:/Retry same lineup/})).toBeVisible()
+ await page.keyboard.press('Escape')
+ await expect(match.getByRole('status')).toHaveText('Retry the same change or reload the match to check whether it saved.')
+ await expect(match).toBeVisible()
  await match.getByRole('button',{name:/Retry same lineup/}).click()
  await expect(match.getByRole('status')).toHaveText('Lineup and tactics board shared in Next match.')
  await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click())

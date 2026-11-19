@@ -1,0 +1,18 @@
+.team-next-match-dialog .team-readiness,.team-next-match-dialog .team-own-court{padding:14px;margin-block:14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);box-shadow:none;overflow-wrap:anywhere}
+.team-readiness :is(h3,p),.team-own-court :is(h3,p){margin:0}
+.team-next-match-dialog .team-readiness h3,.team-next-match-dialog .team-own-court h3{font-size:1rem;line-height:1.4;color:var(--premium-white)}
+.team-readiness dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:12px;margin:14px 0}
+.team-readiness dl>div{min-inline-size:0}
+.team-readiness dt{color:var(--premium-copy);font-size:.75rem;line-height:1.4}
+.team-readiness dd{margin:4px 0 0;font-size:1.2rem;font-weight:750;color:var(--premium-white);font-variant-numeric:tabular-nums}
+.team-next-match-dialog .team-readiness p,.team-next-match-dialog .team-own-court p{font-size:.8125rem;line-height:1.5;margin-block-start:10px;color:var(--premium-copy)}
+.team-next-match-dialog .team-readiness .team-readiness-warning{color:var(--premium-ice)}
+.team-readiness-attention{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:8px}
+.team-readiness-attention li{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between;font-size:.8125rem;border-block-start:1px solid var(--premium-line);padding-block-start:8px}
+.team-readiness-attention span{color:var(--premium-copy)}
+.team-readiness-actions{display:grid;gap:8px;margin-block-start:12px}
+.team-next-match-dialog .team-readiness-actions button.secondary{margin:0;min-block-size:48px;padding:10px 12px;text-align:start;display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;border-color:var(--premium-line);color:var(--premium-white);font-size:.8125rem}
+.team-readiness-actions button span{color:var(--premium-ice);flex:none}
+.team-own-court p>strong,.team-own-court p>span{display:block}
+.team-own-court p>strong{font-size:1.2rem;color:var(--premium-lime);margin-block:12px 4px}
+.team-readiness-discard{background:var(--premium-page);border-color:var(--premium-line);color:var(--premium-white)}
