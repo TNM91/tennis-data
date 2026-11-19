@@ -232,9 +232,11 @@ jobs:
         run: npm ci
       - name: Use the Ubuntu archive for browser dependencies
         run: |
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
-          fi
+          for apt_source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$apt_source" ]; then
+              sudo sed -i -E 's|https?://[^[:space:]]*archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$apt_source"
+            fi
+          done
       - name: Install browser engines
         run: npx playwright install --with-deps chromium webkit
       - name: Verify native tournament discovery, draws and published schedules
@@ -282,10 +284,12 @@ jobs:
           cache: npm
       - name: Use the Ubuntu archive for browser dependencies
         run: |
-          # Preserve signed Ubuntu packages while avoiding the throttled Azure mirror.
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
-          fi
+          # Cover mirror lists and Ubuntu's direct source configurations.
+          for apt_source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$apt_source" ]; then
+              sudo sed -i -E 's|https?://[^[:space:]]*archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$apt_source"
+            fi
+          done
       - name: Install locked dependencies and browser engines
         run: |
           npm ci
