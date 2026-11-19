@@ -1,0 +1,17 @@
+.competitions-dialog button[data-match-day-action]:is([data-match-day-action="enter"],[data-match-day-action="fix"],[data-match-day-action="review"]){background:var(--premium-lime);border-color:var(--premium-lime);color:var(--premium-page)}
+.league-score-screen .league-score-context,.league-score-screen fieldset.lineup-court,.league-score-screen .league-score-lines>li{background:var(--premium-inset);border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);box-shadow:none}
+.league-score-screen .league-score-context{padding:14px;margin-block:12px 18px}
+.league-score-screen .league-score-context strong{color:var(--premium-white);font-size:1rem;line-height:1.4}
+.league-score-screen .league-score-context p{margin-block:6px 0;color:var(--premium-copy);font-size:.8125rem}
+.league-score-screen ol.league-score-lines{display:grid;gap:10px;margin:14px 0;padding:0;border:0;border-radius:0;background:transparent;list-style:none;box-shadow:none}
+.league-score-screen .league-score-lines>li{margin:0;padding:14px}
+.league-score-screen .league-score-next-step{color:var(--premium-copy);font-size:.8125rem;line-height:1.55;margin-block:12px}
+.league-score-screen .league-score-done-actions{display:grid;gap:8px;margin-block:14px 0}
+.league-score-screen .league-score-done-actions button{margin:0;min-block-size:48px}
+.league-score-screen .entry-note{padding:12px;border:1px solid var(--premium-line);border-inline-start:2px solid var(--premium-ice);border-radius:12px;background:var(--premium-inset);white-space:pre-wrap}
+.league-score-discard{background:var(--premium-page);border-color:var(--premium-line);color:var(--premium-white)}
+.league-official-result section.league-post-match-practice{margin-block:18px 0;padding:16px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-inset);box-shadow:none}
+.league-post-match-practice h3{margin:0;font-size:1rem;color:var(--premium-white)}
+.league-post-match-practice p{font-size:.8125rem;color:var(--premium-copy);line-height:1.55}
+.league-post-match-practice>div{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:8px}
+.league-post-match-practice button.secondary{margin:0;min-inline-size:0;min-block-size:48px;padding:10px;font-size:.8125rem;background:var(--premium-surface);border-color:var(--premium-line);color:var(--premium-white)}

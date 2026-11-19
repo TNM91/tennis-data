@@ -8,32 +8,49 @@ import {
 } from '../../lib/native-league-score-contract'
 import { scenarioOwner, type ScenarioSend } from './captain-scenarios-data'
 import { html } from './match-details'
+import './match-day.css'
 
 type DraftLine = { format: LeagueScoreDiscipline; score: string; outcome: LeagueCourtOutcome; winner: string }
 const blankLine=(format:LeagueScoreDiscipline):DraftLine=>({format,score:'',outcome:'played',winner:''})
 
 export function openLeagueScores(
   client: SupabaseClient, owner: string, current: () => boolean, leagueId: string, matchId: string,
-  closed: (approved: boolean, changed: boolean) => void, send: ScenarioSend = request => CapacitorHttp.request(request),
-  backLabel = 'Back to league',
+  closed: (approved: boolean, changed: boolean, destination?: 'standings') => void, send: ScenarioSend = request => CapacitorHttp.request(request),
+  backLabel = 'Back to league', offerStandings = false,
 ) {
   const dialog = document.createElement('dialog')
-  dialog.className = 'captain-lineup-dialog competitions-dialog league-entry-dialog league-scheduler'
+  dialog.className = 'captain-lineup-dialog competitions-dialog league-entry-dialog league-scheduler league-score-screen'
   dialog.setAttribute('aria-labelledby', 'league-scores-title')
   const queue = !matchId
   let disposed = false, busy = false, approved = false, changed = false, selected = matchId
   let desk: LeagueScoreDesk | null = null, matches: LeagueScoreFixture[] | null = null
   let draft: DraftLine[] = [], note = '', returning = false
   let pending: LeagueScoreChange | null = null
+  let edited = false, leavePrompt: HTMLDialogElement | null = null
   let status = 'Loading league scores…'
   const active = () => !disposed && current()
-  const dispose = () => { disposed = true; dialog.remove() }
+  const dispose = () => {disposed = true; leavePrompt?.remove(); leavePrompt = null; desk = null; matches = null; draft = []; note = ''; pending = null; dialog.remove()}
+  function confirmDiscard(action: () => void) {
+    if (!active() || leavePrompt) return
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const prompt = document.createElement('dialog'); leavePrompt = prompt
+    prompt.className = 'captain-lineup-dialog league-score-discard'; prompt.setAttribute('aria-label', 'Keep unsent scores')
+    prompt.innerHTML = '<h2>Keep your edits?</h2><p>Your unsent score or correction note will be discarded if you leave or reload.</p><button type="button" data-keep>Keep editing</button><button type="button" class="secondary" data-discard>Discard edits and continue</button>'
+    const keep = () => {prompt.remove(); leavePrompt = null; if (active() && previous?.isConnected) previous.focus({preventScroll: true})}
+    prompt.querySelector<HTMLButtonElement>('[data-keep]')!.onclick = keep
+    prompt.querySelector<HTMLButtonElement>('[data-discard]')!.onclick = () => {prompt.remove(); leavePrompt = null; edited = false; if (active()) action()}
+    prompt.oncancel = event => {event.preventDefault(); keep()}
+    dialog.append(prompt); prompt.showModal(); prompt.querySelector<HTMLButtonElement>('[data-keep]')!.focus()
+  }
   function back() {
+    if (disposed) return true
+    if (leavePrompt) {leavePrompt.querySelector<HTMLButtonElement>('[data-keep]')?.click(); return true}
     if (busy) return true
     if (pending) {
       showStatus('Retry the same change or reload the scorecard to check whether it saved.')
       return true
     }
+    if (edited) {confirmDiscard(back); return true}
     if (queue && selected) { selected = ''; void load(); return true }
     dispose()
     if (current()) closed(approved,changed)
@@ -71,7 +88,7 @@ export function openLeagueScores(
   async function load() {
     if (!active() || busy) return
     busy = true; status = 'Loading league scores…'
-    desk = null; matches = null; pending = null; note = ''; returning = false
+    desk = null; matches = null; pending = null; note = ''; returning = false; edited = false
     render()
     try {
       const { data, error } = await request()
@@ -106,6 +123,7 @@ export function openLeagueScores(
       desk = { ...desk, card }
       changed = true
       pending = null; returning = false; note = ''
+      edited = false
       if (card.state === 'approved') approved = true
       status = card.state === 'approved' ? 'Score approved. League standings are updated.' :
         card.state === 'changes_requested' ? desk.leagueFormat==='individual'?'Returned to the player for correction.':
@@ -138,7 +156,7 @@ export function openLeagueScores(
     const card = desk?.card
     const editable = desk?.canSubmit && (!card || card.state === 'changes_requested')
     const controls = !busy && !pending
-    const title = !selected ? 'Review scores' : desk?.canReview ? 'Review scorecard' : 'Match scorecard'
+    const title = !selected ? 'Review scores' : card?.state === 'approved' ? 'Official scorecard' : desk?.canReview ? 'Review scorecard' : 'Match scorecard'
     const date = (match: LeagueScoreFixture) => [formatCalendarDay(match.date, false),
       match.time ? formatCaptainPracticeTime(match.time) : ''].filter(Boolean).join(' · ')
     const slot = (i: number) => desk?.slots[i]?.label || 'Court ' + (i + 1)
@@ -152,12 +170,15 @@ export function openLeagueScores(
     if (desk) {
       const { match } = desk
       const individual = desk.leagueFormat === 'individual'
-      content = `<div class="lineup-court league-scheduler-summary"><strong>${html(match.a)} vs ${html(match.b)}</strong>
+      content = `<div class="lineup-court league-scheduler-summary league-score-context"><strong>${html(match.a)} vs ${html(match.b)}</strong>
         <p>${html(date(match))}</p></div>`
       if (card) {
         const labels = { pending: 'Awaiting coordinator review', changes_requested: 'Corrections requested', approved: 'Official score' }
         content += `<p class="competition-status">${labels[card.state]}</p>`
         if (card.note) content += `<p class="entry-note">${html(card.note)}</p>`
+        content += `<p class="league-score-next-step">${card.state === 'approved' ? 'This result counts in league standings.' : card.state === 'changes_requested' ?
+          editable ? 'Update the scorecard using the coordinator’s note, then resubmit it.' : 'Waiting for the submitter to correct and resubmit this scorecard.' : desk.canReview ?
+          'Check the court scores, then approve them or request corrections.' : 'A coordinator will review these scores before they count in standings.'}</p>`
       }
       if (editable) {
         content += `<form data-score-form><p>Enter scores in ${html(match.a)}–${html(match.b)} order.</p>
@@ -180,7 +201,7 @@ export function openLeagueScores(
           ${controls ? `<button type="submit">${card ? 'Resubmit scorecard' : 'Submit for review'}</button>` : ''}
         </form>`
       } else if (card) {
-        content += `<ol class="competition-standings">${card.lines.map((line, i) => `<li class="lineup-court">
+        content += `<ol class="competition-standings league-score-lines">${card.lines.map((line, i) => `<li class="lineup-court">
           <strong>${html(slot(i))}</strong><p>${html(leagueCourtResultText(line))} · ${html(line.winner === 'A' ? match.a : match.b)}</p></li>`).join('')}</ol>`
       } else {
         content += desk.canReview ? individual ? '<p>The players haven’t submitted a score yet.</p>' : '<p>The captains haven’t submitted a scorecard yet.</p>' :
@@ -199,12 +220,24 @@ export function openLeagueScores(
       <button type="button" class="secondary" data-score-refresh ${busy ? 'disabled' : ''}>Reload</button></header>
       <div class="entry-hero"><h2 id="league-scores-title" tabindex="-1">${title}</h2></div>
       ${content}<p role="status" tabindex="-1" data-score-status>${html(status)}</p>`
+    if (card && !editable && controls) {
+      const next = document.createElement('div'); next.className = 'league-score-done-actions'
+      next.innerHTML = (offerStandings && card.state === 'approved' ? '<button type="button" data-score-standings>View updated standings</button>' : '') +
+        `<button type="button" ${card.state === 'approved' ? 'class="secondary" ' : ''}data-score-done>${queue && selected ? 'Return to score review' : backLabel === 'Back to match' ? 'Return to match' : backLabel === 'Back to follow-ups' ? 'Return to follow-ups' : 'Done'}</button>`
+      dialog.append(next)
+      next.querySelector<HTMLButtonElement>('[data-score-done]')!.onclick = back
+      next.querySelector<HTMLButtonElement>('[data-score-standings]')?.addEventListener('click', () => {
+        if (!active() || busy || pending) return
+        dispose(); if (current()) closed(true, changed, 'standings')
+      })
+    }
     dialog.querySelector('[data-score-close]')?.addEventListener('click', back)
-    dialog.querySelector('[data-score-refresh]')?.addEventListener('click', () => { void load() })
+    dialog.querySelector('[data-score-refresh]')?.addEventListener('click', () => {if (edited && !pending) confirmDiscard(() => {void load()}); else void load()})
     dialog.querySelectorAll<HTMLButtonElement>('[data-score-match]').forEach(button => {
       button.onclick = () => { selected = button.dataset.scoreMatch!; void load() }
     })
     const fields = dialog.querySelector<HTMLFormElement>('[data-score-form]')
+    fields?.addEventListener('input', () => {edited = true})
     const remember = () => {
       if (!fields) return
       const values = new FormData(fields)
@@ -220,14 +253,15 @@ export function openLeagueScores(
     fields?.addEventListener('change', event => {
       if (!(event.target instanceof HTMLSelectElement)||!event.target.hasAttribute('data-court-outcome')) return
       const name=event.target.name
+      edited = true
       remember(); render(); dialog.querySelector<HTMLElement>('[name="'+name+'"]')?.focus({preventScroll:true})
     })
     dialog.querySelector('[data-score-add]')?.addEventListener('click', () => {
-      remember(); draft.push(blankLine('doubles')); render()
+      remember(); draft.push(blankLine('doubles')); edited = true; render()
       dialog.querySelector<HTMLElement>('[name="format-'+(draft.length-1)+'"]')?.focus()
     })
     dialog.querySelectorAll<HTMLButtonElement>('[data-score-remove]').forEach(button => {
-      button.onclick = () => { remember(); draft.splice(Number(button.dataset.scoreRemove), 1); render(true) }
+      button.onclick = () => { remember(); draft.splice(Number(button.dataset.scoreRemove), 1); edited = true; render(true) }
     })
     dialog.querySelector('[data-score-approve]')?.addEventListener('click', () => commit('approve'))
     dialog.querySelector('[data-score-return]')?.addEventListener('click', () => {
@@ -237,6 +271,7 @@ export function openLeagueScores(
     dialog.querySelector<HTMLFormElement>('[data-score-return-form]')?.addEventListener('submit', event => {
       event.preventDefault(); note = String(new FormData(event.currentTarget as HTMLFormElement).get('note') ?? ''); commit('return')
     })
+    dialog.querySelector<HTMLTextAreaElement>('[name="note"]')?.addEventListener('input', event => {note = (event.currentTarget as HTMLTextAreaElement).value; edited = true})
     dialog.querySelector('[data-score-retry]')?.addEventListener('click', () => { if (pending) void save(pending) })
     if (focus) dialog.querySelector<HTMLElement>(status ? '[data-score-status]' : 'h2')?.focus()
   }

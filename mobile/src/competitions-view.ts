@@ -23,6 +23,8 @@ import {courtAccountId} from '../../lib/native-court-result-contract'
 import {openCaptainCourtScores} from './captain-court-view'
 import {localCalendarDate} from './calendar-data'
 import type {CalendarScorecardSeed} from './personal-match-data'
+import {openLevelUp} from './level-up-view'
+import './match-day.css'
 type View='home'|'fixtures'|'results'|'standings'|'participants'
 type ReturnPosition={scroll:number}&({target:'league'|'league-entry'|'match-day'|'attention-scorecard';id:string}|{target:'registration'|'entry-requests'|'score-queue'})
 const stateLabel=(v:string)=>(({draft:'Draft',registration_open:'Registration open',active:'In season',completed:'Completed',archived:'Past season'} as Record<string,string>)[v]||v.replaceAll('_',' '))
@@ -72,14 +74,15 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
  let scheduler:ReturnType<typeof openLeagueSchedule>|null=null
  let scores:ReturnType<typeof openLeagueScores>|null=null
  let official:HTMLDialogElement|null=null
+ let resultPractice:ReturnType<typeof openLevelUp>|null=null
  let tournaments:ReturnType<typeof openTournaments>|null=null
  let courtDesk:ReturnType<typeof openCaptainCourtScores>|null=null
  const active=()=>!disposed&&current()
- const dispose=()=>{if(disposed)return;disposed=true;version++;official?.remove();official=null;scores?.dispose();scores=null;scheduler?.dispose();scheduler=null;courtDesk?.dispose();courtDesk=null;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;decisions?.dispose();decisions=null;snapshot=null;document.removeEventListener('visibilitychange',hidden);dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
- const hidden=()=>{if(document.visibilityState==='hidden')dispose()}
+ const dispose=()=>{if(disposed)return;disposed=true;version++;resultPractice?.dispose();resultPractice=null;official?.remove();official=null;scores?.dispose();scores=null;scheduler?.dispose();scheduler=null;courtDesk?.dispose();courtDesk=null;teamEvidence?.dispose();teamEvidence=null;tournaments?.dispose();tournaments=null;entry?.dispose();entry=null;decisions?.dispose();decisions=null;snapshot=null;dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const focus=()=>((selected?dialog.querySelector<HTMLElement>('[data-competition-content] h3'):null)??dialog.querySelector<HTMLElement>('h2'))?.focus({preventScroll:true})
  const back=()=>{
   if(!active()){dispose();return true}
+  if(resultPractice?.isOpen()){resultPractice.back();return true}
   if(official){official.close();return true}
   if(scores?.isOpen())return scores.back()
   if(scheduler?.isOpen())return scheduler.back()
@@ -104,13 +107,21 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   if(!active()||busy||official)return
   const sheet=document.createElement('dialog')
   official=sheet
-  sheet.className='captain-lineup-dialog competitions-dialog league-entry-dialog'
+  sheet.className='captain-lineup-dialog competitions-dialog league-entry-dialog league-official-result'
   sheet.setAttribute('aria-labelledby','league-official-title')
   sheet.innerHTML='<header class="competition-header"><button type="button" class="secondary">Back to schedule</button></header>'+
    '<div class="entry-hero"><h2 id="league-official-title" tabindex="-1" autofocus>Official result</h2></div>'+
-   leagueResultHtml(result,snapshot?.detail?.league.format==='team','',undefined,true)
+   leagueResultHtml(result,snapshot?.detail?.league.format==='team','',undefined,true)+
+   (firstPartyBuild&&!guest?'<section class="league-post-match-practice" aria-label="Post-match practice"><h3>Take one focus to practice</h3><p>Choose the format you played, then pick a focus from your own match. Your practice log stays separate from the official result.</p><div><button type="button" class="secondary" data-result-practice="singles">Plan singles practice</button>'+
+    (snapshot?.detail?.league.format==='team'?'<button type="button" class="secondary" data-result-practice="doubles">Plan doubles practice</button>':'')+'</div></section>':'')
   sheet.querySelector('button')!.onclick=()=>sheet.close()
-  sheet.onclose=()=>{sheet.remove();if(official===sheet)official=null;if(active())trigger.focus({preventScroll:true})}
+  sheet.querySelectorAll<HTMLButtonElement>('[data-result-practice]').forEach(button=>{button.onclick=()=>{
+   if(!active()||resultPractice?.isOpen()||official!==sheet)return
+   button.focus({preventScroll:true})
+   resultPractice=openLevelUp(client,owner,()=>active()&&official===sheet,
+    {view:'scorecard',matchDate:result.date,doubles:button.dataset.resultPractice==='doubles'})
+  }})
+  sheet.onclose=()=>{resultPractice?.dispose();resultPractice=null;sheet.remove();if(official===sheet)official=null;if(active())trigger.focus({preventScroll:true})}
   document.body.append(sheet);sheet.showModal()
  }
  const render=()=>{
@@ -210,13 +221,13 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   const openScore=(button:HTMLButtonElement,id='',fromAttention=false)=>{
    if(!canOpenScores||!active()||busy||!selected||scores?.isOpen())return
    const scroll=dialog.scrollTop
-   scores=openLeagueScores(client,owner,active,selected,id,(approved,changed)=>{
+   scores=openLeagueScores(client,owner,active,selected,id,(approved,changed,destination)=>{
     scores=null
     if(!active())return
-    if(approved){view='standings';void load()}
+    if(destination==='standings'||approved&&!id){view='standings';void load()}
     else if(changed)void load(id?{target:fromAttention?'attention-scorecard':'match-day',id,scroll}:{target:'score-queue',scroll})
     else button.focus({preventScroll:true})
-   },send)
+   },send,fromAttention?'Back to follow-ups':id?'Back to match':'Back to league',true)
   }
   dialog.querySelector<HTMLButtonElement>('[data-competition-score-queue]')?.addEventListener('click',event=>openScore(event.currentTarget as HTMLButtonElement))
   if(attention && d){
@@ -245,13 +256,14 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
   if(matchDay&&view==='fixtures'){
    const actions=new Map(matchDay.matches.map(m=>[m.id,m]))
    const results=new Map((approved?.results??d?.results??[]).map(result=>[result.id,result]))
-   const labels={enter:'Enter scores',fix:'Fix scorecard',pending:'Submitted for review',review:'Review scorecard',result:'View official result'}
+   const labels={enter:'Enter scores',fix:'Fix scorecard',pending:'View submitted score',review:'Review scorecard',result:'View official result'}
    dialog.querySelectorAll<HTMLElement>('[data-competition-schedule-match]').forEach(card=>{
     const action=actions.get(card.dataset.competitionScheduleMatch??'')
     if(!action)return
     const button=document.createElement('button')
     button.type='button';button.className='secondary';button.textContent=labels[action.action]
     button.dataset.competitionMatchDay=action.id
+    button.dataset.matchDayAction=action.action
     if(action.action==='pending')button.classList.add('competition-match-day-pending')
     button.onclick=()=>{
      if(action.action==='result'){const result=results.get(action.resultId);if(result)showOfficial(result,button)}
@@ -379,13 +391,13 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    const index=returning&&'id' in returning?snapshot?.leagues.findIndex(league=>league.id===returning.id)??-1:-1
    const leagueOpener=index>=0?dialog.querySelector<HTMLElement>('[data-competition-league="'+index+'"]'):null
    const opener=returning?.target==='attention-scorecard'?dialog.querySelector<HTMLElement>('[data-attention-scorecard="'+CSS.escape(returning.id)+'"]'):
-    returning?.target==='match-day'?dialog.querySelector<HTMLElement>('[data-competition-match-day="'+CSS.escape(returning.id)+'"]'):
+    returning?.target==='match-day'?dialog.querySelector<HTMLElement>('[data-competition-match-day="'+CSS.escape(returning.id)+'"]')??dialog.querySelector<HTMLElement>('[data-competition-schedule-match="'+CSS.escape(returning.id)+'"]'):
     returning?.target==='score-queue'?dialog.querySelector<HTMLElement>('[data-competition-score-queue]'):
     returning?.target==='entry-requests'?dialog.querySelector<HTMLElement>('[data-competition-decisions]'):
     returning?.target==='registration'?dialog.querySelector<HTMLElement>('[data-competition-entry]'):
     returning?.target==='league-entry'?dialog.querySelector<HTMLElement>('[data-competition-league-entry="'+index+'"]')||leagueOpener:leagueOpener
    if(notice)dialog.querySelector<HTMLElement>('[data-competition-notice]')?.focus()
-   else if(opener&&returning)restoreListFocus(dialog,opener,returning.scroll)
+   else if(opener&&returning){if(opener.matches('[data-competition-schedule-match]'))opener.tabIndex=-1;restoreListFocus(dialog,opener,returning.scroll)}
    else if(calendarMatchId&&view==='fixtures'){
     if(calendarEntry?.fromUpdates){
      if(!focusCompetitionMatch(dialog,calendarMatchId,back,'Back to updates')){
@@ -408,6 +420,6 @@ export function openCompetitions(client:SupabaseClient,owner:string,current:()=>
    }
   }}
  }
- dialog.oncancel=e=>{e.preventDefault();back()};document.addEventListener('visibilitychange',hidden);document.body.append(dialog);dialog.showModal();void load()
+ dialog.oncancel=e=>{e.preventDefault();back()};document.body.append(dialog);dialog.showModal();void load()
  return {dispose,isOpen:()=>!disposed,back}
 }

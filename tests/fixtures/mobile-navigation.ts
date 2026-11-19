@@ -138,6 +138,7 @@ const scopedLeagueScore={
  moved:null as LeagueScheduleReview['matches'][number]|null,
  reminders:new Map<string,string>(),
  reminderRequests:0,
+ scoreRequests:[] as LeagueScoreChange[],lostScoreReply:false,
  player:false,
  match:{id:scheduleId(10),a:individualLeagueScore?'Jamie Serve':'Baseline Aces',b:individualLeagueScore?'Morgan Return':'Rally Crew',date:'2026-11-12',time:'18:30'},
  card:null as LeagueScoreCard|null,
@@ -1052,6 +1053,8 @@ window.fetch=async(input,init)=>{
    scopedLeagueScore.reminders.set(body.matchId,nextReminderAt)
    return Response.json({...base,matchId:body.matchId,code,count:correction?1:2,nextReminderAt})
   }
+  scopedLeagueScore.scoreRequests.push(body)
+  if(card?.revision===body.requestId)return Response.json({...base,matchId:match.id,card})
   if(body.leagueId!==leagueId||body.matchId!==match.id||body.revision!==(card?.revision??null)||!demo&&coordinator===(body.action==='submit')){
    return Response.json({ok:false,releaseScope:'first-party',message:'Match access changed.'},{status:409})
   }
@@ -1062,6 +1065,7 @@ window.fetch=async(input,init)=>{
    body:match.a+' vs '+match.b,href:'/explore/leagues/tiq/'+leagueId+'?scoreMatch='+match.id+'#league-scores',
    conversation_id:null,schedule_event_id:null,read_at:null,created_at:'2026-11-13T15:00:00Z',
   }]:[]
+  if(scopedLeagueScore.lostScoreReply){scopedLeagueScore.lostScoreReply=false;throw Error('Synthetic lost score receipt')}
   return Response.json({...base,matchId:match.id,card:scopedLeagueScore.card})
  }
  if(scopedLeagueEntry.enabled&&url.pathname.endsWith('/competitions/decisions')){
