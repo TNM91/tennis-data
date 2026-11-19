@@ -825,7 +825,8 @@ window.fetch=async(input,init)=>{
    return Response.json({ok:true,owner,student:draft.student,id:draft.id})
   }
   const ownsCoachHistory=student==='student-one'&&owner===navigationOwner
-  const ownsPlayerHistory=student===null&&owner==='22222222-2222-4222-8222-222222222222'
+  const ownsPlayerHistory=student===null&&(owner==='22222222-2222-4222-8222-222222222222'
+   ||owner===navigationOwner&&new URL(location.href).searchParams.has('player-progress'))
   return Response.json({ok:true,owner,student,assessments:ownsCoachHistory||ownsPlayerHistory?[...previewAssessments.values()]:[]})
  }
  if(url.pathname==='/api/mobile/coach/messages'){

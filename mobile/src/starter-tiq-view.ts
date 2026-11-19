@@ -18,6 +18,7 @@ export function mountStarterTiq(
   openDrill: (id: string, trigger: HTMLButtonElement) => void,
   openMatchLog: () => void,
   openAssessments: (trigger: HTMLButtonElement, self?: StarterAnswers) => void,
+  openProgress?: (trigger: HTMLButtonElement) => void,
 ) {
   const storage = starterStorage(owner)
   const active = () => current() && host.isConnected
@@ -99,6 +100,7 @@ export function mountStarterTiq(
           <button type="button" ${result && recommendedDrill ? 'class="secondary" ' : ''}data-starter-edit>${result ? 'Retake' : previousLevel ? 'Update my rating' : 'Find my level'}</button>
           ${!result && recommendedDrill ? `<button type="button" class="secondary" data-starter-drill>Try ${recommendedDrill.title}</button>` : ''}
           <button type="button" class="secondary" data-starter-coach>Coach assessments</button>
+          ${openProgress ? '<button type="button" class="secondary" data-starter-progress>Your progress</button>' : ''}
           ${previousLevel ? '<button type="button" class="secondary" data-starter-clear>Clear saved assessment</button>' : ''}
         </div>
         ${previousLevel ? '<p role="status" data-starter-clear-status></p>' : ''}
@@ -198,6 +200,8 @@ export function mountStarterTiq(
     if (drill && recommendedDrill) drill.onclick = () => { if (active() && !busy) openDrill(recommendedDrill.id, drill) }
     const coach = host.querySelector<HTMLButtonElement>('[data-starter-coach]')!
     coach.onclick = () => { if (active() && !busy) openAssessments(coach, history?.current.answers) }
+    const progress = host.querySelector<HTMLButtonElement>('[data-starter-progress]')
+    if (progress) progress.onclick = () => {if (active() && !busy) openProgress?.(progress)}
     const clear = host.querySelector<HTMLButtonElement>('[data-starter-clear]')
     if (clear) clear.onclick = async () => {
       if (!active() || busy) return

@@ -28,6 +28,10 @@ const assignments:CoachAssignment[]=[
  {...overdue,id:'training-finished',title:'Baseline recovery drill',status:'completed',assignment:buildPlayerAssignmentCompletion({}, {recap:'Balanced on the first step.',evidence:'Four of five.'})},
  overdue,
 ]
+if(new URL(location.href).searchParams.has('progress-assigned'))assignments.push({
+ ...overdue,id:'cccccccc-cccc-4ccc-8ccc-000000000003',title:'Serve Target Call',
+ assignment:{cardId:'serve-target-call',detail:'Call a target before each second serve.',expectedEvidence:'Count serves in out of ten.'},
+})
 export function trainingCoachCalendarPreview(){
  return buildCoachStudentCalendarEvents(assignments,{id:link.id,playerName:'you'}).map(event=>({
   id:event.id,title:event.title,date:event.date,time:event.time||'',location:event.location||'',detail:event.description||'',

@@ -147,7 +147,7 @@ type TrainingStart='catalog'|'progress'|'inbox'
  |{view:'scorecard';matchDate:string|null;doubles:boolean}
  |{view:'scheduled-focus';focus:ScorecardPractice}
 
-type TrainingLaunch={cardId:string;identitySlug:string;starterWarmup?:{onFinish:(title:string,elapsedSeconds:number)=>void}}
+type TrainingLaunch={cardId:string;identitySlug:string;onClose?:()=>void;starterWarmup?:{onFinish:(title:string,elapsedSeconds:number)=>void}}
 
 export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boolean,initial:TrainingStart='catalog',launch?:TrainingLaunch){
  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog training-dialog';dialog.setAttribute('aria-label','Level Up training')
@@ -202,6 +202,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   if(current()){
    if(previous?.isConnected)previous.focus({preventScroll:true})
    if(lastCoachWork!==undefined)coachStart?.onClose(lastCoachWork)
+   launch?.onClose?.()
   }
  }
  const requestClose=()=>{if(tacticsViewer?.isOpen()){tacticsViewer.dispose();return}if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(practiceCalendar?.isOpen()){practiceCalendar.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}dispose()}

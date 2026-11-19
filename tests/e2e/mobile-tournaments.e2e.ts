@@ -1,6 +1,7 @@
 import {test,expect,type Page} from '@playwright/test'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
+import path from 'node:path'
 import type {SavedTournamentDraft} from '../../lib/native-tournament-draft-contract'
 import {tournamentOwner} from '../fixtures/native-tournaments'
 test.describe.configure({retries:0,timeout:25000})
@@ -10,6 +11,7 @@ test.beforeAll(async()=>{
  const bundle=async(firstParty:boolean, practice=false)=>(await build({
   entryPoints:['tests/fixtures/mobile-tournaments.ts'],bundle:true,platform:'browser',format:'esm',outfile:'tournaments.js',write:false,
   jsx:'automatic',loader:{'.module.css':'local-css'},
+  alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},
   define:{TIQ_FIRST_PARTY_BUILD:String(firstParty),TIQ_TOURNAMENT_PRACTICE:String(practice)},
  })).outputFiles.find(file=>file.path.endsWith('.js'))!.text
  ;[javascript,firstPartyJavascript,practiceJavascript]=await Promise.all([bundle(false),bundle(true),bundle(true,true)])

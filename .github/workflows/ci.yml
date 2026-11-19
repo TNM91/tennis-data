@@ -291,6 +291,11 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4285
         run: npx playwright test --config=tests/playwright.opening-screen.config.ts --output=.next/opening-screen-results
+      - name: Verify player progress and practice handoffs
+        if: matrix.suite == 'coach'
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4285
+        run: npx playwright test --config=tests/playwright.player-progress.config.ts --output=.next/player-progress-results
       - name: Verify native destinations and local tool search
         if: matrix.suite == 'navigation'
         env:
