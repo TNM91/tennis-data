@@ -20,7 +20,17 @@
 .team-next-match-dialog :is(.team-lineup-publication,.team-lineup-publish-preview,.team-lineup-reserves) h3{font-size:1rem;line-height:1.4;margin:0;color:var(--premium-white)}
 .team-next-match-dialog :is(.team-lineup-publication,.team-lineup-publish-preview,.team-lineup-reserves) p{font-size:.8125rem;line-height:1.5;color:var(--premium-copy)}
 .team-lineup-publish-preview ul,.team-lineup-confirmations{list-style:none;padding:0;margin:12px 0;display:grid;gap:10px}
-.team-lineup-publish-preview li,.team-lineup-confirmations li{display:grid;gap:4px;padding-block:8px;border-block-start:1px solid var(--premium-line);font-size:.8125rem;line-height:1.5}
+.team-lineup-publish-preview li,.team-lineup-confirmations li{display:grid;gap:8px;padding-block:10px;border-block-start:1px solid var(--premium-line);font-size:.8125rem;line-height:1.5}
+.team-lineup-confirmations li{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.team-lineup-confirmations li>div{display:grid;gap:4px;min-inline-size:0}
+.team-next-match-dialog .team-lineup-confirmations button.secondary{margin:0;min-block-size:44px;padding:8px 10px;background:transparent;border-color:var(--premium-line);font-size:.75rem}
+.team-lineup-confirmations [data-assignment-status="confirmed"]>div>span{color:var(--premium-lime)}
+.team-lineup-confirmation-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.team-lineup-confirmation-counts dt{font-size:.75rem;color:var(--premium-copy)}
+.team-lineup-confirmation-counts dd{font-size:1.25rem;font-weight:750;margin:4px 0;color:var(--premium-white);font-variant-numeric:tabular-nums}
+.team-lineup-private-notice{border-block:1px solid var(--premium-line);padding-block:4px 12px;margin-block:12px}
+.team-next-match-dialog .team-lineup-private-notice button.secondary{margin:0;background:transparent;border-color:var(--premium-line)}
+@media(max-width:360px){.team-lineup-confirmations li{grid-template-columns:minmax(0,1fr)}.team-lineup-confirmations button{justify-self:start}}
 .team-lineup-publish-preview :is(span,small),.team-lineup-confirmations span{color:var(--premium-copy)}
 .team-lineup-publication .team-own-court{border:0;background:transparent;padding:0;margin-block:12px}
 .team-lineup-publication .team-own-court h3{font-size:.8125rem}

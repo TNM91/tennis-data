@@ -3,6 +3,8 @@ import type {TeamLineupPlayer,TeamMatchReplies} from '../../lib/team-match-repli
 import {html} from './html'
 import {ownSharedCourtHtml} from './team-match-readiness'
 
+type AssignmentStatus='review'|'awaiting'|'unknown'|'confirmed'
+
 export function availableLineupReserves(courts:MatchLineupCourt[],roster:TeamLineupPlayer[]){
  const assigned=new Set(courts.flatMap(court=>court.players))
  return roster.filter(player=>player.choice==='in'&&!assigned.has(player.id)).sort((a,b)=>a.name.localeCompare(b.name))
@@ -12,6 +14,46 @@ export function lineupCourtRows(courts:MatchLineupCourt[],names:Record<string,st
  let singles=0,doubles=0
  return courts.map(court=>({label:court.format==='singles'?`Singles ${++singles}`:`Doubles ${++doubles}`,
   players:court.players.map(id=>names[id]??'Teammate').join(' & ')}))
+}
+
+export function lineupConfirmationSummary(replies:TeamMatchReplies){
+ const shared=replies.sharedLineup
+ const roster=new Map(replies.lineupRoster?.map(player=>[player.id,player]))
+ const responses=new Map(replies.lineupReplies?.filter(reply=>reply.version===shared?.version).map(reply=>[reply.profileId,reply.choice]))
+ const checked=replies.lineupRoster!==undefined&&replies.lineupReplies!==undefined
+ let singles=0,doubles=0
+ const rows=(shared?.courts??[]).flatMap(court=>{
+  const label=court.format==='singles'?`Singles ${++singles}`:`Doubles ${++doubles}`
+  return court.players.map(id=>{
+   const player=roster.get(id),choice=responses.get(id)
+   const status:AssignmentStatus=!player?replies.rosterComplete?'review':'unknown':player.choice==='out'||choice==='needs_change'?'review':
+    !checked?'unknown':choice==='confirmed'?'confirmed':'awaiting'
+   const reason=!player?replies.rosterComplete?'No longer on roster':'Recheck this player':player.choice==='out'?'Can’t play':
+    choice==='needs_change'?lineupReplyLabels.needs_change:!checked?'Recheck confirmations':choice==='confirmed'?lineupReplyLabels.confirmed:'Awaiting confirmation'
+   return {id,name:shared!.names[id],court:label,status,reason}
+  })
+ })
+ const priority={review:0,awaiting:1,unknown:2,confirmed:3}
+ rows.sort((a,b)=>priority[a.status]-priority[b.status])
+ return {rows,checked,confirmed:rows.filter(row=>row.status==='confirmed').length,
+  awaiting:rows.filter(row=>row.status==='awaiting').length,review:rows.filter(row=>row.status==='review').length,
+  unknown:rows.filter(row=>row.status==='unknown').length}
+}
+
+export function lineupConfirmationReminder(replies:TeamMatchReplies,matchLabel:string){
+ const summary=lineupConfirmationSummary(replies)
+ if(!replies.sharedLineup||!summary.checked)throw Error('Reload the match to check assignment confirmations.')
+ const waiting=summary.rows.filter(row=>row.status==='awaiting')
+ if(!waiting.length)return null
+ const message=`Assignment check for ${matchLabel}\n\n${waiting.map(row=>row.name).join(', ')} — please open Team → Next match to confirm your published court assignment or request a change.\n\nIf you can’t play, update Can you play? too.`
+ if(message.length>2400)throw Error('This reminder is too long for one chat message. Review the assignment responses instead.')
+ return message
+}
+
+function privateLineupNotice(replies:TeamMatchReplies,busy:boolean){
+ if(!replies.savedLineup||replies.savedLineup.version===replies.sharedLineup?.version)return ''
+ return `<div class="team-lineup-private-notice"><p>Your private lineup has unpublished edits. Teammates still see ${replies.sharedLineup?'the published assignments':'no court assignments'}.</p>
+  <button type="button" class="secondary" data-review-private-lineup ${busy?'disabled':''}>Review private lineup</button></div>`
 }
 
 export function lineupPublishPreviewHtml(courts:MatchLineupCourt[],roster:TeamLineupPlayer[],previous?:SavedTeamLineup){
@@ -28,18 +70,19 @@ export function lineupPublishPreviewHtml(courts:MatchLineupCourt[],roster:TeamLi
 export function lineupPublicationHtml(replies:TeamMatchReplies|null,owner:string,captain:boolean,busy:boolean){
  if(!replies)return ''
  const shared=replies?.sharedLineup
- if(!shared)return captain?'<section class="team-lineup-publication" aria-label="Published lineup"><h3 tabindex="-1">Published lineup</h3><p>No lineup published yet. Private court assignments stay with your captains.</p></section>':''
+ if(!shared)return captain?`<section class="team-lineup-publication" aria-label="Published lineup"><h3 tabindex="-1">Published lineup</h3><p>No lineup published yet. Private court assignments stay with your captains.</p>${privateLineupNotice(replies,busy)}</section>`:''
  const assigned=Object.hasOwn(shared.names,owner),own=replies?.lineupReply
  const ownStatus=own?lineupReplyLabels[own.choice]:'Awaiting your confirmation'
- const responses=new Map(replies?.lineupReplies?.map(reply=>[reply.profileId,reply.choice]))
+ const summary=lineupConfirmationSummary(replies)
  return `<section class="team-lineup-publication" aria-label="Published lineup"><h3 tabindex="-1">Published lineup</h3>
-  ${captain?`<p>${replies?.lineupReplies?`${[...responses.entries()].filter(([id,choice])=>choice==='confirmed'&&replies.lineupRoster?.some(player=>player.id===id&&player.choice!=='out')).length} of ${Object.keys(shared.names).length} assignments confirmed`:'Reload the match to check confirmations.'}</p>
-  <ul class="team-lineup-confirmations">${Object.entries(shared.names).map(([id,name])=>{
-   const choice=responses.get(id),player=replies.lineupRoster?.find(player=>player.id===id)
-   const label=!player?replies.rosterComplete?'No longer on roster':'Recheck this player':player.choice==='out'?'Can’t play':choice?lineupReplyLabels[choice]:'Awaiting confirmation'
-   return `<li><strong>${html(name)}</strong><span>${label}</span></li>`
-  }).join('')}</ul>`:''}
-  ${ownSharedCourtHtml(shared,owner)}
+  ${captain?`<p>${summary.checked?`${summary.confirmed} of ${summary.rows.length} assignments confirmed`:'Reload the match to check confirmations.'}</p>
+  ${summary.checked?`<dl class="team-lineup-confirmation-counts"><div><dt>To confirm</dt><dd>${summary.awaiting}</dd></div><div><dt>Needs review</dt><dd>${summary.review}</dd></div></dl>`:''}
+  ${summary.unknown?`<p>${summary.unknown} ${summary.unknown===1?'assignment could':'assignments could'} not be checked. Reload the match before following up.</p>`:''}
+  ${privateLineupNotice(replies,busy)}
+  <ul class="team-lineup-confirmations" aria-label="Assignment responses">${summary.rows.map(row=>`<li data-assignment-status="${row.status}"><div><strong>${html(row.name)}</strong><span>${html(row.court)} · ${row.reason}</span></div>
+   ${row.status==='review'?`<button type="button" class="secondary" data-review-lineup-player="${html(row.id)}" aria-label="Review court for ${html(row.name)}" ${busy?'disabled':''}>Review court</button>`:''}</li>`).join('')}</ul>
+  ${summary.awaiting?`<button type="button" class="secondary" data-draft-confirmation-reminder ${busy?'disabled':''}>Draft confirmation reminder</button><p>Review the reminder in team chat before sending.</p>`:''}`:''}
+  ${!captain||assigned?ownSharedCourtHtml(shared,owner):''}
   ${assigned?`<p class="team-lineup-own-status">${replies?.own?.choice==='out'?'You’re marked Out for this match.':ownStatus}</p><div class="team-readiness-actions">
    <button type="button" class="secondary" data-lineup-reply="confirmed" ${busy||own?.choice==='confirmed'||replies?.own?.choice==='out'?'disabled':''}>Confirm my assignment</button>
    <button type="button" class="secondary" data-lineup-reply="needs_change" ${busy||own?.choice==='needs_change'?'disabled':''}>Request a change</button>

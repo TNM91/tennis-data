@@ -16,7 +16,7 @@ import type {TacticalBoardReference} from '../../lib/tactical/board-reference'
 import {TacticsLibrary} from './coach-tactics-data'
 import {openSharedTactics} from './shared-tactics-view'
 import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type ReadinessAction} from './team-match-readiness'
-import {availableLineupReserves,lineupPublicationHtml,lineupPublishPreviewHtml} from './team-lineup-publication'
+import {availableLineupReserves,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml} from './team-lineup-publication'
 import './team-match-readiness.css'
 
 export function nextMatchTime(match:ReviewedNextMatch){
@@ -88,7 +88,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let previousSlot:ReviewedNextMatch|null=null
  let scheduleAnnouncement:{revision:string;previous:ReviewedNextMatch}|null=null
  let rosterExpanded=false
- let readinessReturn: 'time'|'venue'|'lineup'|null=null
+ let readinessReturn: 'time'|'venue'|'lineup'|'confirmations'|null=null
  let tacticsChoice:TacticalBoardReference|null|undefined
  let boardOptions:{name:string;reference:TacticalBoardReference}[]|undefined
  let tacticsViewer:ReturnType<typeof openSharedTactics>|null=null
@@ -98,7 +98,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  const returnToMatch=()=>{
   const source=readinessReturn
   draft=null;lineup=null;publicationReview=null;confirmationReview=null;editingDirty=false;readinessReturn=null;notice='';render()
-  focus(source?`[data-readiness-action="${source}"]`:'h2')
+  focus(source==='confirmations'?'.team-lineup-publication h3':source?`[data-readiness-action="${source}"]`:'h2')
  }
  const close=()=>{
   if(!active()){dispose();return}
@@ -337,6 +337,25 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   }catch(cause){notice=cause instanceof Error?cause.message:'Couldn’t check the published lineup. Reload the match.'}
   finally{if(active()){busy=false;render();focusFeedback()}}
  }
+ const draftConfirmationReminder=async()=>{
+  if(!active()||!captain||busy||pending||pendingReply||pendingLineup||pendingConfirmation||!schedule?.revision||!schedule.nextMatch||!replies?.sharedLineup)return
+  const draftNotice='Finish your current chat draft before drafting a confirmation reminder.'
+  if(!canDraftUpdate()){notice=draftNotice;render();focusFeedback();return}
+  const version=replies.sharedLineup.version,{revision,nextMatch:match}=schedule
+  busy=true;notice='Checking assignment confirmations…';render()
+  try{
+   const latest=await teamMatchRepliesRequest(client,owner,active,room,revision)
+   if(!active())return
+   replies=latest
+   if(latest.sharedLineup?.version!==version){notice='The published lineup changed. Review the latest assignments before reminding your team.';return}
+   const time=nextMatchTime(match)
+   const message=lineupConfirmationReminder(latest,`our match vs ${match.opponent} on ${formatCalendarDay(match.date,false)}${time?' at '+time:''}${match.facility?' ('+match.facility+')':''}`)
+   if(!message){notice='No checked assignments are awaiting confirmation. Review any remaining changes.';return}
+   if(!canDraftUpdate()){notice=draftNotice;return}
+   dispose();onClose(changed,message,'lineup')
+  }catch(cause){notice=cause instanceof Error?cause.message:'Couldn’t check the assignment responses. Reload the match.'}
+  finally{if(active()){busy=false;render();focusFeedback()}}
+ }
  const saveLineup=async(publish=false)=>{
   const revision=schedule?.revision,roster=replies?.lineupRoster
   if(!active()||!captain||busy||lineupConflict||!lineup||!revision||!roster)return
@@ -533,16 +552,31 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector('[data-confirm-assignment]')?.addEventListener('click',()=>{void confirmAssignment()})
   dialog.querySelector('[data-confirmation-retry]')?.addEventListener('click',()=>{void confirmAssignment()})
   dialog.querySelector('[data-draft-published-lineup]')?.addEventListener('click',()=>{void draftPublishedLineup()})
+  dialog.querySelector('[data-draft-confirmation-reminder]')?.addEventListener('click',()=>{void draftConfirmationReminder()})
   dialog.querySelector('[data-cancel-confirmation]')?.addEventListener('click',()=>{confirmationReview=null;render();focus('.team-lineup-publication h3')})
   dialog.querySelectorAll<HTMLButtonElement>('[data-lineup-reply]').forEach(button=>{button.onclick=()=>{void reviewConfirmation(button.dataset.lineupReply as LineupReplyChoice)}})
   dialog.querySelector<HTMLButtonElement>('[data-draft-match-reminder]')?.addEventListener('click',()=>{void draftAvailabilityMessage('reminder')})
   dialog.querySelector<HTMLButtonElement>('[data-draft-match-change]')?.addEventListener('click',()=>{void draftAvailabilityMessage('schedule')})
   dialog.querySelector<HTMLButtonElement>('[data-open-match-maps]')?.addEventListener('click',()=>{void openMatchAction('maps')})
   dialog.querySelector<HTMLButtonElement>('[data-share-match-calendar]')?.addEventListener('click',()=>{void openMatchAction('calendar')})
-  const startLineup=()=>{
+  const startLineup=(player?:string)=>{
    if(!active()||!captain||busy||pendingReply||pendingLineup)return
    lineup=structuredClone(replies?.savedLineup?.courts??[]);tacticsChoice=undefined;editingDirty=false;notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
+   if(player){
+    const court=lineup.findIndex(court=>court.players.includes(player))
+    if(court>=0){
+     const slot=lineup[court].players.indexOf(player)
+     const select=dialog.querySelector<HTMLElement>(`[data-match-lineup-player="${court}:${slot}"]`)
+     select?.focus();select?.scrollIntoView({block:'center'})
+    }else{
+     notice='This player is already outside your private lineup. Review and publish your edits when ready.';render();focus('[role="status"]')
+    }
+   }
   }
+  dialog.querySelector('[data-review-private-lineup]')?.addEventListener('click',()=>{readinessReturn='confirmations';startLineup()})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-review-lineup-player]').forEach(button=>{button.onclick=()=>{
+   readinessReturn='confirmations';startLineup(button.dataset.reviewLineupPlayer)
+  }})
   dialog.querySelectorAll<HTMLButtonElement>('[data-readiness-action]').forEach(button=>{button.onclick=()=>{
    if(!active()||busy||pendingReply||pendingLineup)return
    const key=button.dataset.readinessAction
@@ -562,7 +596,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    readinessReturn=null;startLineup()
   })
   dialog.querySelector('[data-discard-lineup]')?.addEventListener('click',()=>{
-   lineup=null;editingDirty=false;notice='';render();focus(readinessReturn==='lineup'?'[data-readiness-action="lineup"]':'[data-plan-lineup]');readinessReturn=null
+   lineup=null;editingDirty=false;notice='';render();focus(readinessReturn==='confirmations'?'.team-lineup-publication h3':readinessReturn==='lineup'?'[data-readiness-action="lineup"]':'[data-plan-lineup]');readinessReturn=null
   })
   dialog.querySelector('[data-load-tactics]')?.addEventListener('click',()=>{void chooseTactics()})
   dialog.querySelector('[data-detach-tactics]')?.addEventListener('click',()=>{tacticsChoice=null;editingDirty=true;render();focus('[data-load-tactics]')})

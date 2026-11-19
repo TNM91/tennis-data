@@ -2961,6 +2961,97 @@ for(const width of [320,390])test(`first-party lineup publication, confirmations
  await expect(match.getByRole('button',{name:'Confirm my assignment',exact:true})).toHaveCount(0)
 })
 
+async function openCaptainAssignmentFollowups(page:Page,width=390){
+ // eslint-disable-next-line react-hooks/rules-of-hooks -- This helper bundles a browser fixture; it does not call React hooks.
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width,height:844})
+ await page.goto(origin+'/?manual-team-schedule=1'+(width===320?'&large=1':''))
+ await page.evaluate(()=>{
+  const alex='10000000-0000-4000-8000-000000000001',casey='10000000-0000-4000-8000-000000000002',riley='22222222-2222-4222-8222-222222222222'
+  const version='55555555-5555-4555-8555-555555555555'
+  const published={version,courts:[{format:'doubles',players:[alex,casey]},{format:'singles',players:[riley]}],names:{[alex]:'Alex',[casey]:'Casey',[riley]:'Riley'}}
+  Object.assign((window as unknown as {manualScheduleFixture:object}).manualScheduleFixture,{
+   revision:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',loseNextLineupSave:false,caseyChoice:'out',
+   nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
+   reply:{id:'33333333-3333-4333-8333-333333333333',choice:'in'},
+   extraPlayers:[{id:riley,name:'Riley',choice:'in'},{id:'77777777-7777-4777-8777-777777777777',name:'Morgan',choice:'in'}],
+   publishedLineup:published,savedLineup:structuredClone(published),lineupReplies:{
+    [alex]:{id:'66666666-6666-4666-8666-666666666666',version,choice:'needs_change'},
+    [casey]:{id:'44444444-4444-4444-8444-444444444444',version,choice:'confirmed'},
+   },
+  })
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ const open=async()=>{
+  const trigger=page.locator('#chat-next-match')
+  if(!await trigger.isVisible())await page.locator('.chat-room-options > summary').click()
+  await trigger.click()
+  await expect(page.getByRole('dialog',{name:'Next match',exact:true}).getByRole('region',{name:'Published lineup',exact:true})).toBeVisible()
+ }
+ await open()
+ return {match:page.getByRole('dialog',{name:'Next match',exact:true}),open}
+}
+
+for(const width of [320,390])test(`captain assignment follow-ups target the right court and draft only pending published players at ${width}px`,async({page},info)=>{
+ const {match}=await openCaptainAssignmentFollowups(page,width)
+ const publication=match.getByRole('region',{name:'Published lineup',exact:true})
+ await expect(publication.locator('[data-assignment-status="review"]')).toHaveCount(2)
+ await expect(publication.locator('[data-assignment-status="awaiting"]')).toHaveCount(1)
+ await expect(publication.getByText('Doubles 1 · Can’t play',{exact:true})).toBeVisible()
+ expect(await match.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await publication.evaluate(el=>el.scrollIntoView({block:'start'}))
+ await page.screenshot({path:info.outputPath('captain-assignment-followups.png')})
+ await publication.getByRole('button',{name:'Review court for Casey',exact:true}).click()
+ const selected=match.getByRole('combobox',{name:'Player 2',exact:true})
+ await expect(selected).toBeFocused()
+ await expect(selected).toHaveValue('10000000-0000-4000-8000-000000000002')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites)).toEqual([])
+ await selected.selectOption({label:'Morgan · In'})
+ await match.getByRole('button',{name:'Save lineup',exact:true}).click()
+ await expect(publication).toContainText('Your private lineup has unpublished edits')
+ await publication.getByRole('button',{name:'Review court for Casey',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText('already outside your private lineup')
+ await match.getByRole('button',{name:'Cancel edit',exact:true}).click()
+ await expect(publication.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
+ await publication.getByRole('button',{name:'Draft confirmation reminder',exact:true}).click()
+ await expect(match).toHaveCount(0)
+ const composer=page.getByRole('textbox',{name:'Message your team',exact:true})
+ await expect(composer).toHaveValue(/Assignment check[\s\S]*Riley — please open Team → Next match/)
+ for(const name of ['Alex','Casey','Morgan'])await expect(composer).not.toHaveValue(new RegExp(name))
+ expect(await page.evaluate(()=>(window as unknown as {firstPartyTeamFixture:{posts:string[]}}).firstPartyTeamFixture.posts)).toEqual([])
+})
+
+test('captain confirmation reminders protect chat drafts and recheck publication and replies before drafting',async({page})=>{
+ const {match,open}=await openCaptainAssignmentFollowups(page)
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ const composer=page.getByRole('textbox',{name:'Message your team',exact:true})
+ await composer.fill('Keep my draft')
+ await open()
+ await match.getByRole('button',{name:'Draft confirmation reminder',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText('Finish your current chat draft')
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(composer).toHaveValue('Keep my draft');await composer.fill('')
+ await open()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{publishedLineup:{version:string};lineupReplies:object}}).manualScheduleFixture
+  fixture.publishedLineup.version='66666666-6666-4666-8666-666666666666';fixture.lineupReplies={}
+ })
+ await match.getByRole('button',{name:'Draft confirmation reminder',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText('The published lineup changed')
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{publishedLineup:{version:string};lineupReplies:object}}).manualScheduleFixture
+  fixture.lineupReplies=Object.fromEntries(['10000000-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222']
+   .map(profile=>[profile,{id:profile,version:fixture.publishedLineup.version,choice:'confirmed'}]))
+ })
+ await match.getByRole('button',{name:'Draft confirmation reminder',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText('No checked assignments are awaiting confirmation')
+ await expect(match.getByRole('button',{name:'Draft confirmation reminder',exact:true})).toHaveCount(0)
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(composer).toHaveValue('')
+ expect(await page.evaluate(()=>(window as unknown as {firstPartyTeamFixture:{posts:string[]}}).firstPartyTeamFixture.posts)).toEqual([])
+})
+
 test('first-party lineup publication rejects a changed player assignment and drafts only the published chat plan',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?manual-team-schedule=1')
