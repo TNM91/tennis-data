@@ -6,7 +6,7 @@ body[data-screen="teams"] .chat-match-brief{margin:6px 0 10px;padding:0;border:1
 .chat-match-brief>summary small{grid-column:1;min-inline-size:0;color:var(--premium-copy);font-size:.75rem;line-height:1.4}
 .chat-match-brief>summary>span:last-child{grid-column:2;grid-row:1 / span 2;align-self:center;color:var(--premium-ice)}
 .chat-match-brief-content{padding:0 14px 12px}
-.chat-match-brief [data-match-brief-body]{max-block-size:min(30dvh,220px,max(80px,calc(100dvh - 400px)));overflow-y:auto;overscroll-behavior:contain}
+.chat-match-brief [data-match-brief-body]{max-block-size:min(30dvh,260px,max(80px,calc(100dvh - 400px)));overflow-y:auto;overscroll-behavior:contain}
 .chat-match-brief :is(p,strong,span){overflow-wrap:anywhere}
 body[data-screen="teams"] .chat-match-brief p{font-size:.8125rem;line-height:1.5;margin:4px 0;color:var(--premium-copy)}
 .chat-match-brief [data-match-brief-body]>strong{display:none}
