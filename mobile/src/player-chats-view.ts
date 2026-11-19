@@ -114,10 +114,10 @@ export function openPlayerChats(
   function message(error: unknown) {
     return error instanceof Error ? error.message : 'Try again.'
   }
-  async function run(work: () => Promise<void>,focus = true) {
+  async function run(work: () => Promise<void>,focus = true,keepNotice = false) {
     if (!active() || busy) return
     contactRequest++
-    busy = true; notice = ''; render()
+    busy = true; if (!keepNotice) notice = ''; render()
     try { await work() }
     catch (error) { if (active()) notice = message(error) }
     finally { if (active()) { busy = false; render(focus) } }
@@ -139,7 +139,7 @@ export function openPlayerChats(
         if (refresh) refresh.textContent = 'Check for updates'
         return
       }
-      await run(()=>loadRoom(id),false)
+      await run(()=>loadRoom(id),false,true)
     },()=>undefined)
   }
   async function loadRoom(id: string) {

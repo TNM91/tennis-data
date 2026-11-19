@@ -540,6 +540,7 @@ test('a direct hitting proposal and a suggested change update the calendar only 
 
 test('a hit reminder opens the confirmed plan and its directions during a proposed change',async({page})=>{
  await useFirstPartyNavigation(page)
+ await page.clock.setFixedTime(new Date('2026-11-18T23:50:00Z'))
  await page.setViewportSize({width:320,height:800})
  await page.goto(origin+'/?player-chat=1&chat-hit=1')
  await page.evaluate(()=>{
@@ -626,6 +627,9 @@ test('past confirmed hits open a private prefilled scorecard and reopen the save
  await proposal.getByRole('button',{name:'Send proposal'}).click()
  await expect(chat.getByText('Proposal sent.')).toBeVisible()
  await expect(chat.getByText('Waiting for a reply')).toBeVisible()
+ await page.evaluate(()=>Reflect.get(window,'playerChatFixture').receive())
+ await expect(chat.getByText('I can make Friday.',{exact:true})).toBeVisible()
+ await expect(chat.getByText('Proposal sent.',{exact:true})).toBeVisible()
  await chat.getByRole('button',{name:'Close',exact:true}).click()
  await expect(rematch).toBeFocused()
  await expect(saved).toContainText('6-4 6-3')
