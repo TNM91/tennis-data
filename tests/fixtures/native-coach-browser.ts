@@ -13,6 +13,27 @@ if (new URL(location.href).searchParams.has('coach-roster')) {
  students.push(...Array.from({length:120},(_,i)=>({...seed.students[0],id:'roster-player-'+i,name:i===119?'Zara Patel':'Roster Player '+i,status:i%2?'paused' as const:'active' as const,linked:i%2===0})))
 }
 const assignments = new Map<string, CoachAssignment[]>([['student-one', seed.detail!.assignments]])
+const practiceParams = new URL(location.href).searchParams
+const practiceTracker = practiceParams.has('coach-practice')
+const practiceFixture = {reads: 0}
+if (practiceTracker) {
+ Object.assign(window, {coachPracticeFixture: practiceFixture})
+ const example = seed.detail!.assignments[0]
+ const rows = assignments.get('student-one')!
+ rows.push(
+  {...example, id: 'practice-older', title: 'First-ball recovery', assignment: {...example.assignment, playerCheckIn: {recap: 'Recovered before the next ball.', evidence: '8/10', completedAt: '2026-10-29T12:00:00Z'}}},
+  {...example, id: 'practice-reviewed', title: 'Reviewed serve targets', focus: 'Serve placement', assignment: {...example.assignment, coachReview: {note: 'Good net clearance.', nextFocus: 'First ball', reviewedAt: '2026-11-01T12:00:00Z'}}},
+  {...example, id: 'practice-assigned', title: 'Serve plus one', focus: 'Wide serve pattern', status: 'assigned', dueDate: '2026-11-17', assignment: {detail: 'Five wide serves followed by a deep forehand.'}},
+  {...example, id: 'practice-later', title: 'Volley control', focus: 'Net play', status: 'assigned', dueDate: '2026-11-30', assignment: {detail: 'Place ten volleys past the service line.'}},
+  {...example, id: 'practice-draft', title: 'Draft return targets', status: 'draft', assignment: {detail: 'Five deep returns.'}},
+  {...example, id: 'practice-archived', title: 'Archived serve practice', status: 'archived'},
+  {...example, id: 'practice-recorded', title: 'Recorded footwork session', status: 'completed', assignment: {detail: 'Ten recovery steps.'}},
+ )
+ if (practiceParams.has('coach-practice-more')) rows.push(...Array.from({length: 92}, (_, i) => ({...example, id: 'practice-history-' + i, title: 'Earlier practice ' + i, status: 'archived' as const})))
+ const other = {...seed.students[0], id: 'student-two', name: 'Morgan Lee'}
+ students.push(other)
+ assignments.set(other.id, [{...example, id: 'morgan-practice', studentLinkId: other.id, title: 'Approach and volley', status: 'assigned', assignment: {detail: 'Approach behind the return.'}}])
+}
 if (new URL(location.href).searchParams.has('coach-review-queue')) {
  const next = seed.detail!.assignments[0]
  assignments.get('student-one')!.push(
@@ -60,6 +81,7 @@ export function coachPreviewControls(host: HTMLElement) {
  host.querySelector('[data-coach-deny]')?.addEventListener('click', () => {denied = true})
 }
 export function coachPreviewRequest(method: string, url: URL, body?: BodyInit | null): Response {
+ if (practiceTracker && method === 'GET') practiceFixture.reads++
  if (denied) return Response.json({ok: false}, {status: 403})
  let selected = url.searchParams.get('student') || ''
  if (method !== 'GET') {
@@ -106,7 +128,7 @@ export function coachPreviewRequest(method: string, url: URL, body?: BodyInit | 
  if (selected && !s) return Response.json({ok: false}, {status: 404})
  const q=(url.searchParams.get('q')||'').toLocaleLowerCase(),status=url.searchParams.get('status'),connection=url.searchParams.get('connection')
  const roster=students.filter(s=>(!q||s.name.toLocaleLowerCase().includes(q))&&(!status||s.status===status)&&(!connection||(connection==='connected'?s.linked:!s.linked)))
- return Response.json({ok: true, owner: seed.owner, checkedAt: new Date().toISOString(), students:roster.slice(0,100), moreStudents: roster.length>100, detail: selected && s ? {student: s, assignments: (assignments.get(selected) || []).map(omitAssignmentBoard), moreAssignments: false} : null})
+ return Response.json({ok: true, owner: seed.owner, checkedAt: new Date().toISOString(), students:roster.slice(0,100), moreStudents: roster.length>100, detail: selected && s ? {student: s, assignments: (assignments.get(selected) || []).map(omitAssignmentBoard), moreAssignments: practiceTracker && selected === 'student-one' && practiceParams.has('coach-practice-more')} : null})
 }
 
 export function coachPreviewPlayerPractice(owner:string, url:URL, method:string, body?:BodyInit|null) {

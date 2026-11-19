@@ -2,7 +2,7 @@ import {PLAYER_DEVELOPMENT_IDENTITIES} from '../../lib/player-development'
 import {getCoachAssignmentPackProgress} from '../../lib/coach-storage'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {readCoachCreate, readCoachReview, readCoachEdit, type NativeCoachSnapshot, type CoachWrite} from '../../lib/native-coach-contract'
-import {getCoachAssignmentSummary, getCoachAssignmentReview, getPlayerAssignmentCheckIn, sortCoachAssignmentsForReview, assignmentNeedsCoachReview, type CoachAssignment} from '../../lib/coach-storage'
+import {getCoachAssignmentSummary, getCoachAssignmentReview, getPlayerAssignmentCheckIn, type CoachAssignment} from '../../lib/coach-storage'
 import {CoachWorkspaceError, loadCoachWorkspace, saveCoachWorkspace, type CoachSend} from './coach-workspace-data'
 import {html} from './match-details'
 import {openCoachInvitations} from './coach-invites-view'
@@ -10,6 +10,7 @@ import {openCoachAssessments} from './coach-assessments-view'
 import {coachReviewQueue, coachReviewQueueHtml} from './coach-review-queue'
 import {coachFollowUpFields, coachFollowUpHtml} from './coach-follow-up'
 import {coachRosterStatuses, coachRosterConnections, emptyCoachRosterFilter, readCoachRosterFilter} from '../../lib/coach-roster-filter'
+import {emptyCoachPracticeFilter, mountCoachPracticeTracker} from './coach-practice-tracker'
 
 type View = 'students' | 'student' | 'assignment' | 'add' | 'assign' | 'review' | 'confirm' | 'edit-student' | 'edit-assignment'
 const statusLabel = (s: string) => ({active: 'Active', needs_assignment: 'Needs assignment', review_notes: 'Review notes', paused: 'Paused', draft: 'Draft', assigned: 'Assigned', completed: 'Completed', archived: 'Archived'})[s] || s
@@ -41,8 +42,9 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
   let assessments: ReturnType<typeof openCoachAssessments> | null = null
   let followUpSourceId = ''
   let rosterFilter = emptyCoachRosterFilter(), rosterDraft = emptyCoachRosterFilter(), initialAssignment = initial?.assignment
+  let practiceFilter = emptyCoachPracticeFilter()
   const active = () => !disposed && current(), focus = () => dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll: true})
-  const dispose = () => {if (disposed) return; disposed = true; invitations?.dispose(); invitations = null; assessments?.dispose(); assessments = null; version++; snapshot = null; draft = null; fields = {}; rosterFilter = emptyCoachRosterFilter(); rosterDraft = emptyCoachRosterFilter(); initialAssignment = undefined; followUpSourceId = ''; leaveAction = null; document.removeEventListener('visibilitychange', visibility); dialog.close(); dialog.remove(); if (current() && previous?.isConnected) previous.focus({preventScroll: true})}
+  const dispose = () => {if (disposed) return; disposed = true; invitations?.dispose(); invitations = null; assessments?.dispose(); assessments = null; version++; snapshot = null; draft = null; fields = {}; rosterFilter = emptyCoachRosterFilter(); rosterDraft = emptyCoachRosterFilter(); practiceFilter = emptyCoachPracticeFilter(); initialAssignment = undefined; followUpSourceId = ''; leaveAction = null; document.removeEventListener('visibilitychange', visibility); dialog.close(); dialog.remove(); if (current() && previous?.isConnected) previous.focus({preventScroll: true})}
   // Keep edits in memory through app switching; account changes still dispose the workspace.
   const visibility = () => {if (!current()) dispose()}
   const isEditing = () => ['add', 'assign', 'review', 'confirm','edit-student','edit-assignment'].includes(view)
@@ -67,6 +69,7 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
   }
   const load = async (id = '') => {
     if (!active() || busy) return
+    if (id !== selected) practiceFilter = emptyCoachPracticeFilter()
     const visit = ++version; busy = true; notice = 'Loading your Coach records…'; selected = id; view = id ? 'student' : 'students'; snapshot = null; followUpSourceId = ''; render()
     try {const found = await loadCoachWorkspace(client, owner, () => active() && visit === version, id, send, rosterFilter); if (active() && visit === version) {
       snapshot = found; notice = ''
@@ -100,7 +103,7 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
     try {
       const result = await saveCoachWorkspace(client, owner, active, pending, lookup, send)
       if (!active()) return
-      if (result.confirmed) {snapshot = result.snapshot; selected = snapshot.detail!.student.id; clearDraft(); followUpSourceId = 'kind' in pending ? '' : pending.id; view = 'student'; notice = 'Saved to your Coach workspace.'}
+      if (result.confirmed) {snapshot = result.snapshot; if (selected !== snapshot.detail!.student.id) practiceFilter = emptyCoachPracticeFilter(); selected = snapshot.detail!.student.id; clearDraft(); followUpSourceId = 'kind' in pending ? '' : pending.id; view = 'student'; notice = 'Saved to your Coach workspace.'}
       else {snapshot = result.snapshot; uncertain = false;conflict=conflict||!result.retryable; notice = conflict ? 'The saved record differs. Discard these edits and refresh before making another change.' : 'This exact update was not found. You can retry the same update or discard it and refresh.'}
     } catch (error) {
       if (!active()) return
@@ -115,7 +118,7 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
     if (busy) return true
     if (leaving) {leaving = false; leaveAction = null; render(); focus(); return true}
     if (isEditing()) {requestLeave(() => {clearDraft(); if (snapshot) {view = selected ? 'student' : 'students'; render(); focus()} else void load(selected)}, true); return true}
-    if (view === 'assignment') {view = 'student'; render(); focus(); return true}
+    if (view === 'assignment') {view = 'student'; render(); const row = Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-coach-assignment]')).find(button => button.dataset.coachAssignment === assignmentId); if (row) row.focus(); else focus(); return true}
     if (selected) {clearDraft(); void load(''); return true}
     requestLeave(); return true
   }
@@ -137,7 +140,7 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
     else if (s) content = `<p class="coach-student-meta">${html([s.level,PLAYER_DEVELOPMENT_IDENTITIES.find(i=>i.slug===s.identity)?.title||s.identity, statusLabel(s.status)].filter(Boolean).join(' · '))}</p><p class="coach-connection">${s.linked ? 'Connected to a player account' : 'Roster only · an accepted coach invitation is needed before work appears in the player’s app.'}</p>
       ${coachReviewQueueHtml(detail!.assignments, detail!.moreAssignments)}
       ${coachFollowUpHtml(followUp, s.status === 'paused')}
-      ${s.notes ? `<details><summary>Private coaching notes</summary><p class="coach-written">${html(s.notes)}</p></details>` : ''}<button type="button" class="secondary" data-coach-edit-student>Edit student</button><button type="button" data-coach-assign ${s.status === 'paused' ? 'disabled' : ''}>Assign practice</button>${s.status === 'paused' ? '<p>This connection is paused. Use Edit student to resume it before assigning work.</p>' : ''}<h3>Assignments</h3><p class="coach-count">${detail!.assignments.length}${detail!.moreAssignments ? '+' : ''} loaded · newest 100 at most</p><div class="coach-record-list">${sortCoachAssignmentsForReview(detail!.assignments).map((a, i) => `<button type="button" class="secondary coach-record" data-coach-assignment="${i}"><span><strong>${html(a.title)}</strong><small>${html(assignmentNeedsCoachReview(a) ? 'Check-in to review' : statusLabel(a.status))}${a.dueDate ? ' · ' + html(a.dueDate) : ''}</small></span><span aria-hidden="true">›</span></button>`).join('') || '<p>No saved assignments for this student yet.</p>'}</div>`
+      ${s.notes ? `<details><summary>Private coaching notes</summary><p class="coach-written">${html(s.notes)}</p></details>` : ''}<div class="coach-student-actions"><button type="button" class="secondary" data-coach-edit-student>Edit student</button><button type="button" data-coach-assign ${s.status === 'paused' ? 'disabled' : ''}>Assign practice</button></div>${s.status === 'paused' ? '<p>This connection is paused. Use Edit student to resume it before assigning work.</p>' : ''}<div data-coach-practice-tracker></div>`
     else if (snapshot) content = `<p class="coach-count">${snapshot.students.length}${snapshot.moreStudents ? '+' : ''} player${snapshot.students.length === 1 && !snapshot.moreStudents ? '' : 's'} shown · ${snapshot.students.filter(s => s.linked).length} connected</p><button type="button" data-coach-add>Add a student</button><div class="coach-record-list">${snapshot.students.map((s, i) => `<button type="button" class="secondary coach-record" data-coach-student="${i}"><span class="coach-avatar" aria-hidden="true">${html(s.name.trim().slice(0, 1).toUpperCase())}</span><span><strong>${html(s.name)}</strong><small>${html([s.level, statusLabel(s.status), s.linked ? 'Connected' : 'Roster only'].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`).join('') || (rosterFilter.q || rosterFilter.status !== 'all' || rosterFilter.connection !== 'all' ? '<p>No players match these filters. Try another name or clear the filters.</p>' : '<p>No students are saved to your Coach account yet. Add a roster record to start planning.</p>')}</div>${snapshot.moreStudents ? '<p>Showing the first 100 matching players. Search by name or narrow the filters to find another player.</p>' : ''}`
     if (view === 'students' && !leaving) content = `<form class="coach-roster-filter" data-coach-roster role="search" aria-label="Find a player">
       <label for="coach-roster-q">Search players</label><input id="coach-roster-q" type="search" name="q" maxlength="100" value="${html(rosterDraft.q)}" placeholder="Player name" ${busy ? 'disabled' : ''}>
@@ -171,6 +174,13 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
     dialog.querySelector('[data-coach-edit-student]')?.addEventListener('click',()=>begin('edit-student'))
     dialog.querySelector('[data-coach-edit-assignment]')?.addEventListener('click',()=>{if(a)begin('edit-assignment',a)})
     if (view === 'student' && s) {
+      const tracker = dialog.querySelector<HTMLElement>('[data-coach-practice-tracker]')
+      if (tracker && detail) mountCoachPracticeTracker(tracker, detail.assignments, detail.moreAssignments, practiceFilter,
+        () => active() && !busy && view === 'student' && selected === s.id && snapshot?.detail?.student.id === s.id,
+        filter => {practiceFilter = filter}, id => {
+          if (!snapshot?.detail?.assignments.some(assignment => assignment.id === id)) return
+          assignmentId = id; view = 'assignment'; render(); focus()
+        })
       const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary'; button.textContent = 'Student invitations'; button.dataset.coachInvites = ''
       dialog.querySelector('[data-coach-assign]')?.after(button)
       button.onclick = () => {if (!busy && !invitations?.isOpen()) invitations = openCoachInvitations(client, owner, s.id, active, button, send)}
@@ -192,7 +202,6 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
       }
     }
     dialog.querySelectorAll<HTMLButtonElement>('[data-coach-student]').forEach(b => {b.onclick = () => {const s = snapshot?.students[Number(b.dataset.coachStudent)]; if (s) void load(s.id)}})
-    dialog.querySelectorAll<HTMLButtonElement>('[data-coach-assignment]').forEach(b => {b.onclick = () => {const a = detail && sortCoachAssignmentsForReview(detail.assignments)[Number(b.dataset.coachAssignment)]; if (a) {assignmentId = a.id; view = 'assignment'; render(); focus()}}})
     dialog.querySelector<HTMLFormElement>('[data-coach-form]')?.addEventListener('submit', submit)
     dialog.querySelectorAll<HTMLInputElement | HTMLTextAreaElement|HTMLSelectElement>('[data-coach-form] [name]').forEach(el => {el.oninput = () => {fields[el.name] = el.value;if(el.name==='identity'){render();dialog.querySelector<HTMLElement>('[name=customIdentity]')?.focus({preventScroll:true})}}})
     dialog.querySelector('[data-coach-save]')?.addEventListener('click', () => {void write(false)})

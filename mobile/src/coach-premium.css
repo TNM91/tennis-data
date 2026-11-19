@@ -442,3 +442,36 @@ dialog.native-tactics-screen[open]{
 .coach-workspace-dialog .coach-roster-actions [type=button]{background:transparent;border-color:transparent;color:var(--premium-copy,#c4d3ec)}
 .coach-workspace-dialog .coach-roster-filter :focus-visible{outline:2px solid var(--premium-green,#b5eb46);outline-offset:3px}
 @media(max-width:350px){.coach-roster-options{grid-template-columns:1fr}}
+.coach-student-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:.6rem;margin-block:1rem}
+.coach-workspace-dialog .coach-student-actions button{margin:0;min-block-size:48px;padding:.75rem;font-size:.9rem;line-height:1.4}
+.coach-workspace-dialog section.coach-practice-tracker{margin-block:1.5rem 0;padding:0;border:0;border-radius:0;background:transparent;min-width:0;container-type:inline-size}
+.coach-practice-tracker h3{margin-block:0 .35rem}
+.coach-workspace-dialog .coach-practice-scope,.coach-workspace-dialog .coach-practice-result-count{margin-block:.4rem .9rem;color:var(--premium-copy);font-size:.8125rem;line-height:1.5}
+.coach-practice-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;margin-block:1rem}
+.coach-workspace-dialog .coach-practice-summary button.secondary{
+ display:flex;flex-direction:column;justify-content:flex-start;align-items:center;gap:.4rem;min-block-size:88px;
+ margin:0;padding:.85rem .4rem;border:1px solid var(--premium-line);border-radius:var(--premium-row-radius,14px);
+ background:var(--premium-inset);color:var(--premium-copy);font-size:.75rem;line-height:1.4;white-space:normal;overflow-wrap:anywhere;
+}
+.coach-practice-summary button strong{color:var(--premium-white);font-size:1.5rem;line-height:1.1;letter-spacing:-.04em}
+.coach-workspace-dialog .coach-practice-summary button[aria-pressed=true]{background:var(--premium-court-inlay);border-color:var(--premium-lime);box-shadow:inset 0 0 0 1px #b5eb4620}
+.coach-practice-summary button[aria-pressed=true] strong{color:var(--premium-lime)}
+.coach-practice-controls{display:grid;gap:.5rem;margin-block:1rem;min-width:0}
+.coach-workspace-dialog .coach-practice-controls label{margin:.4rem 0 0;font-size:.8125rem}
+.coach-workspace-dialog .coach-practice-controls :is(input,select){
+ width:100%;min-width:0;min-block-size:44px;padding:.7rem .8rem;border:1px solid var(--premium-line);border-radius:14px;
+ background-color:var(--premium-page);color:var(--premium-white);font:inherit;
+}
+.coach-workspace-dialog .coach-practice-controls select{appearance:none;padding-inline-end:2rem;background-image:linear-gradient(45deg,transparent 50%,#c4d3ec 50%),linear-gradient(135deg,#c4d3ec 50%,transparent 50%);background-position:right .95rem center,right .6rem center;background-size:.35rem .35rem;background-repeat:no-repeat}
+.coach-workspace-dialog .coach-practice-controls [data-practice-clear]{justify-self:start;width:auto;min-height:44px;margin:0;padding:.5rem 0;background:transparent;border-color:transparent;color:var(--premium-copy);font-size:.8125rem}
+.coach-workspace-dialog .coach-practice-tracker button.coach-record{min-height:64px;gap:.75rem;padding:1rem;margin:0;border-color:var(--premium-line);background:var(--premium-inset);white-space:normal;text-align:start;overflow-wrap:anywhere}
+.coach-workspace-dialog .coach-practice-tracker p.coach-practice-result-count[role=status]{margin:.4rem 0 .75rem;padding:0;border:0;background:transparent;color:var(--premium-copy);font-size:.8125rem;line-height:1.5}
+.coach-practice-tracker .coach-record>span:first-child{flex:1;min-width:0}
+.coach-practice-tracker .coach-record .coach-practice-focus{display:block;margin-block:.3rem;color:var(--premium-copy);font-size:.8125rem;font-weight:500;line-height:1.5}
+.coach-practice-tracker [data-practice-due=overdue]{color:var(--premium-white);text-decoration:underline;text-underline-offset:3px}
+.coach-practice-tracker [data-practice-due=today]{color:var(--premium-lime)}
+.coach-workspace-dialog .coach-practice-tracker :focus-visible{outline:2px solid var(--premium-lime);outline-offset:3px}
+@container(max-width:14rem){
+ .coach-practice-summary{grid-template-columns:1fr}
+ .coach-workspace-dialog .coach-practice-summary button.secondary{display:grid;grid-template-columns:2rem minmax(0,1fr);align-items:center;gap:.75rem;min-block-size:52px;padding:.65rem .8rem;text-align:start}
+}
