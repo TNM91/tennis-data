@@ -5,7 +5,26 @@ import {readTacticalBoardReference, type TacticalBoardReference} from './tactica
 export const maxTeamLineupCourts = 30
 export type MatchLineupCourt = { format: 'singles' | 'doubles'; players: string[] }
 export type SavedTeamLineup = { version: string; courts: MatchLineupCourt[]; names: Record<string, string>; tactics?: SharedTacticsBoard }
-export type TeamLineupChange = { revision: string; version: string; expected: string | null; courts: MatchLineupCourt[]; tactics?: TacticalBoardReference | null }
+export type TeamLineupChange = { revision: string; version: string; expected: string | null; courts: MatchLineupCourt[]; tactics?: TacticalBoardReference | null; publish?: boolean }
+export const lineupReplyLabels = { confirmed: 'Confirmed', needs_change: 'Needs a change' } as const
+export type LineupReplyChoice = keyof typeof lineupReplyLabels
+export type TeamLineupReply = { id: string; version: string; choice: LineupReplyChoice }
+export type TeamLineupReplyChange = TeamLineupReply & { revision: string; expected: string | null }
+
+export function readTeamLineupReply(value: unknown): TeamLineupReply {
+  const row = value as Partial<TeamLineupReply> | null
+  if (!row || !fixtureId(row.id) || !fixtureId(row.version) || typeof row.choice !== 'string' ||
+      !Object.hasOwn(lineupReplyLabels, row.choice)) throw Error('Invalid lineup confirmation')
+  return { id: row.id, version: row.version, choice: row.choice }
+}
+
+export function readTeamLineupReplyChange(row: Record<string, unknown>): TeamLineupReplyChange | null {
+  try {
+    const reply = readTeamLineupReply(row)
+    if (!fixtureId(row.revision) || row.expected !== null && !fixtureId(row.expected) || row.expected === reply.id) return null
+    return { ...reply, revision: row.revision, expected: row.expected }
+  } catch { return null }
+}
 
 function readCourts(value: unknown): MatchLineupCourt[] | null {
   if (!Array.isArray(value) || value.length < 1 || value.length > maxTeamLineupCourts) return null
@@ -27,10 +46,11 @@ export function readTeamLineupChange(row: Record<string, unknown>): TeamLineupCh
   const { revision, version, expected } = row
   const courts = readCourts(row.courts)
   if (!fixtureId(revision) || !fixtureId(version) || (expected !== null && !fixtureId(expected)) ||
-      version === expected || !courts) return null
+      version === expected || !courts || row.publish !== undefined && typeof row.publish !== 'boolean') return null
   try {
     return { revision, version, expected, courts,
-      ...(row.tactics === undefined ? {} : {tactics: row.tactics === null ? null : readTacticalBoardReference(row.tactics)}) }
+      ...(row.tactics === undefined ? {} : {tactics: row.tactics === null ? null : readTacticalBoardReference(row.tactics)}),
+      ...(row.publish === undefined ? {} : {publish: row.publish as boolean}) }
   } catch { return null }
 }
 

@@ -1,6 +1,6 @@
 import { accountClient, accountResponse, readAccountJson, verifiedAccount } from '@/lib/mobile-account-auth'
 import { countFirstPartyChats, readFirstPartyChat, reviewedTeamOptions, writeFirstPartyChat } from '@/lib/first-party-team-chat'
-import { loadTeamMatchReplies, saveTeamMatchReply } from '@/lib/first-party-team-replies'
+import { loadTeamLineupReplies, loadTeamMatchReplies, saveTeamLineupReply, saveTeamMatchReply } from '@/lib/first-party-team-replies'
 import { loadTeamResultRoster, loadTeamResults, saveTeamResult } from '@/lib/first-party-team-results'
 import { findReviewedTeamConversation, loadActiveReviewedTeamRoomActivity, loadCaptainChatSetup, loadReviewedTeamLinks, readReviewedTeamRooms, type ReviewedTeamRoom } from '@/lib/first-party-team-scopes'
 import { loadManualTeamNextMatch, loadReviewedTeamNextMatch, saveManualTeamNextMatch, upcomingTeamMatch } from '@/lib/first-party-team-schedule'
@@ -9,7 +9,7 @@ import { loadPlayerAccess } from '@/lib/player-api-auth'
 import { privateTeamLeagueKey, privateTeamRoomId, readPrivateTeamInput } from '@/lib/private-team-contract'
 import { supabaseKey } from '@/lib/supabase-public-config'
 import { fixtureId, readTeamNextMatchChange } from '@/lib/team-fixtures-contract'
-import { readSavedTeamLineup, readTeamLineupChange } from '@/lib/team-match-lineup-contract'
+import { readSavedTeamLineup, readTeamLineupChange, readTeamLineupReplyChange } from '@/lib/team-match-lineup-contract'
 import { readTeamMatchReplyChange } from '@/lib/team-match-replies-contract'
 import { readTeamResultChange } from '@/lib/team-results-contract'
 import { loadSharedTacticsBoard } from '@/lib/shared-tactics'
@@ -127,9 +127,10 @@ export async function GET(request: Request) {
       const schedule = await loadManualTeamNextMatch(service, selected, true)
       if (!schedule.nextMatch || !schedule.revision || schedule.revision !== params.get('revision')) return denied(409)
       const replies = await loadTeamMatchReplies(service, selected, owner, schedule.revision, captain)
+      const confirmations = await loadTeamLineupReplies(service, selected, owner, schedule.revision, schedule.publishedLineup, captain)
       return json({ ok: true, owner, roomId: selected.roomId, revision: schedule.revision,
-        replies: { ...replies, ...(captain && schedule.lineup ? { savedLineup: schedule.lineup }
-          : schedule.lineup?.tactics ? { sharedLineup: schedule.lineup } : {}) } })
+        replies: { ...replies, ...confirmations, ...(captain && schedule.lineup ? { savedLineup: schedule.lineup } : {}),
+          ...(schedule.publishedLineup ? { sharedLineup: schedule.publishedLineup } : {}) } })
     }
     if (op === 'next-match') {
       const access = await checkTeamChatAccess(service, owner, selected.roomId, false)
@@ -223,7 +224,7 @@ export async function POST(request: Request) {
     if (body.action === 'save_match_lineup') {
       if (selected.scheduleLeagueId || selected.roomId !== body.roomId || !selected.isCaptain) return denied(403)
       const change = readTeamLineupChange(body)
-      if (!change || Object.keys(body).length !== 9 + Number(change.tactics !== undefined)) return denied(400)
+      if (!change || Object.keys(body).length !== 9 + Number(change.tactics !== undefined) + Number(change.publish !== undefined)) return denied(400)
       const access = await loadPlayerAccess(accountClient(supabaseKey, account.token), owner)
       if (!access.canUseCaptainWorkflow) return denied(403)
       let tactics = change.tactics ? await loadSharedTacticsBoard(service, owner, change.tactics) : null
@@ -234,16 +235,32 @@ export async function POST(request: Request) {
             !existing || !sameTacticalBoardReference(existing.reference, change.tactics)) return denied(409)
         tactics = existing
       }
-      const { data, error } = await service.rpc('save_native_team_lineup_with_tactics', {
+      const { data, error } = await service.rpc('save_native_team_match_plan', {
         p_owner: owner, p_room: selected.roomId, p_team: selected.teamName, p_league: selected.leagueName, p_flight: selected.flight,
         p_revision: change.revision, p_expected: change.expected, p_version: change.version, p_courts: change.courts,
         p_keep_tactics: change.tactics === undefined, p_tactics: tactics,
+        p_publish: change.publish ?? null,
       }).retry(false)
       if (error || ![200, 400, 403, 409].includes(data?.status)) return denied(503)
       if (data.status !== 200) return denied(data.status)
       const lineup = readSavedTeamLineup(data.lineup)
+      const sharedLineup = readSavedTeamLineup(data.sharedLineup)
       if (lineup?.version !== change.version) return denied(503)
-      return json({ ok: true, owner, roomId: selected.roomId, revision: change.revision, lineup })
+      if (change.publish && sharedLineup?.version !== change.version) return denied(503)
+      return json({ ok: true, owner, roomId: selected.roomId, revision: change.revision, lineup, sharedLineup })
+    }
+    if (body.action === 'reply_match_lineup') {
+      if (selected.scheduleLeagueId || selected.roomId !== body.roomId) return denied(403)
+      const change = readTeamLineupReplyChange(body)
+      if (!change || Object.keys(body).length !== 10) return denied(400)
+      const access = await checkTeamChatAccess(service, owner, selected.roomId, false)
+      if (!access.ok) return denied(access.status)
+      const schedule = await loadManualTeamNextMatch(service, selected, true)
+      if (!schedule.nextMatch || schedule.revision !== change.revision || schedule.publishedLineup?.version !== change.version) return denied(409)
+      const status = await saveTeamLineupReply(service, selected, owner, change)
+      if (status !== 200) return denied(status)
+      return json({ ok: true, owner, roomId: selected.roomId, revision: change.revision,
+        lineupReply: { id: change.id, version: change.version, choice: change.choice } })
     }
     if (body.action === 'save_team_result') {
       if (selected.scheduleLeagueId || selected.roomId !== body.roomId || !selected.isCaptain) return denied(403)

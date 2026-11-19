@@ -2,8 +2,36 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ReviewedTeamRoom } from './first-party-team-scopes'
 import { fixtureId } from './team-fixtures-contract'
 import { isTeamMatchChoice, type TeamLineupPlayer, type TeamMatchReplyChange, type TeamMatchReplies } from './team-match-replies-contract'
+import { readTeamLineupReply, type SavedTeamLineup, type TeamLineupReplyChange } from './team-match-lineup-contract'
 
 const rosterLimit = 100
+
+export async function loadTeamLineupReplies(service: SupabaseClient, room: ReviewedTeamRoom, owner: string,
+  revision: string, lineup: SavedTeamLineup | undefined, captain: boolean): Promise<Pick<TeamMatchReplies, 'lineupReply' | 'lineupReplies'>> {
+  if (!lineup) return {}
+  const ids = captain ? Object.keys(lineup.names) : Object.hasOwn(lineup.names, owner) ? [owner] : []
+  if (!ids.length) return { lineupReply: null, ...(captain ? { lineupReplies: [] } : {}) }
+  const { data, error } = await service.from('native_team_lineup_replies').select('profile_id,operation_id,lineup_version,choice')
+    .eq('room_id', room.roomId).eq('fixture_revision', revision).eq('lineup_version', lineup.version)
+    .in('profile_id', ids).limit(60)
+  if (error || !Array.isArray(data)) throw Error('Lineup confirmations unavailable')
+  const replies = data.map(row => {
+    if (!ids.includes(row.profile_id)) throw Error('Invalid lineup confirmation owner')
+    return { ...readTeamLineupReply({ id: row.operation_id, version: row.lineup_version, choice: row.choice }), profileId: row.profile_id as string }
+  })
+  const own = replies.find(reply => reply.profileId === owner)
+  return { lineupReply: own ? { id: own.id, version: own.version, choice: own.choice } : null,
+    ...(captain ? { lineupReplies: replies } : {}) }
+}
+
+export async function saveTeamLineupReply(service: SupabaseClient, room: ReviewedTeamRoom, owner: string, change: TeamLineupReplyChange) {
+  const { data, error } = await service.rpc('reply_to_native_team_lineup', {
+    p_owner: owner, p_room: room.roomId, p_team: room.teamName, p_league: room.leagueName, p_flight: room.flight,
+    p_revision: change.revision, p_version: change.version, p_expected: change.expected, p_operation: change.id, p_choice: change.choice,
+  }).retry(false)
+  if (error || ![200, 400, 403, 409].includes(data)) throw Error('Confirmation could not be confirmed')
+  return data as 200 | 400 | 403 | 409
+}
 
 export async function loadEligibleTeamRoster(service: SupabaseClient, room: ReviewedTeamRoom, owner: string) {
   const participants = await service.from('internal_conversation_participants').select('profile_id')

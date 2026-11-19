@@ -33,6 +33,8 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   for(const file of ['20261113001100_native_player_chats.sql','20261114000300_native_direct_chat_hits.sql','20261114000800_native_chat_hit_scorecards.sql','20261114000900_native_chat_hit_rematch.sql','20261114001000_native_chat_recent_activity.sql','20261117000100_native_coach_assessments.sql']){
    await db.exec(await readSql(new URL('../../supabase/migrations/'+file,import.meta.url)))
   }
+  await db.exec(await readSql(new URL('../../supabase/migrations/20261118000100_native_lineup_tactics.sql',import.meta.url)))
+  await db.exec(await readSql(new URL('../../supabase/migrations/20261119000200_native_lineup_publication.sql',import.meta.url)))
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
 
   await db.query('insert into internal_notification_preferences(profile_id,native_coach_alerts_enabled) values($1,true),($2,false)',[a,b])
@@ -208,6 +210,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   const erasedLineup = savedLineup(a,'Private player'), retainedLineup = savedLineup(b,'Teammate')
   await db.query(`insert into native_team_next_fixtures(room_id,revision,fixture,lineup) values
     ($1,$3,'{}',$4::jsonb),($2,$3,'{}',$5::jsonb)`,[roomA,roomB,courtFixture,erasedLineup,retainedLineup])
+  await db.exec('update native_team_next_fixtures set published_lineup=lineup')
   await db.query(`insert into native_team_fixture_history(room_id,fixture_id,fixture,match_date,result_revision,won,lost,court_scores,lineup)
     values($1,$2,'{}',current_date,$3,1,0,'["6-4, 6-3"]',$4)`,[roomA,courtFixture,roomA,erasedLineup])
   await db.query(`insert into native_team_result_players(room_id,fixture_id,result_revision,court_number,seat,profile_id)
@@ -272,6 +275,8 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   expect((await db.query('select id from private.native_coach_assessments')).rows).toEqual([])
   expect((await db.query('select lineup from native_team_next_fixtures order by room_id')).rows)
    .toEqual([{lineup:null},{lineup:retainedLineup}])
+  expect((await db.query('select published_lineup from native_team_next_fixtures order by room_id')).rows)
+   .toEqual([{published_lineup:null},{published_lineup:retainedLineup}])
   expect((await db.query('select won,lost,court_scores,lineup from native_team_fixture_history')).rows)
    .toEqual([{won:1,lost:0,court_scores:['6-4, 6-3'],lineup:null}])
   expect((await db.query('select profile_id,seat from native_team_result_players')).rows).toEqual([{profile_id:b,seat:2}])
