@@ -3538,6 +3538,138 @@ test('first-party lineup publication rejects a changed player assignment and dra
  expect(await page.evaluate(()=>(window as unknown as {firstPartyTeamFixture:{posts:string[]}}).firstPartyTeamFixture.posts)).toEqual([])
 })
 
+async function openPlayerAssignmentReview(page:Page,width=390){
+ // eslint-disable-next-line react-hooks/rules-of-hooks -- Bundles a synthetic browser fixture, not a React hook.
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width,height:844})
+ await page.goto(origin+'/?manual-team-schedule=1'+(width===320?'&large=1':''))
+ await page.evaluate(()=>{
+  const owner='11111111-1111-4111-8111-111111111111',partner='10000000-0000-4000-8000-000000000002'
+  Object.assign((window as unknown as {manualScheduleFixture:object}).manualScheduleFixture,{
+   revision:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',captain:false,loseNextConfirmation:false,
+   nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
+   reply:{id:'33333333-3333-4333-8333-333333333333',choice:'in'},
+   publishedLineup:{version:'44444444-4444-4444-8444-444444444444',courts:[{format:'doubles',players:[owner,partner]}],names:{[owner]:'You',[partner]:'Casey'}},
+   savedLineup:{version:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',courts:[{format:'singles',players:[owner]}],names:{[owner]:'Private Player'}},
+  })
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ await page.getByRole('textbox',{name:'Message your team',exact:true}).fill('I can bring tennis balls.')
+ await page.locator('.chat-room-options > summary').click();await page.locator('#chat-next-match').click()
+ const match=page.getByRole('dialog',{name:'Next match',exact:true})
+ await expect(match.getByRole('button',{name:'Confirm my assignment',exact:true})).toBeEnabled()
+ return match
+}
+
+for(const width of [320,390])test(`player reviews changed match details, court and partner before confirming at ${width}px`,async({page},info)=>{
+ const match=await openPlayerAssignmentReview(page,width)
+ await expect(match.getByRole('region',{name:'Your shared court',exact:true})).toContainText('Partner · Casey')
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:object}).manualScheduleFixture
+  const owner='11111111-1111-4111-8111-111111111111',partner='77777777-7777-4777-8777-777777777777'
+  const other='10000000-0000-4000-8000-000000000001',reserve='22222222-2222-4222-8222-222222222222'
+  Object.assign(fixture,{
+   revision:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',reply:null,lineupReplies:{},
+   nextMatch:{opponent:'Topspin Club',date:'2030-06-10',time:'19:00',facility:'Clubhouse courts',timeZone:'America/Chicago'},
+   publishedLineup:{version:'55555555-5555-4555-8555-555555555555',courts:[{format:'doubles',players:[other,reserve]},{format:'doubles',players:[owner,partner]}],
+    names:{[owner]:'You',[partner]:'Morgan',[other]:'Other Player',[reserve]:'Reserve Player'}},
+  })
+ })
+ await match.getByRole('button',{name:'Confirm my assignment',exact:true}).click()
+ const updates=match.getByRole('region',{name:'Match updates',exact:true})
+ await expect(updates.getByRole('heading',{name:'Review match updates',exact:true})).toBeFocused()
+ await expect(updates.getByRole('heading',{name:'Review match updates',exact:true})).toBeInViewport()
+ await expect(updates).toContainText('Before · Court 2');await expect(updates).toContainText('Now · Clubhouse courts')
+ await expect(updates).toContainText('Before · Doubles 1');await expect(updates).toContainText('Now · Doubles 2')
+ await expect(updates).toContainText('Before · Casey');await expect(updates).toContainText('Now · Morgan')
+ await expect(updates).toContainText('Your availability');await expect(updates).toContainText('Now · Not replied')
+ await expect(updates).not.toContainText('Other Player');await expect(updates).not.toContainText('Private Player')
+ await expect(match.getByRole('button',{name:'Confirm assignment',exact:true})).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{confirmationWrites:string[]}}).manualScheduleFixture.confirmationWrites)).toEqual([])
+ expect(await updates.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ await page.screenshot({path:info.outputPath('player-match-updates.png')})
+ await updates.getByRole('button',{name:'View current assignment',exact:true}).click()
+ await expect(match.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
+ if(width===390){
+  await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{failReplies:boolean}}).manualScheduleFixture.failReplies=true})
+  await match.getByRole('button',{name:'Confirm my assignment',exact:true}).click()
+  await expect(match.getByRole('status')).toHaveText('Availability couldn’t load. Reload the match.')
+  await expect(match.getByRole('status')).toBeFocused();await expect(match.getByRole('status')).toBeInViewport()
+  await expect(match.getByRole('button',{name:'Confirm assignment',exact:true})).toHaveCount(0)
+  await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{failReplies:boolean}}).manualScheduleFixture.failReplies=false})
+ }
+ await match.getByRole('button',{name:'Confirm my assignment',exact:true}).click()
+ await expect(match.getByRole('heading',{name:'Confirm your assignment',exact:true})).toBeFocused()
+ await expect(match.getByRole('heading',{name:'Confirm your assignment',exact:true})).toBeInViewport()
+ await expect(match.getByRole('region',{name:'Your shared court',exact:true})).toContainText('Doubles 2')
+ await expect(match.getByRole('region',{name:'Your shared court',exact:true})).toContainText('Partner · Morgan')
+ await expect(match).toContainText('Your availability · Not replied')
+ await match.getByRole('button',{name:'Confirm assignment',exact:true}).click()
+ await expect(match.getByRole('status')).toHaveText('Your assignment is confirmed.')
+ await expect(updates).toHaveCount(0)
+ const writes=await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{confirmationWrites:string[];reply:unknown}}).manualScheduleFixture)
+ expect(writes.confirmationWrites).toHaveLength(1);expect(writes.reply).toBeNull()
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(page.getByRole('textbox',{name:'Message your team',exact:true})).toHaveValue('I can bring tennis balls.')
+})
+
+test('player recovers a changed match after confirming an older review without posting a response to the new plan',async({page})=>{
+ const match=await openPlayerAssignmentReview(page)
+ await match.getByRole('button',{name:'Confirm my assignment',exact:true}).click()
+ await expect(match.getByRole('heading',{name:'Confirm your assignment',exact:true})).toBeVisible()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{revision:string;reply:unknown;nextMatch:{time:string;facility:string};publishedLineup:{version:string}}}).manualScheduleFixture
+  fixture.revision='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';fixture.reply=null
+  fixture.nextMatch.time='20:00';fixture.nextMatch.facility='Clubhouse courts'
+  fixture.publishedLineup.version='55555555-5555-4555-8555-555555555555'
+ })
+ await match.getByRole('button',{name:'Confirm assignment',exact:true}).click()
+ const updates=match.getByRole('region',{name:'Match updates',exact:true})
+ await expect(updates.getByRole('heading',{name:'Review match updates',exact:true})).toBeFocused()
+ await expect(updates).toContainText('Now · Clubhouse courts')
+ await expect(match.getByRole('button',{name:'Retry same confirmation',exact:true})).toHaveCount(0)
+ await expect(match.getByRole('button',{name:'Confirm assignment',exact:true})).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{confirmationWrites:string[]}}).manualScheduleFixture.confirmationWrites)).toEqual([])
+ await match.getByRole('button',{name:'Confirm my assignment',exact:true}).click()
+ await match.getByRole('button',{name:'Confirm assignment',exact:true}).click()
+ await expect(match.getByRole('status')).toHaveText('Your assignment is confirmed.')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{confirmationWrites:string[]}}).manualScheduleFixture.confirmationWrites)).toHaveLength(1)
+})
+
+test('a delayed assignment recheck cannot reopen a match after the player changes accounts',async({page})=>{
+ const match=await openPlayerAssignmentReview(page)
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{holdNextMatch:boolean}}).manualScheduleFixture.holdNextMatch=true})
+ await match.getByRole('button',{name:'Confirm my assignment',exact:true}).click()
+ await expect(match.getByRole('status')).toHaveText('Checking your current assignment…')
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+ await expect(match).toHaveCount(0)
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{holdNextMatch:boolean;releaseNextMatch:(()=>void)|null}}).manualScheduleFixture
+  fixture.holdNextMatch=false;fixture.releaseNextMatch?.()
+ })
+ await expect(page.getByRole('region',{name:'Match updates',exact:true})).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{confirmationWrites:string[]}}).manualScheduleFixture.confirmationWrites)).toEqual([])
+})
+
+for(const removed of ['assignment','match'])test(`player reviews a removed ${removed} without confirming an obsolete court`,async({page})=>{
+ const match=await openPlayerAssignmentReview(page)
+ await page.evaluate(removed=>{
+  const fixture=(window as unknown as {manualScheduleFixture:object}).manualScheduleFixture
+  const other='10000000-0000-4000-8000-000000000001'
+  Object.assign(fixture,removed==='match'?{nextMatch:null,revision:null,publishedLineup:null,lineupReplies:{},reply:null}:
+   {publishedLineup:{version:'55555555-5555-4555-8555-555555555555',courts:[{format:'singles',players:[other]}],names:{[other]:'Other Player'}},lineupReplies:{}})
+ },removed)
+ await match.getByRole('button',{name:'Confirm my assignment',exact:true}).click()
+ const updates=match.getByRole('region',{name:'Match updates',exact:true})
+ await expect(updates.getByRole('heading',{name:'Review match updates',exact:true})).toBeFocused()
+ await expect(updates).toContainText(removed==='match'?'No upcoming match':'Not assigned')
+ await expect(updates).not.toContainText('Other Player')
+ await expect(match.getByRole('button',{name:'Confirm my assignment',exact:true})).toHaveCount(0)
+ await expect(match.getByRole('button',{name:'Confirm assignment',exact:true})).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{confirmationWrites:string[]}}).manualScheduleFixture.confirmationWrites)).toEqual([])
+})
+
 test('first-party captain saves a lineup and uses its court count for score entry',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:720})

@@ -19,6 +19,7 @@ import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type Readines
 import {availableLineupReserves,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml} from './team-lineup-publication'
 import {lineupReplacementContext,lineupReplacementHtml,lineupReplacementTarget,replaceLineupPlayer,type LineupReplacementTarget} from './team-lineup-replacement'
 import {captainMatchStatus} from './captain-match-status'
+import {playerAssignmentSnapshot,playerAssignmentChanges,playerAssignmentUpdateHtml,type PlayerAssignmentUpdate} from './player-assignment-review'
 import './team-match-readiness.css'
 
 export function nextMatchTime(match:ReviewedNextMatch){
@@ -88,6 +89,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let replacementTarget:LineupReplacementTarget|null=null
  let pendingLineup:TeamLineupChange|null=null,lineupConflict=false
  let publicationReview:TeamLineupChange|null=null,confirmationReview:TeamLineupReplyChange|null=null,pendingConfirmation:TeamLineupReplyChange|null=null
+ let assignmentUpdate:PlayerAssignmentUpdate|null=null
  let previousSlot:ReviewedNextMatch|null=null
  let scheduleAnnouncement:{revision:string;previous:ReviewedNextMatch}|null=null
  let rosterExpanded=false
@@ -175,7 +177,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   if(busy||!active())return
   const before=schedule??calendarSchedule
   busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null;replacementTarget=null;editingDirty=false
-  publicationReview=null;confirmationReview=null;pendingConfirmation=null
+  publicationReview=null;confirmationReview=null;pendingConfirmation=null;assignmentUpdate=null
   tacticsChoice=undefined;boardOptions=undefined
   replies=null;draft=null;removing=false;schedule=null;notice='Loading your next match…';render()
   try{
@@ -327,34 +329,68 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  }
  const reviewConfirmation=async(choice:LineupReplyChoice)=>{
   if(!active()||busy||pendingConfirmation||!schedule?.revision||!replies?.sharedLineup)return
+  const before=playerAssignmentSnapshot(schedule,replies,owner)
   const version=replies.sharedLineup.version,expected=replies.lineupReply?.id??null
+  let assignmentChanged=false
   busy=true;notice='Checking your current assignment…';render()
   try{
-   const latest=await teamMatchRepliesRequest(client,owner,active,room,schedule.revision)
+   const latestSchedule=await teamNextMatchRequest(client,owner,active,room)
    if(!active())return
-   replies=latest
-   if(latest.sharedLineup?.version!==version||(latest.lineupReply?.id??null)!==expected){notice='The lineup or your confirmation changed. Review the latest assignment.';return}
+   const latest=latestSchedule.revision&&latestSchedule.nextMatch?await teamMatchRepliesRequest(client,owner,active,room,latestSchedule.revision):null
+   if(!active())return
+   const update={before,after:playerAssignmentSnapshot(latestSchedule,latest,owner)}
+   schedule=latestSchedule;replies=latest
+   if(before.revision!==schedule.revision||latest?.sharedLineup?.version!==version||(latest?.lineupReply?.id??null)!==expected||playerAssignmentChanges(update,nextMatchTime).length){
+    changed=true;assignmentChanged=true;assignmentUpdate=update;notice='The match or your assignment changed. Review the latest details before responding.';return
+   }
+   if(!latest?.sharedLineup||!schedule.revision)return
    if(!Object.hasOwn(latest.sharedLineup.names,owner)||choice==='confirmed'&&latest.own?.choice==='out'){
     notice='Check your current assignment and match availability before confirming.';return
    }
    confirmationReview={revision:schedule.revision,version,id:crypto.randomUUID(),expected,choice};notice=''
-  }catch(cause){notice=cause instanceof TeamNextMatchError?cause.message:'Couldn’t check your assignment. Reload the match.'}
-  finally{if(active()){busy=false;render();if(confirmationReview)dialog.scrollTop=0;focus(confirmationReview?'[data-confirmation-heading]':'[role="status"]')}}
+  }catch(cause){
+   if(cause instanceof TeamNextMatchError&&cause.status===403){schedule=null;replies=null;assignmentUpdate=null}
+   notice=cause instanceof TeamNextMatchError?cause.message:'Couldn’t check your assignment. Reload the match.'
+  }
+  finally{if(active()){
+   busy=false;render();if(confirmationReview)dialog.scrollTop=0
+   if(confirmationReview||assignmentChanged)focus(confirmationReview?'[data-confirmation-heading]':'.team-assignment-updates h3')
+   else focusFeedback()
+   if(confirmationReview)dialog.querySelector<HTMLElement>('[data-confirmation-heading]')?.scrollIntoView({block:'start'})
+   if(assignmentChanged&&!confirmationReview)dialog.querySelector<HTMLElement>('.team-assignment-updates')?.scrollIntoView({block:'start'})
+  }}
  }
  const confirmAssignment=async()=>{
   const change=pendingConfirmation??confirmationReview
   if(!active()||busy||!change||!schedule)return
+  const before=playerAssignmentSnapshot(schedule,replies,owner)
   busy=true;pendingConfirmation=change;notice='Saving your lineup response…';render()
   try{
    await saveTeamLineupReplyRequest(client,owner,active,room,change)
    if(!active())return
-   changed=true;pendingConfirmation=null;confirmationReview=null
+   changed=true;pendingConfirmation=null;confirmationReview=null;assignmentUpdate=null
    notice=change.choice==='confirmed'?'Your assignment is confirmed.':'Your captain can see your change request.'
    await refreshReplies(schedule)
   }catch(cause){
    notice=cause instanceof TeamNextMatchError?cause.message:'Your confirmation could not be confirmed. Retry the same confirmation.'
-   if(cause instanceof TeamNextMatchError&&!cause.uncertain){pendingConfirmation=null;confirmationReview=null;replies=null}
-  }finally{if(active()){busy=false;render();focusFeedback()}}
+   if(cause instanceof TeamNextMatchError&&!cause.uncertain){
+    pendingConfirmation=null;confirmationReview=null;replies=null;assignmentUpdate=null
+    if(cause.status===409){
+     try{
+      const latestSchedule=await teamNextMatchRequest(client,owner,active,room)
+      if(!active())return
+      const latest=latestSchedule.nextMatch&&latestSchedule.revision?await teamMatchRepliesRequest(client,owner,active,room,latestSchedule.revision):null
+      if(!active())return
+      schedule=latestSchedule;replies=latest;changed=true
+      assignmentUpdate={before,after:playerAssignmentSnapshot(schedule,replies,owner)}
+      notice='The match, published lineup, or your reply changed. Review the latest details before responding.'
+     }catch{schedule=null;notice='Couldn’t check the latest match. Reload before responding.'}
+    }else if(cause.status===403)schedule=null
+   }
+  }finally{if(active()){
+   busy=false;render();if(assignmentUpdate)focus('.team-assignment-updates h3');else focusFeedback()
+   if(assignmentUpdate)dialog.querySelector<HTMLElement>('.team-assignment-updates')?.scrollIntoView({block:'start'})
+  }}
  }
  const draftPublishedLineup=async()=>{
   if(!active()||!captain||busy||!schedule?.revision||!schedule.nextMatch||!replies?.sharedLineup)return
@@ -522,9 +558,11 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   if(reusableVenue&&!zones.includes(reusableVenue.timeZone))zones.push(reusableVenue.timeZone)
   dialog.innerHTML=`<header class="team-invite-heading"><h2 tabindex="-1">Next match</h2></header>
    <p>${html(room.teamName)} · ${html(teamLeagueLabel(room))}${room.flight?' · '+html(room.flight):''}</p>
+   ${assignmentUpdate?playerAssignmentUpdateHtml(assignmentUpdate,nextMatchTime,!confirmationReview&&!busy):''}
    ${confirmationReview&&schedule?.nextMatch?`<h3 tabindex="-1" data-confirmation-heading>${confirmationReview.choice==='confirmed'?'Confirm your assignment':'Request an assignment change'}</h3>
     <div class="team-invite-preview">${teamNextMatchHtml(schedule.nextMatch)}</div>${ownSharedCourtHtml(shared,owner)}
-    <p>${confirmationReview.choice==='confirmed'?'Confirm that you have checked this court, partner and match time.':'Your captain will see that you need a different assignment. Use Can you play? to change match availability.'}</p>
+    <p>Your availability · ${replies?.own?teamReplyLabels[replies.own.choice]:'Not replied'}</p>
+    <p>${confirmationReview.choice==='confirmed'?'Confirm that you have checked this court, partner and match time. Your availability stays as shown above.':'Your captain will see that you need a different assignment. Use Can you play? to change match availability.'}</p>
     <button type="button" data-confirm-assignment ${busy||pendingConfirmation?'disabled':''}>${confirmationReview.choice==='confirmed'?'Confirm assignment':'Send change request'}</button>
     ${!busy&&!pendingConfirmation?'<button type="button" class="secondary" data-cancel-confirmation>Back to match</button>':''}`
     :publicationReview&&schedule?.nextMatch?`<div class="team-invite-preview">${teamNextMatchHtml(schedule.nextMatch)}</div>

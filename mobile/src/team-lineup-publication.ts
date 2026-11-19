@@ -1,5 +1,5 @@
 import {lineupReplyLabels,type MatchLineupCourt,type SavedTeamLineup} from '../../lib/team-match-lineup-contract'
-import type {TeamLineupPlayer,TeamMatchReplies} from '../../lib/team-match-replies-contract'
+import {teamReplyLabels,type TeamLineupPlayer,type TeamMatchReplies} from '../../lib/team-match-replies-contract'
 import {html} from './html'
 import {ownSharedCourtHtml} from './team-match-readiness'
 import {lineupNames} from './team-match-lineup'
@@ -97,7 +97,7 @@ export function lineupPublicationHtml(replies:TeamMatchReplies|null,owner:string
  if(!replies)return ''
  const shared=replies?.sharedLineup
  if(!shared)return captain?`<section class="team-lineup-publication" aria-label="Published lineup"><h3 tabindex="-1">Published lineup</h3><p>No lineup published yet. Private court assignments stay with your captains.</p>${privateLineupNotice(replies,busy)}</section>`:''
- const assigned=Object.hasOwn(shared.names,owner),own=replies?.lineupReply
+ const assigned=Object.hasOwn(shared.names,owner),own=replies.lineupReply?.version===shared.version?replies.lineupReply:null
  const ownStatus=own?lineupReplyLabels[own.choice]:'Awaiting your confirmation'
  const summary=lineupConfirmationSummary(replies)
  return `<section class="team-lineup-publication" aria-label="Published lineup"><h3 tabindex="-1">Published lineup</h3>
@@ -109,7 +109,8 @@ export function lineupPublicationHtml(replies:TeamMatchReplies|null,owner:string
    ${row.status==='review'?`<button type="button" class="secondary" data-review-lineup-player="${html(row.id)}" aria-label="Review court for ${html(row.name)}" ${busy?'disabled':''}>Review court</button>`:''}</li>`).join('')}</ul>
   ${summary.awaiting?`<button type="button" class="secondary" data-draft-confirmation-reminder ${busy?'disabled':''}>Draft confirmation reminder</button><p>Review the reminder in team chat before sending.</p>`:''}`:''}
   ${!captain||assigned?ownSharedCourtHtml(shared,owner):''}
-  ${assigned?`<p class="team-lineup-own-status">${replies?.own?.choice==='out'?'You’re marked Out for this match.':ownStatus}</p><div class="team-readiness-actions">
+  ${assigned?`<p class="team-lineup-own-status" data-lineup-own-state="${replies.own?.choice==='out'?'out':own?.choice??'awaiting'}">${replies?.own?.choice==='out'?'You’re marked Out for this match.':ownStatus}</p>
+  <p>Your availability · ${replies.own?teamReplyLabels[replies.own.choice]:'Not replied'}</p><div class="team-readiness-actions">
    <button type="button" class="secondary" data-lineup-reply="confirmed" ${busy||own?.choice==='confirmed'||replies?.own?.choice==='out'?'disabled':''}>Confirm my assignment</button>
    <button type="button" class="secondary" data-lineup-reply="needs_change" ${busy||own?.choice==='needs_change'?'disabled':''}>Request a change</button>
   </div><p>For a different court or partner, request a change. If you can’t play the match, update your availability below.</p>`:''}

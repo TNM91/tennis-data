@@ -37,7 +37,19 @@
 .team-lineup-publish-preview :is(span,small),.team-lineup-confirmations span{color:var(--premium-copy)}
 .team-lineup-publication .team-own-court{border:0;background:transparent;padding:0;margin-block:12px}
 .team-lineup-publication .team-own-court h3{font-size:.8125rem}
-.team-next-match-dialog .team-lineup-own-status{color:var(--premium-lime);font-weight:650}
+.team-next-match-dialog .team-lineup-own-status{color:var(--premium-copy);font-weight:650}
+.team-next-match-dialog .team-lineup-own-status[data-lineup-own-state="confirmed"]{color:var(--premium-lime)}
+.team-next-match-dialog .team-lineup-own-status[data-lineup-own-state="needs_change"]{color:var(--premium-ice)}
+.team-next-match-dialog .team-assignment-updates{min-inline-size:0;padding:14px;margin-block:14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);overflow-wrap:anywhere;box-shadow:none}
+.team-next-match-dialog .team-assignment-updates h3{font-size:1rem;line-height:1.4;color:var(--premium-white);margin:0}
+.team-next-match-dialog .team-assignment-updates p{font-size:.8125rem;line-height:1.5;color:var(--premium-copy)}
+.team-assignment-updates ul{list-style:none;padding:0;margin:12px 0;display:grid;gap:10px}
+.team-assignment-updates li{display:grid;gap:4px;min-inline-size:0;padding-block-start:10px;border-block-start:1px solid var(--premium-line);font-size:.8125rem;line-height:1.5}
+.team-assignment-updates li>strong{color:var(--premium-white)}
+.team-assignment-updates li>span{color:var(--premium-copy)}
+.team-assignment-updates li>span:last-child{color:var(--premium-ice)}
+.team-next-match-dialog .team-assignment-updates button.secondary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-block-size:48px;padding:12px;text-align:start;font-size:.8125rem;background:var(--premium-court-inlay);border-color:var(--premium-line)}
+.team-assignment-updates button>span{color:var(--premium-ice);flex:none}
 .team-next-match-dialog .team-lineup-reserves p{margin:8px 0 0}
 .team-next-match-dialog .team-lineup-replacement{min-inline-size:0;overflow-wrap:anywhere;background:transparent;border:0;border-radius:0;padding:0;margin:0;box-shadow:none}
 .team-lineup-replacement h3{font-size:1.125rem;line-height:1.4;color:var(--premium-white);margin:0}
