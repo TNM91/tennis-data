@@ -1,7 +1,7 @@
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {readTeamMatchReplies,type TeamMatchReplies,type TeamMatchReplyChange} from '../../lib/team-match-replies-contract'
-import {readSavedTeamLineup,type TeamLineupChange} from '../../lib/team-match-lineup-contract'
+import {readSavedTeamLineup,readTeamLineupReply,type TeamLineupChange,type TeamLineupReplyChange} from '../../lib/team-match-lineup-contract'
 import {sameTacticalBoardReference} from '../../lib/tactical/board-reference'
 import {firstPartyTeamRooms,matchesTeamReleaseScope} from './first-party-team-transport'
 import {TeamNextMatchError,type TeamMatchRoom} from './team-room-data'
@@ -51,6 +51,19 @@ export async function saveTeamMatchLineupRequest(client:SupabaseClient,owner:str
   const saved=readSavedTeamLineup(reply.lineup)
   if(saved?.version!==change.version||JSON.stringify(saved.courts)!==JSON.stringify(change.courts))throw Error()
   if(change.tactics!==undefined&&!sameTacticalBoardReference(change.tactics,saved.tactics?.reference??null))throw Error()
+  const sharedLineup=readSavedTeamLineup(reply.sharedLineup)
+  if(change.publish&&sharedLineup?.version!==saved.version)throw Error()
+  return {savedLineup:saved,sharedLineup:sharedLineup??undefined}
+ }catch{throw unavailable()}
+}
+
+export async function saveTeamLineupReplyRequest(client:SupabaseClient,owner:string,current:()=>boolean,room:TeamMatchRoom,change:TeamLineupReplyChange){
+ const unavailable=()=>new TeamNextMatchError('Your confirmation could not be confirmed. Retry the same confirmation.',true)
+ const reply=await matchRequest(client,owner,current,room,change.revision,unavailable,
+  'The match, published lineup, or your reply changed. Reload the match.',{action:'reply_match_lineup',...change})
+ try{
+  const saved=readTeamLineupReply(reply.lineupReply)
+  if(saved.id!==change.id||saved.version!==change.version||saved.choice!==change.choice)throw Error()
   return saved
  }catch{throw unavailable()}
 }

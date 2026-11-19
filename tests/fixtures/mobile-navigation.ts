@@ -33,6 +33,7 @@ import {coachPreviewControls,coachPreviewRequest,coachPreviewInvitesRequest,coac
 import {tacticsPreviewControls,tacticsPreviewCopy,tacticsPreviewRequest} from './native-tactics-browser'
 import type {TacticalBoardReference} from '../../lib/tactical/board-reference'
 import type {SharedTacticsBoard} from '../../lib/shared-tactics'
+import type {SavedTeamLineup,TeamLineupReply} from '../../lib/team-match-lineup-contract'
 import {trainingInboxPreview} from './mobile-training-inbox'
 import {personalMatchFixture} from './mobile-personal-matches'
 import {captainCourtPreview,captainCourtsFixture,captainFixtureId} from './mobile-captain-courts'
@@ -216,7 +217,11 @@ const manualScheduleFixture={enabled:new URL(location.href).searchParams.has('ma
  extraPlayers:[] as {id:string;name:string;choice:string|null}[],
  rosterComplete:true,failReplies:false,caseyChoice:null as string|null,
  savedLineup:null as {version:string;courts:{format:string;players:string[]}[];names:Record<string,string>;tactics?:SharedTacticsBoard}|null,
+ publishedLineup:undefined as SavedTeamLineup|null|undefined,
+ lineupReplies:{} as Record<string,TeamLineupReply>,loseNextConfirmation:true,confirmationWrites:[] as string[],
  loseNextLineupSave:true,lineupWrites:[] as string[]}
+const manualPublishedLineup=()=>manualScheduleFixture.publishedLineup===undefined
+ ?manualScheduleFixture.savedLineup?.tactics?manualScheduleFixture.savedLineup:null:manualScheduleFixture.publishedLineup
 const manualLineupRoster=()=>[{id:'10000000-0000-4000-8000-000000000001',name:'Alex',choice:manualScheduleFixture.reply?.choice??null},
  {id:'10000000-0000-4000-8000-000000000002',name:'Casey',choice:manualScheduleFixture.caseyChoice},...manualScheduleFixture.extraPlayers]
 const teamResultFixture={
@@ -567,6 +572,7 @@ window.fetch=async(input,init)=>{
     if(!fixture.nextMatch||action.revision!==fixture.revision)return Response.json({ok:false},{status:409})
     fixture.lineupWrites.push(action.version)
     if(action.version!==fixture.savedLineup?.version){
+     const before=manualPublishedLineup()
      if(action.expected!==(fixture.savedLineup?.version??null))return Response.json({ok:false},{status:409})
      const players=new Set<string>(action.courts.flatMap((court:{players:string[]})=>court.players))
      const names=Object.fromEntries(manualLineupRoster().filter(player=>players.has(player.id)&&player.choice!=='out')
@@ -576,9 +582,23 @@ window.fetch=async(input,init)=>{
       :action.tactics?tacticsPreviewCopy(action.tactics as TacticalBoardReference):null
      if(action.tactics&&!tactics)return Response.json({ok:false},{status:409})
      fixture.savedLineup={version:action.version,courts:action.courts,names,...(tactics?{tactics}:{})}
+     fixture.publishedLineup=(action.publish===true?fixture.savedLineup:action.publish===false?before:tactics?fixture.savedLineup:null) as SavedTeamLineup|null
+     if(fixture.publishedLineup?.version!==before?.version)fixture.lineupReplies={}
      if(fixture.loseNextLineupSave){fixture.loseNextLineupSave=false;return Response.json({ok:false},{status:503})}
     }
-    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,lineup:fixture.savedLineup})
+    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,lineup:fixture.savedLineup,sharedLineup:manualPublishedLineup()})
+   }
+   if(action.action==='reply_match_lineup'){
+    const fixture=manualScheduleFixture,shared=manualPublishedLineup()
+    if(!shared||action.roomId!==chatRoomId||action.revision!==fixture.revision||action.version!==shared.version||!Object.hasOwn(shared.names,owner))return Response.json({ok:false},{status:409})
+    fixture.confirmationWrites.push(action.id)
+    const existing=fixture.lineupReplies[owner]
+    if(existing?.id!==action.id){
+     if((existing?.id??null)!==action.expected)return Response.json({ok:false},{status:409})
+     fixture.lineupReplies[owner]={id:action.id,version:action.version,choice:action.choice}
+     if(fixture.loseNextConfirmation){fixture.loseNextConfirmation=false;return Response.json({ok:false},{status:503})}
+    }
+    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,lineupReply:fixture.lineupReplies[owner]})
    }
    if(action.action==='save_team_result'){
     const fixture=teamResultFixture
@@ -637,6 +657,7 @@ window.fetch=async(input,init)=>{
     if(fixture.reply?.id!==action.id){
      if((fixture.reply?.id??null)!==action.expected)return Response.json({ok:false},{status:409})
      fixture.reply={id:action.id,choice:action.choice}
+     if(fixture.lineupReplies[owner])delete fixture.lineupReplies[owner]
      if(fixture.loseNextReply){fixture.loseNextReply=false;return Response.json({ok:false},{status:503})}
     }
     return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,reply:fixture.reply})
@@ -694,9 +715,11 @@ window.fetch=async(input,init)=>{
    const lineupRoster=manualLineupRoster()
    const teamReplies=lineupRoster.filter(player=>player.choice).map(({name,choice})=>({name,choice}))
    const awaiting=lineupRoster.filter(player=>player.choice===null).map(player=>player.name)
+   const shared=manualPublishedLineup()
    return Response.json({...base,roomId:chatRoomId,revision:fixture.revision,replies:{own:fixture.reply,
+    ...(shared?{sharedLineup:shared}:{}),lineupReply:fixture.lineupReplies[owner]??null,
     ...(fixture.captain&&owner===navigationOwner?{team:teamReplies,awaiting,awaitingTeammates:awaiting.length,rosterComplete:fixture.rosterComplete,lineupRoster,
-     savedLineup:fixture.savedLineup}:fixture.savedLineup?.tactics?{sharedLineup:fixture.savedLineup}:{})}})
+     savedLineup:fixture.savedLineup,...(shared?{lineupReplies:Object.entries(fixture.lineupReplies).map(([profileId,reply])=>({...reply,profileId}))}:{})}:{})}})
   }
   if(op==='next-match'){
    if(team&&linkedSchedule)return Response.json({...base,roomId:chatRoomId,revision:null,

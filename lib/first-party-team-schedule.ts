@@ -21,18 +21,20 @@ export function teamMatchHasStarted(match: ReviewedNextMatch, now = new Date()) 
 
 export async function loadManualTeamFixture(service: SupabaseClient, room: ReviewedTeamRoom, includeLineup = false) {
   const table = service.from('native_team_next_fixtures')
-  const query = includeLineup ? table.select('revision,fixture,lineup') : table.select('revision,fixture')
+  const query = includeLineup ? table.select('revision,fixture,lineup,published_lineup') : table.select('revision,fixture')
   const { data, error } = await query.eq('room_id', room.roomId).maybeSingle()
   if (error || data && !fixtureId(data.revision)) throw Error('Team match unavailable')
   const match = readReviewedNextMatch(data?.fixture)
   if (data?.fixture != null && !match) throw Error('Invalid team match')
   const lineup = includeLineup && data && 'lineup' in data ? readSavedTeamLineup(data.lineup) : null
-  return { revision: data ? String(data.revision) : null, match, lineup }
+  const publishedLineup = includeLineup && data && 'published_lineup' in data ? readSavedTeamLineup(data.published_lineup) : null
+  return { revision: data ? String(data.revision) : null, match, lineup, publishedLineup }
 }
 
 export async function loadManualTeamNextMatch(service: SupabaseClient, room: ReviewedTeamRoom, includeLineup = false) {
-  const { revision, match, lineup } = await loadManualTeamFixture(service, room, includeLineup)
-  return { revision, nextMatch: match && upcomingTeamMatch(match) ? match : null, ...(lineup ? { lineup } : {}) }
+  const { revision, match, lineup, publishedLineup } = await loadManualTeamFixture(service, room, includeLineup)
+  return { revision, nextMatch: match && upcomingTeamMatch(match) ? match : null,
+    ...(lineup ? { lineup } : {}), ...(publishedLineup ? { publishedLineup } : {}) }
 }
 
 export async function loadCalendarTeamMatches(service: SupabaseClient, owner: string, range: CalendarRange, now = new Date()) {

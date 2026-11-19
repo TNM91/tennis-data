@@ -38,7 +38,7 @@ export function teamReadinessHtml(replies: TeamMatchReplies | null, courts: Matc
 }
 
 export function ownSharedCourtHtml(lineup: SavedTeamLineup | undefined, owner: string) {
- if (!lineup?.tactics) return ''
+ if (!lineup) return ''
  let singles = 0, doubles = 0
  const assignment = lineup.courts.map(court => ({court, label: court.format === 'singles' ? `Singles ${++singles}` : `Doubles ${++doubles}`}))
   .find(({court}) => court.players.includes(owner))

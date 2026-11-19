@@ -16,3 +16,13 @@
 .team-own-court p>strong,.team-own-court p>span{display:block}
 .team-own-court p>strong{font-size:1.2rem;color:var(--premium-lime);margin-block:12px 4px}
 .team-readiness-discard{background:var(--premium-page);border-color:var(--premium-line);color:var(--premium-white)}
+.team-next-match-dialog :is(.team-lineup-publication,.team-lineup-publish-preview,.team-lineup-reserves){padding:14px;margin-block:14px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);overflow-wrap:anywhere}
+.team-next-match-dialog :is(.team-lineup-publication,.team-lineup-publish-preview,.team-lineup-reserves) h3{font-size:1rem;line-height:1.4;margin:0;color:var(--premium-white)}
+.team-next-match-dialog :is(.team-lineup-publication,.team-lineup-publish-preview,.team-lineup-reserves) p{font-size:.8125rem;line-height:1.5;color:var(--premium-copy)}
+.team-lineup-publish-preview ul,.team-lineup-confirmations{list-style:none;padding:0;margin:12px 0;display:grid;gap:10px}
+.team-lineup-publish-preview li,.team-lineup-confirmations li{display:grid;gap:4px;padding-block:8px;border-block-start:1px solid var(--premium-line);font-size:.8125rem;line-height:1.5}
+.team-lineup-publish-preview :is(span,small),.team-lineup-confirmations span{color:var(--premium-copy)}
+.team-lineup-publication .team-own-court{border:0;background:transparent;padding:0;margin-block:12px}
+.team-lineup-publication .team-own-court h3{font-size:.8125rem}
+.team-next-match-dialog .team-lineup-own-status{color:var(--premium-lime);font-weight:650}
+.team-next-match-dialog .team-lineup-reserves p{margin:8px 0 0}

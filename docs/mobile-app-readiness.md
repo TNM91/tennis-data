@@ -1,5 +1,17 @@
 # TenAceIQ mobile readiness — 2026-10-23
 
+## November 19 candidate: Lineup publication and assignment confirmation (unreleased)
+
+Captains can save private court assignments or review and publish a lineup independently of a tactics board. The published snapshot stays unchanged while a new draft is edited. The publishing preview shows court assignments, changed players, removed courts and the confirmation reset before the captain commits. Available teammates lists unassigned players who have marked In; captains choose replacements explicitly in the court player lists.
+
+Players see their published court and partner alongside the match time, venue and existing directions control. Confirm my assignment and Request a change first recheck the current published version and open a review. A change request concerns the assignment; match availability remains a separate reply. Captains see per-player responses. Publishing another version or changing match details clears confirmations; changing a player's availability clears that player's confirmation. Responses cannot confirm an unpublished draft, another player, an obsolete lineup or an assignment while marked Out.
+
+Draft published lineup in chat rechecks the published snapshot and opens a message draft, including the confirmation instructions. It preserves an existing composer draft and does not send a message automatically. Native notification delivery is not claimed by this feature.
+
+Apply `supabase/migrations/20261119000200_native_lineup_publication.sql` before deploying the changed team-room API, then package the new native client. The migration preserves existing explicitly shared tactics plans, keeps older clients' sharing behavior, adds service-only confirmation records and updates the guarded account-erasure catalog. Account deletion clears both private and published identity snapshots. No new native permission, cron, polling loop or paid service is introduced. Build 324's App Review submission is separate and unchanged.
+
+Local verification covers the real migration and API against PGlite, including LF/CRLF account-erasure checks, scope denials, replay, publication intent, private-draft isolation and stale confirmations. Phone browser scenarios exercise publishing with and without tactics, changes, lost-response retries and account switching. Physical iPhone acceptance and deployment are separate release steps.
+
 > Historical baseline: the audit and build notes below predate the current beta. For the October 29 build 166 release and read-only App Store launch audit, use [iPhone subscriptions and launch readiness](ios-subscription-readiness.md).
 
 ## Decision

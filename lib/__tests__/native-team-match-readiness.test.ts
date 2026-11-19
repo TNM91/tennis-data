@@ -37,7 +37,7 @@ describe('first-party team match readiness', () => {
   const markup = teamReadinessHtml(data, [{format: 'singles', players: ['a']}], false, [{key: 'lineup', label: '<Review>'}])
   expect(markup).toContain('&lt;Alex&gt;'); expect(markup).toContain('&lt;Review&gt;'); expect(markup).not.toContain('<Alex>')
   const lineup: SavedTeamLineup = {version: 'v', courts: [{format: 'doubles', players: ['a', 'b']}], names: {a: 'Alex', b: '<Blair>'}}
-  expect(ownSharedCourtHtml(lineup, 'a')).toBe('')
+  expect(ownSharedCourtHtml(lineup, 'a')).toContain('Doubles 1')
   const shared = {...lineup, tactics: {board: {}, reference: {}}} as SavedTeamLineup
   expect(ownSharedCourtHtml(shared, 'a')).toContain('Doubles 1')
   expect(ownSharedCourtHtml(shared, 'a')).toContain('Partner · &lt;Blair&gt;')

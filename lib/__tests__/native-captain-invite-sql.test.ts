@@ -65,6 +65,9 @@ it('connects first-party invites, Team Rally, and captain fixtures to real team 
   await sql(readFileSync('supabase/migrations/20261110000500_native_first_party_captain_invites.sql', 'utf8'))
   await sql(readFileSync('supabase/migrations/20261110000700_native_team_next_fixtures.sql', 'utf8'))
   await sql(readFileSync('supabase/migrations/20261118000100_native_lineup_tactics.sql', 'utf8'))
+  // The complete catalog guard is exercised in account-erasure-db.test.ts.
+  const publicationSql = readFileSync('supabase/migrations/20261119000200_native_lineup_publication.sql', 'utf8')
+  await sql(publicationSql.slice(0, publicationSql.indexOf('do $catalog$')) + '\ncommit;')
   await sql(readFileSync('supabase/migrations/20261110000800_native_private_teams.sql', 'utf8'))
   // This fixture exercises runtime permissions. The audited erasure fixture applies the complete migration.
   const resultPlayersSql = readFileSync('supabase/migrations/20261110001000_native_team_result_players.sql', 'utf8')
@@ -243,6 +246,23 @@ it('connects first-party invites, Team Rally, and captain fixtures to real team 
     expect((await publish(captainToken, detach)).status).toBe(200)
     expect(await readShared()).toBeUndefined()
     savedLineup = { ...savedLineup, version: detach.version }
+    const published = { ...lineup, expected: detach.version, version: crypto.randomUUID(), publish: true }
+    expect((await publish(captainToken, published)).status).toBe(200)
+    expect(await readShared()).toEqual({ ...savedLineup, version: published.version })
+    const confirmation = { ...scope, action: 'reply_match_lineup', roomId: room, revision: played,
+      version: published.version, expected: null, id: crypto.randomUUID(), choice: 'confirmed' }
+    expect((await publish(teammateToken, { ...confirmation, version: one })).status).toBe(409)
+    expect((await publish(captainToken, confirmation)).status).toBe(409)
+    expect((await publish(teammateToken, { ...confirmation, profileId: captain })).status).toBe(400)
+    expect((await publish(teammateToken, confirmation)).status).toBe(200)
+    expect((await publish(teammateToken, confirmation)).status).toBe(200)
+    const publishedReplies = (await (await teamRooms(request(lineupRepliesUrl, captainToken))).json()).replies
+    expect(publishedReplies.lineupReplies).toEqual([{profileId: owner,id: confirmation.id,version: published.version,choice: 'confirmed'}])
+    const draftOnly = { ...published, expected: published.version, version: crypto.randomUUID(), publish: false }
+    expect((await publish(captainToken, draftOnly)).status).toBe(200)
+    expect(await readShared()).toMatchObject({ version: published.version })
+    expect((await publish(captainToken, { ...draftOnly, publish: true })).status).toBe(409)
+    savedLineup = { ...savedLineup, version: draftOnly.version }
     expect((await publish(captainToken, postResult)).status).toBe(409)
     await db.query("update native_team_next_fixtures set fixture = jsonb_set(fixture,'{date}','\"2020-01-01\"'::jsonb) where room_id=$1", [room])
     expect((await results(captainToken)).results).toMatchObject({ canEdit: true, entries: [{ fixtureId: played, score: null, plannedLineup: savedLineup }] })
@@ -373,6 +393,8 @@ async function firstPartyFixtureFetch(input: RequestInfo | URL, options?: Reques
       : name === 'reply_to_native_team_fixture' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_expected', 'p_operation', 'p_choice']
       : name === 'save_native_team_lineup' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_expected', 'p_version', 'p_courts']
       : name === 'save_native_team_lineup_with_tactics' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_expected', 'p_version', 'p_courts', 'p_keep_tactics', 'p_tactics']
+      : name === 'save_native_team_match_plan' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_expected', 'p_version', 'p_courts', 'p_keep_tactics', 'p_tactics', 'p_publish']
+      : name === 'reply_to_native_team_lineup' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_revision', 'p_version', 'p_expected', 'p_operation', 'p_choice']
       : name === 'save_native_team_result' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_fixture', 'p_expected', 'p_revision', 'p_won', 'p_lost', 'p_allow_current', 'p_court_scores']
       : name === 'save_native_team_result_with_players' ? ['p_owner', 'p_room', 'p_team', 'p_league', 'p_flight', 'p_fixture', 'p_expected', 'p_revision', 'p_won', 'p_lost', 'p_allow_current', 'p_court_scores', 'p_court_players']
       : name === 'read_native_team_results' ? ['p_room', 'p_can_edit']
@@ -386,7 +408,7 @@ async function firstPartyFixtureFetch(input: RequestInfo | URL, options?: Reques
   }
   const tables = ['team_profile_links', 'internal_conversations', 'internal_conversation_participants',
     'team_room_member_removals', 'team_room_invites', 'profiles', 'native_personal_matches', 'level_up_sessions', 'native_team_next_fixtures',
-    'native_private_teams', 'native_team_fixture_replies', 'tactical_scenarios']
+    'native_private_teams', 'native_team_fixture_replies', 'native_team_lineup_replies', 'tactical_scenarios']
   const fields = url.searchParams.get('select') || ''
   if (!tables.includes(name) || !/^[a-z_,]+$/.test(fields)) throw Error('Unexpected fixture relation')
   const values: unknown[] = [], conditions: string[] = []

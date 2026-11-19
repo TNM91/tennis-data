@@ -1,5 +1,6 @@
 import { fixtureId } from './team-fixtures-contract'
 import { readSavedTeamLineup, type SavedTeamLineup } from './team-match-lineup-contract'
+import { readTeamLineupReply, type TeamLineupReply } from './team-match-lineup-contract'
 
 export const teamReplyLabels = { in: 'In', maybe: 'Maybe', out: 'Out' } as const
 export type TeamMatchChoice = keyof typeof teamReplyLabels
@@ -15,6 +16,8 @@ export type TeamMatchReplies = {
   lineupRoster?: TeamLineupPlayer[]
   savedLineup?: SavedTeamLineup
   sharedLineup?: SavedTeamLineup
+  lineupReply?: TeamLineupReply | null
+  lineupReplies?: (TeamLineupReply & { profileId: string })[]
 }
 
 export const isTeamMatchChoice = (choice: unknown): choice is TeamMatchChoice =>
@@ -36,9 +39,15 @@ export function readTeamMatchReplies(value: unknown): TeamMatchReplies {
   const row = value as Partial<TeamMatchReplies> | null
   if (!row || typeof row !== 'object') throw Error('Invalid availability')
   const own = row.own === null ? null : readReply(row.own)
+  const sharedLineup = readSavedTeamLineup(row.sharedLineup)
+  const publication: Pick<TeamMatchReplies, 'sharedLineup' | 'lineupReply' | 'lineupReplies'> = sharedLineup ? { sharedLineup } : {}
+  if (row.lineupReply !== undefined) {
+    const reply = row.lineupReply === null ? null : readTeamLineupReply(row.lineupReply)
+    if (reply && reply.version !== sharedLineup?.version) throw Error('Stale lineup confirmation')
+    publication.lineupReply = reply
+  }
   if (row.team === undefined) {
-    const sharedLineup = readSavedTeamLineup(row.sharedLineup)
-    return { own, ...(sharedLineup?.tactics ? {sharedLineup} : {}) }
+    return { own, ...publication }
   }
   if (!Array.isArray(row.team) || row.team.length > 100) throw Error('Invalid team availability')
   const validName = (name: unknown): name is string => typeof name === 'string' && Boolean(name.trim()) && name.length <= 100
@@ -66,6 +75,17 @@ export function readTeamMatchReplies(value: unknown): TeamMatchReplies {
     lineupRoster = roster.map(({ id, name, choice }) => ({ id, name, choice }))
   }
   const savedLineup = readSavedTeamLineup(row.savedLineup)
+  if (row.lineupReplies !== undefined) {
+    if (!sharedLineup || !Array.isArray(row.lineupReplies) || row.lineupReplies.length > 60) throw Error('Invalid lineup confirmations')
+    const seen = new Set<string>()
+    publication.lineupReplies = row.lineupReplies.map(item => {
+      const reply = readTeamLineupReply(item)
+      if (!fixtureId(item.profileId) || !Object.hasOwn(sharedLineup.names, item.profileId) || seen.has(item.profileId) ||
+          reply.version !== sharedLineup.version) throw Error('Invalid lineup confirmation player')
+      seen.add(item.profileId)
+      return { ...reply, profileId: item.profileId }
+    })
+  }
   return { own, team, awaiting: row.awaiting, awaitingTeammates, rosterComplete: row.rosterComplete,
-    ...(lineupRoster ? { lineupRoster } : {}), ...(savedLineup ? { savedLineup } : {}) }
+    ...publication, ...(lineupRoster ? { lineupRoster } : {}), ...(savedLineup ? { savedLineup } : {}) }
 }
