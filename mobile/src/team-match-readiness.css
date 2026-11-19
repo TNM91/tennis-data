@@ -36,3 +36,12 @@
 .team-lineup-publication .team-own-court h3{font-size:.8125rem}
 .team-next-match-dialog .team-lineup-own-status{color:var(--premium-lime);font-weight:650}
 .team-next-match-dialog .team-lineup-reserves p{margin:8px 0 0}
+.team-next-match-dialog .team-lineup-replacement{min-inline-size:0;overflow-wrap:anywhere;background:transparent;border:0;border-radius:0;padding:0;margin:0;box-shadow:none}
+.team-lineup-replacement h3{font-size:1.125rem;line-height:1.4;color:var(--premium-white);margin:0}
+.team-next-match-dialog .team-lineup-replacement p{font-size:.8125rem;line-height:1.5;color:var(--premium-copy);margin-block:10px}
+.team-lineup-replacement p>span{display:block;margin-block-start:4px}
+.team-lineup-replacement ul{list-style:none;margin:16px 0;padding:0;display:grid;gap:8px}
+.team-next-match-dialog .team-lineup-replacement li>button.secondary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-block-size:56px;margin:0;padding:12px;text-align:start;background:var(--premium-inset);border-color:var(--premium-line);font-size:.875rem}
+.team-lineup-replacement li>button>span:first-child{min-inline-size:0;display:grid;gap:4px}
+.team-lineup-replacement li>button>span:last-child{flex:none;color:var(--premium-ice);font-size:.8125rem}
+.team-lineup-replacement small{font-size:.75rem;color:var(--premium-lime);font-weight:400}

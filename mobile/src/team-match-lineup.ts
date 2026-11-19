@@ -6,13 +6,13 @@ const availabilityOrder={in:0,maybe:1,awaiting:2,out:3}
 const availabilityLabel=(player:TeamLineupPlayer)=>player.choice?teamReplyLabels[player.choice]:'Awaiting reply'
 const availabilityRank=(player:TeamLineupPlayer)=>availabilityOrder[player.choice??'awaiting']
 
-function lineupNames(roster:TeamLineupPlayer[]){
+export function lineupNames(roster:TeamLineupPlayer[]){
  const counts=new Map<string,number>()
  for(const {name} of roster){const key=name.toLowerCase();counts.set(key,(counts.get(key)??0)+1)}
  return new Map(roster.map(({id,name})=>[id,counts.get(name.toLowerCase())!>1?`${name} (${id.slice(-4).toUpperCase()})`:name]))
 }
 
-function courtLabels(courts:MatchLineupCourt[]){
+export function courtLabels(courts:MatchLineupCourt[]){
  let singles=0,doubles=0
  return courts.map(({format})=>format==='singles'?`Singles ${++singles}`:`Doubles ${++doubles}`)
 }
@@ -27,7 +27,7 @@ export function matchLineupFields(courts:MatchLineupCourt[],roster:TeamLineupPla
     ${selected&&!names.has(selected)?`<option value="${selected}" selected>Player no longer on roster</option>`:''}
     ${ordered.filter(player=>player.choice!=='out'||player.id===selected).map(player=>
       `<option value="${player.id}" ${player.id===selected?'selected':''}>${html(names.get(player.id)!)} · ${availabilityLabel(player)}</option>`).join('')}
-   </select></label>`).join('')}
+   </select></label><button type="button" class="secondary" data-find-lineup-replacement="${index}:${slot}" aria-label="${html(selected?`Find replacement for ${names.get(selected)??'assigned player'} on ${labels[index]}`:`Choose available player for ${labels[index]}, player ${slot+1}`)}">${selected?'Find replacement':'Choose available player'}</button>`).join('')}
   <button type="button" class="secondary" data-remove-lineup-court="${index}">Remove ${labels[index].toLowerCase()}</button>
  </fieldset>`).join('')
 }

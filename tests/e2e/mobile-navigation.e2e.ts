@@ -3002,12 +3002,23 @@ for(const width of [320,390])test(`captain assignment follow-ups target the righ
  expect(await match.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
  await publication.evaluate(el=>el.scrollIntoView({block:'start'}))
  await page.screenshot({path:info.outputPath('captain-assignment-followups.png')})
+ if(width===390)await page.setViewportSize({width,height:568})
  await publication.getByRole('button',{name:'Review court for Casey',exact:true}).click()
+ const picker=match.getByRole('region',{name:'Available replacements',exact:true})
+ await expect(picker.getByRole('heading',{name:'Doubles 1 · Player 2',exact:true})).toBeFocused()
+ await expect(picker).toContainText('Partner stays · Alex')
+ await expect(picker.getByRole('button',{name:'Choose Morgan for Doubles 1',exact:true})).toBeVisible()
+ expect(await picker.getByRole('button',{name:'Choose Morgan for Doubles 1',exact:true}).evaluate(el=>el.getBoundingClientRect().height>=44)).toBe(true)
  const selected=match.getByRole('combobox',{name:'Player 2',exact:true})
- await expect(selected).toBeFocused()
- await expect(selected).toHaveValue('10000000-0000-4000-8000-000000000002')
+ await expect(picker).toContainText('Replacing · Casey')
  expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites)).toEqual([])
- await selected.selectOption({label:'Morgan · In'})
+ expect(await match.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await page.screenshot({path:info.outputPath('captain-available-replacements.png')})
+ await picker.getByRole('button',{name:'Choose Morgan for Doubles 1',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText('Morgan selected for Doubles 1')
+ await expect(selected).toHaveValue('77777777-7777-4777-8777-777777777777')
+ await expect(match.getByRole('combobox',{name:'Player',exact:true})).toHaveValue('22222222-2222-4222-8222-222222222222')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites)).toEqual([])
  await match.getByRole('button',{name:'Save lineup',exact:true}).click()
  await expect(publication).toContainText('Your private lineup has unpublished edits')
  await publication.getByRole('button',{name:'Review court for Casey',exact:true}).click()
@@ -3020,6 +3031,54 @@ for(const width of [320,390])test(`captain assignment follow-ups target the righ
  await expect(composer).toHaveValue(/Assignment check[\s\S]*Riley — please open Team → Next match/)
  for(const name of ['Alex','Casey','Morgan'])await expect(composer).not.toHaveValue(new RegExp(name))
  expect(await page.evaluate(()=>(window as unknown as {firstPartyTeamFixture:{posts:string[]}}).firstPartyTeamFixture.posts)).toEqual([])
+})
+
+test('captain replacements refresh availability, handle errors and preserve unpublished court edits',async({page})=>{
+ const {match}=await openCaptainAssignmentFollowups(page)
+ await match.getByRole('button',{name:'Edit saved lineup',exact:true}).click()
+ await match.getByRole('combobox',{name:'Player',exact:true}).selectOption({label:'Morgan · In'})
+ await match.getByRole('button',{name:'Find replacement for Casey on Doubles 1',exact:true}).click()
+ const picker=match.getByRole('region',{name:'Available replacements',exact:true})
+ await expect(picker.getByRole('button',{name:'Choose Riley for Doubles 1',exact:true})).toBeVisible()
+ await expect(picker.getByRole('button',{name:/Choose Morgan/})).toHaveCount(0)
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{failReplies:boolean}}).manualScheduleFixture.failReplies=true})
+ await picker.getByRole('button',{name:'Choose Riley for Doubles 1',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText('Choose a teammate again to retry')
+ await expect(picker).toBeVisible()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{failReplies:boolean;extraPlayers:{name:string;choice:string}[]}}).manualScheduleFixture
+  fixture.failReplies=false;fixture.extraPlayers.find(player=>player.name==='Riley')!.choice='out'
+ })
+ await picker.getByRole('button',{name:'Choose Riley for Doubles 1',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText('no longer marked In')
+ await expect(picker.getByRole('button',{name:/Choose Riley/})).toHaveCount(0)
+ await expect(picker).toContainText('No unassigned teammates are marked In')
+ await page.keyboard.press('Escape')
+ await expect(picker).toHaveCount(0)
+ await expect(match.getByRole('combobox',{name:'Player 2',exact:true})).toBeFocused()
+ await expect(match.getByRole('combobox',{name:'Player 2',exact:true})).toHaveValue('10000000-0000-4000-8000-000000000002')
+ await expect(match.getByRole('combobox',{name:'Player',exact:true})).toHaveValue('77777777-7777-4777-8777-777777777777')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites)).toEqual([])
+ await page.keyboard.press('Escape')
+ await expect(page.getByRole('dialog',{name:'Keep match edits',exact:true})).toBeVisible()
+})
+
+for(const change of ['private lineup','captain access','the match'] as const)test(`captain replacements stop when ${change} changes during review`,async({page})=>{
+ const {match}=await openCaptainAssignmentFollowups(page)
+ await match.getByRole('button',{name:'Review court for Casey',exact:true}).click()
+ await page.evaluate(change=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{captain:boolean;revision:string;savedLineup:{version:string}}}).manualScheduleFixture
+  if(change==='private lineup')fixture.savedLineup.version='88888888-8888-4888-8888-888888888888'
+  else if(change==='the match')fixture.revision='88888888-8888-4888-8888-888888888888'
+  else fixture.captain=false
+ },change)
+ await match.getByRole('button',{name:'Choose Morgan for Doubles 1',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText(change==='private lineup'?'Another captain updated the private lineup':change==='the match'?'The match or your reply changed':'Captain access could not be confirmed')
+ await expect(match.getByRole('region',{name:'Available replacements',exact:true})).toHaveCount(0)
+ await expect(match.getByRole('button',{name:'Review & publish lineup',exact:true})).toBeDisabled()
+ await expect(match.getByRole('combobox',{name:'Player 2',exact:true})).toHaveValue('10000000-0000-4000-8000-000000000002')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites)).toEqual([])
+ await expect(match.getByRole('button',{name:'Reload match',exact:true})).toBeVisible()
 })
 
 for(const width of [320,390])test(`team match brief caches an explicit check and refreshes after the lineup handoff at ${width}px`,async({page},info)=>{
