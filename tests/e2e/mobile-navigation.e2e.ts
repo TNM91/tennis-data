@@ -3042,7 +3042,8 @@ for(const width of [320,390])test(`team match brief caches an explicit check and
  await expect(brief.locator('dd').nth(1)).toBeInViewport({ratio:0.95})
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await page.screenshot({path:info.outputPath('team-match-brief.png')})
- const opener=brief.getByRole('button',{name:'Open match',exact:true})
+ const opener=brief.locator('[data-match-brief-open]')
+ await expect(opener).toHaveText('Review lineup changes')
  await opener.click()
  await expect(match.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
  await page.evaluate(()=>{
@@ -3103,7 +3104,7 @@ test('player match brief shows only their published assignment and returns with 
  await expect(brief).toContainText('Your court · Singles 1')
  await expect(brief).toContainText('Confirm your assignment')
  for(const text of ['Needs review','To confirm','Private edits'])await expect(brief).not.toContainText(text)
- await brief.getByRole('button',{name:'Open match',exact:true}).click()
+ await brief.getByRole('button',{name:'Review your assignment',exact:true}).click()
  const match=page.getByRole('dialog',{name:'Next match',exact:true})
  await expect(match.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
  await match.getByRole('button',{name:'Confirm my assignment',exact:true}).click()
@@ -3132,6 +3133,92 @@ test('a named chat match brief uses the parent team schedule without requesting 
  expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:object}}).manualScheduleFixture.matchReads)).toEqual({schedule:1,replies:0})
  await brief.getByRole('button',{name:'Open match',exact:true}).click()
  await expect(page.getByRole('dialog',{name:'Next match',exact:true})).toContainText('Topspin Club')
+})
+
+for(const field of ['time','facility'] as const)test(`match brief opens the missing ${field} safely and consumes the edit shortcut once`,async({page})=>{
+ const {match}=await openCaptainAssignmentFollowups(page,320,false)
+ await page.evaluate(field=>{
+  (window as unknown as {manualScheduleFixture:{nextMatch:Record<string,string>}}).manualScheduleFixture.nextMatch[field]=''
+ },field)
+ const brief=page.locator('.chat-match-brief'),opener=brief.locator('[data-match-brief-open]')
+ await brief.locator('summary').click()
+ await expect(opener).toHaveText(field==='time'?'Set start time':'Add venue')
+ await opener.click()
+ await expect(match.locator(`[name="${field}"]`)).toBeFocused()
+ await expect(match).toContainText('Saving changes asks teammates to reply again.')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{writes:string[]}}).manualScheduleFixture.writes)).toEqual([])
+ await match.getByRole('button',{name:'Cancel edit',exact:true}).click()
+ await match.getByRole('button',{name:'Reload match',exact:true}).click()
+ await expect(match.getByRole('heading',{name:'Next match',exact:true})).toBeFocused()
+ await expect(match.locator('[data-match-form]')).toHaveCount(0)
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(opener).toHaveText(field==='time'?'Set start time':'Add venue')
+ await page.evaluate(field=>{
+  (window as unknown as {manualScheduleFixture:{nextMatch:Record<string,string>}}).manualScheduleFixture.nextMatch[field]=field==='time'?'19:00':'Court 4'
+ },field)
+ await opener.click()
+ await expect(match.getByRole('status')).toContainText(field==='time'?'The start time is already set':'The venue is already set')
+ await expect(match.getByRole('status')).toBeInViewport()
+ await expect(match.locator('[data-match-form]')).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{writes:string[]}}).manualScheduleFixture.writes)).toEqual([])
+})
+
+test('match brief reviews the latest private court assignments without publishing them',async({page})=>{
+ const {match}=await openCaptainAssignmentFollowups(page,390,false)
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{savedLineup:{version:string;courts:{players:string[]}[];names:Record<string,string>}}}).manualScheduleFixture
+  const replacement='77777777-7777-4777-8777-777777777777'
+  fixture.savedLineup.version='66666666-6666-4666-8666-666666666666'
+  fixture.savedLineup.courts[0].players[1]=replacement
+  delete fixture.savedLineup.names['10000000-0000-4000-8000-000000000002'];fixture.savedLineup.names[replacement]='Morgan'
+ })
+ const brief=page.locator('.chat-match-brief')
+ await brief.locator('summary').click()
+ await brief.getByRole('button',{name:'Review private lineup',exact:true}).click()
+ await expect(match.getByRole('heading',{name:'Plan lineup',exact:true})).toBeFocused()
+ await expect(match.getByRole('combobox',{name:'Player 2',exact:true})).toHaveValue('77777777-7777-4777-8777-777777777777')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites)).toEqual([])
+ await match.getByRole('button',{name:'Cancel edit',exact:true}).click()
+ await expect(match.getByRole('region',{name:'Published lineup',exact:true})).toContainText('Casey')
+ await expect(match.getByRole('region',{name:'Published lineup',exact:true})).toContainText('unpublished edits')
+})
+
+test('match brief rechecks captain access before entering an edit shortcut',async({page})=>{
+ const {match}=await openCaptainAssignmentFollowups(page,390,false)
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{nextMatch:{time:string}}}).manualScheduleFixture.nextMatch.time=''})
+ const brief=page.locator('.chat-match-brief')
+ await brief.locator('summary').click()
+ await expect(brief.getByRole('button',{name:'Set start time',exact:true})).toBeEnabled()
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{captain:boolean}}).manualScheduleFixture.captain=false})
+ await brief.getByRole('button',{name:'Set start time',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText('Captain access could not be confirmed')
+ await expect(match.locator('[data-match-form]')).toHaveCount(0)
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(brief.locator('[data-match-brief-open]')).toHaveText('Open match')
+})
+
+test('match brief brings an unanswered player to availability before assignment review',async({page})=>{
+ await openCaptainAssignmentFollowups(page,390,false)
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{reply:unknown;loseNextReply:boolean}}).manualScheduleFixture
+  fixture.reply=null;fixture.loseNextReply=false
+  const {switchNavigationOwner}=window as unknown as {switchNavigationOwner:()=>void};switchNavigationOwner()
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ const composer=page.getByRole('textbox',{name:'Message your team',exact:true})
+ await composer.fill('My practice message')
+ const brief=page.locator('.chat-match-brief')
+ await brief.locator('summary').click()
+ await brief.getByRole('button',{name:'Reply to match',exact:true}).click()
+ const match=page.getByRole('dialog',{name:'Next match',exact:true})
+ await expect(match.getByRole('heading',{name:'Can you play?',exact:true})).toBeFocused()
+ await expect(match.getByRole('heading',{name:'Can you play?',exact:true})).toBeInViewport()
+ await match.getByRole('button',{name:'In',exact:true}).click()
+ await expect(match.getByRole('status')).toHaveText('Your reply is saved.')
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(brief.locator('[data-match-brief-open]')).toHaveText('Review your assignment')
+ await expect(composer).toHaveValue('My practice message')
 })
 
 test('an empty team match brief avoids lineup reads and a backgrounded brief can be checked again',async({page})=>{

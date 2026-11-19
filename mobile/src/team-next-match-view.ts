@@ -15,7 +15,7 @@ import {teamNextMatchRequest,TeamNextMatchError,type TeamMatchRoom,type TeamNext
 import type {TacticalBoardReference} from '../../lib/tactical/board-reference'
 import {TacticsLibrary} from './coach-tactics-data'
 import {openSharedTactics} from './shared-tactics-view'
-import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type ReadinessAction} from './team-match-readiness'
+import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type ReadinessAction, type TeamMatchSection} from './team-match-readiness'
 import {availableLineupReserves,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml} from './team-lineup-publication'
 import './team-match-readiness.css'
 
@@ -62,7 +62,7 @@ function matchReplyRosterHtml(replies:TeamMatchReplies,expanded:boolean,canRemin
 function matchRepliesHtml(replies:TeamMatchReplies,busy:boolean,pending:boolean,expanded:boolean,canRemind:boolean){
  const choices=Object.entries(teamReplyLabels)
  return `<section class="team-match-replies" aria-labelledby="team-match-replies-title">
-  <h3 id="team-match-replies-title">Can you play?</h3>
+  <h3 id="team-match-replies-title" tabindex="-1">Can you play?</h3>
   <div class="team-match-reply-actions">${choices.map(([choice,label])=>
    `<button type="button" class="secondary" data-match-reply="${choice}" aria-pressed="${replies.own?.choice===choice}" ${busy||pending?'disabled':''}>${label}</button>`).join('')}</div>
   ${matchReplyRosterHtml(replies,expanded,canRemind)}
@@ -72,7 +72,7 @@ function matchRepliesHtml(replies:TeamMatchReplies,busy:boolean,pending:boolean,
 export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMatchRoom,current:()=>boolean,
  onClose:(changed:boolean,message?:string,kind?:'lineup'|'schedule')=>void,canDraftUpdate:()=>boolean,
  {previousMatch,calendarSchedule,openResults,focusSection}:{
-  previousMatch?:ReviewedNextMatch;calendarSchedule?:TeamNextMatchSchedule;openResults?:()=>void;focusSection?:'publication'
+  previousMatch?:ReviewedNextMatch;calendarSchedule?:TeamNextMatchSchedule;openResults?:()=>void;focusSection?:TeamMatchSection
  }={}){
  const dialog=document.createElement('dialog')
  dialog.className='team-invite-dialog team-next-match-dialog'
@@ -88,6 +88,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let previousSlot:ReviewedNextMatch|null=null
  let scheduleAnnouncement:{revision:string;previous:ReviewedNextMatch}|null=null
  let rosterExpanded=false
+ let entrySection=focusSection
  let readinessReturn: 'time'|'venue'|'lineup'|'confirmations'|null=null
  let tacticsChoice:TacticalBoardReference|null|undefined
  let boardOptions:{name:string;reference:TacticalBoardReference}[]|undefined
@@ -139,6 +140,28 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   previousSlot=latest.nextMatch?before.nextMatch:null
   notice=latest.nextMatch?'The team schedule changed. Review the latest match.':'This match is no longer upcoming.'
  }
+ const enterFromBrief=()=>{
+  const section=entrySection;entrySection=undefined
+  if(!schedule?.nextMatch)return 'h2'
+  if(section==='time'||section==='venue'||section==='lineup'){
+   if(!captain||!replies?.lineupRoster){notice='Captain access could not be confirmed. Review the match before editing.';return '[role="status"]'}
+   if(section==='lineup'){
+    if(!replies.savedLineup&&!replies.lineupRoster.some(player=>player.choice!=='out')){
+     notice='Availability changed. Review the latest replies before planning.';return '[role="status"]'
+    }
+    lineup=structuredClone(replies.savedLineup?.courts??[]);readinessReturn='confirmations'
+    return '[data-match-lineup] h3'
+   }
+   if(section==='time'?schedule.nextMatch.time:schedule.nextMatch.facility){
+    notice=section==='time'?'The start time is already set. Review the latest match.':'The venue is already set. Review the latest match.'
+    return '[role="status"]'
+   }
+   draft={...schedule.nextMatch};readinessReturn=section
+   return section==='time'?'[name="time"]':'[name="facility"]'
+  }
+  if(section==='availability'&&replies)return '#team-match-replies-title'
+  return section==='publication'?'.team-lineup-publication h3':'h2'
+ }
  const load=async()=>{
   if(busy||!active())return
   const before=schedule??calendarSchedule
@@ -158,10 +181,12 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   }
   catch(cause){notice=cause instanceof TeamNextMatchError?cause.message:'Couldn’t load the next match. Try again.'}
   finally{if(active()){
-   busy=false;render()
-   const target=draft?'[name="opponent"]':notice?'[role="status"]':focusSection==='publication'?'.team-lineup-publication h3':'h2'
+   busy=false
+   const fromBrief=Boolean(entrySection)
+   const target=draft?'[name="opponent"]':notice?'[role="status"]':enterFromBrief()
+   render()
    focus(target)
-   if(focusSection&&!notice&&!draft)dialog.querySelector<HTMLElement>(target)?.scrollIntoView({block:'start'})
+   if(fromBrief)dialog.querySelector<HTMLElement>(target)?.scrollIntoView({block:'start'})
   }}
  }
  const save=async(change:TeamNextMatchChange)=>{

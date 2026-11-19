@@ -4,9 +4,31 @@ import {teamReplyLabels,type TeamMatchReplies} from '../../lib/team-match-replie
 import {lineupReplyLabels} from '../../lib/team-match-lineup-contract'
 import {html} from './html'
 import {lineupConfirmationSummary} from './team-lineup-publication'
+import type {TeamMatchSection} from './team-match-readiness'
 import {teamMatchRepliesRequest} from './team-match-replies-data'
 import {teamNextMatchRequest,type TeamMatchRoom,type TeamNextMatchSchedule} from './team-room-data'
 import './team-match-brief.css'
+
+export function teamMatchBriefAction(schedule:TeamNextMatchSchedule|null,replies:TeamMatchReplies|null,owner:string,captain:boolean):{label:string;section?:TeamMatchSection}{
+ if(!schedule?.nextMatch)return {label:'Open match'}
+ if(captain&&schedule.revision){
+  if(!replies?.lineupRoster)return {label:'Open match'}
+  if(!schedule.nextMatch.time)return {label:'Set start time',section:'time'}
+  if(!schedule.nextMatch.facility)return {label:'Add venue',section:'venue'}
+  if(replies.savedLineup&&replies.savedLineup.version!==replies.sharedLineup?.version)return {label:'Review private lineup',section:'lineup'}
+  if(!replies.sharedLineup)return replies.lineupRoster.some(player=>player.choice!=='out')?
+   {label:'Plan lineup',section:'lineup'}:{label:'Review availability',section:'availability'}
+  const summary=lineupConfirmationSummary(replies)
+  if(summary.review)return {label:'Review lineup changes',section:'publication'}
+  if(!summary.checked||summary.unknown)return {label:'Check lineup responses',section:'publication'}
+  if(summary.awaiting)return {label:'Review confirmations',section:'publication'}
+  return {label:'Open published lineup',section:'publication'}
+ }
+ if(!replies)return {label:'Open match'}
+ if(replies.own?.choice!=='in')return {label:replies.own?'Update availability':'Reply to match',section:'availability'}
+ if(replies.sharedLineup&&Object.hasOwn(replies.sharedLineup.names,owner))return {label:'Review your assignment',section:'publication'}
+ return {label:'Open match'}
+}
 
 export function teamMatchBriefLineupHtml(replies:TeamMatchReplies|null,owner:string,captain:boolean){
  if(!replies)return '<p>Open Next match to check the team’s plan.</p>'
@@ -37,7 +59,8 @@ export function createTeamMatchBrief(client:SupabaseClient,owner:string,current:
  let epoch=0,key='',room:TeamMatchRoom|null=null,root:HTMLDetailsElement|null=null
  let schedule:TeamNextMatchSchedule|null=null,replies:TeamMatchReplies|null=null,checkedAt:Date|null=null
  let state:'idle'|'loading'|'ready'|'error'='idle',notice='',opened=false,locked=false,disposed=false
- let openMatch:((trigger:HTMLButtonElement,publication:boolean)=>void)|null=null
+ let openMatch:((trigger:HTMLButtonElement,section?:TeamMatchSection)=>void)|null=null
+ const action=()=>teamMatchBriefAction(schedule,replies,owner,Boolean(room?.manualFixture&&room.canScheduleMatch))
  const active=()=>!disposed&&current()
  const paint=()=>{
   if(!active()||!root?.isConnected)return
@@ -47,7 +70,8 @@ export function createTeamMatchBrief(client:SupabaseClient,owner:string,current:
   body.innerHTML=state==='loading'?'<p role="status">Checking your next match…</p>':state==='error'?`<p role="status">${html(notice)}</p>`:
    state==='ready'?schedule?.nextMatch?`${matchHtml(schedule.nextMatch)}${teamMatchBriefLineupHtml(replies,owner,Boolean(room?.canScheduleMatch))}`:
     '<p>No upcoming match is scheduled.</p>':'<p>Check your next match and court assignments.</p>'
-  root.querySelector<HTMLButtonElement>('[data-match-brief-open]')!.disabled=locked
+  const opener=root.querySelector<HTMLButtonElement>('[data-match-brief-open]')!
+  opener.disabled=locked;opener.textContent=action().label
   const recheck=root.querySelector<HTMLButtonElement>('[data-match-brief-recheck]')!
   recheck.disabled=state==='loading'||locked
   recheck.textContent=state==='loading'?'Checking…':state==='error'?'Retry match brief':'Recheck'
@@ -88,7 +112,7 @@ export function createTeamMatchBrief(client:SupabaseClient,owner:string,current:
  }
  document.addEventListener('visibilitychange',onVisibility)
  return {
-  mount(host:HTMLElement,selected:TeamMatchRoom,isLocked:boolean,onOpen:(trigger:HTMLButtonElement,publication:boolean)=>void){
+  mount(host:HTMLElement,selected:TeamMatchRoom,isLocked:boolean,onOpen:(trigger:HTMLButtonElement,section?:TeamMatchSection)=>void){
    const nextKey=JSON.stringify([selected.id,selected.teamName,selected.leagueName,selected.flight,Boolean(selected.manualFixture),Boolean(selected.canScheduleMatch)])
    if(nextKey!==key)reset()
    key=nextKey;room={...selected};locked=isLocked;openMatch=onOpen
@@ -104,7 +128,7 @@ export function createTeamMatchBrief(client:SupabaseClient,owner:string,current:
     if(opened&&state==='idle')void load()
    }
    details.querySelector<HTMLButtonElement>('[data-match-brief-open]')!.onclick=event=>{
-    if(active()&&!locked)openMatch?.(event.currentTarget as HTMLButtonElement,Boolean(replies?.sharedLineup))
+    if(active()&&!locked)openMatch?.(event.currentTarget as HTMLButtonElement,action().section)
    }
    details.querySelector<HTMLButtonElement>('[data-match-brief-recheck]')!.onclick=()=>{if(!locked)void load()}
   },

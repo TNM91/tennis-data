@@ -40,6 +40,7 @@ import {chatMatches,chatFilterStatus,type ChatFilter} from './chat-filters'
 import {openTeamInvite} from './team-invite-view'
 import {openTeamNextMatch,teamNextMatchHtml} from './team-next-match-view'
 import {createTeamMatchBrief} from './team-match-brief'
+import type {TeamMatchSection} from './team-match-readiness'
 import {openTeamResults,sharedTeamResult,type TeamResultsEntryPoint,type TeamResultsPosition} from './team-results-view'
 import type {TeamScoreDraftSession} from './team-score-drafts'
 import type {CalendarScorecardSeed} from './personal-match-data'
@@ -295,7 +296,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus({preventScroll:true})
   return true
  }
- const openNextMatch=(room:NativeTeamRoom,trigger:HTMLButtonElement,previousMatch?:ReviewedNextMatch,focusSection?:'publication')=>{
+ const openNextMatch=(room:NativeTeamRoom,trigger:HTMLButtonElement,previousMatch?:ReviewedNextMatch,focusSection?:TeamMatchSection)=>{
   if(!valid()||teamDialog?.isOpen()||snapshot?.room?.id!==room.id||draft.sending||draft.pending||busy||photoChoosing)return
   const epoch=reactionEpoch
   const current=()=>valid()&&epoch===reactionEpoch&&snapshot?.room?.id===room.id
@@ -716,7 +717,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    const host=document.createElement('div');host.className='chat-match-brief-host'
    app.querySelector('.chat-room-header')!.after(host)
    matchBrief.mount(host,room.chatRoom?{...room,id:room.chatRoom.parentId}:room,Boolean(busy||draft.pending||draft.sending||photoChoosing),
-    (trigger,publication)=>openNextMatch(room,trigger,undefined,publication?'publication':undefined))
+    (trigger,section)=>openNextMatch(room,trigger,undefined,section))
   }else matchBrief.reset()
   if(tab==='Conversation')app.querySelector('.chat-room-header')!.insertAdjacentHTML('afterend',
    namedTeamPlanHtml(room,Boolean(busy||draft.pending||draft.sending||photoChoosing)))

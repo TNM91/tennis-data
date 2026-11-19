@@ -2,6 +2,8 @@ import type {MatchLineupCourt, SavedTeamLineup} from '../../lib/team-match-lineu
 import type {TeamMatchReplies} from '../../lib/team-match-replies-contract'
 import {html} from './html'
 
+export type TeamMatchSection='publication'|'availability'|'lineup'|'time'|'venue'
+
 export function teamMatchReadiness(courts: MatchLineupCourt[] | undefined, replies: TeamMatchReplies | null) {
  const roster = replies?.lineupRoster
  const players = new Map(roster?.map(player => [player.id, player]))
