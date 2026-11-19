@@ -166,6 +166,9 @@ if(new URL(location.href).searchParams.has('team-practice-review')){
  calendarTeamFixture.items[0].title='Return + first ball'
 }
 const calendarPaths:string[]=[]
+if(new URL(location.href).searchParams.has('empty-calendar')){
+ calendarFixture.personal=[];calendarFixture.competitions=[];calendarFixture.coach=[]
+}
 if(new URL(location.href).searchParams.has('mixed-calendar')){
  const match=calendarFixture.competitions[0]
  calendarFixture.competitions.push({...match,id:'league:imported-league:match-one',competitionId:'imported-league',title:'Unreviewed league date'})

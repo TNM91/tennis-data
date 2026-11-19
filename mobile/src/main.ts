@@ -27,6 +27,7 @@ import {mountCompeteTeams,type CompeteTeamDestination} from './compete-teams'
 import {applePurchases} from './apple-purchases'
 import {showEmailAuth} from './email-auth'
 import {openAccountSettings} from './account-settings'
+import {openingPreferences,resolveOpeningScreen} from './opening-screen'
 import {createNativeSignOut} from './native-sign-out'
 import {mountBiometricSignIn} from './biometric-sign-in'
 import {showGuestExplore} from './guest-explore'
@@ -154,6 +155,7 @@ let updates:ReturnType<typeof openUpdates>|null=null
 let agenda:ReturnType<typeof openCalendar>|null=null
 let courtInvite:ReturnType<typeof openCourtInvite>|null=null
 let authReady=false
+let openingOwner:string|null=null
 const incoming=document.createElement('aside');incoming.className='app-link-handoff';incoming.hidden=true;incoming.setAttribute('aria-label','Shared link');app.before(incoming)
 const appLinks=createAppLinkHandoff((link,cold)=>{
  incoming.hidden=!link
@@ -166,7 +168,7 @@ const appLinks=createAppLinkHandoff((link,cold)=>{
   if(heading)heading.focus()
   else login('account')
  })
- if(cold&&authReady&&session&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&!document.querySelector('dialog[open]')&&!connection&&!details?.isOpen())resumeAppLink()
+ if(cold&&authReady&&session&&app.dataset.state==='ready'&&!hasOpenLabEdit()&&!document.querySelector('dialog[open]')&&!connection&&!details?.isOpen())resumeAppLink()
 })
 function launchTeamInvite(initialLink='',trigger?:HTMLButtonElement){
  if(!session||teamInvite?.isOpen())return
@@ -349,6 +351,7 @@ function selectNavigation(screen:AppScreen,activeTab=currentTab(screen)) {
   accountEntry.hidden=false
   headerActions.hidden=false
   document.body.dataset.screen=screen
+  if(session)void openingPreferences(session.user.id).remember(activeTab as 'lab'|'teams'|'explore'|'compete'|'more').catch(()=>{})
   window.scrollTo(0,0)
   navigation.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
     if (button.dataset.screen === activeTab) button.setAttribute('aria-current','page')
@@ -683,9 +686,9 @@ function showHub(next:AppHub,{fromLab=false,returnTeam,browseFirst=false}:{fromL
  },trigger=>launchTeamInvite('',trigger),returnTeam)
 }
 const coachIncoming=document.createElement('aside');coachIncoming.hidden=true;app.before(coachIncoming)
-const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(student,owner)=>{if(session?.user.id!==owner)return;showHub('coach');const visit=revision;coachWorkspace=openCoachMessages(client,owner,()=>visit===revision&&owner===session?.user.id,undefined,undefined,student,undefined,()=>{void chatUnread.refresh()})},undefined,undefined,()=>authReady&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&document.visibilityState==='visible')
+const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(hasOpenLabEdit()||connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(student,owner)=>{if(session?.user.id!==owner)return;showHub('coach');const visit=revision;coachWorkspace=openCoachMessages(client,owner,()=>visit===revision&&owner===session?.user.id,undefined,undefined,student,undefined,()=>{void chatUnread.refresh()})},undefined,undefined,()=>authReady&&app.dataset.state==='ready'&&document.visibilityState==='visible')
 const activityIncoming=document.createElement('aside');activityIncoming.hidden=true;app.before(activityIncoming)
-const activityHandoff=createCoachActivityHandoff(activityIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(activity,owner)=>{
+const activityHandoff=createCoachActivityHandoff(activityIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(hasOpenLabEdit()||connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(activity,owner)=>{
  if(session?.user.id!==owner)return
  showHub('coach');const visit=revision,current=()=>visit===revision&&owner===session?.user.id
  if(activity.kind==='checkin')coachWorkspace=openCoachWorkspace(client,owner,current,undefined,undefined,{student:activity.student,assignment:activity.assignment})
@@ -1004,8 +1007,23 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
   }
 }
 
+function clearAccountEntryViews(){
+ agenda?.dispose();agenda=null;courtInvite?.dispose();courtInvite=null;updates?.dispose();updates=null
+ sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null;playerChats?.dispose();playerChats=null
+ accountSettings?.dispose();accountSettings=null;emailAuth?.dispose();emailAuth=null;biometricLogin?.dispose();biometricLogin=null
+ labRatingTrends?.dispose();labRatingTrends=null;dataImports?.dispose();dataImports=null;competitions?.dispose();competitions=null
+ tournaments?.dispose();tournaments=null;coachWorkspace?.dispose();coachWorkspace=null;leagueOffice?.dispose();leagueOffice=null
+ goals?.dispose();goals=null;training?.dispose();training=null;teamRoom?.dispose();teamRoom=null;comparison?.dispose();comparison=null
+ following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null
+ recovery?.dispose();recovery=null;details?.dispose();details=null;hub=null;profileOpen=false
+ document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
+ navigation.hidden=true;headerActions.hidden=true;accountEntry.hidden=true
+ document.body.dataset.screen='loading';app.dataset.state='loading'
+ app.innerHTML='<p class="app-opening-status" role="status">Opening TenAceIQ…</p>'
+}
 client.auth.onAuthStateChange((_event, next) => {
-  if(next?.user.id!==session?.user.id){
+  const ownerChanged=next?.user.id!==session?.user.id
+  if(ownerChanged){
     calendarHighlights.clear();coachNextAssignment.clear();linkedLabOwner=undefined;exploreSearch=undefined
     personalMatchForm={}
     teamScoreDrafts=firstPartyBuild&&next?createTeamScoreDraftSession(next.user.id):undefined
@@ -1019,6 +1037,7 @@ client.auth.onAuthStateChange((_event, next) => {
   if(next){guest?.dispose();guest=null}
   if (next?.user.id === session?.user.id && (hasOpenLabEdit() || agenda?.isOpen() || courtInvite?.isOpen() || updates?.isOpen() || sharedMatch?.isOpen() || teamInvite?.isOpen() || accountSettings?.isOpen() || details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || competitions?.isOpen() || tournaments?.isOpen() || coachWorkspace?.isOpen() || hub || leagueOffice?.isOpen() || dataImports?.isOpen())) { session = next; setTimeout(()=>setNativeSession(next),0); return }
   session = next
+  if(ownerChanged){openingOwner=null;clearAccountEntryViews()}
   const authRevision=++revision
   // Schedule outside the auth callback's lock before making another SDK call.
   setTimeout(() => {
@@ -1027,8 +1046,15 @@ client.auth.onAuthStateChange((_event, next) => {
       const resume=guestExploreResume?.owner===next?.user.id?guestExploreResume?.visit:undefined
       guestExploreResume=undefined
       if(session){
-        if(resume&&!appLinks.peek())openExplore(resume)
-        else await lab()
+        if(resume&&!appLinks.peek()){openingOwner=session.user.id;openExplore(resume)}
+        else if(openingOwner!==session.user.id){
+          const owner=session.user.id,current=()=>owner===session?.user.id&&authRevision===revision
+          const destination=appLinks.peek()?'lab':await resolveOpeningScreen(owner,current).catch(()=>null)
+          if(!current()||!destination)return
+          openingOwner=owner
+          if(appLinks.peek()||destination==='lab')await lab()
+          else{app.dataset.state='ready';if(destination==='teams')openTeamRoom();else if(destination==='explore')openExplore();else showHub(destination)}
+        }else await lab()
       }else login()
       if(next?.user.id===session?.user.id){setNativeSession(session);authReady=true;if(session&&(resume||resumeLink))resumeAppLink();coachHandoff.resume();activityHandoff.resume()}
     })()

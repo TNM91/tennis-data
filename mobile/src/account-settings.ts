@@ -12,6 +12,8 @@ import {html} from './match-details'
 import {accountLinksHtml,bindAccountLinks,showPasswordRecovery} from './account-actions'
 import {showEmailAuth} from './email-auth'
 import {loadBillingPortal,readAccountSettings,type AccountSettings} from './account-settings-data'
+import {mountOpeningScreenSettings} from './opening-screen-settings'
+import {openingPreferences} from './opening-screen'
 export function openAccountSettings(client:SupabaseClient,owner:string,current:()=>boolean,logOut:()=>Promise<void>,opener?:HTMLElement,openTrophies?:()=>void,clearScoreDrafts?:()=>Promise<void>){
  const previous=opener??(document.activeElement instanceof HTMLElement?document.activeElement:null),dialog=document.createElement('dialog'),host=document.createElement('div'),close=document.createElement('button')
  host.className='account-settings-body';dialog.className='account-settings-dialog';dialog.setAttribute('aria-label','Account settings');close.type='button';close.className='secondary account-dialog-close';close.textContent='Done';close.setAttribute('aria-label','Close account settings');const toolbar=document.createElement('div'),logout=document.createElement('button'),logoutError=document.createElement('p');toolbar.className='account-settings-toolbar';logout.type='button';logout.className='secondary';logout.textContent='Log out';logout.dataset.accountLogout='';logoutError.setAttribute('role','alert');logoutError.dataset.accountLogoutError='';toolbar.append(close,logout);dialog.append(toolbar,logoutError,host)
@@ -20,12 +22,13 @@ export function openAccountSettings(client:SupabaseClient,owner:string,current:(
  let accessPanel:ReturnType<typeof mountAccountAccess>|null=null
  let applePanel:ReturnType<typeof mountAppleMemberships>|null=null
  let lockPanel:ReturnType<typeof mountBiometricSettings>|null=null
+ let openingPanel:ReturnType<typeof mountOpeningScreenSettings>|null=null
  const valid=()=>!disposed&&current()&&dialog.isConnected
- const clearDeviceData=()=>Promise.allSettled([forgetBiometricSignIn(owner),clearCoachDeviceData(owner),clearScoreDrafts?.(),
+ const clearDeviceData=()=>Promise.allSettled([forgetBiometricSignIn(owner),clearCoachDeviceData(owner),openingPreferences(owner).clear(),clearScoreDrafts?.(),
   ...(firstPartyBuild?[clearTournamentDraft(owner),clearStarterTiq(owner)]:[])])
  const signOut=async()=>{if(!valid()||signingOut)return;signingOut=true;logout.disabled=true;logout.textContent='Logging out…';logoutError.textContent='';host.inert=true;host.setAttribute('aria-busy','true');try{await logOut();dispose()}catch{if(valid()){logoutError.textContent='Couldn’t log out. Check your connection and try again.';logoutError.focus({preventScroll:true})}}finally{if(valid()){signingOut=false;logout.disabled=false;logout.textContent='Log out';host.inert=false;host.removeAttribute('aria-busy')}}}
  logoutError.tabIndex=-1;logout.onclick=()=>{void signOut()}
- const clearChild=()=>{child?.dispose();child=null;accessPanel?.dispose();accessPanel=null;applePanel?.dispose();applePanel=null;lockPanel?.dispose();lockPanel=null}
+ const clearChild=()=>{child?.dispose();child=null;accessPanel?.dispose();accessPanel=null;applePanel?.dispose();applePanel=null;lockPanel?.dispose();lockPanel=null;openingPanel?.dispose();openingPanel=null}
  const dispose=()=>{if(disposed)return;disposed=true;request++;clearChild();dialog.remove();if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
  const back=()=>{if(disposed)return false;if(signingOut){dispose();return true}if(pane!=='settings'){void load();return true}dispose();return true}
  close.onclick=dispose;dialog.oncancel=e=>{e.preventDefault();back()};document.body.append(dialog);dialog.showModal()
@@ -42,6 +45,8 @@ export function openAccountSettings(client:SupabaseClient,owner:string,current:(
   }
   applePanel=mountAppleMemberships(host.querySelector<HTMLElement>('[data-apple-membership]')!,client,owner,()=>valid()&&pane==='settings',()=>accessPanel?.refresh())
   if(!pending){
+   const openingHost=document.createElement('section');openingHost.className='account-access-panel opening-screen-settings';openingHost.setAttribute('aria-label','Opening screen');openingHost.dataset.accountSection='opening';host.querySelector('[data-account-section=controls]')!.before(openingHost)
+   openingPanel=mountOpeningScreenSettings(openingHost,owner,()=>valid()&&pane==='settings')
    const lockHost=document.createElement('section');lockHost.className='account-access-panel';lockHost.setAttribute('aria-label','Face ID sign-in');lockHost.dataset.accountSection='signin';host.querySelector('[data-account-section=controls]')!.before(lockHost)
    lockPanel=mountBiometricSettings(lockHost,client,owner,()=>valid()&&pane==='settings')
   }else{void clearDeviceData()}
@@ -51,7 +56,7 @@ export function openAccountSettings(client:SupabaseClient,owner:string,current:(
  }
  function bindSections(){
   const nav=host.querySelector<HTMLElement>('.account-section-links')!
-  for(const [key,label]of [['tools','Your tools'],['membership','Membership'],['signin','Saved sign-in'],['controls','Account controls']]){
+  for(const [key,label]of [['tools','Your tools'],['membership','Membership'],['opening','Opening screen'],['signin','Saved sign-in'],['controls','Account controls']]){
    const section=host.querySelector<HTMLElement>(`[data-account-section="${key}"]`)
    if(!section||section.hidden)continue
    section.id=sectionPrefix+'-'+key;section.tabIndex=-1

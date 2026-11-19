@@ -14,7 +14,13 @@ export function createNativePush(...[client,onOpen,deps={}]:Parameters<typeof ac
   const plugin={
    addListener:async(name:string,handler:never)=>{
     if(name==='registration')register=handler
-    if(name==='pushNotificationActionPerformed')tap=handler
+    if(name==='pushNotificationActionPerformed'){
+     tap=handler
+     if(query.has('coldCoachActivity'))queueMicrotask(()=>{
+      state.tap('/mylab?coachActivityNotice=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
+      if(query.has('duplicateAuth'))refreshNavigationSession()
+     })
+    }
     return {remove:async()=>{}}
    },
    register:async()=>register({value:'b'.repeat(64)}),unregister:async()=>{},

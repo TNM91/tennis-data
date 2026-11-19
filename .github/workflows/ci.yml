@@ -286,6 +286,11 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4285
         run: npx playwright test --config=tests/playwright.coach-assessment.config.ts --output=.next/coach-assessment-results
+      - name: Verify opening preferences and native visual states
+        if: matrix.suite == 'coach'
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4285
+        run: npx playwright test --config=tests/playwright.opening-screen.config.ts --output=.next/opening-screen-results
       - name: Verify native destinations and local tool search
         if: matrix.suite == 'navigation'
         env:

@@ -83,10 +83,10 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
   shortcuts?:CalendarHighlightShortcuts)=>{
   const {replies,tournament,practice,scorecard}=shortcuts??{}
   const matchOnly=kind==='match'
-  host.innerHTML=`<button type="button" class="secondary app-tool">
+  host.innerHTML=`<button type="button" class="secondary app-tool" data-calendar-state="loading">
    <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.calendar}</span>
    <span class="app-tool-copy">
-    <small data-next-kicker>Up next</small>
+    <small data-next-kicker>${matchOnly?'Your next match':'Your calendar'}</small>
     <strong data-next-title>Open Calendar</strong>
     <span data-next-details>Matches, lessons and practice.</span>
     <span class="lab-next-action" data-next-action hidden>View event</span>
@@ -186,7 +186,8 @@ export function createCalendarHighlights(client:SupabaseClient,currentOwner:()=>
     host.hidden=!event
     if(!event)return
    }
-   kicker.textContent=matchOnly?'Your next match':event&&isPracticeInProgress(event,now)?'Scheduled now':event&&incomplete?'Next loaded date':'Up next'
+   button.dataset.calendarState=event?'event':'empty'
+   kicker.textContent=matchOnly?'Your next match':!event?'Your calendar':isPracticeInProgress(event,now)?'Scheduled now':incomplete?'Next loaded date':'Up next'
    const match=event?matches?.get(event.id):undefined
    if(scheduledPractice){if(!calendarButton.isConnected)host.append(calendarButton)}
    else if(calendarButton.isConnected){

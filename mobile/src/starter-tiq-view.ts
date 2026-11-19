@@ -95,8 +95,9 @@ export function mountStarterTiq(
         ${result ? `<p class="starter-tiq-focus">Practice focus · <strong>${result.focus.skill}</strong></p>
           ${'target' in result.focus ? `<p>${html(result.focus.target)}</p>` : ''}` : ''}
         <div class="starter-tiq-actions">
-          ${recommendedDrill ? `<button type="button" data-starter-drill>Try ${recommendedDrill.title}</button>` : ''}
-          <button type="button" ${recommendedDrill ? 'class="secondary" ' : ''}data-starter-edit>${result ? 'Retake' : previousLevel ? 'Update my rating' : 'Find my level'}</button>
+          ${result && recommendedDrill ? `<button type="button" data-starter-drill>Try ${recommendedDrill.title}</button>` : ''}
+          <button type="button" ${result && recommendedDrill ? 'class="secondary" ' : ''}data-starter-edit>${result ? 'Retake' : previousLevel ? 'Update my rating' : 'Find my level'}</button>
+          ${!result && recommendedDrill ? `<button type="button" class="secondary" data-starter-drill>Try ${recommendedDrill.title}</button>` : ''}
           <button type="button" class="secondary" data-starter-coach>Coach assessments</button>
           ${previousLevel ? '<button type="button" class="secondary" data-starter-clear>Clear saved assessment</button>' : ''}
         </div>
