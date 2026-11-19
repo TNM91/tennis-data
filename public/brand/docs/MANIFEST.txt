@@ -82,3 +82,13 @@ Native scoreboard refinement — October 31, 2026 (user-directed)
   courts/tiq-native-night-session.png — unbranded My Lab background from the
   selected Night Session design. Empty blue court and one floodlight.
   1122 x 1402 PNG. Display the entire image proportionally.
+
+App Store empty court correction — November 19, 2026 (user-directed)
+  courts/tiq-app-store-empty-court-20261119-v1.png — unbranded wide navy
+  court background for the new App Store header and search artwork. Built-in
+  ImageGen edit of og-background-v2.png removes every ball, trail and bounce
+  ring and corrects the service-box markings, using the approved empty Night
+  Session court as a geometry reference. No logos or text are generated.
+  Place the complete image proportionally. Existing app, website, social
+  artwork and original wordmarks remain unchanged. Prompt and provenance:
+  APP_STORE_EMPTY_COURT_PROMPT.txt.

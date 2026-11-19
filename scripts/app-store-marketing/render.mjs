@@ -9,7 +9,8 @@ const root=fileURLToPath(new URL('../../',import.meta.url))
 const output=path.resolve(root,'../../output/app-store-premium-20261119')
 const brand=path.join(root,'public/brand')
 const logo=pathToFileURL(path.join(brand,'approved/TenAceIQ_Light_Transparent.png')).href
-const court=pathToFileURL(path.join(brand,'social/og-background-v2.png')).href
+const courtAsset='courts/tiq-app-store-empty-court-20261119-v1.png'
+const court=pathToFileURL(path.join(brand,courtAsset)).href
 const source=(device,scene)=>pathToFileURL(path.join(output,'sources',device,scene+'.png')).href
 const escape=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;')
 const scenes=[
@@ -85,7 +86,7 @@ try{
  await writeFile(path.join(output,'metadata-en-US.json'),JSON.stringify(current,null,2)+'\n')
  await writeFile(path.join(output,'description-en-US.txt'),current.description+'\n')
  const brandHashes={}
- for(const file of ['approved/TenAceIQ_Light_Transparent.png','social/og-background-v2.png'])brandHashes[file]=createHash('sha256').update(await readFile(path.join(brand,file))).digest('hex')
+ for(const file of ['approved/TenAceIQ_Light_Transparent.png',courtAsset])brandHashes[file]=createHash('sha256').update(await readFile(path.join(brand,file))).digest('hex')
  const manifest={created:'2026-11-19',sourceAppBuild:324,sourceCommit:'9fe0931d5d06a372354e39f427da98e1643bca98',status:'Ready for Asset Library staging; do not replace the gallery on the Waiting for Review submission',brandSource:'public/brand only; assets placed proportionally without filters, cropping, redrawing, or recoloring',brandHashes,creativeSafeAreas:{header:{x:1097,y:493,width:1646,height:661},search:{x:836,y:765,width:2168,height:1030}},exports}
  await writeFile(path.join(output,'asset-manifest.json'),JSON.stringify(manifest,null,2)+'\n')
  const thumbImages=scenes.map((scene,i)=>`<figure><img src="${'iphone-69/'+String(i+1).padStart(2,'0')+'-'+scene.id+'.png'}" alt="${escape(scene.label)}"><figcaption>${i+1}. ${escape(scene.label)}</figcaption></figure>`).join('')

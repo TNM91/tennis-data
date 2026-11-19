@@ -1,0 +1,10 @@
+User-directed App Store background correction — November 19, 2026
+Built-in image_gen tool; precise-object-edit. Original assets preserved.
+Edit target: public/brand/social/og-background-v2.png
+Supporting reference: public/brand/courts/tiq-native-night-session.png
+Output: public/brand/courts/tiq-app-store-empty-court-20261119-v1.png
+Approved wordmark is composited separately and remains byte-for-byte intact.
+
+Prompt:
+Use case: precise-object-edit. Asset type: TenAceIQ App Store header and search background, no text or logos. Input image 1 is the edit target: wide navy court scene with three balls and crossing lime trails. Input image 2 is a supporting geometry and empty night-court reference only. Primary request: remove ALL tennis balls, flight trails, bounce rings and lime motion graphics from the first image. Keep the wide composition, rich navy negative space across the left 65%, tasteful royal-blue night lighting and the subtle diagonal court in the lower-right. Refine the court to a physically correct regulation doubles tennis court: 78 ft long, 36 ft wide outer rectangle, 27 ft singles sidelines 4.5 ft inside doubles sidelines, net halfway along the length, service lines 21 ft from the net on both sides, center service line only between the service lines and net, no extra parallel interior lines or center line behind a service line. Render a single empty court with one net, crisp white markings and restrained blue illumination. The court is environmental detail and stays to the lower right, leaving middle and left dark and uncluttered for a separate real logo overlay. No balls anywhere, no players, no arrows, no trajectories, no glowing green court outline, no text, no letters, no brand marks. Preserve the original premium dark navy palette and subtle upper-right blue floodlights. Wide landscape composition matching input 1, approximately 1.9:1. This is a background only; do not invent any logo.
+

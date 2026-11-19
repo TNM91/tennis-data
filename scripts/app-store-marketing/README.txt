@@ -18,7 +18,11 @@ Focused component captures are actual rendered app elements. Their source
 full-screen captures are retained beside them for review.
 
 Brand artwork comes only from public/brand, placed proportionally and intact.
-No source logos or court artwork are regenerated, filtered, recolored or cropped.
+The approved wordmark and all original court assets remain byte-for-byte intact.
+The user-directed header/search revision uses a new, unbranded empty-court
+background made with the built-in image_gen tool. It removes the confusing
+multiple balls, trails and bounce rings. Its prompt and source provenance are
+in public/brand/docs/APP_STORE_EMPTY_COURT_PROMPT.txt. No logo is generated.
 Screenshot layouts are composed deterministically with HTML/CSS and rendered
 to PNG. Fonts use the installed Bahnschrift face, with Arial fallback.
 
@@ -26,6 +30,7 @@ Reproduction (from this checkout with the repository dependencies installed)
 1. node mobile/scripts/build-bundled.mjs --first-party-full
 2. node scripts/app-store-marketing/capture.mjs
 3. node scripts/app-store-marketing/render.mjs
+4. node scripts/app-store-marketing/verify.mjs
 
 Output: ../../output/app-store-premium-20261119 relative to this checkout.
 The package includes source captures, rendered layouts, a preview gallery,
