@@ -2961,7 +2961,7 @@ for(const width of [320,390])test(`first-party lineup publication, confirmations
  await expect(match.getByRole('button',{name:'Confirm my assignment',exact:true})).toHaveCount(0)
 })
 
-async function openCaptainAssignmentFollowups(page:Page,width=390){
+async function openCaptainAssignmentFollowups(page:Page,width=390,openMatch=true){
  // eslint-disable-next-line react-hooks/rules-of-hooks -- This helper bundles a browser fixture; it does not call React hooks.
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width,height:844})
@@ -2989,7 +2989,7 @@ async function openCaptainAssignmentFollowups(page:Page,width=390){
   await trigger.click()
   await expect(page.getByRole('dialog',{name:'Next match',exact:true}).getByRole('region',{name:'Published lineup',exact:true})).toBeVisible()
  }
- await open()
+ if(openMatch)await open()
  return {match:page.getByRole('dialog',{name:'Next match',exact:true}),open}
 }
 
@@ -3020,6 +3020,140 @@ for(const width of [320,390])test(`captain assignment follow-ups target the righ
  await expect(composer).toHaveValue(/Assignment check[\s\S]*Riley — please open Team → Next match/)
  for(const name of ['Alex','Casey','Morgan'])await expect(composer).not.toHaveValue(new RegExp(name))
  expect(await page.evaluate(()=>(window as unknown as {firstPartyTeamFixture:{posts:string[]}}).firstPartyTeamFixture.posts)).toEqual([])
+})
+
+for(const width of [320,390])test(`team match brief caches an explicit check and refreshes after the lineup handoff at ${width}px`,async({page},info)=>{
+ const {match}=await openCaptainAssignmentFollowups(page,width,false)
+ const brief=page.locator('.chat-match-brief'),summary=brief.locator('summary')
+ await expect(summary).toBeVisible()
+ const reads=()=>page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:{schedule:number;replies:number}}}).manualScheduleFixture.matchReads)
+ expect(await reads()).toEqual({schedule:0,replies:0})
+ const composer=page.getByRole('textbox',{name:'Message your team',exact:true})
+ await composer.fill('Lineup question for tonight')
+ await summary.click()
+ await expect(brief).toContainText('0 of 3 assignments confirmed')
+ await expect(brief.locator('dl')).toContainText('To confirm1Needs review2')
+ expect(await reads()).toEqual({schedule:1,replies:1})
+ await summary.click();await expect(brief).not.toHaveAttribute('open')
+ await summary.click();await expect(brief).toContainText('0 of 3 assignments confirmed')
+ expect(await reads()).toEqual({schedule:1,replies:1})
+ if(width===390)await page.setViewportSize({width,height:568})
+ expect(await composer.evaluate(el=>{const box=el.getBoundingClientRect();return box.top>=0&&box.bottom<=innerHeight})).toBe(true)
+ await expect(brief.locator('dd').nth(1)).toBeInViewport({ratio:0.95})
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.screenshot({path:info.outputPath('team-match-brief.png')})
+ const opener=brief.getByRole('button',{name:'Open match',exact:true})
+ await opener.click()
+ await expect(match.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{publishedLineup:{version:string};lineupReplies:Record<string,object>}}).manualScheduleFixture
+  const player='22222222-2222-4222-8222-222222222222'
+  fixture.lineupReplies[player]={id:player,version:fixture.publishedLineup.version,choice:'confirmed'}
+ })
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(opener).toBeFocused()
+ await expect(brief).toContainText('1 of 3 assignments confirmed')
+ await expect(opener).toBeInViewport()
+ await expect(composer).toHaveValue('Lineup question for tonight')
+ expect(await reads()).toEqual({schedule:3,replies:3})
+})
+
+test('team match brief drops stale counts on failure and a late response cannot replace the chat inbox',async({page})=>{
+ await openCaptainAssignmentFollowups(page,390,false)
+ const brief=page.locator('.chat-match-brief')
+ await brief.locator('summary').click()
+ await expect(brief).toContainText('0 of 3 assignments confirmed')
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{failReplies:boolean}}).manualScheduleFixture.failReplies=true})
+ await brief.getByRole('button',{name:'Recheck',exact:true}).click()
+ await expect(brief.getByRole('status')).toContainText('Couldn’t check the match brief')
+ await expect(brief).not.toContainText('0 of 3')
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{failReplies:boolean;holdNextMatch:boolean}}).manualScheduleFixture
+  fixture.failReplies=false;fixture.holdNextMatch=true
+ })
+ await brief.getByRole('button',{name:'Retry match brief',exact:true}).click()
+ await expect(brief.getByRole('status')).toHaveText('Checking your next match…')
+ await expect.poll(()=>page.evaluate(()=>Boolean((window as unknown as {manualScheduleFixture:{releaseNextMatch:unknown}}).manualScheduleFixture.releaseNextMatch))).toBe(true)
+ await page.getByRole('button',{name:'All team chats',exact:true}).click()
+ await expect(page.getByRole('heading',{name:'Chats',exact:true})).toBeVisible()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{holdNextMatch:boolean;releaseNextMatch:(()=>void)|null}}).manualScheduleFixture
+  fixture.holdNextMatch=false;fixture.releaseNextMatch?.()
+ })
+ await expect.poll(()=>page.evaluate(()=>(window as unknown as {manualScheduleFixture:{releaseNextMatch:unknown}}).manualScheduleFixture.releaseNextMatch===null)).toBe(true)
+ await expect(brief).toHaveCount(0)
+ await expect(page.getByRole('heading',{name:'Chats',exact:true})).toBeVisible()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ await brief.locator('summary').click()
+ await expect(brief).toContainText('0 of 3 assignments confirmed')
+})
+
+test('player match brief shows only their published assignment and returns with their saved confirmation',async({page})=>{
+ await openCaptainAssignmentFollowups(page,390,false)
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{loseNextConfirmation:boolean}}).manualScheduleFixture
+  fixture.loseNextConfirmation=false
+  const {switchNavigationOwner}=window as unknown as {switchNavigationOwner:()=>void}
+  switchNavigationOwner()
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ const brief=page.locator('.chat-match-brief')
+ await brief.locator('summary').click()
+ await expect(brief).toContainText('Your court · Singles 1')
+ await expect(brief).toContainText('Confirm your assignment')
+ for(const text of ['Needs review','To confirm','Private edits'])await expect(brief).not.toContainText(text)
+ await brief.getByRole('button',{name:'Open match',exact:true}).click()
+ const match=page.getByRole('dialog',{name:'Next match',exact:true})
+ await expect(match.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
+ await match.getByRole('button',{name:'Confirm my assignment',exact:true}).click()
+ await match.getByRole('button',{name:'Confirm assignment',exact:true}).click()
+ await expect(match.getByRole('status')).toHaveText('Your assignment is confirmed.')
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(brief).toContainText('Confirmed')
+ await expect(brief).not.toContainText('To confirm')
+})
+
+test('a named chat match brief uses the parent team schedule without requesting manual confirmations',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?team-channels=1&private-team-tools=captain&team-schedule=1')
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/Baseline Aces.*Weekend Tennis/}).click()
+ await page.getByRole('button',{name:'Team chats · General',exact:true}).click()
+ const rooms=page.getByRole('dialog',{name:'Team chats',exact:true})
+ await rooms.getByRole('button',{name:'Create a chat',exact:true}).click()
+ await rooms.getByRole('textbox',{name:'Chat name',exact:true}).fill('Practice')
+ await rooms.getByRole('button',{name:'Create chat',exact:true}).click()
+ await expect(page.getByRole('button',{name:'Team chats · Practice',exact:true})).toBeVisible()
+ const brief=page.locator('.chat-match-brief')
+ await brief.locator('summary').click()
+ await expect(brief).toContainText('Topspin Club')
+ await expect(brief.locator('dl')).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:object}}).manualScheduleFixture.matchReads)).toEqual({schedule:1,replies:0})
+ await brief.getByRole('button',{name:'Open match',exact:true}).click()
+ await expect(page.getByRole('dialog',{name:'Next match',exact:true})).toContainText('Topspin Club')
+})
+
+test('an empty team match brief avoids lineup reads and a backgrounded brief can be checked again',async({page})=>{
+ await openCaptainAssignmentFollowups(page,390,false)
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{nextMatch:unknown;revision:unknown}}).manualScheduleFixture
+  fixture.nextMatch=null;fixture.revision=null
+ })
+ const brief=page.locator('.chat-match-brief'),summary=brief.locator('summary')
+ await summary.click()
+ await expect(brief).toContainText('No upcoming match is scheduled')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:object}}).manualScheduleFixture.matchReads)).toEqual({schedule:1,replies:0})
+ await page.evaluate(()=>{
+  Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'})
+  document.dispatchEvent(new Event('visibilitychange'))
+  Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'})
+  document.dispatchEvent(new Event('visibilitychange'))
+ })
+ await expect(brief).not.toHaveAttribute('open')
+ await summary.click()
+ await expect(brief).toContainText('No upcoming match is scheduled')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:object}}).manualScheduleFixture.matchReads)).toEqual({schedule:2,replies:0})
 })
 
 test('captain confirmation reminders protect chat drafts and recheck publication and replies before drafting',async({page})=>{

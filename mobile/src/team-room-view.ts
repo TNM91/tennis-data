@@ -39,6 +39,7 @@ import {openAnnouncement} from './chat-announcement'
 import {chatMatches,chatFilterStatus,type ChatFilter} from './chat-filters'
 import {openTeamInvite} from './team-invite-view'
 import {openTeamNextMatch,teamNextMatchHtml} from './team-next-match-view'
+import {createTeamMatchBrief} from './team-match-brief'
 import {openTeamResults,sharedTeamResult,type TeamResultsEntryPoint,type TeamResultsPosition} from './team-results-view'
 import type {TeamScoreDraftSession} from './team-score-drafts'
 import type {CalendarScorecardSeed} from './personal-match-data'
@@ -145,6 +146,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const onVisibility=()=>{if(document.visibilityState!=='visible'){if(focusPending){focusAttempt++;focusPending=false;historyLoading=false;historyNotice='';updateLabels()}if(availabilityView?.isOpen())reviewNeedsRefresh=true;gifChooser?.abort();roomPicker?.dispose();roomPicker=null;practicesView?.dispose();practicesView=null;availabilityView?.dispose();availabilityView=null;pollView?.dispose();pollView=null;fixturesView?.dispose();fixturesView=null;historySearch?.dispose();historySearch=null;matchEssentialsVersion++;if(matchReview?.isOpen()||matchShare?.isOpen())reviewNeedsRefresh=true;matchReview?.dispose();matchReview=null;matchShare?.dispose();matchShare=null;closeMentions();if(teamDialog&&!teamDialog.keepWhileHidden){teamDialog.dispose();teamDialog=null;teamDialogNeedsRefresh=true}captainView?.dispose();captainView=null;if(tab==='Captain'){const panel=app.querySelector('#team-panel');if(panel)panel.innerHTML='<p role="status">Captain tools paused.</p>'}messageView?.dispose();messageView=null;linkView?.dispose();linkView=null;announcementView?.dispose();announcementView=null;postEditor?.dispose();postEditor=null;closePhoto();gifs.clear();previews.clear()}else if(reviewNeedsRefresh){reviewNeedsRefresh=false;if(tab==='Match day'||tab==='Conversation')void load(true)}else if(teamDialogNeedsRefresh){teamDialogNeedsRefresh=false;void load(true)}else if(snapshot?.room){if(tab==='Captain')render();else previews.attach(app.querySelector<HTMLElement>('.team-conversation'))}}
  document.addEventListener('visibilitychange',onVisibility)
  const valid=()=>!disposed && isCurrent()
+ const matchBrief=createTeamMatchBrief(client,userId,()=>valid()&&!inbox&&tab==='Conversation',teamNextMatchHtml)
  const coachInbox=createCoachChatsInbox(client,userId,valid,()=>alerts?.unread()??null,()=>alerts?.refresh(),()=>organizedInbox?.refreshCoach(),
   ()=>inboxNeedsRefresh&&refreshInbox())
  const refreshInbox=()=>{
@@ -293,7 +295,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus({preventScroll:true})
   return true
  }
- const openNextMatch=(room:NativeTeamRoom,trigger:HTMLButtonElement,previousMatch?:ReviewedNextMatch)=>{
+ const openNextMatch=(room:NativeTeamRoom,trigger:HTMLButtonElement,previousMatch?:ReviewedNextMatch,focusSection?:'publication')=>{
   if(!valid()||teamDialog?.isOpen()||snapshot?.room?.id!==room.id||draft.sending||draft.pending||busy||photoChoosing)return
   const epoch=reactionEpoch
   const current=()=>valid()&&epoch===reactionEpoch&&snapshot?.room?.id===room.id
@@ -302,6 +304,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   teamDialog=openTeamNextMatch(client,userId,matchRoom,current,(changed,message,kind)=>{
    teamDialog=null
    if(!current())return
+   matchBrief.invalidate()
    if(changed)results?.onScheduleChanged()
    if(changed&&joinWelcome?.roomId===room.id)joinWelcome.nextMatch=undefined
    if(message&&composeTeamUpdate(room,message,kind==='lineup'?'Review your lineup, then tap Send.':
@@ -311,7 +314,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
     app.querySelector<HTMLElement>('.chat-room-options > summary')?.focus({preventScroll:true})
    }else if(trigger.isConnected)trigger.focus({preventScroll:true})
   },()=>current()&&canDraftTeamUpdate(room),{
-   previousMatch,openResults:results?()=>openResults(room,trigger):undefined,
+   previousMatch,focusSection,openResults:results?()=>openResults(room,trigger):undefined,
   })
  }
  const openResults=(room:NativeTeamRoom,trigger:HTMLButtonElement,entryPoint?:TeamResultsEntryPoint)=>{
@@ -538,6 +541,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   }
  }
  const load=async(preserve=false,latest=false)=>{
+  matchBrief.reset()
   if(focusPending){focusAttempt++;focusPending=false;historyNotice=''}
   historyLoading=false
   fullLoads++
@@ -640,6 +644,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const oldTop=oldList?.getBoundingClientRect().top || 0,oldFirst=oldList?Array.from(oldList.querySelectorAll<HTMLElement>('[data-chat-message]')).find(child=>!child.hidden&&child.getBoundingClientRect().bottom>oldTop+1):undefined
   const anchor=oldFirst?{id:oldFirst.dataset.chatMessage,delta:oldFirst.getBoundingClientRect().top-oldTop}:null
   if(inbox){
+   matchBrief.reset()
    app.innerHTML=chatsInboxHtml(snapshot)
    coachInbox.mount(app.querySelector<HTMLElement>('[data-coach-chats]')!)
    const openTeam=(choice:TeamScope)=>{
@@ -707,6 +712,12 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   app.querySelector<HTMLButtonElement>('#all-team-chats')!.onclick=openInbox
   bindTeamToolsClose(app)
   bindTeamChatAvatars(app)
+  if(firstPartyBuild&&tab==='Conversation'&&(room.manualFixture||room.scheduleLinked)){
+   const host=document.createElement('div');host.className='chat-match-brief-host'
+   app.querySelector('.chat-room-header')!.after(host)
+   matchBrief.mount(host,room.chatRoom?{...room,id:room.chatRoom.parentId}:room,Boolean(busy||draft.pending||draft.sending||photoChoosing),
+    (trigger,publication)=>openNextMatch(room,trigger,undefined,publication?'publication':undefined))
+  }else matchBrief.reset()
   if(tab==='Conversation')app.querySelector('.chat-room-header')!.insertAdjacentHTML('afterend',
    namedTeamPlanHtml(room,Boolean(busy||draft.pending||draft.sending||photoChoosing)))
   app.querySelectorAll<HTMLButtonElement>('#chat-practices,[data-team-plan="practice"]').forEach(button=>{
@@ -1052,6 +1063,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  }
  void load()
  const closeInboxLifecycle=()=>{
+  matchBrief.dispose()
   document.removeEventListener('visibilitychange',onInboxVisibility)
   void resumeListener?.remove()
  }

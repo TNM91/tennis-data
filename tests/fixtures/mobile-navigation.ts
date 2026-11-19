@@ -212,6 +212,7 @@ const privateRsvpPath=practiceRsvpPath('44444444-4444-4444-8444-444444444444')
 let privateLogoUrl=''
 const linkedSchedule=new URL(location.href).searchParams.get('team-schedule')
 const manualScheduleFixture={enabled:new URL(location.href).searchParams.has('manual-team-schedule'),captain:true,
+ matchReads:{schedule:0,replies:0},holdNextMatch:false,releaseNextMatch:null as (()=>void)|null,
  revision:null as string|null,nextMatch:null as Record<string,unknown>|null,loseNextSave:true,writes:[] as string[],
  reply:null as {id:string;choice:string}|null,loseNextReply:true,replyWrites:[] as string[],
  extraPlayers:[] as {id:string;name:string;choice:string|null}[],
@@ -710,6 +711,7 @@ window.fetch=async(input,init)=>{
   }
   if(op==='match-replies'){
    const fixture=manualScheduleFixture
+   fixture.matchReads.replies++
    if(fixture.failReplies)return Response.json({ok:false},{status:503})
    if(!team||!fixture.enabled||!fixture.nextMatch||fixture.revision!==url.searchParams.get('revision'))return Response.json({ok:false},{status:409})
    const lineupRoster=manualLineupRoster()
@@ -722,6 +724,11 @@ window.fetch=async(input,init)=>{
      savedLineup:fixture.savedLineup,...(shared?{lineupReplies:Object.entries(fixture.lineupReplies).map(([profileId,reply])=>({...reply,profileId}))}:{})}:{})}})
   }
   if(op==='next-match'){
+   manualScheduleFixture.matchReads.schedule++
+   if(manualScheduleFixture.holdNextMatch){
+    await new Promise<void>(resolve=>{manualScheduleFixture.releaseNextMatch=resolve})
+    manualScheduleFixture.releaseNextMatch=null
+   }
    if(team&&linkedSchedule)return Response.json({...base,roomId:chatRoomId,revision:null,
     nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'}})
    if(team&&manualScheduleFixture.enabled)return Response.json({...base,roomId:chatRoomId,

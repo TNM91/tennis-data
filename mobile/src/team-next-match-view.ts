@@ -71,8 +71,8 @@ function matchRepliesHtml(replies:TeamMatchReplies,busy:boolean,pending:boolean,
 
 export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMatchRoom,current:()=>boolean,
  onClose:(changed:boolean,message?:string,kind?:'lineup'|'schedule')=>void,canDraftUpdate:()=>boolean,
- {previousMatch,calendarSchedule,openResults}:{
-  previousMatch?:ReviewedNextMatch;calendarSchedule?:TeamNextMatchSchedule;openResults?:()=>void
+ {previousMatch,calendarSchedule,openResults,focusSection}:{
+  previousMatch?:ReviewedNextMatch;calendarSchedule?:TeamNextMatchSchedule;openResults?:()=>void;focusSection?:'publication'
  }={}){
  const dialog=document.createElement('dialog')
  dialog.className='team-invite-dialog team-next-match-dialog'
@@ -157,7 +157,12 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    await refreshReplies(schedule)
   }
   catch(cause){notice=cause instanceof TeamNextMatchError?cause.message:'Couldn’t load the next match. Try again.'}
-  finally{if(active()){busy=false;render();focus(draft?'[name="opponent"]':notice?'[role="status"]':'h2')}}
+  finally{if(active()){
+   busy=false;render()
+   const target=draft?'[name="opponent"]':notice?'[role="status"]':focusSection==='publication'?'.team-lineup-publication h3':'h2'
+   focus(target)
+   if(focusSection&&!notice&&!draft)dialog.querySelector<HTMLElement>(target)?.scrollIntoView({block:'start'})
+  }}
  }
  const save=async(change:TeamNextMatchChange)=>{
   if(busy||!active())return

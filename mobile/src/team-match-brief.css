@@ -1,0 +1,20 @@
+body.native-chat-conversation .chat-match-brief-host{flex:none;min-inline-size:0}
+body[data-screen="teams"] .chat-match-brief{margin:6px 0 10px;padding:0;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);box-shadow:none;overflow-wrap:anywhere}
+.chat-match-brief>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;min-block-size:44px;padding:10px 14px;color:var(--premium-white);cursor:pointer;list-style:none}
+.chat-match-brief>summary::-webkit-details-marker{display:none}
+.chat-match-brief>summary>span:first-child{font-weight:700;font-size:.875rem}
+.chat-match-brief>summary small{grid-column:1;min-inline-size:0;color:var(--premium-copy);font-size:.75rem;line-height:1.4}
+.chat-match-brief>summary>span:last-child{grid-column:2;grid-row:1 / span 2;align-self:center;color:var(--premium-ice)}
+.chat-match-brief-content{padding:0 14px 12px}
+.chat-match-brief [data-match-brief-body]{max-block-size:min(30dvh,220px,max(80px,calc(100dvh - 400px)));overflow-y:auto;overscroll-behavior:contain}
+.chat-match-brief :is(p,strong,span){overflow-wrap:anywhere}
+body[data-screen="teams"] .chat-match-brief p{font-size:.8125rem;line-height:1.5;margin:4px 0;color:var(--premium-copy)}
+.chat-match-brief [data-match-brief-body]>strong{display:none}
+.chat-match-brief-court>strong,.chat-match-brief-court>span{display:block}
+.chat-match-brief-court>strong{color:var(--premium-white)}
+.chat-match-brief-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:8px 0 0}
+.chat-match-brief-counts dt{color:var(--premium-copy);font-size:.75rem}
+.chat-match-brief-counts dd{color:var(--premium-white);margin:4px 0 0;font-size:1.125rem;font-weight:750;font-variant-numeric:tabular-nums}
+.chat-match-brief-actions{display:flex;flex-wrap:wrap;gap:8px;margin-block-start:12px}
+body[data-screen="teams"] .chat-match-brief-actions button.secondary{inline-size:auto;min-block-size:44px;max-inline-size:100%;margin:0;padding:8px 12px;background:transparent;border-color:var(--premium-line);font-size:.8125rem}
+body[data-screen="teams"] .chat-match-brief p.chat-match-brief-checked{font-size:.6875rem;margin-block-end:0}
