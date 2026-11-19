@@ -20,10 +20,11 @@ test.beforeEach(async ({page}) => {
   return route.fulfill({contentType: 'text/html', body: url.searchParams.has('large') ? shell.replace('./style.css', './style.css?large=1') : shell})
  })
 })
-async function open(page: Page, large = false, reviewQueue = false) {
+async function open(page: Page, large = false, reviewQueue = false, roster = false) {
  const params = new URLSearchParams()
  if (large) params.set('large', '1')
  if (reviewQueue) params.set('coach-review-queue', '1')
+ if (roster) params.set('coach-roster','1')
  await page.goto(origin + (params.size ? '/?' + params : '')); await expect(page.locator('.lab-scoreboard')).toContainText('4.42')
  await page.getByRole('button', {name: 'More', exact: true}).click(); await page.locator('[data-app-destination="coach"]').click()
  await page.getByRole('button', {name: 'For coaches', exact: true}).click()
@@ -34,6 +35,21 @@ async function fits(page: Page) {
  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
  expect(await page.getByRole('dialog', {name: 'Coach workspace', exact: true}).evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
 }
+for (const width of [320,390]) test('searches the whole coach roster and retains filters on return at '+width+'px', async({page})=>{
+ await page.setViewportSize({width,height:844});const d=await open(page,width===390,false,true)
+ await expect(d).toContainText('Showing the first 100 matching players.')
+ await d.getByLabel('Search players',{exact:true}).fill('Zara');await d.getByRole('button',{name:'Find players',exact:true}).click()
+ await expect(d.locator('[data-coach-student]')).toHaveCount(1);await expect(d).toContainText('Zara Patel')
+ await d.locator('[data-coach-student]').click();await expect(d.getByRole('heading',{name:'Zara Patel',exact:true})).toBeVisible()
+ await d.getByRole('button',{name:'All students',exact:true}).click();await expect(d.getByLabel('Search players',{exact:true})).toHaveValue('Zara')
+ await expect(d.locator('[data-coach-student]')).toHaveCount(1)
+ await d.getByLabel('Status',{exact:true}).selectOption('active');await d.getByRole('button',{name:'Find players',exact:true}).click();await expect(d).toContainText('No players match these filters.')
+ await d.getByRole('button',{name:'Clear filters',exact:true}).click();await expect(d.getByLabel('Search players',{exact:true})).toHaveValue('')
+ await d.getByLabel('Status',{exact:true}).selectOption('paused');await d.getByLabel('Connection',{exact:true}).selectOption('roster');await d.getByRole('button',{name:'Find players',exact:true}).click()
+ await expect(d.locator('[data-coach-student]')).toHaveCount(60);await expect(d.locator('[data-coach-student]').first()).toContainText('Roster only');await fits(page)
+ await d.evaluate(el=>{el.scrollTop=0})
+ await page.screenshot({path:'.next/coach-roster-'+width+'.png',fullPage:false})
+})
 async function openCalendarCoachDate(page: Page, title: string, large = false, fromCoachHub = false) {
  await page.clock.setFixedTime(new Date('2026-11-18T20:00:00Z'))
  await page.goto(origin + '/?coach-calendar=1&training-inbox-review=1' + (large ? '&large=1' : ''))

@@ -11,6 +11,7 @@ import {practiceReminderHref} from '../../lib/native-practice-reminder-contract'
 import type {NativePractice} from '../../lib/native-captain-practices'
 import type {PlayerPractice} from '../../lib/native-player-practice-contract'
 import {firstPartyUpdatesFixture,firstPartyUpdatesPreview,updatesFixture,updateCoachStudent} from './mobile-updates-client'
+import {coachActivityPreview} from './mobile-coach-activity'
 import {clearCoachDeviceData} from '../../mobile/src/coach-device-cleanup'
 import {coachResourcesPreview,coachMessagesPreview} from './native-coach-complete-browser'
 import {navigationOwner,currentNavigationOwner,refreshNavigationSession,switchNavigationOwner,connectNavigationPlayer,emitChatSignal,labProfileFixture,labDataReads} from './mobile-navigation-client'
@@ -740,6 +741,7 @@ window.fetch=async(input,init)=>{
   if(release.releaseScope)firstPartyTeamJoined=true
   return Response.json({ok:true,nativeTeamInvite:1,joined:true,roomId:chatRoomId,scope,...release})
  }
+ if(url.pathname==='/api/mobile/coach/activity')return coachActivityPreview(url,currentNavigationOwner())
  if(url.pathname==='/api/mobile/coach/alerts'){if(init?.method==='POST'){nativeCoachAlertFixture.enabled=JSON.parse(String(init.body)).enabled;nativeCoachAlertFixture.writes.push(nativeCoachAlertFixture.enabled)}return Response.json({ok:true,owner:currentNavigationOwner(),enabled:nativeCoachAlertFixture.enabled,available:true})}
  if(url.pathname==='/api/team-rooms/teams')return coachChatFixture.teamFail?Response.json({ok:false},{status:503}):Response.json({ok:true,owner:currentNavigationOwner(),teams:chatTeams().map(team=>({...team,canManage:canManage(team)}))})
  if(url.pathname==='/api/team-rooms'){

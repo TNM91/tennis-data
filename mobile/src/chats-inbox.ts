@@ -106,7 +106,7 @@ export function chatsInboxHtml(data:NativeTeamData){
   <ol>${[setupSteps.team,setupSteps.invite,setupSteps.teammate].map(step=>`<li><strong>${html(step.title)}</strong><p>${html(step.detail)}</p></li>`).join('')}</ol>
   <p class="rating-context">Track these steps toward your Team Rally trophy in My Lab.</p>
  </details>`:''}
- <button type="button" class="secondary" id="refresh-team">Refresh teams</button></section><div id="chats-coach-inbox" data-coach-chats></div><section class="chat-notification-settings" data-chat-notifications aria-label="${firstPartyBuild?'Hitting plan alerts':'Chat notifications'}"></section>`
+ <button type="button" class="secondary" id="refresh-team">Refresh teams</button></section><div id="chats-coach-inbox" data-coach-chats></div><section class="chat-notification-settings" data-chat-notifications aria-label="${firstPartyBuild?'Practice & coaching alerts':'Chat notifications'}"></section>`
 }
 
 /** Filters and room jumps use the current authorized count snapshot; opening still reloads room access. */

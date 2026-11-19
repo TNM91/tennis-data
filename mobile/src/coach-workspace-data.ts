@@ -7,20 +7,23 @@ import {getCoachAssignmentReview} from '../../lib/coach-storage'
 import {assignmentBoardReference} from '../../lib/shared-tactics'
 import {sameTacticalBoardReference} from '../../lib/tactical/board-reference'
 import {tiqSkills} from '../../lib/tiq-assessment-skills'
+import {coachRosterParams, type CoachRosterFilter} from '../../lib/coach-roster-filter'
 
 export type CoachSend = (method: 'GET' | 'POST' | 'PATCH', options: HttpOptions) => Promise<HttpResponse>
 const transport: CoachSend = (method, options) => method === 'GET' ? CapacitorHttp.get(options) : method === 'POST' ? CapacitorHttp.post(options) : CapacitorHttp.patch(options)
 export class CoachWorkspaceError extends Error {
   constructor(public status: number) {super(status === 403 ? 'Coach access is required for this account.' : status === 401 ? 'Sign in again to open Coach.' : status === 409 ? 'This record changed. Check saved work before trying again.' : status === 404 ? 'That student is no longer available.' : 'Coach records could not be confirmed. Check your connection and try again.')}
 }
-async function request(client: SupabaseClient, owner: string, current: () => boolean, method: 'GET' | 'POST' | 'PATCH', selected: string, data: CoachWrite | undefined, send: CoachSend) {
+async function request(client: SupabaseClient, owner: string, current: () => boolean, method: 'GET' | 'POST' | 'PATCH', selected: string, data: CoachWrite | undefined, send: CoachSend, filter?: CoachRosterFilter) {
   const session = await scenarioOwner(client, owner, current)
-  const response = await send(method, {url: 'https://www.tenaceiq.com/api/mobile/coach' + (method === 'GET' && selected ? '?' + new URLSearchParams({student: selected}) : ''), headers: {Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json', 'Cache-Control': 'no-store'}, webFetchExtra: {cache: 'no-store'}, disableRedirects: true, responseType: 'json', connectTimeout: 12000, readTimeout: 30000, ...(data ? {data} : {})})
+  const params = filter ? coachRosterParams(filter) : new URLSearchParams()
+  if (selected) params.set('student', selected)
+  const response = await send(method, {url: 'https://www.tenaceiq.com/api/mobile/coach' + (method === 'GET' && params.size ? '?' + params : ''), headers: {Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json', 'Cache-Control': 'no-store'}, webFetchExtra: {cache: 'no-store'}, disableRedirects: true, responseType: 'json', connectTimeout: 12000, readTimeout: 30000, ...(data ? {data} : {})})
   await scenarioOwner(client, owner, current)
   if (response.status !== 200) throw new CoachWorkspaceError(response.status)
   return readNativeCoach(response.data, owner, selected)
 }
-export function loadCoachWorkspace(client: SupabaseClient, owner: string, current: () => boolean, selected = '', send: CoachSend = transport) {return request(client, owner, current, 'GET', selected, undefined, send)}
+export function loadCoachWorkspace(client: SupabaseClient, owner: string, current: () => boolean, selected = '', send: CoachSend = transport, filter?: CoachRosterFilter) {return request(client, owner, current, 'GET', selected, undefined, send, filter)}
 export function coachWriteMatches(snapshot: NativeCoachSnapshot, draft: CoachWrite): boolean {
   const detail = snapshot.detail
   if (!detail) return false

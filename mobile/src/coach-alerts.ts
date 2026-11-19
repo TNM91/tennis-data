@@ -1,3 +1,4 @@
+import {firstPartyBuild} from './build-scope'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {scenarioOwner} from './captain-scenarios-data'
@@ -18,13 +19,13 @@ export function createCoachAlerts(client:SupabaseClient,registered:()=>boolean,s
   if(!host?.isConnected||!owner||disposed)return
   host.replaceChildren();host.setAttribute('aria-label','Coach message notifications');host.dataset.coachAlerts=''
   const title=document.createElement('h3');title.textContent='Coach & player alerts'
-  const description=document.createElement('p');description.textContent='Choose iPhone alerts for private Coach conversations. This account choice applies to iPhones where chat notifications are on. Message text stays private.'
+  const description=document.createElement('p');description.textContent=firstPartyBuild?'Choose iPhone alerts for assignments, player check-ins and coach feedback. Enable app notifications on this iPhone first. Practice details stay private on your lock screen.':'Choose iPhone alerts for private Coach conversations. This account choice applies to iPhones where chat notifications are on. Message text stays private.'
   const status=document.createElement('p');status.setAttribute('role','status');status.textContent=notice||(value?value.enabled?'Coach alerts are on for your account.':'Coach alerts are off.':'Checking Coach alerts…')
   const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=uncertain||!value?'Check Coach alerts':value.enabled?'Turn off Coach alerts':'Turn on Coach alerts'
   button.disabled=busy||Boolean(value&&!value.enabled&&!uncertain&&(!registered()||!value.available))
   button.onclick=()=>{void run(value&&!uncertain?!value.enabled:undefined)}
   host.append(title,description,status,button)
-  if(value&&!registered()){const hint=document.createElement('p');hint.textContent='Enable chat notifications on this iPhone to receive alerts here.';host.append(hint)}
+  if(value&&!registered()){const hint=document.createElement('p');hint.textContent=firstPartyBuild?'Enable app notifications on this iPhone to receive coaching alerts here.':'Enable chat notifications on this iPhone to receive alerts here.';host.append(hint)}
   else if(value&&!value.available){const hint=document.createElement('p');hint.textContent='iPhone delivery is temporarily unavailable. You can still turn Coach alerts off.';host.append(hint)}
  }
  const run=async(enabled?:boolean)=>{

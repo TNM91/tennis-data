@@ -9,6 +9,9 @@ import {omitAssignmentBoard} from '../../lib/shared-tactics'
 import {tacticsPreviewCopy} from './native-tactics-browser'
 const seed = coachSnapshot('student-one')
 const students = seed.students
+if (new URL(location.href).searchParams.has('coach-roster')) {
+ students.push(...Array.from({length:120},(_,i)=>({...seed.students[0],id:'roster-player-'+i,name:i===119?'Zara Patel':'Roster Player '+i,status:i%2?'paused' as const:'active' as const,linked:i%2===0})))
+}
 const assignments = new Map<string, CoachAssignment[]>([['student-one', seed.detail!.assignments]])
 if (new URL(location.href).searchParams.has('coach-review-queue')) {
  const next = seed.detail!.assignments[0]
@@ -101,7 +104,9 @@ export function coachPreviewRequest(method: string, url: URL, body?: BodyInit | 
  }
  const s = students.find(s => s.id === selected)
  if (selected && !s) return Response.json({ok: false}, {status: 404})
- return Response.json({ok: true, owner: seed.owner, checkedAt: new Date().toISOString(), students, moreStudents: false, detail: selected && s ? {student: s, assignments: (assignments.get(selected) || []).map(omitAssignmentBoard), moreAssignments: false} : null})
+ const q=(url.searchParams.get('q')||'').toLocaleLowerCase(),status=url.searchParams.get('status'),connection=url.searchParams.get('connection')
+ const roster=students.filter(s=>(!q||s.name.toLocaleLowerCase().includes(q))&&(!status||s.status===status)&&(!connection||(connection==='connected'?s.linked:!s.linked)))
+ return Response.json({ok: true, owner: seed.owner, checkedAt: new Date().toISOString(), students:roster.slice(0,100), moreStudents: roster.length>100, detail: selected && s ? {student: s, assignments: (assignments.get(selected) || []).map(omitAssignmentBoard), moreAssignments: false} : null})
 }
 
 export function coachPreviewPlayerPractice(owner:string, url:URL, method:string, body?:BodyInit|null) {

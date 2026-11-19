@@ -11,6 +11,7 @@ import {
 import { supabaseUrl } from '@/lib/supabase'
 import { coachId } from '@/lib/native-coach-contract'
 import { omitAssignmentBoard, readSharedTacticsBoard } from '@/lib/shared-tactics'
+import { scheduleCoachActivityPush } from '@/lib/native-coach-activity-push'
 
 export const runtime = 'nodejs'
 const privateJson = (body: unknown, status = 200) => Response.json(body, {status, headers: {'Cache-Control': 'private, no-store'}})
@@ -125,6 +126,7 @@ export async function PATCH(request: Request) {
     recap: body.recap,
     evidence: body.evidence,
   })
+  scheduleCoachActivityPush({actor: auth.userId, assignment: assignmentId, kind: 'checkin'})
 
   let update = service
     .from('coach_assignments')

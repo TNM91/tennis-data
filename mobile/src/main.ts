@@ -52,6 +52,7 @@ import {CALENDAR_WEEKLY_REP_CHANGED,type CalendarWeeklyRepChange} from './calend
 import {personalCalendarOccurrence,type CalendarPractice} from './calendar-data'
 import {openCourtInvite} from './explore-court-invite'
 import {createCoachNextAssignment} from './coach-next-assignment'
+import {createCoachActivityHandoff} from './coach-activity-handoff'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
 import {accountGoalScope} from './lab-goals-data'
@@ -438,6 +439,12 @@ function launchUpdates(trigger:HTMLElement){
    button.focus({preventScroll:true})
    return openPlayerPractices(client,owner,action.scope,active,()=>{},'','Back to updates',action.eventId)
   }
+  if(action.kind==='coach-activity'){
+   button.focus({preventScroll:true})
+   const activity=action.activity
+   if(activity.kind==='checkin')return openCoachWorkspace(client,owner,active,undefined,button,{student:activity.student,assignment:activity.assignment})
+   return openLevelUp(client,owner,active,{view:'coach',...(activity.kind==='feedback'?{feedbackId:activity.assignment}:{assignmentId:activity.assignment}),onClose:work=>coachNextAssignment.update(owner,work)})
+  }
   if(action.kind==='coach-message')return openCoachMessages(client,owner,active,button,undefined,action.student,undefined,()=>{void chatUnread.refresh()})
   if(action.kind==='coach-plan'){
    button.focus({preventScroll:true})
@@ -677,10 +684,19 @@ function showHub(next:AppHub,{fromLab=false,returnTeam,browseFirst=false}:{fromL
 }
 const coachIncoming=document.createElement('aside');coachIncoming.hidden=true;app.before(coachIncoming)
 const coachHandoff=createCoachAlertHandoff(coachIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(student,owner)=>{if(session?.user.id!==owner)return;showHub('coach');const visit=revision;coachWorkspace=openCoachMessages(client,owner,()=>visit===revision&&owner===session?.user.id,undefined,undefined,student,undefined,()=>{void chatUnread.refresh()})},undefined,undefined,()=>authReady&&document.body.dataset.screen==='lab'&&app.dataset.state==='ready'&&document.visibilityState==='visible')
+const activityIncoming=document.createElement('aside');activityIncoming.hidden=true;app.before(activityIncoming)
+const activityHandoff=createCoachActivityHandoff(activityIncoming,client,()=>session?.user.id||null,()=>revision,()=>Boolean(connection?.isSaving()||document.querySelector('dialog[open]')),guardNavigation,(activity,owner)=>{
+ if(session?.user.id!==owner)return
+ showHub('coach');const visit=revision,current=()=>visit===revision&&owner===session?.user.id
+ if(activity.kind==='checkin')coachWorkspace=openCoachWorkspace(client,owner,current,undefined,undefined,{student:activity.student,assignment:activity.assignment})
+ else training=openLevelUp(client,owner,current,{view:'coach',...(activity.kind==='feedback'?{feedbackId:activity.assignment}:{assignmentId:activity.assignment}),onClose:work=>coachNextAssignment.update(owner,work)})
+ void updatesCounter.refresh()
+},undefined,undefined,()=>authReady&&app.dataset.state==='ready'&&document.visibilityState==='visible')
 const coachAlerts=createCoachAlerts(client,()=>nativePush.isEnabled())
 const chatReceipts=createChatReceiptRefresh(async owner=>{if(session?.user.id===owner)await chatUnread.refresh()})
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope),{
  onCoachOpen:(id,owner)=>coachHandoff.receive(id,owner),
+ onCoachActivityOpen:(id,owner)=>activityHandoff.receive(id,owner),
  onHitOpen:(href,owner)=>{if(session?.user.id===owner&&appLinks.receive(href))resumeAppLink()},
  onReceive:owner=>{if(firstPartyBuild){if(session?.user.id===owner)void updatesCounter.refresh()}else chatReceipts.receive(owner)},
  mountCoachAlerts:host=>coachAlerts.mount(host),
@@ -695,7 +711,7 @@ const signOut=createNativeSignOut(client,async owner=>{
  await nativePush.beforeSignOut(owner)
  if(teamScoreDrafts?.owner===owner)await teamScoreDrafts.clear()
 },()=>session?.user.id||null)
-function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.supportsCoachAlerts())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
+function setNativeSession(next:typeof session){if(next){biometricLogin?.dispose();biometricLogin=null}chatReceipts.setOwner(next?.user.id||null);nativePush.setSession(next);if(nativePush.supportsCoachAlerts())coachAlerts.setOwner(next?.user.id||null);coachHandoff.syncOwner();activityHandoff.syncOwner();nativePurchases.setOwner(next?.user.id||null);updatesCounter.setOwner(next?.user.id||null);chatUnread.setOwner(next?.user.id||null)}
 
 function focusLabCoachShortcut(shortcuts: HTMLElement, ...sectionsAbove: HTMLElement[]) {
   const shortcut = shortcuts.querySelector<HTMLButtonElement>('[data-app-destination="coach"]')
@@ -1014,7 +1030,7 @@ client.auth.onAuthStateChange((_event, next) => {
         if(resume&&!appLinks.peek())openExplore(resume)
         else await lab()
       }else login()
-      if(next?.user.id===session?.user.id){setNativeSession(session);authReady=true;if(session&&(resume||resumeLink))resumeAppLink();coachHandoff.resume()}
+      if(next?.user.id===session?.user.id){setNativeSession(session);authReady=true;if(session&&(resume||resumeLink))resumeAppLink();coachHandoff.resume();activityHandoff.resume()}
     })()
   }, 0)
 })
@@ -1023,7 +1039,7 @@ client.auth.getSession().catch(() => {
   if(!session&&!guest)login()
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !hasOpenLabEdit() && !agenda?.isOpen() && !courtInvite?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { if(session)void nativePurchases.recover(session.user.id).catch(()=>{}); client.auth.startAutoRefresh(); if (session && !hasOpenLabEdit() && !agenda?.isOpen() && !courtInvite?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab().finally(()=>activityHandoff.resume()); else activityHandoff.resume() }
   else {if(!updates?.hasChild()){updates?.dispose();updates=null}labRatingTrends?.dispose();labRatingTrends=null;client.auth.stopAutoRefresh()}
 })
 window.addEventListener('online', () => { if (session && !hasOpenLabEdit() && !agenda?.isOpen() && !courtInvite?.isOpen() && !updates?.isOpen() && !sharedMatch?.isOpen() && !teamInvite?.isOpen() && !accountSettings?.isOpen() && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !competitions?.isOpen() && !tournaments?.isOpen() && !coachWorkspace?.isOpen() && !hub && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })

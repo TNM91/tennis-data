@@ -1,6 +1,7 @@
 import { accountClient, accountResponse, readAccountJson, verifiedAccount } from '@/lib/mobile-account-auth'
 import { supabaseKey } from '@/lib/supabase-public-config'
 import { confirmUpdatesRead, UPDATE_PAGE_SIZE, updateCategories, updateCursorFilter, validUpdateIds, type UpdateFilter } from '@/lib/native-updates-contract'
+import {coachActivityHeader, coachActivityVersion} from '@/lib/coach-activity'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -21,9 +22,12 @@ export async function GET(request: Request) {
     if (!['list', 'count'].includes(op) || [...params.keys()].some(key => !allowed.includes(key) || params.getAll(key).length !== 1)) return denied(400)
 
     const owner = account.user.id, client = accountClient(supabaseKey, account.token)
+    const coachActivity = request.headers.get(coachActivityHeader) === coachActivityVersion
     if (op === 'count') {
-      const { count, error } = await client.from(source).select('id', { head: true, count: 'exact' })
+      let query = client.from(source).select('id', { head: true, count: 'exact' })
         .eq('recipient_profile_id', owner).is('read_at', null).retry(false)
+      if (!coachActivity) query = query.not('href', 'like', '/coach?student=%')
+      const {count, error} = await query
       if (error || typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) return denied(503)
       return json({ ok: true, owner, count })
     }
@@ -39,6 +43,7 @@ export async function GET(request: Request) {
     let query = client.from(source)
       .select('id,recipient_profile_id,notification_type,title,body,href,conversation_id,schedule_event_id,read_at,created_at')
       .eq('recipient_profile_id', owner)
+    if (!coachActivity) query = query.not('href', 'like', '/coach?student=%')
     if (unread === '1') query = query.is('read_at', null)
     if (category === 'other') query = query.in('notification_type', ['support', 'system'])
     else if (category !== 'all') query = query.eq('notification_type', category)

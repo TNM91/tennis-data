@@ -10,6 +10,7 @@ import {nativeNotificationCleanup} from './native-notification-cleanup'
 import type {TeamChatDestination} from './team-room-data'
 import {firstPartyBuild} from './build-scope'
 import {pushCoachDestination} from './coach-alert-handoff'
+import {coachActivityHeader, coachActivityVersion, readCoachActivityPush} from '../../lib/coach-activity'
 import type {ChatUnread} from './chat-unread'
 import {readAppLink} from './app-links'
 type Installation={id:string;secret:string;owner:string}
@@ -32,16 +33,16 @@ export function pushHitDestination(data:unknown,userId:string):string|null {
  return link?.kind==='player-chat'&&link.hit?href:null
 }
 export async function nativePushRequest(session:Session,data?:unknown,transport=CapacitorHttp,hits=firstPartyBuild):Promise<PushReply>{
- const options={url:'https://www.tenaceiq.com/api/mobile/'+(hits?'first-party/hit-alerts':'push'),headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json'},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:12000}
+ const options={url:'https://www.tenaceiq.com/api/mobile/'+(hits?'first-party/hit-alerts':'push'),headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',...(hits?{[coachActivityHeader]:coachActivityVersion}:{})},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:12000}
  const response=data===undefined?await transport.get(options):await transport.post({...options,data})
  if(response.status!==200 || response.data?.ok!==true)throw Error('Notification settings could not be saved.')
  return response.data
 }
-export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;clearDelivered?:()=>Promise<void>;setBadge?:(count:number)=>Promise<{applied:boolean}>;request?:(session:Session,data?:unknown)=>Promise<PushReply>;onCoachOpen?:(conversation:string,owner:string)=>void;onHitOpen?:(href:string,owner:string)=>void;onReceive?:(owner:string)=>void;mountCoachAlerts?:(host:HTMLElement)=>void}={}) {
+export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;clearDelivered?:()=>Promise<void>;setBadge?:(count:number)=>Promise<{applied:boolean}>;request?:(session:Session,data?:unknown)=>Promise<PushReply>;onCoachOpen?:(conversation:string,owner:string)=>void;onCoachActivityOpen?:(notice:string,owner:string)=>void;onHitOpen?:(href:string,owner:string)=>void;onReceive?:(owner:string)=>void;mountCoachAlerts?:(host:HTMLElement)=>void}={}) {
  const hitAlerts=firstPartyBuild
  const supported=(deps.platform || Capacitor.getPlatform())==='ios'
  const storageKey=hitAlerts?'native-hit-push-installation-v1':'native-push-installation-v1'
- const alertName=hitAlerts?'hitting plan alerts':'chat notifications'
+ const alertName=hitAlerts?'app notifications':'chat notifications'
  const plugin=deps.plugin || PushNotifications,storage=deps.storage || (supported?getNativeAuthStorage():undefined),request=deps.request || nativePushRequest
  const clearDelivered=deps.clearDelivered || (()=>nativeNotificationCleanup.clearDelivered()),setBadge=deps.setBadge || (count=>nativeNotificationCleanup.setBadge({count}))
  let disposed=false,resumeHandle:PluginListenerHandle|null=null,initialized=false,current:Session|null=null,version=0,host:HTMLElement|null=null,installation:Installation|null=null,available=false,busy=false,notice='Checking '+alertName+'…',actionHandle:PluginListenerHandle|null=null,receiptHandle:PluginListenerHandle|null=null
@@ -69,13 +70,14 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
  const render=()=>{
   if(!host?.isConnected || !supported || !current)return
   host.replaceChildren()
-  const title=document.createElement('h2');title.textContent=hitAlerts?'Hitting plan alerts':'Chat notifications'
-  const text=document.createElement('p');text.textContent=hitAlerts?'Get an iPhone reminder before an upcoming confirmed hit. Tap it to open your plan and directions.':'Allow chat notifications on this iPhone. iPhone Settings controls banners, sounds and badges. Team and room mute settings still apply. Coach & player alerts are a separate choice below. Message text stays private.'
+  host.setAttribute('aria-label',hitAlerts?'Practice & coaching alerts':'Chat notifications')
+  const title=document.createElement('h2');title.textContent=hitAlerts?'Practice & coaching alerts':'Chat notifications'
+  const text=document.createElement('p');text.textContent=hitAlerts?'Get reminders for upcoming hitting plans. Choose coaching activity alerts below. iPhone Settings controls banners and sounds.':'Allow chat notifications on this iPhone. iPhone Settings controls banners, sounds and badges. Team and room mute settings still apply. Coach & player alerts are a separate choice below. Message text stays private.'
   const status=document.createElement('p');status.setAttribute('role','status');status.textContent=notice
   const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=busy;button.textContent=installation?.owner===current.user.id?'Turn off '+alertName:available?'Enable '+alertName:'Check '+alertName
   button.onclick=()=>{void enqueue(async()=>{if(!current)return;busy=true;render();try{if(installation?.owner===current.user.id)await disable(current);else await enable(true)}catch{notice='Couldn’t save '+alertName+'. Check your connection and try again.'}finally{busy=false;render()}})}
   host.append(title,text,status,button)
-  if(!hitAlerts&&deps.mountCoachAlerts){const coach=document.createElement('section');host.append(coach);deps.mountCoachAlerts(coach)}
+  if(deps.mountCoachAlerts){const coach=document.createElement('section');host.append(coach);deps.mountCoachAlerts(coach)}
  }
  const load=async()=>{
   if(installation)return installation
@@ -91,7 +93,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   await request(session,{installationId:device.id,secret:device.secret,enabled:false})
   await plugin.unregister()
   await clearAlerts()
-  device.owner='';await save();notice=hitAlerts?'Hitting plan alerts are off on this iPhone.':'Chat notifications are off on this iPhone. Your Coach alert choice stays saved.'
+  device.owner='';await save();notice=hitAlerts?'App notifications are off on this iPhone.':'Chat notifications are off on this iPhone. Your Coach alert choice stays saved.'
  }
  const getToken=async()=>{
   let done=false,timer:ReturnType<typeof setTimeout>|undefined,resolveToken:(token:string)=>void=()=>{},rejectToken:()=>void=()=>{}
@@ -112,7 +114,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   const device=await load(),capabilities=await request(session)
   if(!valid(session.user.id,epoch))return
   available=capabilities.available===true
-  if(!available){notice=hitAlerts?'Hitting plan alerts are unavailable right now.':'Chat notifications are being prepared. Check again soon.';return}
+  if(!available){notice=hitAlerts?'App notifications are unavailable right now.':'Chat notifications are being prepared. Check again soon.';return}
   let permission=await plugin.checkPermissions()
   if(prompt && permission.receive==='prompt')permission=await plugin.requestPermissions()
   if(!valid(session.user.id,epoch))return
@@ -126,16 +128,17 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   await request(session,{installationId:device.id,secret:device.secret,token,enabled:true})
   device.owner=session.user.id;await save()
   if(!valid(session.user.id,epoch)){await disable(session);return}
-  notice=hitAlerts?'Hitting plan alerts are on for this iPhone.':'Chat notifications are on for this iPhone. Mute, block and account choices still apply.'
+  notice=hitAlerts?'App notifications are on for this iPhone.':'Chat notifications are on for this iPhone. Mute, block and account choices still apply.'
   if(prompt)badgeStopped=false
   badgeApplied=null;scheduleBadge()
  }
  const openAlert=(data:unknown,user:string)=>{
+  const activity=readCoachActivityPush(data,user);if(activity){deps.onCoachActivityOpen?.(activity,user);return}
   if(hitAlerts){const href=pushHitDestination(data,user);if(href)deps.onHitOpen?.(href,user);return}
   const scope=pushTeamDestination(data,user);if(scope)onOpen(scope);else{const conversation=pushCoachDestination(data,user);if(conversation)deps.onCoachOpen?.(conversation,user)}
  }
  if(supported)void plugin.addListener('pushNotificationActionPerformed',event=>{if(disposed)return;if(!initialized){const data=event.notification.data;pendingAction={recipient:data?.recipient,href:data?.href};return}const session=current;if(session)openAlert(event.notification.data,session.user.id)}).then(handle=>{if(disposed)void handle.remove();else actionHandle=handle}).catch(()=>{})
- if(supported)void plugin.addListener('pushNotificationReceived',notification=>{const user=current?.user.id;if(disposed||!initialized||!user||installation?.owner!==user)return;if(hitAlerts?pushHitDestination(notification?.data,user):pushTeamDestination(notification?.data,user)||pushCoachDestination(notification?.data,user))deps.onReceive?.(user)}).then(handle=>{if(disposed)void handle.remove();else receiptHandle=handle}).catch(()=>{if(!disposed)console.warn('native_chat_receipt_listener_unavailable')})
+ if(supported)void plugin.addListener('pushNotificationReceived',notification=>{const user=current?.user.id;if(disposed||!initialized||!user||installation?.owner!==user)return;if(readCoachActivityPush(notification?.data,user)||(hitAlerts?pushHitDestination(notification?.data,user):pushTeamDestination(notification?.data,user)||pushCoachDestination(notification?.data,user)))deps.onReceive?.(user)}).then(handle=>{if(disposed)void handle.remove();else receiptHandle=handle}).catch(()=>{if(!disposed)console.warn('native_chat_receipt_listener_unavailable')})
  if(supported && !deps.platform)void App.addListener('appStateChange',state=>{if(!state.isActive || busy || !current || installation?.owner!==current.user.id || disposed)return;void enqueue(async()=>{busy=true;try{await enable(false)}catch{notice='Couldn’t refresh '+alertName+'. Check your connection and try again.'}finally{busy=false;render()}})}).then(handle=>{if(disposed)void handle.remove();else resumeHandle=handle}).catch(()=>{})
  return {
   mount(element:HTMLElement){host=element;if(!supported)element.hidden=true;else render()},
@@ -157,7 +160,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
      if(!valid(session.user.id,epoch))return
      busy=true;render()
      if(device.owner===session.user.id)await enable(false)
-     else{if(!hitAlerts){await plugin.unregister();await clearAlerts()}const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable '+alertName+' when you’re ready.':hitAlerts?'Hitting plan alerts are unavailable right now.':'Chat notifications are being prepared. Check again soon.'}}
+     else{if(!hitAlerts){await plugin.unregister();await clearAlerts()}const result=await request(session);if(valid(session.user.id,epoch)){available=result.available===true;notice=available?'Choose Enable '+alertName+' when you’re ready.':hitAlerts?'App notifications are unavailable right now.':'Chat notifications are being prepared. Check again soon.'}}
     }catch{notice='Can’t check '+alertName+'. Try again when you’re connected.'}finally{busy=false;render()}
    })
   },
@@ -167,7 +170,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   },
   beforeSignOut(expectedOwner=current?.user.id){if(current?.user.id===expectedOwner)badgeStopped=true;return enqueue(async()=>{try{if(!supported)return;if(!current){if(expectedOwner)throw Error('Account changed');return}if(current.user.id!==expectedOwner)throw Error('Account changed');const {data,error}=await client.auth.getSession();if(error||current?.user.id!==expectedOwner||data.session?.user.id!==expectedOwner)throw Error('Sign in again before changing alerts');const device=await load();if(current?.user.id!==expectedOwner)throw Error('Account changed');if(device.owner===expectedOwner)await disable(data.session);else if(!hitAlerts){await plugin.unregister();await clearAlerts()}}catch(error){if(current?.user.id===expectedOwner){badgeStopped=false;scheduleBadge()}throw error}})},
   isEnabled(){return !disposed&&Boolean(current&&installation?.owner===current.user.id)&&!busy},
-  supportsCoachAlerts(){return supported&&!hitAlerts},
+  supportsCoachAlerts(){return supported},
   dispose(){disposed=true;version++;current=null;badgeCount=null;badgeRevision++;void actionHandle?.remove();void receiptHandle?.remove();void resumeHandle?.remove()},
  }
 }

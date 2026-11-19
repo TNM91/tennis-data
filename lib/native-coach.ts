@@ -4,6 +4,7 @@ import {buildCoachStudentLinkPayload, buildCoachAssignmentPayload, buildCoachAss
 import {readNativeCoach, type NativeCoachStudent, type CoachCreate, type CoachReview, type CoachEdit} from './native-coach-contract'
 import {loadSharedTacticsBoard, omitAssignmentBoard} from './shared-tactics'
 import {tiqSkills} from './tiq-assessment-skills'
+import {coachRosterPattern, emptyCoachRosterFilter, type CoachRosterFilter} from './coach-roster-filter'
 
 const studentFields = 'id,coach_user_id,player_user_id,player_name,identity_slug,level_label,player_email,player_phone,contact_preference,status,notes,updated_at'
 const assignmentFields = 'id,coach_user_id,student_link_id,title,focus,due_date,status,assignment_json,updated_at'
@@ -20,8 +21,13 @@ async function ownStudent(client: SupabaseClient, owner: string, id: string) {
   if (!data) throw new NativeCoachFault(404, 'That student is no longer in your Coach workspace.')
   return student(data as CoachStudentLinkRow, owner,true)
 }
-export async function loadNativeCoach(client: SupabaseClient, owner: string, selected = '') {
-  const {data, error} = await client.from('coach_player_links').select(studentFields).eq('coach_user_id', owner).order('updated_at', {ascending: false}).limit(101).abortSignal(AbortSignal.timeout(12000))
+export async function loadNativeCoach(client: SupabaseClient, owner: string, selected = '', filter: CoachRosterFilter = emptyCoachRosterFilter()) {
+  let roster = client.from('coach_player_links').select(studentFields).eq('coach_user_id', owner)
+  if (filter.q) roster = roster.ilike('player_name', coachRosterPattern(filter.q))
+  if (filter.status !== 'all') roster = roster.eq('status', filter.status)
+  if (filter.connection === 'connected') roster = roster.not('player_user_id', 'is', null)
+  if (filter.connection === 'roster') roster = roster.is('player_user_id', null)
+  const {data, error} = await roster.order('updated_at', {ascending: false}).order('id', {ascending: true}).limit(101).abortSignal(AbortSignal.timeout(12000))
   if (error) throw Error('Coach students unavailable')
   const students = ((data ?? []) as CoachStudentLinkRow[]).slice(0, 100).map(row => student(row, owner))
   let detail = null

@@ -644,13 +644,14 @@ test('past confirmed hits open a private prefilled scorecard and reopen the save
 })
 
 test('a hitting plan push opens the right chat after enabling iPhone alerts',async({page})=>{
+ await page.clock.setFixedTime(new Date('2026-11-18T23:50:00Z'))
  await useFirstPartyNavigation(page)
  await page.goto(origin+'/?player-chat=1&chat-hit=1&hit-alerts=1')
  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
- const alerts=page.getByRole('region',{name:'Hitting plan alerts',exact:true})
+ const alerts=page.getByRole('region',{name:'Practice & coaching alerts',exact:true})
  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'hitAlertsFixture').writes)).toEqual([])
- await alerts.getByRole('button',{name:'Enable hitting plan alerts',exact:true}).click()
- await expect(alerts).toContainText('Hitting plan alerts are on for this iPhone.')
+ await alerts.getByRole('button',{name:'Enable app notifications',exact:true}).click()
+ await expect(alerts).toContainText('App notifications are on for this iPhone.')
  await page.evaluate(()=>{
   const fixture=Reflect.get(window,'playerChatFixture')
   fixture.title='Jamie'
@@ -667,8 +668,8 @@ test('a hitting plan push opens the right chat after enabling iPhone alerts',asy
  const chat=page.getByRole('dialog',{name:'Jamie',exact:true})
  await expect(chat.getByRole('heading',{name:'Hitting plan'})).toBeFocused()
  await chat.getByRole('button',{name:'Close',exact:true}).click()
- await alerts.getByRole('button',{name:'Turn off hitting plan alerts',exact:true}).click()
- await expect(alerts).toContainText('Hitting plan alerts are off on this iPhone.')
+ await alerts.getByRole('button',{name:'Turn off app notifications',exact:true}).click()
+ await expect(alerts).toContainText('App notifications are off on this iPhone.')
  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'hitAlertsFixture').writes)).toEqual([true,false])
 })
 

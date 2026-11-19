@@ -9,6 +9,7 @@ import {openCoachInvitations} from './coach-invites-view'
 import {openCoachAssessments} from './coach-assessments-view'
 import {coachReviewQueue, coachReviewQueueHtml} from './coach-review-queue'
 import {coachFollowUpFields, coachFollowUpHtml} from './coach-follow-up'
+import {coachRosterStatuses, coachRosterConnections, emptyCoachRosterFilter, readCoachRosterFilter} from '../../lib/coach-roster-filter'
 
 type View = 'students' | 'student' | 'assignment' | 'add' | 'assign' | 'review' | 'confirm' | 'edit-student' | 'edit-assignment'
 const statusLabel = (s: string) => ({active: 'Active', needs_assignment: 'Needs assignment', review_notes: 'Review notes', paused: 'Paused', draft: 'Draft', assigned: 'Assigned', completed: 'Completed', archived: 'Archived'})[s] || s
@@ -20,9 +21,9 @@ function confirmationHtml(draft: CoachWrite, state: {linked: boolean; busy: bool
       content = `<p>${draft.kind==='student'?'Create a coach-only roster record. No invitation is sent and no player account is connected.':'Update your student’s roster details and private coaching notes.'}</p><h3>${html(draft.name)}</h3><p>${html(draft.level)}</p>${draft.kind==='edit-student'?'<p>'+html(statusLabel(draft.status))+'</p>':''}<p class="coach-written">${html(draft.notes)}</p>`
     } else {
       label = draft.kind==='edit-assignment'?'Save assignment changes':draft.status === 'draft' ? 'Save draft' : 'Assign practice'
-      content = `<p>${draft.kind==='edit-assignment'?'Update these practice details. Saved player check-ins and your feedback are retained.':draft.status === 'draft' ? 'Save a draft for your own planning.' : state.linked ? 'Make this assignment available to the connected student.' : 'Save this work to your coach roster. It appears in the student’s app after a coach connection is accepted.'} No team message or push alert is sent.</p><h3>${html(draft.title)}</h3><p>${html(draft.focus)}</p><p>${html(statusLabel(draft.status))}${draft.dueDate ? ' · Due ' + html(draft.dueDate) : ' · No due date'}</p><p class="coach-written">${html(draft.instructions)}</p><p><strong>Proof:</strong> ${html(draft.evidence || 'No extra proof requested.')}</p>`
+      content = `<p>${draft.kind==='edit-assignment'?'Update these practice details. Saved player check-ins and your feedback are retained.':draft.status === 'draft' ? 'Save a draft for your own planning.' : state.linked ? 'Make this assignment available to the connected student.' : 'Save this work to your coach roster. It appears in the student’s app after a coach connection is accepted.'}${state.linked && draft.kind==='assignment'&&draft.status==='assigned'?' The player can receive an update in Updates and optional iPhone alerts.':''}</p><h3>${html(draft.title)}</h3><p>${html(draft.focus)}</p><p>${html(statusLabel(draft.status))}${draft.dueDate ? ' · Due ' + html(draft.dueDate) : ' · No due date'}</p><p class="coach-written">${html(draft.instructions)}</p><p><strong>Proof:</strong> ${html(draft.evidence || 'No extra proof requested.')}</p>`
     }
-  } else content = `<p>Save feedback on the player’s completed check-in. Assignment completion stays unchanged.</p><p class="coach-written">${html(draft.note)}</p><p><strong>Next focus:</strong> ${html(draft.nextFocus)}</p>`
+  } else content = `<p>Save feedback on the player’s completed check-in. Connected players can receive an update in Updates and optional iPhone alerts.</p><p class="coach-written">${html(draft.note)}</p><p><strong>Next focus:</strong> ${html(draft.nextFocus)}</p>`
   return content + `<button type="button" data-coach-save ${state.busy || state.uncertain || state.conflict ? 'disabled' : ''}>${state.attempted ? 'Retry same update' : label}</button>${state.attempted ? `<button type="button" class="secondary" data-coach-check ${state.busy ? 'disabled' : ''}>Check saved work</button>` : '<button type="button" class="secondary" data-coach-edit>Edit details</button>'}`
 }
 export function coachAssignmentHtml(a: CoachAssignment) {
@@ -30,7 +31,7 @@ export function coachAssignmentHtml(a: CoachAssignment) {
   const summary = getCoachAssignmentSummary(a.assignment), check = getPlayerAssignmentCheckIn(a.assignment), review = getCoachAssignmentReview(a.assignment)
   return `<section class="coach-plan"><small>${html(statusLabel(a.status))}${a.dueDate ? ' · Due ' + html(a.dueDate) : ''}</small><h3>${html(a.title)}</h3>${a.focus ? `<p>${html(a.focus)}</p>` : ''}${summary.detail ? `<p class="coach-written">${html(summary.detail)}</p>` : ''}${summary.volume ? `<p>${html(summary.volume)}</p>` : ''}${summary.tracker.length ? `<ul>${summary.tracker.map(t => `<li>${html(t)}</li>`).join('')}</ul>` : ''}${summary.expectedEvidence ? `<p><strong>Proof to bring:</strong> ${html(summary.expectedEvidence)}</p>` : ''}${summary.prompt ? `<p>${html(summary.prompt)}</p>` : ''}</section>${pack?`<section class="coach-proof"><h3>${html(pack.pack.title)}</h3><p>${pack.completed} of ${pack.total} reps completed</p><ul>${pack.pack.items.map(i=>`<li><strong>${html(i.title)}</strong> · ${html(i.status)}<p>${html(i.proof)}</p>${i.recap?`<p>${html(i.recap)}</p>`:""}${i.evidence?`<p>${html(i.evidence)}</p>`:""}</li>`).join("")}</ul></section>`:""}${check ? `<section class="coach-proof"><h3>Player check-in</h3><p class="coach-written">${html(check.recap)}</p><p class="coach-written">${html(check.evidence)}</p></section>` : '<p>No player check-in is recorded.</p>'}${review ? `<section><h3>Your feedback</h3><p class="coach-written">${html(review.note)}</p><p><strong>Next focus:</strong> ${html(review.nextFocus)}</p></section>` : ''}`
 }
-export function openCoachWorkspace(client: SupabaseClient, owner: string, current: () => boolean, send?: CoachSend, trigger?: HTMLElement) {
+export function openCoachWorkspace(client: SupabaseClient, owner: string, current: () => boolean, send?: CoachSend, trigger?: HTMLElement, initial?: {student: string; assignment: string}) {
   const previous = trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
   const dialog = document.createElement('dialog'); dialog.className = 'captain-lineup-dialog coach-workspace-dialog'; dialog.setAttribute('aria-label', 'Coach workspace')
   let disposed = false, busy = false, version = 0, selected = '', assignmentId = '', view: View = 'students', formView: View = 'add'
@@ -39,8 +40,9 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
   let invitations: ReturnType<typeof openCoachInvitations> | null = null
   let assessments: ReturnType<typeof openCoachAssessments> | null = null
   let followUpSourceId = ''
+  let rosterFilter = emptyCoachRosterFilter(), rosterDraft = emptyCoachRosterFilter(), initialAssignment = initial?.assignment
   const active = () => !disposed && current(), focus = () => dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll: true})
-  const dispose = () => {if (disposed) return; disposed = true; invitations?.dispose(); invitations = null; assessments?.dispose(); assessments = null; version++; snapshot = null; draft = null; fields = {}; followUpSourceId = ''; leaveAction = null; document.removeEventListener('visibilitychange', visibility); dialog.close(); dialog.remove(); if (current() && previous?.isConnected) previous.focus({preventScroll: true})}
+  const dispose = () => {if (disposed) return; disposed = true; invitations?.dispose(); invitations = null; assessments?.dispose(); assessments = null; version++; snapshot = null; draft = null; fields = {}; rosterFilter = emptyCoachRosterFilter(); rosterDraft = emptyCoachRosterFilter(); initialAssignment = undefined; followUpSourceId = ''; leaveAction = null; document.removeEventListener('visibilitychange', visibility); dialog.close(); dialog.remove(); if (current() && previous?.isConnected) previous.focus({preventScroll: true})}
   // Keep edits in memory through app switching; account changes still dispose the workspace.
   const visibility = () => {if (!current()) dispose()}
   const isEditing = () => ['add', 'assign', 'review', 'confirm','edit-student','edit-assignment'].includes(view)
@@ -65,8 +67,16 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
   }
   const load = async (id = '') => {
     if (!active() || busy) return
-    const visit = ++version; busy = true; notice = 'Loading your Coach records…'; selected = id; snapshot = null; followUpSourceId = ''; render()
-    try {const found = await loadCoachWorkspace(client, owner, () => active() && visit === version, id, send); if (active() && visit === version) {snapshot = found; view = id ? 'student' : 'students'; notice = ''}}
+    const visit = ++version; busy = true; notice = 'Loading your Coach records…'; selected = id; view = id ? 'student' : 'students'; snapshot = null; followUpSourceId = ''; render()
+    try {const found = await loadCoachWorkspace(client, owner, () => active() && visit === version, id, send, rosterFilter); if (active() && visit === version) {
+      snapshot = found; notice = ''
+      if (initialAssignment) {
+        const match = found.detail?.assignments.find(a => a.id === initialAssignment)
+        if (match) {assignmentId = match.id; view = 'assignment'}
+        else notice = 'That assignment is unavailable. Refresh this player’s work to check its current status.'
+        initialAssignment = undefined
+      }
+    }}
     catch (error) {if (active() && visit === version) notice = error instanceof CoachWorkspaceError ? error.message : 'Coach records are unavailable. Try again when connected.'}
     finally {if (active() && visit === version) {busy = false; render(); focus()}}
   }
@@ -128,11 +138,21 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
       ${coachReviewQueueHtml(detail!.assignments, detail!.moreAssignments)}
       ${coachFollowUpHtml(followUp, s.status === 'paused')}
       ${s.notes ? `<details><summary>Private coaching notes</summary><p class="coach-written">${html(s.notes)}</p></details>` : ''}<button type="button" class="secondary" data-coach-edit-student>Edit student</button><button type="button" data-coach-assign ${s.status === 'paused' ? 'disabled' : ''}>Assign practice</button>${s.status === 'paused' ? '<p>This connection is paused. Use Edit student to resume it before assigning work.</p>' : ''}<h3>Assignments</h3><p class="coach-count">${detail!.assignments.length}${detail!.moreAssignments ? '+' : ''} loaded · newest 100 at most</p><div class="coach-record-list">${sortCoachAssignmentsForReview(detail!.assignments).map((a, i) => `<button type="button" class="secondary coach-record" data-coach-assignment="${i}"><span><strong>${html(a.title)}</strong><small>${html(assignmentNeedsCoachReview(a) ? 'Check-in to review' : statusLabel(a.status))}${a.dueDate ? ' · ' + html(a.dueDate) : ''}</small></span><span aria-hidden="true">›</span></button>`).join('') || '<p>No saved assignments for this student yet.</p>'}</div>`
-    else if (snapshot) content = `<p class="coach-count">${snapshot.students.length}${snapshot.moreStudents ? '+' : ''} student${snapshot.students.length === 1 && !snapshot.moreStudents ? '' : 's'} loaded · ${snapshot.students.filter(s => s.linked).length} connected</p><button type="button" data-coach-add>Add a student</button><div class="coach-record-list">${snapshot.students.map((s, i) => `<button type="button" class="secondary coach-record" data-coach-student="${i}"><span class="coach-avatar" aria-hidden="true">${html(s.name.trim().slice(0, 1).toUpperCase())}</span><span><strong>${html(s.name)}</strong><small>${html([s.level, statusLabel(s.status), s.linked ? 'Connected' : 'Roster only'].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`).join('') || '<p>No students are saved to your Coach account yet. Add a roster record to start planning.</p>'}</div>${snapshot.moreStudents ? '<p>Showing your 100 most recently updated students. Refresh after updating older records to bring them into this list.</p>' : ''}`
+    else if (snapshot) content = `<p class="coach-count">${snapshot.students.length}${snapshot.moreStudents ? '+' : ''} player${snapshot.students.length === 1 && !snapshot.moreStudents ? '' : 's'} shown · ${snapshot.students.filter(s => s.linked).length} connected</p><button type="button" data-coach-add>Add a student</button><div class="coach-record-list">${snapshot.students.map((s, i) => `<button type="button" class="secondary coach-record" data-coach-student="${i}"><span class="coach-avatar" aria-hidden="true">${html(s.name.trim().slice(0, 1).toUpperCase())}</span><span><strong>${html(s.name)}</strong><small>${html([s.level, statusLabel(s.status), s.linked ? 'Connected' : 'Roster only'].filter(Boolean).join(' · '))}</small></span><span aria-hidden="true">›</span></button>`).join('') || (rosterFilter.q || rosterFilter.status !== 'all' || rosterFilter.connection !== 'all' ? '<p>No players match these filters. Try another name or clear the filters.</p>' : '<p>No students are saved to your Coach account yet. Add a roster record to start planning.</p>')}</div>${snapshot.moreStudents ? '<p>Showing the first 100 matching players. Search by name or narrow the filters to find another player.</p>' : ''}`
+    if (view === 'students' && !leaving) content = `<form class="coach-roster-filter" data-coach-roster role="search" aria-label="Find a player">
+      <label for="coach-roster-q">Search players</label><input id="coach-roster-q" type="search" name="q" maxlength="100" value="${html(rosterDraft.q)}" placeholder="Player name" ${busy ? 'disabled' : ''}>
+      <div class="coach-roster-options"><div><label for="coach-roster-status">Status</label><select id="coach-roster-status" name="status" ${busy ? 'disabled' : ''}>${coachRosterStatuses.map(status => `<option value="${status}" ${rosterDraft.status === status ? 'selected' : ''}>${status === 'all' ? 'All statuses' : html(statusLabel(status))}</option>`).join('')}</select></div>
+      <div><label for="coach-roster-connection">Connection</label><select id="coach-roster-connection" name="connection" ${busy ? 'disabled' : ''}>${coachRosterConnections.map(connection => `<option value="${connection}" ${rosterDraft.connection === connection ? 'selected' : ''}>${({all: 'All players', connected: 'Connected', roster: 'Roster only'})[connection]}</option>`).join('')}</select></div></div>
+      <div class="coach-roster-actions"><button type="submit" class="secondary" ${busy ? 'disabled' : ''}>Find players</button><button type="button" class="secondary" data-coach-roster-clear ${busy ? 'disabled' : ''}>Clear filters</button></div>
+      <small>Search and filters cover your whole roster.</small></form>` + content
     dialog.innerHTML = `<header class="coach-workspace-header"><small>Coach workspace</small><h2 tabindex="-1">${html(heading)}</h2><button type="button" class="secondary" data-coach-close ${busy ? 'disabled' : ''} aria-label="Close Coach workspace">Close</button></header>${content}<p role="status" tabindex="-1">${html(notice)}</p>${!leaving && !isEditing() ? `<div class="coach-footer"><button type="button" class="secondary" data-coach-refresh ${busy ? 'disabled' : ''}>Refresh records</button>${view !== 'students' || selected ? `<button type="button" class="secondary" data-coach-back ${busy ? 'disabled' : ''}>${view === 'assignment' ? 'Back to student' : 'All students'}</button>` : ''}</div>` : !leaving ? `<button type="button" class="secondary" data-coach-back ${busy ? 'disabled' : ''}>Back</button>` : ''}`
     dialog.querySelector('[data-coach-close]')?.addEventListener('click', () => requestLeave())
     dialog.querySelector('[data-coach-back]')?.addEventListener('click', back)
     dialog.querySelector('[data-coach-refresh]')?.addEventListener('click', () => {void load(selected)})
+    const rosterForm = dialog.querySelector<HTMLFormElement>('[data-coach-roster]')
+    rosterForm?.addEventListener('input', () => {rosterDraft = readCoachRosterFilter(new URLSearchParams(Array.from(new FormData(rosterForm), ([key,value]) => [key,String(value)])))})
+    rosterForm?.addEventListener('submit', event => {event.preventDefault(); if (!active() || busy) return; rosterFilter = {...rosterDraft}; void load('')})
+    dialog.querySelector('[data-coach-roster-clear]')?.addEventListener('click', () => {if (!active() || busy) return; rosterFilter = emptyCoachRosterFilter(); rosterDraft = emptyCoachRosterFilter(); void load('')})
     dialog.querySelector('[data-coach-add]')?.addEventListener('click', () => begin('add'))
     dialog.querySelector('[data-coach-assign]')?.addEventListener('click', () => begin('assign'))
     dialog.querySelector('[data-coach-archive]')?.addEventListener('click',()=>{if(a&&s){draft=readCoachEdit({kind:'edit-assignment',id:a.id,student:s.id,expectedUpdatedAt:a.updatedAt,title:a.title,focus:a.focus,dueDate:a.dueDate,instructions:typeof a.assignment.detail==='string'?a.assignment.detail:'',evidence:typeof a.assignment.expectedEvidence==='string'?a.assignment.expectedEvidence:'',status:'archived'});formView='assignment';view='confirm';render();focus()}})
@@ -174,7 +194,7 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
     dialog.querySelectorAll<HTMLButtonElement>('[data-coach-student]').forEach(b => {b.onclick = () => {const s = snapshot?.students[Number(b.dataset.coachStudent)]; if (s) void load(s.id)}})
     dialog.querySelectorAll<HTMLButtonElement>('[data-coach-assignment]').forEach(b => {b.onclick = () => {const a = detail && sortCoachAssignmentsForReview(detail.assignments)[Number(b.dataset.coachAssignment)]; if (a) {assignmentId = a.id; view = 'assignment'; render(); focus()}}})
     dialog.querySelector<HTMLFormElement>('[data-coach-form]')?.addEventListener('submit', submit)
-    dialog.querySelectorAll<HTMLInputElement | HTMLTextAreaElement|HTMLSelectElement>('[name]').forEach(el => {el.oninput = () => {fields[el.name] = el.value;if(el.name==='identity'){render();dialog.querySelector<HTMLElement>('[name=customIdentity]')?.focus({preventScroll:true})}}})
+    dialog.querySelectorAll<HTMLInputElement | HTMLTextAreaElement|HTMLSelectElement>('[data-coach-form] [name]').forEach(el => {el.oninput = () => {fields[el.name] = el.value;if(el.name==='identity'){render();dialog.querySelector<HTMLElement>('[name=customIdentity]')?.focus({preventScroll:true})}}})
     dialog.querySelector('[data-coach-save]')?.addEventListener('click', () => {void write(false)})
     dialog.querySelector('[data-coach-check]')?.addEventListener('click', () => {void write(true)})
     dialog.querySelector('[data-coach-edit]')?.addEventListener('click', () => {if (!attempted) {draft = null; view = formView; render(); focus()}})
@@ -182,6 +202,6 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
     dialog.querySelector('[data-coach-discard]')?.addEventListener('click', () => {const action = leaveAction; clearDraft(); action?.()})
   }
   dialog.oncancel = e => {e.preventDefault(); back()}
-  document.addEventListener('visibilitychange', visibility); document.body.append(dialog); render(); dialog.showModal(); void load()
+  document.addEventListener('visibilitychange', visibility); document.body.append(dialog); render(); dialog.showModal(); void load(initial?.student)
   return {dispose, back, requestLeave, isOpen: () => !disposed}
 }

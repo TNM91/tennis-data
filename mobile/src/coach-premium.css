@@ -429,3 +429,16 @@ dialog.native-tactics-screen[open]{
  .native-tactics-content :is([data-tiq-toolbar],[data-tiq-inspector],[data-tiq-library],[data-tiq-brief]){grid-column:2;grid-row:1}
  .native-tactics-content [data-tiq-native-options=markers]{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+.coach-roster-filter{display:grid;gap:.65rem;margin:0 0 1.25rem;min-width:0}
+.coach-roster-filter input,.coach-roster-filter select{width:100%;min-width:0;min-height:44px;box-sizing:border-box}
+.coach-roster-options,.coach-roster-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.coach-roster-options{grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))}
+.coach-roster-options>div{display:grid;gap:.4rem;min-width:0}
+.coach-roster-filter small{color:var(--premium-copy,#c4d3ec)}
+.coach-workspace-dialog .coach-roster-filter input,.coach-workspace-dialog .coach-roster-filter select{background-color:var(--premium-page,#061326);color:var(--premium-white,#f7faff);border:1px solid var(--premium-line,#365785);border-radius:14px;padding:.7rem .8rem;font:inherit}
+.coach-workspace-dialog .coach-roster-filter select{appearance:none;padding-right:2rem;background-image:linear-gradient(45deg,transparent 50%,#c4d3ec 50%),linear-gradient(135deg,#c4d3ec 50%,transparent 50%);background-position:right .95rem center,right .6rem center;background-size:.35rem .35rem;background-repeat:no-repeat}
+.coach-workspace-dialog .coach-roster-actions button{min-height:44px;padding:.65rem .8rem;font-size:.9rem;line-height:1.3}
+.coach-workspace-dialog .coach-roster-actions [type=submit]{background:var(--premium-court-inlay,linear-gradient(145deg,#142e4a,#091c30));border-color:var(--premium-green,#b5eb46);box-shadow:inset 0 0 0 1px #b5eb4620}
+.coach-workspace-dialog .coach-roster-actions [type=button]{background:transparent;border-color:transparent;color:var(--premium-copy,#c4d3ec)}
+.coach-workspace-dialog .coach-roster-filter :focus-visible{outline:2px solid var(--premium-green,#b5eb46);outline-offset:3px}
+@media(max-width:350px){.coach-roster-options{grid-template-columns:1fr}}

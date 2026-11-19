@@ -1,0 +1,15 @@
+# Coaching activity and roster search
+
+Assignments published to a connected player, completed player check-ins, and changed coach feedback create private Updates notices in the same transaction as the saved work. Drafts and unlinked roster records do not notify anyone. Saved notice receipts deduplicate retries; timestamps alone do not create repeated check-in or feedback notices. No historical work is replayed.
+
+Updates rechecks the current coach/player pair, assignment state, blocks and account deletion state. Revoked, paused, archived, superseded or already-reviewed work loses its action. Preview copy contains no practice instructions, proof, assessment or feedback text. The exact destination still passes its normal Coach or player API permissions.
+
+Optional iPhone alerts require both message alerts and explicit Coach alert opt-in, an enabled unexpired device and a current relationship. A post-response service-only claim permits one bounded push attempt per saved event, with at most three devices and no new cron or paid service. APNs delivery is best effort; the saved in-app notice is independent of it. A rejected token is disabled only if its registration version is unchanged.
+
+The launch app's existing device registration now records support for coaching activity. The `x-tiq-coach-activity: 1` capability includes the new notices in list/count responses and opts a device into supported destinations. Older clients retain their existing list/count and push behavior. The database wrapper preserves the existing device-binding secret and ownership checks and defaults the capability off for old callers. Apply `20261119000100_native_coach_activity.sql` before deploying the API changes and before distributing the updated native app. Private notice/device data cascades from existing assignment, link, notification and profile records; public columns and user-delete triggers are unchanged.
+
+Tapping a push resolves the owned notice through `/api/mobile/coach/activity` before marking it read and opening its exact assignment or feedback. Other forms remain open until the user closes them. Pending handoffs are memory-only, expire after ten minutes, and clear on account changes. No supplied URL is followed directly.
+
+Coach roster search filters by player name, roster status and connected/roster-only membership before the existing 100-record display limit. Names containing SQL wildcard characters are matched literally. Requests stay coach-scoped, retain stable ordering, and preserve applied filters when returning from a player. Searching requires an explicit action instead of an API call on every keystroke.
+
+Verification includes executable PostgreSQL tests for atomic notices, routing, safety, duplicate suppression, opt-in, registration compatibility, claim permissions and deletion cascades; API and transport tests; and phone-browser checks in Chromium and WebKit at 320/390px with large text. Device APNs delivery still requires a physical iPhone check after release.
