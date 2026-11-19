@@ -1,3 +1,4 @@
+vi.mock('../native-coach-activity-push',()=>({scheduleCoachActivityPush:vi.fn()}))
 import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest'
 const st=vi.hoisted(()=>({auth:true,link:true,revision:'2026-10-25T00:00:00.123456+00:00',status:'assigned',race:false,writes:[] as Record<string,unknown>[],filters:[] as [string,unknown][]}))
 const row=()=>({id:'a',student_link_id:'link',title:'Return',focus:'Deep',due_date:null,status:st.status,assignment_json:{detail:'Coach cue',futureField:'retain'},updated_at:st.revision})

@@ -1,8 +1,12 @@
-import { readFile } from 'node:fs/promises'
+import { readFile as readSqlFile } from 'node:fs/promises'
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
 import { nativeTournamentPlan } from '../native-tournament-draw-plan'
 import { tournamentTitleContenders } from '../native-tournament-trophy'
+
+// PostgreSQL function-definition guards compare canonical LF SQL.
+const readFile = async (file: Parameters<typeof readSqlFile>[0], encoding: 'utf8') =>
+  (await readSqlFile(file, encoding)).replaceAll('\r\n', '\n')
 
 const ids = Array.from({ length: 10 }, (_, index) => '10000000-0000-4000-8000-' + String(index).padStart(12, '0'))
 const [owner, other, event, revision, production, sandbox, cancelKey, canceled, partner, stranger] = ids

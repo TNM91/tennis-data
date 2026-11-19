@@ -1,3 +1,4 @@
+import {scheduleCoachActivityPush} from '@/lib/native-coach-activity-push'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { apiServerError } from '@/lib/api-error-response'
 import {
@@ -127,6 +128,7 @@ export async function POST(request: Request) {
     })
     : null
 
+  if (assignmentSync?.complete && payload.assignment_id) scheduleCoachActivityPush({actor: auth.userId, assignment: payload.assignment_id, kind: 'checkin'})
   return Response.json({ ok: true, session: mapLevelUpSessionRow(data as LevelUpSessionRow), assignmentSync })
 }
 

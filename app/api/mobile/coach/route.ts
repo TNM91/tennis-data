@@ -1,6 +1,8 @@
 import {getCoachApiAuth} from '@/lib/coach-api-auth'
 import {coachId, coachRecord, readCoachCreate, readCoachReview,readCoachEdit} from '@/lib/native-coach-contract'
 import {createNativeCoach, loadNativeCoach, NativeCoachFault, reviewNativeCoach,editNativeCoach} from '@/lib/native-coach'
+import {emptyCoachRosterFilter, readCoachRosterFilter} from '@/lib/coach-roster-filter'
+import {scheduleCoachActivityPush} from '@/lib/native-coach-activity-push'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -12,10 +14,11 @@ async function handle(request: Request, method: 'GET' | 'POST' | 'PATCH') {
     auth.response.headers.set('Referrer-Policy', 'no-referrer')
     return auth.response
   }
-  let selected = '', body: unknown
+  let selected = '', body: unknown, filter = emptyCoachRosterFilter()
   try {
     const params = new URL(request.url).searchParams
-    if ([...params.keys()].some(k => k !== 'student' || params.getAll(k).length !== 1) || (method !== 'GET' && [...params].length)) throw Error('Invalid selection')
+    if ([...params.keys()].some(k => !['student','q','status','connection'].includes(k) || params.getAll(k).length !== 1) || (method !== 'GET' && [...params].length)) throw Error('Invalid selection')
+    filter = readCoachRosterFilter(params)
     if (params.has('student')) selected = coachId(params.get('student'))
     if (method !== 'GET') {
       const raw = await request.text()
@@ -26,8 +29,13 @@ async function handle(request: Request, method: 'GET' | 'POST' | 'PATCH') {
       body = method === 'POST' ? readCoachCreate(parsed) : 'kind' in parsed?readCoachEdit(parsed):readCoachReview(parsed)
     }
   } catch {return json({ok: false, message: 'Review the student and coach details, then try again.'}, 400)}
+  if (method !== 'GET') {
+    const write = coachRecord(body)
+    if (!('kind' in write)) scheduleCoachActivityPush({actor: auth.userId, assignment: String(write.id), kind: 'feedback'})
+    else if ((write.kind === 'assignment' || write.kind === 'edit-assignment') && write.status === 'assigned') scheduleCoachActivityPush({actor: auth.userId, assignment: String(write.id), kind: 'assignment'})
+  }
   try {
-    const data = method === 'GET' ? await loadNativeCoach(auth.supabase, auth.userId, selected)
+    const data = method === 'GET' ? await loadNativeCoach(auth.supabase, auth.userId, selected, filter)
       : method === 'POST' ? await createNativeCoach(auth.supabase, auth.userId, readCoachCreate(body))
         : 'kind' in coachRecord(body)?await editNativeCoach(auth.supabase,auth.userId,readCoachEdit(body)):await reviewNativeCoach(auth.supabase, auth.userId, readCoachReview(body))
     return json({ok: true, ...data}, 200)

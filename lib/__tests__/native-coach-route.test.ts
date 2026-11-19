@@ -1,3 +1,4 @@
+vi.mock('../native-coach-activity-push',()=>({scheduleCoachActivityPush:vi.fn()}))
 import {beforeEach, expect, it, vi} from 'vitest'
 const state = vi.hoisted(() => ({allowed: 200, client: {} as unknown}))
 vi.mock('../coach-api-auth', () => ({getCoachApiAuth: async () => state.allowed === 200 ? {ok: true, supabase: state.client, userId: '11111111-1111-4111-8111-111111111111'} : {ok: false, response: Response.json({ok: false}, {status: state.allowed})}}))

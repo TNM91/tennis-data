@@ -1,6 +1,7 @@
 import {accountClient,accountResponse,readAccountJson,verifiedAccount} from '@/lib/mobile-account-auth'
 import {parsePushDevice} from '@/lib/mobile-push-device'
 import {nativeHitPushConfigured} from '@/lib/native-hit-push'
+import {coachActivityHeader,coachActivityVersion} from '@/lib/coach-activity'
 
 export const runtime = 'nodejs'
 
@@ -20,6 +21,7 @@ export async function POST(request:Request) {
     const {data,error}=await accountClient(key).rpc('bind_native_hit_push',{
       p_installation:device.installationId,p_secret_hash:device.secretHash,
       p_profile:account.user.id,p_token:device.token,p_enabled:device.enabled,
+      p_coach_activity:request.headers.get(coachActivityHeader)===coachActivityVersion,
     }).retry(false)
     return accountResponse({ok:data===true&&!error},error?503:data===true?200:409)
   } catch { return accountResponse({ok:false},503) }
