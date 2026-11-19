@@ -70,8 +70,11 @@ it('prioritizes missing match details only for a captain whose current access is
 
 it('guides captains through private edits, lineup setup and current published responses',()=>{
  const replies=fixture(),match=schedule()
+ expect(teamMatchBriefAction(match,replies,owner,true)).toEqual({label:'Review lineup changes',section:'publication'})
+ replies.lineupRoster![1].choice='in'
  expect(teamMatchBriefAction(match,replies,owner,true)).toEqual({label:'Review private lineup',section:'lineup'})
  replies.savedLineup=undefined
+ replies.lineupReplies![1].choice='needs_change'
  expect(teamMatchBriefAction(match,replies,owner,true)).toEqual({label:'Review lineup changes',section:'publication'})
  replies.lineupRoster![1].choice='in';replies.lineupReplies=[]
  expect(teamMatchBriefAction(match,replies,owner,true)).toEqual({label:'Review confirmations',section:'publication'})

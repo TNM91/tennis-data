@@ -18,6 +18,7 @@ import {openSharedTactics} from './shared-tactics-view'
 import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type ReadinessAction, type TeamMatchSection} from './team-match-readiness'
 import {availableLineupReserves,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml} from './team-lineup-publication'
 import {lineupReplacementContext,lineupReplacementHtml,lineupReplacementTarget,replaceLineupPlayer,type LineupReplacementTarget} from './team-lineup-replacement'
+import {captainMatchStatus} from './captain-match-status'
 import './team-match-readiness.css'
 
 export function nextMatchTime(match:ReviewedNextMatch){
@@ -501,18 +502,23 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   const boardChoiceName=boardIndex>=0?boardOptions?.[boardIndex].name:tacticsChoice===undefined?savedTactics?.board.name:undefined
   const reserves=lineup&&replies?.lineupRoster?availableLineupReserves(lineup,replies.lineupRoster):[]
   const savedCourts=replies?.savedLineup?.courts
-  const readiness=teamMatchReadiness(savedCourts,replies)
+  const readinessCourts=shared?.courts??savedCourts
+  const readiness=teamMatchReadiness(readinessCourts,replies)
+  const matchStatus=captainMatchStatus(schedule,replies)
   const readinessActions:ReadinessAction[]=[]
   if(captain&&schedule?.nextMatch&&!busy&&!pendingReply&&!pendingLineup){
+   if(matchStatus.next)readinessActions.push(matchStatus.next)
    if(!schedule.nextMatch.time)readinessActions.push({key:'time',label:'Set the start time'})
    if(!schedule.nextMatch.facility)readinessActions.push({key:'venue',label:'Add the venue'})
    if(!replies||!replies.lineupRoster)readinessActions.push({key:'reload',label:'Recheck availability'})
    else {
-    if(readiness.attention.length)readinessActions.push({key:'lineup',label:'Review assigned players'})
+    if(shared&&replies.savedLineup&&shared.version!==replies.savedLineup.version)readinessActions.push({key:'lineup',label:'Review private lineup'})
+    else if(readiness.attention.length)readinessActions.push({key:'lineup',label:'Review assigned players'})
     if(readiness.awaiting)readinessActions.push({key:'availability',label:'Review unanswered replies'})
     if(!readiness.hasLineup&&replies.lineupRoster.some(player=>player.choice!=='out'))readinessActions.push({key:'lineup',label:'Add court assignments'})
    }
   }
+  const uniqueReadinessActions=readinessActions.filter((action,index)=>readinessActions.findIndex(other=>other.key===action.key)===index)
   if(reusableVenue&&!zones.includes(reusableVenue.timeZone))zones.push(reusableVenue.timeZone)
   dialog.innerHTML=`<header class="team-invite-heading"><h2 tabindex="-1">Next match</h2></header>
    <p>${html(room.teamName)} · ${html(teamLeagueLabel(room))}${room.flight?' · '+html(room.flight):''}</p>
@@ -577,7 +583,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
      ${mapsUrl&&!removing?`<button type="button" class="secondary" data-open-match-maps ${busy||pendingReply?'disabled':''}>Find in Apple Maps <span aria-hidden="true">↗</span></button>`:''}`:
      `<p>No upcoming match is scheduled.</p>
       ${captain&&openResults&&!busy?'<button type="button" class="secondary" data-match-open-results>Open team results</button>':''}`}
-    ${schedule.nextMatch&&!removing?(captain?teamReadinessHtml(replies,savedCourts,false,readinessActions):''):''}
+    ${schedule.nextMatch&&!removing?(captain?teamReadinessHtml(replies,readinessCourts,false,uniqueReadinessActions,matchStatus):''):''}
     ${schedule.nextMatch&&!removing?lineupPublicationHtml(replies,owner,Boolean(captain),busy||Boolean(pendingReply||pendingConfirmation)):''}
     ${captain&&shared&&!removing?`<button type="button" class="secondary" data-draft-published-lineup ${busy||pendingReply?'disabled':''}>Draft published lineup in chat</button>`:''}
     ${replies&&!removing?matchRepliesHtml(replies,busy,Boolean(pendingReply),rosterExpanded,
@@ -655,6 +661,10 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    if(!active()||busy||pendingReply||pendingLineup)return
    const key=button.dataset.readinessAction
    if(key==='reload'){void load();return}
+   if(key==='publication'){
+    const heading=dialog.querySelector<HTMLElement>('.team-lineup-publication h3')
+    heading?.focus({preventScroll:true});heading?.scrollIntoView({block:'start'});return
+   }
    if(key==='availability'){
     rosterExpanded=true
     const details=dialog.querySelector<HTMLDetailsElement>('[data-match-reply-roster]')

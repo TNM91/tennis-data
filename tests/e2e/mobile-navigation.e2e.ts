@@ -2706,6 +2706,90 @@ test('first-party captains can share, correct, and remove their independent team
  expect(replyWrites[0]).toBe(replyWrites[1])
 })
 
+for(const width of [320,390])test(`captain readiness checks published players instead of private replacements at ${width}px`,async({page},info)=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width,height:844})
+ await page.goto(origin+'/?manual-team-schedule=1'+(width===320?'&large=1':''))
+ await page.evaluate(()=>{
+  const alex='10000000-0000-4000-8000-000000000001',casey='10000000-0000-4000-8000-000000000002',riley='22222222-2222-4222-8222-222222222222'
+  const shared='55555555-5555-4555-8555-555555555555'
+  Object.assign((window as unknown as {manualScheduleFixture:object}).manualScheduleFixture,{
+   revision:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',caseyChoice:'out',reply:{id:riley,choice:'in'},
+   nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
+   extraPlayers:[{id:riley,name:'Riley',choice:'in'}],
+   savedLineup:{version:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',courts:[{format:'doubles',players:[alex,riley]}],names:{[alex]:'Alex',[riley]:'Riley'}},
+   publishedLineup:{version:shared,courts:[{format:'doubles',players:[alex,casey]}],names:{[alex]:'Alex',[casey]:'Casey'}},
+   lineupReplies:{[alex]:{id:alex,version:shared,choice:'confirmed'},[casey]:{id:casey,version:shared,choice:'confirmed'}},
+  })
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ const brief=page.locator('.chat-match-brief')
+ await brief.locator('summary').click()
+ await brief.getByRole('button',{name:'Review lineup changes',exact:true}).click()
+ const match=page.getByRole('dialog',{name:'Next match',exact:true}),ready=match.getByRole('region',{name:'Match readiness',exact:true})
+ await expect(match.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
+ await match.evaluate(el=>{el.scrollTop=0})
+ await expect(ready.locator('[data-match-readiness-state="review"]')).toHaveText('Published lineup needs attention')
+ await expect(ready.locator('dl>div').filter({has:page.locator('dt',{hasText:'Published players In'})})).toContainText('1 of 2')
+ await expect(ready.getByRole('list',{name:'Assigned players to review'})).toContainText('Casey')
+ await expect(ready.getByRole('list',{name:'Assigned players to review'})).not.toContainText('Riley')
+ expect(await ready.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ await page.screenshot({path:info.outputPath('captain-published-readiness.png')})
+ await ready.getByRole('button',{name:'Review published assignments',exact:true}).click()
+ await expect(match.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
+ await ready.getByRole('button',{name:'Review private lineup',exact:true}).click()
+ await expect(match.getByRole('combobox',{name:'Player 2',exact:true})).toHaveValue('22222222-2222-4222-8222-222222222222')
+ await match.getByRole('button',{name:'Cancel edit',exact:true}).click()
+ await expect(ready.getByRole('button',{name:'Review private lineup',exact:true})).toBeFocused()
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites)).toEqual([])
+})
+
+test('captain readiness distinguishes a ready published team, private edits and responses that need rechecking',async({page},info)=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:390,height:844})
+ await page.goto(origin+'/?manual-team-schedule=1')
+ await page.evaluate(()=>{
+  const alex='10000000-0000-4000-8000-000000000001',casey='10000000-0000-4000-8000-000000000002',reserve='22222222-2222-4222-8222-222222222222'
+  const version='55555555-5555-4555-8555-555555555555'
+  const lineup={version,courts:[{format:'doubles',players:[alex,casey]}],names:{[alex]:'Alex',[casey]:'Casey'}}
+  Object.assign((window as unknown as {manualScheduleFixture:object}).manualScheduleFixture,{
+   revision:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',caseyChoice:'in',reply:{id:reserve,choice:'in'},
+   nextMatch:{opponent:'Topspin Club',date:'2030-06-09',time:'18:00',facility:'Court 2',timeZone:'America/Chicago'},
+   extraPlayers:[{id:reserve,name:'Reserve',choice:null}],savedLineup:lineup,publishedLineup:lineup,
+   lineupReplies:{[alex]:{id:alex,version,choice:'confirmed'},[casey]:{id:casey,version,choice:'confirmed'}},
+  })
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ await page.locator('.chat-room-options > summary').click();await page.locator('#chat-next-match').click()
+ const match=page.getByRole('dialog',{name:'Next match',exact:true}),ready=match.getByRole('region',{name:'Match readiness',exact:true})
+ await expect(ready.locator('[data-match-readiness-state="ready"]')).toHaveText('Ready for match day')
+ await expect(ready.locator('dl>div').filter({has:page.locator('dt',{hasText:'Assignment confirmations'})})).toContainText('2 of 2')
+ await page.screenshot({path:info.outputPath('captain-ready-for-match-day.png')})
+ await ready.getByRole('button',{name:'Open published assignments',exact:true}).click()
+ await expect(match.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{savedLineup:{version:string}}}).manualScheduleFixture
+  fixture.savedLineup={...fixture.savedLineup,version:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'}
+ })
+ await match.getByRole('button',{name:'Reload match',exact:true}).click()
+ await expect(ready.locator('[data-match-readiness-state="unpublished"]')).toHaveText('Private edits to review')
+ await expect(ready).toContainText('Teammates still see the published assignments.')
+ await expect(ready.locator('[data-match-readiness-state="ready"]')).toHaveCount(0)
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{rosterComplete:boolean}}).manualScheduleFixture.rosterComplete=false})
+ await match.getByRole('button',{name:'Reload match',exact:true}).click()
+ await expect(ready.getByRole('button',{name:'Recheck match readiness',exact:true})).toBeVisible()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{rosterComplete:boolean;savedLineup:unknown;publishedLineup:unknown;lineupReplies:object}}).manualScheduleFixture
+  fixture.rosterComplete=true;fixture.savedLineup=fixture.publishedLineup;fixture.lineupReplies={}
+ })
+ await ready.getByRole('button',{name:'Recheck match readiness',exact:true}).click()
+ await expect(ready.locator('[data-match-readiness-state="confirmations"]')).toHaveText('Waiting for confirmations')
+ await expect(ready).toContainText('0 of 2')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[];confirmationWrites:string[]}}).manualScheduleFixture)).toMatchObject({lineupWrites:[],confirmationWrites:[]})
+})
+
 test('first-party match readiness links to exact schedule fields, replies and the same lineup',async({page},info)=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:844})
@@ -3305,7 +3389,9 @@ for(const field of ['time','facility'] as const)test(`match brief opens the miss
 test('match brief reviews the latest private court assignments without publishing them',async({page})=>{
  const {match}=await openCaptainAssignmentFollowups(page,390,false)
  await page.evaluate(()=>{
-  const fixture=(window as unknown as {manualScheduleFixture:{savedLineup:{version:string;courts:{players:string[]}[];names:Record<string,string>}}}).manualScheduleFixture
+  const fixture=(window as unknown as {manualScheduleFixture:{caseyChoice:string;lineupReplies:Record<string,{choice:string}>;savedLineup:{version:string;courts:{players:string[]}[];names:Record<string,string>}}}).manualScheduleFixture
+  fixture.caseyChoice='in'
+  fixture.lineupReplies['10000000-0000-4000-8000-000000000001'].choice='confirmed'
   const replacement='77777777-7777-4777-8777-777777777777'
   fixture.savedLineup.version='66666666-6666-4666-8666-666666666666'
   fixture.savedLineup.courts[0].players[1]=replacement

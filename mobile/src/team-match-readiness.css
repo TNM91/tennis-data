@@ -13,6 +13,9 @@
 .team-readiness-actions{display:grid;gap:8px;margin-block-start:12px}
 .team-next-match-dialog .team-readiness-actions button.secondary{margin:0;min-block-size:48px;padding:10px 12px;text-align:start;display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;border-color:var(--premium-line);color:var(--premium-white);font-size:.8125rem}
 .team-readiness-actions button span{color:var(--premium-ice);flex:none}
+.team-next-match-dialog .team-readiness .team-readiness-status{font-size:.9375rem;color:var(--premium-white);margin-block-start:12px}
+.team-next-match-dialog .team-readiness [data-match-readiness-state="ready"]{color:var(--premium-lime)}
+.team-next-match-dialog .team-readiness-primary button.secondary{background:var(--premium-court-inlay)}
 .team-own-court p>strong,.team-own-court p>span{display:block}
 .team-own-court p>strong{font-size:1.2rem;color:var(--premium-lime);margin-block:12px 4px}
 .team-readiness-discard{background:var(--premium-page);border-color:var(--premium-line);color:var(--premium-white)}

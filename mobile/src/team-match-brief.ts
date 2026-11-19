@@ -4,6 +4,7 @@ import {teamReplyLabels,type TeamMatchReplies} from '../../lib/team-match-replie
 import {lineupReplyLabels} from '../../lib/team-match-lineup-contract'
 import {html} from './html'
 import {lineupConfirmationSummary} from './team-lineup-publication'
+import {captainMatchStatus} from './captain-match-status'
 import type {TeamMatchSection} from './team-match-readiness'
 import {teamMatchRepliesRequest} from './team-match-replies-data'
 import {teamNextMatchRequest,type TeamMatchRoom,type TeamNextMatchSchedule} from './team-room-data'
@@ -15,6 +16,9 @@ export function teamMatchBriefAction(schedule:TeamNextMatchSchedule|null,replies
   if(!replies?.lineupRoster)return {label:'Open match'}
   if(!schedule.nextMatch.time)return {label:'Set start time',section:'time'}
   if(!schedule.nextMatch.facility)return {label:'Add venue',section:'venue'}
+  const status=captainMatchStatus(schedule,replies)
+  if(status.state==='review')return {label:'Review lineup changes',section:'publication'}
+  if(status.state==='unchecked'&&replies.sharedLineup)return {label:'Check lineup responses',section:'publication'}
   if(replies.savedLineup&&replies.savedLineup.version!==replies.sharedLineup?.version)return {label:'Review private lineup',section:'lineup'}
   if(!replies.sharedLineup)return replies.lineupRoster.some(player=>player.choice!=='out')?
    {label:'Plan lineup',section:'lineup'}:{label:'Review availability',section:'availability'}
