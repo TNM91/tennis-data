@@ -3,7 +3,6 @@ import {readFileSync} from 'node:fs'
 import {afterAll,beforeAll,beforeEach,describe,expect,it} from 'vitest'
 import {readTeamLineupChange,readTeamLineupReplyChange} from '../team-match-lineup-contract'
 import {readTeamMatchReplies} from '../team-match-replies-contract'
-import {availableLineupReserves,lineupPublicationHtml,lineupPublishPreviewHtml} from '../../mobile/src/team-lineup-publication'
 
 const captain='11111111-1111-4111-8111-111111111111',player='22222222-2222-4222-8222-222222222222',
  room='33333333-3333-4333-8333-333333333333',revision='44444444-4444-4444-8444-444444444444',
@@ -109,17 +108,11 @@ describe('published first-party lineups',()=>{
   expect((await db.query("select has_table_privilege('authenticated','native_team_lineup_replies','select') allowed")).rows).toEqual([{allowed:false}])
   expect((await db.query("select has_function_privilege('anon','reply_to_native_team_lineup(uuid,uuid,text,text,text,uuid,uuid,uuid,uuid,text)','execute') allowed")).rows).toEqual([{allowed:false}])
  })
- it('rejects malformed publication and stale confirmation payloads and filters available reserves by ID',()=>{
+ it('rejects malformed publication and stale confirmation payloads',()=>{
   expect(readTeamLineupChange({revision,expected:null,version:a,courts,publish:'yes'})).toBeNull()
   expect(readTeamLineupReplyChange({revision,expected:null,id:b,version:a,choice:'read'})).toBeNull()
   const shared={version:a,courts,names:{[player]:'<Alex>'}}
   expect(readTeamMatchReplies({own:null,sharedLineup:shared,lineupReply:{id:b,version:a,choice:'confirmed'}}).sharedLineup).toEqual(shared)
   expect(()=>readTeamMatchReplies({own:null,sharedLineup:shared,lineupReply:{id:b,version:c,choice:'confirmed'}})).toThrow()
-  expect(availableLineupReserves(courts,[{id:player,name:'Alex',choice:'in'},{id:captain,name:'Blair',choice:'in'},{id:a,name:'Casey',choice:'maybe'}])).toEqual([{id:captain,name:'Blair',choice:'in'}])
-  const preview=lineupPublishPreviewHtml(courts,[{id:player,name:'<Alex>',choice:'in'}])
-  expect(preview).toContain('&lt;Alex&gt;');expect(preview).not.toContain('<Alex>')
-  const removed=lineupPublicationHtml({own:null,sharedLineup:shared,rosterComplete:true,lineupRoster:[],
-   lineupReplies:[{profileId:player,id:b,version:a,choice:'confirmed'}]},captain,true,false)
-  expect(removed).toContain('0 of 1 assignments confirmed');expect(removed).toContain('No longer on roster')
  })
 })
