@@ -1,9 +1,13 @@
 import { PGlite } from '@electric-sql/pglite'
-import { readFile } from 'node:fs/promises'
+import { readFile as readSqlFile } from 'node:fs/promises'
 import { expect, it } from 'vitest'
 import { beforeApprovedLeagueScores, standingsFromIndividualScores, standingsFromLeagueScores } from '../native-league-score-public'
 import { leagueScoreLine } from '../native-league-score-contract'
 import type { OfficeResult } from '../native-league-office-contract'
+
+// PostgreSQL function-definition guards compare canonical LF SQL.
+const readFile = async (file: Parameters<typeof readSqlFile>[0], encoding: 'utf8') =>
+  (await readSqlFile(file, encoding)).replaceAll('\r\n', '\n')
 
 const id = (n: number) => '33333333-3333-4333-8333-' + String(n).padStart(12, '0')
 const [director, captain, stranger, entry, fixture, future, older, cancelled, posted, otherCaptain, otherEntry, today] =

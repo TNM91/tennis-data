@@ -65,3 +65,13 @@ it('only invokes the scoped read action with reviewed IDs and confirms its recei
   expect(denied.status).toBe(409)
   expect(await denied.json()).toEqual({ ok: false, releaseScope: 'first-party' })
 })
+it('keeps coaching activity out of old clients’ lists and counts, and includes it for capable clients',async()=>{
+  for(const query of ['', '?op=count']){
+    calls.length=0
+    expect((await GET(new Request(base+query))).status).toBe(200)
+    expect(calls.at(-1)!.url.searchParams.get('href')).toBe('not.like./coach?student=%')
+    calls.length=0
+    expect((await GET(new Request(base+query,{headers:{'x-tiq-coach-activity':'1'}}))).status).toBe(200)
+    expect(calls.at(-1)!.url.searchParams.has('href')).toBe(false)
+  }
+})

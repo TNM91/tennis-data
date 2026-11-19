@@ -1,9 +1,13 @@
 import { PGlite } from '@electric-sql/pglite'
-import { readFile } from 'node:fs/promises'
+import { readFile as readSqlFile } from 'node:fs/promises'
 import { expect, it } from 'vitest'
 import { reviewedRevisionDigest } from '../first-party-revisions'
 import { mergeAttestedLeagueMatches } from '../native-league-schedule'
 import type { OfficeDetail } from '../native-league-office-contract'
+
+// PostgreSQL function-definition guards compare canonical LF SQL.
+const readFile = async (file: Parameters<typeof readSqlFile>[0], encoding: 'utf8') =>
+  (await readSqlFile(file, encoding)).replaceAll('\r\n', '\n')
 
 const uuid = (n: number) => '11111111-1111-4111-8111-' + String(n).padStart(12, '0')
 const [coordinator, captain, player, contact, unrelated, a, b, c, d, venue] = Array.from({length:10},(_,i)=>uuid(i+1))
