@@ -35,12 +35,12 @@ jobs:
         run: node -e "require('node:assert/strict').equal(require('@playwright/test/package.json').version, '1.59.1')"
       - name: Build the native production bundle
         run: node mobile/scripts/build-bundled.mjs --first-party-full
-      - name: Check large text, short screens, counts and return focus
+      - name: Check captain follow-ups, reminders, large text and return focus
         run: >-
           npx playwright test --config=tests/playwright.native-navigation.config.ts
           --project=mobile-chrome --project=mobile-webkit --workers=1 --retries=0
           --global-timeout=180000
-          --grep='team match brief caches an explicit check|team match brief drops stale counts'
+          --grep='captain assignment follow-up view|captain assignment follow-ups target|captain confirmation reminders protect|team match brief caches an explicit check|team match brief drops stale counts'
           --output=.next/match-brief-linux --reporter=list,github
       - name: Save layout evidence
         if: always()
