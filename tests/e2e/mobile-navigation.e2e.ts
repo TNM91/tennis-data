@@ -157,7 +157,7 @@ for(const environment of ['Sandbox','Production'] as const)test('League checkout
  }
 })
 
-test('Coach shares an observed skill and the linked player compares it with Starter TiQ',async({page},info)=>{
+test('Coach shares an observed skill and the linked player compares it with Your TiQ',async({page},info)=>{
  test.setTimeout(45000)
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:390,height:844})
@@ -199,7 +199,7 @@ test('Coach shares an observed skill and the linked player compares it with Star
  await assessments.getByRole('button',{name:'Close',exact:true}).click()
  await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click())
  await expect(workspace).toHaveCount(0)
- const starter=page.getByRole('region',{name:'Starter TiQ'})
+ const starter=page.getByRole('region',{name:'Your TiQ'})
  await expect(starter).toContainText('7 / 10')
  await starter.getByRole('button',{name:'Coach assessments',exact:true}).click()
  await expect(assessments).toContainText('Morgan Courts')
@@ -216,14 +216,14 @@ test('Coach shares an observed skill and the linked player compares it with Star
  await expect(inbox.getByRole('button',{name:/Open check-in/})).toBeVisible()
 })
 
-test('Starter TiQ scores skills and formats privately and tracks retakes alongside match form',async({page},info)=>{
+test('Your TiQ scores skills and formats privately and tracks retakes alongside match form',async({page},info)=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:720})
  await page.route(origin+'/premium-surfaces.css',async route=>{
   await route.fulfill({contentType:'text/css',body:await readFile('mobile/src/premium-surfaces.css','utf8')})
  })
  await page.goto(origin+'/?unlinked=1&large=1&free-training=1')
- const starter=page.getByRole('region',{name:'Starter TiQ'})
+ const starter=page.getByRole('region',{name:'Your TiQ'})
  const opening=starter.getByRole('button',{name:'Find my level'})
  const rally=starter.getByLabel('How steady is your baseline rally?')
  const serve=starter.getByLabel('How reliable is your serve?')
@@ -265,9 +265,13 @@ test('Starter TiQ scores skills and formats privately and tracks retakes alongsi
  await expect(score).toContainText('7 / 10')
  await expect(score).toContainText('Match ready')
  await expect(starter.getByText('Self-assessed · Private on this device')).toBeVisible()
+ await expect(starter.locator('#starter-tiq-date')).toContainText('Assessed ')
+ await expect(starter.locator('#starter-tiq-date time')).toHaveAttribute('datetime',/^\d{4}-\d{2}-\d{2}$/)
  await expect(starter.getByText('Call a target before each second serve. Record how many of ten land in.')).toBeVisible()
  const breakdown=starter.getByText('Skill breakdown',{exact:true})
  await breakdown.click()
+ await expect(starter.getByText('Your six skill answers count equally toward your 1–10 TiQ.')).toBeVisible()
+ await expect(starter.getByText('Retake the assessment to update this score. Review coach assessments and your match record alongside it.')).toBeVisible()
  await expect(starter.getByRole('meter')).toHaveCount(6)
  await expect(starter.locator('.starter-tiq-formats')).toContainText('Singles7 / 10')
  await expect(starter.locator('.starter-tiq-formats')).not.toContainText('Doubles')

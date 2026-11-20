@@ -39,6 +39,7 @@ import websiteUi from '../generated/website-ui.json'
 import {mountLabRecentForm} from './lab-recent-form'
 import {mountSetupTrophyCase} from './setup-trophy-case'
 import {mountStarterTiq} from './starter-tiq-view'
+import {openTiqAccountHistory} from './tiq-account-view'
 import {openCoachAssessments} from './coach-assessments-view'
 import {openPlayerProgress} from './player-progress-view'
 import {mountPersonalMatchLog,type PersonalMatchFormSession} from './personal-match-view'
@@ -928,7 +929,9 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
         coachWorkspace=openPlayerProgress(client,current.user.id,active,trigger,()=>{
           if(active())starterTiq.querySelector<HTMLButtonElement>('[data-starter-edit]')?.click()
         })
-      })
+      },{client,openHistory:(trigger,device,changed,closed)=>{
+        coachWorkspace=openTiqAccountHistory(client,current.user.id,active,trigger,{device,changed,closed})
+      }})
       mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
         seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,scoreReviewShortcut,
         onRecentScorecards:starterAssessment.showRecentMatches,

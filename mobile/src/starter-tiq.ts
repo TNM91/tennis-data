@@ -1,6 +1,7 @@
 import { isValidCalendarDate } from '../../lib/calendar-date'
 import { getNativeAuthStorage } from '../../lib/native-auth-storage'
 import { tiqSkills } from '../../lib/tiq-assessment-skills'
+import {estimateTiqScore} from '../../lib/tiq-self-assessment'
 
 const coreQuestions = [
   {
@@ -117,8 +118,7 @@ function decodeSaved(value: string | null): unknown {
 }
 
 function estimate(answers: readonly Answer[]) {
-  const points = answers.reduce<number>((sum, answer) => sum + answer, 0)
-  return 1 + Math.round(3 * points / answers.length)
+  return estimateTiqScore(answers)
 }
 
 export function starterResult(answers: CompleteAnswers) {
@@ -156,4 +156,5 @@ export function starterStorage(owner: string) {
 
 export async function clearStarterTiq(owner: string) {
   await starterStorage(owner).clear()
+  await (getNativeAuthStorage() ?? localStorage).removeItem('tiq-account-pending:v1:' + owner)
 }

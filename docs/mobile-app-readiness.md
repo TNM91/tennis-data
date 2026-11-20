@@ -1,6 +1,24 @@
 # TenAceIQ mobile readiness — 2026-10-23
 
-## November 19 candidate: Lineup publication and assignment confirmation (unreleased)
+## Current iPhone acceptance — November 20, 2026
+
+Build **331** was verified installable in **TenAceIQ Internal** (the usual T1 testing group), with Nathan enrolled, at **14:15 UTC on November 20**. Its source is `9076faa359ec2f4efbfe59b2d3c0bc0f8fedacf0`. Release verification passed full lint, typecheck, 6,207 unit tests, the production build, signed-package checks and 947 native browser scenarios. One Chromium-only safe-area scenario was intentionally skipped in WebKit and passed in Chromium. These are automated and package checks; physical iPhone acceptance remains pending.
+
+The App Store submission separately selected **324**, last verified Waiting for Review at the same time. Testing 331 does not establish acceptance of 324. Leave the current submission unchanged while completing beta checks. **Your TiQ** naming, assessment dates and rating explanations are committed locally for the next update and are absent from 331.
+
+Use a private test team and test accounts for these checks. Record the build, roles, result and any visible support code; keep passwords and purchase receipts private.
+
+| iPhone check | Actions and expected result | Status |
+| --- | --- | --- |
+| Captain and player score flow | From the scheduled match, save scores and confirm who played. Share the result through the normal chat composer. As the player, open it and check Your courts, partner, score and personal outcome against the team tally. Ask the captain a score question, correct the result as captain, and open the reply's result shortcut. It should show the current authorized result while preserving the chat draft. | Pending |
+| Coaching notification | With notifications enabled, trigger a test coaching update from the other role. Check receipt with the iPhone app in the background, then tap it. It should open the exact assignment, check-in or feedback for the signed-in account. Repeat from a closed app. | Pending |
+| Pro purchase and restore | In TestFlight, check the displayed Pro price and included Captain and Coach tools. Complete a sandbox purchase, relaunch and check access, then use Restore Purchases. Cancel a separate purchase attempt and confirm it does not add access or a duplicate purchase. | Pending |
+| Organizer checkout | Use private tournament and league drafts. Check the $5 event and $25 season offers, cancellation and recovery after reopening. A sandbox purchase must keep the competition private and remain tied to the same draft. | Pending |
+| Phone usability and recovery | With the keyboard open, send a chat and edit a score. Check larger text, VoiceOver labels, a connection interruption and background/return. Preserve unsent text and drafts; uncertain saves should offer review or retry rather than silently post twice. | Pending |
+
+If a check fails, record the exact action and destination before changing the candidate. Reuse the existing automated evidence unless a new change or failure requires another check. A later public candidate needs its own release verification and device acceptance; this checklist does not authorize changing Apple's selected build or live purchase configuration.
+
+## November 19: Lineup publication and assignment confirmation (released in 325)
 
 Captains can save private court assignments or review and publish a lineup independently of a tactics board. The published snapshot stays unchanged while a new draft is edited. The publishing preview shows court assignments, changed players, removed courts and the confirmation reset before the captain commits. Available teammates lists unassigned players who have marked In; captains choose replacements explicitly in the court player lists.
 
@@ -8,11 +26,11 @@ Players see their published court and partner alongside the match time, venue an
 
 Draft published lineup in chat rechecks the published snapshot and opens a message draft, including the confirmation instructions. It preserves an existing composer draft and does not send a message automatically. Native notification delivery is not claimed by this feature.
 
-Apply `supabase/migrations/20261119000200_native_lineup_publication.sql` before deploying the changed team-room API, then package the new native client. The migration preserves existing explicitly shared tactics plans, keeps older clients' sharing behavior, adds service-only confirmation records and updates the guarded account-erasure catalog. Account deletion clears both private and published identity snapshots. No new native permission, cron, polling loop or paid service is introduced. Build 324's App Review submission is separate and unchanged.
+The `supabase/migrations/20261119000200_native_lineup_publication.sql` migration was applied and the changed team-room API deployed before internal build 325. The migration preserves existing explicitly shared tactics plans, keeps older clients' sharing behavior, adds service-only confirmation records and updates the guarded account-erasure catalog. Account deletion clears both private and published identity snapshots. No new native permission, cron, polling loop or paid service is introduced. Build 324's App Review submission is separate and unchanged.
 
-Local verification covers the real migration and API against PGlite, including LF/CRLF account-erasure checks, scope denials, replay, publication intent, private-draft isolation and stale confirmations. Phone browser scenarios exercise publishing with and without tactics, changes, lost-response retries and account switching. Physical iPhone acceptance and deployment are separate release steps.
+Local verification covers the real migration and API against PGlite, including LF/CRLF account-erasure checks, scope denials, replay, publication intent, private-draft isolation and stale confirmations. Phone browser scenarios exercise publishing with and without tactics, changes, lost-response retries and account switching. Physical iPhone acceptance remains separate from the completed deployment.
 
-> Historical baseline: the audit and build notes below predate the current beta. For the October 29 build 166 release and read-only App Store launch audit, use [iPhone subscriptions and launch readiness](ios-subscription-readiness.md).
+> Historical baseline: the audit and build notes below predate the current beta. Use the current acceptance checklist above and the offer in [iPhone subscriptions and launch readiness](ios-subscription-readiness.md). October build notes describe earlier evidence, not new launch blockers.
 
 ## Decision
 

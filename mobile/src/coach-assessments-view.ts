@@ -9,6 +9,7 @@ import { CoachAssessmentError, loadCoachAssessments, shareCoachAssessment } from
 import { assignCoachPractice, CoachWorkspaceError, type CoachSend } from './coach-workspace-data'
 import { html } from './match-details'
 import {comparableAssessmentContexts, mountAssessmentComparison, type AssessmentComparisonSelection} from './coach-assessment-comparison'
+import {openTiqAccountHistory} from './tiq-account-view'
 
 function observationHtml(observation: CoachObservation, self?: SkillObservations) {
   const focus = tiqSkills.find(skill => skill.id === observation.focus)
@@ -38,11 +39,13 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
   let latestWorkspace: NativeCoachSnapshot | null = null
   let assigningDrill = false
   let comparisonSelection: AssessmentComparisonSelection | null = null, comparisonOpen = false
+  let playerRatings: ReturnType<typeof openTiqAccountHistory> | null = null
   const active = () => !disposed && current() && trigger.isConnected
 
   function dispose() {
     if (disposed) return
     disposed = true
+    playerRatings?.dispose(); playerRatings = null
     draft = null
     rows = []
     comparisonSelection = null
@@ -54,6 +57,7 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
   }
 
   function back() {
+    if (playerRatings?.isOpen()) return playerRatings.back()
     if (busy && (view !== 'list' || assigningDrill)) return true
     if (view === 'list') dispose()
     else if (leaving) {
@@ -192,7 +196,8 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
       <p>Shares this ${assessmentContexts[draft.observation.context].toLowerCase()} assessment with ${html(student!.name)} in My Lab.</p>
       ${observationHtml(draft.observation)}
       <button type="button" data-assessment-share ${busy || conflict ? 'disabled' : ''}>${attempted ? 'Retry same assessment' : 'Share assessment'}</button>` : `
-      ${student ? `<button type="button" data-assessment-new ${busy ? 'disabled' : ''}>New assessment</button>` : '<p>See what your connected coaches observed and what to practice next.</p>'}
+      ${student ? `<button type="button" data-assessment-new ${busy ? 'disabled' : ''}>New assessment</button>
+        ${student.linked && student.status !== 'paused' ? `<button type="button" class="secondary" data-player-tiq ${busy ? 'disabled' : ''}>Player self-assessments</button>` : ''}` : '<p>See what your connected coaches observed and what to practice next.</p>'}
       ${comparable ? `<details class="coach-assessment-comparison" ${comparisonOpen ? 'open' : ''}><summary>Compare skill observations</summary><div data-assessment-comparison></div></details>`
         : student && rows.length ? '<p class="coach-assessment-scope">Share a later assessment in the same court context to compare observations.</p>' : ''}
       ${rows.length ? `<p class="coach-assessment-scope">${rows.length === 12 ? 'Latest 12 shared assessments' : rows.length + ' shared assessment' + (rows.length === 1 ? '' : 's')}</p>` : ''}
@@ -204,7 +209,7 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
           ? assignedDrills.has(id) ? '<p>Drill assigned</p>' : `<button type="button" data-assign-drill="${html(id)}" ${busy ? 'disabled' : ''}>Assign drill</button>`
           : ''}</details>`).join('') || (!busy && !notice ? '<p>No shared assessments yet.</p>' : '')}</div>
       <button type="button" class="secondary" data-assessment-refresh ${busy ? 'disabled' : ''}>Refresh assessments</button>`
-    dialog.innerHTML = `<header class="coach-workspace-header"><small>${student ? html(student.name) : 'Starter TiQ'}</small><h2 tabindex="-1">${heading}</h2>
+    dialog.innerHTML = `<header class="coach-workspace-header"><small>${student ? html(student.name) : 'Your TiQ'}</small><h2 tabindex="-1">${heading}</h2>
       <button type="button" data-assessment-close class="secondary" ${busy && (view !== 'list' || assigningDrill) ? 'disabled' : ''}>${view === 'list' ? 'Close' : 'Back'}</button></header>
       ${content}<p role="status">${html(notice)}</p>
       <dialog class="native-coach-decision" data-assessment-discard aria-label="Leave assessment"><h2>Leave assessment?</h2><p></p>
@@ -246,6 +251,9 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
     })
     dialog.querySelector('[data-assessment-share]')?.addEventListener('click', () => { void share() })
     dialog.querySelector('[data-assessment-refresh]')?.addEventListener('click', () => { void load() })
+    dialog.querySelector<HTMLButtonElement>('[data-player-tiq]')?.addEventListener('click', event => {
+      if (!busy && active() && student) playerRatings = openTiqAccountHistory(client, owner, active, event.currentTarget as HTMLElement, {student}, send)
+    })
     dialog.querySelectorAll<HTMLButtonElement>('[data-assign-drill]').forEach(button => {
       button.onclick = () => { void assignDrill(button.dataset.assignDrill ?? '') }
     })
