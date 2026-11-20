@@ -23,7 +23,7 @@ const duplicatePlayerMessage='Choose each teammate only once.'
 const resultChatHint='View the score in Team → Team results.'
 type ResultFilter = keyof typeof resultFilters
 export type TeamResultsPosition = { filter:ResultFilter; fixtureId:string }
-export type TeamResultsEntryPoint = {position:TeamResultsPosition}|{chatMatch:string}
+export type TeamResultsEntryPoint = {position:TeamResultsPosition}|{chatMatch:string}|{scheduledMatch:string}
 function courtDraft(score='',players:string[]=[],plannedPlayers?:string[]):CourtDraft{
  return isTeamCourtDefault(score)?{score:'',outcome:score,players:[],plannedPlayers}:{score,outcome:'played',players,plannedPlayers}
 }
@@ -240,6 +240,7 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
  let disposed=false,busy=false,notice=''
  const position=entry&&'position' in entry?entry.position:undefined
  let chatMatch=entry&&'chatMatch' in entry?entry.chatMatch:undefined
+ let scheduledMatch=entry&&'scheduledMatch' in entry?entry.scheduledMatch:undefined
  let filter:ResultFilter=position?.filter??'all'
  let returnFixture=position?.fixtureId
  let data:TeamResults|null=null,edit:TeamResultEntry|null=null,pending:TeamResultChange|null=null
@@ -259,7 +260,46 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
  }
  const dispose=()=>{if(!disposed){remember();void drafts.flush();disposed=true;dialog.remove()}}
  const close=()=>{if(!disposed&&!busy){dispose();onClose()}}
- const focus=(target='h2')=>dialog.querySelector<HTMLElement>(target)?.focus({preventScroll:true})
+ const focus=(target='h2',scroll=false)=>{
+  const field=dialog.querySelector<HTMLElement>(target)
+  field?.focus({preventScroll:true})
+  if(scroll)field?.scrollIntoView({block:'nearest'})
+ }
+ const focusCourt=(index:number,scroll=false)=>{
+  focus(courts?.[index]?.outcome==='played'
+   ?`[data-court-score="${index}"],[data-court-set="${index}:0:0"]`
+   :`[data-court-outcome="${index}"]`,scroll)
+ }
+ const editResult=(index:number,assignPlayers=false,preferPlan=false)=>{
+  if(!active()||busy||!data?.canEdit)return
+  edit=data.entries[index]??null
+  if(!edit)return
+  postedMatch=null
+  plannedLineupExpanded=false
+  const draft=currentDraft(edit)
+  assigningPlayers=draft?.assigningPlayers??assignPlayers
+  scoreBySet=draft?.scoreBySet??false
+  showPlayers=false
+  confirmedPlayers=draft?.confirmedPlayers??false
+  restoredPlayers=draft?.players??[]
+  dirty=Boolean(draft)
+  pending=draft?.pending??null
+  won=draft?.won??(edit.score?String(edit.score.won):'')
+  lost=draft?.lost??(edit.score?String(edit.score.lost):'')
+  notice=pending?(assigningPlayers?'Couldn’t confirm the player assignments. Retry the same update.':'Couldn’t confirm your score was posted. Retry the same score.'):''
+  courts=draft?structuredClone(draft.courts):recordedCourts(edit)??
+   (preferPlan&&!edit.score?edit.plannedLineup?.courts.map(({players})=>courtDraft('',[],players))??null:null)
+  if(draft&&draft.lineupVersion!==edit.plannedLineup?.version){
+   for(const court of courts??[])delete court.plannedPlayers
+   if(!pending&&!assigningPlayers)notice='Court plan changed. Your score draft is kept; check who played before posting.'
+  }
+  if(courts&&!courts.length)courts=null
+  render()
+  if(pending||notice)focus('[role="status"]',preferPlan)
+  else if(assigningPlayers)void confirmPlayers()
+  else if(courts)focusCourt(0,preferPlan)
+  else focus('[name="won"]',preferPlan)
+ }
  const loadResults=async()=>readTeamResults((await requestTeamResultResponse(client,owner,room,active,'team-results')).results)
  const availablePlayers=()=>[...new Map([...(edit?.score?.courtPlayers?.flat()??[]),...restoredPlayers,...(roster??[])]
   .filter(player=>player.id).map(player=>[player.id,player])).values()]
@@ -319,18 +359,30 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
   }
   catch(cause){notice=cause instanceof TeamNextMatchError?cause.message:'Couldn’t load team results. Try again.'}
   finally{if(active()){
-   busy=false;render()
+   busy=false
+   const scheduledIndex=scheduledMatch?data?.entries.findIndex(row=>row.fixtureId===scheduledMatch)??-1:-1
+   const scheduled=data?.entries[scheduledIndex]
+   if(scheduledMatch&&data&&!scheduled)notice='This match isn’t in the loaded results. Choose a match below.'
+   render()
    const target=returnFixture&&dialog.querySelector<HTMLButtonElement>(`[data-log-court="${returnFixture}"]`)
    const matches=chatMatch&&data?.entries.filter(({match,score})=>score&&resultChatMatchLabel(match)===chatMatch)
    const row=matches&&matches.length===1&&dialog.querySelector<HTMLElement>(`[data-result-fixture="${matches[0].fixtureId}"]`)
-   if(target)target.focus()
+   const scheduledRow=scheduled&&dialog.querySelector<HTMLElement>(`[data-result-fixture="${scheduled.fixtureId}"]`)
+   if(scheduled&&data?.canEdit&&!notice&&(!scheduled.score||currentDraft(scheduled)))editResult(scheduledIndex,false,true)
+   else if(scheduledMatch&&notice)focus('[role="status"]')
+   else if(scheduledRow){
+    const scores=scheduledRow.querySelector<HTMLDetailsElement>('.team-result-court-list')
+    if(scores)scores.open=true
+    scheduledRow.focus();scheduledRow.scrollIntoView({block:'nearest'})
+   }
+   else if(target)target.focus()
    else if(row){
     const scores=row.querySelector<HTMLDetailsElement>('.team-result-court-list')
     if(scores)scores.open=true
     row.focus()
    }
    else focus(notice?'[role="status"]':'h2')
-   if(data){returnFixture=undefined;chatMatch=undefined}
+   if(data){returnFixture=undefined;chatMatch=undefined;scheduledMatch=undefined}
   }}
  }
  const confirmPlayers=async()=>{
@@ -475,11 +527,6 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
   dialog.querySelector<HTMLButtonElement>('[data-result-close]')!.onclick=close
   const plannedLineup=dialog.querySelector<HTMLDetailsElement>('[data-planned-lineup]')
   if(plannedLineup)plannedLineup.ontoggle=()=>{if(plannedLineup.isConnected)plannedLineupExpanded=plannedLineup.open}
-  const focusCourt=(index:number)=>{
-   focus(courts?.[index]?.outcome==='played'
-    ?`[data-court-score="${index}"],[data-court-set="${index}:0:0"]`
-    :`[data-court-outcome="${index}"]`)
-  }
   dialog.querySelectorAll<HTMLButtonElement>('[data-score-entry]').forEach(button=>{button.onclick=()=>{
    const bySet=button.dataset.scoreEntry==='sets'
    if(bySet===scoreBySet)return
@@ -517,31 +564,7 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
    focus(selector+(assigningPlayers?'[data-result-assign]':':not([data-result-assign])'))
   })
   dialog.querySelectorAll<HTMLButtonElement>('[data-result-edit]').forEach(button=>{button.onclick=()=>{
-   edit=data?.entries[Number(button.dataset.resultEdit)]??null
-   if(!edit)return
-   postedMatch=null
-   plannedLineupExpanded=false
-   const draft=currentDraft(edit)
-   assigningPlayers=draft?.assigningPlayers??button.hasAttribute('data-result-assign')
-   scoreBySet=draft?.scoreBySet??false
-   showPlayers=false
-   confirmedPlayers=draft?.confirmedPlayers??false
-   restoredPlayers=draft?.players??[]
-   dirty=Boolean(draft)
-   pending=draft?.pending??null
-   won=draft?.won??(edit.score?String(edit.score.won):'')
-   lost=draft?.lost??(edit.score?String(edit.score.lost):'')
-   notice=pending?(assigningPlayers?'Couldn’t confirm the player assignments. Retry the same update.':'Couldn’t confirm your score was posted. Retry the same score.'):''
-   courts=draft?structuredClone(draft.courts):recordedCourts(edit)??null
-   if(draft&&draft.lineupVersion!==edit.plannedLineup?.version){
-    for(const court of courts??[])delete court.plannedPlayers
-   }
-   if(courts&&!courts.length)courts=null
-   render()
-   if(pending)focus('[role="status"]')
-   else if(assigningPlayers)void confirmPlayers()
-   else if(courts)focusCourt(0)
-   else focus('[name="won"]')
+   editResult(Number(button.dataset.resultEdit),button.hasAttribute('data-result-assign'))
   }})
   dialog.querySelectorAll<HTMLButtonElement>('[data-result-draft]').forEach(button=>{button.onclick=()=>{
    const entry=data?.entries[Number(button.dataset.resultDraft)]
