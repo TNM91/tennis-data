@@ -4703,12 +4703,12 @@ test('first-party My Lab flags a changed team score outside the loaded match his
  await expect(multiple).toBeHidden()
 })
 
-async function openPlayerCourtSummary(page:Page,width=390){
+async function openPlayerCourtSummary(page:Page,width=390,secureDrafts=false){
  // eslint-disable-next-line react-hooks/rules-of-hooks -- This helper bundles a browser fixture; it does not call React hooks.
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width,height:width===390?568:720})
  await page.clock.setFixedTime(new Date('2026-11-12T18:00:00Z'))
- await page.goto(origin+'/?manual-team-schedule=1'+(width===320?'&large=1':''))
+ await page.goto(origin+'/?manual-team-schedule=1'+(width===320?'&large=1':'')+(secureDrafts?'&secure-score-drafts=1':''))
  await page.evaluate(()=>{
   const state=window as unknown as {manualScheduleFixture:{captain:boolean};teamResultFixture:TeamResultEntry}
   state.manualScheduleFixture.captain=false
@@ -4848,6 +4848,8 @@ for(const width of [320,390])test(`player score question drafts current court de
  await expect(link).toBeVisible()
  await expect(link.locator('..').locator('.chat-message-text')).toHaveText(message)
  await link.click()
+ await expect(results.getByRole('heading',{name:'Question about Court 2',exact:true})).toBeFocused()
+ await results.getByRole('button',{name:'Review team result',exact:true}).click()
  const row=results.locator('[data-result-fixture="dddddddd-dddd-4ddd-8ddd-dddddddddddd"]')
  await expect(row).toBeFocused()
  await expect(row.getByRole('group',{name:'Your court',exact:true})).toContainText('Court 2 · Lost')
@@ -4954,9 +4956,252 @@ test('player score question link does not choose between same-name same-day fixt
   fixture.earlier=[{fixtureId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',match:{...fixture.match,facility:'Court 9'},score:fixture.score}]
  })
  await page.getByRole('button',{name:'View team result',exact:true}).click()
- await expect(results.getByRole('heading',{name:'Team results',exact:true})).toBeFocused()
+ await expect(results.getByRole('status')).toHaveText('Several matches fit this message. Choose one below.')
+ await expect(results.getByRole('status')).toBeFocused()
  await expect(results.locator('[data-result-fixture]')).toHaveCount(2)
  await expect(results.locator('[data-result-form]')).toHaveCount(0)
+})
+
+async function captainCourtQuestion(page:Page,width=390){
+ const {open:openPlayer,results,composer}=await openPlayerCourtSummary(page,width,true)
+ await openPlayer()
+ await results.getByRole('button',{name:'Ask captain to review vs Topspin Club',exact:true}).click()
+ await expect(results).toHaveCount(0)
+ await expect(composer).toHaveValue(/Posted score: 3-6, 4-6 \(team first\)\.$/)
+ await composer.fill(await composer.inputValue()+' Could you check the partner? I played with Jordan.')
+ await page.getByRole('button',{name:'Send',exact:true}).click()
+ // Change only the synthetic role to exercise the receiving captain's controls.
+ await page.evaluate(()=>{
+  const state=window as unknown as {manualScheduleFixture:{captain:boolean;extraPlayers:{id:string;name:string;choice:string}[]};teamResultFixture:{loseNextSave:boolean}}
+  state.manualScheduleFixture.captain=true
+  state.manualScheduleFixture.extraPlayers.push({id:'11111111-1111-4111-8111-111111111111',name:'Alex',choice:'in'},
+   {id:'22222222-2222-4222-8222-222222222222',name:'Casey & Taylor <3',choice:'in'})
+  state.teamResultFixture.loseNextSave=false
+ })
+ await page.getByRole('button',{name:'Refresh messages',exact:true}).click()
+ const open=()=>page.getByRole('button',{name:'View team result',exact:true}).click()
+ const review=results.getByRole('region',{name:'Question about Court 2',exact:true})
+ return {open,results,review,composer}
+}
+
+for(const width of [320,390])test(`captain court question edits the requested court and drafts an updated result at ${width}px`,async({page},info)=>{
+ const {open,results,review,composer}=await captainCourtQuestion(page,width)
+ await open()
+ await expect(review.getByRole('heading',{name:'Question about Court 2',exact:true})).toBeFocused()
+ await expect(review).toContainText('Score in the message · 3-6, 4-6')
+ await expect(review).toContainText('Current posted score · 3-6, 4-6')
+ await review.locator('[data-question-message] > summary').click()
+ await expect(review).toContainText('Could you check the partner? I played with Jordan.')
+ expect(await review.evaluate(el=>getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+ expect(await results.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await review.scrollIntoViewIfNeeded()
+ await page.screenshot({path:info.outputPath('captain-court-question.png')})
+ await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await expect(results.getByLabel('Court 2 score',{exact:true})).toBeFocused()
+ await expect(results.getByLabel('Court 1 score',{exact:true})).toHaveValue('6-3, 6-4')
+ await expect(results.getByLabel('Court 3 score',{exact:true})).toHaveValue('6-1, 6-2')
+ await expect(results.locator('[data-question-message]')).toHaveAttribute('open','')
+ await results.getByLabel('Court 2 score',{exact:true}).fill('6-4 6-3')
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+ await results.getByRole('button',{name:'Post team score',exact:true}).click()
+ const wrap=results.getByRole('region',{name:'Match wrap-up',exact:true})
+ await expect(wrap).toContainText('3–0 on courts')
+ await expect(wrap).toContainText('Could you check the partner?')
+ await wrap.getByRole('button',{name:'Draft updated result in chat',exact:true}).click()
+ await expect(results).toHaveCount(0)
+ await expect(composer).toBeFocused()
+ await expect(composer).toHaveValue(/^Baseline Aces updated result: won 3–0 on courts vs Topspin Club/)
+ expect(await page.evaluate(()=>Reflect.get(window,'firstPartyTeamFixture').posts)).toHaveLength(1)
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toHaveLength(1)
+ await page.getByRole('button',{name:'Send',exact:true}).click()
+ await page.getByRole('button',{name:'View team result',exact:true}).last().click()
+ const row=results.locator('[data-result-fixture="dddddddd-dddd-4ddd-8ddd-dddddddddddd"]')
+ await expect(row).toBeFocused();await expect(row).toContainText('3–0 · Won')
+ await expect(results.locator('[data-result-form]')).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'firstPartyTeamFixture').posts)).toHaveLength(2)
+})
+
+test('captain court question distinguishes an old message from the latest posted score',async({page})=>{
+ const {open,review,results}=await captainCourtQuestion(page)
+ await page.evaluate(()=>{
+  const score=(Reflect.get(window,'teamResultFixture') as TeamResultEntry).score!
+  score.revision='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';score.courtScores![1]='4-6 5-7'
+ })
+ await open()
+ await expect(review).toContainText('Score in the message · 3-6, 4-6')
+ await expect(review).toContainText('Current posted score · 4-6, 5-7')
+ await expect(review).toContainText('The current score differs from the message.')
+ await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await expect(results.getByLabel('Court 2 score',{exact:true})).toHaveValue('4-6, 5-7')
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
+test('captain court question requires another review when the score changes before editing',async({page})=>{
+ const {open,review,results}=await captainCourtQuestion(page)
+ await open()
+ await page.evaluate(()=>{
+  const score=(Reflect.get(window,'teamResultFixture') as TeamResultEntry).score!
+  score.revision='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';score.courtScores![1]='4-6 5-7'
+ })
+ await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await expect(results.getByRole('status')).toHaveText('The score changed. Review the latest result before editing this court.')
+ await expect(results.locator('[data-result-form]')).toHaveCount(0)
+ await expect(review).toContainText('Current posted score · 4-6, 5-7')
+ await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await expect(results.getByLabel('Court 2 score',{exact:true})).toBeFocused()
+})
+
+test('captain court question preserves an unfinished player-assignment draft',async({page})=>{
+ const {open,results,review}=await captainCourtQuestion(page)
+ await page.evaluate(()=>{(Reflect.get(window,'teamResultFixture') as TeamResultEntry).score!.courtPlayers![2]=[]})
+ await open()
+ await results.getByRole('button',{name:'Add players vs Topspin Club',exact:true}).click()
+ await results.getByRole('combobox',{name:'Court 3 player 1',exact:true}).selectOption('10000000-0000-4000-8000-000000000002')
+ await results.getByRole('button',{name:'Close',exact:true}).click()
+ await open()
+ await review.getByRole('button',{name:'Resume saved draft',exact:true}).click()
+ await expect(results.getByRole('combobox',{name:'Court 2 player 1',exact:true})).toBeFocused()
+ await expect(results.getByRole('combobox',{name:'Court 3 player 1',exact:true})).toHaveValue('10000000-0000-4000-8000-000000000002')
+ await expect(results.getByRole('button',{name:'Save player assignments',exact:true})).toBeEnabled()
+ await expect(results.getByRole('textbox')).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
+for(const draft of ['totals','fewer courts'] as const)test(`captain court question keeps a saved ${draft} draft`,async({page})=>{
+ const {open,results,review}=await captainCourtQuestion(page)
+ await open();await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ if(draft==='totals'){
+  await results.getByRole('button',{name:'Use totals only',exact:true}).click()
+  await results.getByLabel('Courts won',{exact:true}).fill('4')
+ }else{
+  await results.getByRole('button',{name:'Remove court 3',exact:true}).click()
+  await results.getByRole('button',{name:'Remove court 2',exact:true}).click()
+ }
+ await results.getByRole('button',{name:'Close',exact:true}).click()
+ await open();await review.getByRole('button',{name:'Resume saved draft',exact:true}).click()
+ await expect(results.getByRole('status')).toHaveText(draft==='totals'?'Your saved draft uses totals only. Review it before posting.':'Your saved draft has fewer courts. Review it before posting.')
+ await expect(results.getByRole('status')).toBeFocused()
+ if(draft==='totals')await expect(results.getByLabel('Courts won',{exact:true})).toHaveValue('4')
+ else await expect(results.getByLabel('Court 2 score',{exact:true})).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
+test('captain court question retries a failed check without losing the request',async({page})=>{
+ const {open,review,results}=await captainCourtQuestion(page)
+ await open();await page.evaluate(()=>{Reflect.get(window,'teamResultFixture').failReads=true})
+ await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await expect(results.getByRole('status')).toContainText('Couldn’t load team results')
+ await expect(review).toContainText('Score in the message · 3-6, 4-6')
+ await page.evaluate(()=>{Reflect.get(window,'teamResultFixture').failReads=false})
+ await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await expect(results.getByLabel('Court 2 score',{exact:true})).toBeFocused()
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
+test('captain court question respects fresh read-only access before editing',async({page})=>{
+ const {open,review,results}=await captainCourtQuestion(page)
+ await open();await page.evaluate(()=>{Reflect.get(window,'manualScheduleFixture').captain=false})
+ await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await expect(results.getByRole('status')).toHaveText('Captain access is required to correct a score.')
+ await expect(review.getByRole('button',{name:'Edit Court 2',exact:true})).toHaveCount(0)
+ await expect(results.locator('[data-result-form]')).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
+test('captain court question ignores a late edit check after switching accounts',async({page})=>{
+ const {open,review,results}=await captainCourtQuestion(page)
+ await open();await page.evaluate(()=>{Reflect.get(window,'teamResultFixture').holdNextRead=true})
+ await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await page.waitForFunction(()=>Boolean(Reflect.get(window,'teamResultFixture').releaseRead))
+ await page.evaluate(()=>{Reflect.get(window,'switchNavigationOwner')();Reflect.get(window,'teamResultFixture').releaseRead()})
+ await expect(results).toHaveCount(0)
+ await expect(page.locator('[data-result-form]')).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
+test('captain court question does not invent a court when only team totals remain',async({page})=>{
+ const {open,review,results}=await captainCourtQuestion(page)
+ await page.evaluate(()=>{Reflect.get(window,'teamResultFixture').score={revision:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',won:2,lost:1}})
+ await open()
+ await expect(review).toContainText('No court score posted')
+ await expect(review.getByRole('button',{name:'Edit Court 2',exact:true})).toHaveCount(0)
+ await review.getByRole('button',{name:'Review team result',exact:true}).click()
+ await expect(results.locator('[data-result-fixture="dddddddd-dddd-4ddd-8ddd-dddddddddddd"]')).toBeFocused()
+ await expect(results.locator('[data-result-form]')).toHaveCount(0)
+})
+
+test('captain court question focuses a defaulted court without asking for a fake score',async({page})=>{
+ const {open,review,results}=await captainCourtQuestion(page)
+ await page.evaluate(()=>{
+  const score=(Reflect.get(window,'teamResultFixture') as TeamResultEntry).score!
+  score.revision='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';score.courtScores![1]='L-DEFAULT';score.courtPlayers![1]=[]
+ })
+ await open()
+ await expect(review).toContainText('Current posted score · Lost by default')
+ await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await expect(results.getByRole('combobox',{name:'Court 2 result',exact:true})).toBeFocused()
+ await expect(results.getByLabel('Court 2 score',{exact:true})).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
+test('captain court question reconciles a lost correction reply before offering an update draft',async({page})=>{
+ const {open,review,results}=await captainCourtQuestion(page)
+ await open();await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await results.getByLabel('Court 2 score',{exact:true}).fill('6-4 6-3')
+ await page.evaluate(()=>{Reflect.get(window,'teamResultFixture').loseNextSave=true})
+ await results.getByRole('button',{name:'Post team score',exact:true}).click()
+ await expect(results.getByRole('button',{name:'Retry same score',exact:true})).toBeVisible()
+ await results.getByRole('button',{name:'Close',exact:true}).click()
+ await open()
+ await expect(results.getByRole('status')).toHaveText('Your score was posted for the team.')
+ await expect(results.getByRole('button',{name:'Draft updated result in chat',exact:true})).toBeVisible()
+ await expect(results.locator('[data-result-form]')).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toHaveLength(1)
+})
+
+test('captain court question protects an existing chat draft after saving a correction',async({page})=>{
+ const {open,review,results,composer}=await captainCourtQuestion(page)
+ await open();await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+ await results.getByLabel('Court 2 score',{exact:true}).fill('6-4 6-3')
+ await results.getByRole('button',{name:'Post team score',exact:true}).click()
+ await page.evaluate(()=>{const field=document.querySelector<HTMLTextAreaElement>('#chat-draft')!;field.value='Keep my captain note';field.dispatchEvent(new Event('input',{bubbles:true}))})
+ await results.getByRole('button',{name:'Draft updated result in chat',exact:true}).click()
+ await expect(results.getByRole('status')).toHaveText('Finish your current chat draft before drafting a result.')
+ await results.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(composer).toHaveValue('Keep my captain note')
+ expect(await page.evaluate(()=>Reflect.get(window,'firstPartyTeamFixture').posts)).toHaveLength(1)
+})
+
+for(const recoverQuestion of [false,true])test(`captain court question scopes recovered updates ${recoverQuestion?'to its own match':'away from another match'}`,async({page})=>{
+ const {open,results,review}=await captainCourtQuestion(page)
+ await page.evaluate(recoverQuestion=>{
+  const fixture=Reflect.get(window,'teamResultFixture') as TeamResultEntry&{earlier:TeamResultEntry[]}
+  const requested:TeamResultEntry={fixtureId:fixture.fixtureId,match:{...fixture.match},score:fixture.score}
+  const other:TeamResultEntry={fixtureId:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',match:{...fixture.match,opponent:'Volley Club'},
+   score:{revision:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',won:1,lost:0,courtScores:['6-2, 6-2']}}
+  if(recoverQuestion){fixture.fixtureId=other.fixtureId;fixture.match=other.match;fixture.score=other.score;fixture.earlier=[requested]}
+  else fixture.earlier=[other]
+  const receipt=(entry:TeamResultEntry)=>[
+   'league:33333333-3333-4333-8333-333333333333:private-team-result:'+entry.fixtureId,
+   {expected:null,won:String(entry.score!.won),lost:String(entry.score!.lost),courts:null,assigningPlayers:false,confirmedPlayers:false,players:[],
+    pending:{fixtureId:entry.fixtureId,expected:null,revision:entry.score!.revision,won:entry.score!.won,lost:entry.score!.lost,courtScores:entry.score!.courtScores}}]
+  const drafts=[receipt(other)]
+  if(recoverQuestion)drafts.push(receipt(requested))
+  sessionStorage.setItem('synthetic-native:team-score-drafts:v1:11111111-1111-4111-8111-111111111111',JSON.stringify({owner:'11111111-1111-4111-8111-111111111111',drafts}))
+ },recoverQuestion)
+ await open()
+ const wrap=results.getByRole('region',{name:'Match wrap-up',exact:true})
+ if(recoverQuestion){
+  await expect(wrap).toContainText('Topspin Club')
+  await expect(wrap).not.toContainText('Volley Club')
+ }else{
+  await expect(wrap).toHaveCount(0)
+  await expect(review).toBeVisible()
+  await expect(results.getByRole('status')).toHaveText('An earlier update to another match was confirmed.')
+  await review.getByRole('button',{name:'Edit Court 2',exact:true}).click()
+  await expect(results.getByLabel('Court 2 score',{exact:true})).toBeFocused()
+ }
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
 })
 
 test('first-party teammate filters team results to their own courts',async({page})=>{
