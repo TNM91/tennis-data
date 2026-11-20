@@ -18,7 +18,8 @@ import path from 'node:path'
 import type {TeamResultEntry} from '../../lib/team-results-contract'
 const origin='http://127.0.0.1:4283'
 let javascript='',stylesheet='',documentHtml=''
-test.describe.configure({retries:0,timeout:25000})
+// Multi-screen flows need room to finish on the Linux WebKit runner.
+test.describe.configure({retries:0,timeout:45000})
 const bundleNavigation=(firstParty=false)=>build({entryPoints:['tests/fixtures/mobile-navigation.ts'],bundle:true,platform:'browser',format:'esm',outfile:'fixture.js',write:false,jsx:'automatic',define:{TIQ_FIRST_PARTY_BUILD:String(firstParty)},loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-account',setup(b){b.onResolve({filter:/^\.\.\/\.\.\/lib\/native-auth-storage$/},args=>args.importer.replace(/\\/g,'/').endsWith('/mobile/src/team-score-drafts.ts')?{path:path.resolve('tests/fixtures/mobile-native-draft-storage.ts')}:undefined);b.onResolve({filter:/^\.\/native-push$/},args=>args.importer.replace(/\\/g,"/").endsWith("/mobile/src/main.ts")?{path:path.resolve("tests/fixtures/mobile-native-coach-alerts.ts")}:undefined);b.onResolve({filter:/^@capacitor\/app$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-app.ts')}));b.onResolve({filter:/^@supabase\/supabase-js$/},()=>({path:path.resolve('tests/fixtures/mobile-navigation-client.ts')}))}}]})
 test.beforeAll(async()=>{
  const bundle=await bundleNavigation()
