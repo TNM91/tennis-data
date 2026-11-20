@@ -111,6 +111,13 @@ jobs:
           --project=${{ matrix.project }} --shard=${{ matrix.part }}/${{ matrix.total }} --workers=2 --retries=0 --max-failures=1
           --global-timeout=900000
           --output=.next/match-brief-linux --reporter=list,github
+      # The new account-history tests run once, with both installed engines.
+      - name: Verify TiQ account history and coach privacy
+        if: matrix.project == 'mobile-chrome'
+        run: >-
+          npx playwright test --config=tests/playwright.coach-assessment.config.ts
+          --workers=2 --retries=0 --max-failures=1
+          --output=.next/tiq-account --reporter=list,github
       - name: Save layout evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -124,5 +131,7 @@ jobs:
             .next/match-brief-linux/**/error-context.md
             .next/match-brief-linux/**/test-failed-*.png
             .next/match-brief-linux/**/trace.zip
+            .next/tiq-account/**/*.png
+            .next/tiq-account/**/error-context.md
           if-no-files-found: ignore
           retention-days: 3
