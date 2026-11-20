@@ -1099,3 +1099,9 @@ Verification includes caller authorization and actual PostgreSQL entry constrain
 
 - The combined candidate includes player singles/doubles requests, private saved receipts and organizer approval through the existing tournament desk. Production migration/catalog permissions and caller-role checks passed separately; release of the API and native client still requires normal gates.
 - Registration opens within the selected division and returns to its explicit opener, retaining independent match and standings filters. Parent disposal/account changes invalidate private replies. Fees remain arranged with the organizer; this flow collects no payment and changes no Apple membership behavior.
+
+### Captain assignment follow-up views
+
+- Next match starts the captain's published assignment list on Needs attention, with an All option. Follow-ups include change requests, unavailable or missing players, unchecked responses, unanswered confirmations, and confirmed players whose availability is still Maybe or unanswered. Availability and current-version court confirmation remain separate; the existing confirmation counts and reminder recipients keep their meanings.
+- Each assignment shows its court, confirmation state and availability. The selected view survives a court correction and refresh of the same scheduled match, resets on a different match revision, and recomputes from the current replies. Switching views is local, preserves button focus, and performs no reads or writes. Fully confirmed In players stay accessible through All.
+- Existing captain authority, account guards, explicit reload, correction, reminder review and chat-draft protection apply. No new backend, notification, schema, import, billing or artwork changes. Browser acceptance covers narrow phones, enlarged text, short screens and keyboard activation; physical iPhone acceptance follows the next TestFlight release.

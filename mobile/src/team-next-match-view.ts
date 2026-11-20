@@ -16,7 +16,7 @@ import type {TacticalBoardReference} from '../../lib/tactical/board-reference'
 import {TacticsLibrary} from './coach-tactics-data'
 import {openSharedTactics} from './shared-tactics-view'
 import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type ReadinessAction, type TeamMatchSection} from './team-match-readiness'
-import {availableLineupReserves,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml} from './team-lineup-publication'
+import {availableLineupReserves,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml,setLineupResponseView,type LineupResponseView} from './team-lineup-publication'
 import {lineupReplacementContext,lineupReplacementHtml,lineupReplacementTarget,replaceLineupPlayer,type LineupReplacementTarget} from './team-lineup-replacement'
 import {captainMatchStatus} from './captain-match-status'
 import {playerAssignmentSnapshot,playerAssignmentChanges,playerAssignmentUpdateHtml,type PlayerAssignmentUpdate} from './player-assignment-review'
@@ -94,6 +94,8 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let previousSlot:ReviewedNextMatch|null=null
  let scheduleAnnouncement:{revision:string;previous:ReviewedNextMatch}|null=null
  let rosterExpanded=false
+ let responseView:LineupResponseView='attention'
+ let responseViewRevision:string|null=null
  let entrySection=focusSection
  let readinessReturn: 'time'|'venue'|'lineup'|'confirmations'|null=null
  let tacticsChoice:TacticalBoardReference|null|undefined
@@ -564,6 +566,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  }
  const render=()=>{
   if(!active())return
+  if(schedule?.revision&&schedule.revision!==responseViewRevision){responseView='attention';responseViewRevision=schedule.revision}
   const zones=draft?[...new Set([draft.timeZone,localZone,'America/New_York','America/Chicago','America/Denver','America/Phoenix','America/Los_Angeles','America/Anchorage','Pacific/Honolulu'])]:[]
   const reusableVenue=draft&&!schedule?.nextMatch&&previousMatch?.facility?previousMatch:null
   const reusableTime=draft&&!schedule?.nextMatch?previousMatch?.time:''
@@ -659,7 +662,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
      `<p>No upcoming match is scheduled.</p>
       ${captain&&openResults&&!busy?'<button type="button" class="secondary" data-match-open-results>Open team results</button>':''}`}
     ${schedule.nextMatch&&!removing?(captain?teamReadinessHtml(replies,readinessCourts,false,uniqueReadinessActions,matchStatus):''):''}
-    ${schedule.nextMatch&&!removing?lineupPublicationHtml(replies,owner,Boolean(captain),busy||Boolean(pendingReply||pendingConfirmation)):''}
+    ${schedule.nextMatch&&!removing?lineupPublicationHtml(replies,owner,Boolean(captain),busy||Boolean(pendingReply||pendingConfirmation),responseView):''}
     ${captain&&shared&&!removing?`<button type="button" class="secondary" data-draft-published-lineup ${busy||pendingReply?'disabled':''}>Draft published lineup in chat</button>`:''}
     ${replies&&!removing?matchRepliesHtml(replies,busy,Boolean(pendingReply),rosterExpanded,
      Boolean(captain&&!busy&&!pendingReply&&replies.awaitingTeammates)):''}
@@ -698,6 +701,14 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector('[data-confirmation-retry]')?.addEventListener('click',()=>{void confirmAssignment()})
   dialog.querySelector('[data-draft-published-lineup]')?.addEventListener('click',()=>{void draftPublishedLineup()})
   dialog.querySelector('[data-draft-confirmation-reminder]')?.addEventListener('click',()=>{void draftConfirmationReminder()})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-assignment-view]').forEach(button=>{button.onclick=()=>{
+   if(!active()||!captain||busy||pendingReply||pendingLineup||pendingConfirmation)return
+   const view=button.dataset.assignmentView
+   if(view!=='attention'&&view!=='all')return
+   responseView=view
+   const host=dialog.querySelector<HTMLElement>('[data-lineup-followups]')
+   if(host)setLineupResponseView(host,responseView)
+  }})
   dialog.querySelector('[data-cancel-confirmation]')?.addEventListener('click',()=>{confirmationReview=null;render();focus('.team-lineup-publication h3')})
   dialog.querySelectorAll<HTMLButtonElement>('[data-lineup-reply]').forEach(button=>{button.onclick=()=>{void reviewConfirmation(button.dataset.lineupReply as LineupReplyChoice)}})
   dialog.querySelector<HTMLButtonElement>('[data-open-own-availability]')?.addEventListener('click',()=>{
