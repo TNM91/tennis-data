@@ -2023,6 +2023,12 @@ dialog.team-chat-icon-dialog[open] {
 .team-result-list .team-invite-preview { margin:0; }
 .team-result-list .team-result-assignment-note { color:var(--premium-lime); }
 .team-result-own-score { display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;font-variant-numeric:tabular-nums; }
+.team-result-personal-court { margin-block:12px;padding-inline-start:12px;border-inline-start:2px solid var(--premium-line);background:transparent;overflow-wrap:anywhere; }
+.team-result-personal-court .team-result-own-score { margin:0 0 6px; }
+.team-result-personal-court strong { color:var(--premium-white); }
+.team-result-personal-court .team-result-personal-score { display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0 0 6px; }
+.team-result-personal-score strong { font-size:1.125rem;font-variant-numeric:tabular-nums; }
+.team-result-personal-score span { font-size:.6875rem; }
 .team-result-actions { display:flex;flex-wrap:wrap;gap:8px; }
 .team-result-actions button.secondary { inline-size:auto;max-inline-size:100%;margin:0; }
 .team-invite-dialog .team-result-completion { margin:12px 0 16px;padding:0 0 14px;border:0;border-bottom:1px solid var(--premium-line);border-radius:0;background:transparent;box-shadow:none;overflow-wrap:anywhere; }
