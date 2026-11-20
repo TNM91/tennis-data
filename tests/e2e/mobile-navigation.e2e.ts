@@ -3301,7 +3301,7 @@ for(const width of [320,390])test(`captain assignment follow-ups target the righ
  await expect(picker.getByRole('button',{name:'Choose Morgan for Doubles 1',exact:true})).toBeVisible()
  expect(await picker.getByRole('button',{name:'Choose Morgan for Doubles 1',exact:true}).evaluate(el=>el.getBoundingClientRect().height>=44)).toBe(true)
  const selected=match.getByRole('combobox',{name:'Player 2',exact:true})
- await expect(picker).toContainText('Replacing · Casey')
+ await expect(picker).toContainText('Current player · Casey')
  expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites)).toEqual([])
  expect(await match.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
  await page.screenshot({path:info.outputPath('captain-available-replacements.png')})
@@ -3322,6 +3322,129 @@ for(const width of [320,390])test(`captain assignment follow-ups target the righ
  await expect(composer).toHaveValue(/Assignment check[\s\S]*Riley — please open Team → Next match/)
  for(const name of ['Alex','Casey','Morgan'])await expect(composer).not.toHaveValue(new RegExp(name))
  expect(await page.evaluate(()=>(window as unknown as {firstPartyTeamFixture:{posts:string[]}}).firstPartyTeamFixture.posts)).toEqual([])
+})
+
+async function openCaptainCourtSwap(page:Page,width=390){
+ const {match,open}=await openCaptainAssignmentFollowups(page,width,false)
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{caseyChoice:string}}).manualScheduleFixture.caseyChoice='in'})
+ await page.getByRole('textbox',{name:'Message your team',exact:true}).fill('Keep my match note')
+ await open()
+ if(width===390)await page.setViewportSize({width,height:568})
+ await match.getByRole('button',{name:'Review court for Alex',exact:true}).click()
+ return {match,picker:match.getByRole('region',{name:'Available replacements',exact:true}),preview:match.getByRole('region',{name:'Court swap review',exact:true})}
+}
+
+for(const width of [320,390])test(`captain court swap reviews both courts and returns to the unchanged published lineup at ${width}px`,async({page},info)=>{
+ const {match,picker,preview}=await openCaptainCourtSwap(page,width)
+ const swap=picker.getByRole('button',{name:'Review swap with Riley on Singles 1',exact:true})
+ await expect(swap).toBeVisible()
+ await expect(picker.getByRole('button',{name:'Choose Morgan for Doubles 1',exact:true})).toBeVisible()
+ await expect(picker.getByRole('button',{name:/Review swap with Casey|Review swap with Morgan/})).toHaveCount(0)
+ await swap.click()
+ await expect(preview.getByRole('heading',{name:'Review court swap',exact:true})).toBeFocused()
+ const courts=preview.getByRole('list',{name:'Courts affected by swap',exact:true}).locator('li')
+ await expect(courts).toHaveCount(2)
+ await expect(courts.nth(0)).toContainText('Before · Alex & Casey');await expect(courts.nth(0)).toContainText('After · Riley & Casey')
+ await expect(courts.nth(1)).toContainText('Before · Riley');await expect(courts.nth(1)).toContainText('After · Alex')
+ expect(await match.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ const apply=preview.getByRole('button',{name:'Apply swap to private plan',exact:true})
+ expect(await apply.evaluate(el=>el.getBoundingClientRect().height>=44&&el.scrollWidth<=el.clientWidth)).toBe(true)
+ await preview.evaluate(el=>el.scrollIntoView({block:'start'}))
+ await page.screenshot({path:info.outputPath('captain-court-swap-review.png')})
+ await expectNoAvailabilityFollowupWrites(page)
+ await page.keyboard.press('Escape')
+ await expect(preview).toHaveCount(0);await expect(swap).toBeFocused()
+ await expect(match.locator('[data-match-lineup-player="0:0"]')).toHaveValue('10000000-0000-4000-8000-000000000001')
+ await swap.click();await apply.click()
+ await expect(preview).toHaveCount(0)
+ await expect(match.getByRole('status')).toContainText('swapped courts in your private plan')
+ await expect(match.locator('[data-match-lineup-player="0:0"]')).toHaveValue('22222222-2222-4222-8222-222222222222')
+ await expect(match.locator('[data-match-lineup-player="0:1"]')).toHaveValue('10000000-0000-4000-8000-000000000002')
+ await expect(match.locator('[data-match-lineup-player="1:0"]')).toHaveValue('10000000-0000-4000-8000-000000000001')
+ await expectNoAvailabilityFollowupWrites(page)
+ await match.getByRole('button',{name:'Review & publish lineup',exact:true}).click()
+ const publicationReview=match.getByRole('region',{name:'Lineup to publish',exact:true})
+ await expect(publicationReview).toContainText('2 updated')
+ await expect(publicationReview.getByRole('list',{name:'Court changes',exact:true})).toContainText('Riley & Casey')
+ await match.getByRole('button',{name:'Back to editing',exact:true}).click()
+ await match.getByRole('button',{name:'Cancel edit',exact:true}).click()
+ const published=match.getByRole('region',{name:'Published lineup',exact:true})
+ await expect(published.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
+ await expect(published.getByText('Doubles 1 · Needs a change',{exact:true})).toBeVisible()
+ const stored=await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{savedLineup:{courts:{players:string[]}[]};publishedLineup:{courts:{players:string[]}[]}}}).manualScheduleFixture)
+ expect(stored.savedLineup.courts.map(c=>c.players)).toEqual([['10000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002'],['22222222-2222-4222-8222-222222222222']])
+ expect(stored.publishedLineup.courts).toEqual(stored.savedLineup.courts)
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(page.getByRole('textbox',{name:'Message your team',exact:true})).toHaveValue('Keep my match note')
+ await expectNoAvailabilityFollowupWrites(page)
+})
+
+for(const change of ['private lineup','captain access','the match'] as const)test(`captain court swap stops if ${change} changes after its preview`,async({page})=>{
+ const {match,picker,preview}=await openCaptainCourtSwap(page)
+ await picker.getByRole('button',{name:'Review swap with Riley on Singles 1',exact:true}).click()
+ await page.evaluate(change=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{savedLineup:{version:string};captain:boolean;revision:string}}).manualScheduleFixture
+  if(change==='private lineup')fixture.savedLineup.version='88888888-8888-4888-8888-888888888888'
+  else if(change==='captain access')fixture.captain=false
+  else fixture.revision='88888888-8888-4888-8888-888888888888'
+ },change)
+ await preview.getByRole('button',{name:'Apply swap to private plan',exact:true}).click()
+ await expect(preview).toHaveCount(0)
+ await expect(match.getByRole('status')).toContainText(change==='private lineup'?'Another captain updated the private lineup':change==='captain access'?'Captain access could not be confirmed':'The match or your reply changed')
+ await expect(match.getByRole('button',{name:'Review & publish lineup',exact:true})).toBeDisabled()
+ await expect(match.locator('[data-match-lineup-player="0:0"]')).toHaveValue('10000000-0000-4000-8000-000000000001')
+ await expect(match.locator('[data-match-lineup-player="1:0"]')).toHaveValue('22222222-2222-4222-8222-222222222222')
+ await expectNoAvailabilityFollowupWrites(page)
+})
+
+for(const person of ['source','destination'] as const)test(`captain court swap rechecks ${person} availability before applying`,async({page})=>{
+ const {match,picker,preview}=await openCaptainCourtSwap(page)
+ await picker.getByRole('button',{name:'Review swap with Riley on Singles 1',exact:true}).click()
+ await page.evaluate(person=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{reply:{choice:string};extraPlayers:{name:string;choice:string}[]}}).manualScheduleFixture
+  if(person==='source')fixture.reply.choice='out'
+  else fixture.extraPlayers.find(row=>row.name==='Riley')!.choice='out'
+ },person)
+ await preview.getByRole('button',{name:'Apply swap to private plan',exact:true}).click()
+ await expect(preview).toHaveCount(0);await expect(picker).toBeVisible()
+ await expect(match.getByRole('status')).toContainText(person==='source'?'Both players must be marked In':'no longer marked In')
+ await expect(picker.getByRole('button',{name:'Review swap with Riley on Singles 1',exact:true})).toHaveCount(0)
+ await expect(match.locator('[data-match-lineup-player="0:0"]')).toHaveValue('10000000-0000-4000-8000-000000000001')
+ await expectNoAvailabilityFollowupWrites(page)
+})
+
+test('captain court swap keeps the preview through a read failure and applies only on an explicit retry',async({page})=>{
+ const {match,picker,preview}=await openCaptainCourtSwap(page)
+ await picker.getByRole('button',{name:'Review swap with Riley on Singles 1',exact:true}).click()
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{failReplies:boolean}}).manualScheduleFixture.failReplies=true})
+ const apply=preview.getByRole('button',{name:'Apply swap to private plan',exact:true})
+ await apply.click()
+ await expect(match.getByRole('status')).toContainText('Nothing changed')
+ await expect(preview).toBeVisible()
+ await expect(match.locator('[data-match-lineup-player="0:0"]')).toHaveValue('10000000-0000-4000-8000-000000000001')
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{failReplies:boolean}}).manualScheduleFixture.failReplies=false})
+ await apply.click()
+ await expect(match.locator('[data-match-lineup-player="0:0"]')).toHaveValue('22222222-2222-4222-8222-222222222222')
+ await expectNoAvailabilityFollowupWrites(page)
+ await page.keyboard.press('Escape')
+ await expect(page.getByRole('dialog',{name:'Keep match edits',exact:true})).toBeVisible()
+})
+
+test('captain court swap cannot apply a delayed check after the account changes',async({page})=>{
+ const {match,picker,preview}=await openCaptainCourtSwap(page)
+ await picker.getByRole('button',{name:'Review swap with Riley on Singles 1',exact:true}).click()
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:{holdNextReplies:boolean}}).manualScheduleFixture.holdNextReplies=true})
+ await preview.getByRole('button',{name:'Apply swap to private plan',exact:true}).click()
+ await expect.poll(()=>page.evaluate(()=>Boolean((window as unknown as {manualScheduleFixture:{releaseNextReplies:unknown}}).manualScheduleFixture.releaseNextReplies))).toBe(true)
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+ await expect(match).toHaveCount(0)
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{holdNextReplies:boolean;releaseNextReplies:(()=>void)|null}}).manualScheduleFixture
+  fixture.holdNextReplies=false;fixture.releaseNextReplies?.()
+ })
+ await expect.poll(()=>page.evaluate(()=>(window as unknown as {manualScheduleFixture:{releaseNextReplies:unknown}}).manualScheduleFixture.releaseNextReplies===null)).toBe(true)
+ await expect(match).toHaveCount(0)
+ await expectNoAvailabilityFollowupWrites(page)
 })
 
 test('captain replacements refresh availability, handle errors and preserve unpublished court edits',async({page})=>{

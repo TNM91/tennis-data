@@ -9,7 +9,7 @@ import {html} from './match-details'
 import {calendarMatchExport,calendarMatchVenueHref,shiftCalendarDay} from './calendar-data'
 import {Browser} from './native-browser'
 import {exportCoachFile} from './native-coach-files'
-import {matchLineupFields,matchLineupMessage,plannedLineupHtml} from './team-match-lineup'
+import {matchLineupFields,matchLineupMessage,plannedLineupHtml,lineupNames} from './team-match-lineup'
 import {saveTeamLineupReplyRequest,saveTeamMatchLineupRequest,teamMatchRepliesRequest} from './team-match-replies-data'
 import {teamNextMatchRequest,TeamNextMatchError,type TeamMatchRoom,type TeamNextMatchSchedule} from './team-room-data'
 import type {TacticalBoardReference} from '../../lib/tactical/board-reference'
@@ -18,6 +18,7 @@ import {openSharedTactics} from './shared-tactics-view'
 import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type ReadinessAction, type TeamMatchSection} from './team-match-readiness'
 import {availableLineupReserves,lineupAvailabilityFollowup,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml,setLineupResponseView,type LineupResponseView} from './team-lineup-publication'
 import {lineupReplacementContext,lineupReplacementHtml,lineupReplacementTarget,replaceLineupPlayer,type LineupReplacementTarget} from './team-lineup-replacement'
+import {lineupSwapContext,lineupSwapReviewHtml,swapLineupPlayers,type LineupSwapReview} from './team-lineup-swap'
 import {captainMatchStatus} from './captain-match-status'
 import {playerAssignmentSnapshot,playerAssignmentChanges,playerAssignmentUpdateHtml,type PlayerAssignmentUpdate} from './player-assignment-review'
 import './team-match-readiness.css'
@@ -87,6 +88,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let replies:TeamMatchReplies|null=null,pendingReply:TeamMatchReplyChange|null=null
  let lineup:MatchLineupCourt[]|null=null
  let replacementTarget:LineupReplacementTarget|null=null
+ let swapReview:LineupSwapReview|null=null
  let pendingLineup:TeamLineupChange|null=null,lineupConflict=false
  let publicationReview:TeamLineupChange|null=null,confirmationReview:TeamLineupReplyChange|null=null,pendingConfirmation:TeamLineupReplyChange|null=null
  let assignmentUpdate:PlayerAssignmentUpdate|null=null
@@ -106,7 +108,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  const dispose=()=>{disposed=true;leavePrompt?.remove();leavePrompt=null;tacticsViewer?.dispose();dialog.remove()}
  const returnToMatch=()=>{
   const source=readinessReturn
-  draft=null;lineup=null;replacementTarget=null;publicationReview=null;confirmationReview=null;editingDirty=false;readinessReturn=null;notice='';render()
+  draft=null;lineup=null;replacementTarget=null;swapReview=null;publicationReview=null;confirmationReview=null;editingDirty=false;readinessReturn=null;notice='';render()
   focus(source==='confirmations'?'.team-lineup-publication h3':source?`[data-readiness-action="${source}"]`:'h2')
  }
  const close=()=>{
@@ -115,6 +117,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   if(leavePrompt){leavePrompt.querySelector<HTMLButtonElement>('[data-keep]')?.click();return}
   if(busy)return
   if(pending||pendingReply||pendingLineup||pendingConfirmation){notice='Retry the same change or reload the match to check whether it saved.';render();focusFeedback();return}
+  if(swapReview){cancelSwapReview();return}
   if(replacementTarget){cancelReplacement();return}
   if(confirmationReview){confirmationReview=null;notice='';render();focus('.team-lineup-publication h3');return}
   if(publicationReview){publicationReview=null;notice='';render();focus('[data-review-publication]');return}
@@ -136,8 +139,13 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  const focusFeedback=()=>dialog.querySelector<HTMLElement>('[role="status"]')?.focus()
  const cancelReplacement=()=>{
   const target=replacementTarget
-  replacementTarget=null;notice='';render()
+  replacementTarget=null;swapReview=null;notice='';render()
   focus(target?`[data-match-lineup-player="${target.court}:${target.slot}"]`:'[data-match-lineup] h3')
+ }
+ const cancelSwapReview=()=>{
+  const player=swapReview?.other.player
+  swapReview=null;notice='';render()
+  focus(player?`[data-review-lineup-swap="${player}"]`:'.team-lineup-replacement h3')
  }
  const captain=room.manualFixture&&room.canScheduleMatch
  let startNew=Boolean(captain&&previousMatch)
@@ -180,7 +188,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  const load=async()=>{
   if(busy||!active())return
   const before=schedule??calendarSchedule
-  busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null;replacementTarget=null;editingDirty=false
+  busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null;replacementTarget=null;swapReview=null;editingDirty=false
   publicationReview=null;confirmationReview=null;pendingConfirmation=null;assignmentUpdate=null;returnFromOwnAvailability=false
   tacticsChoice=undefined;boardOptions=undefined
   replies=null;draft=null;removing=false;schedule=null;notice='Loading your next match…';render()
@@ -512,7 +520,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   try{
    const result=await saveTeamMatchLineupRequest(client,owner,active,room,change)
    if(!active()||!replies)return
-   replies={...replies,...result};changed=true;pendingLineup=null;lineup=null;publicationReview=null;editingDirty=false;readinessReturn=null
+   replies={...replies,...result};changed=true;pendingLineup=null;lineup=null;swapReview=null;publicationReview=null;editingDirty=false;readinessReturn=null
    notice=change.publish?'Lineup published. Assigned players can confirm in Next match.':'Private lineup saved. Your published lineup is unchanged.'
    if(schedule)await refreshReplies(schedule)
   }catch(cause){
@@ -533,7 +541,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    const context=lineupReplacementContext(lineup,latest.lineupRoster,target)
    const candidate=context?.candidates.find(candidate=>candidate.id===player)
    lineup=replaceLineupPlayer(lineup,latest.lineupRoster,target,player)
-   replacementTarget=null;editingDirty=true
+   replacementTarget=null;swapReview=null;editingDirty=true
    notice=`${candidate!.name} selected for ${context!.label}. Review and publish when you’re ready.`
   }catch(cause){
    if(cause instanceof TeamNextMatchError){
@@ -542,6 +550,33 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    }else notice=cause instanceof Error?cause.message:'Couldn’t check availability. Choose a teammate again to retry.'
   }
   finally{if(active()){busy=false;render();focusFeedback()}}
+ }
+ const reviewCourtSwap=async(player:string,apply=false)=>{
+  if(!active()||!captain||busy||pending||pendingReply||pendingLineup||lineupConflict||!lineup||!replacementTarget||!schedule?.revision||!replies?.lineupRoster||apply&&!swapReview)return
+  const source={...replacementTarget},revision=schedule.revision,version=replies.savedLineup?.version??null
+  const reviewed=swapReview
+  if(apply&&reviewed&&(JSON.stringify(lineup)!==JSON.stringify(reviewed.before)||reviewed.other.player!==player||reviewed.version!==version)){
+   swapReview=null;notice='Your private plan changed. Review the swap again.';render();focusFeedback();return
+  }
+  busy=true;notice='Checking both players and the latest private lineup…';render()
+  try{
+   const latest=await teamMatchRepliesRequest(client,owner,active,room,revision)
+   if(!active())return
+   replies=latest
+   if(!latest.lineupRoster){lineupConflict=true;replacementTarget=null;swapReview=null;notice='Captain access could not be confirmed. Reload the match.';return}
+   if((latest.savedLineup?.version??null)!==version){lineupConflict=true;replacementTarget=null;swapReview=null;notice='Another captain updated the private lineup. Reload the match before swapping courts.';return}
+   const candidate=lineupSwapContext(lineup,latest.lineupRoster,source)?.candidates.find(row=>row.id===player)
+   const other=apply&&reviewed?reviewed.other:candidate?{court:candidate.court,slot:candidate.slot,player:candidate.id}:null
+   if(!other){swapReview=null;notice='A player is no longer available for this swap. Review the latest replies.';return}
+   const next=swapLineupPlayers(lineup,latest.lineupRoster,source,other)
+   const names=Object.fromEntries(lineupNames(latest.lineupRoster))
+   if(apply){lineup=next;swapReview=null;replacementTarget=null;editingDirty=true;notice=`${names[source.player]} and ${names[other.player]} swapped courts in your private plan. Review and publish when you’re ready.`}
+   else{swapReview={before:structuredClone(lineup),after:next,names,source,other,version};notice=''}
+  }catch(cause){
+   if(cause instanceof TeamNextMatchError&&(cause.status===409||cause.status===403)){lineupConflict=true;replacementTarget=null;swapReview=null;notice=cause.message}
+   else if(cause instanceof TeamNextMatchError)notice='Couldn’t check the swap. Nothing changed. Try again when you’re ready.'
+   else{swapReview=null;notice=cause instanceof Error?cause.message:'Couldn’t check the swap. Review the players again.'}
+  }finally{if(active()){busy=false;render();if(swapReview&&!notice){focus('.team-lineup-swap-review h3');dialog.querySelector('.team-lineup-swap-review')?.scrollIntoView({block:'start'})}else focusFeedback()}}
  }
  async function chooseTactics() {
   if (!active() || !captain || !lineup || busy || pendingLineup) return
@@ -643,7 +678,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
      <h3 tabindex="-1" ${replacementTarget?'hidden':''}>Plan lineup</h3><p ${replacementTarget?'hidden':''}>Pick players by court. Confirm any Maybe or unanswered replies with your teammates.</p>
      <div data-lineup-readiness ${replacementTarget?'hidden':''}>${teamReadinessHtml(replies,lineup,true)}</div>
      <fieldset class="team-lineup-editor" aria-label="Court assignments" ${busy||pendingLineup||lineupConflict?'disabled':''}>
-      ${replacementTarget?lineupReplacementHtml(lineup,replies?.lineupRoster??[],replacementTarget,replies?.rosterComplete===true):''}
+      ${swapReview?lineupSwapReviewHtml(swapReview):replacementTarget?lineupReplacementHtml(lineup,replies?.lineupRoster??[],replacementTarget,replies?.rosterComplete===true):''}
       <div ${replacementTarget?'hidden':''}>
       ${matchLineupFields(lineup,replies?.lineupRoster??[])}
       <section class="team-lineup-reserves" aria-label="Available teammates"><h3>Available teammates</h3><p>${reserves.length?reserves.map(player=>html(player.name)).join(' · '):'No unassigned teammates marked In.'}</p><p>Choose a replacement in the court’s player list, then review and publish the update.</p></section>
@@ -751,7 +786,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector<HTMLButtonElement>('[data-share-match-calendar]')?.addEventListener('click',()=>{void openMatchAction('calendar')})
   const startLineup=(player?:string)=>{
    if(!active()||!captain||busy||pendingReply||pendingLineup)return
-   lineup=structuredClone(replies?.savedLineup?.courts??[]);replacementTarget=null;tacticsChoice=undefined;editingDirty=false;notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
+   lineup=structuredClone(replies?.savedLineup?.courts??[]);replacementTarget=null;swapReview=null;tacticsChoice=undefined;editingDirty=false;notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
    if(player){
     const court=lineup.findIndex(court=>court.players.includes(player))
     if(court>=0){
@@ -776,6 +811,9 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    heading?.focus();heading?.scrollIntoView({block:'start'})
   }})
   dialog.querySelector('[data-cancel-lineup-replacement]')?.addEventListener('click',cancelReplacement)
+  dialog.querySelectorAll<HTMLButtonElement>('[data-review-lineup-swap]').forEach(button=>{button.onclick=()=>{void reviewCourtSwap(button.dataset.reviewLineupSwap!)}})
+  dialog.querySelector('[data-apply-lineup-swap]')?.addEventListener('click',()=>{if(swapReview)void reviewCourtSwap(swapReview.other.player,true)})
+  dialog.querySelector('[data-cancel-lineup-swap]')?.addEventListener('click',cancelSwapReview)
   dialog.querySelectorAll<HTMLButtonElement>('[data-choose-lineup-replacement]').forEach(button=>{button.onclick=()=>{void chooseReplacement(button.dataset.chooseLineupReplacement!)}})
   dialog.querySelectorAll<HTMLButtonElement>('[data-readiness-action]').forEach(button=>{button.onclick=()=>{
    if(!active()||busy||pendingReply||pendingLineup)return

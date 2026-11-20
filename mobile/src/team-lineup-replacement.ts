@@ -3,6 +3,7 @@ import type {TeamLineupPlayer} from '../../lib/team-match-replies-contract'
 import {html} from './html'
 import {courtLabels,lineupNames} from './team-match-lineup'
 import {availableLineupReserves} from './team-lineup-publication'
+import {lineupSwapContext} from './team-lineup-swap'
 
 export type LineupReplacementTarget={court:number;slot:number;player:string}
 
@@ -33,13 +34,19 @@ export function replaceLineupPlayer(courts:MatchLineupCourt[],roster:TeamLineupP
 export function lineupReplacementHtml(courts:MatchLineupCourt[],roster:TeamLineupPlayer[],target:LineupReplacementTarget,complete:boolean){
  const context=lineupReplacementContext(courts,roster,target)
  if(!context)return ''
+ const swaps=lineupSwapContext(courts,roster,target)
  return `<section class="team-lineup-replacement" aria-label="Available replacements">
   <h3 tabindex="-1">${context.label} · Player ${context.slot}</h3>
-  <p>Replacing · <strong>${html(context.current)}</strong>${context.partner?`<span>Partner stays · ${html(context.partner)}</span>`:''}</p>
+  <p>Current player · <strong>${html(context.current)}</strong>${context.partner?`<span>Partner stays · ${html(context.partner)}</span>`:''}</p>
+  <h4>${target.player?'Replace player':'Choose player'}</h4>
   <p>Choose an unassigned teammate marked In. Your other courts stay as planned.</p>
   ${!complete?'<p>Only the teammates loaded here are shown.</p>':''}
   ${context.candidates.length?`<ul>${context.candidates.map(player=>`<li><button type="button" class="secondary" data-choose-lineup-replacement="${html(player.id)}" aria-label="Choose ${html(player.name)} for ${context.label}"><span><strong>${html(player.name)}</strong><small>In · Not assigned</small></span><span aria-hidden="true">Choose ›</span></button></li>`).join('')}</ul>`:
-   '<p>No unassigned teammates are marked In. Return to your lineup to review other replies.</p>'}
+   '<p>No unassigned teammates are marked In.</p>'}
+  ${target.player&&swaps?`<h4>Swap courts</h4><p>Exchange assignments with a player on another court. Both players must be marked In.</p>
+   ${swaps.reason?`<p>${html(swaps.reason)}</p>`:swaps.candidates.length?`<ul aria-label="Available court swaps">${swaps.candidates.map(player=>
+    `<li><button type="button" class="secondary" data-review-lineup-swap="${html(player.id)}" aria-label="Review swap with ${html(player.name)} on ${player.label}"><span><strong>Review swap with ${html(player.name)}</strong><small>${player.label}${player.partner?' · Partner: '+html(player.partner):''}</small></span><span aria-hidden="true">›</span></button></li>`).join('')}</ul>`:
+    '<p>No players on another court are marked In.</p>'}`:''}
   <p>Selections stay private until you review and publish the lineup.</p>
   <button type="button" class="secondary" data-cancel-lineup-replacement>Back to lineup</button>
  </section>`

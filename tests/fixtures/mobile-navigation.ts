@@ -217,6 +217,7 @@ const manualScheduleFixture={enabled:new URL(location.href).searchParams.has('ma
  reply:null as {id:string;choice:string}|null,loseNextReply:true,replyWrites:[] as string[],
  extraPlayers:[] as {id:string;name:string;choice:string|null}[],
  rosterComplete:true,failReplies:false,caseyChoice:null as string|null,
+ holdNextReplies:false,releaseNextReplies:null as (()=>void)|null,
  savedLineup:null as {version:string;courts:{format:string;players:string[]}[];names:Record<string,string>;tactics?:SharedTacticsBoard}|null,
  publishedLineup:undefined as SavedTeamLineup|null|undefined,
  lineupReplies:{} as Record<string,TeamLineupReply>,loseNextConfirmation:true,confirmationWrites:[] as string[],afterReply:null as (()=>void)|null,
@@ -714,6 +715,7 @@ window.fetch=async(input,init)=>{
   if(op==='match-replies'){
    const fixture=manualScheduleFixture
    fixture.matchReads.replies++
+   if(fixture.holdNextReplies){await new Promise<void>(resolve=>{fixture.releaseNextReplies=resolve});fixture.releaseNextReplies=null}
    if(fixture.failReplies)return Response.json({ok:false},{status:503})
    if(!team||!fixture.enabled||!fixture.nextMatch||fixture.revision!==url.searchParams.get('revision'))return Response.json({ok:false},{status:409})
    const lineupRoster=manualLineupRoster()
