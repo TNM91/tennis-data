@@ -134,7 +134,7 @@ export function openPlayerChats(
     live = watchTeamChat(client,owner,id,()=>active() && page === 'room' && room?.id === id,async ()=>{
       const history = dialog.querySelector<HTMLElement>('.player-chat-messages')
       const readingHistory = history && history.scrollHeight - history.clientHeight - history.scrollTop > 24
-      if (busy || iconEditor || directions?.isOpen() || draft || practiceDraft || hitDraft || readingHistory || dialog.contains(document.activeElement) && document.activeElement?.matches('input,textarea,select,summary')) {
+      if (busy || iconEditor || directions?.isOpen() || draft || practiceDraft || hitDraft || readingHistory || dialog.contains(document.activeElement) && document.activeElement?.matches('input,textarea,select,summary,#chat-hit-title')) {
         const refresh = dialog.querySelector('[data-player-refresh]')
         if (refresh) refresh.textContent = 'Check for updates'
         return
