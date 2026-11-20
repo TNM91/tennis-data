@@ -1,4 +1,4 @@
-name: Native captain release verification
+name: Native WebKit release verification
 
 # Verification-only branch: production CI and release gates stay unchanged.
 on:
@@ -13,72 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        # Verify the same root-only install used by production.
-        run: npm ci
-
-      - name: Verify
-        run: npm run verify
-
-      - name: Check named lineup ownership in isolated PostgreSQL
-        run: node scripts/verify-named-lineup-ownership.mjs
-
-      - name: Check read-model permissions in isolated PostgreSQL
-        run: node scripts/verify-read-model-view-grants.mjs
-
-      - name: Check conservative native-only website build exclusion
-        run: node --test scripts/vercel-ignore-native-only.test.mjs
-
-      - name: Check native packaging guards
-        run: |
-          node --test mobile/scripts/ios-app-lock.test.mjs mobile/scripts/ios-purchases.test.mjs mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs mobile/scripts/ios-push.test.mjs
-          python3 mobile/scripts/test-altool-upload.py
-
-  tiq-schema-audit:
-    name: TIQ Schema Audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Audit TIQ league schema
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npm run db:audit:tiq
-
   layout:
     if: github.repository == 'TNM91/tennis-data'
-    name: Native navigation (Linux)
+    name: Native WebKit (part ${{ matrix.part }}/2)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2]
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
       options: --ipc=host
@@ -96,17 +39,21 @@ jobs:
         run: node -e "require('node:assert/strict').equal(require('@playwright/test/package.json').version, '1.59.1')"
       - name: Build the native production bundle
         run: node mobile/scripts/build-bundled.mjs --first-party-full
-      - name: Check full native navigation on Chromium and WebKit
+      - name: Check the complete WebKit navigation shard
         run: >-
           npx playwright test --config=tests/playwright.native-navigation.config.ts
-          --project=mobile-chrome --project=mobile-webkit --workers=2 --retries=0 --max-failures=1
+          --project=mobile-webkit --shard=${{ matrix.part }}/2 --workers=2 --retries=0 --max-failures=1
           --global-timeout=900000
           --output=.next/match-brief-linux --reporter=list,github
       - name: Save layout evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: match-brief-linux-layout-${{ github.sha }}
-          path: .next/match-brief-linux/
+          name: captain-webkit-${{ matrix.part }}-${{ github.sha }}
+          path: |
+            .next/match-brief-linux/**/captain-*.png
+            .next/match-brief-linux/**/error-context.md
+            .next/match-brief-linux/**/test-failed-*.png
+            .next/match-brief-linux/**/trace.zip
           if-no-files-found: ignore
           retention-days: 3
