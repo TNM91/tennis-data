@@ -5,7 +5,7 @@ import {coachCheckInDraft,submitCoachCheckIn,CoachCheckInError,type CoachCheckIn
 import {trainingTime} from './level-up-model'
 import {html} from './match-details'
 const evidenceLimit=300
-export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>boolean,assignment:CoachAssignment,link:TrainingCoachLink,refresh:(saved:boolean)=>void,practice?:CoachPracticeStats){
+export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>boolean,assignment:CoachAssignment,link:TrainingCoachLink,refresh:(saved:boolean)=>void,practice?:CoachPracticeStats,prefill?:{recap:string;evidence:string}){
  const dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog training-dialog coach-check-in-screen'
  dialog.setAttribute('aria-label','Coach assignment check-in')
@@ -16,7 +16,7 @@ export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>
  const practiceStats=practice?`Self-rated proof ${practice.rating}/5${practice.elapsedSeconds?` · ${trainingTime(practice.elapsedSeconds)} timed`:''}`:''
  const practiceEvidence=practice?`${practice.drillTitle} · ${practiceStats}`:''
  let disposed=false,busy=false,attempted=false,conflict=false,leaving=false
- let recap='',evidence='',notice='',draft:CoachCheckIn|null=null
+ let recap=prefill?.recap.slice(0,700)??'',evidence=prefill?.evidence.slice(0,300)??'',notice='',draft:CoachCheckIn|null=null
  const active=()=>!disposed&&current()
  const dispose=()=>{
   if(disposed)return

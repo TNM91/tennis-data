@@ -11,6 +11,8 @@ import {coachReviewQueue, coachReviewQueueHtml} from './coach-review-queue'
 import {coachFollowUpFields, coachFollowUpHtml} from './coach-follow-up'
 import {coachRosterStatuses, coachRosterConnections, emptyCoachRosterFilter, readCoachRosterFilter} from '../../lib/coach-roster-filter'
 import {emptyCoachPracticeFilter, mountCoachPracticeTracker} from './coach-practice-tracker'
+import {loadCoachGrowthOverview, coachGrowthOverviewHtml} from './coach-growth-overview'
+import type {CoachGrowthOverview} from '../../lib/coach-growth-overview'
 
 type View = 'students' | 'student' | 'assignment' | 'add' | 'assign' | 'review' | 'confirm' | 'edit-student' | 'edit-assignment'
 const statusLabel = (s: string) => ({active: 'Active', needs_assignment: 'Needs assignment', review_notes: 'Review notes', paused: 'Paused', draft: 'Draft', assigned: 'Assigned', completed: 'Completed', archived: 'Archived'})[s] || s
@@ -43,6 +45,7 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
   let followUpSourceId = ''
   let rosterFilter = emptyCoachRosterFilter(), rosterDraft = emptyCoachRosterFilter(), initialAssignment = initial?.assignment
   let practiceFilter = emptyCoachPracticeFilter()
+  let growthOverview: CoachGrowthOverview | null = null, growthError = ''
   const active = () => !disposed && current(), focus = () => dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll: true})
   const dispose = () => {if (disposed) return; disposed = true; invitations?.dispose(); invitations = null; assessments?.dispose(); assessments = null; version++; snapshot = null; draft = null; fields = {}; rosterFilter = emptyCoachRosterFilter(); rosterDraft = emptyCoachRosterFilter(); practiceFilter = emptyCoachPracticeFilter(); initialAssignment = undefined; followUpSourceId = ''; leaveAction = null; document.removeEventListener('visibilitychange', visibility); dialog.close(); dialog.remove(); if (current() && previous?.isConnected) previous.focus({preventScroll: true})}
   // Keep edits in memory through app switching; account changes still dispose the workspace.
@@ -70,7 +73,10 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
   const load = async (id = '') => {
     if (!active() || busy) return
     if (id !== selected) practiceFilter = emptyCoachPracticeFilter()
-    const visit = ++version; busy = true; notice = 'Loading your Coach records…'; selected = id; view = id ? 'student' : 'students'; snapshot = null; followUpSourceId = ''; render()
+    const visit = ++version; busy = true; notice = 'Loading your Coach records…'; selected = id; view = id ? 'student' : 'students'; snapshot = null; followUpSourceId = ''; growthOverview = null; growthError = ''; render()
+    if (!id) void loadCoachGrowthOverview(client, owner, () => active() && visit === version, send).then(data => {
+      if(active() && visit === version){growthOverview=data;paintGrowthOverview()}
+    }).catch(() => {if(active() && visit === version){growthOverview=null;growthError='Coaching attention couldn’t load. Refresh records to try again.';paintGrowthOverview()}})
     try {const found = await loadCoachWorkspace(client, owner, () => active() && visit === version, id, send, rosterFilter); if (active() && visit === version) {
       snapshot = found; notice = ''
       if (initialAssignment) {
@@ -82,6 +88,15 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
     }}
     catch (error) {if (active() && visit === version) notice = error instanceof CoachWorkspaceError ? error.message : 'Coach records are unavailable. Try again when connected.'}
     finally {if (active() && visit === version) {busy = false; render(); focus()}}
+  }
+  function paintGrowthOverview() {
+    const host=dialog.querySelector<HTMLElement>('[data-growth-attention-host]')
+    if(!host||view!=='students'||leaving||!active())return
+    host.innerHTML=coachGrowthOverviewHtml(growthOverview,growthError)
+    host.querySelectorAll<HTMLButtonElement>('[data-growth-attention]').forEach(button=>{button.disabled=busy;button.onclick=()=>{
+      const row=growthOverview?.rows[Number(button.dataset.growthAttention)]
+      if(row&&!busy){initialAssignment=row.assignment??undefined;void load(row.student)}
+    }})
   }
   const field = (name: string, label: string, max: number, required = false, multiline = false, type = 'text') => `<label for="coach-${name}">${label}</label>${multiline ? `<textarea id="coach-${name}" name="${name}" maxlength="${max}" ${required ? 'required' : ''}>${html(fields[name] || '')}</textarea>` : `<input id="coach-${name}" name="${name}" type="${type}" maxlength="${max}" value="${html(fields[name] || '')}" ${required ? 'required' : ''}>`}`
   const submit = (event: SubmitEvent) => {
@@ -150,6 +165,11 @@ export function openCoachWorkspace(client: SupabaseClient, owner: string, curren
       <small>Search and filters cover your whole roster.</small></form>` + content
     dialog.innerHTML = `<header class="coach-workspace-header"><small>Coach workspace</small><h2 tabindex="-1">${html(heading)}</h2><button type="button" class="secondary" data-coach-close ${busy ? 'disabled' : ''} aria-label="Close Coach workspace">Close</button></header>${content}<p role="status" tabindex="-1">${html(notice)}</p>${!leaving && !isEditing() ? `<div class="coach-footer"><button type="button" class="secondary" data-coach-refresh ${busy ? 'disabled' : ''}>Refresh records</button>${view !== 'students' || selected ? `<button type="button" class="secondary" data-coach-back ${busy ? 'disabled' : ''}>${view === 'assignment' ? 'Back to student' : 'All students'}</button>` : ''}</div>` : !leaving ? `<button type="button" class="secondary" data-coach-back ${busy ? 'disabled' : ''}>Back</button>` : ''}`
     dialog.querySelector('[data-coach-close]')?.addEventListener('click', () => requestLeave())
+    if(view==='students'&&!leaving){
+      const host=document.createElement('div');host.dataset.growthAttentionHost=''
+      dialog.querySelector('.coach-workspace-header')?.after(host)
+      paintGrowthOverview()
+    }
     dialog.querySelector('[data-coach-back]')?.addEventListener('click', back)
     dialog.querySelector('[data-coach-refresh]')?.addEventListener('click', () => {void load(selected)})
     const rosterForm = dialog.querySelector<HTMLFormElement>('[data-coach-roster]')

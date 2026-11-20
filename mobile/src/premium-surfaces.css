@@ -3016,3 +3016,28 @@ body[data-screen] .app-header .tiq-feature-icon__glyph { inline-size:21px;block-
 .player-chats-dialog .group-practice-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .player-chats-dialog .group-practice-fields input { min-width:0; }
 .player-chats-dialog textarea { resize:vertical; width:100%; }
+
+/* TiQ practice and coaching share the app's quiet navy surfaces. Lime marks action. */
+:is(.tiq-growth-dialog,.tiq-alignment-dialog) { color:var(--premium-white); }
+:is(.tiq-growth-dialog,.tiq-alignment-dialog) .coach-workspace-header h2 { font-size:1.65rem; line-height:1.15; }
+:is(.tiq-growth-dialog,.tiq-alignment-dialog) :is(section,details,form) { margin-block:16px; }
+:is(.tiq-growth-dialog,.tiq-alignment-dialog) label { display:grid; gap:8px; margin-block:14px; color:var(--premium-copy); }
+:is(.tiq-growth-dialog,.tiq-alignment-dialog) :is(input,textarea,select) { min-width:0; width:100%; font:inherit; }
+:is(.tiq-growth-dialog,.tiq-alignment-dialog) select { appearance:none; padding-inline-end:2.4rem; text-overflow:ellipsis; background-color:var(--premium-inset); background-image:linear-gradient(45deg,transparent 50%,var(--premium-copy) 50%),linear-gradient(135deg,var(--premium-copy) 50%,transparent 50%); background-position:right 1rem center,right .65rem center; background-size:.35rem .35rem; background-repeat:no-repeat; }
+:is(.tiq-growth-dialog,.tiq-alignment-dialog) button { min-height:44px; margin-block:5px; white-space:normal; }
+:is(.tiq-growth-dialog,.tiq-alignment-dialog) summary { min-height:44px; padding-block:10px; }
+:is(.tiq-growth-dialog,.tiq-alignment-dialog) [role=status]:empty { display:none; }
+.tiq-growth-focus { padding:18px; border:1px solid var(--premium-line); border-radius:20px; background:var(--premium-card); }
+.tiq-growth-focus h3 { font-size:1.5rem; margin-block:8px; }
+.tiq-growth-focus progress { width:100%; accent-color:var(--premium-lime); }
+.tiq-growth-fields { display:grid; grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr); gap:12px; }
+.tiq-growth-due { color:var(--premium-lime); }
+.tiq-alignment-table { border:1px solid var(--premium-line); border-radius:16px; overflow:hidden; }
+.tiq-alignment-table [role=row] { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:12px; border-bottom:1px solid var(--premium-line); }
+.tiq-alignment-table [role=row]:last-child { border:0; }
+.tiq-alignment-table [role=row]:first-child { color:var(--premium-copy); font-size:.85rem; }
+.tiq-alignment-table [role=cell] { font-size:.88rem; overflow-wrap:anywhere; }
+.tiq-alignment-table [role=rowheader] { font-size:.9rem; }
+.tiq-growth-attention { margin-block:18px 24px; padding-block:16px; border-block:1px solid var(--premium-line); }
+.tiq-growth-attention .coach-record { min-width:0; width:100%; }
+@media(max-width:350px) { .tiq-growth-fields { grid-template-columns:minmax(0,1fr); gap:0; } .tiq-alignment-table [role=row] { padding:10px 8px; gap:5px; } }

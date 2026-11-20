@@ -31,6 +31,7 @@ export function coachWriteMatches(snapshot: NativeCoachSnapshot, draft: CoachWri
   const assignment = detail.assignments.find(a => a.id === draft.id)
   if (!assignment || detail.student.id !== draft.student || assignment.studentLinkId !== draft.student) return false
   if ('kind' in draft && draft.kind === 'assignment') {
+    if (draft.tiqGrowth && (!assignment.assignment.tiqGrowth || Object.entries(draft.tiqGrowth).some(([key,value]) => (assignment.assignment.tiqGrowth as Record<string,unknown>)[key] !== value))) return false
     if (draft.tactics && !sameTacticalBoardReference(draft.tactics, assignmentBoardReference(assignment.assignment))) return false
     if (draft.assessmentDrill && assignment.assignment.cardId !== tiqSkills.find(skill => skill.id === draft.assessmentDrill)?.drill.id) return false
   }

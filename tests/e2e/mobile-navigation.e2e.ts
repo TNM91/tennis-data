@@ -11481,3 +11481,15 @@ test('unavailable shared court links keep retry and close available',async({page
  await close.click()
  await expect(score).toHaveCount(0)
 })
+
+test('launch usability: captain creates a team and a teammate reviews and joins the invite',async({page},info)=>{
+ await useFirstPartyNavigation(page);await page.setViewportSize({width:390,height:844});await page.goto(origin+'/?create-team=1&launch-audit=1')
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click();await page.getByRole('button',{name:'Create a team',exact:true}).click()
+ const setup=page.getByRole('dialog',{name:'Create a team',exact:true});await setup.getByLabel('Team name').fill('Friday Court Crew');await setup.getByLabel('League or group (optional)').fill('Friday tennis');await setup.screenshot({path:info.outputPath('audit-captain-01-team-setup.png')});await setup.getByRole('button',{name:'Create team',exact:true}).click();await setup.getByRole('button',{name:'Retry same team',exact:true}).click();await setup.getByRole('button',{name:'Invite teammates',exact:true}).click()
+ const invites=page.getByRole('dialog',{name:'Captain team invites',exact:true});await invites.getByRole('button',{name:'Review new invite',exact:true}).click();await invites.getByRole('button',{name:'Create invite',exact:true}).click();await expect(invites.getByRole('button',{name:'Share invite',exact:true})).toBeEnabled();await invites.screenshot({path:info.outputPath('audit-captain-02-invite-ready.png')})
+ await expect(invites).not.toContainText('Flight unavailable');await expect(invites.getByRole('button',{name:'Close',exact:true})).toBeInViewport()
+ const link=await invites.getByLabel('Team invite link',{exact:true}).inputValue();await invites.getByRole('button',{name:'Close',exact:true}).click()
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner());await incomingLink(page,link)
+ const join=page.getByRole('dialog',{name:'Join a team',exact:true});await expect(join).toContainText('Friday Court Crew');await join.screenshot({path:info.outputPath('audit-captain-03-player-preview.png')});await join.getByRole('button',{name:'Join as player',exact:true}).click();await expect(join).toHaveCount(0)
+ await expect(page.locator('.chat-room-header')).toContainText('Friday Court Crew');await page.screenshot({path:info.outputPath('audit-captain-04-teammate-chat.png')});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+})

@@ -157,4 +157,5 @@ export function starterStorage(owner: string) {
 export async function clearStarterTiq(owner: string) {
   await starterStorage(owner).clear()
   await (getNativeAuthStorage() ?? localStorage).removeItem('tiq-account-pending:v1:' + owner)
+  await (getNativeAuthStorage() ?? localStorage).removeItem('tiq-growth-pending:v1:' + owner)
 }
