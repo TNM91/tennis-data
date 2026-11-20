@@ -118,6 +118,7 @@ jobs:
           name: captain-${{ matrix.project }}-${{ matrix.part }}-${{ github.sha }}
           path: |
             .next/match-brief-linux/**/captain-*.png
+            .next/match-brief-linux/**/player-court-summary.png
             .next/match-brief-linux/**/error-context.md
             .next/match-brief-linux/**/test-failed-*.png
             .next/match-brief-linux/**/trace.zip
