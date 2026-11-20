@@ -1,5 +1,7 @@
 # Launch Owner Next Steps
 
+For the current iOS candidate and remaining device checks, use [Current iPhone acceptance](mobile-app-readiness.md#current-iphone-acceptance--november-20-2026). Earlier website billing, import-reset and migration instructions below are historical operational notes, not authorization to rerun them for the first-party iOS launch. Do not reset first-party teams, matches or player records using an imported-data reset plan.
+
 This is an operational checklist, not legal, tax, or accounting advice. Confirm entity, tax, and legal decisions with a qualified professional before filing or charging customers.
 
 ## LLC registration
@@ -53,25 +55,23 @@ Before public launch:
 
 ## Pricing and charging
 
-Current tiers:
+Approved first-party iOS offer:
 
-- Free: `$0`.
-- Player: `$1.99/month`.
-- Coach: `$4.99/month`.
-- Captain: `$4.99/month`.
-- League: `$25/season`, one-time.
-- Full-Court: `$9.99/month`.
-- Club Starter: `$99/month`.
-- Club Unlimited: `$149/month`.
+- Player: free.
+- Pro: `$4.99/month`, including Captain and Coach tools.
+- Tournament publishing: `$5` per event, including its divisions.
+- League publishing: `$25` per season of up to 12 weeks.
 
-Current Stripe readiness:
+Publishing fees are separate from Pro and from any player entry fee. See [iPhone subscriptions and launch readiness](ios-subscription-readiness.md#first-party-public-launch-offer). Retired website tiers do not define the first-party app's offer.
 
-- The Captain Pilot is the only standing offer: eligible new captains receive three months at $0, then renew at $4.99/month.
+Historical website Stripe setup (not reverified in this iOS pass):
+
+- The earlier Captain Pilot offered eligible new captains three months at $0, then $4.99/month.
 - Admins can create a deliberate, plan-specific Stripe promotion in `/admin/promotions`; ordinary checkout keeps Stripe promotion-code entry available for those codes.
 - Paid plan price env vars are mapped for Player, Coach, Captain, League, Full-Court, Club Starter, and Club Unlimited.
 - Webhook readiness checks cover signed checkout and subscription lifecycle events.
 
-Before live charges:
+Historical website live-charge checklist:
 
 1. Confirm each live Stripe Price matches the public tier amount and interval.
 2. Set live `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and live `STRIPE_*_PRICE_ID` values privately.
