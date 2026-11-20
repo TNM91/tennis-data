@@ -83,11 +83,12 @@ export function mountStarterTiq(
         <span class="starter-tiq-icon" aria-hidden="true">${websiteUi.icons.progress}</span>
         <div>
           <h2 id="starter-tiq-title">Your TiQ</h2>
-          ${viewing && result ? `<p id="starter-tiq-context">Self-assessed · Private on this device</p>
-            <div class="starter-tiq-level" tabindex="-1" aria-describedby="starter-tiq-context">
+          ${viewing && result && history ? `<p id="starter-tiq-context">Self-assessed · Private on this device</p>
+            <div class="starter-tiq-level" tabindex="-1" aria-describedby="starter-tiq-context starter-tiq-date">
               <span class="starter-tiq-score">${result.score}<span> / 10</span></span>
               <strong>${result.level}</strong>
-            </div>` : viewing && previousLevel ?
+            </div>
+            <p id="starter-tiq-date">Assessed <time datetime="${html(history.current.date)}">${html(formatCalendarDay(history.current.date))}</time></p>` : viewing && previousLevel ?
             `<p>Saved level · ${previousLevel.level}</p><p>Complete the updated assessment for a 1–10 rating.</p>` :
             viewing ? '<p>Rate six tennis skills and find a drill to try next. Singles and doubles questions are optional.</p>' : ''}
         </div>
@@ -106,6 +107,7 @@ export function mountStarterTiq(
         ${previousLevel ? '<p role="status" data-starter-clear-status></p>' : ''}
         ${result ? `<details class="starter-tiq-breakdown">
           <summary>Skill breakdown</summary>
+          <p class="starter-tiq-explanation">Your six skill answers count equally toward your 1–10 TiQ.</p>
           <ul>${result.skills.map(({ id, skill, value }) => `<li>
             <span><b>${skill}</b><span>${tiqSkillLevels[value]}</span></span>
             <meter min="0" max="3" value="${value}" aria-label="${skill}: ${tiqSkillLevels[value]}"></meter>
@@ -114,7 +116,8 @@ export function mountStarterTiq(
           ${formats.some(format => result[format] !== null) ? `<dl class="starter-tiq-formats">
             ${formats.map(format => result[format] === null ? '' :
               `<div><dt>${formatLabels[format]}</dt><dd>${result[format]} / 10</dd></div>`).join('')}
-          </dl><p>Format ratings include your answers for singles or doubles.</p>` : ''}
+          </dl><p>Each format rating combines your six skill answers with your two answers for that format.</p>` : ''}
+          <p>Retake the assessment to update this score. Review coach assessments and your match record alongside it.</p>
           ${previous ? `<p>Previous self-assessment · ${starterResult(previous.answers).score} / 10 · ${html(formatCalendarDay(previous.date))}</p>` : ''}
           <button type="button" class="secondary starter-tiq-clear" data-starter-clear>Clear saved assessments</button>
           <p role="status" data-starter-clear-status></p>

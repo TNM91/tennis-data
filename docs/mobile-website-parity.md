@@ -1164,3 +1164,5 @@ Verification includes caller authorization and actual PostgreSQL entry constrain
 ### Your TiQ naming
 
 The player assessment card and the player's coach-assessment header use **Your TiQ**. The saved score keeps its **Self-assessed · Private on this device** context. The former Starter TiQ wording is retired from these visible headings; scoring, coach observations, saved answers, history and storage keys retain their existing behavior.
+
+The saved rating shows its assessment date, including when the score receives focus after saving. The existing skill breakdown explains the equal contribution of the six skill answers, how optional format answers contribute, and how to update the self-rating while reviewing coach assessments and match results alongside it. These explanations remain collapsed with the breakdown. No calculation, history, storage, coach-assessment or match-result behavior changes.

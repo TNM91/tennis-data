@@ -538,6 +538,7 @@ body[data-screen="lab"] .starter-tiq-form select {
 .lab-starter-tiq [role="status"]:empty,.starter-tiq-match-form [data-starter-match-record]:empty { display:none; }
 .starter-tiq-breakdown,.starter-tiq-match-form { margin-block-start:14px;border-block-start:1px solid var(--premium-line); }
 .starter-tiq-breakdown summary { min-block-size:44px;padding-block:12px;color:var(--premium-white);font-weight:700;cursor:pointer; }
+.starter-tiq-breakdown .starter-tiq-explanation { margin-block:0 12px; }
 .starter-tiq-breakdown ul { display:grid;gap:12px;list-style:none;margin:0;padding:0; }
 .starter-tiq-breakdown li>span { display:flex;flex-wrap:wrap;gap:2px 8px;justify-content:space-between;font-size:.875rem; }
 .starter-tiq-breakdown li>span>span { color:var(--premium-copy); }
