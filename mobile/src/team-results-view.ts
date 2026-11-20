@@ -54,7 +54,10 @@ function myCourtScorecard(roomId:string,entry:TeamResultEntry):CalendarScorecard
 const resultChatMatchLabel=(match:ReviewedNextMatch)=>`${match.opponent} on ${formatCalendarDay(match.date)}`
 export function sharedTeamResult(body:string,teamName:string){
  const prefix=`${teamName} `,suffix=`. ${resultChatHint}`
- if(!body.startsWith(prefix)||!body.endsWith(suffix))return
+ if(!body.startsWith(prefix))return
+ const question=/^captain: please review Court ([1-9]\d?) vs (.+)\. Posted score: (.+) \(team first\)\.(?:\s|$)/.exec(body.slice(prefix.length))
+ if(question&&Number(question[1])<=maxTeamResultCourts&&readTeamCourtScore(question[3]))return {summary:body,matchLabel:question[2]}
+ if(!body.endsWith(suffix))return
  const match=/^(?:won|lost|tied) \d{1,2}–\d{1,2} on courts vs (.+)$/.exec(body.slice(prefix.length,-suffix.length))
  if(match)return {summary:body.slice(0,-resultChatHint.length).trimEnd(),matchLabel:match[1]}
 }
@@ -171,7 +174,7 @@ function personalCourtHtml(entry:TeamResultEntry,court:NonNullable<ReturnType<ty
  </div>`
 }
 
-function teamResultsListHtml(data:TeamResults,filter:ResultFilter,busy:boolean,canOpenPersonal:boolean,getDraft:(entry:TeamResultEntry)=>ScoreDraft|undefined){
+function teamResultsListHtml(data:TeamResults,filter:ResultFilter,busy:boolean,canOpenPersonal:boolean,getDraft:(entry:TeamResultEntry)=>ScoreDraft|undefined,canAskCaptain:boolean){
  const rows=data.entries.map((entry,index)=>({entry,index,court:myPlayedCourt(entry.score),draft:data.canEdit?getDraft(entry):undefined}))
  const mine=filter==='mine'
  const visible=mine?rows.filter(row=>row.court):rows
@@ -191,8 +194,9 @@ function teamResultsListHtml(data:TeamResults,filter:ResultFilter,busy:boolean,c
    ${court?personalCourtHtml(entry,court):''}
    ${mine?'':courtScoreList(score?.courtScores,score?.courtPlayers)}
    ${unassigned?`<p class="team-result-assignment-note">${unassigned} played ${unassigned===1?'court needs':'courts need'} players</p>`:''}
-   ${!busy&&(data.canEdit||canLog)?`<div class="team-result-actions">
+   ${!busy&&(data.canEdit||canLog||canAskCaptain&&court)?`<div class="team-result-actions">
     ${canLog?`<button type="button" class="secondary" data-log-court="${fixtureId}" aria-describedby="personal-court-${fixtureId} personal-outcome-${fixtureId} personal-score-${fixtureId}"><span>${openInLab}</span><span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
+    ${canAskCaptain&&court&&!data.canEdit?`<button type="button" class="secondary" data-question-result="${index}" aria-describedby="personal-court-${fixtureId} personal-outcome-${fixtureId} personal-score-${fixtureId}">Ask captain to review<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
     ${unassigned&&!draft?`<button type="button" class="secondary" data-result-edit="${index}" data-result-assign>Add players<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
     ${data.canEdit?`<button type="button" ${score&&!draft?'class="secondary" ':''}data-result-edit="${index}">${draft?(draft.assigningPlayers?'Resume player assignments':'Resume score draft'):score?'Correct score':'Enter score'}<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
     ${data.canEdit&&score?`<button type="button" class="secondary" data-result-draft="${index}">Draft result in chat<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
@@ -243,8 +247,8 @@ async function requestTeamResultResponse(client:SupabaseClient,owner:string,room
 }
 
 export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTeamRoom,current:()=>boolean,drafts:TeamScoreDraftSession,
- onClose:(message?:string)=>void,canDraft:()=>boolean,onScheduleNext:(previous:ReviewedNextMatch)=>void,
- openPersonal?:(seed:CalendarScorecardSeed,position:TeamResultsPosition)=>void,entry?:TeamResultsEntryPoint){
+ onClose:(message?:string,kind?:'score-question')=>void,canDraft:()=>boolean,onScheduleNext:(previous:ReviewedNextMatch)=>void,
+ openPersonal?:(seed:CalendarScorecardSeed,position:TeamResultsPosition)=>void,entry?:TeamResultsEntryPoint,canDraftQuestion?:()=>boolean){
  const dialog=document.createElement('dialog')
  dialog.className='team-invite-dialog team-next-match-dialog'
  dialog.setAttribute('aria-label','Team results')
@@ -535,6 +539,26 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
   finally{if(active()){busy=false;if(!seed){render();focus('[role="status"]')}}}
   if(seed&&active()){dispose();onClose();openPersonal(seed,{filter,fixtureId:entry.fixtureId})}
  }
+ const draftScoreQuestion=async(entry:TeamResultEntry)=>{
+  if(!active()||busy||pending||!data||data.canEdit||!myPlayedCourt(entry.score)||!canDraftQuestion)return
+  const draftNotice='Finish your current chat draft before asking your captain.'
+  if(!canDraftQuestion()){notice=draftNotice;render();focus('[role="status"]');return}
+  busy=true;notice='Checking your court result…';render()
+  try{
+   data=await loadResults()
+   if(!active())return
+   const result=data.entries.find(item=>item.fixtureId===entry.fixtureId)
+   const court=myPlayedCourt(result?.score??null)
+   if(data.canEdit){notice='Your team access changed. Review the latest result.';return}
+   if(!result?.score||!court||result.score.revision!==entry.score?.revision||result.score.myCourt!==entry.score?.myCourt){
+    notice='Your court result changed. Review the latest score before asking your captain.';void refreshSavedScores();return
+   }
+   if(!canDraftQuestion()){notice=draftNotice;return}
+   const message=`${room.teamName} captain: please review Court ${court.number} vs ${resultChatMatchLabel(result.match)}. Posted score: ${court.score} (team first).`
+   dispose();onClose(message,'score-question')
+  }catch(cause){notice=cause instanceof TeamNextMatchError?cause.message:'Couldn’t check your court result. Try again.'}
+  finally{if(active()){busy=false;render();focus('[role="status"]')}}
+ }
  const render=()=>{
   if(!active())return
   const hasPlayedCourt=courts?.some(court=>court.outcome==='played')
@@ -574,7 +598,7 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
      ${edit.score?.courtScores?.length?'<p>Posting totals clears the saved court scores.</p>':''}
      <button type="button" class="secondary" data-result-court-mode>Add court scores</button>`}
      <button type="submit" ${loadingPlayers||assigningPlayers&&!showPlayers?'disabled':''}>${assigningPlayers?'Save player assignments':'Post team score'}</button><button type="button" class="secondary" data-result-cancel>Discard changes</button>
-    </form>`:!pending&&data?teamResultsListHtml(data,filter,busy,Boolean(openPersonal),currentDraft):''}
+    </form>`:!pending&&data?teamResultsListHtml(data,filter,busy,Boolean(openPersonal),currentDraft,Boolean(canDraftQuestion)):''}
    ${wrapUp?'':status}
    ${!busy&&pending?`<button type="button" data-result-retry>${assigningPlayers?'Retry player assignments':'Retry same score'}</button>`:''}
    ${!busy&&!edit?'<button type="button" class="secondary" data-result-load>Reload results</button>':''}
@@ -609,6 +633,10 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
   dialog.querySelectorAll<HTMLButtonElement>('[data-log-court]').forEach(button=>{button.onclick=()=>{
    const entry=data?.entries.find(item=>item.fixtureId===button.dataset.logCourt)
    if(entry)void logMyCourt(entry)
+  }})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-question-result]').forEach(button=>{button.onclick=()=>{
+   const entry=data?.entries[Number(button.dataset.questionResult)]
+   if(entry)void draftScoreQuestion(entry)
   }})
   paintScorecardLabels()
   dialog.querySelector('[data-result-cancel]')?.addEventListener('click',()=>{

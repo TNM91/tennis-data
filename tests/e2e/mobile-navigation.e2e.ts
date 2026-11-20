@@ -4825,6 +4825,140 @@ test('player court summary keeps a playing captain’s team actions available',a
  expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
 })
 
+for(const width of [320,390])test(`player score question drafts current court details for explicit sending at ${width}px`,async({page},info)=>{
+ const {open,results,composer}=await openPlayerCourtSummary(page,width)
+ await open()
+ await results.getByRole('button',{name:'Your courts',exact:true}).click()
+ const ask=results.getByRole('button',{name:'Ask captain to review vs Topspin Club',exact:true})
+ await expect(ask).toHaveAccessibleDescription('Your court Court 2 · Lost 3-6, 4-6 Team’s score first')
+ expect(await results.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await ask.scrollIntoViewIfNeeded()
+ await page.screenshot({path:info.outputPath('player-score-question.png')})
+ await ask.click()
+ await expect(results).toHaveCount(0)
+ await expect(composer).toBeFocused()
+ await expect(composer).toHaveValue('Baseline Aces captain: please review Court 2 vs Topspin Club on Sunday, November 1, 2026. Posted score: 3-6, 4-6 (team first).')
+ await expect(page.getByRole('status').filter({hasText:'Add what needs correcting, then tap Send.'})).toBeVisible()
+ const state=()=>page.evaluate(()=>({writes:Reflect.get(window,'teamResultFixture').writes,personal:Reflect.get(window,'personalMatchFixture').writtenIds,sent:Reflect.get(window,'firstPartyTeamFixture').posts}))
+ expect(await state()).toEqual({writes:[],personal:[],sent:[]})
+ const message=await composer.inputValue()+' My partner was Jordan. Could you check the players?'
+ await composer.fill(message)
+ await page.getByRole('button',{name:'Send',exact:true}).click()
+ const link=page.getByRole('button',{name:'View team result',exact:true})
+ await expect(link).toBeVisible()
+ await expect(link.locator('..').locator('.chat-message-text')).toHaveText(message)
+ await link.click()
+ const row=results.locator('[data-result-fixture="dddddddd-dddd-4ddd-8ddd-dddddddddddd"]')
+ await expect(row).toBeFocused()
+ await expect(row.getByRole('group',{name:'Your court',exact:true})).toContainText('Court 2 · Lost')
+ expect(await state()).toEqual({writes:[],personal:[],sent:[message]})
+})
+
+test('player score question protects an existing team message before reading the score again',async({page})=>{
+ const {open,results,composer}=await openPlayerCourtSummary(page)
+ await composer.fill('Keep my own message')
+ await open()
+ await results.getByRole('button',{name:'Ask captain to review vs Topspin Club',exact:true}).click()
+ await expect(results.getByRole('status')).toHaveText('Finish your current chat draft before asking your captain.')
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').reads)).toBe(1)
+ await results.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(composer).toHaveValue('Keep my own message')
+ expect(await page.evaluate(()=>Reflect.get(window,'firstPartyTeamFixture').posts)).toEqual([])
+})
+
+test('player score question keeps a chat draft that arrives during its fresh result check',async({page})=>{
+ const {open,results}=await openPlayerCourtSummary(page)
+ await open()
+ await page.evaluate(()=>{Reflect.get(window,'teamResultFixture').holdNextRead=true})
+ await results.getByRole('button',{name:'Ask captain to review vs Topspin Club',exact:true}).click()
+ await page.waitForFunction(()=>Boolean(Reflect.get(window,'teamResultFixture').releaseRead))
+ await page.evaluate(()=>{
+  const input=document.querySelector<HTMLTextAreaElement>('#chat-draft')!
+  input.value='New draft while checking';input.dispatchEvent(new Event('input',{bubbles:true}))
+  Reflect.get(window,'teamResultFixture').releaseRead()
+ })
+ await expect(results.getByRole('status')).toHaveText('Finish your current chat draft before asking your captain.')
+ expect(await page.locator('#chat-draft').inputValue()).toBe('New draft while checking')
+ expect(await page.evaluate(()=>Reflect.get(window,'firstPartyTeamFixture').posts)).toEqual([])
+})
+
+for(const change of ['score','assignment'] as const)test(`player score question reviews a changed ${change} before drafting`,async({page})=>{
+ const {open,results,composer}=await openPlayerCourtSummary(page)
+ await open()
+ await page.evaluate(change=>{
+  const score=(Reflect.get(window,'teamResultFixture') as TeamResultEntry).score!
+  if(change==='score'){
+   score.revision='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+   score.courtScores![1]='4-6 5-7'
+  }else{
+   score.courtPlayers![0]=[score.courtPlayers![1][0]]
+   score.courtPlayers![1]=[score.courtPlayers![1][1]]
+  }
+ },change)
+ const ask=results.getByRole('button',{name:'Ask captain to review vs Topspin Club',exact:true})
+ await ask.click()
+ await expect(results.getByRole('status')).toHaveText('Your court result changed. Review the latest score before asking your captain.')
+ await expect(results.getByRole('status')).toBeFocused()
+ await ask.click()
+ await expect(results).toHaveCount(0)
+ await expect(composer).toHaveValue(change==='score'?/Court 2.*Posted score: 4-6, 5-7/:/Court 1.*Posted score: 6-3, 6-4/)
+ expect(await page.evaluate(()=>Reflect.get(window,'firstPartyTeamFixture').posts)).toEqual([])
+})
+
+test('player score question refreshes captain access without drafting or posting a score',async({page})=>{
+ const {open,results}=await openPlayerCourtSummary(page)
+ await open()
+ await page.evaluate(()=>{Reflect.get(window,'manualScheduleFixture').captain=true})
+ await results.getByRole('button',{name:'Ask captain to review vs Topspin Club',exact:true}).click()
+ await expect(results.getByRole('status')).toHaveText('Your team access changed. Review the latest result.')
+ await expect(results.getByRole('button',{name:/^Ask captain to review/})).toHaveCount(0)
+ await expect(results.getByRole('button',{name:'Correct score vs Topspin Club',exact:true})).toBeVisible()
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
+test('player score question leaves a failed read available for explicit retry',async({page})=>{
+ const {open,results,composer}=await openPlayerCourtSummary(page)
+ await open()
+ await page.evaluate(()=>{Reflect.get(window,'teamResultFixture').failReads=true})
+ const ask=results.getByRole('button',{name:'Ask captain to review vs Topspin Club',exact:true})
+ await ask.click()
+ await expect(results.getByRole('status')).toContainText('Couldn’t load team results')
+ await page.evaluate(()=>{Reflect.get(window,'teamResultFixture').failReads=false})
+ await ask.click()
+ await expect(results).toHaveCount(0)
+ await expect(composer).toHaveValue(/please review Court 2/)
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').reads)).toBe(3)
+ expect(await page.evaluate(()=>Reflect.get(window,'firstPartyTeamFixture').posts)).toEqual([])
+})
+
+test('player score question ignores a late result after switching accounts',async({page})=>{
+ const {open,results}=await openPlayerCourtSummary(page)
+ await open()
+ await page.evaluate(()=>{Reflect.get(window,'teamResultFixture').holdNextRead=true})
+ await results.getByRole('button',{name:'Ask captain to review vs Topspin Club',exact:true}).click()
+ await page.waitForFunction(()=>Boolean(Reflect.get(window,'teamResultFixture').releaseRead))
+ await page.evaluate(()=>{Reflect.get(window,'switchNavigationOwner')();Reflect.get(window,'teamResultFixture').releaseRead()})
+ await expect(results).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'firstPartyTeamFixture').posts)).toEqual([])
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
+test('player score question link does not choose between same-name same-day fixtures',async({page})=>{
+ const {open,results,composer}=await openPlayerCourtSummary(page)
+ await open()
+ await results.getByRole('button',{name:'Ask captain to review vs Topspin Club',exact:true}).click()
+ await expect(composer).toHaveValue(/please review Court 2/)
+ await page.getByRole('button',{name:'Send',exact:true}).click()
+ await page.evaluate(()=>{
+  const fixture=Reflect.get(window,'teamResultFixture') as TeamResultEntry&{earlier:TeamResultEntry[]}
+  fixture.earlier=[{fixtureId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',match:{...fixture.match,facility:'Court 9'},score:fixture.score}]
+ })
+ await page.getByRole('button',{name:'View team result',exact:true}).click()
+ await expect(results.getByRole('heading',{name:'Team results',exact:true})).toBeFocused()
+ await expect(results.locator('[data-result-fixture]')).toHaveCount(2)
+ await expect(results.locator('[data-result-form]')).toHaveCount(0)
+})
+
 test('first-party teammate filters team results to their own courts',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:720})

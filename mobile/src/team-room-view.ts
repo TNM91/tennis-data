@@ -288,10 +288,20 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  }
  const canDraftTeamUpdate=(room:NativeTeamRoom)=>Boolean(valid()&&snapshot?.room?.id===room.id&&snapshot.room.chatReady&&snapshot.room.canScheduleMatch&&
   !draft.text&&!draft.reply&&!draft.photo&&!draft.pending&&!draft.sending&&!busy&&!photoChoosing&&!safetyView?.isOpen())
+ const canDraftScoreQuestion=(room:NativeTeamRoom)=>Boolean(valid()&&snapshot?.room?.id===room.id&&snapshot.room.chatReady&&
+  !draft.text&&!draft.reply&&!draft.photo&&!draft.pending&&!draft.sending&&!busy&&!photoChoosing&&!safetyView?.isOpen())
  const composeTeamUpdate=(room:NativeTeamRoom,message:string,notice:string)=>{
   if(!canDraftTeamUpdate(room))return false
   tab='Conversation';findOpen=false;chatFilter='all';searchText=''
   draft.text=message;draft.notice=notice
+  render()
+  app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus({preventScroll:true})
+  return true
+ }
+ const composeScoreQuestion=(room:NativeTeamRoom,message:string)=>{
+  if(!canDraftScoreQuestion(room))return false
+  tab='Conversation';findOpen=false;chatFilter='all';searchText=''
+  draft.text=message;draft.notice='Add what needs correcting, then tap Send.'
   render()
   app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus({preventScroll:true})
   return true
@@ -326,17 +336,18 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const messageId=trigger.closest<HTMLElement>('[data-chat-message]')?.dataset.chatMessage
   closeMessageMenus()
   trigger.focus({preventScroll:true})
-  teamDialog=openTeamResults(client,userId,matchRoom,current,results.drafts,message=>{
+  teamDialog=openTeamResults(client,userId,matchRoom,current,results.drafts,(message,kind)=>{
    teamDialog=null
    if(!current())return
-   if(message&&composeTeamUpdate(room,message,'Review your result, then tap Send.'))return
+   if(message&&(kind==='score-question'?composeScoreQuestion(room,message):composeTeamUpdate(room,message,'Review your result, then tap Send.')))return
    const link=messageId&&app.querySelector<HTMLElement>(`[data-chat-message="${CSS.escape(messageId)}"] [data-chat-team-results]`)
    const focusTarget=trigger.isConnected?trigger:link||app.querySelector<HTMLElement>('.chat-room-options > summary')
    focusTarget?.focus({preventScroll:true})
   },()=>current()&&canDraftTeamUpdate(room),previousMatch=>{
    teamDialog=null
    if(current())openNextMatch(room,trigger,previousMatch)
-  },(seed,position)=>results.openScorecard(seed,{roomId:room.id,scope:currentScope(),position}),entryPoint)
+  },(seed,position)=>results.openScorecard(seed,{roomId:room.id,scope:currentScope(),position}),entryPoint,
+   room.chatReady?()=>current()&&canDraftScoreQuestion(room):undefined)
  }
  const bindMessageActions=(room:NativeTeamRoom)=>{
   pressActions?.dispose();pressActions=null
