@@ -35,6 +35,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   }
   await db.exec(await readSql(new URL('../../supabase/migrations/20261118000100_native_lineup_tactics.sql',import.meta.url)))
   await db.exec(await readSql(new URL('../../supabase/migrations/20261119000200_native_lineup_publication.sql',import.meta.url)))
+  await db.exec(await readSql(new URL('../../supabase/migrations/20261120000100_native_tiq_account_history.sql',import.meta.url)))
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
 
   await db.query('insert into internal_notification_preferences(profile_id,native_coach_alerts_enabled) values($1,true),($2,false)',[a,b])
@@ -84,6 +85,10 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   expect((await coachAssessments(a,'private-link')).rows[0].assessments).toEqual([])
   expect((await coachAssessments(b,'private-link')).rows[0].assessments).toHaveLength(1)
   expect((await coachAssessments(b)).rows[0].assessments).toEqual([])
+  const selfAssessment='12345678-1234-4234-8234-123456789abc'
+  const selfWrite={kind:'save',id:selfAssessment,date:'2026-11-17',answers:{serve:2,return:2,rally:2,movement:2,net:2,points:2},version:1,expectedHead:null}
+  expect((await db.query('select write_native_tiq_assessment($1,$2) status',[a,JSON.stringify(selfWrite)])).rows).toEqual([{status:200}])
+  expect((await db.query('select write_native_tiq_assessment($1,$2) status',[a,JSON.stringify({kind:'share',id:selfAssessment,student:'private-link',linkUpdatedAt:'2026-11-17T12:00:00Z',operation:selfAssessment,expected:null})])).rows).toEqual([{status:200}])
   await db.exec('reset role')
   await db.query('insert into team_chat_blocks(owner_user_id,blocked_user_id) values($1,$2)',[a,b])
   expect((await coachAssessments(a)).rows[0].assessments).toEqual([])
@@ -273,6 +278,8 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   // Simulate the Auth provider's hard-delete transaction with the real reviewed FK actions.
   await db.exec('reset role');await db.query('delete from auth.users where id=$1',[a])
   expect((await db.query('select id from private.native_coach_assessments')).rows).toEqual([])
+  expect((await db.query('select id from private.tiq_self_assessments')).rows).toEqual([])
+  expect((await db.query('select assessment_id from private.tiq_self_assessment_shares')).rows).toEqual([])
   expect((await db.query('select lineup from native_team_next_fixtures order by room_id')).rows)
    .toEqual([{lineup:null},{lineup:retainedLineup}])
   expect((await db.query('select published_lineup from native_team_next_fixtures order by room_id')).rows)
