@@ -77,8 +77,8 @@ const playerChatFixture={
  group:inboxSearchFixture,
  logo:'',
  outgoing:[] as {id:string;name:string;author:string;body:string;createdAt:string}[],
- receive(){
-  this.outgoing.push({id:'45526ebf-561c-477e-a6f7-9546ebf52cf4',name:'Jamie',author:this.player,
+ receive(id='45526ebf-561c-477e-a6f7-9546ebf52cf4'){
+  this.outgoing.push({id,name:'Jamie',author:this.player,
    body:'I can make Friday.',createdAt:'2026-11-13T20:15:00Z'})
   emitChatSignal()
  },
