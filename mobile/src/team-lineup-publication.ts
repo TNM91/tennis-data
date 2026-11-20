@@ -15,7 +15,7 @@ export function availableLineupReserves(courts:MatchLineupCourt[],roster:TeamLin
 export function lineupCourtRows(courts:MatchLineupCourt[],names:Record<string,string>){
  let singles=0,doubles=0
  return courts.map(court=>({label:court.format==='singles'?`Singles ${++singles}`:`Doubles ${++doubles}`,
-  ids:[...court.players],players:court.players.map(id=>names[id]??'Teammate').join(' & ')}))
+  ids:[...court.players],players:court.players.map(id=>id?names[id]??'Teammate':'Open spot').join(' & ')}))
 }
 
 export function lineupPublishComparison(courts:MatchLineupCourt[],roster:TeamLineupPlayer[],previous?:SavedTeamLineup){

@@ -19,6 +19,7 @@ import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type Readines
 import {availableLineupReserves,lineupAvailabilityFollowup,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml,setLineupResponseView,type LineupResponseView} from './team-lineup-publication'
 import {lineupReplacementContext,lineupReplacementHtml,lineupReplacementTarget,replaceLineupPlayer,type LineupReplacementTarget} from './team-lineup-replacement'
 import {lineupSwapContext,lineupSwapReviewHtml,swapLineupPlayers,type LineupSwapReview} from './team-lineup-swap'
+import {privateLineupReview,privateLineupReviewHtml} from './team-lineup-private-review'
 import {captainMatchStatus} from './captain-match-status'
 import {playerAssignmentSnapshot,playerAssignmentChanges,playerAssignmentUpdateHtml,type PlayerAssignmentUpdate} from './player-assignment-review'
 import './team-match-readiness.css'
@@ -96,6 +97,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let previousSlot:ReviewedNextMatch|null=null
  let scheduleAnnouncement:{revision:string;previous:ReviewedNextMatch}|null=null
  let rosterExpanded=false
+ let privateReviewExpanded=false
  let responseView:LineupResponseView='attention'
  let responseViewRevision:string|null=null
  let entrySection=focusSection
@@ -188,7 +190,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  const load=async()=>{
   if(busy||!active())return
   const before=schedule??calendarSchedule
-  busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null;replacementTarget=null;swapReview=null;editingDirty=false
+  busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null;replacementTarget=null;swapReview=null;editingDirty=false;privateReviewExpanded=false
   publicationReview=null;confirmationReview=null;pendingConfirmation=null;assignmentUpdate=null;returnFromOwnAvailability=false
   tacticsChoice=undefined;boardOptions=undefined
   replies=null;draft=null;removing=false;schedule=null;notice='Loading your next match…';render()
@@ -629,6 +631,8 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  }
  const render=()=>{
   if(!active())return
+  const priorReview=dialog.querySelector<HTMLDetailsElement>('[data-private-lineup-review]')
+  if(priorReview&&lineup)privateReviewExpanded=priorReview.open
   if(schedule?.revision&&schedule.revision!==responseViewRevision){responseView='attention';responseViewRevision=schedule.revision}
   const zones=draft?[...new Set([draft.timeZone,localZone,'America/New_York','America/Chicago','America/Denver','America/Phoenix','America/Los_Angeles','America/Anchorage','Pacific/Honolulu'])]:[]
   const reusableVenue=draft&&!schedule?.nextMatch&&previousMatch?.facility?previousMatch:null
@@ -677,6 +681,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
     <form data-match-lineup>
      <h3 tabindex="-1" ${replacementTarget?'hidden':''}>Plan lineup</h3><p ${replacementTarget?'hidden':''}>Pick players by court. Confirm any Maybe or unanswered replies with your teammates.</p>
      <div data-lineup-readiness ${replacementTarget?'hidden':''}>${teamReadinessHtml(replies,lineup,true)}</div>
+     <div data-lineup-private-review ${replacementTarget?'hidden':''}>${privateLineupReviewHtml(lineup,replies,privateReviewExpanded,Boolean(busy||pendingLineup||lineupConflict))}</div>
      <fieldset class="team-lineup-editor" aria-label="Court assignments" ${busy||pendingLineup||lineupConflict?'disabled':''}>
       ${swapReview?lineupSwapReviewHtml(swapReview):replacementTarget?lineupReplacementHtml(lineup,replies?.lineupRoster??[],replacementTarget,replies?.rosterComplete===true):''}
       <div ${replacementTarget?'hidden':''}>
@@ -786,7 +791,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector<HTMLButtonElement>('[data-share-match-calendar]')?.addEventListener('click',()=>{void openMatchAction('calendar')})
   const startLineup=(player?:string)=>{
    if(!active()||!captain||busy||pendingReply||pendingLineup)return
-   lineup=structuredClone(replies?.savedLineup?.courts??[]);replacementTarget=null;swapReview=null;tacticsChoice=undefined;editingDirty=false;notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
+   lineup=structuredClone(replies?.savedLineup?.courts??[]);replacementTarget=null;swapReview=null;tacticsChoice=undefined;editingDirty=false;privateReviewExpanded=false;notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
    if(player){
     const court=lineup.findIndex(court=>court.players.includes(player))
     if(court>=0){
@@ -867,6 +872,20 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    const target=lineup.length?`[data-match-lineup-player="${Math.min(index,lineup.length-1)}:0"]`:'[data-add-lineup-court]'
    dialog.querySelector<HTMLElement>(target)?.focus()
   }})
+  const wirePrivateReview=()=>{
+   const details=dialog.querySelector<HTMLDetailsElement>('[data-private-lineup-review]')
+   if(details)details.ontoggle=()=>{if(details.isConnected)privateReviewExpanded=details.open}
+   dialog.querySelectorAll<HTMLButtonElement>('[data-review-private-court]').forEach(button=>{button.onclick=()=>{
+    if(!active()||!lineup||busy||pendingLineup||lineupConflict||replacementTarget)return
+    const court=Number(button.dataset.reviewPrivateCourt)
+    const row=privateLineupReview(lineup,replies).rows.find(row=>row.court===court)
+    if(!row)return
+    const target=row.issues.length?dialog.querySelector<HTMLElement>(`[data-match-lineup-player="${court}:${row.issues[0].slot}"]`):
+     dialog.querySelectorAll<HTMLElement>('.lineup-court legend')[court]
+    if(target){if(target.tagName==='LEGEND')target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'nearest'})}
+   }})
+  }
+  wirePrivateReview()
   dialog.querySelectorAll<HTMLSelectElement>('[data-match-lineup-player]').forEach(select=>{select.onchange=()=>{
    if(!lineup)return
    const [court,slot]=select.dataset.matchLineupPlayer!.split(':').map(Number)
@@ -874,6 +893,11 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
    editingDirty=true
    const preview=dialog.querySelector('[data-lineup-readiness]')
    if(preview)preview.innerHTML=teamReadinessHtml(replies,lineup,true)
+   const review=dialog.querySelector('[data-lineup-private-review]')
+   if(review){
+    privateReviewExpanded=dialog.querySelector<HTMLDetailsElement>('[data-private-lineup-review]')?.open??privateReviewExpanded
+    review.innerHTML=privateLineupReviewHtml(lineup,replies,privateReviewExpanded,Boolean(busy||pendingLineup||lineupConflict));wirePrivateReview()
+   }
    const reserveCopy=dialog.querySelector('.team-lineup-reserves p')
    const available=availableLineupReserves(lineup,replies?.lineupRoster??[])
    if(reserveCopy)reserveCopy.textContent=available.length?available.map(player=>player.name).join(' · '):'No unassigned teammates marked In.'
