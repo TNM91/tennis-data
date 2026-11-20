@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest'
-import {availableLineupReserves,lineupAssignmentFollowups,lineupConfirmationReminder,lineupConfirmationSummary,lineupPublicationHtml,lineupPublishPreviewHtml} from '../../mobile/src/team-lineup-publication'
+import {availableLineupReserves,lineupAssignmentFollowups,lineupAvailabilityFollowup,lineupConfirmationReminder,lineupConfirmationSummary,lineupPublicationHtml,lineupPublishPreviewHtml} from '../../mobile/src/team-lineup-publication'
 import type {TeamMatchReplies} from '../team-match-replies-contract'
 
 const player='22222222-2222-4222-8222-222222222222',captain='11111111-1111-4111-8111-111111111111',
@@ -114,4 +114,55 @@ it('limits response-view controls to captains and disables them while a change i
  expect(busy).toContain('data-assignment-view="attention" aria-pressed="true" disabled')
  expect(busy).toContain('data-assignment-view="all" aria-label="All assignments (3)" aria-pressed="false" disabled')
  expect(lineupPublicationHtml(fixture,captain,true,false,'all')).toContain('data-assignment-view="all" aria-label="All assignments (3)" aria-pressed="true"')
+})
+
+it.each(['maybe',null] as const)('drafts a named availability follow-up for %s without requesting another court confirmation',choice=>{
+ const fixture=confirmationFixture()
+ fixture.lineupRoster![0].choice=choice
+ const message=lineupAvailabilityFollowup(fixture,player,'our match vs Topspin on Saturday at Court 2')!
+ expect(message).toContain('<Alex> · Doubles 1')
+ expect(message).toContain('our match vs Topspin on Saturday at Court 2')
+ expect(message).toContain(choice==='maybe'?'when you know':'Please reply')
+ expect(message).toContain('Your court confirmation is separate.')
+ expect(message).not.toMatch(/Blair|Casey|confirm your published court assignment/)
+ expect(lineupConfirmationSummary(fixture).confirmed).toBe(1)
+})
+
+it.each(['in','out'] as const)('does not ask for availability once the player is %s',choice=>{
+ const fixture=confirmationFixture();fixture.lineupRoster![0].choice=choice
+ expect(lineupAvailabilityFollowup(fixture,player,'Saturday')).toBeNull()
+ expect(lineupAssignmentFollowups(fixture).rows.find(row=>row.id===player)?.needsAvailabilityReply).toBe(false)
+})
+
+it('withholds availability drafts without a current published assignment and checked captain data',()=>{
+ const fixture=confirmationFixture()
+ expect(()=>lineupAvailabilityFollowup(fixture,'private-only','Saturday')).toThrow('no longer in the published lineup')
+ fixture.lineupRoster=fixture.lineupRoster!.filter(row=>row.id!==player)
+ expect(()=>lineupAvailabilityFollowup(fixture,player,'Saturday')).toThrow('availability could not be checked')
+ fixture.lineupRoster=undefined
+ expect(()=>lineupAvailabilityFollowup(fixture,player,'Saturday')).toThrow('Captain access could not be confirmed')
+ fixture.lineupRoster=[];fixture.lineupReplies=undefined
+ expect(()=>lineupAvailabilityFollowup(fixture,player,'Saturday')).toThrow('Captain access could not be confirmed')
+})
+
+it('distinguishes same-name published teammates in the follow-up list and draft',()=>{
+ const fixture=confirmationFixture()
+ fixture.sharedLineup!.names[player]='Alex';fixture.sharedLineup!.names[captain]='Alex'
+ fixture.lineupRoster!.forEach(row=>{if(row.id===player||row.id===captain){row.name='Alex';row.choice='maybe'}})
+ const followups=lineupAssignmentFollowups(fixture)
+ expect(followups.rows.find(row=>row.id===player)?.name).toBe('Alex (2222)')
+ expect(followups.rows.find(row=>row.id===captain)?.name).toBe('Alex (1111)')
+ const message=lineupAvailabilityFollowup(fixture,player,'Saturday')!
+ expect(message).toContain('Alex (2222) · Doubles 1');expect(message).not.toContain('Alex (1111)')
+})
+
+it('offers captains their own reply shortcut and reserves follow-up drafting for other players',()=>{
+ const fixture=confirmationFixture();fixture.lineupRoster![0].choice='maybe';fixture.lineupRoster![1].choice=null
+ const markup=lineupPublicationHtml(fixture,captain,true,false)
+ expect(markup).toContain('data-open-assignment-availability')
+ expect(markup).not.toContain(`data-draft-availability-followup="${captain}"`)
+ expect(markup).toContain(`data-draft-availability-followup="${player}" aria-label="Draft follow-up for &lt;Alex&gt;"`)
+ expect(lineupPublicationHtml(fixture,captain,true,true)).toContain('aria-label="Draft follow-up for &lt;Alex&gt;" disabled')
+ expect(lineupPublicationHtml(fixture,player,false,false)).not.toContain('data-draft-availability-followup')
+ expect(()=>lineupAvailabilityFollowup(fixture,player,'x'.repeat(2400))).toThrow('too long')
 })

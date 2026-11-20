@@ -26,6 +26,8 @@
 .team-lineup-publish-preview li,.team-lineup-confirmations li{display:grid;gap:8px;padding-block:10px;border-block-start:1px solid var(--premium-line);font-size:.8125rem;line-height:1.5}
 .team-lineup-confirmations li{grid-template-columns:minmax(0,1fr) auto;align-items:center}
 .team-lineup-confirmations li>div{display:grid;gap:4px;min-inline-size:0}
+.team-lineup-confirmations .team-lineup-followup-actions{gap:8px;max-inline-size:10rem}
+.team-next-match-dialog .team-lineup-followup-actions button.secondary{white-space:normal;overflow-wrap:anywhere}
 .team-next-match-dialog .team-lineup-confirmations button.secondary{margin:0;min-block-size:44px;padding:8px 10px;background:transparent;border-color:var(--premium-line);font-size:.75rem}
 .team-lineup-confirmations [data-assignment-status="confirmed"]>div>span{color:var(--premium-lime)}
 .team-lineup-followups [hidden]{display:none!important}

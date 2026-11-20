@@ -3081,6 +3081,131 @@ async function openCaptainAssignmentFollowups(page:Page,width=390,openMatch=true
  return {match:page.getByRole('dialog',{name:'Next match',exact:true}),open}
 }
 
+type AvailabilityFollowupFixture={
+ caseyChoice:'in'|'out'|'maybe'|null;reply:{id:string;choice:'in'|'out'|'maybe'}|null
+ revision:string|null;nextMatch:Record<string,unknown>|null
+ publishedLineup:{version:string;courts:{format:string;players:string[]}[];names:Record<string,string>}|null;savedLineup:unknown
+ extraPlayers:{id:string;name:string;choice:'in'|'out'|'maybe'|null}[]
+ lineupReplies:Record<string,unknown>;captain:boolean;failReplies:boolean;holdNextMatch:boolean;releaseNextMatch:(()=>void)|null
+}
+async function openCaptainAvailabilityFollowups(page:Page,width=390,choice:'maybe'|null='maybe'){
+ const result=await openCaptainAssignmentFollowups(page,width,false)
+ await page.evaluate(choice=>{
+  const fixture=(window as unknown as {manualScheduleFixture:AvailabilityFollowupFixture}).manualScheduleFixture
+  fixture.caseyChoice=choice;fixture.reply!.choice='maybe'
+  const owner='11111111-1111-4111-8111-111111111111'
+  fixture.extraPlayers.push({id:owner,name:'Captain Quinn',choice:'maybe'})
+  fixture.publishedLineup!.courts.push({format:'singles',players:[owner]})
+  fixture.publishedLineup!.names[owner]='Captain Quinn'
+  fixture.lineupReplies[owner]={id:'99999999-9999-4999-8999-999999999999',version:fixture.publishedLineup!.version,choice:'confirmed'}
+  fixture.savedLineup=structuredClone(fixture.publishedLineup)
+ },choice)
+ await result.open()
+ return result
+}
+async function expectNoAvailabilityFollowupWrites(page:Page){
+ expect(await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{lineupWrites:string[];confirmationWrites:string[];replyWrites:string[]}}).manualScheduleFixture
+  return {lineup:fixture.lineupWrites,confirmations:fixture.confirmationWrites,replies:fixture.replyWrites,
+   posts:(window as unknown as {firstPartyTeamFixture:{posts:string[]}}).firstPartyTeamFixture.posts}
+ })).toEqual({lineup:[],confirmations:[],replies:[],posts:[]})
+}
+
+for(const width of [320,390])test(`captain named availability follow-up keeps court confirmation separate and drafts for one player at ${width}px`,async({page},info)=>{
+ const {match}=await openCaptainAvailabilityFollowups(page,width,width===320?'maybe':null)
+ if(width===390)await page.setViewportSize({width,height:568})
+ const publication=match.getByRole('region',{name:'Published lineup',exact:true})
+ const followup=publication.getByRole('button',{name:'Draft follow-up for Casey',exact:true})
+ await expect(followup).toBeVisible()
+ await expect(publication.getByRole('button',{name:'Draft follow-up for Captain Quinn',exact:true})).toHaveCount(0)
+ await expect(publication.getByRole('button',{name:'Draft follow-up for Riley',exact:true})).toHaveCount(0)
+ const reads=await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:{schedule:number;replies:number}}}).manualScheduleFixture.matchReads)
+ await publication.getByRole('button',{name:'Update your reply',exact:true}).click()
+ await expect(match.getByRole('heading',{name:'Can you play?',exact:true})).toBeFocused()
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:object}}).manualScheduleFixture.matchReads)).toEqual(reads)
+ await followup.scrollIntoViewIfNeeded()
+ expect(await followup.evaluate(el=>el.getBoundingClientRect().height>=44&&el.scrollWidth<=el.clientWidth)).toBe(true)
+ expect(await match.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await page.screenshot({path:info.outputPath('captain-named-availability-followup.png')})
+ await followup.click()
+ await expect(match).toHaveCount(0)
+ const composer=page.getByRole('textbox',{name:'Message your team',exact:true})
+ await expect(composer).toBeFocused()
+ await expect(composer).toHaveValue(/Availability check for our match vs Topspin Club[\s\S]*Court 2[\s\S]*Casey · Doubles 1/)
+ await expect(composer).toHaveValue(width===320?/when you know/:/Please reply/)
+ await expect(composer).toHaveValue(/Your court confirmation is separate/)
+ await expect(composer).not.toHaveValue(/Alex|Riley|Morgan|Captain Quinn/)
+ const freshReads=await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:{schedule:number;replies:number}}}).manualScheduleFixture.matchReads)
+ expect(freshReads).toEqual({schedule:reads.schedule+1,replies:reads.replies+1})
+ await expectNoAvailabilityFollowupWrites(page)
+})
+
+for(const change of ['in','out','publication','match','removed match','captain access','failed replies'] as const)test(`captain availability follow-up rechecks ${change} before creating a draft`,async({page})=>{
+ const {match}=await openCaptainAvailabilityFollowups(page)
+ await page.evaluate(change=>{
+  const fixture=(window as unknown as {manualScheduleFixture:AvailabilityFollowupFixture}).manualScheduleFixture
+  if(change==='in'||change==='out')fixture.caseyChoice=change
+  else if(change==='publication'){fixture.publishedLineup!.version='88888888-8888-4888-8888-888888888888';fixture.lineupReplies={}}
+  else if(change==='match'){fixture.revision='88888888-8888-4888-8888-888888888888';fixture.nextMatch!.facility='Court 4'}
+  else if(change==='removed match'){fixture.nextMatch=null;fixture.revision=null;fixture.publishedLineup=null;fixture.lineupReplies={}}
+  else if(change==='captain access')fixture.captain=false
+  else fixture.failReplies=true
+ },change)
+ await match.getByRole('button',{name:'Draft follow-up for Casey',exact:true}).click()
+ const expected=change==='in'||change==='out'?'That player no longer needs an availability follow-up':
+  change==='publication'?'The published lineup changed':change==='match'||change==='removed match'?'The match changed':
+  change==='captain access'?'Captain access could not be confirmed':'Availability couldn’t load'
+ await expect(match.getByRole('status')).toContainText(expected)
+ await expect(match.getByRole('status')).toBeFocused()
+ if(change!=='publication'&&change!=='match')await expect(match.getByRole('button',{name:'Draft follow-up for Casey',exact:true})).toHaveCount(0)
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(page.getByRole('textbox',{name:'Message your team',exact:true})).toHaveValue('')
+ await expectNoAvailabilityFollowupWrites(page)
+})
+
+test('captain availability follow-ups preserve an existing draft and one entered during the recheck',async({page})=>{
+ const {match,open}=await openCaptainAvailabilityFollowups(page)
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ const composer=page.getByRole('textbox',{name:'Message your team',exact:true})
+ await composer.fill('Keep this team update')
+ await open()
+ const reads=await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:object}}).manualScheduleFixture.matchReads)
+ await match.getByRole('button',{name:'Draft follow-up for Casey',exact:true}).click()
+ await expect(match.getByRole('status')).toContainText('Finish your current chat draft')
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:object}}).manualScheduleFixture.matchReads)).toEqual(reads)
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(composer).toHaveValue('Keep this team update');await composer.fill('')
+ await open()
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:AvailabilityFollowupFixture}).manualScheduleFixture.holdNextMatch=true})
+ await match.getByRole('button',{name:'Draft follow-up for Casey',exact:true}).click()
+ await expect.poll(()=>page.evaluate(()=>Boolean((window as unknown as {manualScheduleFixture:AvailabilityFollowupFixture}).manualScheduleFixture.releaseNextMatch))).toBe(true)
+ await composer.evaluate(field=>{(field as HTMLTextAreaElement).value='A new team update';field.dispatchEvent(new Event('input',{bubbles:true}))})
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:AvailabilityFollowupFixture}).manualScheduleFixture
+  fixture.holdNextMatch=false;fixture.releaseNextMatch?.()
+ })
+ await expect(match.getByRole('status')).toContainText('Finish your current chat draft')
+ await match.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(composer).toHaveValue('A new team update')
+ await expectNoAvailabilityFollowupWrites(page)
+})
+
+test('a delayed captain availability follow-up cannot create a draft after an account change',async({page})=>{
+ const {match}=await openCaptainAvailabilityFollowups(page)
+ await page.evaluate(()=>{(window as unknown as {manualScheduleFixture:AvailabilityFollowupFixture}).manualScheduleFixture.holdNextMatch=true})
+ await match.getByRole('button',{name:'Draft follow-up for Casey',exact:true}).click()
+ await expect.poll(()=>page.evaluate(()=>Boolean((window as unknown as {manualScheduleFixture:AvailabilityFollowupFixture}).manualScheduleFixture.releaseNextMatch))).toBe(true)
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+ await expect(match).toHaveCount(0)
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:AvailabilityFollowupFixture}).manualScheduleFixture
+  fixture.holdNextMatch=false;fixture.releaseNextMatch?.()
+ })
+ await expect.poll(()=>page.evaluate(()=>(window as unknown as {manualScheduleFixture:AvailabilityFollowupFixture}).manualScheduleFixture.releaseNextMatch===null)).toBe(true)
+ await expect(match).toHaveCount(0)
+ await expectNoAvailabilityFollowupWrites(page)
+})
+
 for(const width of [320,390])test(`captain assignment follow-up view separates availability, preserves filters and refreshes counts at ${width}px`,async({page},info)=>{
  const {match,open}=await openCaptainAssignmentFollowups(page,width,false)
  await page.evaluate(()=>{

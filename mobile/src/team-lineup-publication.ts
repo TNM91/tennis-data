@@ -75,13 +75,28 @@ export function lineupConfirmationReminder(replies:TeamMatchReplies,matchLabel:s
 
 export function lineupAssignmentFollowups(replies:TeamMatchReplies){
  const roster=new Map(replies.lineupRoster?.map(player=>[player.id,player]))
+ const names=lineupNames(Object.entries(replies.sharedLineup?.names??{}).map(([id,name])=>({id,name})))
  const rows=lineupConfirmationSummary(replies).rows.map(row=>{
   const player=roster.get(row.id)
-  return {...row,needsAttention:row.status!=='confirmed'||player?.choice!=='in',
+  return {...row,name:names.get(row.id)??row.name,needsAttention:row.status!=='confirmed'||player?.choice!=='in',
+   needsAvailabilityReply:Boolean(player&&(player.choice==='maybe'||player.choice===null)),
    availability:player?player.choice?teamReplyLabels[player.choice]:'Not replied':replies.rosterComplete?'No longer on roster':'Not checked'}
  })
  rows.sort((a,b)=>Number(b.needsAttention)-Number(a.needsAttention))
  return {rows,attention:rows.filter(row=>row.needsAttention).length}
+}
+
+export function lineupAvailabilityFollowup(replies:TeamMatchReplies,profileId:string,matchLabel:string){
+ const shared=replies.sharedLineup
+ if(!shared||replies.lineupRoster===undefined||replies.lineupReplies===undefined)throw Error('Captain access could not be confirmed. Reload the match.')
+ const assignment=lineupAssignmentFollowups(replies).rows.find(row=>row.id===profileId)
+ if(!assignment)throw Error('This player is no longer in the published lineup. Review the latest assignments.')
+ const player=replies.lineupRoster.find(row=>row.id===profileId)
+ if(!player)throw Error('This player’s availability could not be checked. Reload the match.')
+ if(!assignment.needsAvailabilityReply)return null
+ const message=`Availability check for ${matchLabel}\n\n${assignment.name} · ${assignment.court}\n${player.choice==='maybe'?'Please update whether you can play when you know.':'Please reply to let the team know whether you can play.'}\n\nOpen Team → Next match and update Can you play? Your court confirmation is separate.`
+ if(message.length>2400)throw Error('This follow-up is too long for one chat message. Review the availability replies instead.')
+ return message
 }
 
 export function setLineupResponseView(host:HTMLElement,view:LineupResponseView){
@@ -97,7 +112,7 @@ export function setLineupResponseView(host:HTMLElement,view:LineupResponseView){
  if(note)note.textContent=`Showing ${visible} of ${rows.length} assignments.`
 }
 
-function lineupFollowupsHtml(replies:TeamMatchReplies,busy:boolean,view:LineupResponseView){
+function lineupFollowupsHtml(replies:TeamMatchReplies,owner:string,busy:boolean,view:LineupResponseView){
  const {rows,attention}=lineupAssignmentFollowups(replies)
  const shown=view==='all'?rows.length:attention
  return `<div class="team-lineup-followups" data-lineup-followups>
@@ -107,7 +122,11 @@ function lineupFollowupsHtml(replies:TeamMatchReplies,busy:boolean,view:LineupRe
   </div>
   <p data-assignment-view-note aria-live="polite" aria-atomic="true">Showing ${shown} of ${rows.length} assignments.</p>
   <ul class="team-lineup-confirmations" aria-label="Assignment responses">${rows.map(row=>`<li data-assignment-status="${row.status}" data-assignment-attention="${row.needsAttention}" ${view==='attention'&&!row.needsAttention?'hidden':''}><div><strong>${html(row.name)}</strong><span>${html(row.court)} · ${row.reason}</span><small>Availability · ${row.availability}</small></div>
-   ${row.status==='review'?`<button type="button" class="secondary" data-review-lineup-player="${html(row.id)}" aria-label="Review court for ${html(row.name)}" ${busy?'disabled':''}>Review court</button>`:''}</li>`).join('')}</ul>
+   ${row.status==='review'||row.needsAvailabilityReply?`<div class="team-lineup-followup-actions">
+    ${row.status==='review'?`<button type="button" class="secondary" data-review-lineup-player="${html(row.id)}" aria-label="Review court for ${html(row.name)}" ${busy?'disabled':''}>Review court</button>`:''}
+    ${row.needsAvailabilityReply?row.id===owner?`<button type="button" class="secondary" data-open-assignment-availability ${busy?'disabled':''}>Update your reply</button>`:
+     `<button type="button" class="secondary" data-draft-availability-followup="${html(row.id)}" aria-label="Draft follow-up for ${html(row.name)}" ${busy?'disabled':''}>Draft follow-up</button>`:''}
+   </div>`:''}</li>`).join('')}</ul>
   <p data-assignment-empty ${shown?'hidden':''}>${rows.length?'No follow-ups among the assignments shown.':'No published assignments to review.'}</p>
  </div>`
 }
@@ -145,7 +164,7 @@ export function lineupPublicationHtml(replies:TeamMatchReplies|null,owner:string
   ${summary.checked?`<dl class="team-lineup-confirmation-counts"><div><dt>To confirm</dt><dd>${summary.awaiting}</dd></div><div><dt>Needs review</dt><dd>${summary.review}</dd></div></dl>`:''}
   ${summary.unknown?`<p>${summary.unknown} ${summary.unknown===1?'assignment could':'assignments could'} not be checked. Reload the match before following up.</p>`:''}
   ${privateLineupNotice(replies,busy)}
-  ${lineupFollowupsHtml(replies,busy,responseView)}
+  ${lineupFollowupsHtml(replies,owner,busy,responseView)}
   ${summary.awaiting?`<button type="button" class="secondary" data-draft-confirmation-reminder ${busy?'disabled':''}>Draft confirmation reminder</button><p>Review the reminder in team chat before sending.</p>`:''}`:''}
   ${!captain||assigned?ownSharedCourtHtml(shared,owner):''}
   ${assigned?`<p class="team-lineup-own-status" data-lineup-own-state="${replies.own?.choice==='out'?'out':own?.choice??'awaiting'}">${replies?.own?.choice==='out'?'You’re marked Out for this match.':ownStatus}</p>

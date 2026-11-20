@@ -16,7 +16,7 @@ import type {TacticalBoardReference} from '../../lib/tactical/board-reference'
 import {TacticsLibrary} from './coach-tactics-data'
 import {openSharedTactics} from './shared-tactics-view'
 import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type ReadinessAction, type TeamMatchSection} from './team-match-readiness'
-import {availableLineupReserves,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml,setLineupResponseView,type LineupResponseView} from './team-lineup-publication'
+import {availableLineupReserves,lineupAvailabilityFollowup,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml,setLineupResponseView,type LineupResponseView} from './team-lineup-publication'
 import {lineupReplacementContext,lineupReplacementHtml,lineupReplacementTarget,replaceLineupPlayer,type LineupReplacementTarget} from './team-lineup-replacement'
 import {captainMatchStatus} from './captain-match-status'
 import {playerAssignmentSnapshot,playerAssignmentChanges,playerAssignmentUpdateHtml,type PlayerAssignmentUpdate} from './player-assignment-review'
@@ -470,6 +470,34 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   }catch(cause){notice=cause instanceof Error?cause.message:'Couldn’t check the assignment responses. Reload the match.'}
   finally{if(active()){busy=false;render();focusFeedback()}}
  }
+ const draftAssignmentAvailability=async(profileId:string)=>{
+  if(!active()||!captain||busy||pending||pendingReply||pendingLineup||pendingConfirmation||profileId===owner||!schedule?.revision||!schedule.nextMatch||!replies?.sharedLineup)return
+  const draftNotice='Finish your current chat draft before drafting an availability follow-up.'
+  if(!canDraftUpdate()){notice=draftNotice;render();focusFeedback();return}
+  const before=schedule,version=replies.sharedLineup.version
+  busy=true;replies=null;notice='Checking the match and this player’s availability…';render()
+  try{
+   const latestSchedule=await teamNextMatchRequest(client,owner,active,room)
+   if(!active())return
+   schedule=latestSchedule
+   if(!latestSchedule.nextMatch||latestSchedule.revision!==before.revision){
+    await refreshReplies(latestSchedule)
+    if(!active())return
+    reviewScheduleChange(before,latestSchedule)
+    notice='The match changed. Review the latest details before drafting an availability follow-up.';return
+   }
+   const latest=await teamMatchRepliesRequest(client,owner,active,room,before.revision!)
+   if(!active())return
+   replies=latest
+   if(latest.sharedLineup?.version!==version){notice='The published lineup changed. Review the latest assignments before drafting a follow-up.';return}
+   const match=latestSchedule.nextMatch,time=nextMatchTime(match)
+   const message=lineupAvailabilityFollowup(latest,profileId,`our match vs ${match.opponent} on ${formatCalendarDay(match.date,false)}${time?' at '+time:''}${match.facility?' ('+match.facility+')':''}`)
+   if(!message){notice='That player no longer needs an availability follow-up. Review the latest replies.';return}
+   if(!canDraftUpdate()){notice=draftNotice;return}
+   dispose();onClose(changed,message)
+  }catch(cause){notice=cause instanceof Error?cause.message:'Couldn’t check this player’s availability. Reload the match.'}
+  finally{if(active()){busy=false;render();focusFeedback()}}
+ }
  const saveLineup=async(publish=false)=>{
   const revision=schedule?.revision,roster=replies?.lineupRoster
   if(!active()||!captain||busy||lineupConflict||!lineup||!revision||!roster)return
@@ -701,6 +729,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector('[data-confirmation-retry]')?.addEventListener('click',()=>{void confirmAssignment()})
   dialog.querySelector('[data-draft-published-lineup]')?.addEventListener('click',()=>{void draftPublishedLineup()})
   dialog.querySelector('[data-draft-confirmation-reminder]')?.addEventListener('click',()=>{void draftConfirmationReminder()})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-draft-availability-followup]').forEach(button=>{button.onclick=()=>{void draftAssignmentAvailability(button.dataset.draftAvailabilityFollowup!)}})
   dialog.querySelectorAll<HTMLButtonElement>('[data-assignment-view]').forEach(button=>{button.onclick=()=>{
    if(!active()||!captain||busy||pendingReply||pendingLineup||pendingConfirmation)return
    const view=button.dataset.assignmentView
@@ -711,11 +740,11 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   }})
   dialog.querySelector('[data-cancel-confirmation]')?.addEventListener('click',()=>{confirmationReview=null;render();focus('.team-lineup-publication h3')})
   dialog.querySelectorAll<HTMLButtonElement>('[data-lineup-reply]').forEach(button=>{button.onclick=()=>{void reviewConfirmation(button.dataset.lineupReply as LineupReplyChoice)}})
-  dialog.querySelector<HTMLButtonElement>('[data-open-own-availability]')?.addEventListener('click',()=>{
+  dialog.querySelectorAll<HTMLButtonElement>('[data-open-own-availability],[data-open-assignment-availability]').forEach(button=>button.addEventListener('click',()=>{
    if(!active()||busy||pendingReply||pendingConfirmation)return
    returnFromOwnAvailability=true
    focus('#team-match-replies-title');dialog.querySelector<HTMLElement>('.team-match-replies')?.scrollIntoView({block:'start'})
-  })
+  }))
   dialog.querySelector<HTMLButtonElement>('[data-draft-match-reminder]')?.addEventListener('click',()=>{void draftAvailabilityMessage('reminder')})
   dialog.querySelector<HTMLButtonElement>('[data-draft-match-change]')?.addEventListener('click',()=>{void draftAvailabilityMessage('schedule')})
   dialog.querySelector<HTMLButtonElement>('[data-open-match-maps]')?.addEventListener('click',()=>{void openMatchAction('maps')})
