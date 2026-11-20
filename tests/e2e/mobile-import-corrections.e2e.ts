@@ -1,13 +1,14 @@
 import {test,expect,type Page} from '@playwright/test'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
+import path from 'node:path'
 test.describe.configure({retries:0,timeout:20000})
 const origin='http://127.0.0.1:4264',prefix='/__import-corrections/'
 let javascript='',stylesheet=''
 type State={blocked:boolean;changed:boolean;offline:boolean;lateBlock:boolean;posts:number;previews:number;impactChanged:boolean;duplicate:boolean;active:boolean;last:unknown;lose:boolean;stale:boolean;invalidate:()=>void}
 const state=(page:Page)=>page.evaluate(()=>{const s=(window as unknown as {importFixture:State}).importFixture;return {posts:s.posts,previews:s.previews,last:s.last}})
 test.beforeAll(async()=>{
- const bundled=await build({entryPoints:['tests/fixtures/mobile-import-corrections.ts'],bundle:true,platform:'browser',format:'esm',outfile:'insights-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'}})
+ const bundled=await build({entryPoints:['tests/fixtures/mobile-import-corrections.ts'],bundle:true,platform:'browser',format:'esm',outfile:'insights-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')}})
  javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  const css=bundled.outputFiles.find(file=>file.path.endsWith('.css'))?.text||''
  stylesheet=(await Promise.all(['style.css','website-ui.css','app.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')+'\n'+css+'\n'+(await Promise.all(['website-parity.css','app-atmosphere.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')

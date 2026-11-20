@@ -1,6 +1,7 @@
 import {test,expect} from '@playwright/test'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
+import path from 'node:path'
 import {scopeNativeStyles} from '../../mobile/scripts/style-scope.mjs'
 const origin='http://127.0.0.1:4259',prefix='/__apple-membership-fixture/'
 let javascript='',proJavascript='',accountJavascript='',stylesheet='',accountStylesheet=''
@@ -9,7 +10,9 @@ test.beforeAll(async()=>{
  javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  const pro=await build({entryPoints:['tests/fixtures/mobile-apple-memberships.ts'],bundle:true,platform:'browser',format:'esm',outfile:'pro.js',loader:{'.module.css':'local-css'},jsx:'automatic',write:false,define:{TIQ_FIRST_PARTY_BUILD:'true'}})
  proJavascript=pro.outputFiles.find(file=>file.path.endsWith('.js'))!.text
- const account=await build({entryPoints:['tests/fixtures/mobile-account-logout.ts'],bundle:true,platform:'browser',format:'esm',outfile:'account.js',jsx:'automatic',write:false});accountJavascript=account.outputFiles.find(file=>file.path.endsWith('.js'))!.text
+ // Match the native bundle's adapters; Next's browser modules require its web runtime.
+ const account=await build({entryPoints:['tests/fixtures/mobile-account-logout.ts'],bundle:true,platform:'browser',format:'esm',outfile:'account.js',jsx:'automatic',write:false,
+  alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')}});accountJavascript=account.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  stylesheet=(await Promise.all(['mobile/src/style.css','mobile/src/website-parity.css'].map(file=>readFile(file,'utf8')))).join('\n')
  accountStylesheet=scopeNativeStyles(await readFile('mobile/src/style.css','utf8'))+'\n'+(await Promise.all(['mobile/generated/website-ui.css','mobile/src/website-parity.css','mobile/src/app-atmosphere.css','mobile/src/premium-surfaces.css'].map(file=>readFile(file,'utf8')))).join('\n')
 })
@@ -112,8 +115,9 @@ async function installAccountIosBridge(page:import('@playwright/test').Page){
  await page.addInitScript(()=>{
   const calls:string[]=[]
   const methods=(name:string,names:string[])=>({name,methods:names.map(name=>({name,rtype:'promise'}))})
-  Object.assign(window,{accountNativeCalls:calls,CapacitorCustomPlatform:{name:'ios'},Capacitor:{PluginHeaders:[methods('TiqBiometricSignIn',['status','forget','cancel']),methods('TiqPurchases',['addListener','removeListener','pending','restore','manage']),methods('CapacitorHttp',['get','post'])],nativePromise:async(plugin:string,method:string,options:{url?:string;headers?:Record<string,string>})=>{
+  Object.assign(window,{accountNativeCalls:calls,CapacitorCustomPlatform:{name:'ios'},Capacitor:{PluginHeaders:[methods('TiqBiometricSignIn',['status','forget','cancel']),methods('TiqPurchases',['addListener','removeListener','pending','restore','manage']),methods('CapacitorHttp',['get','post']),methods('SecureStorage',['setSynchronizeKeychain','internalGetItem','internalSetItem','internalRemoveItem','internalClearItemsWithPrefix','internalGetPrefixedKeys'])],nativePromise:async(plugin:string,method:string,options:{url?:string;headers?:Record<string,string>})=>{
    calls.push(plugin+'.'+method)
+   if(plugin==='SecureStorage')return method==='internalGetItem'?{data:''}:method==='internalGetPrefixedKeys'?{keys:[]}:{success:true}
    if(plugin==='TiqBiometricSignIn'&&method==='status')return {available:true,saved:false,forCurrentOwner:false,biometry:'faceID'}
    if(plugin==='TiqBiometricSignIn')return {}
    if(plugin==='TiqPurchases'&&method==='addListener')return 'synthetic-listener'
@@ -132,9 +136,9 @@ for(const width of [320,390])test('Account shortcuts retain visible controls and
  const d=await openAccount(page,'account-ios');await expect(d.getByText('Your Apple membership is active.',{exact:false})).toBeVisible()
  await page.addStyleTag({content:':root{font-size:24px!important}'})
  const nav=d.getByRole('navigation',{name:'Account sections',exact:true}),toolbar=d.locator('.account-settings-toolbar')
- await expect(nav.getByRole('button')).toHaveCount(4)
+ await expect(nav.getByRole('button')).toHaveCount(5)
  const before=await toolbar.boundingBox()
- for(const [label,heading]of [['Membership','Apple membership'],['Saved sign-in','Face ID sign-in'],['Account controls','Account controls'],['Your tools','Your tennis tools']]){
+ for(const [label,heading]of [['Membership','Apple membership'],['Opening screen','Opening screen'],['Saved sign-in','Face ID sign-in'],['Account controls','Account controls'],['Your tools','Your tennis tools']]){
   await nav.getByRole('button',{name:label,exact:true}).click()
   const title=d.getByRole('heading',{name:heading,exact:true});await expect(d.getByRole('region',{name:heading,exact:true})).toBeFocused();await expect(title).toBeInViewport()
   const after=await toolbar.boundingBox();expect(after!.y).toBeCloseTo(before!.y,0);expect(after!.height).toBeCloseTo(before!.height,0)
@@ -154,7 +158,7 @@ for(const width of [320,390])test('Account shortcuts retain visible controls and
 })
 test('Unavailable native sections are omitted and account navigation survives child panes',async({page})=>{
  const d=await openAccount(page),nav=()=>d.getByRole('navigation',{name:'Account sections',exact:true})
- await expect(nav().getByRole('button')).toHaveText(['Your tools','Account controls'])
+ await expect(nav().getByRole('button')).toHaveText(['Your tools','Opening screen','Account controls'])
  await nav().getByRole('button',{name:'Account controls',exact:true}).click()
  await d.getByRole('button',{name:'Reset password',exact:true}).click();await expect(nav()).toHaveCount(0)
  await d.getByRole('button',{name:'Back to account',exact:true}).click();await expect(d.getByRole('heading',{name:'Your account',exact:true})).toBeFocused()
@@ -175,7 +179,7 @@ test('Account load failure focuses its message and retry restores sections',asyn
  const d=await openAccount(page);await expect(d.getByRole('alert').filter({hasText:'Account settings could not be loaded'})).toBeFocused()
  await d.getByRole('button',{name:'Retry account settings',exact:true}).click()
  await expect(d.getByRole('heading',{name:'Your account',exact:true})).toBeFocused()
- await expect(d.getByRole('navigation',{name:'Account sections',exact:true}).getByRole('button')).toHaveCount(2)
+ await expect(d.getByRole('navigation',{name:'Account sections',exact:true}).getByRole('button')).toHaveText(['Your tools','Opening screen','Account controls'])
  expect(reads).toBe(2)
 })
 for(const width of [320,390])test('Account logout stays visible and returns to login at '+width+'px',async({page},info)=>{

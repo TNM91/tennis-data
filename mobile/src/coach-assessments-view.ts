@@ -10,6 +10,7 @@ import { assignCoachPractice, CoachWorkspaceError, type CoachSend } from './coac
 import { html } from './match-details'
 import {comparableAssessmentContexts, mountAssessmentComparison, type AssessmentComparisonSelection} from './coach-assessment-comparison'
 import {openTiqAccountHistory} from './tiq-account-view'
+import {openTiqCoachAlignment} from './tiq-coach-alignment'
 
 function observationHtml(observation: CoachObservation, self?: SkillObservations) {
   const focus = tiqSkills.find(skill => skill.id === observation.focus)
@@ -40,12 +41,14 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
   let assigningDrill = false
   let comparisonSelection: AssessmentComparisonSelection | null = null, comparisonOpen = false
   let playerRatings: ReturnType<typeof openTiqAccountHistory> | null = null
+  let alignment: ReturnType<typeof openTiqCoachAlignment> | null = null
   const active = () => !disposed && current() && trigger.isConnected
 
   function dispose() {
     if (disposed) return
     disposed = true
     playerRatings?.dispose(); playerRatings = null
+    alignment?.dispose(); alignment = null
     draft = null
     rows = []
     comparisonSelection = null
@@ -57,6 +60,7 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
   }
 
   function back() {
+    if (alignment?.isOpen()) return alignment.back()
     if (playerRatings?.isOpen()) return playerRatings.back()
     if (busy && (view !== 'list' || assigningDrill)) return true
     if (view === 'list') dispose()
@@ -196,6 +200,7 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
       <p>Shares this ${assessmentContexts[draft.observation.context].toLowerCase()} assessment with ${html(student!.name)} in My Lab.</p>
       ${observationHtml(draft.observation)}
       <button type="button" data-assessment-share ${busy || conflict ? 'disabled' : ''}>${attempted ? 'Retry same assessment' : 'Share assessment'}</button>` : `
+      <button type="button" class="secondary" data-alignment ${busy ? 'disabled' : ''}>Player &amp; coach view</button>
       ${student ? `<button type="button" data-assessment-new ${busy ? 'disabled' : ''}>New assessment</button>
         ${student.linked && student.status !== 'paused' ? `<button type="button" class="secondary" data-player-tiq ${busy ? 'disabled' : ''}>Player self-assessments</button>` : ''}` : '<p>See what your connected coaches observed and what to practice next.</p>'}
       ${comparable ? `<details class="coach-assessment-comparison" ${comparisonOpen ? 'open' : ''}><summary>Compare skill observations</summary><div data-assessment-comparison></div></details>`
@@ -254,6 +259,10 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
     dialog.querySelector<HTMLButtonElement>('[data-player-tiq]')?.addEventListener('click', event => {
       if (!busy && active() && student) playerRatings = openTiqAccountHistory(client, owner, active, event.currentTarget as HTMLElement, {student}, send)
     })
+    dialog.querySelector<HTMLButtonElement>('[data-alignment]')?.addEventListener('click', event => {
+      if (!busy && active()) alignment = openTiqCoachAlignment(client, owner, active, event.currentTarget as HTMLElement,
+        {student, assigned: updated => {latestWorkspace = updated}}, send)
+    })
     dialog.querySelectorAll<HTMLButtonElement>('[data-assign-drill]').forEach(button => {
       button.onclick = () => { void assignDrill(button.dataset.assignDrill ?? '') }
     })
@@ -267,5 +276,8 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
   document.body.append(dialog)
   dialog.showModal()
   void load()
-  return { dispose, back, isOpen: () => !disposed, requestLeave(action?: () => void) { if (view === 'list') { dispose(); action?.() } else back() } }
+  return { dispose, back, isOpen: () => !disposed, requestLeave(action?: () => void) {
+    if(alignment?.isOpen()||playerRatings?.isOpen()){back();return}
+    if (view === 'list') { dispose(); action?.() } else back()
+  } }
 }

@@ -45,7 +45,9 @@ test.beforeEach(async({page})=>{
  })
 })
 async function fillPoll(page:Page){
- await page.getByRole('button',{name:'Create a poll',exact:true}).click()
+ const opener=page.getByRole('button',{name:'Create a poll',exact:true})
+ // Establish keyboard focus before checking restoration after the sheet closes.
+ await opener.focus();await expect(opener).toBeFocused();await opener.press('Enter')
  await page.getByLabel('Question',{exact:true}).fill('When should we practice?')
  await page.getByLabel('Option 1',{exact:true}).fill('Saturday morning')
  await page.getByLabel('Option 2',{exact:true}).fill('Sunday afternoon')
@@ -97,7 +99,7 @@ for(const width of [320,390])test(`poll actions and six options stay usable at $
  await page.getByRole('button',{name:'Post poll',exact:true}).click()
  await expect(page.getByText('Poll posted to this room.',{exact:true})).toBeVisible()
  expect(actions).toHaveLength(1);expect(actions[0].action).toBe('create')
- await page.getByRole('button',{name:'Close poll',exact:true}).click()
+ await page.getByRole('button',{name:'Close poll',exact:true}).press('Enter')
  await expect(page.getByRole('dialog')).toHaveCount(0)
  expect(await page.locator('body').getAttribute('data-poll-changed')).toBe('true')
  await expect(page.getByRole('button',{name:'Create a poll',exact:true})).toBeFocused()

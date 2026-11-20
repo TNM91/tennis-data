@@ -23,7 +23,7 @@ export function mountStarterTiq(
   openMatchLog: () => void,
   openAssessments: (trigger: HTMLButtonElement, self?: StarterAnswers) => void,
   openProgress?: (trigger: HTMLButtonElement) => void,
-  account?: {client: SupabaseClient; openHistory: (trigger: HTMLElement, device: DeviceAssessment[], changed: (page: TiqHistory) => void, closed: () => void) => void},
+  account?: {client: SupabaseClient; openPlan?: (trigger: HTMLElement) => void; openHistory: (trigger: HTMLElement, device: DeviceAssessment[], changed: (page: TiqHistory) => void, closed: () => void) => void},
 ) {
   const storage = starterStorage(owner)
   const active = () => current() && host.isConnected
@@ -133,6 +133,7 @@ export function mountStarterTiq(
           <button type="button" class="secondary" data-starter-coach>Coach assessments</button>
           ${openProgress ? '<button type="button" class="secondary" data-starter-progress>Your progress</button>' : ''}
           ${account ? '<button type="button" class="secondary" data-starter-account>Rating history & sharing</button>' : ''}
+          ${account?.openPlan ? '<button type="button" class="secondary" data-starter-plan>My improvement plan</button>' : ''}
           ${previousLevel ? '<button type="button" class="secondary" data-starter-clear>Clear saved assessment</button>' : ''}
         </div>
         ${previousLevel ? '<p role="status" data-starter-clear-status></p>' : ''}
@@ -255,6 +256,8 @@ export function mountStarterTiq(
     const progress = host.querySelector<HTMLButtonElement>('[data-starter-progress]')
     if (progress) progress.onclick = () => {if (active() && !busy) openProgress?.(progress)}
     const accountButton = host.querySelector<HTMLButtonElement>('[data-starter-account]')
+    const planButton = host.querySelector<HTMLButtonElement>('[data-starter-plan]')
+    if (planButton) planButton.onclick = () => {if(active() && !busy && !document.querySelector('dialog[open]')) account?.openPlan?.(planButton)}
     if (accountButton && account) accountButton.onclick = () => {
       if (!active() || busy || document.querySelector('dialog[open]')) return
       const device = deviceSaved.history ? [deviceSaved.history.current, ...(deviceSaved.history.previous ? [deviceSaved.history.previous] : [])] : []

@@ -6,6 +6,7 @@ export const labDataReads={linkedProfile:0,players:0,matches:0,goalScopes:[] as 
 let user={id:navigationOwner,email:'preview@example.test'},signedIn=!new URL(location.href).searchParams.has('signedOut')
 let linked=!new URL(location.href).searchParams.has('unlinked')
 let listener:((event:string,session:unknown)=>void)|null=null
+let verifiedEmail='preview@example.test'
 const session=()=>signedIn?{user,access_token:'synthetic-local-token'}:null
 const player={overall_rating:4,overall_dynamic_rating:4.42,singles_dynamic_rating:4.37,doubles_dynamic_rating:4.49,rating_source:'verified'}
 const exploreReturn=new URL(location.href).searchParams.has('explore-return')
@@ -81,7 +82,7 @@ function data(table:string){
 }
 export function createClient(){return {
  channel:()=>{const callbacks:(()=>void)[]=[];const channel={on:(_type:string,_filter:unknown,callback:()=>void)=>{callbacks.push(callback);return channel},subscribe:(status:(value:string)=>void)=>{queueMicrotask(()=>status('SUBSCRIBED'));chatSignals.add(callbacks);return channel}};return channel},removeChannel:async()=> 'ok',
- auth:{signInWithPassword:async({password}:{password:string})=>{if(password==='synthetic-wrong')return {error:{code:'invalid_credentials'}};signedIn=true;listener?.('SIGNED_IN',session());return {error:null}},getSession:async()=>({data:{session:session()},error:null}),onAuthStateChange:(fn:typeof listener)=>{listener=fn;queueMicrotask(()=>listener?.('INITIAL_SESSION',session()));return {data:{subscription:{unsubscribe(){}}}}},startAutoRefresh(){},stopAutoRefresh(){},signOut:async()=>{signedIn=false;listener?.('SIGNED_OUT',null);return {error:null}}},
+ auth:{verifyOtp:async({email,token}:{email:string;token:string})=>{verifiedEmail=email;return token==='123456'?{error:null,data:{user:{...user,email},session:{access_token:'synthetic-local-token',refresh_token:'synthetic-refresh'}}}:{error:{code:'invalid_otp'},data:{session:null,user:null}}},setSession:async()=>{user={...user,email:verifiedEmail};signedIn=true;listener?.('SIGNED_IN',session());return {error:null,data:{session:session()}}},signInWithPassword:async({password}:{password:string})=>{if(password==='synthetic-wrong')return {error:{code:'invalid_credentials'}};signedIn=true;listener?.('SIGNED_IN',session());return {error:null}},getSession:async()=>({data:{session:session()},error:null}),onAuthStateChange:(fn:typeof listener)=>{listener=fn;queueMicrotask(()=>listener?.('INITIAL_SESSION',session()));return {data:{subscription:{unsubscribe(){}}}}},startAutoRefresh(){},stopAutoRefresh(){},signOut:async()=>{signedIn=false;listener?.('SIGNED_OUT',null);return {error:null}}},
  from:(table:string)=>{if(table==='native_personal_matches')return personalMatchQuery();if(['internal_notifications','internal_conversations'].includes(table))return updatesQuery(table);const result:{data:unknown;error:{message:string}|null;count?:number}={data:data(table),error:null};let select='',emptySearch=false,counted=false;const chain:Record<string,unknown>={then:async(resolve:(value:unknown)=>void)=>{
   if(table==='profiles'&&select.includes('linked_league_name'))await pendingLabProfile
   if(table==='players'&&select.endsWith('doubles_dynamic_rating,rating_source'))await pendingLabRatings

@@ -267,6 +267,12 @@ Object.assign(window,{chatUnreadFixture,matchDayFixture,calendarTeamFixture,coac
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPaths,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,firstPartyUpdatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture,labDataReads,personalMatchFixture})
 window.fetch=async(input,init)=>{
  const tiqUrl=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
+ if(tiqUrl.pathname==='/api/mobile/email'&&new URL(location.href).searchParams.has('launch-audit'))return Response.json({ok:true},{status:202})
+ if(new URL(location.href).searchParams.has('tiq-growth')&&['/api/mobile/first-party/tiq','/api/mobile/first-party/tiq/plans','/api/mobile/coach/overview','/api/mobile/coach/assessments','/api/mobile/coach/connection','/api/mobile/coach','/api/player/coach-assignments','/api/player/level-up-sessions'].includes(tiqUrl.pathname)){
+  const server=(window as unknown as {tiqGrowthServer:(request:{owner:string;method:string;url:string;write:unknown})=>Promise<{status:number;body:unknown}>}).tiqGrowthServer
+  const result=await server({owner:currentNavigationOwner(),method:init?.method??'GET',url:tiqUrl.href,write:init?.body?JSON.parse(String(init.body)):null})
+  return Response.json(result.body,{status:result.status})
+ }
  if(tiqUrl.pathname==='/api/mobile/first-party/tiq'&&new URL(location.href).searchParams.has('tiq-account')){
   const server=(window as unknown as {tiqAccountServer:(request:{owner:string;method:string;student:string|null;cursor:string|null;write:unknown})=>Promise<{status:number;body:unknown}>}).tiqAccountServer
   const result=await server({owner:currentNavigationOwner(),method:init?.method??'GET',student:tiqUrl.searchParams.get('student'),cursor:tiqUrl.searchParams.get('cursor'),write:init?.body?JSON.parse(String(init.body)):null})
@@ -799,7 +805,8 @@ window.fetch=async(input,init)=>{
    if(command.action==='revoke')captainInvite={...captainInvite,revokedAt:'2026-11-10T12:00:00Z',active:false}
    return Response.json({...receipt,operationId:command.id,invite:captainInvite})
   }
-  const scope={...chatTeam,roomId:chatRoomId,expiresAt:'2027-06-30T18:00:00Z'}
+  const auditTeam=new URL(location.href).searchParams.has('launch-audit')?privateTeam:null
+  const scope={...(auditTeam??chatTeam),roomId:auditTeam?.id??chatRoomId,expiresAt:'2027-06-30T18:00:00Z'}
   const expected={...scope,inviteId:'55555555-5555-4555-8555-555555555555',creatorId:navigationOwner}
   if(command.token!=='44444444-4444-4444-8444-444444444444')return Response.json({ok:false,message:'Invite unavailable.'},{status:404})
   fixtureState.teamInviteActions.push(command.action)
@@ -807,7 +814,7 @@ window.fetch=async(input,init)=>{
   if(command.action!=='join'||JSON.stringify(command.expected)!==JSON.stringify({invite:expected,linkVersion:'v1'}))return Response.json({ok:false,message:'Invite changed.'},{status:409})
   chatUnreadFixture.detailed=true
   if(release.releaseScope)firstPartyTeamJoined=true
-  return Response.json({ok:true,nativeTeamInvite:1,joined:true,roomId:chatRoomId,scope,...release})
+  return Response.json({ok:true,nativeTeamInvite:1,joined:true,roomId:scope.roomId,scope,...release})
  }
  if(url.pathname==='/api/mobile/coach/activity')return coachActivityPreview(url,currentNavigationOwner())
  if(url.pathname==='/api/mobile/coach/alerts'){if(init?.method==='POST'){nativeCoachAlertFixture.enabled=JSON.parse(String(init.body)).enabled;nativeCoachAlertFixture.writes.push(nativeCoachAlertFixture.enabled)}return Response.json({ok:true,owner:currentNavigationOwner(),enabled:nativeCoachAlertFixture.enabled,available:true})}

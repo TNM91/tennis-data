@@ -40,6 +40,7 @@ import {mountLabRecentForm} from './lab-recent-form'
 import {mountSetupTrophyCase} from './setup-trophy-case'
 import {mountStarterTiq} from './starter-tiq-view'
 import {openTiqAccountHistory} from './tiq-account-view'
+import {openGrowthPlan} from './tiq-growth-view'
 import {openCoachAssessments} from './coach-assessments-view'
 import {openPlayerProgress} from './player-progress-view'
 import {mountPersonalMatchLog,type PersonalMatchFormSession} from './personal-match-view'
@@ -929,7 +930,12 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
         coachWorkspace=openPlayerProgress(client,current.user.id,active,trigger,()=>{
           if(active())starterTiq.querySelector<HTMLButtonElement>('[data-starter-edit]')?.click()
         })
-      },{client,openHistory:(trigger,device,changed,closed)=>{
+      },{client,openPlan:trigger=>{
+        coachWorkspace=openGrowthPlan(client,current.user.id,active,trigger,{
+          retake:()=>{if(active())starterTiq.querySelector<HTMLButtonElement>('[data-starter-edit]')?.click()},
+          drill:cardId=>{if(active())training=openLevelUp(client,current.user.id,active,'catalog',{cardId,identitySlug:''})},
+        })
+      },openHistory:(trigger,device,changed,closed)=>{
         coachWorkspace=openTiqAccountHistory(client,current.user.id,active,trigger,{device,changed,closed})
       }})
       mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
