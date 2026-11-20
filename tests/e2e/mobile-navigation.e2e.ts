@@ -4703,6 +4703,128 @@ test('first-party My Lab flags a changed team score outside the loaded match his
  await expect(multiple).toBeHidden()
 })
 
+async function openPlayerCourtSummary(page:Page,width=390){
+ // eslint-disable-next-line react-hooks/rules-of-hooks -- This helper bundles a browser fixture; it does not call React hooks.
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width,height:width===390?568:720})
+ await page.clock.setFixedTime(new Date('2026-11-12T18:00:00Z'))
+ await page.goto(origin+'/?manual-team-schedule=1'+(width===320?'&large=1':''))
+ await page.evaluate(()=>{
+  const state=window as unknown as {manualScheduleFixture:{captain:boolean};teamResultFixture:TeamResultEntry}
+  state.manualScheduleFixture.captain=false
+  state.teamResultFixture.score={revision:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',won:2,lost:1,
+   courtScores:['6-3 6-4','3-6 4-6','6-1 6-2'],courtPlayers:[
+    [{id:'10000000-0000-4000-8000-000000000001',name:'Alex'}],
+    [{id:'11111111-1111-4111-8111-111111111111',name:'Alex'},{id:'22222222-2222-4222-8222-222222222222',name:'Casey & Taylor <3'}],
+    [{id:'10000000-0000-4000-8000-000000000002',name:'Riley'}]]}
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:/^Baseline Aces/}).click()
+ const results=page.getByRole('dialog',{name:'Team results',exact:true})
+ const open=async()=>{await page.locator('.chat-room-options > summary').click();await page.locator('#chat-team-results').click()}
+ return {open,results,composer:page.getByRole('textbox',{name:'Message your team',exact:true})}
+}
+
+for(const width of [320,390])test(`player court summary separates their result from the team tally at ${width}px`,async({page},info)=>{
+ const {open,results,composer}=await openPlayerCourtSummary(page,width)
+ await composer.fill('My court notes')
+ await open()
+ const row=results.locator('[data-result-fixture="dddddddd-dddd-4ddd-8ddd-dddddddddddd"]')
+ const own=row.getByRole('group',{name:'Your court',exact:true})
+ await expect(own).toBeVisible();await expect(own).toContainText('Court 2 · Lost')
+ await expect(own).toContainText('3-6, 4-6');await expect(own).toContainText('Team’s score first')
+ await expect(own).toContainText('Alex & Casey & Taylor <3')
+ await expect(row).toContainText('Team · 2–1 · Won')
+ await expect(own.locator('img,script')).toHaveCount(0)
+ expect(await own.evaluate(el=>getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+ const log=row.getByRole('button',{name:'View court scorecard in My Lab vs Topspin Club',exact:true})
+ await expect(log).toHaveAccessibleDescription('Your court Court 2 · Lost 3-6, 4-6 Team’s score first')
+ await expect(results.getByRole('button',{name:/^Correct score|^Add players/})).toHaveCount(0)
+ await results.getByRole('button',{name:'Your courts',exact:true}).click()
+ await expect(own).toBeVisible();await expect(row).toContainText('Team · 2–1 · Won')
+ await expect(results.getByRole('heading',{name:'Team record',exact:true})).toHaveCount(0)
+ await expect(row.locator('.team-result-court-list')).toHaveCount(0)
+ expect(await results.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await own.scrollIntoViewIfNeeded()
+ await page.screenshot({path:info.outputPath('player-court-summary.png')})
+ await results.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(page.locator('#chat-team-results')).toBeFocused()
+ await expect(composer).toHaveValue('My court notes')
+ const state=await page.evaluate(()=>({writes:Reflect.get(window,'teamResultFixture').writes,personal:Reflect.get(window,'personalMatchFixture').writtenIds,sent:Reflect.get(window,'firstPartyTeamFixture').posts}))
+ expect(state).toEqual({writes:[],personal:[],sent:[]})
+})
+
+test('player court summary opens from a shared result and returns from My Lab to the same court',async({page})=>{
+ const {results,composer}=await openPlayerCourtSummary(page)
+ await composer.fill('Baseline Aces won 2–1 on courts vs Topspin Club on Sunday, November 1, 2026. View the score in Team → Team results.')
+ await page.getByRole('button',{name:'Send',exact:true}).click()
+ await page.getByRole('button',{name:'View team result',exact:true}).click()
+ const row=results.locator('[data-result-fixture="dddddddd-dddd-4ddd-8ddd-dddddddddddd"]')
+ await expect(row).toBeFocused()
+ await expect(row.getByRole('group',{name:'Your court',exact:true})).toContainText('Court 2 · Lost')
+ const log=row.getByRole('button',{name:'View court scorecard in My Lab vs Topspin Club',exact:true})
+ await log.click()
+ const preview=page.getByRole('article',{name:'Team court scorecard',exact:true})
+ await expect(preview).toContainText('Captain posted · Court 2')
+ await expect(preview).toContainText('3-6, 4-6')
+ await expect(preview.getByRole('group',{name:'Court score',exact:true})).toContainText('Lost')
+ expect(await page.evaluate(()=>Reflect.get(window,'personalMatchFixture').writtenIds)).toEqual([])
+ await page.getByRole('button',{name:'Back to Team results',exact:true}).click()
+ await expect(log).toBeFocused()
+ await expect(results.getByRole('button',{name:'All matches',exact:true})).toHaveAttribute('aria-pressed','true')
+ await expect(row.getByRole('group',{name:'Your court',exact:true})).toContainText('Court 2 · Lost')
+ expect(await page.evaluate(()=>Reflect.get(window,'personalMatchFixture').writtenIds)).toEqual([])
+})
+
+test('player court summary disappears after a fresh result removes their assignment',async({page})=>{
+ const {open,results}=await openPlayerCourtSummary(page)
+ await open()
+ const log=results.getByRole('button',{name:'View court scorecard in My Lab vs Topspin Club',exact:true})
+ await expect(log).toBeVisible()
+ await page.evaluate(()=>{
+  const score=(Reflect.get(window,'teamResultFixture') as TeamResultEntry).score!
+  score.revision='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  score.courtPlayers![1]=[{id:'77777777-7777-4777-8777-777777777777',name:'Alex'}]
+ })
+ await log.click()
+ await expect(results.getByRole('status')).toHaveText('Your court result changed. Review the latest score before opening it.')
+ await expect(results.getByRole('group',{name:'Your court',exact:true})).toHaveCount(0)
+ await expect(log).toHaveCount(0)
+ await expect(page.getByRole('article',{name:'Team court scorecard',exact:true})).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'personalMatchFixture').writtenIds)).toEqual([])
+})
+
+test('player court summary does not infer a court from a matching player name',async({page})=>{
+ const {open,results}=await openPlayerCourtSummary(page)
+ await page.evaluate(()=>{(Reflect.get(window,'teamResultFixture') as TeamResultEntry).score!.courtPlayers![1][0].id='77777777-7777-4777-8777-777777777777'})
+ await open()
+ await expect(results.getByRole('group',{name:'Your court',exact:true})).toHaveCount(0)
+ await expect(results.getByRole('button',{name:/in My Lab vs/})).toHaveCount(0)
+ await results.locator('.team-result-court-list > summary').click()
+ await expect(results).toContainText('Alex & Casey & Taylor <3')
+ await results.getByRole('button',{name:'Your courts',exact:true}).click()
+ await expect(results).toContainText('No confirmed courts for you in these matches.')
+})
+
+test('player court summary keeps future results out of private scorecard actions',async({page})=>{
+ const {open,results}=await openPlayerCourtSummary(page)
+ await page.evaluate(()=>{(Reflect.get(window,'teamResultFixture') as TeamResultEntry).match.date='2030-06-20'})
+ await open()
+ await expect(results.getByRole('group',{name:'Your court',exact:true})).toContainText('Court 2 · Lost')
+ await expect(results.getByRole('button',{name:/in My Lab vs/})).toHaveCount(0)
+ expect(await page.evaluate(()=>Reflect.get(window,'personalMatchFixture').writtenIds)).toEqual([])
+})
+
+test('player court summary keeps a playing captain’s team actions available',async({page})=>{
+ const {open,results}=await openPlayerCourtSummary(page)
+ await page.evaluate(()=>{Reflect.get(window,'manualScheduleFixture').captain=true})
+ await open()
+ await expect(results.getByRole('group',{name:'Your court',exact:true})).toContainText('Court 2 · Lost')
+ await expect(results.getByRole('button',{name:'Correct score vs Topspin Club',exact:true})).toBeVisible()
+ await expect(results.getByRole('button',{name:'Draft result in chat vs Topspin Club',exact:true})).toBeVisible()
+ expect(await page.evaluate(()=>Reflect.get(window,'teamResultFixture').writes)).toEqual([])
+})
+
 test('first-party teammate filters team results to their own courts',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:720})

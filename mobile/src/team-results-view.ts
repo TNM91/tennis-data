@@ -162,6 +162,15 @@ function teamRecordHtml(record:TeamRecord|undefined){
 const unassignedResultCourts=(score:TeamResultScore|null)=>score?.courtScores?.filter((value,index)=>
  !isTeamCourtDefault(value)&&!score.courtPlayers?.[index].length).length??0
 
+function personalCourtHtml(entry:TeamResultEntry,court:NonNullable<ReturnType<typeof myPlayedCourt>>){
+ const names=entry.score?.courtPlayers?.[court.number-1]?.map(player=>player.name).join(' & ')
+ return `<div class="team-result-personal-court" role="group" aria-labelledby="personal-court-${entry.fixtureId}">
+  <p class="team-result-own-score"><strong id="personal-court-${entry.fixtureId}">Your court</strong><span id="personal-outcome-${entry.fixtureId}">Court ${court.number} · ${court.outcome}</span></p>
+  <p class="team-result-personal-score" id="personal-score-${entry.fixtureId}"><strong>${html(court.score)}</strong><span>Team’s score first</span></p>
+  ${names?`<p class="team-result-player-names">${html(names)}</p>`:''}
+ </div>`
+}
+
 function teamResultsListHtml(data:TeamResults,filter:ResultFilter,busy:boolean,canOpenPersonal:boolean,getDraft:(entry:TeamResultEntry)=>ScoreDraft|undefined){
  const rows=data.entries.map((entry,index)=>({entry,index,court:myPlayedCourt(entry.score),draft:data.canEdit?getDraft(entry):undefined}))
  const mine=filter==='mine'
@@ -178,12 +187,12 @@ function teamResultsListHtml(data:TeamResults,filter:ResultFilter,busy:boolean,c
   const canLog=canOpenPersonal&&court&&match.date<=today
   const unassigned=data.canEdit&&!mine?unassignedResultCourts(score):0
   return `<li class="team-invite-preview" data-result-fixture="${fixtureId}" tabindex="-1">${teamNextMatchHtml(match)}
-   ${mine&&court?`<p class="team-result-own-score"><strong>Court ${court.number} · ${court.outcome}</strong><span>${html(court.score)}</span></p>`:
-    `${score?`<p><strong>${score.won}–${score.lost}</strong> · ${resultLabels[teamResultOutcome(score)]}</p>`:'<p>Score pending</p>'}
-     ${courtScoreList(score?.courtScores,score?.courtPlayers)}`}
+   ${score?`<p>Team · <strong>${score.won}–${score.lost}</strong> · ${resultLabels[teamResultOutcome(score)]}</p>`:'<p>Score pending</p>'}
+   ${court?personalCourtHtml(entry,court):''}
+   ${mine?'':courtScoreList(score?.courtScores,score?.courtPlayers)}
    ${unassigned?`<p class="team-result-assignment-note">${unassigned} played ${unassigned===1?'court needs':'courts need'} players</p>`:''}
    ${!busy&&(data.canEdit||canLog)?`<div class="team-result-actions">
-    ${canLog?`<button type="button" class="secondary" data-log-court="${fixtureId}"><span>${openInLab}</span><span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
+    ${canLog?`<button type="button" class="secondary" data-log-court="${fixtureId}" aria-describedby="personal-court-${fixtureId} personal-outcome-${fixtureId} personal-score-${fixtureId}"><span>${openInLab}</span><span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
     ${unassigned&&!draft?`<button type="button" class="secondary" data-result-edit="${index}" data-result-assign>Add players<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
     ${data.canEdit?`<button type="button" ${score&&!draft?'class="secondary" ':''}data-result-edit="${index}">${draft?(draft.assigningPlayers?'Resume player assignments':'Resume score draft'):score?'Correct score':'Enter score'}<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
     ${data.canEdit&&score?`<button type="button" class="secondary" data-result-draft="${index}">Draft result in chat<span class="sr-only"> vs ${html(match.opponent)}</span></button>`:''}
