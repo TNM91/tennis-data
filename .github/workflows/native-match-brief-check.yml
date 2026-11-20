@@ -76,13 +76,13 @@ jobs:
 
   layout:
     if: github.repository == 'TNM91/tennis-data'
-    name: Native WebKit (part ${{ matrix.part }}/2)
+    name: Native WebKit (part ${{ matrix.part }}/4)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        part: [1, 2]
+        part: [1, 2, 3, 4]
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
       options: --ipc=host
@@ -103,7 +103,7 @@ jobs:
       - name: Check the complete WebKit navigation shard
         run: >-
           npx playwright test --config=tests/playwright.native-navigation.config.ts
-          --project=mobile-webkit --shard=${{ matrix.part }}/2 --workers=2 --retries=0 --max-failures=1
+          --project=mobile-webkit --shard=${{ matrix.part }}/4 --workers=2 --retries=0 --max-failures=1
           --global-timeout=900000
           --output=.next/match-brief-linux --reporter=list,github
       - name: Save layout evidence
