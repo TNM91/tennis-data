@@ -1166,3 +1166,9 @@ Verification includes caller authorization and actual PostgreSQL entry constrain
 The player assessment card and the player's coach-assessment header use **Your TiQ**. The saved score keeps its **Self-assessed · Private on this device** context. The former Starter TiQ wording is retired from these visible headings; scoring, coach observations, saved answers, history and storage keys retain their existing behavior.
 
 The saved rating shows its assessment date, including when the score receives focus after saving. The existing skill breakdown explains the equal contribution of the six skill answers, how optional format answers contribute, and how to update the self-rating while reviewing coach assessments and match results alongside it. These explanations remain collapsed with the breakdown. No calculation, history, storage, coach-assessment or match-result behavior changes.
+
+### Your TiQ account history and selective coach sharing
+
+The next candidate adds account-owned immutable assessment snapshots, earlier-page history with six-skill comparisons, explicit import of existing private device assessments, and player-selected sharing of individual snapshots with a current coach connection. Coach observations retain their existing separate history. Account writes preserve uncertain save operations across relaunch and require explicit review after a conflicting device save. A coach's unavailable read withholds previously loaded self-assessment answers. Sharing and account deletion use reviewed private-table grants, relationship/revision/block checks and deletion cascades.
+
+See [Your TiQ: account history and coach sharing](native-tiq-account-history.md) for the player and coach paths, cost bounds, migration and release ordering. This candidate is separate from the current TestFlight build and App Store review.

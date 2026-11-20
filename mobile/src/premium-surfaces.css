@@ -539,6 +539,27 @@ body[data-screen="lab"] .starter-tiq-form select {
 .starter-tiq-breakdown,.starter-tiq-match-form { margin-block-start:14px;border-block-start:1px solid var(--premium-line); }
 .starter-tiq-breakdown summary { min-block-size:44px;padding-block:12px;color:var(--premium-white);font-weight:700;cursor:pointer; }
 .starter-tiq-breakdown .starter-tiq-explanation { margin-block:0 12px; }
+.tiq-account-dialog { max-inline-size:660px; }
+.coach-workspace-dialog.tiq-account-dialog p[data-tiq-status] { background:transparent;border:0;padding:0;box-shadow:none; }
+.tiq-account-dialog .tiq-account-history { display:grid;gap:14px;margin-block:16px; }
+.tiq-account-entry { min-inline-size:0;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);padding:14px;background:transparent; }
+.tiq-account-entry>header { display:flex;justify-content:space-between;align-items:start;gap:12px; }
+.tiq-account-entry h3 { margin:0;color:var(--premium-white);font-size:1rem;line-height:1.4; }
+.tiq-account-entry>header>strong { flex:none;color:var(--premium-lime);font-size:1.75rem;line-height:1.2; }
+.tiq-account-entry>header>strong>span { font-size:.875rem;color:var(--premium-copy); }
+.tiq-account-entry p { overflow-wrap:anywhere; }
+.tiq-account-entry summary,.tiq-device-history summary { min-block-size:44px;padding-block:12px;color:var(--premium-white);cursor:pointer; }
+.tiq-account-entry dl { display:grid;gap:8px;margin:0; }
+.tiq-account-entry dl>div { display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px; }
+.tiq-account-entry dt { color:var(--premium-copy); }
+.tiq-account-entry dd { margin:0;color:var(--premium-white); }
+.tiq-account-entry dd small { display:block;color:var(--premium-copy); }
+.tiq-account-sharing { border-block-start:1px solid var(--premium-line);padding-block-start:12px;display:grid;gap:10px; }
+.tiq-account-sharing>div { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px; }
+.tiq-account-sharing label { display:grid;gap:6px;min-inline-size:0; }
+.tiq-account-dialog select { inline-size:100%;min-inline-size:0;max-inline-size:100%;min-block-size:44px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);color:var(--premium-white);font-size:1rem;padding:8px; }
+.tiq-account-dialog button { min-block-size:44px;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere; }
+.tiq-device-history { border-block-start:1px solid var(--premium-line);margin-block:16px; }
 .starter-tiq-breakdown ul { display:grid;gap:12px;list-style:none;margin:0;padding:0; }
 .starter-tiq-breakdown li>span { display:flex;flex-wrap:wrap;gap:2px 8px;justify-content:space-between;font-size:.875rem; }
 .starter-tiq-breakdown li>span>span { color:var(--premium-copy); }

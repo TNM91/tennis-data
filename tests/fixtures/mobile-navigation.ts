@@ -266,6 +266,12 @@ Object.assign(window,{firstPartyTeamFixture,setupFixture,manualScheduleFixture,t
 Object.assign(window,{chatUnreadFixture,matchDayFixture,calendarTeamFixture,coachChatFixture,coachUnreadFixture,coachAlertFixture,nativeCoachAlertFixture})
 Object.assign(window,{navigationFixture:fixtureState,calendarFixture,calendarPaths,clearSyntheticCoachCache:clearCoachDeviceData,openSyntheticLink,updatesFixture,firstPartyUpdatesFixture,refreshNavigationSession,switchNavigationOwner,labProfileFixture,labDataReads,personalMatchFixture})
 window.fetch=async(input,init)=>{
+ const tiqUrl=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
+ if(tiqUrl.pathname==='/api/mobile/first-party/tiq'&&new URL(location.href).searchParams.has('tiq-account')){
+  const server=(window as unknown as {tiqAccountServer:(request:{owner:string;method:string;student:string|null;cursor:string|null;write:unknown})=>Promise<{status:number;body:unknown}>}).tiqAccountServer
+  const result=await server({owner:currentNavigationOwner(),method:init?.method??'GET',student:tiqUrl.searchParams.get('student'),cursor:tiqUrl.searchParams.get('cursor'),write:init?.body?JSON.parse(String(init.body)):null})
+  return Response.json(result.body,{status:result.status})
+ }
  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
  if(url.origin===location.origin)return originalFetch(input,init)
  if(url.pathname==='/api/mobile/first-party/leagues/draft'){
