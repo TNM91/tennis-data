@@ -96,3 +96,8 @@
 .team-lineup-private-review li>ul{margin:0;color:var(--premium-ice);display:grid;gap:4px}
 .team-next-match-dialog .team-lineup-private-review button.secondary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-block-size:44px;padding:10px 12px;margin:4px 0 0;font-size:.8125rem;text-align:start;background:transparent;border-color:var(--premium-line)}
 .team-lineup-private-review button>span{color:var(--premium-ice)}
+.team-court-review-shortcuts{display:grid;gap:8px;min-inline-size:0;padding-block:12px;margin-block:12px;border-block-start:1px solid var(--premium-line);overflow-wrap:anywhere}
+.team-next-match-dialog .team-court-review-shortcuts p{display:grid;gap:4px;margin:0 0 4px;font-size:.75rem;line-height:1.5;color:var(--premium-copy)}
+.team-court-review-shortcuts p>strong{color:var(--premium-white)}
+.team-next-match-dialog .team-court-review-shortcuts button.secondary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-block-size:44px;margin:0;padding:10px 12px;font-size:.75rem;line-height:1.5;text-align:start;white-space:normal;background:transparent;border-color:var(--premium-line)}
+.team-court-review-shortcuts button>span{color:var(--premium-ice)}

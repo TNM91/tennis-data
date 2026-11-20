@@ -1,7 +1,7 @@
 import {describe,expect,it} from 'vitest'
 import type {MatchLineupCourt} from '../team-match-lineup-contract'
 import type {TeamMatchReplies} from '../team-match-replies-contract'
-import {privateLineupReview,privateLineupReviewHtml} from '../../mobile/src/team-lineup-private-review'
+import {privateCourtReviewNavigationHtml,privateLineupReview,privateLineupReviewHtml} from '../../mobile/src/team-lineup-private-review'
 
 const courts=():MatchLineupCourt[]=>[{format:'doubles',players:['alex','casey']},{format:'singles',players:['riley']}]
 const replies=():TeamMatchReplies=>({own:null,rosterComplete:true,
@@ -78,5 +78,23 @@ describe('private lineup review',()=>{
   const markup=privateLineupReviewHtml(courts(),data,true,true)
   expect(markup).toContain('&lt;Casey &quot;Ace&quot;&gt;');expect(markup).not.toContain('<Casey')
   expect(markup).toContain('data-review-private-court="0" aria-label="Review Doubles 1" disabled')
+ })
+ it('prioritizes other flagged courts before changes with no player flags, and wraps in court order',()=>{
+  const data=replies(),plan=courts()
+  plan[0].players[1]='morgan';plan.push({format:'singles',players:['']})
+  const fromDoubles=privateCourtReviewNavigationHtml(plan,data,0,false)
+  expect(fromDoubles).toContain('data-next-private-court="2" aria-label="Review Singles 2 next"')
+  expect(fromDoubles).not.toContain('Review Singles 1 next')
+  data.lineupRoster![2].choice='maybe'
+  expect(privateCourtReviewNavigationHtml(plan,data,2,false)).toContain('data-next-private-court="1" aria-label="Review Singles 1 next"')
+ })
+ it('keeps a return path after a court is resolved, with no invalid next destination',()=>{
+  const markup=privateCourtReviewNavigationHtml(courts(),replies(),0,false)
+  expect(markup).toContain('Back to private changes')
+  expect(markup).not.toContain('data-next-private-court')
+  expect(markup).toContain('last match check')
+  expect(privateCourtReviewNavigationHtml([],replies(),0,false)).toBe('')
+  expect(privateCourtReviewNavigationHtml(courts(),replies(),-1,false)).toBe('')
+  expect(privateCourtReviewNavigationHtml(courts(),replies(),0,true)).toContain('data-return-private-review disabled')
  })
 })

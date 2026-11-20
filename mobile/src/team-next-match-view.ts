@@ -19,7 +19,7 @@ import {ownSharedCourtHtml, teamMatchReadiness, teamReadinessHtml, type Readines
 import {availableLineupReserves,lineupAvailabilityFollowup,lineupConfirmationReminder,lineupPublicationHtml,lineupPublishPreviewHtml,setLineupResponseView,type LineupResponseView} from './team-lineup-publication'
 import {lineupReplacementContext,lineupReplacementHtml,lineupReplacementTarget,replaceLineupPlayer,type LineupReplacementTarget} from './team-lineup-replacement'
 import {lineupSwapContext,lineupSwapReviewHtml,swapLineupPlayers,type LineupSwapReview} from './team-lineup-swap'
-import {privateLineupReview,privateLineupReviewHtml} from './team-lineup-private-review'
+import {privateCourtReviewNavigationHtml,privateLineupReview,privateLineupReviewHtml} from './team-lineup-private-review'
 import {captainMatchStatus} from './captain-match-status'
 import {playerAssignmentSnapshot,playerAssignmentChanges,playerAssignmentUpdateHtml,type PlayerAssignmentUpdate} from './player-assignment-review'
 import './team-match-readiness.css'
@@ -98,6 +98,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  let scheduleAnnouncement:{revision:string;previous:ReviewedNextMatch}|null=null
  let rosterExpanded=false
  let privateReviewExpanded=false
+ let reviewingPrivateCourt:number|null=null
  let responseView:LineupResponseView='attention'
  let responseViewRevision:string|null=null
  let entrySection=focusSection
@@ -110,7 +111,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  const dispose=()=>{disposed=true;leavePrompt?.remove();leavePrompt=null;tacticsViewer?.dispose();dialog.remove()}
  const returnToMatch=()=>{
   const source=readinessReturn
-  draft=null;lineup=null;replacementTarget=null;swapReview=null;publicationReview=null;confirmationReview=null;editingDirty=false;readinessReturn=null;notice='';render()
+  draft=null;lineup=null;replacementTarget=null;swapReview=null;publicationReview=null;confirmationReview=null;editingDirty=false;reviewingPrivateCourt=null;readinessReturn=null;notice='';render()
   focus(source==='confirmations'?'.team-lineup-publication h3':source?`[data-readiness-action="${source}"]`:'h2')
  }
  const close=()=>{
@@ -190,7 +191,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
  const load=async()=>{
   if(busy||!active())return
   const before=schedule??calendarSchedule
-  busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null;replacementTarget=null;swapReview=null;editingDirty=false;privateReviewExpanded=false
+  busy=true;pending=null;pendingReply=null;pendingLineup=null;lineupConflict=false;lineup=null;replacementTarget=null;swapReview=null;editingDirty=false;privateReviewExpanded=false;reviewingPrivateCourt=null
   publicationReview=null;confirmationReview=null;pendingConfirmation=null;assignmentUpdate=null;returnFromOwnAvailability=false
   tacticsChoice=undefined;boardOptions=undefined
   replies=null;draft=null;removing=false;schedule=null;notice='Loading your next match…';render()
@@ -791,7 +792,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector<HTMLButtonElement>('[data-share-match-calendar]')?.addEventListener('click',()=>{void openMatchAction('calendar')})
   const startLineup=(player?:string)=>{
    if(!active()||!captain||busy||pendingReply||pendingLineup)return
-   lineup=structuredClone(replies?.savedLineup?.courts??[]);replacementTarget=null;swapReview=null;tacticsChoice=undefined;editingDirty=false;privateReviewExpanded=false;notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
+   lineup=structuredClone(replies?.savedLineup?.courts??[]);replacementTarget=null;swapReview=null;tacticsChoice=undefined;editingDirty=false;privateReviewExpanded=false;reviewingPrivateCourt=null;notice='';render();dialog.scrollTop=0;focus('[data-match-lineup] h3')
    if(player){
     const court=lineup.findIndex(court=>court.players.includes(player))
     if(court>=0){
@@ -868,22 +869,53 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelectorAll<HTMLButtonElement>('[data-remove-lineup-court]').forEach(button=>{button.onclick=()=>{
    if(!lineup)return
    const index=Number(button.dataset.removeLineupCourt)
+   if(reviewingPrivateCourt!==null){
+    if(reviewingPrivateCourt===index)reviewingPrivateCourt=null
+    else if(reviewingPrivateCourt>index)reviewingPrivateCourt--
+   }
    lineup.splice(index,1);editingDirty=true;notice='';render()
    const target=lineup.length?`[data-match-lineup-player="${Math.min(index,lineup.length-1)}:0"]`:'[data-add-lineup-court]'
    dialog.querySelector<HTMLElement>(target)?.focus()
   }})
+  const canNavigatePrivateReview=()=>active()&&lineup&&!busy&&!pendingLineup&&!lineupConflict&&!replacementTarget
+  const goToPrivateCourt=(court:number)=>{
+   if(!canNavigatePrivateReview()||!lineup)return
+   const row=privateLineupReview(lineup,replies).rows.find(row=>row.court===court)
+   if(!row)return
+   reviewingPrivateCourt=court;wireCourtReviewNavigation()
+   const target=row.issues.length?dialog.querySelector<HTMLElement>(`[data-match-lineup-player="${court}:${row.issues[0].slot}"]`):
+    dialog.querySelectorAll<HTMLElement>('.lineup-court legend')[court]
+   if(target){if(target.tagName==='LEGEND')target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'nearest'})}
+  }
+  const wireCourtReviewNavigation=()=>{
+   dialog.querySelector('.team-court-review-shortcuts')?.remove()
+   if(!lineup||reviewingPrivateCourt===null||replacementTarget)return
+   const court=dialog.querySelectorAll('.lineup-court')[reviewingPrivateCourt]
+   const remove=court?.querySelector('[data-remove-lineup-court]')
+   remove?.insertAdjacentHTML('beforebegin',privateCourtReviewNavigationHtml(lineup,replies,reviewingPrivateCourt,Boolean(busy||pendingLineup||lineupConflict)))
+   court?.querySelector<HTMLButtonElement>('[data-return-private-review]')?.addEventListener('click',()=>{
+    if(!canNavigatePrivateReview())return
+    const index=reviewingPrivateCourt
+    reviewingPrivateCourt=null
+    const details=dialog.querySelector<HTMLDetailsElement>('[data-private-lineup-review]')
+    if(!details)return
+    privateReviewExpanded=true;details.open=true
+    const target=details.querySelector<HTMLElement>(`[data-review-private-court="${index}"]`)??details.querySelector<HTMLElement>('summary')
+    dialog.querySelector('.team-court-review-shortcuts')?.remove()
+    target?.focus({preventScroll:true});target?.scrollIntoView({block:'nearest'})
+   })
+   court?.querySelector<HTMLButtonElement>('[data-next-private-court]')?.addEventListener('click',event=>{
+    goToPrivateCourt(Number((event.currentTarget as HTMLButtonElement).dataset.nextPrivateCourt))
+   })
+  }
   const wirePrivateReview=()=>{
    const details=dialog.querySelector<HTMLDetailsElement>('[data-private-lineup-review]')
    if(details)details.ontoggle=()=>{if(details.isConnected)privateReviewExpanded=details.open}
    dialog.querySelectorAll<HTMLButtonElement>('[data-review-private-court]').forEach(button=>{button.onclick=()=>{
     if(!active()||!lineup||busy||pendingLineup||lineupConflict||replacementTarget)return
-    const court=Number(button.dataset.reviewPrivateCourt)
-    const row=privateLineupReview(lineup,replies).rows.find(row=>row.court===court)
-    if(!row)return
-    const target=row.issues.length?dialog.querySelector<HTMLElement>(`[data-match-lineup-player="${court}:${row.issues[0].slot}"]`):
-     dialog.querySelectorAll<HTMLElement>('.lineup-court legend')[court]
-    if(target){if(target.tagName==='LEGEND')target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'nearest'})}
+    goToPrivateCourt(Number(button.dataset.reviewPrivateCourt))
    }})
+   wireCourtReviewNavigation()
   }
   wirePrivateReview()
   dialog.querySelectorAll<HTMLSelectElement>('[data-match-lineup-player]').forEach(select=>{select.onchange=()=>{
