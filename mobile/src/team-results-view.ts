@@ -24,6 +24,7 @@ const resultChatHint='View the score in Team → Team results.'
 type ResultFilter = keyof typeof resultFilters
 export type TeamResultsPosition = { filter:ResultFilter; fixtureId:string }
 export type TeamResultQuestion = {court:number;score:string;message?:string}
+export type TeamResultQuestionReply = {id:string;name:string;body:string;senderUserId:string}
 export type TeamResultsEntryPoint = {position:TeamResultsPosition}|{chatMatch:string;question?:TeamResultQuestion}|{scheduledMatch:string}
 export function readTeamResultQuestion(court:unknown,score:unknown,message?:unknown):TeamResultQuestion|undefined{
  const result=readTeamCourtScore(score)
@@ -254,8 +255,9 @@ async function requestTeamResultResponse(client:SupabaseClient,owner:string,room
 }
 
 export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTeamRoom,current:()=>boolean,drafts:TeamScoreDraftSession,
- onClose:(message?:string,kind?:'score-question')=>void,canDraft:()=>boolean,onScheduleNext:(previous:ReviewedNextMatch)=>void,
- openPersonal?:(seed:CalendarScorecardSeed,position:TeamResultsPosition)=>void,entry?:TeamResultsEntryPoint,canDraftQuestion?:()=>boolean){
+ onClose:(message?:string,kind?:'score-question',reply?:TeamResultQuestionReply)=>void,canDraft:()=>boolean,onScheduleNext:(previous:ReviewedNextMatch)=>void,
+ openPersonal?:(seed:CalendarScorecardSeed,position:TeamResultsPosition)=>void,entry?:TeamResultsEntryPoint,canDraftQuestion?:()=>boolean,
+ readQuestionReply?:(active:()=>boolean)=>Promise<TeamResultQuestionReply|undefined>){
  const dialog=document.createElement('dialog')
  dialog.className='team-invite-dialog team-next-match-dialog'
  dialog.setAttribute('aria-label','Team results')
@@ -520,7 +522,7 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
    focus(target,true)
   }}
  }
- const reviewQuestionCourt=async()=>{
+ const reviewQuestionCourt=async(assignPlayers=false)=>{
   if(!active()||busy||pending||!data?.canEdit||!question||!questionFixture)return
   const before=data.entries.find(entry=>entry.fixtureId===questionFixture)
   if(!before?.score)return
@@ -533,9 +535,28 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
    const index=data.entries.findIndex(entry=>entry.fixtureId===questionFixture),result=data.entries[index]
    if(!result?.score||result.score.revision!==before.score.revision){notice='The score changed. Review the latest result before editing this court.';return}
    if(!readTeamCourtScore(result.score.courtScores?.[question.court-1])){notice='This court is no longer available to edit. Review the team result below.';return}
-   roster=null;busy=false;editResult(index,false,false,question.court-1);editing=true
+   roster=null;busy=false;editResult(index,assignPlayers,false,question.court-1);editing=true
   }catch(cause){notice=cause instanceof TeamNextMatchError?cause.message:'Couldn’t check the current court score. Try again.'}
   finally{if(active()&&!editing){busy=false;render();focus('[role="status"]',true)}}
+ }
+ const replyToQuestion=async()=>{
+  if(!active()||busy||pending||edit||!data?.canEdit||!questionFixture||!readQuestionReply)return
+  const draftNotice='Finish your current chat draft before replying to this question.'
+  if(!canDraft()){notice=draftNotice;render();focus('[role="status"]',true);return}
+  busy=true;notice='Checking the question before replying…';render()
+  try{
+   const [latest,reply]=await Promise.all([loadResults(),readQuestionReply(active)])
+   if(!active())return
+   data=latest
+   if(!latest.canEdit){notice='Captain access is required to reply from this result.';return}
+   if(!latest.entries.some(entry=>entry.fixtureId===questionFixture)){
+    notice='This match isn’t in the loaded results. Reply from the conversation.';return
+   }
+   if(!reply){notice='This question changed. Close the results and reopen it from chat.';return}
+   if(!canDraft()){notice=draftNotice;return}
+   dispose();onClose(undefined,undefined,reply)
+  }catch{notice='Couldn’t open this reply. Try again or reply from the conversation.'}
+  finally{if(active()){busy=false;render();focus('[role="status"]',true)}}
  }
  const draftResult=async(entry:TeamResultEntry,updated=false)=>{
   if(!active()||busy||pending||!data?.canEdit||!entry.score)return
@@ -620,6 +641,8 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
     ${questionMessage}
     ${!edit&&!pending?`<div class="team-result-actions">
      ${data?.canEdit&&currentCourt?`<button type="button" class="secondary" data-question-correct ${busy?'disabled':''}>${currentDraft(questioned)?'Resume saved draft':`Edit Court ${question.court}`}</button>`:''}
+     ${data?.canEdit&&currentCourt&&!currentCourt.defaulted&&!currentDraft(questioned)?`<button type="button" class="secondary" data-question-players ${busy?'disabled':''}>Edit who played</button>`:''}
+     ${data?.canEdit&&readQuestionReply?`<button type="button" class="secondary" data-question-reply ${busy?'disabled':''}>Reply in chat</button>`:''}
      <button type="button" class="secondary" data-question-result-view ${busy?'disabled':''}>Review team result</button>
     </div>`:''}
    </section>`:''}
@@ -631,6 +654,7 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
      <button type="button" class="secondary" data-posted-result-review ${busy?'disabled':''}>Review score</button>
      ${unassigned?`<button type="button" class="secondary" data-posted-result-players ${busy?'disabled':''}>Confirm who played</button>`:''}
      <button type="button" class="secondary" data-posted-result-draft ${busy?'disabled':''}>${postedResult?.updated?'Draft updated result in chat':'Draft result in chat'}</button>
+     ${questionFixture===wrapUp.fixtureId&&readQuestionReply?`<button type="button" class="secondary" data-question-reply ${busy?'disabled':''}>Reply in chat</button>`:''}
      ${postedResult?.scheduleNext?`<button type="button" class="secondary" data-schedule-next-match ${busy?'disabled':''}>Schedule next match</button>`:''}
     </div>${questionFixture===wrapUp.fixtureId?questionMessage:''}</section>`:''}
    ${!pending&&edit?`<div class="team-invite-preview">${teamNextMatchHtml(edit.match)}
@@ -664,6 +688,8 @@ export function openTeamResults(client:SupabaseClient,owner:string,room:NativeTe
   const message=dialog.querySelector<HTMLDetailsElement>('[data-question-message]')
   if(message)message.ontoggle=()=>{if(message.isConnected)questionMessageExpanded=message.open}
   dialog.querySelector('[data-question-correct]')?.addEventListener('click',()=>{void reviewQuestionCourt()})
+  dialog.querySelector('[data-question-players]')?.addEventListener('click',()=>{void reviewQuestionCourt(true)})
+  dialog.querySelector('[data-question-reply]')?.addEventListener('click',()=>{void replyToQuestion()})
   dialog.querySelector('[data-question-result-view]')?.addEventListener('click',()=>{
    if(!active()||busy||!questionFixture)return
    const row=dialog.querySelector<HTMLElement>(`[data-result-fixture="${questionFixture}"]`)

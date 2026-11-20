@@ -336,9 +336,14 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const messageId=trigger.closest<HTMLElement>('[data-chat-message]')?.dataset.chatMessage
   closeMessageMenus()
   trigger.focus({preventScroll:true})
-  teamDialog=openTeamResults(client,userId,matchRoom,current,results.drafts,(message,kind)=>{
+  teamDialog=openTeamResults(client,userId,matchRoom,current,results.drafts,(message,kind,reply)=>{
    teamDialog=null
    if(!current())return
+   if(reply&&canDraftTeamUpdate(room)){
+    tab='Conversation';findOpen=false;chatFilter='all';searchText=''
+    draft.reply=reply;draft.notice='Add your reply, then tap Send.'
+    render();app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus({preventScroll:true});return
+   }
    if(message&&(kind==='score-question'?composeScoreQuestion(room,message):composeTeamUpdate(room,message,'Review your result, then tap Send.')))return
    const link=messageId&&app.querySelector<HTMLElement>(`[data-chat-message="${CSS.escape(messageId)}"] [data-chat-team-results]`)
    const focusTarget=trigger.isConnected?trigger:link||app.querySelector<HTMLElement>('.chat-room-options > summary')
@@ -347,7 +352,15 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    teamDialog=null
    if(current())openNextMatch(room,trigger,previousMatch)
   },(seed,position)=>results.openScorecard(seed,{roomId:room.id,scope:currentScope(),position}),entryPoint,
-   room.chatReady?()=>current()&&canDraftScoreQuestion(room):undefined)
+   room.chatReady?()=>current()&&canDraftScoreQuestion(room):undefined,
+   messageId&&entryPoint&&'chatMatch' in entryPoint&&entryPoint.question?async active=>{
+    const source=room.messages.find(message=>message.id===messageId&&!message.deletedAt)
+    if(!source||source.body!==entryPoint.question?.message)return
+    const fresh=await readChatMessage(client,userId,()=>current()&&active()&&document.visibilityState==='visible',
+     {...currentScope()},room.id,source.id,'message')
+    if(fresh.truncated||fresh.body!==source.body)return
+    return {id:fresh.id,name:fresh.senderName,body:fresh.body,senderUserId:source.senderUserId}
+   }:undefined)
  }
  const bindMessageActions=(room:NativeTeamRoom)=>{
   pressActions?.dispose();pressActions=null
@@ -361,8 +374,9 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    }
   })
   app.querySelectorAll<HTMLButtonElement>('[data-chat-team-results]').forEach(button=>{button.onclick=()=>{
-   const message=button.closest('[data-chat-message]')?.querySelector('.chat-message-text')?.textContent
-   const question=readTeamResultQuestion(Number(button.dataset.questionCourt),button.dataset.questionScore,message)
+   const id=button.closest<HTMLElement>('[data-chat-message]')?.dataset.chatMessage
+   const message=room.messages.find(message=>message.id===id&&!message.deletedAt)
+   const question=readTeamResultQuestion(Number(button.dataset.questionCourt),button.dataset.questionScore,message?.body)
    if(button.dataset.chatTeamResults)openResults(room,button,{chatMatch:button.dataset.chatTeamResults,...(question?{question}:{})})
   }})
   app.querySelector<HTMLButtonElement>('[data-chat-match]')?.addEventListener('click',openChatMatch)
