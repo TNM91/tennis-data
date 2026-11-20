@@ -5,6 +5,7 @@ import {ownSharedCourtHtml} from './team-match-readiness'
 import {lineupNames} from './team-match-lineup'
 
 type AssignmentStatus='review'|'awaiting'|'unknown'|'confirmed'
+export type LineupResponseView='attention'|'all'
 
 export function availableLineupReserves(courts:MatchLineupCourt[],roster:TeamLineupPlayer[]){
  const assigned=new Set(courts.flatMap(court=>court.players))
@@ -72,6 +73,45 @@ export function lineupConfirmationReminder(replies:TeamMatchReplies,matchLabel:s
  return message
 }
 
+export function lineupAssignmentFollowups(replies:TeamMatchReplies){
+ const roster=new Map(replies.lineupRoster?.map(player=>[player.id,player]))
+ const rows=lineupConfirmationSummary(replies).rows.map(row=>{
+  const player=roster.get(row.id)
+  return {...row,needsAttention:row.status!=='confirmed'||player?.choice!=='in',
+   availability:player?player.choice?teamReplyLabels[player.choice]:'Not replied':replies.rosterComplete?'No longer on roster':'Not checked'}
+ })
+ rows.sort((a,b)=>Number(b.needsAttention)-Number(a.needsAttention))
+ return {rows,attention:rows.filter(row=>row.needsAttention).length}
+}
+
+export function setLineupResponseView(host:HTMLElement,view:LineupResponseView){
+ host.querySelectorAll<HTMLButtonElement>('[data-assignment-view]').forEach(button=>{
+  button.setAttribute('aria-pressed',String(button.dataset.assignmentView===view))
+ })
+ const rows=host.querySelectorAll<HTMLElement>('[data-assignment-attention]')
+ let visible=0
+ rows.forEach(row=>{row.hidden=view==='attention'&&row.dataset.assignmentAttention!=='true';if(!row.hidden)visible++})
+ const empty=host.querySelector<HTMLElement>('[data-assignment-empty]')
+ if(empty)empty.hidden=visible>0
+ const note=host.querySelector<HTMLElement>('[data-assignment-view-note]')
+ if(note)note.textContent=`Showing ${visible} of ${rows.length} assignments.`
+}
+
+function lineupFollowupsHtml(replies:TeamMatchReplies,busy:boolean,view:LineupResponseView){
+ const {rows,attention}=lineupAssignmentFollowups(replies)
+ const shown=view==='all'?rows.length:attention
+ return `<div class="team-lineup-followups" data-lineup-followups>
+  <div class="team-lineup-response-views" role="group" aria-label="Assignment response view">
+   <button type="button" class="secondary" data-assignment-view="attention" aria-pressed="${view==='attention'}" ${busy?'disabled':''}>Needs attention (${attention})</button>
+   <button type="button" class="secondary" data-assignment-view="all" aria-label="All assignments (${rows.length})" aria-pressed="${view==='all'}" ${busy?'disabled':''}>All (${rows.length})</button>
+  </div>
+  <p data-assignment-view-note aria-live="polite" aria-atomic="true">Showing ${shown} of ${rows.length} assignments.</p>
+  <ul class="team-lineup-confirmations" aria-label="Assignment responses">${rows.map(row=>`<li data-assignment-status="${row.status}" data-assignment-attention="${row.needsAttention}" ${view==='attention'&&!row.needsAttention?'hidden':''}><div><strong>${html(row.name)}</strong><span>${html(row.court)} · ${row.reason}</span><small>Availability · ${row.availability}</small></div>
+   ${row.status==='review'?`<button type="button" class="secondary" data-review-lineup-player="${html(row.id)}" aria-label="Review court for ${html(row.name)}" ${busy?'disabled':''}>Review court</button>`:''}</li>`).join('')}</ul>
+  <p data-assignment-empty ${shown?'hidden':''}>${rows.length?'No follow-ups among the assignments shown.':'No published assignments to review.'}</p>
+ </div>`
+}
+
 function privateLineupNotice(replies:TeamMatchReplies,busy:boolean){
  if(!replies.savedLineup||replies.savedLineup.version===replies.sharedLineup?.version)return ''
  return `<div class="team-lineup-private-notice"><p>Your private lineup has unpublished edits. Teammates still see ${replies.sharedLineup?'the published assignments':'no court assignments'}.</p>
@@ -93,7 +133,7 @@ export function lineupPublishPreviewHtml(courts:MatchLineupCourt[],roster:TeamLi
  </section>`
 }
 
-export function lineupPublicationHtml(replies:TeamMatchReplies|null,owner:string,captain:boolean,busy:boolean){
+export function lineupPublicationHtml(replies:TeamMatchReplies|null,owner:string,captain:boolean,busy:boolean,responseView:LineupResponseView='attention'){
  if(!replies)return ''
  const shared=replies?.sharedLineup
  if(!shared)return captain?`<section class="team-lineup-publication" aria-label="Published lineup"><h3 tabindex="-1">Published lineup</h3><p>No lineup published yet. Private court assignments stay with your captains.</p>${privateLineupNotice(replies,busy)}</section>`:''
@@ -105,8 +145,7 @@ export function lineupPublicationHtml(replies:TeamMatchReplies|null,owner:string
   ${summary.checked?`<dl class="team-lineup-confirmation-counts"><div><dt>To confirm</dt><dd>${summary.awaiting}</dd></div><div><dt>Needs review</dt><dd>${summary.review}</dd></div></dl>`:''}
   ${summary.unknown?`<p>${summary.unknown} ${summary.unknown===1?'assignment could':'assignments could'} not be checked. Reload the match before following up.</p>`:''}
   ${privateLineupNotice(replies,busy)}
-  <ul class="team-lineup-confirmations" aria-label="Assignment responses">${summary.rows.map(row=>`<li data-assignment-status="${row.status}"><div><strong>${html(row.name)}</strong><span>${html(row.court)} · ${row.reason}</span></div>
-   ${row.status==='review'?`<button type="button" class="secondary" data-review-lineup-player="${html(row.id)}" aria-label="Review court for ${html(row.name)}" ${busy?'disabled':''}>Review court</button>`:''}</li>`).join('')}</ul>
+  ${lineupFollowupsHtml(replies,busy,responseView)}
   ${summary.awaiting?`<button type="button" class="secondary" data-draft-confirmation-reminder ${busy?'disabled':''}>Draft confirmation reminder</button><p>Review the reminder in team chat before sending.</p>`:''}`:''}
   ${!captain||assigned?ownSharedCourtHtml(shared,owner):''}
   ${assigned?`<p class="team-lineup-own-status" data-lineup-own-state="${replies.own?.choice==='out'?'out':own?.choice??'awaiting'}">${replies?.own?.choice==='out'?'You’re marked Out for this match.':ownStatus}</p>

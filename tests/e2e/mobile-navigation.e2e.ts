@@ -3081,6 +3081,84 @@ async function openCaptainAssignmentFollowups(page:Page,width=390,openMatch=true
  return {match:page.getByRole('dialog',{name:'Next match',exact:true}),open}
 }
 
+for(const width of [320,390])test(`captain assignment follow-up view separates availability, preserves filters and refreshes counts at ${width}px`,async({page},info)=>{
+ const {match,open}=await openCaptainAssignmentFollowups(page,width,false)
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{caseyChoice:string;publishedLineup:{version:string;courts:{format:string;players:string[]}[];names:Record<string,string>};savedLineup:unknown;lineupReplies:Record<string,{id:string;version:string;choice:string}>}}).manualScheduleFixture
+  const morgan='77777777-7777-4777-8777-777777777777'
+  fixture.caseyChoice='maybe'
+  fixture.publishedLineup.courts.push({format:'singles',players:[morgan]})
+  fixture.publishedLineup.names[morgan]='Morgan'
+  fixture.lineupReplies[morgan]={id:morgan,version:fixture.publishedLineup.version,choice:'confirmed'}
+  fixture.savedLineup=structuredClone(fixture.publishedLineup)
+ })
+ await open()
+ if(width===390)await page.setViewportSize({width,height:568})
+ const publication=match.getByRole('region',{name:'Published lineup',exact:true})
+ const views=publication.getByRole('group',{name:'Assignment response view',exact:true})
+ const attention=views.getByRole('button',{name:'Needs attention (3)',exact:true})
+ const all=views.getByRole('button',{name:'All assignments (4)',exact:true})
+ const rows=publication.getByRole('list',{name:'Assignment responses',exact:true})
+ const casey=rows.locator('li').filter({has:page.getByText('Casey',{exact:true})})
+ const morgan=rows.locator('li').filter({has:page.getByText('Morgan',{exact:true})})
+ await expect(attention).toHaveAttribute('aria-pressed','true')
+ await expect(rows.locator('li:visible')).toHaveCount(3)
+ await expect(casey).toContainText('Doubles 1 · Confirmed')
+ await expect(casey).toContainText('Availability · Maybe')
+ await expect(morgan).toBeHidden()
+ await expect(publication).toContainText('2 of 4 assignments confirmed')
+ const reads=await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:object}}).manualScheduleFixture.matchReads)
+ await all.focus();await page.keyboard.press('Space')
+ await expect(all).toBeFocused();await expect(all).toHaveAttribute('aria-pressed','true')
+ await expect(morgan).toBeVisible()
+ await expect(publication.locator('[data-assignment-view-note]')).toHaveText('Showing 4 of 4 assignments.')
+ await attention.click();await expect(morgan).toBeHidden()
+ await all.click()
+ expect(await page.evaluate(()=>(window as unknown as {manualScheduleFixture:{matchReads:object}}).manualScheduleFixture.matchReads)).toEqual(reads)
+ for(const button of await views.getByRole('button').all()){
+  expect(await button.evaluate(el=>el.getBoundingClientRect().height>=44)).toBe(true)
+  expect(await button.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ }
+ expect(await match.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await views.evaluate(el=>el.scrollIntoView({block:'start'}))
+ await page.screenshot({path:info.outputPath('captain-assignment-response-views.png')})
+ await publication.getByRole('button',{name:'Review court for Alex',exact:true}).click()
+ await expect(match.getByRole('region',{name:'Available replacements',exact:true})).toBeVisible()
+ await page.keyboard.press('Escape')
+ await match.getByRole('button',{name:'Cancel edit',exact:true}).click()
+ await expect(publication.getByRole('heading',{name:'Published lineup',exact:true})).toBeFocused()
+ await expect(all).toHaveAttribute('aria-pressed','true')
+ await expect(morgan).toBeVisible()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{caseyChoice:string;publishedLineup:{version:string;names:Record<string,string>};lineupReplies:Record<string,{id:string;version:string;choice:string}>}}).manualScheduleFixture
+  fixture.caseyChoice='in'
+  fixture.lineupReplies=Object.fromEntries(Object.keys(fixture.publishedLineup.names).map(id=>[id,{id,version:fixture.publishedLineup.version,choice:'confirmed'}]))
+ })
+ await match.getByRole('button',{name:'Reload match',exact:true}).click()
+ await expect(publication).toContainText('4 of 4 assignments confirmed')
+ await expect(all).toHaveAttribute('aria-pressed','true')
+ await publication.getByRole('button',{name:'Needs attention (0)',exact:true}).click()
+ await expect(rows.locator('li:visible')).toHaveCount(0)
+ await expect(publication.locator('[data-assignment-empty]')).toHaveText('No follow-ups among the assignments shown.')
+ await expect(publication.getByRole('button',{name:'Draft confirmation reminder',exact:true})).toHaveCount(0)
+ await all.click()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as {manualScheduleFixture:{revision:string;publishedLineup:{version:string};savedLineup:unknown;lineupReplies:object}}).manualScheduleFixture
+  fixture.revision='88888888-8888-4888-8888-888888888888'
+  fixture.publishedLineup.version='99999999-9999-4999-8999-999999999999'
+  fixture.savedLineup=structuredClone(fixture.publishedLineup);fixture.lineupReplies={}
+ })
+ await match.getByRole('button',{name:'Reload match',exact:true}).click()
+ await expect(publication.getByRole('button',{name:'Needs attention (4)',exact:true})).toHaveAttribute('aria-pressed','true')
+ await expect(all).toHaveAttribute('aria-pressed','false')
+ const writes=await page.evaluate(()=>({
+  lineup:(window as unknown as {manualScheduleFixture:{lineupWrites:string[]}}).manualScheduleFixture.lineupWrites,
+  confirmations:(window as unknown as {manualScheduleFixture:{confirmationWrites:string[]}}).manualScheduleFixture.confirmationWrites,
+  posts:(window as unknown as {firstPartyTeamFixture:{posts:string[]}}).firstPartyTeamFixture.posts,
+ }))
+ expect(writes).toEqual({lineup:[],confirmations:[],posts:[]})
+})
+
 for(const width of [320,390])test(`captain assignment follow-ups target the right court and draft only pending published players at ${width}px`,async({page},info)=>{
  const {match}=await openCaptainAssignmentFollowups(page,width)
  const publication=match.getByRole('region',{name:'Published lineup',exact:true})

@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest'
-import {availableLineupReserves,lineupConfirmationReminder,lineupConfirmationSummary,lineupPublicationHtml,lineupPublishPreviewHtml} from '../../mobile/src/team-lineup-publication'
+import {availableLineupReserves,lineupAssignmentFollowups,lineupConfirmationReminder,lineupConfirmationSummary,lineupPublicationHtml,lineupPublishPreviewHtml} from '../../mobile/src/team-lineup-publication'
 import type {TeamMatchReplies} from '../team-match-replies-contract'
 
 const player='22222222-2222-4222-8222-222222222222',captain='11111111-1111-4111-8111-111111111111',
@@ -71,4 +71,47 @@ it('drafts only unanswered published assignments without including unavailable, 
 it('keeps reminder drafts within the team composer limit',()=>{
  const fixture=confirmationFixture()
  expect(()=>lineupConfirmationReminder(fixture,'x'.repeat(2400))).toThrow('too long')
+})
+
+it.each(['maybe',null] as const)('keeps a confirmed assignment in follow-ups when availability is %s',choice=>{
+ const fixture=confirmationFixture()
+ fixture.lineupRoster![0].choice=choice
+ const followups=lineupAssignmentFollowups(fixture)
+ expect(lineupConfirmationSummary(fixture).confirmed).toBe(1)
+ expect(followups.attention).toBe(3)
+ expect(followups.rows.find(row=>row.id===player)).toMatchObject({status:'confirmed',needsAttention:true,
+  availability:choice==='maybe'?'Maybe':'Not replied'})
+ // An availability follow-up must not draft another assignment-confirmation reminder for this player.
+ expect(lineupConfirmationReminder(fixture,'Saturday')).not.toContain('Alex')
+})
+
+it('keeps unchecked and removed assignments in follow-ups and excludes private-only players',()=>{
+ const fixture=confirmationFixture()
+ fixture.lineupRoster=[];fixture.rosterComplete=false
+ fixture.savedLineup={version:'private',courts:[{format:'singles',players:['private-only']}],names:{'private-only':'Private Player'}}
+ expect(lineupAssignmentFollowups(fixture)).toMatchObject({attention:3})
+ expect(lineupAssignmentFollowups(fixture).rows.every(row=>row.needsAttention&&row.availability==='Not checked')).toBe(true)
+ fixture.rosterComplete=true
+ expect(lineupAssignmentFollowups(fixture).rows.map(row=>[row.status,row.availability])).toEqual([
+  ['review','No longer on roster'],['review','No longer on roster'],['review','No longer on roster']])
+ expect(lineupAssignmentFollowups(fixture).rows.some(row=>row.id==='private-only')).toBe(false)
+})
+
+it('clears follow-ups only when the current published assignments are confirmed and In',()=>{
+ const fixture=confirmationFixture()
+ fixture.lineupRoster!.forEach(row=>row.choice='in')
+ fixture.lineupReplies!.push({profileId:'reserve',id:version,version,choice:'confirmed'})
+ expect(lineupAssignmentFollowups(fixture).attention).toBe(0)
+ fixture.lineupReplies![0].version='old-publication'
+ expect(lineupAssignmentFollowups(fixture)).toMatchObject({attention:1})
+ expect(lineupAssignmentFollowups(fixture).rows[0]).toMatchObject({id:player,status:'awaiting',needsAttention:true})
+})
+
+it('limits response-view controls to captains and disables them while a change is in progress',()=>{
+ const fixture=confirmationFixture()
+ expect(lineupPublicationHtml(fixture,player,false,false)).not.toContain('data-assignment-view')
+ const busy=lineupPublicationHtml(fixture,captain,true,true)
+ expect(busy).toContain('data-assignment-view="attention" aria-pressed="true" disabled')
+ expect(busy).toContain('data-assignment-view="all" aria-label="All assignments (3)" aria-pressed="false" disabled')
+ expect(lineupPublicationHtml(fixture,captain,true,false,'all')).toContain('data-assignment-view="all" aria-label="All assignments (3)" aria-pressed="true"')
 })

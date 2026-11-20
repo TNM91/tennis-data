@@ -28,6 +28,12 @@
 .team-lineup-confirmations li>div{display:grid;gap:4px;min-inline-size:0}
 .team-next-match-dialog .team-lineup-confirmations button.secondary{margin:0;min-block-size:44px;padding:8px 10px;background:transparent;border-color:var(--premium-line);font-size:.75rem}
 .team-lineup-confirmations [data-assignment-status="confirmed"]>div>span{color:var(--premium-lime)}
+.team-lineup-followups [hidden]{display:none!important}
+.team-lineup-response-views{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-block-start:14px}
+.team-next-match-dialog .team-lineup-response-views button.secondary{min-inline-size:0;min-block-size:48px;margin:0;padding:10px 8px;font-size:.75rem;line-height:1.4;white-space:normal;background:transparent;border-color:var(--premium-line);color:var(--premium-copy)}
+.team-next-match-dialog .team-lineup-response-views button[aria-pressed="true"]{background:var(--premium-court-inlay);border-color:var(--premium-lime);color:var(--premium-white)}
+.team-lineup-confirmations small{font-size:.75rem;line-height:1.5;color:var(--premium-copy)}
+.team-lineup-confirmations [data-assignment-attention="true"] small{color:var(--premium-ice)}
 .team-lineup-confirmation-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
 .team-lineup-confirmation-counts dt{font-size:.75rem;color:var(--premium-copy)}
 .team-lineup-confirmation-counts dd{font-size:1.25rem;font-weight:750;margin:4px 0;color:var(--premium-white);font-variant-numeric:tabular-nums}
