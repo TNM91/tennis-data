@@ -1,13 +1,14 @@
 import {test,expect,type Page} from '@playwright/test'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
+import path from 'node:path'
 test.describe.configure({retries:0,timeout:15000})
 const origin='http://127.0.0.1:4262',prefix='/__lab-scoreboard/'
 let javascript='',stylesheet=''
 type Fixture={authReads:number;opened:string;training:string;render:(scenario:string)=>void;invalidate:()=>void}
 const fixture=(page:Page)=>page.evaluate(()=>{const state=(window as unknown as {labFixture:Fixture}).labFixture;return {authReads:state.authReads,opened:state.opened,training:state.training}})
 test.beforeAll(async()=>{
- const bundled=await build({entryPoints:['tests/fixtures/mobile-lab-scoreboard.ts'],bundle:true,platform:'browser',format:'esm',outfile:'lab-scoreboard-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'}})
+ const bundled=await build({entryPoints:['tests/fixtures/mobile-lab-scoreboard.ts'],bundle:true,platform:'browser',format:'esm',outfile:'lab-scoreboard-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')}})
  javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css','premium-surfaces.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')
 })

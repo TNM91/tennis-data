@@ -1,6 +1,7 @@
 import {test,expect,type Page,type Locator} from '@playwright/test'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
+import path from 'node:path'
 import {practiceRsvpPath} from '../../lib/captain-practice-rsvp'
 import type {ChatAction} from '../../mobile/src/team-chat-send'
 test.describe.configure({retries:0,timeout:15000})
@@ -21,7 +22,7 @@ test.beforeAll(async()=>{
  const selected=new URL(location.href).searchParams.has('named')?{...scope,chatRoomId:${JSON.stringify(roomId)}}:scope;
  const view=showTeamRoom(document.querySelector('#app')!,client as never,owner,()=>active,selected);
  Object.assign((window as any).fixture,{dispose:()=>{view.dispose();active=false},invalidate:()=>{active=false},back:()=>view.back()});
- `},bundle:true,platform:'browser',format:'esm',outfile:'chat-experience-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},plugins:[{name:'synthetic-live-signals',setup(builder){
+ `},bundle:true,platform:'browser',format:'esm',outfile:'chat-experience-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')},plugins:[{name:'synthetic-live-signals',setup(builder){
  // Replace only the live transport. The real room parser, actions, auth checks and rendering remain in use.
  builder.onResolve({filter:/^\.\/team-chat-live$/},()=>({path:'synthetic-live',namespace:'fixture'}))
  builder.onLoad({filter:/.*/,namespace:'fixture'},()=>({loader:'ts',contents:`export function watchTeamChat(_client,_owner,_room,_current,refresh,status){window.fixture.refresh=refresh;status('live');return {isForeground:()=>true,retry:()=>{},dispose:()=>{}}}` }))

@@ -48,7 +48,7 @@ const send:ScenarioSend=async options=>{
   if(mode==='entry-long'){review.leagueName='Northside '+('Championship '.repeat(14));review.player.name='Alex '+('Server '.repeat(20))}
   if(options.method==='POST'){state.entryPosts++;state.entrySaved=true;if(state.entryLostReply)throw Error('Lost reply')}
   if(state.entryInformation)review.receipts=[{id:'11111111-1111-4111-8111-111111111111',name:review.player.name,status:'pending',information:{updatedAt:state.entryQuestionChanged?'2026-10-30T05:41:00Z':'2026-10-30T05:40:00Z',note:state.entryQuestionChanged?'Please reconfirm your rating and age division.':'Please confirm your age division.'}}]
-  if(state.entrySaved)review.receipts=[{id:'saved-entry',name:review.player.name||'North Aces',status:'pending'}]
+  if(state.entrySaved)review.receipts=[{id:state.entryInformation?'11111111-1111-4111-8111-111111111111':'saved-entry',name:review.player.name||'North Aces',status:'pending'}]
   const r={status:state.offline?503:200,data:options.method==='POST'?{ok:true,owner,leagueId:'league-one',receipt:review.receipts[0],alreadySubmitted:false}:{ok:true,...review},headers:{},url:options.url}
   if(state.delay)await new Promise<void>(resolve=>{state.release=resolve})
   return r

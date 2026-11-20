@@ -1,13 +1,14 @@
 import {test,expect,type Page} from '@playwright/test'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
+import path from 'node:path'
 test.describe.configure({retries:0,timeout:20000})
 const origin='http://127.0.0.1:4263',prefix='/__native-insights/'
 let javascript='',stylesheet=''
 type State={opened:string;active:boolean;invalidate:()=>void}
 const state=(page:Page)=>page.evaluate(()=>{const value=(window as unknown as {insightsFixture:State}).insightsFixture;return {opened:value.opened,active:value.active}})
 test.beforeAll(async()=>{
- const bundled=await build({entryPoints:['tests/fixtures/mobile-insights.tsx'],bundle:true,platform:'browser',format:'esm',outfile:'insights-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'}})
+ const bundled=await build({entryPoints:['tests/fixtures/mobile-insights.tsx'],bundle:true,platform:'browser',format:'esm',outfile:'insights-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},alias:{'next/image':path.resolve('mobile/src/native-website-image.tsx'),'next/link':path.resolve('mobile/src/native-website-link.tsx')}})
  javascript=bundled.outputFiles.find(file=>file.path.endsWith('.js'))!.text
  const css=bundled.outputFiles.find(file=>file.path.endsWith('.css'))!.text
  stylesheet=(await Promise.all(['style.css','website-ui.css','app.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')+'\n'+css+'\n'+(await Promise.all(['website-parity.css','app-atmosphere.css','premium-surfaces.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')
