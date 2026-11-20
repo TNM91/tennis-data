@@ -36,9 +36,11 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.exec(await readSql(new URL('../../supabase/migrations/20261118000100_native_lineup_tactics.sql',import.meta.url)))
   await db.exec(await readSql(new URL('../../supabase/migrations/20261119000200_native_lineup_publication.sql',import.meta.url)))
   await db.exec(await readSql(new URL('../../supabase/migrations/20261120000100_native_tiq_account_history.sql',import.meta.url)))
+  await db.exec(await readSql(new URL('../../supabase/migrations/20261120000200_native_tiq_growth.sql',import.meta.url)))
   await db.exec(`insert into auth.users values('${a}','a@example.test',now()),('${b}','b@example.test',now());insert into profiles(id,email,role) values('${a}','a@example.test','member'),('${b}','b@example.test','admin');insert into auth.sessions(user_id) values('${a}');insert into internal_conversations(id,created_by_user_id,metadata) values('${room}','${a}','{"teamName":"Aces"}');insert into internal_messages(id,conversation_id,sender_user_id,body) values('${message}','${room}','${b}','Keep my message');insert into internal_messages(conversation_id,sender_user_id,body) values('${room}','${a}','Erase my message');insert into internal_conversations(id,created_by_user_id) values('66666666-6666-4666-8666-666666666666','${a}');insert into team_chat_rooms(conversation_id,parent_conversation_id,created_by) values('66666666-6666-4666-8666-666666666666','${room}','${a}');insert into clubs(id,owner_user_id) values('55555555-5555-4555-8555-555555555555','${b}');insert into club_groups(club_id,created_by_user_id) values('55555555-5555-4555-8555-555555555555','${a}');insert into product_usage_events(user_id) values('${a}');`)
 
   await db.query('insert into internal_notification_preferences(profile_id,native_coach_alerts_enabled) values($1,true),($2,false)',[a,b])
+  await db.query("insert into my_lab_goals(user_id,player_id,goal_id,payload) values($1,'tiq-growth:v1','growth-erasure-check',$2)",[a,JSON.stringify({target:'Private serve target',logs:[{note:'Private practice note'}]})])
   await db.query("insert into team_room_member_preferences(conversation_id,profile_id,chat_display_name) values($1,$2,'Avery'),($1,$3,'Cam')",[room,a,b])
   await db.exec('update team_chat_rooms set first_party=true')
   const general='66666666-aaaa-4666-8666-666666666661',channel='66666666-aaaa-4666-8666-666666666662'
@@ -279,6 +281,7 @@ it.each(['LF','CRLF'] as const)('automates only consented exact-owner erasure ac
   await db.exec('reset role');await db.query('delete from auth.users where id=$1',[a])
   expect((await db.query('select id from private.native_coach_assessments')).rows).toEqual([])
   expect((await db.query('select id from private.tiq_self_assessments')).rows).toEqual([])
+  expect((await db.query("select payload from my_lab_goals where player_id='tiq-growth:v1'")).rows).toEqual([])
   expect((await db.query('select assessment_id from private.tiq_self_assessment_shares')).rows).toEqual([])
   expect((await db.query('select lineup from native_team_next_fixtures order by room_id')).rows)
    .toEqual([{lineup:null},{lineup:retainedLineup}])

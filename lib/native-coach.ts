@@ -57,6 +57,7 @@ export async function createNativeCoach(client: SupabaseClient, owner: string, d
   const assignment = {
     ...(draft.recipe ? buildCoachLessonRecipe(draft.recipe).assignment : {}),
     ...(drill ? {cardId: drill.drill.id} : {}),
+    ...(draft.tiqGrowth ? {tiqGrowth: draft.tiqGrowth} : {}),
     ...(tactics ? {tactics: tactics.reference, tacticsBoard: tactics} : {}),
     detail: draft.instructions,
     expectedEvidence: draft.evidence,

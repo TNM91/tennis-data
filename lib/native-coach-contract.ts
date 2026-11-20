@@ -2,6 +2,7 @@ import {readCoachLessonRecipe,type CoachLessonRecipe} from './coach-lesson-recip
 import type {CoachAssignment, CoachStudentStatus} from './coach-storage'
 import {readTacticalBoardReference,type TacticalBoardReference} from './tactical/board-reference'
 import {tiqSkills,type TiqSkillId} from './tiq-assessment-skills'
+import {readPracticeBlock, type PracticeBlock} from './tiq-growth'
 
 export type NativeCoachStudent = {
   id: string; name: string; level: string; identity: string; status: CoachStudentStatus
@@ -13,7 +14,7 @@ export type NativeCoachSnapshot = {
 }
 export type CoachCreate =
   | {kind: 'student'; id: string; name: string; level: string; notes: string}
-  | {kind: 'assignment'; id: string; student: string; expectedUpdatedAt: string; title: string; focus: string; dueDate: string | null; instructions: string; evidence: string; status: 'draft' | 'assigned';recipe?:CoachLessonRecipe;tactics?:TacticalBoardReference;assessmentDrill?:TiqSkillId}
+  | {kind: 'assignment'; id: string; student: string; expectedUpdatedAt: string; title: string; focus: string; dueDate: string | null; instructions: string; evidence: string; status: 'draft' | 'assigned';recipe?:CoachLessonRecipe;tactics?:TacticalBoardReference;assessmentDrill?:TiqSkillId;tiqGrowth?:PracticeBlock}
 export type CoachReview = {id: string; student: string; expectedUpdatedAt: string; note: string; nextFocus: string}
 export type CoachEdit =
   | {kind:'edit-student';id:string;expectedUpdatedAt:string;name:string;level:string;notes:string;status:CoachStudentStatus;identity?:string;email?:string;phone?:string;contactPreference?:string}
@@ -72,8 +73,10 @@ export function readCoachCreate(value: unknown): CoachCreate {
     return {kind: 'student', id, name: text(r.name, 150, true).trim(), level: text(r.level, 80).trim(), notes: text(r.notes, 2000).trim()}
   }
   if (r.kind !== 'assignment' || (r.status !== 'draft' && r.status !== 'assigned')) throw Error('Invalid assignment request')
-  keys(r, ['kind', 'id', 'student', 'expectedUpdatedAt', 'title', 'focus', 'dueDate', 'instructions', 'evidence', 'status','recipe','tactics','assessmentDrill'])
+  keys(r, ['kind', 'id', 'student', 'expectedUpdatedAt', 'title', 'focus', 'dueDate', 'instructions', 'evidence', 'status','recipe','tactics','assessmentDrill','tiqGrowth'])
   const drill = tiqSkills.find(skill => skill.id === r.assessmentDrill)
+  const growth = r.tiqGrowth === undefined ? undefined : readPracticeBlock(r.tiqGrowth)
+  if (growth && (!drill || growth.skill !== drill.id || r.dueDate !== growth.reviewDate || r.status !== 'assigned')) throw Error('Choose a matching practice and review date.')
   if ((r.assessmentDrill !== undefined && !drill) ||
       (r.tactics !== undefined || drill) && (r.status !== 'assigned' || r.recipe !== undefined || Boolean(drill && r.tactics !== undefined))) {
     throw Error('Choose one practice assignment.')
@@ -81,7 +84,7 @@ export function readCoachCreate(value: unknown): CoachCreate {
   return {kind: 'assignment', id, student: coachId(r.student), expectedUpdatedAt: stamp(r.expectedUpdatedAt), title: text(r.title, 180, true).trim(), focus: text(r.focus, 300).trim(), dueDate: date(r.dueDate), instructions: text(r.instructions, 2000, true).trim(), evidence: text(r.evidence, 300).trim(), status: r.status,
     ...(r.recipe===undefined?{}:{recipe:readCoachLessonRecipe(r.recipe)}),
     ...(r.tactics===undefined?{}:{tactics:readTacticalBoardReference(r.tactics)}),
-    ...(drill?{assessmentDrill:drill.id}:{})}
+    ...(drill?{assessmentDrill:drill.id}:{}), ...(growth?{tiqGrowth:growth}:{})}
 }
 export function readCoachReview(value: unknown): CoachReview {
   const r = coachRecord(value)
