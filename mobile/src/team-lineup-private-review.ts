@@ -50,3 +50,16 @@ export function privateLineupReviewHtml(courts:MatchLineupCourt[],replies:TeamMa
   ${!courts.length?'<p>Add a court below to plan the lineup.</p>':''}
  </details>`
 }
+
+export function privateCourtReviewNavigationHtml(courts:MatchLineupCourt[],replies:TeamMatchReplies|null,court:number,disabled:boolean){
+ const label=courtLabels(courts)[court]
+ if(!label)return ''
+ const review=privateLineupReview(courts,replies),other=review.rows.filter(row=>row.court!==court)
+ const flagged=other.filter(row=>row.issues.length),candidates=flagged.length?flagged:other
+ const next=candidates.find(row=>row.court>court)??candidates[0]
+ return `<div class="team-court-review-shortcuts" role="group" aria-label="${label} review shortcuts">
+  <p><strong>Reviewing ${label}</strong><span>${review.needsReview?`${review.needsReview} ${review.needsReview===1?'court needs':'courts need'} review`:'No player spots flagged in the last match check'}</span></p>
+  <button type="button" class="secondary" data-return-private-review ${disabled?'disabled':''}>Back to private changes</button>
+  ${next?`<button type="button" class="secondary" data-next-private-court="${next.court}" aria-label="Review ${next.label} next" ${disabled?'disabled':''}>Next court · ${next.label}<span aria-hidden="true">›</span></button>`:''}
+ </div>`
+}
