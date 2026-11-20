@@ -45,7 +45,9 @@ test.beforeEach(async({page})=>{
  })
 })
 async function fillPoll(page:Page){
- await page.getByRole('button',{name:'Create a poll',exact:true}).click()
+ const opener=page.getByRole('button',{name:'Create a poll',exact:true})
+ // Establish keyboard focus before checking restoration after the sheet closes.
+ await opener.focus();await expect(opener).toBeFocused();await opener.click()
  await page.getByLabel('Question',{exact:true}).fill('When should we practice?')
  await page.getByLabel('Option 1',{exact:true}).fill('Saturday morning')
  await page.getByLabel('Option 2',{exact:true}).fill('Sunday afternoon')
