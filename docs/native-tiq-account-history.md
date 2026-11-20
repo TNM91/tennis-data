@@ -14,6 +14,14 @@ Your TiQ self-assessments can be saved to the signed-in player's account and res
 
 From the selected student's Coach assessments, **Player self-assessments** opens a read-only history of shared snapshots. The screen labels them as the player's own ratings. Coach observations and drill assignment keep their existing flow. An unavailable or revoked coach read clears the displayed answers. Closing the nested history returns to the original coach action.
 
+## Compare self-assessments
+
+**Compare assessments** appears when two chronologically distinct assessments are loaded. Players can choose an earlier and a later assessment; coaches use the same comparison with only the snapshots shared through the selected player connection. The comparison shows the six skill levels, higher/same/lower self-rating counts and the rounded six-skill TiQ for both dates. Optional singles/doubles answers do not change this six-skill comparison. Coach observations remain in their existing assessment comparison.
+
+Assessment dates determine order; save times disambiguate assessments on the same day, preserving server microseconds. Imported older assessments therefore remain earlier even if uploaded later. Same-day choices are numbered within the loaded date and display their save date/time. Equal assessment dates and equal save instants do not create an invented earlier/later order.
+
+Date selection adds no requests or writes. **Load earlier assessments** expands the choices and retains a still-valid selected pair. A refresh or write suspends the comparison until history is confirmed; a failed refresh removes it. If a selected assessment is deleted or no longer shared, the comparison closes with a message rather than silently displaying a different pair. Account changes dispose the view and its in-memory comparison data.
+
 ## Ownership, retries and access
 
 `/api/mobile/first-party/tiq` uses verified bearer identity and private, no-store responses. Owner reads and writes do not require Pro; student reads require current Coach access. Caller-supplied owners, unknown fields, malformed dates/answers and unsupported scoring versions are rejected. The server accepts answers, never a caller-supplied TiQ score.
@@ -42,3 +50,5 @@ npx playwright test --config=tests/playwright.coach-assessment.config.ts --worke
 The existing Coach assessment CI step includes the account-history browser cases. The dedicated `tests/playwright.tiq-account.config.ts` runs just the new feature when a focused check is appropriate. Package and check the first-party native bundle before its next TestFlight release.
 
 Local verification on November 20 passed full lint, typecheck, extension syntax and the Next.js production build. The final unit pass completed 6,227 tests across 1,081 files, including owner-scoped identifier isolation and the LF/CRLF account-erasure integration. Forty distinct browser scenarios passed in Chromium and WebKit: 16 account-history scenarios, 12 existing coach-assessment scenarios, eight opening-screen/notification/palette checks and four existing self-assessment/coach handoff checks. The final first-party native bundle built, and three signed-out local production requests confirmed authentication, rejected owner injection and private cache headers. These checks used fixtures or a local server, with no production writes, migration, deployment, tester assignment or public review change.
+
+The subsequent self-assessment comparison passed full verification with 6,232 unit tests across 1,082 files, the first-party native bundle, and 38 account/coach browser checks in Chromium and WebKit. The browser checks cover 320px enlarged-text and 390px layouts, same-day ordering, earlier-page selection, deletion, failed refresh, revocation and account switching. The final notice correction also passed changed-file lint and a fresh full typecheck. Build 332 contains account history and sharing; the comparison is prepared for a later native release. No backend migration or deployment is needed for the comparison.
