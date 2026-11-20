@@ -4848,7 +4848,7 @@ test('first-party teammate reviews a corrected team score before updating a priv
 
 type CaptainScoreHandoffFixture={
  manualScheduleFixture:{nextMatch:unknown;revision:string;captain:boolean;savedLineup:{version:string;courts:{format:string;players:string[]}[];names:Record<string,string>}}
- teamResultFixture:TeamResultEntry&{earlier:TeamResultEntry[];reads:number;failReads:boolean;holdNextRead:boolean;releaseRead:(()=>void)|null;writes:string[]}
+ teamResultFixture:TeamResultEntry&{earlier:TeamResultEntry[];reads:number;failReads:boolean;holdNextRead:boolean;releaseRead:(()=>void)|null;writes:string[];loseNextSave:boolean}
 }
 async function openCaptainScoreHandoff(page:Page,width=390){
  const {match}=await openCaptainAssignmentFollowups(page,width,false,true)
@@ -5036,8 +5036,161 @@ test('captain score handoff reconciles a lost save reply without reposting or cr
  await results.getByRole('button',{name:'Close',exact:true}).click()
  await open()
  await expect(results.getByRole('status')).toContainText('Your score was posted for the team.')
+ await expect(results.getByRole('region',{name:'Match wrap-up',exact:true})).toContainText('2–0 on courts')
  await expect(results.locator('[data-result-form]')).toHaveCount(0)
  await expect(results.getByRole('button',{name:'Retry same score',exact:true})).toHaveCount(0)
+ const state=await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture)
+ expect(state.writes).toHaveLength(1);expect(state.score?.courtPlayers).toBeUndefined()
+})
+
+async function postCaptainWrapUp(page:Page,width=390,emptyChat=false){
+ const {open,results}=await openCaptainScoreHandoff(page,width)
+ if(emptyChat)await page.getByRole('textbox',{name:'Message your team',exact:true}).clear()
+ await page.evaluate(()=>{(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.loseNextSave=false})
+ await open()
+ await results.getByLabel('Court 1 score',{exact:true}).fill('6-4 6-3')
+ await results.getByRole('combobox',{name:'Court 2 result',exact:true}).selectOption('W-DEFAULT')
+ await results.getByRole('button',{name:'Post team score',exact:true}).click()
+ const wrap=results.getByRole('region',{name:'Match wrap-up',exact:true})
+ await expect(wrap).toBeVisible()
+ return {results,wrap}
+}
+
+for(const width of [320,390])test(`captain match wrap-up reviews the exact posted result at ${width}px`,async({page},info)=>{
+ const {results,wrap}=await postCaptainWrapUp(page,width)
+ if(width===390)await page.setViewportSize({width,height:568})
+ await expect(wrap.getByRole('status')).toBeFocused()
+ await expect(wrap).toContainText('2–0 on courts');await expect(wrap).toContainText('Topspin Club on Sunday, November 1, 2026')
+ await expect(wrap).toContainText('1 played court needs players.')
+ expect(await wrap.evaluate(el=>getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+ expect(await results.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ for(const button of await wrap.getByRole('button').all())expect(await button.evaluate(el=>{const b=el.getBoundingClientRect();return b.width>=44&&b.height>=44&&el.scrollWidth<=el.clientWidth})).toBe(true)
+ const buttonWidths=await wrap.getByRole('button').evaluateAll(buttons=>buttons.map(el=>el.getBoundingClientRect().width))
+ expect(Math.max(...buttonWidths)-Math.min(...buttonWidths)).toBeLessThan(1)
+ await results.evaluate(el=>{el.scrollTop=0})
+ await page.screenshot({path:info.outputPath('captain-match-wrap-up.png')})
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as CaptainScoreHandoffFixture).teamResultFixture
+  fixture.earlier=[{fixtureId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',match:{...fixture.match,facility:'Court 99'},score:fixture.score}]
+ })
+ await wrap.getByRole('button',{name:'Review score',exact:true}).click()
+ const row=results.locator('[data-result-fixture="dddddddd-dddd-4ddd-8ddd-dddddddddddd"]')
+ await expect(row).toBeFocused();await expect(row).toContainText('Court 2')
+ await expect(row.locator('.team-result-court-list')).toHaveAttribute('open','')
+ await expect(results.locator('[data-result-form]')).toHaveCount(0)
+ await expect(row.getByRole('button',{name:'Correct score vs Topspin Club',exact:true})).toBeVisible()
+ const state=await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture)
+ expect(state.reads).toBe(2);expect(state.writes).toHaveLength(1)
+ await results.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(page.getByRole('textbox',{name:'Message your team',exact:true})).toHaveValue('Keep my match note')
+})
+
+test('captain match wrap-up confirms participants without changing the posted score',async({page})=>{
+ const {results,wrap}=await postCaptainWrapUp(page,320)
+ const saved=await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.score)
+ await wrap.getByRole('button',{name:'Confirm who played',exact:true}).click()
+ await expect(results.getByRole('combobox',{name:'Court 1 player 1',exact:true})).toHaveValue('10000000-0000-4000-8000-000000000001')
+ await expect(results.getByRole('combobox',{name:'Court 1 player 2',exact:true})).toHaveValue('10000000-0000-4000-8000-000000000002')
+ await expect(results.getByRole('combobox',{name:/^Court 2 player/})).toHaveCount(0)
+ await expect(results.getByRole('textbox')).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.writes)).toHaveLength(1)
+ await results.getByRole('button',{name:'Save player assignments',exact:true}).click()
+ await expect(wrap.getByRole('status')).toHaveText('Player assignments saved.')
+ await expect(wrap.getByRole('button',{name:'Confirm who played',exact:true})).toHaveCount(0)
+ const score=await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.score)
+ expect(score).toMatchObject({won:saved!.won,lost:saved!.lost,courtScores:saved!.courtScores})
+ expect(score?.courtPlayers?.map(players=>players.map(player=>player.id))).toEqual([
+  ['10000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002'],[]])
+})
+
+test('captain match wrap-up drafts a fresh result for explicit sending',async({page})=>{
+ const {wrap,results}=await postCaptainWrapUp(page,390,true)
+ await wrap.getByRole('button',{name:'Draft result in chat',exact:true}).click()
+ await expect(results).toHaveCount(0)
+ const composer=page.getByRole('textbox',{name:'Message your team',exact:true})
+ await expect(composer).toBeFocused()
+ await expect(composer).toHaveValue(/Baseline Aces won 2–0 on courts vs Topspin Club.*Team → Team results/)
+ const state=await page.evaluate(()=>({results:(window as unknown as CaptainScoreHandoffFixture).teamResultFixture,
+  sent:Reflect.get(window,'firstPartyTeamFixture').posts}))
+ expect(state.sent).toEqual([]);expect(state.results.writes).toHaveLength(1);expect(state.results.reads).toBe(2)
+})
+
+test('captain match wrap-up preserves an existing chat draft and can retry after clearing it',async({page})=>{
+ const {wrap,results}=await postCaptainWrapUp(page)
+ await wrap.getByRole('button',{name:'Draft result in chat',exact:true}).click()
+ await expect(wrap.getByRole('status')).toHaveText('Finish your current chat draft before drafting a result.')
+ expect(await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.reads)).toBe(1)
+ expect(await page.locator('#chat-draft').inputValue()).toBe('Keep my match note')
+ await page.evaluate(()=>{const field=document.querySelector<HTMLTextAreaElement>('#chat-draft')!;field.value='';field.dispatchEvent(new Event('input',{bubbles:true}))})
+ await wrap.getByRole('button',{name:'Draft result in chat',exact:true}).click()
+ await expect(results).toHaveCount(0)
+ await expect(page.getByRole('textbox',{name:'Message your team',exact:true})).toHaveValue(/^Baseline Aces won 2–0/)
+ expect(await page.evaluate(()=>Reflect.get(window,'firstPartyTeamFixture').posts)).toEqual([])
+})
+
+test('captain match wrap-up rejects a changed score before assigning players',async({page})=>{
+ const {wrap,results}=await postCaptainWrapUp(page)
+ await page.evaluate(()=>{(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.score={revision:'99999999-9999-4999-8999-999999999999',won:0,lost:1,courtScores:['3-6 4-6']}})
+ await wrap.getByRole('button',{name:'Confirm who played',exact:true}).click()
+ await expect(results.getByRole('status')).toHaveText('The score changed. Review the latest result before making changes.')
+ await expect(wrap).toHaveCount(0)
+ await expect(results).toContainText('0–1 · Lost')
+ await expect(results.locator('[data-result-form]')).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.writes)).toHaveLength(1)
+})
+
+test('captain match wrap-up respects fresh captain access before confirming participants',async({page})=>{
+ const {wrap,results}=await postCaptainWrapUp(page)
+ await page.evaluate(()=>{(window as unknown as CaptainScoreHandoffFixture).manualScheduleFixture.captain=false})
+ await wrap.getByRole('button',{name:'Confirm who played',exact:true}).click()
+ await expect(results.getByRole('status')).toHaveText('Captain access is required to confirm who played.')
+ await expect(wrap).toHaveCount(0)
+ await expect(results.locator('[data-result-form]')).toHaveCount(0)
+ await expect(results.getByRole('button',{name:/^Correct score|^Add players/})).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.writes)).toHaveLength(1)
+})
+
+test('captain match wrap-up retains the posted result after a failed check for explicit retry',async({page})=>{
+ const {wrap,results}=await postCaptainWrapUp(page)
+ await page.evaluate(()=>{(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.failReads=true})
+ await wrap.getByRole('button',{name:'Confirm who played',exact:true}).click()
+ await expect(wrap.getByRole('status')).toContainText('Couldn’t load team results')
+ await expect(wrap.getByRole('status')).toBeFocused()
+ await page.evaluate(()=>{(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.failReads=false})
+ await wrap.getByRole('button',{name:'Confirm who played',exact:true}).click()
+ await expect(results.getByRole('button',{name:'Save player assignments',exact:true})).toBeEnabled()
+ const state=await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture)
+ expect(state.reads).toBe(3);expect(state.writes).toHaveLength(1)
+})
+
+test('captain match wrap-up ignores a late participant check after switching accounts',async({page})=>{
+ const {wrap}=await postCaptainWrapUp(page)
+ await page.evaluate(()=>{(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.holdNextRead=true})
+ await wrap.getByRole('button',{name:'Confirm who played',exact:true}).click()
+ await page.waitForFunction(()=>Boolean((window as unknown as CaptainScoreHandoffFixture).teamResultFixture.releaseRead))
+ await page.evaluate(()=>Reflect.get(window,'switchNavigationOwner')())
+ await page.evaluate(()=>{(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.releaseRead?.()})
+ await expect(page.getByRole('dialog',{name:'Team results',exact:true})).toHaveCount(0)
+ await expect(page.locator('[data-result-form]')).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.writes)).toHaveLength(1)
+})
+
+for(const mode of ['totals','defaults'] as const)test(`captain match wrap-up does not request participants for ${mode}`,async({page})=>{
+ const {open,results}=await openCaptainScoreHandoff(page)
+ await page.evaluate(()=>{(window as unknown as CaptainScoreHandoffFixture).teamResultFixture.loseNextSave=false})
+ await open()
+ if(mode==='totals'){
+  await results.getByRole('button',{name:'Use totals only',exact:true}).click()
+  await results.getByLabel('Courts won',{exact:true}).fill('2');await results.getByLabel('Courts lost',{exact:true}).fill('0')
+ }else{
+  await results.getByRole('combobox',{name:'Court 1 result',exact:true}).selectOption('W-DEFAULT')
+  await results.getByRole('combobox',{name:'Court 2 result',exact:true}).selectOption('W-DEFAULT')
+ }
+ await results.getByRole('button',{name:'Post team score',exact:true}).click()
+ const wrap=results.getByRole('region',{name:'Match wrap-up',exact:true})
+ await expect(wrap).toContainText('2–0 on courts')
+ await expect(wrap.getByRole('button',{name:'Confirm who played',exact:true})).toHaveCount(0)
+ await expect(wrap.getByRole('button',{name:'Review score',exact:true})).toBeVisible()
  const state=await page.evaluate(()=>(window as unknown as CaptainScoreHandoffFixture).teamResultFixture)
  expect(state.writes).toHaveLength(1);expect(state.score?.courtPlayers).toBeUndefined()
 })
