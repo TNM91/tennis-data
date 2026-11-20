@@ -4,7 +4,7 @@ export const tiqAnswers={serve:2,return:2,rally:2,movement:2,net:2,points:2} as 
 export type TiqFixtureRequest={owner:string;method:string;student:string|null;cursor:string|null;write:unknown}
 export function tiqAccountServer(){
   const rows=new Map<string,TiqAssessment[]>(),shares:TiqShare[]=[]
-  let sequence=0,reads=0,loseSaveReply=false,connected=true,holdRead=false,release:(()=>void)|null=null
+  let sequence=0,reads=0,loseSaveReply=false,connected=true,holdRead=false,failRead=false,release:(()=>void)|null=null
   const ordered=(owner:string)=>(rows.get(owner)??[]).slice().sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id))
   const add=(owner=tiqPlayer,answers:TiqAnswers=tiqAnswers,date='2026-11-19',id=crypto.randomUUID())=>{
     const entry:TiqAssessment={id,date,answers,version:1,createdAt:new Date(Date.UTC(2026,10,20,12,0,++sequence)).toISOString()}
@@ -15,6 +15,7 @@ export function tiqAccountServer(){
   const request=async(r:TiqFixtureRequest)=>{
     if(r.method==='GET'){
       reads++
+      if(failRead)return response({ok:false},503)
       if(holdRead){holdRead=false;await new Promise<void>(resolve=>{release=resolve})}
       if(r.student&&(!connected||r.owner!==tiqPlayer||r.student!=='student-one'))return response({ok:false},403)
       const all=r.student?ordered(tiqStudent).filter(row=>shares.some(s=>s.assessment===row.id&&s.student===r.student&&s.shared)):ordered(r.owner)
@@ -49,5 +50,5 @@ export function tiqAccountServer(){
     return reply(r.owner,w.id)
   }
   return {rows,shares,ordered,add,request,get reads(){return reads},set loseSaveReply(value:boolean){loseSaveReply=value},
-    set connected(value:boolean){connected=value},set holdRead(value:boolean){holdRead=value},releaseRead(){release?.();release=null}}
+    set connected(value:boolean){connected=value},set failRead(value:boolean){failRead=value},set holdRead(value:boolean){holdRead=value},releaseRead(){release?.();release=null}}
 }

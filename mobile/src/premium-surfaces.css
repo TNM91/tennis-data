@@ -559,6 +559,34 @@ body[data-screen="lab"] .starter-tiq-form select {
 .tiq-account-sharing label { display:grid;gap:6px;min-inline-size:0; }
 .tiq-account-dialog select { inline-size:100%;min-inline-size:0;max-inline-size:100%;min-block-size:44px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);color:var(--premium-white);font-size:1rem;padding:8px; }
 .tiq-account-dialog button { min-block-size:44px;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere; }
+.tiq-account-dialog details.tiq-progress-comparison { border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);padding:0 14px;background:transparent; }
+.tiq-progress-comparison>summary { font-weight:700; }
+.tiq-progress-comparison[open]>summary { border-block-end:1px solid var(--premium-line); }
+.tiq-account-dialog .tiq-progress-controls { display:grid;gap:12px;margin-block:16px; }
+.tiq-progress-controls>div { display:grid;gap:6px;min-inline-size:0; }
+.tiq-progress-controls label { font-size:.875rem; }
+.coach-workspace-dialog.tiq-account-dialog .tiq-progress-controls select { appearance:none;box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;min-block-size:48px;padding:.7rem 2rem .7rem .8rem;background-color:var(--premium-page);background-image:linear-gradient(45deg,transparent 50%,#c4d3ec 50%),linear-gradient(135deg,#c4d3ec 50%,transparent 50%);background-position:right .95rem center,right .6rem center;background-size:.35rem .35rem;background-repeat:no-repeat;color:var(--premium-white);font:inherit;text-overflow:ellipsis; }
+.tiq-progress-controls small { color:var(--premium-copy);font-size:.75rem;line-height:1.5; }
+.tiq-progress-scores { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+.tiq-progress-scores>div { min-inline-size:0;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
+.tiq-progress-scores small { display:block;color:var(--premium-copy);font-size:.75rem; }
+.tiq-progress-scores strong { display:flex;align-items:baseline;flex-wrap:wrap;gap:3px;color:var(--premium-white);font-size:2rem;line-height:1.4; }
+.tiq-progress-scores>div:last-child strong { color:var(--premium-lime); }
+.tiq-progress-scores strong span { color:var(--premium-copy);font-size:.8125rem;white-space:nowrap; }
+.coach-workspace-dialog.tiq-account-dialog p.tiq-progress-scope,
+.coach-workspace-dialog.tiq-account-dialog p.tiq-progress-summary,
+.coach-workspace-dialog.tiq-account-dialog p.tiq-progress-note { background:transparent;border:0;box-shadow:none;padding:0;font-size:.8125rem;color:var(--premium-copy);line-height:1.6; }
+.tiq-progress-skills { display:grid;gap:12px;margin-block:16px;padding:0;list-style:none; }
+.tiq-progress-skills>li { min-inline-size:0;padding-block:12px;border-block-start:1px solid var(--premium-line); }
+.tiq-progress-skill-heading { display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 10px; }
+.tiq-progress-skill-heading h4 { margin:0;color:var(--premium-white);font-size:1rem;line-height:1.5; }
+.tiq-progress-skill-heading>span { color:var(--premium-copy);font-size:.75rem;line-height:1.5; }
+.tiq-progress-skills [data-tiq-change=higher] .tiq-progress-skill-heading>span { color:var(--premium-lime); }
+.tiq-account-dialog .tiq-progress-skills dl { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,7rem),1fr));gap:12px;margin-block-start:10px; }
+.tiq-account-dialog .tiq-progress-skills dl>div { display:block;min-inline-size:0; }
+.tiq-progress-skills dt { color:var(--premium-copy);font-size:.75rem; }
+.tiq-progress-skills dd { margin:4px 0 0;color:var(--premium-white);font-size:.875rem;line-height:1.5; }
+.tiq-progress-comparison :focus-visible { outline:2px solid var(--premium-lime);outline-offset:3px; }
 .tiq-device-history { border-block-start:1px solid var(--premium-line);margin-block:16px; }
 .starter-tiq-breakdown ul { display:grid;gap:12px;list-style:none;margin:0;padding:0; }
 .starter-tiq-breakdown li>span { display:flex;flex-wrap:wrap;gap:2px 8px;justify-content:space-between;font-size:.875rem; }

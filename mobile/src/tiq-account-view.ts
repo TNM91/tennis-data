@@ -6,6 +6,7 @@ import type {NativeCoachStudent} from '../../lib/native-coach-contract'
 import {html} from './match-details'
 import {loadTiqAccount, writeTiqAccount, rememberPendingTiq, clearPendingTiq, readPendingTiq, deviceTiqId, TiqAccountError} from './tiq-account-data'
 import type {CoachSend} from './coach-workspace-data'
+import {mountTiqProgressComparison, tiqProgressComparison, tiqProgressSelection, type TiqProgressSelection} from './tiq-progress-comparison'
 
 export type DeviceAssessment = {date: string; answers: unknown}
 const score = (entry: TiqAssessment) => estimateTiqScore(tiqSkills.map(skill => entry.answers[skill.id]))
@@ -20,11 +21,13 @@ export function openTiqAccountHistory(client: SupabaseClient, owner: string, cur
   let saveConflict = false, conflictReviewed = false
   let pendingChecked = Boolean(options.student)
   let focusAfter: string | null = 'heading'
+  let historyConfirmed = false, comparisonOpen = false
+  let comparisonSelection: TiqProgressSelection | null = null
   const devices = (options.device ?? []).filter((entry, index, rows) => rows.findIndex(other => JSON.stringify(other) === JSON.stringify(entry)) === index)
   const active = () => !disposed && current() && trigger.isConnected
   function dispose() {
     if (disposed) return
-    disposed = true; entries = []; snapshot = null; pending = null; operation = null
+    disposed = true; entries = []; snapshot = null; pending = null; operation = null; comparisonSelection = null
     dialog.close(); dialog.remove()
     if (current() && trigger.isConnected) trigger.focus({preventScroll: true})
     if (current()) options.closed?.()
@@ -32,6 +35,7 @@ export function openTiqAccountHistory(client: SupabaseClient, owner: string, cur
   async function load(more = false, message = '') {
     if (!active() || busy) return
     if (!more && options.student) {entries = []; snapshot = null}
+    historyConfirmed = false
     busy = true; notice = more ? 'Loading earlier assessments…' : 'Loading rating history…'; render()
     try {
       const page = await loadTiqAccount(client, owner, active, {student: options.student?.id, cursor: more ? snapshot?.next : null}, send)
@@ -40,17 +44,22 @@ export function openTiqAccountHistory(client: SupabaseClient, owner: string, cur
       if (more && page.items.some(entry => known.has(entry.id))) throw new TiqAccountError(503)
       if (more && page.head?.id !== snapshot?.head?.id) throw new TiqAccountError(409)
       entries = more ? [...entries, ...page.items] : page.items
+      const lostComparison = comparisonSelection && !tiqProgressComparison(entries, comparisonSelection)
+      const closedComparison = lostComparison && comparisonOpen
+      if (lostComparison) {comparisonSelection = null; comparisonOpen = false}
       if (more && page.items.length) focusAfter = page.items[0].id
       // Earlier pages keep their own sharing information; refresh replaces the loaded snapshot.
       snapshot = more && snapshot ? {...page, shares: [...snapshot.shares, ...page.shares]} : page
       pending = options.student ? null : await readPendingTiq(owner)
       pendingChecked = true
       if (!active()) return
-      notice = message
+      historyConfirmed = true
+      notice = [message, closedComparison ? 'Comparison closed because a selected assessment is no longer in the loaded history.' : ''].filter(Boolean).join(' ')
       if (!more && saveConflict) conflictReviewed = true
       if (!more && !options.student) options.changed?.(page)
     } catch (error) {if (active()) {
       if (options.student) {entries = []; snapshot = null}
+      comparisonOpen = false; comparisonSelection = null
       notice = error instanceof TiqAccountError ? error.message : 'Rating history couldn’t load. Try refreshing.'
     }}
     finally {busy = false; if (active()) render()}
@@ -58,6 +67,7 @@ export function openTiqAccountHistory(client: SupabaseClient, owner: string, cur
   async function mutate(write: TiqWrite) {
     if (busy || !active() || options.student) return
     let renderedByLoad = false
+    historyConfirmed = false
     busy = true; operation = write; focusAfter = write.id; notice = write.kind === 'save' ? 'Saving to your account…' : write.kind === 'delete' ? 'Deleting from your account…' : 'Updating sharing…'; render()
     try {
       if (write.kind === 'save') {await rememberPendingTiq(owner, write); pending = write}
@@ -88,6 +98,7 @@ export function openTiqAccountHistory(client: SupabaseClient, owner: string, cur
         : 'Saved to your account across devices. Choose a specific assessment to share with a connected coach.'}</p>
       <p role="status" data-tiq-status>${html(notice)}</p>
       ${operation ? '<button type="button" data-tiq-retry ' + (busy ? 'disabled' : '') + '>Retry same change</button>' : pending ? '<p>An account save needs confirmation before you start another.</p><button type="button" data-tiq-pending ' + (busy || (saveConflict && !conflictReviewed) ? 'disabled' : '') + '>' + (saveConflict ? 'Save kept assessment after review' : 'Check saved assessment') + '</button>' : ''}
+      ${historyConfirmed && !busy && tiqProgressSelection(entries, comparisonSelection) ? `<details class="tiq-progress-comparison" ${comparisonOpen ? 'open' : ''}><summary>Compare assessments</summary><div data-tiq-progress></div></details>` : ''}
       <div class="tiq-account-history">${entries.map((entry, index) => {
         const ownShares = snapshot?.shares.filter(share => share.assessment === entry.id) ?? []
         const activeShares = ownShares.filter(share => share.active)
@@ -109,6 +120,14 @@ export function openTiqAccountHistory(client: SupabaseClient, owner: string, cur
       ${!options.student && devices.length ? `<details class="tiq-device-history"><summary>Assessments on this device</summary><p>These device copies stay private unless you save them to your account.</p>${devices.map((entry, index) => `<div><p>${html(formatCalendarDay(entry.date))}</p><button type="button" class="secondary" data-tiq-import="${index}" ${locked || !snapshot ? 'disabled' : ''}>Save device assessment to account</button></div>`).join('')}</details>` : ''}
       <button type="button" class="secondary" data-tiq-refresh ${busy || operation ? 'disabled' : ''}>Refresh history</button>`
     dialog.querySelector('[data-tiq-close]')!.addEventListener('click', dispose)
+    const comparison = dialog.querySelector<HTMLDetailsElement>('.tiq-progress-comparison')
+    const comparisonHost = comparison?.querySelector<HTMLElement>('[data-tiq-progress]')
+    if (comparison && comparisonHost) {
+      comparison.ontoggle = () => {if (comparison.isConnected && active()) comparisonOpen = comparison.open}
+      mountTiqProgressComparison(comparisonHost, entries, {selection: comparisonSelection, moreAvailable: Boolean(snapshot?.next),
+        current: () => active() && historyConfirmed && !busy,
+        changed: selected => {comparisonSelection = selected}})
+    }
     dialog.querySelector('[data-tiq-refresh]')!.addEventListener('click', () => {void load()})
     dialog.querySelector('[data-tiq-more]')?.addEventListener('click', () => {void load(true)})
     dialog.querySelector('[data-tiq-retry]')?.addEventListener('click', () => {if (operation) void mutate(operation)})
