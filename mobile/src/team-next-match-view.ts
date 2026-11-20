@@ -77,7 +77,7 @@ function matchRepliesHtml(replies:TeamMatchReplies,busy:boolean,pending:boolean,
 export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMatchRoom,current:()=>boolean,
  onClose:(changed:boolean,message?:string,kind?:'lineup'|'schedule')=>void,canDraftUpdate:()=>boolean,
  {previousMatch,calendarSchedule,openResults,focusSection}:{
-  previousMatch?:ReviewedNextMatch;calendarSchedule?:TeamNextMatchSchedule;openResults?:()=>void;focusSection?:TeamMatchSection
+  previousMatch?:ReviewedNextMatch;calendarSchedule?:TeamNextMatchSchedule;openResults?:(fixtureId?:string)=>void;focusSection?:TeamMatchSection
  }={}){
  const dialog=document.createElement('dialog')
  dialog.className='team-invite-dialog team-next-match-dialog'
@@ -649,6 +649,8 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   const readinessCourts=shared?.courts??savedCourts
   const readiness=teamMatchReadiness(readinessCourts,replies)
   const matchStatus=captainMatchStatus(schedule,replies)
+  const matchScoresAvailable=!schedule?.nextMatch||!schedule.nextMatch.time&&
+   schedule.nextMatch.date<=todayDateKey(new Date(),schedule.nextMatch.timeZone)
   const readinessActions:ReadinessAction[]=[]
   if(captain&&schedule?.nextMatch&&!busy&&!pendingReply&&!pendingLineup){
    if(matchStatus.next)readinessActions.push(matchStatus.next)
@@ -728,8 +730,8 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
     ${schedule.nextMatch?`<div class="team-invite-preview">${teamNextMatchHtml(schedule.nextMatch)}
      ${previousSlot?`<p>Previously · ${html(matchSlot(previousSlot))}</p>`:''}</div>
      ${mapsUrl&&!removing?`<button type="button" class="secondary" data-open-match-maps ${busy||pendingReply?'disabled':''}>Find in Apple Maps <span aria-hidden="true">↗</span></button>`:''}`:
-     `<p>No upcoming match is scheduled.</p>
-      ${captain&&openResults&&!busy?'<button type="button" class="secondary" data-match-open-results>Open team results</button>':''}`}
+     '<p>No upcoming match is scheduled.</p>'}
+    ${captain&&openResults&&!busy&&matchScoresAvailable?`${schedule.revision?'<p>Enter a score, resume a draft or review a posted result.</p>':''}<button type="button" class="secondary" data-match-open-results>${schedule.revision?'Open match scores':'Open team results'}</button>`:''}
     ${schedule.nextMatch&&!removing?(captain?teamReadinessHtml(replies,readinessCourts,false,uniqueReadinessActions,matchStatus):''):''}
     ${schedule.nextMatch&&!removing?lineupPublicationHtml(replies,owner,Boolean(captain),busy||Boolean(pendingReply||pendingConfirmation),responseView):''}
     ${captain&&shared&&!removing?`<button type="button" class="secondary" data-draft-published-lineup ${busy||pendingReply?'disabled':''}>Draft published lineup in chat</button>`:''}
@@ -758,7 +760,7 @@ export function openTeamNextMatch(client:SupabaseClient,owner:string,room:TeamMa
   dialog.querySelector('[data-match-open-results]')?.addEventListener('click',()=>{
    if(!active()||busy||!openResults)return
    close()
-   openResults()
+   openResults(schedule?.revision??undefined)
   })
   dialog.querySelector<HTMLButtonElement>('[data-match-load]')?.addEventListener('click',()=>{void load()})
   dialog.querySelector<HTMLButtonElement>('[data-match-retry]')?.addEventListener('click',()=>{if(pending)void save(pending)})

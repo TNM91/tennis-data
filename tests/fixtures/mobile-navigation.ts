@@ -232,6 +232,7 @@ const teamResultFixture={
  score:null as TeamResultScore|null,
  earlier:[] as TeamResultEntry[],
  failBeforeSave:false,loseNextSave:true,writes:[] as string[],
+ reads:0,failReads:false,holdNextRead:false,releaseRead:null as (()=>void)|null,
 }
 let captainInvite:{id:string;token:string;expiresAt:string;revokedAt:string|null;acceptedCount:number;active:boolean}|null=null
 let firstPartyTeamJoined=false
@@ -699,6 +700,13 @@ window.fetch=async(input,init)=>{
   }
   if(op==='team-results'){
    if(!team||!manualScheduleFixture.enabled)return Response.json({ok:false},{status:403})
+   teamResultFixture.reads++
+   if(teamResultFixture.holdNextRead){
+    teamResultFixture.holdNextRead=false
+    await new Promise<void>(resolve=>{teamResultFixture.releaseRead=resolve})
+    teamResultFixture.releaseRead=null
+   }
+   if(teamResultFixture.failReads)return Response.json({ok:false},{status:503})
    const canEdit=manualScheduleFixture.captain&&owner===navigationOwner
    const record={wins:0,losses:0,ties:0}
    const entries=[teamResultFixture,...teamResultFixture.earlier].filter(({score})=>canEdit||score).map(({fixtureId,match,score:saved})=>{

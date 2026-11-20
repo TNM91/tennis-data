@@ -315,7 +315,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
     app.querySelector<HTMLElement>('.chat-room-options > summary')?.focus({preventScroll:true})
    }else if(trigger.isConnected)trigger.focus({preventScroll:true})
   },()=>current()&&canDraftTeamUpdate(room),{
-   previousMatch,focusSection,openResults:results?()=>openResults(room,trigger):undefined,
+   previousMatch,focusSection,openResults:results?fixtureId=>openResults(room,trigger,fixtureId?{scheduledMatch:fixtureId}:undefined):undefined,
   })
  }
  const openResults=(room:NativeTeamRoom,trigger:HTMLButtonElement,entryPoint?:TeamResultsEntryPoint)=>{
