@@ -41,7 +41,7 @@ import {openTeamInvite} from './team-invite-view'
 import {openTeamNextMatch,teamNextMatchHtml} from './team-next-match-view'
 import {createTeamMatchBrief} from './team-match-brief'
 import type {TeamMatchSection} from './team-match-readiness'
-import {openTeamResults,sharedTeamResult,type TeamResultsEntryPoint,type TeamResultsPosition} from './team-results-view'
+import {openTeamResults,sharedTeamResult,readTeamResultQuestion,type TeamResultsEntryPoint,type TeamResultsPosition} from './team-results-view'
 import type {TeamScoreDraftSession} from './team-score-drafts'
 import type {CalendarScorecardSeed} from './personal-match-data'
 import {openPrivateTeam} from './private-team-view'
@@ -77,7 +77,7 @@ export function teamConversationHtml(room:NativeTeamRoom,earlier=false,owner='')
   const reply=byId.get(message.replyToMessageId)
   const sharedResult=firstPartyBuild&&room.manualFixture&&room.chatReady&&!message.deletedAt&&!message.card
    ?sharedTeamResult(message.body,room.teamName):undefined
-  return `<li data-chat-message="${html(message.id)}" class="team-bubble ${message.isMine?'team-bubble-mine':''} ${message.card&&!message.deletedAt?'team-bubble-match':''}">${!message.isMine&&!(message.card&&!message.deletedAt)?`<span class="chat-sender-avatar" aria-hidden="true">${html(message.senderName.trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>Array.from(part)[0]).join('').toLocaleUpperCase()||'?')}</span>`:''}<div class="team-message-meta"><strong>${html(message.senderName)}</strong><span>${html(messageTime(message.createdAt))}${message.editedAt && !message.deletedAt?' · edited':''}</span></div>${owner&&!message.deletedAt&&message.mentions?.some(tag=>tag.profileId===owner)?'<small class="chat-mention-badge">Mentioned you</small>':''}${message.kind==='announcement'?'<small class="chat-announcement">Captain announcement</small>':''}${message.replyToMessageId&&!message.deletedAt?`<button type="button" class="chat-reply-preview" data-chat-context="${html(message.id)}" aria-label="Open original message"><blockquote>${reply && !reply.deletedAt?`<strong>${html(reply.senderName)}</strong><span>${html(reply.body.slice(0,160))}</span>`:'Earlier or removed message'}</blockquote><span>View original</span></button>`:''}${message.card&&!message.deletedAt?chatMatchCardHtml(room,message,owner):`<p class="chat-message-text">${message.deletedAt?html(message.body):chatBodyHtml(sharedResult?.summary??message.body,firstPartyBuild?room.teamPractices?'private-practice':false:true)}</p>${sharedResult?`<button type="button" class="secondary chat-team-results-link" data-chat-team-results="${html(sharedResult.matchLabel)}">View team result<span aria-hidden="true">→</span></button>`:''}`}${message.hasPhoto && !message.deletedAt?`<button type="button" class="secondary chat-photo-open" data-chat-photo="${html(message.id)}" aria-label="${message.isGif?'Play team GIF':'Open team photo full screen'}"><span data-photo-preview>Loading photo…</span>${message.isGif?'<span data-gif-label>Play team GIF</span>':''}</button>`:message.hasAttachment && !message.deletedAt?'<small>Attachment available on the website.</small>':''}${room.chatReady && !message.deletedAt?`${chatMessageActionsHtml(message)}${chatReactionButtons(message,true)}`:''}</li>`
+  return `<li data-chat-message="${html(message.id)}" class="team-bubble ${message.isMine?'team-bubble-mine':''} ${message.card&&!message.deletedAt?'team-bubble-match':''}">${!message.isMine&&!(message.card&&!message.deletedAt)?`<span class="chat-sender-avatar" aria-hidden="true">${html(message.senderName.trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>Array.from(part)[0]).join('').toLocaleUpperCase()||'?')}</span>`:''}<div class="team-message-meta"><strong>${html(message.senderName)}</strong><span>${html(messageTime(message.createdAt))}${message.editedAt && !message.deletedAt?' · edited':''}</span></div>${owner&&!message.deletedAt&&message.mentions?.some(tag=>tag.profileId===owner)?'<small class="chat-mention-badge">Mentioned you</small>':''}${message.kind==='announcement'?'<small class="chat-announcement">Captain announcement</small>':''}${message.replyToMessageId&&!message.deletedAt?`<button type="button" class="chat-reply-preview" data-chat-context="${html(message.id)}" aria-label="Open original message"><blockquote>${reply && !reply.deletedAt?`<strong>${html(reply.senderName)}</strong><span>${html(reply.body.slice(0,160))}</span>`:'Earlier or removed message'}</blockquote><span>View original</span></button>`:''}${message.card&&!message.deletedAt?chatMatchCardHtml(room,message,owner):`<p class="chat-message-text">${message.deletedAt?html(message.body):chatBodyHtml(sharedResult?.summary??message.body,firstPartyBuild?room.teamPractices?'private-practice':false:true)}</p>${sharedResult?`<button type="button" class="secondary chat-team-results-link" data-chat-team-results="${html(sharedResult.matchLabel)}"${sharedResult.question?` data-question-court="${sharedResult.question.court}" data-question-score="${html(sharedResult.question.score)}"`:''}>View team result<span aria-hidden="true">→</span></button>`:''}`}${message.hasPhoto && !message.deletedAt?`<button type="button" class="secondary chat-photo-open" data-chat-photo="${html(message.id)}" aria-label="${message.isGif?'Play team GIF':'Open team photo full screen'}"><span data-photo-preview>Loading photo…</span>${message.isGif?'<span data-gif-label>Play team GIF</span>':''}</button>`:message.hasAttachment && !message.deletedAt?'<small>Attachment available on the website.</small>':''}${room.chatReady && !message.deletedAt?`${chatMessageActionsHtml(message)}${chatReactionButtons(message,true)}`:''}</li>`
  }).join('')}</ol>`
 }
 export function teamMatchDayHtml(room:NativeTeamRoom,owner='') {
@@ -288,10 +288,20 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  }
  const canDraftTeamUpdate=(room:NativeTeamRoom)=>Boolean(valid()&&snapshot?.room?.id===room.id&&snapshot.room.chatReady&&snapshot.room.canScheduleMatch&&
   !draft.text&&!draft.reply&&!draft.photo&&!draft.pending&&!draft.sending&&!busy&&!photoChoosing&&!safetyView?.isOpen())
+ const canDraftScoreQuestion=(room:NativeTeamRoom)=>Boolean(valid()&&snapshot?.room?.id===room.id&&snapshot.room.chatReady&&
+  !draft.text&&!draft.reply&&!draft.photo&&!draft.pending&&!draft.sending&&!busy&&!photoChoosing&&!safetyView?.isOpen())
  const composeTeamUpdate=(room:NativeTeamRoom,message:string,notice:string)=>{
   if(!canDraftTeamUpdate(room))return false
   tab='Conversation';findOpen=false;chatFilter='all';searchText=''
   draft.text=message;draft.notice=notice
+  render()
+  app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus({preventScroll:true})
+  return true
+ }
+ const composeScoreQuestion=(room:NativeTeamRoom,message:string)=>{
+  if(!canDraftScoreQuestion(room))return false
+  tab='Conversation';findOpen=false;chatFilter='all';searchText=''
+  draft.text=message;draft.notice='Add what needs correcting, then tap Send.'
   render()
   app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus({preventScroll:true})
   return true
@@ -326,17 +336,31 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const messageId=trigger.closest<HTMLElement>('[data-chat-message]')?.dataset.chatMessage
   closeMessageMenus()
   trigger.focus({preventScroll:true})
-  teamDialog=openTeamResults(client,userId,matchRoom,current,results.drafts,message=>{
+  teamDialog=openTeamResults(client,userId,matchRoom,current,results.drafts,(message,kind,reply)=>{
    teamDialog=null
    if(!current())return
-   if(message&&composeTeamUpdate(room,message,'Review your result, then tap Send.'))return
+   if(reply&&canDraftTeamUpdate(room)){
+    tab='Conversation';findOpen=false;chatFilter='all';searchText=''
+    draft.reply=reply;draft.notice='Add your reply, then tap Send.'
+    render();app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus({preventScroll:true});return
+   }
+   if(message&&(kind==='score-question'?composeScoreQuestion(room,message):composeTeamUpdate(room,message,'Review your result, then tap Send.')))return
    const link=messageId&&app.querySelector<HTMLElement>(`[data-chat-message="${CSS.escape(messageId)}"] [data-chat-team-results]`)
    const focusTarget=trigger.isConnected?trigger:link||app.querySelector<HTMLElement>('.chat-room-options > summary')
    focusTarget?.focus({preventScroll:true})
   },()=>current()&&canDraftTeamUpdate(room),previousMatch=>{
    teamDialog=null
    if(current())openNextMatch(room,trigger,previousMatch)
-  },(seed,position)=>results.openScorecard(seed,{roomId:room.id,scope:currentScope(),position}),entryPoint)
+  },(seed,position)=>results.openScorecard(seed,{roomId:room.id,scope:currentScope(),position}),entryPoint,
+   room.chatReady?()=>current()&&canDraftScoreQuestion(room):undefined,
+   messageId&&entryPoint&&'chatMatch' in entryPoint&&entryPoint.question?async active=>{
+    const source=room.messages.find(message=>message.id===messageId&&!message.deletedAt)
+    if(!source||source.body!==entryPoint.question?.message)return
+    const fresh=await readChatMessage(client,userId,()=>current()&&active()&&document.visibilityState==='visible',
+     {...currentScope()},room.id,source.id,'message')
+    if(fresh.truncated||fresh.body!==source.body)return
+    return {id:fresh.id,name:fresh.senderName,body:fresh.body,senderUserId:source.senderUserId}
+   }:undefined)
  }
  const bindMessageActions=(room:NativeTeamRoom)=>{
   pressActions?.dispose();pressActions=null
@@ -350,7 +374,10 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    }
   })
   app.querySelectorAll<HTMLButtonElement>('[data-chat-team-results]').forEach(button=>{button.onclick=()=>{
-   if(button.dataset.chatTeamResults)openResults(room,button,{chatMatch:button.dataset.chatTeamResults})
+   const id=button.closest<HTMLElement>('[data-chat-message]')?.dataset.chatMessage
+   const message=room.messages.find(message=>message.id===id&&!message.deletedAt)
+   const question=readTeamResultQuestion(Number(button.dataset.questionCourt),button.dataset.questionScore,message?.body)
+   if(button.dataset.chatTeamResults)openResults(room,button,{chatMatch:button.dataset.chatTeamResults,...(question?{question}:{})})
   }})
   app.querySelector<HTMLButtonElement>('[data-chat-match]')?.addEventListener('click',openChatMatch)
   app.querySelectorAll<HTMLButtonElement>('[data-chat-match-replies]').forEach(button=>{button.onclick=()=>openReplies(button.closest<HTMLElement>('[data-match-card-id]')?.dataset.matchCardId||'')})

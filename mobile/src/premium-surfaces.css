@@ -2021,6 +2021,7 @@ dialog.team-chat-icon-dialog[open] {
 .team-result-queue h3 { margin:0 0 8px;font-size:1rem; }
 .team-result-list { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
 .team-result-list .team-invite-preview { margin:0; }
+.team-result-list [data-result-fixture]:focus { outline:2px solid var(--premium-ice);outline-offset:-2px; }
 .team-result-list .team-result-assignment-note { color:var(--premium-lime); }
 .team-result-own-score { display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;font-variant-numeric:tabular-nums; }
 .team-result-personal-court { margin-block:12px;padding-inline-start:12px;border-inline-start:2px solid var(--premium-line);background:transparent;overflow-wrap:anywhere; }

@@ -192,6 +192,8 @@ const namedChats=new Map<string,{name:string;messages:typeof firstPartyTeamMessa
 const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
 const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false,
+ message:{reads:0,fail:false,removed:false,body:undefined as string|undefined,name:undefined as string|undefined,
+  holdNextRead:false,releaseRead:undefined as (()=>void)|undefined},
  captainChatSetup:'needs-review',captainInviteTeams:undefined as (typeof chatTeam)[]|undefined}
 const setupFixture={done:[] as string[],requests:0,unavailable:false,competitionProfileLinked:undefined as boolean|undefined,
  competitionTrophies:[
@@ -682,6 +684,17 @@ window.fetch=async(input,init)=>{
    return Response.json({...base,namedRooms:1,parentId:chatRoomId,teamMuted:false,canCreate:owner===navigationOwner,generalUnread:0,rooms:roomSummaries})
   }
   const selectedRoom=url.searchParams.get('chatRoom')
+  if(op==='message'){
+   const state=firstPartyTeamFixture.message
+   state.reads++
+   if(state.holdNextRead){state.holdNextRead=false;await new Promise<void>(resolve=>{state.releaseRead=resolve})}
+   const id=url.searchParams.get('message'),view=url.searchParams.get('view')
+   const message=(selectedRoom?namedChats.get(selectedRoom)?.messages:firstPartyTeamMessages)?.find(message=>message.id===id)
+   if(!team||owner!==navigationOwner||!message||state.removed||state.fail||view!=='message')return Response.json({ok:false},{status:state.fail?503:404})
+   return Response.json({...base,messageView:1,roomId:selectedRoom||chatRoomId,requestedId:id,view,
+    message:{id:message.id,senderName:state.name??message.senderName,body:state.body??message.body,
+     kind:message.kind,createdAt:message.createdAt,editedAt:'',hasAttachment:false,truncated:false}})
+  }
   if(namedChatsFixture&&team&&selectedRoom){
    const named=namedChats.get(selectedRoom)
    if(!named)return Response.json({ok:false},{status:404})

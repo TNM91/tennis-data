@@ -119,6 +119,8 @@ jobs:
           path: |
             .next/match-brief-linux/**/captain-*.png
             .next/match-brief-linux/**/player-court-summary.png
+            .next/match-brief-linux/**/player-score-question.png
+            .next/match-brief-linux/**/shared-result-player-court.png
             .next/match-brief-linux/**/error-context.md
             .next/match-brief-linux/**/test-failed-*.png
             .next/match-brief-linux/**/trace.zip
