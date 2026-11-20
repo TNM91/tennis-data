@@ -76,13 +76,18 @@ jobs:
 
   layout:
     if: github.repository == 'TNM91/tennis-data'
-    name: Native WebKit (part ${{ matrix.part }}/4)
+    name: Native navigation (${{ matrix.project }} ${{ matrix.part }}/${{ matrix.total }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        part: [1, 2, 3, 4]
+        include:
+          - {project: mobile-chrome, part: 1, total: 1}
+          - {project: mobile-webkit, part: 1, total: 4}
+          - {project: mobile-webkit, part: 2, total: 4}
+          - {project: mobile-webkit, part: 3, total: 4}
+          - {project: mobile-webkit, part: 4, total: 4}
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
       options: --ipc=host
@@ -100,17 +105,17 @@ jobs:
         run: node -e "require('node:assert/strict').equal(require('@playwright/test/package.json').version, '1.59.1')"
       - name: Build the native production bundle
         run: node mobile/scripts/build-bundled.mjs --first-party-full
-      - name: Check the complete WebKit navigation shard
+      - name: Check the complete phone navigation shard
         run: >-
           npx playwright test --config=tests/playwright.native-navigation.config.ts
-          --project=mobile-webkit --shard=${{ matrix.part }}/4 --workers=2 --retries=0 --max-failures=1
+          --project=${{ matrix.project }} --shard=${{ matrix.part }}/${{ matrix.total }} --workers=2 --retries=0 --max-failures=1
           --global-timeout=900000
           --output=.next/match-brief-linux --reporter=list,github
       - name: Save layout evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: captain-webkit-${{ matrix.part }}-${{ github.sha }}
+          name: captain-${{ matrix.project }}-${{ matrix.part }}-${{ github.sha }}
           path: |
             .next/match-brief-linux/**/captain-*.png
             .next/match-brief-linux/**/error-context.md
