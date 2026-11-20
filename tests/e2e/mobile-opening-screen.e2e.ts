@@ -129,7 +129,7 @@ test('a cold coaching notification opens its check-in from a preferred Chats sta
 })
 test('an incoming coaching update keeps an in-progress self assessment intact', async ({page}) => {
   await page.goto(origin + '/?unlinked=1&hit-alerts=1&coach-activity=checkin')
-  const starter = page.getByRole('region', {name: 'Starter TiQ'})
+  const starter = page.getByRole('region', {name: 'Your TiQ'})
   await starter.getByRole('button', {name: 'Find my level'}).click()
   await starter.getByLabel('How reliable is your serve?').selectOption('2')
   await page.evaluate(() => (window as unknown as {hitAlertsFixture: {tap: (href: string) => void}}).hitAlertsFixture.tap('/mylab?coachActivityNotice=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'))
@@ -142,7 +142,7 @@ for (const width of [320, 390]) test('uses one quiet card palette and clear acti
   await page.setViewportSize({width, height: 844})
   await page.addInitScript(owner => localStorage.setItem('starter-tiq:v1:' + owner, JSON.stringify([3,3,3])), owner)
   await page.goto(origin + '/?unlinked=1&empty-calendar=1' + (width === 320 ? '&large=1' : ''))
-  const calendar = page.locator('.lab-up-next button.app-tool').first(), starter = page.getByRole('region', {name: 'Starter TiQ'})
+  const calendar = page.locator('.lab-up-next button.app-tool').first(), starter = page.getByRole('region', {name: 'Your TiQ'})
   await expect(calendar).toHaveAttribute('data-calendar-state', 'empty')
   await expect(calendar).toContainText('Your calendar'); await expect(calendar).not.toContainText('Up next')
   await expect(calendar).toHaveCSS('border-top-color', 'rgb(54, 87, 133)')

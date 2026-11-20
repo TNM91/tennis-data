@@ -127,14 +127,14 @@ test('removes comparison data after an unavailable refresh and an account change
   await expect(page.locator('body')).not.toContainText('Higher observed level')
 })
 
-test('keeps the player assessment history and Starter TiQ self rating intact', async ({page}) => {
+test('keeps the player assessment history and Your TiQ self rating intact', async ({page}) => {
   await page.addInitScript(() => localStorage.setItem('starter-tiq:v2:22222222-2222-4222-8222-222222222222', JSON.stringify({
     current: {date: '2026-11-16', answers: {serve: 2, return: 2, rally: 2, movement: 2, net: 2, points: 2}}, previous: null,
   })))
   const {dialog, workspace} = await open(page)
   await page.evaluate(() => document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click())
   await expect(dialog).toHaveCount(0); await expect(workspace).toHaveCount(0)
-  const starter = page.getByRole('region', {name: 'Starter TiQ', exact: true})
+  const starter = page.getByRole('region', {name: 'Your TiQ', exact: true})
   await expect(starter).toContainText('7 / 10')
   const before = await page.evaluate(() => localStorage.getItem('starter-tiq:v2:22222222-2222-4222-8222-222222222222'))
   await starter.getByRole('button', {name: 'Coach assessments', exact: true}).click()

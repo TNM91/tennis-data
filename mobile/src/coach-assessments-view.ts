@@ -204,7 +204,7 @@ export function openCoachAssessments(client: SupabaseClient, owner: string, curr
           ? assignedDrills.has(id) ? '<p>Drill assigned</p>' : `<button type="button" data-assign-drill="${html(id)}" ${busy ? 'disabled' : ''}>Assign drill</button>`
           : ''}</details>`).join('') || (!busy && !notice ? '<p>No shared assessments yet.</p>' : '')}</div>
       <button type="button" class="secondary" data-assessment-refresh ${busy ? 'disabled' : ''}>Refresh assessments</button>`
-    dialog.innerHTML = `<header class="coach-workspace-header"><small>${student ? html(student.name) : 'Starter TiQ'}</small><h2 tabindex="-1">${heading}</h2>
+    dialog.innerHTML = `<header class="coach-workspace-header"><small>${student ? html(student.name) : 'Your TiQ'}</small><h2 tabindex="-1">${heading}</h2>
       <button type="button" data-assessment-close class="secondary" ${busy && (view !== 'list' || assigningDrill) ? 'disabled' : ''}>${view === 'list' ? 'Close' : 'Back'}</button></header>
       ${content}<p role="status">${html(notice)}</p>
       <dialog class="native-coach-decision" data-assessment-discard aria-label="Leave assessment"><h2>Leave assessment?</h2><p></p>

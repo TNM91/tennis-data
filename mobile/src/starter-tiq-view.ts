@@ -82,7 +82,7 @@ export function mountStarterTiq(
       <div class="starter-tiq-heading">
         <span class="starter-tiq-icon" aria-hidden="true">${websiteUi.icons.progress}</span>
         <div>
-          <h2 id="starter-tiq-title">Starter TiQ</h2>
+          <h2 id="starter-tiq-title">Your TiQ</h2>
           ${viewing && result ? `<p id="starter-tiq-context">Self-assessed · Private on this device</p>
             <div class="starter-tiq-level" tabindex="-1" aria-describedby="starter-tiq-context">
               <span class="starter-tiq-score">${result.score}<span> / 10</span></span>
