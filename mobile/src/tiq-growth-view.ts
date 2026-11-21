@@ -40,7 +40,7 @@ export function bindPracticeSkill(form: HTMLFormElement) {
   })
 }
 export function openGrowthPlan(client: SupabaseClient, owner: string, current: () => boolean, trigger: HTMLElement,
-  options: {retake: () => void; drill: (id: string, plan:Pick<GrowthPlan,'id'|'target'>) => void;planId?:string;practice?:TrainingSession|null}, send?: CoachSend) {
+  options: {retake: () => void; drill: (id: string, plan:Pick<GrowthPlan,'id'|'target'>) => void;planId?:string;practice?:TrainingSession|null;updated?:(snapshot:GrowthSnapshot|null,pendingId:string|null,pendingUnavailable:boolean)=>void;restoreFocus?:()=>void}, send?: CoachSend) {
   const dialog = document.createElement('dialog'); dialog.className = 'captain-lineup-dialog coach-workspace-dialog tiq-growth-dialog'; dialog.setAttribute('aria-label','My improvement plan')
   let disposed = false, busy = false, dirty = false, leaving = false, view: 'plan'|'new'|'confirm'|'share' = 'plan', notice = '', generation = 0
   let snapshot: GrowthSnapshot | null = null, ratings: TiqHistory | null = null, work: TrainingCoachWork | null = null, workError = false
@@ -59,7 +59,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
     if(view==='plan'&&(busy||dirty))dialog.querySelector<HTMLButtonElement>('[data-refresh]')?.setAttribute('disabled','')
   }
   const active = () => !disposed && current()
-  function dispose() {if(disposed)return; disposed=true; generation++; checkIn?.dispose(); void cancelCoachFile(owner); snapshot=null;ratings=null;work=null;draft=null;pending=null;share=null;followup=null;returnPractice=null;preparedPracticeId=null;logNote='';dialog.close();dialog.remove();if(current()&&trigger.isConnected)trigger.focus({preventScroll:true})}
+  function dispose() {if(disposed)return; disposed=true; generation++; checkIn?.dispose(); void cancelCoachFile(owner); snapshot=null;ratings=null;work=null;draft=null;pending=null;share=null;followup=null;returnPractice=null;preparedPracticeId=null;logNote='';dialog.close();dialog.remove();if(current()){if(options.restoreFocus)options.restoreFocus();else if(trigger.isConnected)trigger.focus({preventScroll:true})}}
   function back() {
     if (checkIn?.isOpen()) {checkIn.back(); return true}
     if(busy)return true
@@ -77,6 +77,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
       const [plan, history, saved] = await Promise.all([loadGrowth(client,owner,active,id,send),loadTiqAccount(client,owner,active,{},send),pendingGrowth(owner).catch(()=>{pendingCorrupt=true;return null})])
       if(!active()||visit!==generation)return
       snapshot=plan;ratings=history;pending=saved;notice=saved?'An update needs confirmation. Retry it before changing this plan.':pendingCorrupt?'Device retry details couldn’t load. Discard those retry details and refresh your account plan before editing.':''
+      options.updated?.(plan,saved?.id??null,pendingCorrupt)
       if(snapshot.selected)selectedPlanId=snapshot.selected.id
       if(returning){
         returning=false
@@ -93,7 +94,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
       }
       baseline=history.head?.id??''
       try {work=await loadTrainingCoachWork(client,owner,active,send?o=>send('GET',o):undefined)} catch {workError=true}
-    } catch(error) {snapshot=null;ratings=null;notice=error instanceof Error?error.message:'Your plan couldn’t load.'}
+    } catch(error) {snapshot=null;ratings=null;notice=error instanceof Error?error.message:'Your plan couldn’t load.';if(active()&&visit===generation)options.updated?.(null,null,false)}
     finally {if(active()&&visit===generation){busy=false;render()}}
   }
   async function save() {
@@ -106,7 +107,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
       if(!active())return
       await clearGrowth(owner);pending=null;draft=null;followup=null;dirty=false;logNote='';logDate=growthDay();preparedPracticeId=null;view='plan';busy=false
       await load(write.id)
-    } catch(error) {if(active()){busy=false;notice=(error instanceof GrowthError?error.message:'Save wasn’t confirmed.')+' Retry the same update to check it.';render()}}
+    } catch(error) {if(active()){busy=false;options.updated?.(snapshot,pending?.id??null,pendingCorrupt);notice=(error instanceof GrowthError?error.message:'Save wasn’t confirmed.')+' Retry the same update to check it.';render()}}
   }
   const selectWrite = (write: GrowthWrite) => {draft=readGrowthWrite(write);view='confirm';dirty=true;notice='';render()}
   async function sendCheckIn(openEditor=false) {
@@ -117,6 +118,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
       const [fresh,coachWork]=await Promise.all([loadGrowth(client,owner,active,plan.id,send),loadTrainingCoachWork(client,owner,active,send?o=>send('GET',o):undefined)])
       if(!active())return
       snapshot=fresh;work=coachWork;workError=false
+      options.updated?.(fresh,pending?.id??null,pendingCorrupt)
       const latest=fresh.selected,context=latest?growthCoachContext(latest,coachWork):null
       if(!latest||latest.id!==plan.id||latest.state!=='active'||context?.state!=='ready'
         ||openEditor&&chosen&&(latest.revision!==chosen.plan.revision||context.assignment.updatedAt!==chosen.context.assignment.updatedAt||context.link.status!==chosen.context.link.status)){
@@ -144,6 +146,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
       const [fresh,history,coachWork]=await Promise.all([loadGrowth(client,owner,active,origin.id,send),loadTiqAccount(client,owner,active,{},send),loadTrainingCoachWork(client,owner,active,send?o=>send('GET',o):undefined)])
       if(!active())return
       snapshot=fresh;ratings=history;work=coachWork;workError=false
+      options.updated?.(fresh,null,false)
       const latest=fresh.selected,seed=latest?growthCoachFollowup(latest,coachWork):null
       if(fresh.plans.some(row=>row.state==='active')){notice='You already have an active plan. Open it before starting another.';return}
       if(!latest||latest.id!==origin.id||!seed){notice='This coach feedback is no longer available. Your saved plan is still in your account.';return}

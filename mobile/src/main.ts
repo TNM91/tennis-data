@@ -41,6 +41,7 @@ import {mountSetupTrophyCase} from './setup-trophy-case'
 import {mountStarterTiq} from './starter-tiq-view'
 import {openTiqAccountHistory} from './tiq-account-view'
 import {openGrowthPlan} from './tiq-growth-view'
+import {mountGrowthHome} from './tiq-growth-home'
 import {openCoachAssessments} from './coach-assessments-view'
 import {openPlayerProgress} from './player-progress-view'
 import {mountPersonalMatchLog,type PersonalMatchFormSession} from './personal-match-view'
@@ -914,16 +915,19 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
       const active = () => version===revision&&current.user.id===session?.user.id
       const starterTiq = document.createElement('div')
       shortcuts.before(starterTiq)
+      const practiceFocus=document.createElement('div');starterTiq.after(practiceFocus)
       const openPlan=(trigger:HTMLElement,planId?:string,practice?:TrainingSession|null):void=>{
         if(!active()||document.querySelector('dialog[open]'))return
         coachWorkspace=openGrowthPlan(client,current.user.id,active,trigger,{
-          planId,practice,
+          planId,practice,updated:(snapshot,pendingId,pendingUnavailable)=>practicePlan.update(snapshot,pendingId,pendingUnavailable),
+          restoreFocus:()=>{const target=trigger.isConnected?trigger:practiceFocus.querySelector<HTMLElement>('[data-plan-open]')??starterTiq.querySelector<HTMLElement>('[data-starter-plan]');target?.focus({preventScroll:true})},
           retake:()=>{if(active())starterTiq.querySelector<HTMLButtonElement>('[data-starter-edit]')?.click()},
           drill:(cardId,plan)=>{if(active())training=openLevelUp(client,current.user.id,active,'catalog',{cardId,identitySlug:'',returnTo:{
             label:'Back to plan',target:plan.target,onReturn:saved=>{if(active()){training=null;openPlan(trigger,plan.id,saved)}},
           }})},
         })
       }
+      const practicePlan=mountGrowthHome(practiceFocus,client,current.user.id,active,(trigger,id)=>openPlan(trigger,id))
       const starterAssessment = mountStarterTiq(starterTiq,current.user.id,active,(cardId,trigger)=>{
         if(!active()||document.querySelector('dialog[open]'))return
         trigger.focus({preventScroll:true})

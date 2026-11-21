@@ -56,11 +56,69 @@ test('keeps practice private and recovers a lost log reply after relaunch withou
   await open(page);let d=await create(page)
   await d.getByLabel('What happened on court?').fill('7/10 second serves in');await d.getByRole('button',{name:'Review practice log',exact:true}).click();server.loseReply=true
   await d.getByRole('button',{name:'Confirm practice',exact:true}).click();await expect(d).toContainText('Retry the same update')
-  await page.reload();d=await plan(page);await expect(d).toContainText('An update needs confirmation');await expect(d.getByLabel('What happened on court?')).toBeDisabled();await d.getByRole('button',{name:'Retry pending update'}).click();await expect(d).toContainText('1 / 3')
+  await d.getByRole('button',{name:'Close',exact:true}).click();await d.getByRole('button',{name:'Leave plan',exact:true}).click();await expect(page.getByRole('region',{name:'Your practice focus',exact:true})).toContainText('Last confirmed');await expect(page.getByRole('button',{name:'Confirm plan update',exact:true})).toBeVisible()
+  await page.reload();await page.getByRole('region',{name:'Your practice focus',exact:true}).getByRole('button',{name:'Confirm plan update'}).click();d=page.getByRole('dialog',{name:'My improvement plan',exact:true});await expect(d).toContainText('An update needs confirmation');await expect(d.getByLabel('What happened on court?')).toBeDisabled();await d.getByRole('button',{name:'Retry pending update'}).click();await expect(d).toContainText('1 / 3')
   const plans=(await server.db.query<{payload:{logs:unknown[]}}>('select payload from my_lab_goals where user_id=$1',[growthPlayer])).rows
   expect(plans[0].payload.logs).toHaveLength(1);expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
   await d.screenshot({path:info.outputPath('private-improvement-plan.png')})
 })
+for(const width of [320,390])test('resumes the saved practice focus from My Lab and updates its count without another home read at '+width+'px',async({page,server},info)=>{
+  await page.setViewportSize({width,height:844});let p=await coachedPlan(page,server,undefined,width===320)
+  await p.getByRole('button',{name:'Close',exact:true}).click();const home=page.getByRole('region',{name:'Your practice focus',exact:true})
+  await expect(home).toContainText('8 of 10 second serves in');await expect(home).toContainText('2 / 3 practices');await expect(home.locator('time')).toHaveCount(1);await expect(home).not.toContainText('Private practice note');await expect(home).not.toContainText(growthId(2))
+  await home.evaluate(el=>el.scrollIntoView({block:'center'}));expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);expect(await home.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  await expect.poll(async()=>{const button=await home.getByRole('button',{name:'Resume practice plan'}).boundingBox(),nav=await page.locator('.app-navigation').boundingBox();return Boolean(button&&nav&&button.y+button.height<=nav.y)}).toBe(true)
+  await home.screenshot({path:info.outputPath('practice-focus-'+width+'.png')})
+  await home.getByRole('button',{name:'Resume practice plan'}).click();p=page.getByRole('dialog',{name:'My improvement plan',exact:true});await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled()
+  const before=server.planReads
+  await p.getByRole('button',{name:'Log next practice',exact:true}).click();await p.getByLabel('What happened on court?').fill('9 of 10 serves in with a smooth finish');await p.getByRole('button',{name:'Review practice log'}).click();await p.getByRole('button',{name:'Confirm practice',exact:true}).click();await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled()
+  expect(server.planReads).toBe(before+1)
+  await p.getByRole('button',{name:'Close',exact:true}).click();await expect(home).toContainText('3 / 3 practices');await expect(home).toContainText('Review ready');await expect(home.getByRole('button',{name:'Review practice plan'})).toBeFocused();await home.getByRole('button',{name:'Review practice plan'}).click();await expect(p).toContainText('Your planned practices are logged')
+  const rows=(await server.db.query<{payload:{logs:unknown[]}}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows;expect(rows).toHaveLength(1);expect(rows[0].payload.logs).toHaveLength(3)
+})
+
+test('restores the saved practice focus after relaunch and opens the same active plan',async({page,server})=>{
+  const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Close',exact:true}).click();await page.reload();await expect(page.locator('.lab-starter-tiq')).toBeVisible();await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+  const home=page.getByRole('region',{name:'Your practice focus',exact:true});await expect(home).toContainText('2 / 3 practices');await home.getByRole('button',{name:'Resume practice plan'}).click();await expect(p).toContainText('8 of 10 second serves in');await expect(p).toContainText('2 / 3 practices')
+  await p.getByRole('button',{name:'Archive plan',exact:true}).click();await p.getByRole('button',{name:'Confirm archive',exact:true}).click();await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled();await p.getByRole('button',{name:'Close',exact:true}).click();await expect(home).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'My improvement plan',exact:true})).toBeFocused()
+})
+
+test('keeps a failed My Lab plan read separate from an empty plan and retries without writing',async({page,server})=>{
+  const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Close',exact:true}).click();const home=page.getByRole('region',{name:'Your practice focus',exact:true})
+  server.failRead=true;await home.getByRole('button',{name:'Refresh plan focus'}).click();await expect(home).toContainText('couldn’t load');await expect(home).not.toContainText('8 of 10 second serves in');await expect(home.getByRole('button',{name:'Resume practice plan'})).toHaveCount(0)
+  await home.getByRole('button',{name:'Open plans',exact:true}).click();await expect(p).toContainText('couldn’t be confirmed');await expect(p.getByRole('button',{name:'Create improvement plan'})).toHaveCount(0);await p.getByRole('button',{name:'Close',exact:true}).click()
+  server.failRead=false;await home.getByRole('button',{name:'Retry plan',exact:true}).click();await expect(home).toContainText('2 / 3 practices');expect((await server.db.query('select * from my_lab_goals where user_id=$1',[growthPeer])).rows).toHaveLength(1)
+})
+
+test('offers unreadable device-update recovery from My Lab before resuming practice',async({page,server})=>{
+  await page.addInitScript(owner=>localStorage.setItem('tiq-growth-pending:v1:'+owner,'corrupted'),growthPeer)
+  const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Close',exact:true}).click();const home=page.getByRole('region',{name:'Your practice focus',exact:true})
+  await expect(home).toContainText('Device retry details couldn’t load');await home.getByRole('button',{name:'Confirm plan update'}).click();await expect(p).toContainText('Device retry details couldn’t load');await expect(p.getByRole('button',{name:'Review practice log'})).toBeDisabled()
+  await p.getByRole('button',{name:'Discard retry and refresh'}).click();await expect(p.getByRole('button',{name:'Review practice log'})).toBeEnabled();await p.getByRole('button',{name:'Close',exact:true}).click();await expect(home.getByRole('button',{name:'Resume practice plan'})).toBeEnabled();await expect(home).not.toContainText('Device retry details couldn’t load')
+})
+
+test('clears My Lab practice focus on account change and ignores its held response',async({page,server})=>{
+  const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Close',exact:true}).click();server.holdPlanReply=true
+  await page.getByRole('region',{name:'Your practice focus',exact:true}).getByRole('button',{name:'Refresh plan focus'}).click();await expect.poll(()=>server.planReplyHeld).toBe(true)
+  await page.evaluate(()=>(window as unknown as {switchNavigationOwner:(restore:boolean)=>void}).switchNavigationOwner(true));server.release();await expect.poll(()=>server.planReplyHeld).toBe(false)
+  await expect(page.locator('body')).not.toContainText('8 of 10 second serves in');await expect(page.getByRole('region',{name:'Your practice focus',exact:true})).toHaveCount(0)
+})
+
+test('does not let an older My Lab response replace progress confirmed in the plan editor',async({page,server})=>{
+  let p=await coachedPlan(page,server);await p.getByRole('button',{name:'Close',exact:true}).click();const home=page.getByRole('region',{name:'Your practice focus',exact:true});server.holdPlanReply=true
+  await home.getByRole('button',{name:'Refresh plan focus'}).click();await expect.poll(()=>server.planReplyHeld).toBe(true)
+  p=await plan(page);await p.getByLabel('What happened on court?').fill('Confirmed third practice');await p.getByRole('button',{name:'Review practice log'}).click();await p.getByRole('button',{name:'Confirm practice',exact:true}).click();await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled();await p.getByRole('button',{name:'Close',exact:true}).click()
+  await expect(home).toContainText('3 / 3 practices');server.release();await expect.poll(()=>server.planReplyHeld).toBe(false);await expect(home).toContainText('3 / 3 practices');await expect(home).not.toContainText('2 / 3 practices')
+})
+
+test('keeps an assessment answer and keyboard focus when the My Lab plan reply arrives',async({page,server})=>{
+  const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Close',exact:true}).click();server.holdPlanReply=true
+  await page.getByRole('region',{name:'Your practice focus',exact:true}).getByRole('button',{name:'Refresh plan focus'}).click();await expect.poll(()=>server.planReplyHeld).toBe(true)
+  const card=page.locator('.lab-starter-tiq');await card.getByRole('button',{name:'Retake',exact:true}).click();const answer=card.getByRole('combobox').first();await answer.selectOption('3');await answer.focus()
+  server.release();await expect.poll(()=>server.planReplyHeld).toBe(false);await expect(page.getByRole('region',{name:'Your practice focus',exact:true})).toContainText('2 / 3 practices');await expect(answer).toHaveValue('3');await expect(answer).toBeFocused()
+})
+
 test('shows dated coach and shared player sources, then clears them when access is revoked',async({page,server},info)=>{
   await open(page);const d=await alignment(page);await expect(d.getByRole('table')).toBeVisible();await expect(d).toContainText('3 not observed');await expect(d).toContainText('On-court drill')
   await d.screenshot({path:info.outputPath('player-coach-alignment.png')})

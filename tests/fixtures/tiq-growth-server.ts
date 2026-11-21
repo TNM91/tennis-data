@@ -9,6 +9,7 @@ export type GrowthRequest={owner:string;method:string;url:string;write:unknown}
 export async function growthServer(){
   const db=new PGlite(),revision='2026-11-20T12:00:00.000Z'
   let loseReply=false,loseTrainingReply=false,loseCheckInReply=false,revoked=false,failRead=false,hold=false,connected=false,release:(()=>void)|null=null
+  let planReads=0,holdPlanReply=false,planReplyHeld=false
   const practices=new Map<string,Record<string,unknown>>()
   await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema private;
     create table auth.users(id uuid primary key);
@@ -52,7 +53,12 @@ export async function growthServer(){
       return response({ok:true,owner:r.owner,name:'Alex Rivera',level:'Developing',message:'Let’s work on your second serve.',expiresAt:null,state:connected?'connected':'ready',revision:'a'.repeat(64)})
     }
     if(url.pathname==='/api/mobile/first-party/tiq/plans'){
-      if(r.method==='GET')return response({...((await db.query<{v:Record<string,unknown>}>('select native_tiq_growth_read($1,$2) v',[r.owner,url.searchParams.get('id')])).rows[0].v),releaseScope:'first-party'})
+      if(r.method==='GET'){
+        planReads++
+        const payload={...((await db.query<{v:Record<string,unknown>}>('select native_tiq_growth_read($1,$2) v',[r.owner,url.searchParams.get('id')])).rows[0].v),releaseScope:'first-party'}
+        if(holdPlanReply){holdPlanReply=false;planReplyHeld=true;await new Promise<void>(resolve=>{release=resolve});planReplyHeld=false}
+        return response(payload)
+      }
       const w=r.write as {id:string;operation:string},status=(await db.query<{s:number}>('select write_native_tiq_growth($1,$2) s',[r.owner,JSON.stringify(w)])).rows[0].s
       if(loseReply&&status===200){loseReply=false;return response({ok:false},503)}
       return response({ok:status===200,owner:r.owner,id:w.id,operation:w.operation,releaseScope:'first-party'},status)
@@ -83,5 +89,5 @@ export async function growthServer(){
     }
     return response({ok:false},404)
   }
-  return {db,day,request,assess,close:()=>db.close(),set loseReply(value:boolean){loseReply=value},set loseTrainingReply(value:boolean){loseTrainingReply=value},set loseCheckInReply(value:boolean){loseCheckInReply=value},set revoked(value:boolean){revoked=value},set failRead(value:boolean){failRead=value},set hold(value:boolean){hold=value},release:()=>release?.()}
+  return {db,day,request,assess,close:()=>db.close(),get planReads(){return planReads},get planReplyHeld(){return planReplyHeld},set holdPlanReply(value:boolean){holdPlanReply=value},set loseReply(value:boolean){loseReply=value},set loseTrainingReply(value:boolean){loseTrainingReply=value},set loseCheckInReply(value:boolean){loseCheckInReply=value},set revoked(value:boolean){revoked=value},set failRead(value:boolean){failRead=value},set hold(value:boolean){hold=value},release:()=>release?.()}
 }
