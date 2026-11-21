@@ -1,10 +1,10 @@
 # iPhone subscriptions and launch readiness — U.S. first
 
-## Current release snapshot — November 20, 2026
+## Current release snapshot — November 21, 2026
 
-Internal build **331** was verified installable and assigned to the usual TenAceIQ Internal testing group at **14:15 UTC**. The separate App Store submission selected **324** and was Waiting for Review at that check; Pro, Tournament Publishing, League Season Publishing and the membership group were included in that submission. This snapshot is not a fresh audit of every catalog field, production billing flag or business agreement.
+Internal build **336** was verified installable and assigned to the usual TenAceIQ Internal testing group at **06:31 UTC**. The separate App Store submission selected **324** and was Waiting for Review at that check; Pro, Tournament Publishing, League Season Publishing and the membership group were included in that submission. This snapshot is not a fresh audit of every catalog field, production billing flag or business agreement.
 
-Complete the [current iPhone acceptance checklist](mobile-app-readiness.md#current-iphone-acceptance--november-20-2026), especially notification destinations, purchase/restore and organizer cancellation/recovery. Prior sandbox successes on older products or builds do not establish acceptance of the current offer on 331. Keep the current public review unchanged.
+Complete the [current iPhone acceptance checklist](mobile-app-readiness.md#current-iphone-acceptance--november-20-2026), especially notification destinations, purchase/restore and organizer cancellation/recovery. Prior sandbox successes on older products or builds do not establish acceptance of the current offer on 336. Keep the current public review unchanged.
 
 The approved offer below remains current. Setup gaps and rollout instructions elsewhere in this document are historical unless reconfirmed against the selected candidate; do not rerun a migration, enable purchases or treat an old Missing Metadata note as a new blocker based on those notes alone.
 

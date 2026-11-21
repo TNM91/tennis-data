@@ -25,7 +25,7 @@ async function install(page:Page,server:Server){
   await page.route('**/*',async route=>{
     const url=new URL(route.request().url());if(url.origin!==origin)return route.abort()
     if(url.pathname==='/app.js')return route.fulfill({contentType:'text/javascript',body:javascript})
-    if(url.pathname.endsWith('.css'))return route.fulfill({contentType:'text/css',body:url.pathname==='/style.css'?stylesheet+(url.searchParams.has('large')?'\n:root{font-size:22px!important}':''):''})
+    if(url.pathname.endsWith('.css'))return route.fulfill({contentType:'text/css',body:url.pathname==='/style.css'?stylesheet+(url.searchParams.has('large')?'\n:root{font-size:22px!important}.tiq-progress-controls select{letter-spacing:.12em!important}':''):''})
     if(url.pathname.startsWith('/brand/')||url.pathname==='/logo.png')return route.fulfill({contentType:'image/png',body:await readFile('mobile/bundled'+url.pathname)})
     return route.fulfill({contentType:'text/html',body:url.searchParams.has('large')?shell.replace('./style.css','./style.css?large=1'):shell})
   })
@@ -169,7 +169,7 @@ for(const width of [320,390])test(`compares chosen self-assessments and six skil
   await expect(comparison).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
   const layout=await dialog.evaluate(el=>({width:el.clientWidth,scrollWidth:el.scrollWidth,overflow:[...el.querySelectorAll<HTMLElement>('*')].filter(child=>child.getBoundingClientRect().right>el.getBoundingClientRect().right+1).map(child=>({tag:child.tagName,className:child.className,width:child.clientWidth,scrollWidth:child.scrollWidth})).slice(0,12)}))
   if(layout.scrollWidth>layout.width+1)await info.attach('comparison-overflow',{body:JSON.stringify(layout),contentType:'application/json'})
-  expect(layout.scrollWidth<=layout.width+1).toBe(true)
+  expect(layout.scrollWidth<=layout.width+1,JSON.stringify(layout)).toBe(true)
   await comparison.getByLabel('Later assessment',{exact:true}).selectOption(middle.id)
   await expect(comparison.getByLabel('Earlier assessment',{exact:true})).toHaveValue(before.id)
   expect(server.reads).toBe(2);expect(server.ordered(tiqPlayer)).toHaveLength(3)
