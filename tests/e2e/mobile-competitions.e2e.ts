@@ -11,6 +11,25 @@ async function open(page:Page,mode='team'){await page.goto(origin+prefix+'?view=
 async function bounded(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);const widths=await page.getByRole('dialog').evaluate(el=>({client:el.clientWidth,scroll:el.scrollWidth,overflow:[...el.querySelectorAll('*')].filter(c=>c.getBoundingClientRect().right>el.getBoundingClientRect().right).slice(0,8).map(c=>({tag:c.tagName,cls:c.className,text:c.textContent?.slice(0,40),width:c.getBoundingClientRect().width}))}));if(widths.scroll>widths.client)await page.screenshot({path:test.info().outputPath('competitions-overflow.png')});expect(widths.scroll<=widths.client,JSON.stringify(widths)).toBe(true)}
 async function change(page:Page,values:Record<string,unknown>){await page.evaluate(v=>Object.assign((window as unknown as {competitionFixture:{state:Record<string,unknown>}}).competitionFixture.state,v),values)}
 for(const width of [320,390]){
+ test('league loading and retry cards keep stale results hidden at '+width+'px',async({page},info)=>{
+  await page.setViewportSize({width,height:844});await open(page);const d=page.getByRole('dialog',{name:'Competitions',exact:true}),before=await state(page)
+  await change(page,{delay:true});await d.getByRole('button',{name:'Refresh',exact:true}).click()
+  const loading=d.locator('.competition-feedback[data-kind="loading"]');await expect(loading).toHaveAttribute('role','status');await expect(loading.getByRole('heading',{name:'Loading leagues',exact:true})).toBeVisible()
+  await expect(loading.locator('.competition-loading-preview')).toHaveAttribute('aria-hidden','true');await expect(d.locator('.competition-card')).toHaveCount(0);await expect(d.getByRole('button',{name:'Close',exact:true})).toBeEnabled()
+  await loading.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('league-loading-panel.png')})
+  await change(page,{delay:false});await page.evaluate(()=>(window as unknown as {competitionFixture:{state:{release:()=>void}}}).competitionFixture.state.release());await expect(d.locator('.competition-card')).toHaveCount(1)
+  await change(page,{offline:true});await d.getByRole('button',{name:'Refresh',exact:true}).click();const error=d.getByRole('alert');await expect(error).toBeFocused();await expect(error.getByRole('button',{name:'Try again',exact:true})).toBeEnabled();await expect(d.locator('.competition-card')).toHaveCount(0)
+  await page.addStyleTag({content:':root{font-size:24px!important}'});await bounded(page);await error.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('league-retry-panel-large-text.png')})
+  await change(page,{offline:false});await error.getByRole('button',{name:'Try again',exact:true}).click();await expect(d.locator('.competition-card')).toHaveCount(1);expect(await state(page)).toBe(before+3)
+ })
+ test('clearing an empty league search retains its browsing scope at '+width+'px',async({page},info)=>{
+  await page.setViewportSize({width,height:844});await open(page);const d=page.getByRole('dialog',{name:'Competitions',exact:true})
+  await d.getByRole('button',{name:'Browse leagues',exact:true}).click();await d.getByLabel('Find a TiQ league').fill('nothing');await d.getByRole('button',{name:'Search',exact:true}).click();await expect(d.getByRole('heading',{name:'No public leagues found',exact:true})).toBeVisible();await expect(d).toContainText('No leagues match “nothing”.')
+  await page.addStyleTag({content:':root{font-size:24px!important}'});await bounded(page);await d.getByRole('button',{name:'Clear search',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('league-empty-search-large-text.png')})
+  const before=await state(page);await d.getByRole('button',{name:'Clear search',exact:true}).click();await expect(d.getByLabel('Find a TiQ league')).toHaveValue('');await expect(d.locator('.competition-card')).toHaveCount(1);await expect(d.getByRole('button',{name:'Browse leagues',exact:true})).toHaveAttribute('aria-pressed','true');expect(await state(page)).toBe(before+1)
+ })
+}
+for(const width of [320,390]){
  test('league schedule, results, approved roster and shared standings at '+width+'px',async({page},info)=>{
   await page.setViewportSize({width,height:844});await open(page);await bounded(page);await page.screenshot({path:info.outputPath('competitions-home.png')})
   await page.getByRole('button',{name:/^Open league/}).click();await expect(page.getByRole('heading',{name:'Coming up'})).toBeVisible();const calls=await state(page)
