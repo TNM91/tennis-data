@@ -18,6 +18,8 @@ An uncertain save immediately changes the home action to **Confirm plan update**
 
 **Open drill** opens the matching existing training drill. Logging practice is a separate, explicit action. **Retake self-assessment** returns to the real TiQ questions; the player can then finish the plan with the newly saved assessment. Practice counts never increase a TiQ score. Deleted assessments are not retained inside plan payloads: their resolved baseline/review displays as removed.
 
+In the next native candidate, reverting an ordinary unsaved practice note and date restores eligible plan and coach actions immediately, without rebuilding the form, losing keyboard focus or making a request. Controls retain their original eligibility, including the requirement for a newer assessment before a progress review. A saved training session prepared for explicit plan logging still counts as unfinished work even if its copied note is cleared; its existing review/leave flow remains in place. Pending saves and unreadable retries stay locked for recovery.
+
 An assigned coach block can be adopted using the player's own baseline. Its skill, target, count and date must match the current coach assignment. Baselines and practice logs remain private. **Prepare coach check-in** rechecks the current assignment and prefills the existing check-in editor; the player reviews and sends that check-in explicitly.
 
 ### Choosing what to share
