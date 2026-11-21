@@ -147,34 +147,6 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4264
         run: npx playwright test tests/e2e/mobile-import-corrections.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/import-corrections-results
 
-      - name: Verify native competition discovery and season review
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4265
-        run: npx playwright test tests/e2e/mobile-competitions.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/competitions-results
-
-      - name: Verify native tournament discovery, draws and published schedules
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4266
-        run: npx playwright test tests/e2e/mobile-tournaments.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/tournaments-results
-
-      - name: Save tournament UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: tournaments-ui-fixtures-${{ github.sha }}
-          path: .next/tournaments-results/**/tournaments-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      - name: Save competition UI fixtures
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: competitions-ui-fixtures-${{ github.sha }}
-          path: .next/competitions-results/**/competitions-*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
       - name: Save import correction UI fixtures
         if: always()
         uses: actions/upload-artifact@v6
@@ -226,6 +198,107 @@ jobs:
         with:
           name: apple-membership-ui-fixtures-${{ github.sha }}
           path: .next/playwright-results/**/apple-membership-*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Save captain workspace UI fixtures
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: captain-workspace-ui-fixtures-${{ github.sha }}
+          path: .next/captain-workspace-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
+  native-league-browser:
+    name: Native league browser suites
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Use the Ubuntu archive for browser dependencies
+        run: |
+          # The Azure package mirror can throttle font downloads until this job times out.
+          # Keep the same signed Ubuntu packages and existing test/time limit.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          fi
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Bundle the installed app
+        run: npm run build:bundled --prefix mobile
+
+      - name: Verify native competition discovery and season review
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4265
+        run: npx playwright test tests/e2e/mobile-competitions.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/competitions-results
+
+      - name: Save competition UI fixtures
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: competitions-ui-fixtures-${{ github.sha }}
+          path: .next/competitions-results/**/competitions-*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
+  native-tournament-browser:
+    name: Native tournament browser suites
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Use the Ubuntu archive for browser dependencies
+        run: |
+          # The Azure package mirror can throttle font downloads until this job times out.
+          # Keep the same signed Ubuntu packages and existing test/time limit.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          fi
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Bundle the installed app
+        run: npm run build:bundled --prefix mobile
+
+      - name: Verify native tournament discovery, draws and published schedules
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4266
+        run: npx playwright test tests/e2e/mobile-tournaments.e2e.ts --project=mobile-chrome --project=mobile-webkit --output=.next/tournaments-results
+
+      - name: Save tournament UI fixtures
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: tournaments-ui-fixtures-${{ github.sha }}
+          path: .next/tournaments-results/**/tournaments-*.png
           if-no-files-found: ignore
           retention-days: 3
 
