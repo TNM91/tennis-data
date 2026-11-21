@@ -314,6 +314,8 @@ test('Your TiQ scores skills and formats privately and tracks retakes alongside 
  await expect(starter.getByRole('progressbar',{name:'Self-assessment steps'})).toHaveAttribute('value','1')
  await rally.selectOption('2')
  await starter.getByRole('button',{name:'Cancel'}).click()
+ await expect(starter.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toBeFocused()
+ await starter.getByRole('button',{name:'Discard answers',exact:true}).click()
  await expect(opening).toBeFocused()
  await opening.click()
  await expect(rally).toHaveValue('')
