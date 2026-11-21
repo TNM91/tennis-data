@@ -11,6 +11,7 @@ import { calculateTiqLeagueEndsOn } from '../../lib/tiq-league-limits'
 import { scenarioOwner } from './captain-scenarios-data'
 import { mountCompetitionPublish } from './competition-publish'
 import { html } from './match-details'
+import { createOrganizerLeaveConfirmation } from './organizer-leave-confirmation'
 
 const zoneOptions: Record<string, string> = nativeCompetitionTimeZones
 const weekLabel = (weeks: number) => weeks === 1 ? '1 week' : `${weeks} weeks`
@@ -40,22 +41,13 @@ export function openLeagueDraft(client: SupabaseClient, owner: string, current: 
   let notice = ''
   let disposed = false
   let formSnapshot = ''
-  let leaveDialog: HTMLDialogElement | null = null
-  let leaveFocus: HTMLElement | null = null
   let disposeCheckout: ReturnType<typeof mountCompetitionPublish>
   const active = () => !disposed && current()
-
-  function closeLeave(restoreFocus = false) {
-    leaveDialog?.close()
-    leaveDialog?.remove()
-    leaveDialog = null
-    if (restoreFocus && active() && leaveFocus?.isConnected) leaveFocus.focus({ preventScroll: true })
-    leaveFocus = null
-  }
+  const leave = createOrganizerLeaveConfirmation(dialog, 'league', active)
 
   function dispose() {
     disposed = true
-    closeLeave()
+    leave.dispose()
     disposeCheckout?.()
     dialog.remove()
   }
@@ -67,29 +59,11 @@ export function openLeagueDraft(client: SupabaseClient, owner: string, current: 
   }
 
   function back() {
-    if (leaveDialog) { closeLeave(true); return true }
+    if (leave.isOpen()) { leave.back(); return true }
     if (busy && pending) return true
     const form = dialog.querySelector<HTMLFormElement>('[data-league-draft-form]')
     if (!pending && form && JSON.stringify([...new FormData(form)]) !== formSnapshot && active()) {
-      const focused = document.activeElement
-      leaveFocus = focused instanceof HTMLElement && form.contains(focused) ? focused : form.querySelector<HTMLElement>('input,select')
-      leaveDialog = document.createElement('dialog')
-      leaveDialog.className = dialog.className
-      leaveDialog.setAttribute('role', 'alertdialog')
-      leaveDialog.setAttribute('aria-labelledby', 'league-draft-discard-title')
-      leaveDialog.setAttribute('aria-describedby', 'league-draft-discard-detail')
-      leaveDialog.innerHTML = `<h2 id="league-draft-discard-title">Discard league changes?</h2>
-        <p id="league-draft-discard-detail">These league details haven’t been saved.</p>
-        <div class="lineup-actions"><button type="button" data-league-draft-stay autofocus>Keep editing</button>
-          <button type="button" class="secondary" data-league-draft-discard>Discard changes</button></div>`
-      leaveDialog.querySelector('[data-league-draft-stay]')?.addEventListener('click', () => closeLeave(true))
-      leaveDialog.querySelector('[data-league-draft-discard]')?.addEventListener('click', () => {
-        if (active()) exit()
-        else closeLeave()
-      })
-      leaveDialog.addEventListener('cancel', event => { event.preventDefault(); closeLeave(true) })
-      document.body.append(leaveDialog)
-      leaveDialog.showModal()
+      leave.open(form, exit)
       return true
     }
     return exit()
