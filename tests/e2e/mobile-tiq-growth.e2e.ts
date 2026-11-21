@@ -42,6 +42,16 @@ async function coachedPlan(page:Page,server:Server,notes=['Private practice note
   await open(page,large);await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
   return plan(page)
 }
+async function reviewedCoachPlan(page:Page,server:Server,cue='8 of 10 second serves in under pressure',large=false){
+  const p=await coachedPlan(page,server,undefined,large)
+  await server.assess(growthPeer,240,{serve:3})
+  const row=(await server.db.query<{payload:{id:string;revision:string}}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows[0].payload
+  expect((await server.db.query<{s:number}>('select write_native_tiq_growth($1,$2) s',[growthPeer,JSON.stringify({kind:'review',id:row.id,expected:row.revision,operation:growthId(241),assessment:growthId(240)})])).rows[0].s).toBe(200)
+  await server.db.query("update coach_assignments set status='completed',assignment_json=assignment_json||$1::jsonb",[JSON.stringify({playerCheckIn:{recap:'Two practices completed.',evidence:'8/10 serves in.',completedAt:new Date().toISOString()},coachReview:{note:'Keep the finish smooth.',nextFocus:cue,reviewedAt:new Date().toISOString()}})])
+  await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect(p.getByRole('button',{name:'Plan next practice',exact:true})).toBeEnabled()
+  const original=(await server.db.query<{payload:Record<string,unknown>}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows[0].payload
+  return {p,original,cue}
+}
 test('keeps practice private and recovers a lost log reply after relaunch without duplicates',async({page,server},info)=>{
   await open(page);let d=await create(page)
   await d.getByLabel('What happened on court?').fill('7/10 second serves in');await d.getByRole('button',{name:'Review practice log',exact:true}).click();server.loseReply=true
@@ -65,7 +75,7 @@ test('launch usability: coach invitation through assigned practice, player check
   const d=await alignment(page);await d.getByRole('button',{name:'Plan practice block'}).click();await d.getByLabel('Measurable target').fill('8 of 10 second serves in');await d.getByRole('button',{name:'Review practice block',exact:true}).click();await d.screenshot({path:info.outputPath('audit-coach-02-assignment.png')});await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d).toContainText('Practice block assigned.')
   await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
   await page.getByRole('button',{name:'My Lab',exact:true}).click();const p=await plan(page)
-  await p.getByText('Coach practice blocks',{exact:true}).click();await p.getByRole('button',{name:'Use Serve practice block',exact:true}).click();await p.getByRole('button',{name:'Review plan',exact:true}).click();await p.getByRole('button',{name:'Save improvement plan',exact:true}).click();await expect(p).toContainText('8 of 10 second serves in')
+  await p.getByText('Coach practice blocks',{exact:true}).click();await p.getByRole('button',{name:'Use Serve practice block',exact:true}).click();await p.getByRole('button',{name:'Review plan',exact:true}).click();await p.getByRole('button',{name:'Edit plan',exact:true}).click();await expect(p.getByLabel('Measurable target')).toBeDisabled();await expect(p.getByRole('combobox',{name:'Skill',exact:true})).toBeDisabled();await expect(p.getByLabel('Starting assessment')).toBeEnabled();await p.getByRole('button',{name:'Review plan',exact:true}).click();await p.getByRole('button',{name:'Save improvement plan',exact:true}).click();await expect(p).toContainText('8 of 10 second serves in')
   await p.getByLabel('What happened on court?').fill('8/10 in');await p.getByRole('button',{name:'Review practice log'}).click();await p.getByRole('button',{name:'Confirm practice'}).click();await expect(p).toContainText('1 / 3')
   await p.getByRole('button',{name:'Prepare coach check-in'}).click();await p.getByRole('checkbox',{name:/8\/10 in/}).check();await p.getByRole('button',{name:'Continue to check-in'}).click();const check=page.getByRole('dialog',{name:'Coach assignment check-in',exact:true});await expect(check.getByLabel('Your recap')).toHaveValue(/1 of 3 planned practices/);await check.getByRole('button',{name:'Review check-in'}).click();await check.screenshot({path:info.outputPath('audit-coach-03-check-in.png')});await check.getByRole('button',{name:'Send check-in',exact:true}).click();await expect(check).toHaveCount(0)
   const overview=(await server.db.query<{v:{counts:{feedback:number}}}>('select native_coach_growth_overview($1,$2) v',[growthPlayer,server.day])).rows[0].v;expect(overview.counts.feedback).toBe(1)
@@ -143,6 +153,70 @@ test('clears chosen private practice notes on account change and ignores a late 
   const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Prepare coach check-in'}).click();await p.getByRole('checkbox',{name:/Private practice note/}).check();server.hold=true
   await p.getByRole('button',{name:'Continue to check-in'}).click();await page.evaluate(()=>(window as unknown as {switchNavigationOwner:(restore:boolean)=>void}).switchNavigationOwner(true));server.release()
   await expect(p).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Coach assignment check-in'})).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Private practice note')
+})
+
+for(const width of [320,390])test('turns current coach feedback into a reviewed private follow-up without changing the completed plan at '+width+'px',async({page,server},info)=>{
+  await page.setViewportSize({width,height:844});const prepared=await reviewedCoachPlan(page,server,undefined,width===320);let p=prepared.p
+  await p.getByRole('button',{name:'Plan next practice',exact:true}).click();await expect(p.getByRole('heading',{name:'Next practice plan',exact:true})).toBeVisible()
+  await expect(p.getByLabel('Starting assessment')).toHaveValue(growthId(240));await expect(p.getByLabel('Measurable target')).toHaveValue(prepared.cue);await expect(p.getByRole('combobox',{name:'Skill',exact:true})).toHaveValue('serve')
+  const source=p.getByRole('region',{name:'Coach feedback for next plan'});await expect(source).toContainText('Serve practice block');await expect(source).toContainText(prepared.cue);await expect(source.locator('time')).toHaveCount(1)
+  await p.getByLabel('Measurable target').fill('8 of 10 second serves in during a pressure game');await p.getByLabel('Practices',{exact:true}).fill('4')
+  expect(await p.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await p.screenshot({path:info.outputPath('coach-followup-'+width+'.png')})
+  await p.getByRole('button',{name:'Review plan',exact:true}).click();await p.getByRole('button',{name:'Edit plan',exact:true}).click()
+  await expect(p.getByLabel('Measurable target')).toHaveValue('8 of 10 second serves in during a pressure game');await expect(p.getByLabel('Measurable target')).toBeEditable();await expect(p.getByLabel('Practices',{exact:true})).toHaveValue('4');await expect(source).toContainText(prepared.cue)
+  await p.getByRole('button',{name:'Close',exact:true}).click();await p.getByRole('button',{name:'Keep editing'}).click();await expect(p.getByLabel('Measurable target')).toHaveValue('8 of 10 second serves in during a pressure game')
+  expect((await server.db.query('select goal_id from my_lab_goals where user_id=$1',[growthPeer])).rows).toHaveLength(1)
+  await p.getByRole('button',{name:'Review plan',exact:true}).click();if(width===390)server.loseReply=true
+  await p.getByRole('button',{name:'Save improvement plan',exact:true}).click()
+  if(width===390){
+    await expect(p).toContainText('Retry the same update');await expect(p.getByRole('button',{name:'Edit plan',exact:true})).toBeDisabled()
+    await page.reload();await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner());p=await plan(page);await p.getByRole('button',{name:'Retry pending update'}).click()
+  }
+  await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled();await expect(p).toContainText('0 / 4')
+  const goals=(await server.db.query<{payload:Record<string,unknown>}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows.map(row=>row.payload)
+  expect(goals).toHaveLength(2);expect(goals.find(row=>row.id===prepared.original.id)).toEqual(prepared.original)
+  expect(goals.find(row=>row.id!==prepared.original.id)).toMatchObject({baseline:growthId(240),sourceAssignment:null,state:'active',logs:[],block:{skill:'serve',sessions:4,target:'8 of 10 second serves in during a pressure game'}})
+  const assignments=(await server.db.query<{status:string}>('select status from coach_assignments')).rows;expect(assignments).toEqual([{status:'completed'}])
+  expect((await server.db.query('select id from private.tiq_self_assessments where owner_id=$1',[growthPeer])).rows).toHaveLength(2)
+})
+
+test('keeps a long coach cue whole and cancels the follow-up without saving or changing its source',async({page,server})=>{
+  const cue='Serve cue '.repeat(27).trim(),{p,original}=await reviewedCoachPlan(page,server,cue)
+  await p.getByRole('button',{name:'Plan next practice'}).click();await expect(p.getByLabel('Measurable target')).toHaveValue('');await expect(p.getByRole('region',{name:'Coach feedback for next plan'})).toContainText(cue);await expect(p).toContainText('Write a shorter, measurable target')
+  await p.getByLabel('Measurable target').fill('8 of 10 serves to a deep target');await p.getByRole('button',{name:'Cancel new plan',exact:true}).click()
+  await expect(p.getByRole('button',{name:'Plan next practice'})).toBeEnabled();expect((await server.db.query<{payload:unknown}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows.map(row=>row.payload)).toEqual([original])
+})
+
+test('shows updated coach feedback before allowing a new follow-up draft',async({page,server})=>{
+  const {p}=await reviewedCoachPlan(page,server)
+  await server.db.query("update coach_assignments set assignment_json=jsonb_set(assignment_json,'{coachReview,nextFocus}','\"9 of 10 second serves in\"')")
+  await p.getByRole('button',{name:'Plan next practice'}).click();await expect(p).toContainText('Your plan or coach feedback changed');await expect(p.getByRole('region',{name:'Plan coaching'})).toContainText('9 of 10 second serves in');await expect(p.getByLabel('Measurable target')).toHaveCount(0)
+  await p.getByRole('button',{name:'Plan next practice'}).click();await expect(p.getByLabel('Measurable target')).toHaveValue('9 of 10 second serves in')
+})
+
+test('clears paused coach feedback before a follow-up draft can be prepared',async({page,server})=>{
+  const {p,cue}=await reviewedCoachPlan(page,server);await server.db.query("update coach_player_links set status='paused'")
+  await p.getByRole('button',{name:'Plan next practice'}).click();await expect(p).toContainText('This coach feedback is no longer available');await expect(p.getByLabel('Measurable target')).toHaveCount(0);await expect(p.getByRole('button',{name:'Plan next practice'})).toHaveCount(0);await expect(p).not.toContainText(cue)
+})
+
+test('opens another device active plan rather than creating a competing follow-up',async({page,server})=>{
+  const {p,original}=await reviewedCoachPlan(page,server)
+  expect((await server.db.query<{s:number}>('select write_native_tiq_growth($1,$2) s',[growthPeer,JSON.stringify({kind:'new',id:growthId(260),operation:growthId(261),expected:null,baseline:growthId(240),sourceAssignment:null,block:{...(original.block as Record<string,unknown>),target:'Other device court target'}})])).rows[0].s).toBe(200)
+  await p.getByRole('button',{name:'Plan next practice'}).click();await expect(p).toContainText('You already have an active plan');await expect(p.getByLabel('Measurable target')).toHaveCount(0);await p.getByRole('button',{name:'Open active plan'}).click();await expect(p).toContainText('Other device court target')
+  expect((await server.db.query('select goal_id from my_lab_goals where user_id=$1',[growthPeer])).rows).toHaveLength(2)
+})
+
+test('recovers a failed follow-up read by refreshing without inventing an empty plan',async({page,server})=>{
+  const {p}=await reviewedCoachPlan(page,server);server.failRead=true
+  await p.getByRole('button',{name:'Plan next practice'}).click();await expect(p).toContainText('couldn’t be confirmed');await expect(p.getByLabel('Measurable target')).toHaveCount(0);await expect(p.getByRole('button',{name:'Plan next practice'})).toHaveCount(0)
+  server.failRead=false;await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await p.getByRole('button',{name:'Plan next practice'}).click();await expect(p.getByRole('heading',{name:'Next practice plan',exact:true})).toBeVisible()
+  expect((await server.db.query('select goal_id from my_lab_goals where user_id=$1',[growthPeer])).rows).toHaveLength(1)
+})
+
+test('ignores a late follow-up read after the player account changes',async({page,server})=>{
+  const {p,cue}=await reviewedCoachPlan(page,server);server.hold=true;await p.getByRole('button',{name:'Plan next practice'}).click()
+  await page.evaluate(()=>(window as unknown as {switchNavigationOwner:(restore:boolean)=>void}).switchNavigationOwner(true));server.release()
+  await expect(p).toHaveCount(0);await expect(page.locator('body')).not.toContainText(cue);await expect(page.getByRole('heading',{name:'Next practice plan',exact:true})).toHaveCount(0)
 })
 
 for(const width of [320,390])test('keeps plan and alignment controls within the phone at '+width+'px',async({page},info)=>{
