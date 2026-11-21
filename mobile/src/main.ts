@@ -60,7 +60,7 @@ import {createCoachActivityHandoff} from './coach-activity-handoff'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
 import {accountGoalScope} from './lab-goals-data'
-import {loadTrainingHistory} from './level-up-data'
+import {loadTrainingHistory,type TrainingSession} from './level-up-data'
 import {labTrainingOverview} from './lab-training-overview'
 import {showExplore as showPlayerDetail} from './explore'
 import {openLevelUp} from './level-up-view'
@@ -914,6 +914,16 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
       const active = () => version===revision&&current.user.id===session?.user.id
       const starterTiq = document.createElement('div')
       shortcuts.before(starterTiq)
+      const openPlan=(trigger:HTMLElement,planId?:string,practice?:TrainingSession|null):void=>{
+        if(!active()||document.querySelector('dialog[open]'))return
+        coachWorkspace=openGrowthPlan(client,current.user.id,active,trigger,{
+          planId,practice,
+          retake:()=>{if(active())starterTiq.querySelector<HTMLButtonElement>('[data-starter-edit]')?.click()},
+          drill:(cardId,plan)=>{if(active())training=openLevelUp(client,current.user.id,active,'catalog',{cardId,identitySlug:'',returnTo:{
+            label:'Back to plan',target:plan.target,onReturn:saved=>{if(active()){training=null;openPlan(trigger,plan.id,saved)}},
+          }})},
+        })
+      }
       const starterAssessment = mountStarterTiq(starterTiq,current.user.id,active,(cardId,trigger)=>{
         if(!active()||document.querySelector('dialog[open]'))return
         trigger.focus({preventScroll:true})
@@ -930,12 +940,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
         coachWorkspace=openPlayerProgress(client,current.user.id,active,trigger,()=>{
           if(active())starterTiq.querySelector<HTMLButtonElement>('[data-starter-edit]')?.click()
         })
-      },{client,openPlan:trigger=>{
-        coachWorkspace=openGrowthPlan(client,current.user.id,active,trigger,{
-          retake:()=>{if(active())starterTiq.querySelector<HTMLButtonElement>('[data-starter-edit]')?.click()},
-          drill:cardId=>{if(active())training=openLevelUp(client,current.user.id,active,'catalog',{cardId,identitySlug:''})},
-        })
-      },openHistory:(trigger,device,changed,closed)=>{
+      },{client,openPlan,openHistory:(trigger,device,changed,closed)=>{
         coachWorkspace=openTiqAccountHistory(client,current.user.id,active,trigger,{device,changed,closed})
       }})
       mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{

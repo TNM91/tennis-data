@@ -1,0 +1,37 @@
+import {getCoachAssignmentReview, getPlayerAssignmentCheckIn} from '../../lib/coach-storage'
+import {readPracticeBlock, type GrowthPlan} from '../../lib/tiq-growth'
+import type {TrainingCoachWork} from './training-inbox-data'
+import {html} from './match-details'
+
+export function growthCoachContext(plan: GrowthPlan, work: TrainingCoachWork | null) {
+  const assignment = work?.assignments.find(row => row.id === plan.sourceAssignment)
+  const link = work?.links.find(row => row.id === assignment?.studentLinkId && row.status !== 'paused')
+  if (!assignment || !link) return {state:'unavailable'} as const
+  const checkIn = getPlayerAssignmentCheckIn(assignment.assignment)
+  if (assignment.status === 'completed' || checkIn) {
+    const review = getCoachAssignmentReview(assignment.assignment)
+    return review ? {state:'feedback',review} as const : {state:'waiting'} as const
+  }
+  if (plan.state !== 'active') return {state:'closed'} as const
+  try {
+    const block = readPracticeBlock(assignment.assignment.tiqGrowth)
+    if (assignment.status === 'assigned' && plan.state === 'active'
+      && block.skill === plan.skill && block.target === plan.target && block.sessions === plan.sessions && block.reviewDate === plan.reviewDate) {
+      return {state:'ready',assignment,link} as const
+    }
+  } catch { /* The current assignment is no longer this practice block. */ }
+  return {state:'changed'} as const
+}
+
+export function growthCoachHtml(plan: GrowthPlan, work: TrainingCoachWork | null, locked: boolean) {
+  if (!plan.sourceAssignment) return ''
+  const context = growthCoachContext(plan,work)
+  const body = context.state === 'ready'
+    ? `<h3>Coach check-in</h3><p>Choose the practice notes you want to share, then review your check-in.</p><button type="button" class="secondary" data-checkin ${locked?'disabled':''}>Prepare coach check-in</button>`
+    : context.state === 'waiting' ? '<h3>Awaiting coach feedback</h3><p>Your check-in is sent. Refresh your plan to check for feedback.</p>'
+    : context.state === 'feedback' ? `<h3>Coach feedback</h3>${Number.isFinite(Date.parse(context.review.reviewedAt))?`<p><time datetime="${html(context.review.reviewedAt)}">${html(new Date(context.review.reviewedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))}</time></p>`:''}<p class="coach-written">${html(context.review.note)}</p>${context.review.nextFocus?`<p><strong>Next focus</strong> ${html(context.review.nextFocus)}</p>`:''}`
+    : context.state === 'closed' ? '<h3>Coach check-in</h3><p>Open My Lab → Training inbox → Coach assignments to check in on the current assignment. Your saved plan remains private.</p>'
+    : context.state === 'changed' ? '<h3>Coach assignment updated</h3><p>Your private plan is still saved. Open My Lab → Training inbox → Coach assignments to review the current assignment before checking in.</p>'
+    : '<h3>Coach check-in unavailable</h3><p>Your private plan is still saved. Refresh to check your current coach connection.</p>'
+  return `<section class="tiq-growth-coach" aria-label="Plan coaching">${body}</section>`
+}

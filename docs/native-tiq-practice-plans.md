@@ -10,6 +10,14 @@ My Lab → Your TiQ → **My improvement plan**. Choose a saved baseline, skill,
 
 An assigned coach block can be adopted using the player's own baseline. Its skill, target, count and date must match the current coach assignment. Baselines and practice logs remain private. **Prepare coach check-in** rechecks the current assignment and prefills the existing check-in editor; the player reviews and sends that check-in explicitly.
 
+### Choosing what to share
+
+**Prepare coach check-in** rereads the original plan and current assignment. The player sees the practice count and target, then selects any court notes to include. Notes start unchecked. The preview preserves their complete text; a selection over the existing 300-character proof limit asks the player to choose fewer notes. **Continue to check-in** rechecks the plan revision, assignment revision, matching block and coach connection before opening the existing editable recap. Assessment answers and IDs are not added to this recap.
+
+**Send check-in** remains a separate action and explicitly completes the assignment. Discarding the unsent recap returns to the note choices. A failed preflight keeps those choices for retry; a changed plan or assignment returns to the latest plan for another deliberate selection. Account changes clear the chooser and ignore late reads. Uncertain sends use the existing saved-check-in lookup.
+
+The plan shows **Awaiting coach feedback** after a confirmed check-in. Current coach feedback, its date and next focus appear on the plan after a refresh, including for a reviewed plan. A paused or unavailable connection hides that feedback. Updated assignment blocks direct the player to My Lab → Training inbox → Coach assignments. These reads happen only on opening, refresh or deliberate check-in actions; there is no polling, migration, new API endpoint or automatic note sharing.
+
 **Add review to calendar** exports one calendar event with a stable UID and a reminder at the selected local time. The native file-sharing bridge already supports calendar files. The player finishes adding the event in their calendar, which controls the alert. This does not claim an APNs notification or a scheduled device alert, and exports no assessment answers, targets or private practice notes.
 
 ## Coaching flow
@@ -19,6 +27,20 @@ Coach workspace → student → Coach assessments → **Player & coach view**. S
 **Plan practice block** creates an ordinary coach assignment with validated `tiqGrowth` metadata and its matching drill. Review precedes assignment. Existing quick drill assignments, player check-ins, coach feedback and follow-up tools continue to work.
 
 The roster's **Up next for your players** section shows check-ins awaiting feedback, students needing a practice plan, and assigned blocks whose review date has arrived, oldest first. A row opens the exact student/assignment and reuses the existing write validation. A player awaiting feedback is not also told to start a new plan. Reads cover the latest 500 roster records and 2,000 assignments, return at most 25 attention rows, and label truncation. Errors are not displayed as zero tasks. The attention read updates its own region so a late reply cannot interrupt typing in roster search.
+
+## Guided practice review
+
+The plan's **Up next** action opens its drill, focuses the next practice log, starts a fresh assessment, or previews the latest eligible assessment when the practice target or review date is reached. These are deliberate actions; opening a drill or preview never logs practice or finishes a plan.
+
+Both the review preview and the saved review show the starting and review dates, the chosen skill's self-rating labels and court descriptions. Higher, same and lower self-ratings are labelled as self-assessments. Missing or deleted assessments show that the comparison is unavailable. Practice counts never change a TiQ rating.
+
+Review choices exclude the baseline, assessments saved before the plan, and assessment dates earlier than an existing baseline. Unsaved practice notes immediately disable navigation and review shortcuts until the player reviews the log or chooses to leave. This follow-up uses the existing account responses and migration; it adds no API call, collection job or database change.
+
+## Returning from a drill
+
+Opening the plan's drill keeps its court target visible and provides **Back to plan**. A confirmed training save offers **Review practice for plan**. Returning reloads the original plan from the account before preparing an editable practice date and note; it does not switch to a replacement plan or record practice automatically. Long training notes are shortened to the plan's 160-character limit with an explanation and remain editable. **Review practice log** and **Confirm practice** are still required.
+
+The prepared log reuses the confirmed training session's UUID. A retry cannot count the same saved session twice. An uncertain training save must be verified using the existing account check before it can prepare a log. Archived, reviewed, missing, full or mismatched plans cannot receive the prepared session. Leaving an unfinished drill requires the existing discard decision; returning without a confirmed session invents no practice. Programmatic cleanup and account changes clear the private training context without reopening a plan. The flow adds no migration, background request or automatic coach sharing.
 
 ## Storage, authorization and cost
 
@@ -38,6 +60,6 @@ The existing coach-assessment CI step includes the new plan, alignment and launc
 
 Apply the migration after the existing account-history migration, deploy the matching API once through the normal Git release lane, and then package the native client. Keep the currently selected public App Store review unchanged. This implementation alone does not upload a TestFlight binary or change tester-group assignment.
 
-Local verification on November 20 covered 6,248 unit checks across 1,085 files. The full run passed 6,247 and exceeded the five-second limit on the existing repository-wide brand scan while other checks were running; all five checks in that file passed in isolation in 2.4 seconds. No assertion or repository timeout was relaxed. Full source lint was completed, its single `prefer-const` finding was corrected, and final changed-file lint passed. TypeScript, the Next.js production build, the first-party native bundle, extension syntax and three signed-out local production API requests passed. The emitted production API was checked for the final overview validation.
+Local verification for the practice and coaching handoffs on November 20 passed the complete repository check: lint, TypeScript, 6,264 unit checks across 1,088 files, extension syntax and the Next.js production build. The first-party native bundle also built and opened at 390px without a page error or horizontal overflow. The production build's TypeScript check and final focused lint cover the last context-specific cancel-label change.
 
-The two-engine browser pass completed 58 TiQ/coaching checks and 14 affected native-navigation checks. Four narrow/standard layout checks were repeated after the final dropdown clearance fix. Fresh signup, captain invitation and coach-feedback captures were inspected and saved with the local visual audit. These are local checks; no cloud build, migration, deployment, App Store review change or TestFlight upload was made.
+Chromium and mobile WebKit covered 50 TiQ/coaching cases. The broad run passed 48 and identified two new test assertions that assumed a native click retained checkbox focus in Safari. The corrected test explicitly exercises keyboard Space while other cases cover pointer selection; both widths in both engines passed. Four visual rechecks and eight final cancellation/standard-training checks also passed, along with 12 final focused unit checks. Captures at 320px with larger text and at 390px were inspected. Evidence is in `output/tiq-coach-check-in-20261120/`, with the prior drill-return evidence in `output/tiq-practice-return-20261120/`. Physical iPhone acceptance and the next release's CI remain separate checks. This follow-up made no cloud build, migration, deployment, App Store review change or TestFlight upload.

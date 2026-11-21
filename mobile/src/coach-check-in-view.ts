@@ -5,7 +5,7 @@ import {coachCheckInDraft,submitCoachCheckIn,CoachCheckInError,type CoachCheckIn
 import {trainingTime} from './level-up-model'
 import {html} from './match-details'
 const evidenceLimit=300
-export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>boolean,assignment:CoachAssignment,link:TrainingCoachLink,refresh:(saved:boolean)=>void,practice?:CoachPracticeStats,prefill?:{recap:string;evidence:string}){
+export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>boolean,assignment:CoachAssignment,link:TrainingCoachLink,refresh:(saved:boolean)=>void,practice?:CoachPracticeStats,prefill?:{recap:string;evidence:string},discardLabel='Discard and refresh'){
  const dialog=document.createElement('dialog')
  dialog.className='captain-lineup-dialog training-dialog coach-check-in-screen'
  dialog.setAttribute('aria-label','Coach assignment check-in')
@@ -85,7 +85,7 @@ export function openCoachCheckIn(client:SupabaseClient,owner:string,current:()=>
   </header>
   ${leaving?`
    <p>${attempted?'Your check-in may already be saved. Refresh your coach assignments to check.':'Leaving will discard your unsent recap and proof.'}</p>
-   <div class="coach-check-in-actions"><button type="button" data-keep>Keep check-in</button><button type="button" class="secondary" data-discard>Discard and refresh</button></div>`:`
+   <div class="coach-check-in-actions"><button type="button" data-keep>Keep check-in</button><button type="button" class="secondary" data-discard>${html(discardLabel)}</button></div>`:`
    <div class="coach-check-in-assignment">
     <small class="stat-eyebrow">Coach assignment</small>
     <h2>${html(assignment.title)}</h2>
