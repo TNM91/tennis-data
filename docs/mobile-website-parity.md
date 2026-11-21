@@ -346,6 +346,12 @@ Isolated PostgreSQL checks exercise actual RLS/default/index behavior for owners
 
 Match Center reuses the website's extracted match-week navigation for Lineup, Check replies and Send team update workspaces. Planning keeps readiness, saved A/B alternatives and scouting together; replies retain local search/status filters; Send keeps private/shared/final progress, explicit publishing review, replacements and match-day checks together. Step navigation changes no records and retains fixture context. Existing child save/publication reviews, CAS/idempotency and stale-context checks remain in force. Failure clears tools until a successful refresh. All 4,768 tests and CI passed; physical iPhone acceptance is still pending.
 
+### Match-day read recovery — local follow-up to build 338, November 21
+
+A failed Match Day check now clears the earlier readiness, publishing progress and match tools. The selected fixture stays visible with a primary Refresh Match Center action and Back to Captain. A successful explicit refresh restores current tools, the selected step and local reply filters. An unavailable refresh keeps earlier information hidden; returning to Captain ignores late responses. Checks do not save a lineup, send a message or retry automatically.
+
+Focused synthetic checks cover both phone browser engines, 320/390 CSS-pixel layouts, larger text, failure followed by recovery, a newly pending final update and keyboard focus after leaving during a slow read. This follow-up is local and has not been uploaded to TestFlight. No API or migration is required, and the selected App Store review build is unchanged. Physical iPhone acceptance remains separate.
+
 ## League Office season review — build 83 released
 
 My Lab → League Office adds a connected read-only visit through seasons created by the signed-in account, participant entry records, schedules, recorded results/courts and team standings. The home is generated from the actual website `LeagueOfficeHome` component and its CSS; the optional caption says Workspace in the app without claiming a different membership plan. The website's team standings calculation is extracted into a pure helper and reused unchanged by both callers, including dynamic points and configured standings rules. Unplayed events do not become wins, losses or ties. Individual leagues show recorded player results; this slice does not invent individual standings.
