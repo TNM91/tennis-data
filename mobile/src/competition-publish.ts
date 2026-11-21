@@ -188,7 +188,7 @@ export function mountCompetitionPublish(
         code === 'price_unavailable' ? 'Apple pricing is unavailable. Try again shortly.' :
         publication?.checkout.state === 'pending' || retryCancel ? 'Checkout is still being checked. Check the purchase again shortly.' :
         publication?.checkout.state === 'paid' ? 'Purchase verified. Apple confirmation can finish when you check again.' :
-        'Couldn’t check publishing. Try again shortly.'
+        `Couldn’t load ${subject} checkout. Try again shortly.`
     } finally {
       busy = false
       if (current()) render()
@@ -200,6 +200,8 @@ export function mountCompetitionPublish(
     const state = context?.checkout.state
     const publicId = state === 'paid' ? context?.checkout.publicId : undefined
     const finished = context?.environment === 'Production' && (state === 'paid' || state === 'refunded')
+    const checkLabel = retryCancel || state === 'pending' || state === 'paid' || state === 'refunded' ? 'Check purchase' :
+      state === 'ready' && !price ? 'Retry loading price' : 'Retry checkout'
     setLocked(busy || state === 'pending' || finished, !!publicId, finished && !busy && !notice)
     if (unavailable || (busy && !context)) { host.replaceChildren(); return }
     const sandbox = context?.environment === 'Sandbox'
@@ -219,7 +221,7 @@ export function mountCompetitionPublish(
       ${busy ? '' : publicId ? `<button type="button" data-publish-open>View ${league ? 'league' : 'tournament'}</button>` :
         state === 'ready' && context?.canStart && price && !retryCancel && !stale ? `<button type="button" data-publish-buy>${sandbox ? league ? 'Test checkout' : 'Test publish' : heading} · ${html(price)}</button>` : ''}
       ${!busy && needsCheck()
-        ? '<button type="button" class="secondary" data-publish-check>Check purchase</button>' : ''}
+        ? `<button type="button" class="secondary" data-publish-check>${checkLabel}</button>` : ''}
     </article></section>`
     host.querySelector('[data-publish-buy]')?.addEventListener('click', () => { void run(buy) })
     host.querySelector('[data-publish-check]')?.addEventListener('click', () => { void run(check) })

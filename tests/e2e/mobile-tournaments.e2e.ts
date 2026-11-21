@@ -154,6 +154,66 @@ test('organizers can edit divisions and registration and safely retry a settings
  await expect(divisions).toContainText('Open Doubles')
  await expect(divisions.getByRole('article')).toHaveCount(2)
 })
+for(const width of [320,390])for(const failure of ['checkout','price'] as const)
+test(`organizer retries ${failure} loading without starting a purchase at ${width}px`,async({page})=>{
+ const productId='com.tenaceiq.app.tournament.publish'
+ const eventId='99999999-9999-4999-8999-999999999999'
+ await page.setViewportSize({width,height:844})
+ await page.addInitScript(({productId,failure})=>{
+  const state={products:0,purchases:0}
+  Object.assign(window,{
+   CapacitorCustomPlatform:{name:'ios'},
+   Capacitor:{
+    PluginHeaders:[{name:'TiqPurchases',methods:['products','purchase','pending','finish'].map(name=>({name,rtype:'promise'}))}],
+    nativePromise:async(_plugin:string,method:string,args:Record<string,string>)=>{
+     if(args.productId!==productId)throw Error('Unexpected product')
+     if(method==='products'){
+      state.products++
+      return failure==='price'&&state.products===1?{available:false,products:[]}:
+       {available:true,products:[{id:productId,price:'$5.00'}]}
+     }
+     if(method==='pending')return {transactions:[]}
+     if(method==='purchase'){state.purchases++;return {state:'cancelled'}}
+     throw Error('Unexpected StoreKit request')
+    },
+   },
+   tournamentApple:state,
+  })
+ },{productId,failure})
+ const directory=await open(page,'publish')
+ if(failure==='checkout')await page.evaluate(()=>{
+  (window as unknown as {tournamentFixture:{publish:{readFailures:number}}}).tournamentFixture.publish.readFailures=2
+ })
+ await directory.getByRole('button',{name:'Tournament Desk',exact:true}).click()
+ await page.getByRole('button',{name:'Open tournament Winter Open',exact:true}).click()
+ const event=page.getByRole('dialog',{name:'Winter Open',exact:true})
+ const publish=event.getByRole('region',{name:'Publish tournament',exact:true})
+ const retry=publish.getByRole('button',{name:failure==='price'?'Retry loading price':'Retry checkout',exact:true})
+ const read=()=>page.evaluate(()=>(window as unknown as {tournamentApple:{products:number;purchases:number}}).tournamentApple)
+ await expect(retry).toBeVisible()
+ await expect(publish.getByRole('button',{name:'Check purchase',exact:true})).toHaveCount(0)
+ await expect(publish.locator('[data-publish-buy]')).toHaveCount(0)
+ if(failure==='checkout'){
+  await expect(publish.getByRole('status')).toHaveText('Couldn’t load tournament checkout. Try again shortly.')
+  await retry.click()
+  await expect(retry).toBeVisible()
+ }
+ expect((await read()).purchases).toBe(0)
+ await retry.click()
+ const buy=publish.getByRole('button',{name:'Test publish · $5.00',exact:true})
+ await expect(buy).toBeVisible()
+ expect(await read()).toEqual({products:failure==='price'?2:1,purchases:0})
+ expect(await event.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await buy.click()
+ await expect(publish.getByRole('status')).toHaveText('Purchase canceled.')
+ expect((await read()).purchases).toBe(1)
+ const requests=await page.evaluate(()=>(window as unknown as {tournamentFixture:{publish:{prepares:number;reconciles:number;lookups:string[]}}}).tournamentFixture.publish)
+ expect(requests.prepares).toBe(1)
+ expect(requests.reconciles).toBe(0)
+ expect(requests.lookups.length).toBeGreaterThan(2)
+ expect(new Set(requests.lookups)).toEqual(new Set([eventId]))
+})
+
 test('publish checkout recovers a verified sandbox purchase after a lost reply', async ({page}) => {
  const productId = 'com.tenaceiq.app.tournament.publish'
  const storageKey = `tournament-checkout:Sandbox:${tournamentOwner}:99999999-9999-4999-8999-999999999999`

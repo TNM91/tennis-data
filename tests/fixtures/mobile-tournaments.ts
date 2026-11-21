@@ -21,7 +21,8 @@ const tournamentDraft = {
  events: [] as NativeTournamentSetup[], prepares: [] as string[], losePrepareReply: false,
  settingsWrites: [] as string[], loseSettingsReply: false,
 }
-const publish = { token: '', state: 'ready', cancelKey: '', prepares: 0, reconciles: 0, loseReceipt: true, canceledTokens: [] as string[] }
+const publish = { token: '', state: 'ready', cancelKey: '', prepares: 0, reconciles: 0, loseReceipt: true, canceledTokens: [] as string[],
+ readFailures: 0, lookups: [] as string[] }
 const plan: TournamentPlan = {
  id:'tiq-native-event-10000000-0000-4000-8000-000000000001',name:'Winter Open',date:'2026-12-12',zone:'America/Chicago',
  revision:'1'.repeat(32),division:'tiq-native-division-10000000-0000-4000-8000-000000000002',
@@ -117,6 +118,8 @@ const send:ScenarioSend=async o=>{
   }
   data={ok:true,scope:'first-party',owner:state.owner,event:tournamentDraft.events[0].revision,plan}
  }else if(u.pathname.endsWith('/tournaments/publish')){
+  publish.lookups.push(u.searchParams.get('event')??'')
+  if(!o.data && publish.readFailures>0){publish.readFailures--;throw Error('Checkout temporarily unavailable')}
   const action=o.data as {action?:string;token:string;cancelKey:string;expected:string;signedTransaction:string}|undefined
   const setup=tournamentDraft.events[0]
   let start=false
