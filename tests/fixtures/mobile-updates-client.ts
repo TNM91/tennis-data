@@ -11,7 +11,7 @@ const scopedRows:Row[]=[
   {...updatesFixture.rows[3],title:'Coach conversation',body:'Open Coach messages to catch up.',href:'/messages?coach='+updateCoachStudent},
   {...updatesFixture.rows[4],title:'TenAceIQ support update',body:'There’s an update on your support request.',notification_type:'support',href:'',read_at:null},
 ]
-export const firstPartyUpdatesFixture={calls:[] as string[],omitMarker:false,practiceReminders:[] as Row[],leagueNotices:[] as Row[],hitReminders:[] as Row[],tournamentNotices:[] as Row[],coachNotices:[] as Row[]}
+export const firstPartyUpdatesFixture={calls:[] as string[],omitMarker:false,loseMarkReply:false,practiceReminders:[] as Row[],leagueNotices:[] as Row[],hitReminders:[] as Row[],tournamentNotices:[] as Row[],coachNotices:[] as Row[]}
 export function firstPartyUpdatesPreview(method:string,url:URL,body:unknown,owner:string){
   const op=method==='POST'?'mark':url.searchParams.get('op')??'list'
   firstPartyUpdatesFixture.calls.push(op)
@@ -24,6 +24,7 @@ export function firstPartyUpdatesPreview(method:string,url:URL,body:unknown,owne
     const selected=owned.filter(row=>ids.includes(row.id))
     if(!ids.length||selected.length!==ids.length)return Response.json({ok:false},{status:409})
     for(const row of selected)row.read_at??='2026-11-10T10:00:00Z'
+    if(firstPartyUpdatesFixture.loseMarkReply){firstPartyUpdatesFixture.loseMarkReply=false;return Response.json({ok:false},{status:503})}
     return Response.json({...envelope,rows:selected.map(({id,recipient_profile_id,read_at})=>({id,recipient_profile_id,read_at}))})
   }
   const category=url.searchParams.get('category')

@@ -26,6 +26,11 @@ test.beforeEach(async({page})=>{
 })
 async function open(page:Page,kind='checkin',large=false){await page.goto(origin+'/?hit-alerts=1&coach-activity='+kind+'&training-inbox-review=1&training-assignment-feedback=1'+(large?'&large=1':''));await expect(page.locator('.lab-scoreboard')).toBeVisible()}
 async function tap(page:Page,recipient?:string){await page.evaluate(({notice,recipient})=>(window as unknown as {hitAlertsFixture:{tap:(href:string,recipient?:string)=>void}}).hitAlertsFixture.tap('/mylab?coachActivityNotice='+notice,recipient),{notice,recipient})}
+type ActivityState={offline:boolean;hold:boolean;held:boolean;release:()=>void;reads:string[];notices:string[]}
+async function activityState(page:Page,change:Partial<Pick<ActivityState,'offline'|'hold'>>={}){return page.evaluate(change=>{
+ const state=(window as unknown as {coachingActivityFixture:ActivityState}).coachingActivityFixture;Object.assign(state,change);return {reads:state.reads,notices:state.notices,held:state.held}
+},change)}
+async function renderFrames(page:Page){await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))))}
 
 for(const width of [320,390])for(const kind of ['assignment','checkin','feedback'])test('opens the exact '+kind+' from a first-party iPhone alert at '+width+'px',async({page})=>{
  await page.setViewportSize({width,height:844});await open(page,kind,width===390);await tap(page)
@@ -58,4 +63,37 @@ test('opens an alert from another tab when the app becomes visible again',async(
  await tap(page);await expect(page.getByRole('dialog')).toHaveCount(0)
  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'))})
  await expect(page.getByRole('dialog',{name:'Coach workspace',exact:true})).toContainText('Deep return under pressure')
+})
+
+for(const kind of ['assignment','checkin','feedback'])test('retries the same '+kind+' after a connection failure without a foreground retry loop',async({page},info)=>{
+ await page.setViewportSize({width:kind==='checkin'?320:390,height:844});await open(page,kind,true);await activityState(page,{offline:true});await tap(page)
+ const handoff=page.getByLabel('Coaching update',{exact:true});await expect(handoff).toContainText('Couldn’t load this coaching update.');await expect(handoff.getByRole('button',{name:'Retry coaching update',exact:true})).toBeEnabled();await expect(page.getByRole('dialog')).toHaveCount(0)
+ await activityState(page,{offline:false});await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'))});await renderFrames(page)
+ expect((await activityState(page)).notices).toEqual([notice]);expect(await page.evaluate(()=>(window as unknown as {firstPartyUpdatesFixture:{calls:string[]}}).firstPartyUpdatesFixture.calls.filter(call=>call==='mark'))).toEqual([])
+ await handoff.screenshot({path:info.outputPath('coaching-update-retry-'+kind+'.png')});await handoff.getByRole('button',{name:'Retry coaching update',exact:true}).click()
+ const dialog=page.getByRole('dialog',{name:kind==='checkin'?'Coach workspace':'Level Up training',exact:true});await expect(dialog).toContainText(kind==='checkin'?'Deep return under pressure':kind==='feedback'?'Your first step stayed balanced under pressure.':'Second-serve targets')
+ expect((await activityState(page)).notices).toEqual([notice,notice]);expect(await page.evaluate(()=>(window as unknown as {firstPartyUpdatesFixture:{calls:string[]}}).firstPartyUpdatesFixture.calls.filter(call=>call==='mark'))).toEqual(['mark'])
+})
+
+test('rechecks the same owned notice after a lost read-confirmation reply',async({page})=>{
+ await open(page);await page.evaluate(()=>(window as unknown as {firstPartyUpdatesFixture:{loseMarkReply:boolean}}).firstPartyUpdatesFixture.loseMarkReply=true);await tap(page)
+ const handoff=page.getByLabel('Coaching update',{exact:true});await expect(handoff.getByRole('button',{name:'Retry coaching update',exact:true})).toBeEnabled();await expect(page.getByRole('dialog')).toHaveCount(0)
+ await handoff.getByRole('button',{name:'Retry coaching update',exact:true}).click();await expect(page.getByRole('dialog',{name:'Coach workspace',exact:true})).toContainText('Deep return under pressure')
+ expect((await activityState(page)).notices).toEqual([notice,notice]);expect(await page.evaluate(()=>(window as unknown as {firstPartyUpdatesFixture:{calls:string[];coachNotices:{id:string;read_at:string|null}[]}}).firstPartyUpdatesFixture.calls.filter(call=>call==='mark'))).toEqual(['mark','mark'])
+ expect(await page.evaluate(()=>(window as unknown as {firstPartyUpdatesFixture:{coachNotices:unknown[]}}).firstPartyUpdatesFixture.coachNotices.length)).toBe(1)
+})
+
+test('discards a delayed recovery response when the signed-in account changes',async({page})=>{
+ await open(page);await activityState(page,{offline:true});await tap(page);const handoff=page.getByLabel('Coaching update',{exact:true});await expect(handoff.getByRole('button',{name:'Retry coaching update',exact:true})).toBeEnabled()
+ await activityState(page,{offline:false,hold:true});await handoff.getByRole('button',{name:'Retry coaching update',exact:true}).click();await expect.poll(async()=>(await activityState(page)).held).toBe(true)
+ await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner());await expect(handoff).toBeHidden();await page.evaluate(()=>(window as unknown as {coachingActivityFixture:ActivityState}).coachingActivityFixture.release());await renderFrames(page)
+ await expect(page.getByRole('dialog')).toHaveCount(0);await expect(handoff).toBeHidden();expect(await page.evaluate(()=>(window as unknown as {firstPartyUpdatesFixture:{calls:string[]}}).firstPartyUpdatesFixture.calls.filter(call=>call==='mark'))).toEqual([])
+})
+
+test('keeps an unsent coach form while a failed coaching alert waits for explicit retry',async({page})=>{
+ await open(page);await activityState(page,{offline:true});await tap(page);await expect(page.getByRole('button',{name:'Retry coaching update',exact:true})).toBeEnabled()
+ await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination="coach"]').click();await page.getByRole('button',{name:'For coaches',exact:true}).click();await page.locator('[data-app-destination="coach-workspace"]').click()
+ const dialog=page.getByRole('dialog',{name:'Coach workspace',exact:true});await dialog.getByRole('button',{name:'Add a student',exact:true}).click();await dialog.getByLabel('Player name',{exact:true}).fill('Avery Draft');await activityState(page,{offline:false});await renderFrames(page)
+ await expect(dialog.getByLabel('Player name',{exact:true})).toHaveValue('Avery Draft');expect((await activityState(page)).notices).toEqual([notice])
+ await dialog.getByRole('button',{name:'Close Coach workspace',exact:true}).click();await dialog.getByRole('button',{name:'Discard edits',exact:true}).click();await page.getByRole('button',{name:'Retry coaching update',exact:true}).click();await expect(page.getByRole('dialog',{name:'Coach workspace',exact:true})).toContainText('Deep return under pressure')
 })
