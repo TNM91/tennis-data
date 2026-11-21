@@ -29,6 +29,14 @@ TenAceIQ uses Vercel Git deployments and GitHub Actions checks.
   - Logged-in member header and portal navigation.
   - Tablet or narrow web around the compact-header breakpoint.
 
+## Native iPhone browser checks
+
+Captain tools, league competitions and tournaments run in three independent browser jobs. Each keeps its existing test commands, both phone engines and the same single-worker CI behavior. League and tournament jobs build their own local app bundle before reading its styles. Their synthetic fixtures intercept external services; the split adds no production test traffic.
+
+The earlier combined captain job reached its 30-minute limit during the tournament stage after the other nine CI jobs had passed. Splitting the work adds two runner/browser setup sequences and two small local bundle builds, while preserving every test and avoiding a full captain-lane retry. Expected elapsed time is set by the longest lane; total browser test execution stays the same, with modest setup overhead. Measure hosted timings before claiming a speedup. Captain keeps its 30-minute cap; the isolated league and tournament jobs are capped at 20 minutes each. Existing UI images retain their three-day retention, and captain-workspace screenshots are retained with them.
+
+`Verify`, `TIQ Schema Audit`, the remaining native browser matrix and the signed iOS workflow keep their existing definitions. An internal TestFlight release still needs its full verification, a verified signed package and assignment to the established internal group. A CI-only change does not require a new iPhone upload or an App Store review change.
+
 ## Production Rule
 
 Use `master` as the only production branch. Treat `staging` as a rehearsal lane, not the source of truth.
