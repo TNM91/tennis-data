@@ -346,7 +346,7 @@ Isolated PostgreSQL checks exercise actual RLS/default/index behavior for owners
 
 Match Center reuses the website's extracted match-week navigation for Lineup, Check replies and Send team update workspaces. Planning keeps readiness, saved A/B alternatives and scouting together; replies retain local search/status filters; Send keeps private/shared/final progress, explicit publishing review, replacements and match-day checks together. Step navigation changes no records and retains fixture context. Existing child save/publication reviews, CAS/idempotency and stale-context checks remain in force. Failure clears tools until a successful refresh. All 4,768 tests and CI passed; physical iPhone acceptance is still pending.
 
-### Match Day follow-through — local follow-up to build 338, November 21
+### Match Day follow-through — released in build 339, November 21
 
 A failed Match Day check now clears the earlier readiness, publishing progress and match tools. The selected fixture stays visible with a primary Refresh Match Center action and Back to Captain. A successful explicit refresh restores current tools, the selected step and local reply filters. An unavailable refresh keeps earlier information hidden; returning to Captain ignores late responses. Checks do not save a lineup, send a message or retry automatically.
 
@@ -354,7 +354,13 @@ Opening a lineup, publishing, replacement, scouting or what-if tool now establis
 
 Check replies marks players from the current private working lineup and adds Selected players only, Needs review and No matching reply filters. Navigation and review counts use that lineup's unique non-defaulted player identities; unselected roster replies, same-name players and stale reply selection flags do not change the selected count. Missing or no-longer-matched selected replies stay visible as No matching reply. Empty searches explain how to change the filters. Opening lineup planning from Check replies now returns to that step on close or save, retaining the search, reply filter and selected-player filter. A successful save still reloads current match data; filtering and ordinary close perform no request, save or message.
 
-Focused synthetic checks cover both phone browser engines, 320/390 CSS-pixel layouts, larger text, failure followed by recovery, a newly pending final update and keyboard focus after leaving during a slow read. Actual lineup, publishing and replacement views are exercised with synthetic data for normal/unavailable close paths; a private-save and final-delivery flow checks refreshed progress, retained filters and exact write counts. This follow-up is local and has not been uploaded to TestFlight. No API or migration is required, and the selected App Store review build is unchanged. Physical iPhone acceptance remains separate.
+Focused synthetic checks cover both phone browser engines, 320/390 CSS-pixel layouts, larger text, failure followed by recovery, a newly pending final update and keyboard focus after leaving during a slow read. Actual lineup, publishing and replacement views are exercised with synthetic data for normal/unavailable close paths; a private-save and final-delivery flow checks refreshed progress, retained filters and exact write counts. Released in TestFlight 339 with the existing internal group assigned. No API or migration was required, and the selected App Store review build is unchanged. Physical iPhone acceptance remains separate.
+
+### Working court context in reply review — local follow-up to build 339
+
+Selected-player reply rows show each non-defaulted working court and its doubles partner, or explain an open or removed partner. Review court opens the existing protected lineup editor for the selected fixture. The editor locates the current court ID and player key after its fresh read, including when courts are reordered or labels/names collide. A removed, defaulted or changed assignment shows an explanation and leaves the current lineup available rather than jumping to another player or court. The shortcut changes no assignment.
+
+Closing restores focus to the same reply shortcut and retains all filters. Saving keeps the existing explicit review, version checks and private-plan behavior; other courts and shared team messages remain unchanged. Focused synthetic checks cover both phone engines, 320/390 widths, larger text, changed assignments, safe text rendering and exact save/message counts. This enhancement is committed locally for a future beta; it is not included in 339. No backend change or migration is required, and physical iPhone acceptance is pending.
 
 ## League Office season review — build 83 released
 
