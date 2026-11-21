@@ -20,7 +20,24 @@ test.beforeAll(async()=>{
   builder.onLoad({filter:/^center-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
    export * from ${JSON.stringify(path.resolve('mobile/src/captain-match-center-data.ts'))};
    export async function loadMatchCenter(_client,_owner,_current,_scope,match){const f=window.fixture;f.reads++;if(f.hold)await new Promise(resolve=>f.release=resolve);if(f.fail)throw Error('Synthetic read failed');const data=structuredClone(f.center);data.fixture.id=match.id;data.fixture.date=match.date;data.fixture.away=match.opponent;data.lineup.match={id:match.id,date:match.date,opponent:match.opponent};Object.assign(data.publication,{fixtureId:match.id,matchDate:match.date,opponent:match.opponent});return data}
-   export async function loadMatchCenterDay(){window.fixture.dayReads++;return structuredClone(window.fixture.day)}
+   export async function loadMatchCenterDay(){const f=window.fixture;f.dayReads++;if(f.holdDay)await new Promise(resolve=>f.releaseDay=resolve);if(f.failDay)throw Error('Synthetic day read failed');f.daySettled++;return structuredClone(f.day)}
+  ` }))
+  builder.onResolve({filter:/^\.\/captain-lineup-data$/},()=>({path:'lineup-data',namespace:'fixture'}))
+  builder.onLoad({filter:/^lineup-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
+   export * from ${JSON.stringify(path.resolve('mobile/src/captain-lineup-data.ts'))};
+   export async function loadLineupEditor(){const f=window.fixture;f.toolReads.plan++;if(f.failTool==='plan')throw Error('Synthetic tool read unavailable');return structuredClone(f.center.lineup)}
+   export async function saveLineupEditor(_client,_owner,_current,_data,plan){const f=window.fixture;f.lineupSaves++;f.center.lineup.plan=structuredClone(plan);f.center.lineup.version='saved-two';f.center.publication.draftVersion='saved-two';return 'saved-two'}
+  ` }))
+  builder.onResolve({filter:/^\.\/captain-publication-data$/},()=>({path:'publication-data',namespace:'fixture'}))
+  builder.onLoad({filter:/^publication-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
+   export * from ${JSON.stringify(path.resolve('mobile/src/captain-publication-data.ts'))};
+   export async function loadPublicationReview(){const f=window.fixture;f.toolReads.publish++;if(f.failTool==='publish')throw Error('Synthetic tool read unavailable');return structuredClone(f.center.publication)}
+   export async function sendPublication(_client,_owner,_current,intent){const f=window.fixture;f.publicationSends++;if(intent.kind==='final')f.center.publication.shared.alreadyFinal=true;return {draftFinalized:true}}
+  ` }))
+  builder.onResolve({filter:/^\.\/captain-replacement-data$/},()=>({path:'replacement-data',namespace:'fixture'}))
+  builder.onLoad({filter:/^replacement-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
+   export * from ${JSON.stringify(path.resolve('mobile/src/captain-replacement-data.ts'))};
+   export async function loadReplacementReview(){const f=window.fixture;f.toolReads.replace++;if(f.failTool==='replace')throw Error('Synthetic tool read unavailable');return {...structuredClone(f.center.publication),messageId:f.center.publication.shared.messageId,lineup:structuredClone(f.center.publication.shared.lineup),canReplace:false,canSupersede:false,pending:null,candidates:[],currentChange:null,reason:'No replacement is needed.',followUp:{canManage:false,requestId:'',deadlineAt:'',reminderAvailable:false,reminderAvailableAt:'',scheduledReminderAt:''}}}
   ` }))
  }}]})
  javascript=result.outputFiles.find(file=>file.path.endsWith('.js'))?.text??result.outputFiles[0].text
@@ -32,7 +49,7 @@ test.beforeEach(async({page})=>{
   const params=new URL(location.href).searchParams
   if(params.has('final')){data.center.publication.shared.alreadyFinal=true;data.day.publication.shared.alreadyFinal=true}
   if(params.has('pending'))data.center.publication.shared.pendingFinal=true
-  Object.assign(window,{fixture:{...data,reads:0,dayReads:0,sharedChanges:0,hold:false,fail:false}})
+  Object.assign(window,{fixture:{...data,reads:0,dayReads:0,daySettled:0,sharedChanges:0,hold:false,fail:false,holdDay:false,failDay:false,toolReads:{plan:0,publish:0,replace:0},failTool:'',lineupSaves:0,publicationSends:0}})
  },{scope:captainScope,center,day:captainDayFixture(center),snapshot:captainSnapshotFixture()})
  await page.route('**/*',route=>{
   const u=new URL(route.request().url())
@@ -100,6 +117,190 @@ test('pending final delivery keeps its warning text and review state',async({pag
  await center.locator('[data-step-next="availability"]').click();await center.locator('[data-step-next="messaging"]').click()
  await expect(center.locator('[data-plan-state="attention"]')).toContainText('Final delivery needs attention')
 })
+type MatchRecoveryWindow={fixture:{reads:number;dayReads:number;daySettled:number;sharedChanges:number;fail:boolean;failDay:boolean;holdDay:boolean;releaseDay:()=>void;center:{publication:{shared:{alreadyFinal:boolean;pendingFinal:boolean}}}}}
+
+for(const width of [320,390])test(`failed match-day checks require a fresh readiness snapshot at ${width}px`,async({page},info)=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width,height:844});await page.goto(origin+prefix+'?final=1')
+ if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
+ await page.locator('[data-captain-center="0"]').click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await center.locator('[data-match-week-step="availability"]').click()
+ await center.getByLabel('Find a player',{exact:true}).fill('Jordan')
+ await center.locator('[data-center-action="day"]').first().click()
+ await expect(center.locator('.captain-arrivals')).toBeVisible()
+ await expect(center.locator('.match-center-progress [data-plan-state="saved"]')).toHaveCount(3)
+ await page.evaluate(()=>{(window as unknown as MatchRecoveryWindow).fixture.failDay=true})
+ await center.getByRole('button',{name:'Refresh match-day status',exact:true}).click()
+ await expect(center.getByRole('status')).toContainText('Match-day status could not be confirmed.')
+ await expect(center.locator('.captain-arrivals')).toHaveCount(0)
+ await expect(center.locator('.match-center-progress')).toHaveCount(0)
+ await expect(center.locator('.match-center-next')).toHaveCount(0)
+ await expect(center.locator('[data-center-action]')).toHaveCount(0)
+ await expect(center.getByRole('button',{name:'Refresh Match Center',exact:true})).toBeEnabled()
+ await expect(center.getByRole('button',{name:'Back to Captain',exact:true})).toBeEnabled()
+ await bounded(page,center)
+ if(width===320&&info.project.name==='mobile-webkit')await page.screenshot({path:info.outputPath('match-day-readiness-retry.png')})
+ expect(await page.evaluate(()=>{const f=(window as unknown as MatchRecoveryWindow).fixture;return {reads:f.reads,dayReads:f.dayReads,sharedChanges:f.sharedChanges}})).toEqual({reads:1,dayReads:2,sharedChanges:0})
+ await page.evaluate(()=>{(window as unknown as MatchRecoveryWindow).fixture.fail=true})
+ await center.getByRole('button',{name:'Refresh Match Center',exact:true}).click()
+ await expect(center.getByRole('status')).toContainText('Match Center unavailable.')
+ await expect(center.locator('[data-center-action]')).toHaveCount(0)
+ await page.evaluate(()=>{const f=(window as unknown as MatchRecoveryWindow).fixture;f.fail=false;f.failDay=false;f.center.publication.shared.alreadyFinal=false;f.center.publication.shared.pendingFinal=true})
+ await center.getByRole('button',{name:'Refresh Match Center',exact:true}).click()
+ await expect(center.locator('.match-center-next')).toContainText('Review pending final update')
+ await expect(center.locator('[data-plan-state="attention"]')).toContainText('Final delivery needs attention')
+ await center.locator('[data-match-week-step="availability"]').click()
+ await expect(center.getByLabel('Find a player',{exact:true})).toHaveValue('Jordan')
+ expect(await page.evaluate(()=>{const f=(window as unknown as MatchRecoveryWindow).fixture;return {reads:f.reads,dayReads:f.dayReads,sharedChanges:f.sharedChanges}})).toEqual({reads:3,dayReads:2,sharedChanges:0})
+})
+
+test('leaving Match Center ignores a held match-day response',async({page})=>{
+ await page.goto(origin+prefix+'?final=1')
+ await page.locator('[data-captain-center="0"]').focus();await page.keyboard.press('Enter')
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await center.locator('[data-center-action="day"]').first().click()
+ await expect(center.locator('.captain-arrivals')).toBeVisible()
+ await page.evaluate(()=>{(window as unknown as MatchRecoveryWindow).fixture.holdDay=true})
+ await center.getByRole('button',{name:'Refresh match-day status',exact:true}).click()
+ await expect(center.getByRole('status')).toContainText('Checking the exact shared match card')
+ await center.getByRole('button',{name:'Back to Captain',exact:true}).click()
+ await expect(center).toHaveCount(0)
+ await page.evaluate(()=>(window as unknown as MatchRecoveryWindow).fixture.releaseDay())
+ await expect.poll(()=>page.evaluate(()=>(window as unknown as MatchRecoveryWindow).fixture.daySettled)).toBe(2)
+ await expect(center).toHaveCount(0)
+ await expect(page.locator('[data-captain-center="0"]')).toBeFocused()
+ expect(await page.evaluate(()=>(window as unknown as MatchRecoveryWindow).fixture.sharedChanges)).toBe(0)
+})
+
+type ToolReturnWindow={fixture:{reads:number;toolReads:Record<string,number>;failTool:string;lineupSaves:number;publicationSends:number;sharedChanges:number;center:{publication:{shared:{confirmedCount:number;canFinalize:boolean}}}}}
+for(const width of [320,390])test(`lineup planning from replies returns to the reply review at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
+ if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
+ await page.locator('[data-captain-center="0"]').click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await center.locator('[data-match-week-step="availability"]').click()
+ await center.getByRole('combobox',{name:/^Show replies/}).selectOption('waiting')
+ await center.getByLabel('Find a player',{exact:true}).fill('Jordan')
+ const action=center.getByRole('button',{name:'Review selected players in lineup',exact:true})
+ await center.getByRole('checkbox',{name:'Selected players only',exact:true}).check()
+ await action.focus();await page.keyboard.press('Enter')
+ const plan=page.getByRole('dialog',{name:'Plan your lineup',exact:true})
+ await plan.getByRole('button',{name:'Close',exact:true}).click()
+ await expect(plan).toHaveCount(0)
+ await expect(center.locator('[data-center-panel="availability"]')).toBeVisible()
+ await expect(action).toBeFocused()
+ await expect(center.getByRole('combobox',{name:/^Show replies/})).toHaveValue('waiting')
+ await expect(center.getByLabel('Find a player',{exact:true})).toHaveValue('Jordan')
+ await expect(center.getByRole('checkbox',{name:'Selected players only',exact:true})).toBeChecked()
+ await bounded(page,center)
+ expect(await page.evaluate(()=>{const f=(window as unknown as ToolReturnWindow).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:1,lineupSaves:0,publicationSends:0,sharedChanges:0})
+})
+
+type ReplyReviewWindow={fixture:{center:ReturnType<typeof captainCenterFixture>;reads:number;lineupSaves:number;publicationSends:number;sharedChanges:number}}
+for(const width of [320,390])test(`selected reply review keeps missing answers distinct at ${width}px`,async({page},info)=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
+ if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
+ await page.evaluate(()=>{
+  const center=(window as unknown as ReplyReviewWindow).fixture.center
+  center.lineup.roster.push({key:'bench-jordan',playerId:'bench-jordan',name:'Jordan Lee'})
+  center.replies.people=center.replies.people.filter(person=>person.key!=='jordan')
+  center.replies.people.push({key:'bench-jordan',name:'Jordan Lee',status:'waiting',source:'player',selected:true})
+ })
+ await page.locator('[data-captain-center="0"]').click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await expect(center.locator('[data-match-week-step="availability"]')).toContainText('1 needs review')
+ await center.locator('[data-match-week-step="availability"]').click()
+ const selected=center.getByRole('checkbox',{name:'Selected players only',exact:true}),status=center.getByRole('combobox',{name:/^Show replies/}),query=center.getByLabel('Find a player',{exact:true}),rows=center.locator('[data-center-replies] li')
+ await selected.focus();await page.keyboard.press('Space');await expect(selected).toBeFocused()
+ await status.selectOption('needs-review');await query.fill('Jordan');await expect(query).toBeFocused()
+ await expect(rows).toHaveCount(1)
+ await expect(rows).toContainText('No matching reply')
+ await expect(rows).toContainText('In working lineup')
+ await expect(rows).not.toContainText('Player reply')
+ await expect(center.locator('[data-center-reply-count]')).toHaveText('1 player in this view.')
+ await status.selectOption('available')
+ await expect(rows).toHaveCount(0)
+ await expect(center.locator('[data-center-replies]')).toContainText('No players match these filters.')
+ await expect(center.locator('[data-center-reply-summary]')).toContainText('1 needs availability review.')
+ await query.fill('');await expect(rows).toHaveCount(1);await expect(rows).toContainText('Alex Rivera')
+ await status.selectOption('needs-review');await query.fill('Jordan')
+ await center.getByRole('button',{name:'Refresh Match Center',exact:true}).click()
+ await expect(selected).toBeChecked();await expect(query).toHaveValue('Jordan');await expect(status).toHaveValue('needs-review')
+ await expect(rows).toHaveCount(1);await expect(rows).toContainText('No matching reply')
+ await bounded(page,center)
+ if(width===390&&info.project.name==='mobile-webkit'){await selected.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('selected-reply-review.png')})}
+ await selected.uncheck();await expect(rows).toHaveCount(2)
+ await status.selectOption('unmatched');await expect(rows).toHaveCount(1);await expect(rows).toContainText('In working lineup')
+ expect(await page.evaluate(()=>{const f=(window as unknown as ReplyReviewWindow).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:2,lineupSaves:0,publicationSends:0,sharedChanges:0})
+})
+
+const returnTools=[{kind:'plan',step:'lineup',dialog:'Plan your lineup'}, {kind:'publish',step:'messaging',dialog:'Review team lineup'}, {kind:'replace',step:'messaging',dialog:'Replace a lineup player'}] as const
+for(const tool of returnTools)test(`closing ${tool.kind} returns to its Match Center action`,async({page},info)=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width:320,height:844});await page.goto(origin+prefix)
+ await page.addStyleTag({content:':root{font-size:24px!important}'})
+ await page.locator('[data-captain-center="0"]').focus();await page.keyboard.press('Enter')
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await center.locator('[data-match-week-step="availability"]').click()
+ await center.getByRole('combobox',{name:/^Show replies/}).selectOption('waiting')
+ await center.getByLabel('Find a player',{exact:true}).fill('Jordan')
+ const action=center.locator(`[data-center-panel="${tool.step}"] [data-center-action="${tool.kind}"]`)
+ for(const unavailable of [false,true]){
+  await page.evaluate(kind=>{(window as unknown as ToolReturnWindow).fixture.failTool=kind},unavailable?tool.kind:'')
+  await center.locator(`[data-match-week-step="${tool.step}"]`).click()
+  await action.focus();await page.keyboard.press('Enter')
+  const child=page.getByRole('dialog',{name:tool.dialog,exact:true})
+  if(unavailable)await expect(child.getByRole('alert')).toContainText('Synthetic tool read unavailable')
+  else await expect(child.getByRole('heading',{name:tool.dialog,exact:true})).toBeVisible()
+  await child.getByRole('button',{name:'Close',exact:true}).click()
+  await expect(child).toHaveCount(0);await expect(action).toBeFocused()
+  await expect(center.locator(`[data-center-panel="${tool.step}"]`)).toBeVisible()
+  await bounded(page,center)
+  if(!unavailable&&tool.kind==='plan'&&info.project.name==='mobile-webkit')await page.screenshot({path:info.outputPath('match-center-tool-return.png')})
+  await center.locator('[data-match-week-step="availability"]').click()
+  await expect(center.getByRole('combobox',{name:/^Show replies/})).toHaveValue('waiting')
+  await expect(center.getByLabel('Find a player',{exact:true})).toHaveValue('Jordan')
+ }
+ expect(await page.evaluate(kind=>{const f=(window as unknown as ToolReturnWindow).fixture;return {reads:f.reads,toolReads:f.toolReads[kind],lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}},tool.kind)).toEqual({reads:1,toolReads:2,lineupSaves:0,publicationSends:0,sharedChanges:0})
+})
+
+test('working save and final delivery return to refreshed Match Center steps',async({page})=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width:390,height:844});await page.goto(origin+prefix)
+ await page.locator('[data-captain-center="0"]').click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await center.locator('[data-match-week-step="availability"]').click()
+ await center.getByRole('combobox',{name:/^Show replies/}).selectOption('waiting')
+ await center.getByLabel('Find a player',{exact:true}).fill('Jordan')
+ await center.getByRole('button',{name:'Review selected players in lineup',exact:true}).click()
+ const plan=page.getByRole('dialog',{name:'Plan your lineup',exact:true})
+ await plan.getByRole('textbox',{name:/^Match notes/}).fill('Use north entrance for warm-up.')
+ await plan.getByRole('button',{name:'Review working lineup',exact:true}).click()
+ await plan.getByRole('button',{name:'Confirm working save',exact:true}).click()
+ await expect(plan).toHaveCount(0)
+ await expect(center.getByRole('status')).toContainText('Working lineup saved.')
+ await expect(center.locator('[data-center-panel="availability"]')).toBeVisible()
+ await expect(center.getByRole('heading',{name:'Captain Match Center',exact:true})).toBeFocused()
+ await center.getByRole('button',{name:'Review selected players in lineup',exact:true}).click()
+ await expect(plan.getByRole('textbox',{name:/^Match notes/})).toHaveValue('Use north entrance for warm-up.')
+ await plan.getByRole('button',{name:'Close',exact:true}).click()
+ await page.evaluate(()=>{const s=(window as unknown as ToolReturnWindow).fixture.center.publication.shared;s.confirmedCount=1;s.canFinalize=true})
+ await center.locator('[data-match-week-step="messaging"]').click()
+ await center.getByRole('button',{name:'Review team publishing',exact:true}).click()
+ const publishing=page.getByRole('dialog',{name:'Review team lineup',exact:true})
+ await publishing.getByRole('button',{name:'Send confirmed final lineup',exact:true}).click()
+ await expect(publishing).toHaveCount(0)
+ await expect(center.getByRole('status')).toContainText('Final lineup sent to your team.')
+ await expect(center.locator('[data-center-panel="messaging"]')).toBeVisible()
+ await expect(center.locator('.match-center-progress [data-plan-state="saved"]')).toHaveCount(3)
+ await center.locator('[data-match-week-step="availability"]').click()
+ await expect(center.getByRole('combobox',{name:/^Show replies/})).toHaveValue('waiting')
+ await expect(center.getByLabel('Find a player',{exact:true})).toHaveValue('Jordan')
+ expect(await page.evaluate(()=>{const f=(window as unknown as ToolReturnWindow).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:3,lineupSaves:1,publicationSends:1,sharedChanges:1})
+})
+
 test('switching fixture with a readiness read pending does not show stale counts',async({page})=>{
  await page.goto(origin+prefix);await page.evaluate(()=>{(window as unknown as {fixture:{hold:boolean}}).fixture.hold=true})
  const home=page.locator('.captain-home');await home.getByRole('button',{name:'Check match readiness',exact:true}).click()
