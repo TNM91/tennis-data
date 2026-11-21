@@ -8,7 +8,7 @@ export const growthId=(n:number)=>'aaaaaaaa-aaaa-4aaa-8aaa-'+String(n).padStart(
 export type GrowthRequest={owner:string;method:string;url:string;write:unknown}
 export async function growthServer(){
   const db=new PGlite(),revision='2026-11-20T12:00:00.000Z'
-  let loseReply=false,loseTrainingReply=false,revoked=false,failRead=false,hold=false,connected=false,release:(()=>void)|null=null
+  let loseReply=false,loseTrainingReply=false,loseCheckInReply=false,revoked=false,failRead=false,hold=false,connected=false,release:(()=>void)|null=null
   const practices=new Map<string,Record<string,unknown>>()
   await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema private;
     create table auth.users(id uuid primary key);
@@ -78,10 +78,10 @@ export async function growthServer(){
       return response(await workspace(r.owner,url.searchParams.get('student')??''))
     }
     if(url.pathname==='/api/player/coach-assignments'){
-      if(r.method==='PATCH'){const w=r.write as {assignmentId:string;recap:string;evidence:string};await db.query("update coach_assignments set status='completed',assignment_json=assignment_json||$2::jsonb where id=$1",[w.assignmentId,JSON.stringify({playerCheckIn:{recap:w.recap,evidence:w.evidence,completedAt:new Date().toISOString()}})]);const result=await work(r.owner);return response({ok:true,assignment:result.assignments.find(a=>a.id===w.assignmentId)})}
+      if(r.method==='PATCH'){const w=r.write as {assignmentId:string;recap:string;evidence:string};await db.query("update coach_assignments set status='completed',assignment_json=assignment_json||$2::jsonb where id=$1",[w.assignmentId,JSON.stringify({playerCheckIn:{recap:w.recap,evidence:w.evidence,completedAt:new Date().toISOString()}})]);if(loseCheckInReply){loseCheckInReply=false;return response({ok:false},503)}const result=await work(r.owner);return response({ok:true,assignment:result.assignments.find(a=>a.id===w.assignmentId)})}
       return response(await work(r.owner))
     }
     return response({ok:false},404)
   }
-  return {db,day,request,assess,close:()=>db.close(),set loseReply(value:boolean){loseReply=value},set loseTrainingReply(value:boolean){loseTrainingReply=value},set revoked(value:boolean){revoked=value},set failRead(value:boolean){failRead=value},set hold(value:boolean){hold=value},release:()=>release?.()}
+  return {db,day,request,assess,close:()=>db.close(),set loseReply(value:boolean){loseReply=value},set loseTrainingReply(value:boolean){loseTrainingReply=value},set loseCheckInReply(value:boolean){loseCheckInReply=value},set revoked(value:boolean){revoked=value},set failRead(value:boolean){failRead=value},set hold(value:boolean){hold=value},release:()=>release?.()}
 }

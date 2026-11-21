@@ -29,6 +29,19 @@ async function plan(page:Page){await page.getByRole('button',{name:'My improveme
 async function create(page:Page,sessions=3,target='7 of 10 second serves in'){const d=await plan(page);await d.getByRole('button',{name:'Create improvement plan',exact:true}).click();await d.getByLabel('Measurable target').fill(target);await d.getByLabel('Practices',{exact:true}).fill(String(sessions));await d.getByRole('button',{name:'Review plan',exact:true}).click();await d.getByRole('button',{name:'Save improvement plan',exact:true}).click();await expect(d.getByRole('button',{name:'Review practice log',exact:true})).toBeEnabled();return d}
 async function workspace(page:Page){await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination=coach]').click();await page.getByRole('button',{name:'For coaches',exact:true}).click();await page.locator('[data-app-destination=coach-workspace]').click();return page.getByRole('dialog',{name:'Coach workspace',exact:true})}
 async function alignment(page:Page){const w=await workspace(page);await w.getByRole('button',{name:/Alex Rivera/}).last().click();await w.getByRole('button',{name:'Coach assessments',exact:true}).click();await page.getByRole('button',{name:'Player & coach view',exact:true}).click();const d=page.getByRole('dialog',{name:'Player and coach view',exact:true});await expect(d.getByLabel('Player self-assessment')).toBeEnabled();return d}
+async function coachedPlan(page:Page,server:Server,notes=['Private practice note','8/10 second serves in'],large=false){
+  const review=new Date(server.day+'T12:00:00Z');review.setUTCDate(review.getUTCDate()+7)
+  const block={version:1,skill:'serve',target:'8 of 10 second serves in',sessions:3,reviewDate:review.toISOString().slice(0,10)},id=growthId(100)
+  await server.db.query("insert into coach_assignments values('practice-block',$1,'student-one','Serve practice block','Second serve',$2,'assigned',$3,now())",[growthPlayer,block.reviewDate,JSON.stringify({tiqGrowth:block,cardId:'serve-target-call'})])
+  const write=async(change:unknown)=>expect((await server.db.query<{s:number}>('select write_native_tiq_growth($1,$2) s',[growthPeer,JSON.stringify(change)])).rows[0].s).toBe(200)
+  await write({kind:'new',id,operation:growthId(101),expected:null,baseline:growthId(2),sourceAssignment:'practice-block',block})
+  for(const [index,note] of notes.entries()){
+    const revision=(await server.db.query<{payload:{revision:string}}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows[0].payload.revision
+    await write({kind:'log',id,operation:growthId(110+index),expected:revision,session:{id:growthId(120+index),date:server.day,note}})
+  }
+  await open(page,large);await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+  return plan(page)
+}
 test('keeps practice private and recovers a lost log reply after relaunch without duplicates',async({page,server},info)=>{
   await open(page);let d=await create(page)
   await d.getByLabel('What happened on court?').fill('7/10 second serves in');await d.getByRole('button',{name:'Review practice log',exact:true}).click();server.loseReply=true
@@ -54,13 +67,84 @@ test('launch usability: coach invitation through assigned practice, player check
   await page.getByRole('button',{name:'My Lab',exact:true}).click();const p=await plan(page)
   await p.getByText('Coach practice blocks',{exact:true}).click();await p.getByRole('button',{name:'Use Serve practice block',exact:true}).click();await p.getByRole('button',{name:'Review plan',exact:true}).click();await p.getByRole('button',{name:'Save improvement plan',exact:true}).click();await expect(p).toContainText('8 of 10 second serves in')
   await p.getByLabel('What happened on court?').fill('8/10 in');await p.getByRole('button',{name:'Review practice log'}).click();await p.getByRole('button',{name:'Confirm practice'}).click();await expect(p).toContainText('1 / 3')
-  await p.getByRole('button',{name:'Prepare coach check-in'}).click();const check=page.getByRole('dialog',{name:'Coach assignment check-in',exact:true});await expect(check.getByLabel('Your recap')).toHaveValue(/1 of 3 planned practices/);await check.getByRole('button',{name:'Review check-in'}).click();await check.screenshot({path:info.outputPath('audit-coach-03-check-in.png')});await check.getByRole('button',{name:'Send check-in',exact:true}).click();await expect(check).toHaveCount(0)
+  await p.getByRole('button',{name:'Prepare coach check-in'}).click();await p.getByRole('checkbox',{name:/8\/10 in/}).check();await p.getByRole('button',{name:'Continue to check-in'}).click();const check=page.getByRole('dialog',{name:'Coach assignment check-in',exact:true});await expect(check.getByLabel('Your recap')).toHaveValue(/1 of 3 planned practices/);await check.getByRole('button',{name:'Review check-in'}).click();await check.screenshot({path:info.outputPath('audit-coach-03-check-in.png')});await check.getByRole('button',{name:'Send check-in',exact:true}).click();await expect(check).toHaveCount(0)
   const overview=(await server.db.query<{v:{counts:{feedback:number}}}>('select native_coach_growth_overview($1,$2) v',[growthPlayer,server.day])).rows[0].v;expect(overview.counts.feedback).toBe(1)
   expect((await server.db.query('select * from my_lab_goals where user_id=$1',[growthPeer])).rows).toHaveLength(1)
   await page.evaluate(()=>(window as unknown as {switchNavigationOwner:(restore:boolean)=>void}).switchNavigationOwner(true))
   const w=await workspace(page)
   await expect(w.locator('.tiq-growth-attention')).toContainText('1 awaiting feedback');await w.locator('[data-growth-attention]').first().click();await w.getByRole('button',{name:'Review player check-in',exact:true}).click();await w.getByLabel('Your feedback',{exact:true}).fill('Good target control. Keep the second serve smooth.');await w.getByLabel('Next tennis focus',{exact:true}).fill('Aim for eight serves in during pressure points.');await w.getByRole('button',{name:'Review feedback',exact:true}).click();await w.getByRole('button',{name:'Save feedback',exact:true}).click();await expect(w).toContainText('Saved to your Coach workspace.');await w.getByRole('button',{name:/^Serve practice block/}).click();await expect(w).toContainText('Good target control.');await w.screenshot({path:info.outputPath('audit-coach-04-reviewed-feedback.png')})
 })
+for(const width of [320,390])test('chooses private plan notes for check-in and shows the coach response at '+width+'px',async({page,server},info)=>{
+  await page.setViewportSize({width,height:844});const p=await coachedPlan(page,server,undefined,width===320)
+  await p.getByRole('button',{name:'Prepare coach check-in'}).click()
+  await expect(p.getByRole('heading',{name:'Prepare check-in',exact:true})).toBeVisible()
+  for(const box of await p.getByRole('checkbox').all())await expect(box).not.toBeChecked()
+  await expect(p.locator('[data-share-proof]')).toHaveText('Only your practice count and target are included.')
+  if(width===390){
+    await p.getByRole('button',{name:'Continue to check-in'}).click();const blank=page.getByRole('dialog',{name:'Coach assignment check-in'})
+    await expect(blank.getByLabel('Proof or next-match cue')).toHaveValue('');await blank.getByRole('button',{name:'Close check-in'}).click();await blank.getByRole('button',{name:'Discard recap',exact:true}).click()
+  }
+  const selected=p.getByRole('checkbox',{name:/8\/10 second serves in/});await selected.focus();await selected.press('Space');await expect(selected).toBeChecked();await expect(selected).toBeFocused()
+  await expect(p.locator('[data-share-proof]')).not.toContainText('Private practice note')
+  expect(await p.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await p.screenshot({path:info.outputPath('choose-coach-notes-'+width+'.png')})
+  await p.getByRole('button',{name:'Continue to check-in'}).click();const check=page.getByRole('dialog',{name:'Coach assignment check-in',exact:true})
+  await expect(check.getByLabel('Proof or next-match cue')).toHaveValue(server.day+': 8/10 second serves in')
+  if(width===320){
+    await check.getByRole('button',{name:'Close check-in'}).click();await check.getByRole('button',{name:'Discard recap',exact:true}).click()
+    await expect(p.getByRole('checkbox',{name:/8\/10 second serves in/})).toBeChecked();await p.getByRole('button',{name:'Continue to check-in'}).click()
+  }
+  await check.getByRole('button',{name:'Review check-in'}).click()
+  const before=(await server.db.query<{assignment_json:{playerCheckIn?:unknown}}>('select assignment_json from coach_assignments')).rows[0].assignment_json;expect(before.playerCheckIn).toBeUndefined()
+  await expect(check).not.toContainText('Private practice note');await expect(check).toContainText('marks the assignment complete')
+  if(width===390)server.loseCheckInReply=true
+  await check.getByRole('button',{name:'Send check-in',exact:true}).click()
+  if(width===390){await expect(check.getByRole('button',{name:'Check saved check-in'})).toBeVisible();await check.getByRole('button',{name:'Check saved check-in'}).click()}
+  await expect(check).toHaveCount(0);await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled()
+  const coaching=p.getByRole('region',{name:'Plan coaching'});await expect(coaching).toContainText('Awaiting coach feedback');await expect(p.getByRole('button',{name:'Prepare coach check-in'})).toHaveCount(0)
+  const sent=(await server.db.query<{assignment_json:{playerCheckIn:{recap:string;evidence:string}}}>('select assignment_json from coach_assignments')).rows[0].assignment_json.playerCheckIn
+  expect(sent.evidence).toBe(server.day+': 8/10 second serves in');expect(sent.recap).toContain('2 of 3 planned practices');expect(JSON.stringify(sent)).not.toContain(growthId(2))
+  await server.db.query('update coach_assignments set assignment_json=assignment_json||$1::jsonb',[JSON.stringify({coachReview:{note:'Keep the finish smooth.',nextFocus:'Aim deep under pressure.',reviewedAt:new Date().toISOString()}})])
+  await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect(coaching).toContainText('Keep the finish smooth.');await expect(coaching).toContainText('Aim deep under pressure.');await expect(coaching.locator('time')).toHaveCount(1)
+  expect(await p.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await coaching.scrollIntoViewIfNeeded();await expect(coaching).toBeInViewport();await p.screenshot({path:info.outputPath('coach-feedback-'+width+'.png')})
+  await server.db.query("update coach_player_links set status='paused'");await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect(coaching).toContainText('Coach check-in unavailable');await expect(p).not.toContainText('Keep the finish smooth.')
+})
+
+test('keeps full selected notes and asks for fewer rather than cutting off court evidence',async({page,server})=>{
+  const first='First practice '+ 'a'.repeat(145),second='Second practice '+ 'b'.repeat(144),p=await coachedPlan(page,server,[first,second])
+  await p.getByRole('button',{name:'Prepare coach check-in'}).click();for(const box of await p.getByRole('checkbox').all())await box.check()
+  await expect(p.locator('[data-share-count]')).toContainText('Choose fewer notes');await expect(p.getByRole('button',{name:'Continue to check-in'})).toBeDisabled();await expect(p.locator('[data-share-proof]')).toContainText(second)
+  await p.getByRole('checkbox',{name:new RegExp(first)}).uncheck();await expect(p.getByRole('button',{name:'Continue to check-in'})).toBeEnabled();await p.getByRole('button',{name:'Continue to check-in'}).click()
+  await expect(page.getByRole('dialog',{name:'Coach assignment check-in'}).getByLabel('Proof or next-match cue')).toHaveValue(server.day+': '+second)
+})
+
+test('rechecks a changed plan before copying chosen notes into a coach draft',async({page,server})=>{
+  const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Prepare coach check-in'}).click();await p.getByRole('checkbox',{name:/8\/10 second serves in/}).check()
+  const row=(await server.db.query<{payload:{id:string;revision:string}}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows[0].payload
+  expect((await server.db.query<{s:number}>('select write_native_tiq_growth($1,$2) s',[growthPeer,JSON.stringify({kind:'log',id:row.id,expected:row.revision,operation:growthId(150),session:{id:growthId(151),date:server.day,note:'Practice on another device'}})])).rows[0].s).toBe(200)
+  await p.getByRole('button',{name:'Continue to check-in'}).click();await expect(p).toContainText('Your plan or coach assignment changed');await expect(page.getByRole('dialog',{name:'Coach assignment check-in'})).toHaveCount(0);await expect(p).toContainText('3 / 3')
+  await p.getByRole('button',{name:'Prepare coach check-in'}).click();for(const box of await p.getByRole('checkbox').all())await expect(box).not.toBeChecked()
+})
+
+test('stops the plan handoff when the coach changes its assignment target',async({page,server})=>{
+  const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Prepare coach check-in'}).click();await p.getByRole('checkbox',{name:/8\/10 second serves in/}).check()
+  await server.db.query("update coach_assignments set assignment_json=jsonb_set(assignment_json,'{tiqGrowth,target}','\"New coach target\"'),updated_at=now()")
+  await p.getByRole('button',{name:'Continue to check-in'}).click();await expect(p.getByRole('region',{name:'Plan coaching'})).toContainText('Coach assignment updated');await expect(p.getByRole('button',{name:'Prepare coach check-in'})).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Coach assignment check-in'})).toHaveCount(0)
+  expect((await server.db.query<{assignment_json:{playerCheckIn?:unknown}}>('select assignment_json from coach_assignments')).rows[0].assignment_json.playerCheckIn).toBeUndefined()
+})
+
+test('keeps note choices when a check-in preflight read fails and retries without sending',async({page,server})=>{
+  const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Prepare coach check-in'}).click();await p.getByRole('checkbox',{name:/8\/10 second serves in/}).check();server.failRead=true
+  await p.getByRole('button',{name:'Continue to check-in'}).click();await expect(p).toContainText('couldn’t be confirmed');await expect(p.getByRole('checkbox',{name:/8\/10 second serves in/})).toBeChecked();await expect(page.getByRole('dialog',{name:'Coach assignment check-in'})).toHaveCount(0)
+  server.failRead=false;await p.getByRole('button',{name:'Continue to check-in'}).click();await expect(page.getByRole('dialog',{name:'Coach assignment check-in'}).getByLabel('Proof or next-match cue')).toHaveValue(server.day+': 8/10 second serves in')
+  expect((await server.db.query<{assignment_json:{playerCheckIn?:unknown}}>('select assignment_json from coach_assignments')).rows[0].assignment_json.playerCheckIn).toBeUndefined()
+})
+
+test('clears chosen private practice notes on account change and ignores a late preflight',async({page,server})=>{
+  const p=await coachedPlan(page,server);await p.getByRole('button',{name:'Prepare coach check-in'}).click();await p.getByRole('checkbox',{name:/Private practice note/}).check();server.hold=true
+  await p.getByRole('button',{name:'Continue to check-in'}).click();await page.evaluate(()=>(window as unknown as {switchNavigationOwner:(restore:boolean)=>void}).switchNavigationOwner(true));server.release()
+  await expect(p).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Coach assignment check-in'})).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Private practice note')
+})
+
 for(const width of [320,390])test('keeps plan and alignment controls within the phone at '+width+'px',async({page},info)=>{
   await page.setViewportSize({width,height:844});await open(page,width===320);const p=await create(page)
   expect(await p.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await p.screenshot({path:info.outputPath('plan-'+width+'.png')});await p.getByRole('button',{name:'Close',exact:true}).click()

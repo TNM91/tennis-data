@@ -96,9 +96,11 @@ export function growthSnapshotWire(snapshot: GrowthSnapshot) {
   }
   return {...snapshot, ok: true, plans: snapshot.plans.map(wire), selected: snapshot.selected ? wire(snapshot.selected) : null}
 }
-export function growthCheckIn(plan: GrowthPlan) {
-  return {recap: `${plan.logs.length} of ${plan.sessions} planned practices completed. Target: ${plan.target}`.slice(0, 700),
-    evidence: plan.logs.slice(-3).map(log => `${log.date}: ${log.note || 'Practice completed'}`).join('\n').slice(0, 300)}
+export function growthCheckIn(plan: GrowthPlan, selectedLogs: readonly string[] = []) {
+  const selected = new Set(selectedLogs)
+  if (selected.size !== selectedLogs.length || selectedLogs.some(id => !plan.logs.some(log => log.id === id))) throw Error('Choose practice notes from this plan.')
+  return {recap: `${plan.logs.length} of ${plan.sessions} planned practices completed. Target: ${plan.target}`,
+    evidence: plan.logs.filter(log => selected.has(log.id)).map(log => `${log.date}: ${log.note || 'Practice completed'}`).join('\n')}
 }
 
 // One stable event per plan. Export is deliberate; calendar apps control their alerts.
