@@ -565,7 +565,7 @@ body[data-screen="lab"] .starter-tiq-form select {
 .tiq-account-dialog .tiq-progress-controls { display:grid;gap:12px;margin-block:16px; }
 .tiq-progress-controls>div { display:grid;gap:6px;min-inline-size:0; }
 .tiq-progress-controls label { font-size:.875rem; }
-.coach-workspace-dialog.tiq-account-dialog .tiq-progress-controls select { appearance:none;box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;min-block-size:48px;padding:.7rem 2rem .7rem .8rem;background-color:var(--premium-page);background-image:linear-gradient(45deg,transparent 50%,#c4d3ec 50%),linear-gradient(135deg,#c4d3ec 50%,transparent 50%);background-position:right .95rem center,right .6rem center;background-size:.35rem .35rem;background-repeat:no-repeat;color:var(--premium-white);font:inherit;text-overflow:ellipsis; }
+.coach-workspace-dialog.tiq-account-dialog .tiq-progress-controls select { appearance:none;box-sizing:border-box;inline-size:100%;max-inline-size:100%;min-inline-size:0;min-block-size:48px;padding:.7rem 2rem .7rem .8rem;background-color:var(--premium-page);background-image:linear-gradient(45deg,transparent 50%,#c4d3ec 50%),linear-gradient(135deg,#c4d3ec 50%,transparent 50%);background-position:right .95rem center,right .6rem center;background-size:.35rem .35rem;background-repeat:no-repeat;color:var(--premium-white);font:inherit;overflow:hidden;text-overflow:ellipsis; }
 .tiq-progress-controls small { color:var(--premium-copy);font-size:.75rem;line-height:1.5; }
 .tiq-progress-scores { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
 .tiq-progress-scores>div { min-inline-size:0;padding:12px;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset); }
