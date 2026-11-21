@@ -7,7 +7,8 @@ import {appleProductNotice} from './apple-product-catalog'
 import {firstPartyBuild} from './build-scope'
 const messages:Record<string,string>={owner_changed:'Sign in to the original account before continuing.',purchase_account_mismatch:'These purchases belong to another TenAceIQ account. Sign in to that account to restore them.',account_mismatch:'This Apple membership belongs to another TenAceIQ account.',existing_purchase:'Restore your Apple purchase, then manage your plan in Apple subscriptions.',existing_access:'Manage your current membership before starting another subscription.',purchase_sync_pending:'Your purchase is still syncing. Try Sync purchase shortly.',try_later:'Please wait before syncing again. Your Apple purchase is saved.',products_unavailable:'Apple memberships aren’t available for this account or storefront yet.'}
 export function mountAppleMemberships(host:HTMLElement,client:SupabaseClient,owner:string,isCurrent:()=>boolean,changed:()=>void,service:ApplePurchases=applePurchases(client)){
- let disposed=false,busy=false,version=0,pendingApproval=false,needsSync=false,slowTimer:ReturnType<typeof setTimeout>|undefined
+ let disposed=false,busy=false,version=0,pendingApproval=false,needsSync=service.isBusy(),slowTimer:ReturnType<typeof setTimeout>|undefined
+ const openOperationMessage='An Apple purchase or restore is still in progress. Finish or cancel any Apple confirmation, then use Sync purchase.'
  const current=()=>!disposed&&host.isConnected&&isCurrent()
  if(!service.available){
   host.hidden=!service.isIos
@@ -18,10 +19,14 @@ export function mountAppleMemberships(host:HTMLElement,client:SupabaseClient,own
  host.innerHTML='<h2>Apple membership</h2><p role="status" aria-live="polite" tabindex="-1" data-apple-status></p><div data-apple-error-detail></div><div data-apple-content></div>'
  const content=host.querySelector<HTMLElement>('[data-apple-content]')!,status=host.querySelector<HTMLElement>('[data-apple-status]')!
  const errorDetail=host.querySelector<HTMLElement>('[data-apple-error-detail]')!
+ const lockButtons=()=>{const operationOpen=service.isBusy();host.querySelectorAll<HTMLButtonElement>('button').forEach(button=>{
+  const buy=button.hasAttribute('data-apple-buy'),exclusive=buy||button.hasAttribute('data-apple-restore')||button.hasAttribute('data-apple-manage')
+  button.disabled=busy||buy&&(pendingApproval||needsSync)||operationOpen&&exclusive
+ })}
  const clearSlow=()=>{clearTimeout(slowTimer);slowTimer=undefined}
  const progress=(phase?:ApplePurchasePhase)=>{if(!current()||!busy)return;clearSlow();status.textContent=phase?applePurchasePhaseText[phase]:'Contacting Apple…';slowTimer=setTimeout(()=>{if(current()&&busy)status.textContent='Apple is taking longer than expected. Finish or cancel any Apple confirmation screen. You can close account settings and return to Sync purchase.'},20000)}
  const showError=(error:unknown)=>{const code=error instanceof Error?error.message:'';status.textContent=messages[code]||applePurchaseFailureText[code]||'Couldn’t sync with Apple. If you already purchased, use Sync purchase or Restore purchases.';status.focus({preventScroll:true});status.scrollIntoView({block:'nearest'});const recovery=content.querySelector<HTMLDetailsElement>('.apple-membership-recovery');if(recovery&&needsSync)recovery.open=true;errorDetail.innerHTML=error instanceof ApplePurchaseError?'<details><summary>Details for support</summary><p>'+html(code)+(error.supportCode?'<br>'+html(error.supportCode):'')+(error.build?'<br>Build '+html(error.build):'')+'</p></details>':''}
- async function action(work:()=>Promise<string|void>){if(!current()||busy)return;busy=true;errorDetail.replaceChildren();host.querySelectorAll<HTMLButtonElement>('button').forEach(b=>{b.disabled=true});progress();try{const message=await work();if(current()){changed();await load(message||'')}}catch(e){if(current()){if(e instanceof ApplePurchaseError&&e.beforeConfirmation)needsSync=false;showError(e)}}finally{clearSlow();if(current()){busy=false;host.querySelectorAll<HTMLButtonElement>('button').forEach(b=>{b.disabled=(pendingApproval||needsSync)&&!!b.dataset.appleBuy})}}}
+ async function action(work:()=>Promise<string|void>){if(!current()||busy)return;busy=true;errorDetail.replaceChildren();lockButtons();progress();try{const message=await work();if(current()){changed();await load(message||'')}}catch(e){if(current()){if(e instanceof ApplePurchaseError&&e.beforeConfirmation)needsSync=false;showError(e)}}finally{clearSlow();if(current()){busy=false;lockButtons()}}}
  async function load(message=''){
   if(!current())return;const visit=++version
   if(!message)status.textContent='Checking your Apple membership…'
@@ -33,6 +38,7 @@ export function mountAppleMemberships(host:HTMLElement,client:SupabaseClient,own
    if(context.canPurchase){
     try{products=await service.products(owner,context.environment)}catch(e){productsError=e}
     if(!current()||visit!==version)return
+    if(service.isBusy())needsSync=true
     offers=products.map(p=>`<article class="apple-plan"><h3>${html(p.name)}</h3><p>${html(p.description)}</p><button type="button" data-apple-buy="${html(p.productId)}">${pendingApproval?'Approval pending':needsSync?'Sync purchase first':`Subscribe · ${html(p.price)}/month`}</button></article>`).join('')
    }else offers=`<p>${context.webAccess?'Your current access is managed through TenAceIQ. Keep using your existing membership.':context.activeProductId?'Your Apple membership is active. Manage your plan in Apple subscriptions.':'New Apple subscriptions are temporarily unavailable. Your current tools remain available.'}</p>`
    const priceNotice=productsError?appleProductNotice(productsError):null,partial=!firstPartyBuild&&products.length===1
@@ -42,7 +48,8 @@ export function mountAppleMemberships(host:HTMLElement,client:SupabaseClient,own
    content.querySelector<HTMLButtonElement>('[data-apple-sync]')!.onclick=()=>{void action(async()=>{const n=await service.recover(owner);needsSync=false;return n?'Your purchase is synced.':'No unfinished purchase was found. Use Restore purchases if you are missing access.'})}
    content.querySelector<HTMLButtonElement>('[data-apple-restore]')!.onclick=()=>{void action(async()=>{const n=await service.restore(owner,context.environment);needsSync=false;return n?'Your Apple purchases are restored.':'No Apple memberships were found. Check the Apple Account used for the original purchase.'})}
    content.querySelector<HTMLButtonElement>('[data-apple-manage]')!.onclick=()=>{void action(()=>service.manage(owner))}
-   status.textContent=message
+   status.textContent=service.isBusy()?openOperationMessage:message
+   lockButtons()
    content.querySelector<HTMLButtonElement>('[data-apple-prices-retry]')?.addEventListener('click',event=>{const retry=event.currentTarget as HTMLButtonElement;retry.disabled=true;retry.textContent='Loading plans…';void load()})
   }catch(e){if(!current()||visit!==version)return;content.innerHTML='<button type="button" class="secondary" data-apple-retry>Retry Apple membership</button>';content.querySelector<HTMLButtonElement>('button')!.onclick=()=>{void load()};showError(e)}
  }

@@ -26,15 +26,15 @@ test.beforeEach(async ({page}) => {
   if (filename && Object.hasOwn(scripts, filename)) {
    return route.fulfill({ contentType:'text/javascript', body: scripts[filename as keyof typeof scripts] })
   }
-  if (filename === 'style.css') return route.fulfill({ contentType:'text/css', body:stylesheet })
+  if (filename === 'style.css') return route.fulfill({ contentType:'text/css', body:stylesheet+(url.searchParams.has('large')?'\n:root{font-size:22px!important}':'') })
   if (filename) return route.fulfill({ status:404, body:'' })
   const mode = url.searchParams.get('view') ?? ''
   const firstParty = ['draft','settings','publish','plan','plan-results','plan-trophy','claim-trophy'].includes(mode)
   const script = mode === 'practice' ? 'practice-app.js' : firstParty ? 'draft-app.js' : 'app.js'
-  return route.fulfill({ contentType:'text/html', body:`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css"></head><body data-screen="lab"><header class="app-header">TenAceIQ</header><main id="app"></main><script type="module" src="./${script}"></script></body></html>` })
+  return route.fulfill({ contentType:'text/html', body:`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./style.css${url.searchParams.has('large')?'?large=1':''}"></head><body data-screen="lab"><header class="app-header">TenAceIQ</header><main id="app"></main><script type="module" src="./${script}"></script></body></html>` })
  })
 })
-async function open(page:Page,mode=''){await page.goto(origin+prefix+'?view='+mode);await page.getByRole('button',{name:'Your competitions',exact:true}).click();await page.getByRole('button',{name:'Browse tournaments →',exact:true}).click();const d=page.getByRole('dialog',{name:'Tournaments',exact:true});await expect(d.getByRole('heading',{name:'Tournaments',exact:true})).toBeVisible();return d}
+async function open(page:Page,mode='',large=false){await page.goto(origin+prefix+'?'+new URLSearchParams({view:mode,...(large?{large:'1'}:{})}));await page.getByRole('button',{name:'Your competitions',exact:true}).click();await page.getByRole('button',{name:'Browse tournaments →',exact:true}).click();const d=page.getByRole('dialog',{name:'Tournaments',exact:true});await expect(d.getByRole('heading',{name:'Tournaments',exact:true})).toBeVisible();return d}
 async function change(page:Page,v:Record<string,unknown>){await page.evaluate(v=>Object.assign((window as unknown as {tournamentFixture:{state:Record<string,unknown>}}).tournamentFixture.state,v),v)}
 async function division(page:Page,mode=''){const d=await open(page,mode);await d.getByRole('button',{name:/^Open tournament/}).click();await d.getByRole('button',{name:/^Open division/}).click();await expect(d.getByRole('button',{name:'Draw',exact:true})).toBeVisible();return d}
 async function bounded(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await page.getByRole('dialog',{name:'Tournaments',exact:true}).evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)}
@@ -113,6 +113,115 @@ test('a player can recover and reopen a free account tournament draft from Compe
  await draft.getByRole('button',{name:'Save draft'}).click()
  await expect(saved).toContainText('Winter Singles')
 })
+for(const width of [320,390]){
+test(`Tournament setup protects incomplete details and clears its confirmation on close at ${width}px`,async({page},info)=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width,height:844})
+ const directory=await open(page,'draft',true)
+ await directory.getByRole('button',{name:'Tournament Desk',exact:true}).click()
+ const desk=page.getByRole('dialog',{name:'Tournament Desk',exact:true})
+ await desk.getByRole('button',{name:'Set up a tournament',exact:true}).click()
+ const draft=page.getByRole('dialog',{name:'Set up a tournament',exact:true})
+ const back=draft.getByRole('button',{name:'Back to Tournament Desk'})
+ await back.click()
+ await expect(desk).toBeVisible()
+ await desk.getByRole('button',{name:'Set up a tournament',exact:true}).click()
+ await draft.getByLabel('Tournament name').fill('Friday Open')
+ await back.click()
+ const confirm=page.getByRole('alertdialog',{name:'Discard tournament changes?'})
+ await expect(confirm.getByRole('button',{name:'Keep editing'})).toBeFocused()
+ await confirm.getByRole('button',{name:'Keep editing'}).click()
+ await expect(draft.getByLabel('Tournament name')).toBeFocused()
+ await expect(draft.getByLabel('Tournament name')).toHaveValue('Friday Open')
+ await draft.getByLabel('Date',{exact:true}).fill('2026-12-12')
+ await draft.getByLabel('Club or venue').fill('Northside Tennis')
+ await draft.getByLabel('Division name').fill('Open Doubles')
+ await draft.getByLabel('Entry type').selectOption('doubles')
+ await draft.getByLabel('Draw format').selectOption('round_robin')
+ await draft.getByLabel('Club or venue').focus()
+ await page.keyboard.press('Escape')
+ await expect(confirm).toBeVisible()
+ expect(await confirm.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ if(width===320&&info.project.name==='mobile-webkit')await page.screenshot({path:info.outputPath('tournament-discard-confirmation.png')})
+ await page.evaluate(()=>(window as unknown as {tournamentFixture:{back:()=>void}}).tournamentFixture.back())
+ await expect(confirm).toHaveCount(0)
+ await expect(draft.getByLabel('Club or venue')).toBeFocused()
+ await expect(draft.getByLabel('Date',{exact:true})).toHaveValue('2026-12-12')
+ await expect(draft.getByLabel('Division name')).toHaveValue('Open Doubles')
+ await expect(draft.getByLabel('Entry type')).toHaveValue('doubles')
+ await expect(draft.getByLabel('Draw format')).toHaveValue('round_robin')
+ await back.click()
+ await confirm.getByRole('button',{name:'Discard changes',exact:true}).click()
+ await expect(desk).toBeVisible()
+ await desk.getByRole('button',{name:'Set up a tournament',exact:true}).click()
+ await expect(draft.getByLabel('Tournament name')).toHaveValue('')
+ await draft.getByLabel('Tournament name').fill('Another draft')
+ await back.click()
+ await expect(confirm).toBeVisible()
+ await page.evaluate(()=>(window as unknown as {tournamentFixture:{dispose:()=>void}}).tournamentFixture.dispose())
+ await expect(confirm).toHaveCount(0)
+ await expect(page.getByRole('dialog')).toHaveCount(0)
+ const writes=await page.evaluate(()=>(window as unknown as {tournamentFixture:{tournamentDraft:{writes:string[];settingsWrites:string[];prepares:string[]}}}).tournamentFixture.tournamentDraft)
+ expect(writes.writes).toEqual([])
+ expect(writes.settingsWrites).toEqual([])
+ expect(writes.prepares).toEqual([])
+})
+
+test(`Tournament registration protects division edits across add and remove at ${width}px`,async({page})=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width,height:844})
+ const directory=await open(page,'publish',true)
+ await directory.getByRole('button',{name:'Tournament Desk',exact:true}).click()
+ await page.getByRole('button',{name:'Open tournament Winter Open',exact:true}).click()
+ const event=page.getByRole('dialog',{name:'Winter Open',exact:true})
+ const edit=event.getByRole('button',{name:'Edit divisions and registration'})
+ await edit.click()
+ const settings=page.getByRole('dialog',{name:'Divisions and registration',exact:true})
+ const back=settings.getByRole('button',{name:'Back to tournament',exact:true})
+ // Opening unchanged settings does not require a discard confirmation.
+ await back.click()
+ await expect(event).toBeVisible()
+ await edit.click()
+ await settings.getByLabel('Entry deadline').fill('2026-12-10')
+ await settings.getByRole('group',{name:'Division 1',exact:true}).getByLabel('Division name').fill('Advanced Singles')
+ await settings.getByRole('button',{name:'Add division',exact:true}).click()
+ await back.click()
+ const confirm=page.getByRole('alertdialog',{name:'Discard tournament changes?'})
+ await expect(confirm).toBeVisible()
+ await confirm.getByRole('button',{name:'Keep editing'}).click()
+ await expect(settings.getByLabel('Entry deadline')).toHaveValue('2026-12-10')
+ await expect(settings.getByRole('group',{name:'Division 1',exact:true}).getByLabel('Division name')).toHaveValue('Advanced Singles')
+ const second=settings.getByRole('group',{name:'Division 2',exact:true})
+ await expect(second.getByLabel('Division name')).toHaveValue('')
+ await second.getByLabel('Division name').fill('Open Doubles')
+ await second.getByLabel('Entry type').selectOption('doubles')
+ await second.getByLabel('Draw format').selectOption('round_robin')
+ await second.getByLabel('Division name').focus()
+ await page.keyboard.press('Escape')
+ await expect(confirm).toBeVisible()
+ await page.keyboard.press('Escape')
+ await expect(second.getByLabel('Division name')).toBeFocused()
+ await expect(second.getByLabel('Entry type')).toHaveValue('doubles')
+ await settings.getByRole('button',{name:'Remove division 1',exact:true}).click()
+ await back.click()
+ await expect(confirm).toBeVisible()
+ await confirm.getByRole('button',{name:'Discard changes',exact:true}).click()
+ await expect(event.getByRole('region',{name:'Tournament divisions'})).toContainText('Open Singles')
+ await expect(event.getByRole('region',{name:'Tournament divisions'}).getByRole('article')).toHaveCount(1)
+ await expect(event.getByRole('region',{name:'Tournament registration'})).toContainText('December 11, 2026')
+ await edit.click()
+ await settings.getByRole('button',{name:'Add division',exact:true}).click()
+ await settings.getByRole('button',{name:'Remove division 2',exact:true}).click()
+ await settings.getByLabel('Division name').fill('Temporary')
+ await settings.getByLabel('Division name').fill('Open Singles')
+ await back.click()
+ await expect(confirm).toHaveCount(0)
+ await expect(event).toBeVisible()
+ const writes=await page.evaluate(()=>(window as unknown as {tournamentFixture:{tournamentDraft:{settingsWrites:string[]}}}).tournamentFixture.tournamentDraft.settingsWrites)
+ expect(writes).toEqual([])
+})
+}
+
 test('organizers can edit divisions and registration and safely retry a settings save',async({page})=>{
  await page.setViewportSize({width:320,height:720})
  const directory=await open(page,'settings')
@@ -154,6 +263,66 @@ test('organizers can edit divisions and registration and safely retry a settings
  await expect(divisions).toContainText('Open Doubles')
  await expect(divisions.getByRole('article')).toHaveCount(2)
 })
+for(const width of [320,390])for(const failure of ['checkout','price'] as const)
+test(`organizer retries ${failure} loading without starting a purchase at ${width}px`,async({page})=>{
+ const productId='com.tenaceiq.app.tournament.publish'
+ const eventId='99999999-9999-4999-8999-999999999999'
+ await page.setViewportSize({width,height:844})
+ await page.addInitScript(({productId,failure})=>{
+  const state={products:0,purchases:0}
+  Object.assign(window,{
+   CapacitorCustomPlatform:{name:'ios'},
+   Capacitor:{
+    PluginHeaders:[{name:'TiqPurchases',methods:['products','purchase','pending','finish'].map(name=>({name,rtype:'promise'}))}],
+    nativePromise:async(_plugin:string,method:string,args:Record<string,string>)=>{
+     if(args.productId!==productId)throw Error('Unexpected product')
+     if(method==='products'){
+      state.products++
+      return failure==='price'&&state.products===1?{available:false,products:[]}:
+       {available:true,products:[{id:productId,price:'$5.00'}]}
+     }
+     if(method==='pending')return {transactions:[]}
+     if(method==='purchase'){state.purchases++;return {state:'cancelled'}}
+     throw Error('Unexpected StoreKit request')
+    },
+   },
+   tournamentApple:state,
+  })
+ },{productId,failure})
+ const directory=await open(page,'publish')
+ if(failure==='checkout')await page.evaluate(()=>{
+  (window as unknown as {tournamentFixture:{publish:{readFailures:number}}}).tournamentFixture.publish.readFailures=2
+ })
+ await directory.getByRole('button',{name:'Tournament Desk',exact:true}).click()
+ await page.getByRole('button',{name:'Open tournament Winter Open',exact:true}).click()
+ const event=page.getByRole('dialog',{name:'Winter Open',exact:true})
+ const publish=event.getByRole('region',{name:'Publish tournament',exact:true})
+ const retry=publish.getByRole('button',{name:failure==='price'?'Retry loading price':'Retry checkout',exact:true})
+ const read=()=>page.evaluate(()=>(window as unknown as {tournamentApple:{products:number;purchases:number}}).tournamentApple)
+ await expect(retry).toBeVisible()
+ await expect(publish.getByRole('button',{name:'Check purchase',exact:true})).toHaveCount(0)
+ await expect(publish.locator('[data-publish-buy]')).toHaveCount(0)
+ if(failure==='checkout'){
+  await expect(publish.getByRole('status')).toHaveText('Couldn’t load tournament checkout. Try again shortly.')
+  await retry.click()
+  await expect(retry).toBeVisible()
+ }
+ expect((await read()).purchases).toBe(0)
+ await retry.click()
+ const buy=publish.getByRole('button',{name:'Test publish · $5.00',exact:true})
+ await expect(buy).toBeVisible()
+ expect(await read()).toEqual({products:failure==='price'?2:1,purchases:0})
+ expect(await event.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+ await buy.click()
+ await expect(publish.getByRole('status')).toHaveText('Purchase canceled.')
+ expect((await read()).purchases).toBe(1)
+ const requests=await page.evaluate(()=>(window as unknown as {tournamentFixture:{publish:{prepares:number;reconciles:number;lookups:string[]}}}).tournamentFixture.publish)
+ expect(requests.prepares).toBe(1)
+ expect(requests.reconciles).toBe(0)
+ expect(requests.lookups.length).toBeGreaterThan(2)
+ expect(new Set(requests.lookups)).toEqual(new Set([eventId]))
+})
+
 test('publish checkout recovers a verified sandbox purchase after a lost reply', async ({page}) => {
  const productId = 'com.tenaceiq.app.tournament.publish'
  const storageKey = `tournament-checkout:Sandbox:${tournamentOwner}:99999999-9999-4999-8999-999999999999`

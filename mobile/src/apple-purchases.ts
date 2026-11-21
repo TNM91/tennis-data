@@ -81,7 +81,7 @@ export function createApplePurchases(client:SupabaseClient,options:{store?:Apple
   try{return await run}finally{if(recovering.get(expected)===run)recovering.delete(expected)}
  }
  if(available)void store.addListener('transactionsChanged',()=>{if(owner)void recover(owner).catch(()=>{})}).catch(()=>{})
- return {available,isIos:platform==='ios',context,
+ return {available,isIos:platform==='ios',context,isBusy:()=>purchaseRunning,
   setOwner(next:string|null){if(next===owner)return;owner=next;operations.clear();if(next&&available)void recover(next).catch(()=>{})},
   recover,
   async products(expected:string,environment:AppleEnvironment){

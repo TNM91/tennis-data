@@ -11,6 +11,7 @@ import { calculateTiqLeagueEndsOn } from '../../lib/tiq-league-limits'
 import { scenarioOwner } from './captain-scenarios-data'
 import { mountCompetitionPublish } from './competition-publish'
 import { html } from './match-details'
+import { createOrganizerLeaveConfirmation } from './organizer-leave-confirmation'
 
 const zoneOptions: Record<string, string> = nativeCompetitionTimeZones
 const weekLabel = (weeks: number) => weeks === 1 ? '1 week' : `${weeks} weeks`
@@ -39,20 +40,33 @@ export function openLeagueDraft(client: SupabaseClient, owner: string, current: 
   let stale = false
   let notice = ''
   let disposed = false
+  let formSnapshot = ''
   let disposeCheckout: ReturnType<typeof mountCompetitionPublish>
   const active = () => !disposed && current()
+  const leave = createOrganizerLeaveConfirmation(dialog, 'league', active)
 
   function dispose() {
     disposed = true
+    leave.dispose()
     disposeCheckout?.()
     dialog.remove()
   }
 
-  function back() {
-    if (busy && pending) return true
+  function exit() {
     dispose()
     if (current() && trigger.isConnected) trigger.focus({ preventScroll: true })
     return true
+  }
+
+  function back() {
+    if (leave.isOpen()) { leave.back(); return true }
+    if (busy && pending) return true
+    const form = dialog.querySelector<HTMLFormElement>('[data-league-draft-form]')
+    if (!pending && form && JSON.stringify([...new FormData(form)]) !== formSnapshot && active()) {
+      leave.open(form, exit)
+      return true
+    }
+    return exit()
   }
 
   async function request(write?: LeagueDraftWrite) {
@@ -210,6 +224,7 @@ export function openLeagueDraft(client: SupabaseClient, owner: string, current: 
         })
     }
     const form = dialog.querySelector<HTMLFormElement>('[data-league-draft-form]')
+    formSnapshot = form ? JSON.stringify([...new FormData(form)]) : ''
     form?.addEventListener('input', (event) => {
       const name = (event.target as HTMLInputElement).name
       if (name !== 'startsOn' && name !== 'weeks') return

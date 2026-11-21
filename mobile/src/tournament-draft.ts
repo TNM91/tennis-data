@@ -17,6 +17,7 @@ import {openTournamentPlan} from './tournament-plan'
 import {createTournamentPractice} from './tournament-practice'
 import {mountCompetitionPublish} from './competition-publish'
 import {readTournamentSetupFields, tournamentSetupFields, tournamentSetupSummary} from './tournament-setup-fields'
+import {createOrganizerLeaveConfirmation} from './organizer-leave-confirmation'
 
 const storageKey = (owner: string) => 'tournament-draft:v1:' + owner
 const empty: TournamentDraft = { name: '', date: '', venue: '', division: '', discipline: 'singles', format: 'single_elimination' }
@@ -53,21 +54,23 @@ export function openTournamentDraft(
   let settingsWrite: TournamentSettingsWrite | null = null
   let settingsStale = false
   let settingsSaved = false
+  let draftSnapshot = ''
+  let settingsSnapshot = ''
   let planner: ReturnType<typeof openTournamentPlan> | null = null
   let disposePublish: ReturnType<typeof mountCompetitionPublish>
   let busy = false
   let disposed = false
   const active = () => !disposed && current()
+  const leave = createOrganizerLeaveConfirmation(dialog, 'tournament', active)
   const dispose = () => {
     if (disposed) return
     disposed = true
+    leave.dispose()
     disposePublish?.()
     planner?.dispose()
     dialog.remove()
   }
-  const back = () => {
-    if (planner?.isOpen()) return planner.back()
-    if (busy) return true
+  const leaveCurrent = () => {
     if (state === 'settings' && selected) {
       void openSetup(selected)
       return true
@@ -80,6 +83,17 @@ export function openTournamentDraft(
     onClose()
     if (current() && trigger.isConnected) trigger.focus({preventScroll: true})
     return true
+  }
+  const back = () => {
+    if (leave.isOpen()) { leave.back(); return true }
+    if (planner?.isOpen()) return planner.back()
+    if (busy) return true
+    const form = dialog.querySelector<HTMLFormElement>('[data-tournament-draft],[data-setup-settings]')
+    const changed = form && (state === 'edit' && !pending && !stale && JSON.stringify([...new FormData(form)]) !== draftSnapshot ||
+      state === 'settings' && !settingsWrite && !settingsStale && settings &&
+      JSON.stringify(readTournamentSetupFields(form, settings)) !== settingsSnapshot)
+    if (form && changed && active()) { leave.open(form, leaveCurrent); return true }
+    return leaveCurrent()
   }
 
   async function request(path: string, write?: DraftWrite | { revision: string } | TournamentSettingsWrite,
@@ -361,6 +375,7 @@ export function openTournamentDraft(
     dialog.querySelector('[data-setup-edit]')?.addEventListener('click', () => {
       if (!selected) return
       settings = selected.settings ?? initialTournamentSettings(selected)
+      settingsSnapshot = JSON.stringify(settings)
       settingsStale = false
       settingsWrite = null
       notice = ''
@@ -404,6 +419,7 @@ export function openTournamentDraft(
       render(true)
     })
     const form = dialog.querySelector<HTMLFormElement>('[data-tournament-draft]')
+    draftSnapshot = form ? JSON.stringify([...new FormData(form)]) : ''
     if (form) form.onsubmit = event => {
       event.preventDefault()
       if (!active() || readOnly) return
