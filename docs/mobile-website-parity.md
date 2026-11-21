@@ -350,7 +350,9 @@ Match Center reuses the website's extracted match-week navigation for Lineup, Ch
 
 A failed Match Day check now clears the earlier readiness, publishing progress and match tools. The selected fixture stays visible with a primary Refresh Match Center action and Back to Captain. A successful explicit refresh restores current tools, the selected step and local reply filters. An unavailable refresh keeps earlier information hidden; returning to Captain ignores late responses. Checks do not save a lineup, send a message or retry automatically.
 
-Focused synthetic checks cover both phone browser engines, 320/390 CSS-pixel layouts, larger text, failure followed by recovery, a newly pending final update and keyboard focus after leaving during a slow read. This follow-up is local and has not been uploaded to TestFlight. No API or migration is required, and the selected App Store review build is unchanged. Physical iPhone acceptance remains separate.
+Opening a lineup, publishing, replacement, scouting or what-if tool now establishes a connected return action in the selected Match Center step. Closing the tool returns keyboard focus to that action, including after an unavailable review. Saving the private lineup or completing publishing still refreshes Match Center; reply search and status filters survive the handoff. Closing a review does not send or save anything.
+
+Focused synthetic checks cover both phone browser engines, 320/390 CSS-pixel layouts, larger text, failure followed by recovery, a newly pending final update and keyboard focus after leaving during a slow read. Actual lineup, publishing and replacement views are exercised with synthetic data for normal/unavailable close paths; a private-save and final-delivery flow checks refreshed progress, retained filters and exact write counts. This follow-up is local and has not been uploaded to TestFlight. No API or migration is required, and the selected App Store review build is unchanged. Physical iPhone acceptance remains separate.
 
 ## League Office season review — build 83 released
 

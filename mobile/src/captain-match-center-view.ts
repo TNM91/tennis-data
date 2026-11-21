@@ -26,7 +26,10 @@ export function openCaptainMatchCenter(client:SupabaseClient,owner:string,scope:
  let step:CenterStep='lineup';let openNext=startWithNext,disposed=false,version=0,busy=false,data:MatchCenter|null=null,day:MatchDaySnapshot|null=null,notice='',changed=false,filter='all',query='',child:{dispose:()=>void}|null=null
  const active=()=>!disposed&&current(),close=()=>{if(disposed)return;disposed=true;version++;data=null;day=null;child?.dispose();dialog.remove();if(current()&&previousFocus?.isConnected)previousFocus.focus({preventScroll:true});onClose(changed)}
  const done=(message:string,shared:boolean)=>{if(!active())return;changed=true;notice=message;if(shared)onSharedChange();void load(message)}
- const launch=(kind:'plan'|'publish'|'replace'|'scout'|'scenarios'|'day')=>{if(!active()||busy||!data)return;step=centerStepForAction(kind);render();if(kind==='day'){void loadDay();return}child?.dispose();const epoch=version,valid=()=>active()&&epoch===version
+ const launch=(kind:'plan'|'publish'|'replace'|'scout'|'scenarios'|'day')=>{if(!active()||busy||!data)return;step=centerStepForAction(kind);render();if(kind==='day'){void loadDay();return}child?.dispose()
+  // Rendering replaces the opener; give the child a connected return target.
+  dialog.querySelector<HTMLButtonElement>(`[data-center-panel="${step}"] [data-center-action="${kind}"]`)?.focus()
+  const epoch=version,valid=()=>active()&&epoch===version
   if(kind==='plan')child=openLineupEditor(client,owner,{...scope},match.id,valid,()=>done('Working lineup saved. Review publishing when you’re ready.',false))
   else if(kind==='scenarios')child=openCaptainScenarios(client,owner,{...scope},match,valid,()=>done('Alternative saved as your private working lineup. Review publishing when ready.',false))
   else if(kind==='publish')child=openPublicationReview(client,owner,{...scope},match,valid,message=>done(message,true))

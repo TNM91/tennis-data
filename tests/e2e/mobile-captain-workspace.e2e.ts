@@ -22,6 +22,23 @@ test.beforeAll(async()=>{
    export async function loadMatchCenter(_client,_owner,_current,_scope,match){const f=window.fixture;f.reads++;if(f.hold)await new Promise(resolve=>f.release=resolve);if(f.fail)throw Error('Synthetic read failed');const data=structuredClone(f.center);data.fixture.id=match.id;data.fixture.date=match.date;data.fixture.away=match.opponent;data.lineup.match={id:match.id,date:match.date,opponent:match.opponent};Object.assign(data.publication,{fixtureId:match.id,matchDate:match.date,opponent:match.opponent});return data}
    export async function loadMatchCenterDay(){const f=window.fixture;f.dayReads++;if(f.holdDay)await new Promise(resolve=>f.releaseDay=resolve);if(f.failDay)throw Error('Synthetic day read failed');f.daySettled++;return structuredClone(f.day)}
   ` }))
+  builder.onResolve({filter:/^\.\/captain-lineup-data$/},()=>({path:'lineup-data',namespace:'fixture'}))
+  builder.onLoad({filter:/^lineup-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
+   export * from ${JSON.stringify(path.resolve('mobile/src/captain-lineup-data.ts'))};
+   export async function loadLineupEditor(){const f=window.fixture;f.toolReads.plan++;if(f.failTool==='plan')throw Error('Synthetic tool read unavailable');return structuredClone(f.center.lineup)}
+   export async function saveLineupEditor(_client,_owner,_current,_data,plan){const f=window.fixture;f.lineupSaves++;f.center.lineup.plan=structuredClone(plan);f.center.lineup.version='saved-two';f.center.publication.draftVersion='saved-two';return 'saved-two'}
+  ` }))
+  builder.onResolve({filter:/^\.\/captain-publication-data$/},()=>({path:'publication-data',namespace:'fixture'}))
+  builder.onLoad({filter:/^publication-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
+   export * from ${JSON.stringify(path.resolve('mobile/src/captain-publication-data.ts'))};
+   export async function loadPublicationReview(){const f=window.fixture;f.toolReads.publish++;if(f.failTool==='publish')throw Error('Synthetic tool read unavailable');return structuredClone(f.center.publication)}
+   export async function sendPublication(_client,_owner,_current,intent){const f=window.fixture;f.publicationSends++;if(intent.kind==='final')f.center.publication.shared.alreadyFinal=true;return {draftFinalized:true}}
+  ` }))
+  builder.onResolve({filter:/^\.\/captain-replacement-data$/},()=>({path:'replacement-data',namespace:'fixture'}))
+  builder.onLoad({filter:/^replacement-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
+   export * from ${JSON.stringify(path.resolve('mobile/src/captain-replacement-data.ts'))};
+   export async function loadReplacementReview(){const f=window.fixture;f.toolReads.replace++;if(f.failTool==='replace')throw Error('Synthetic tool read unavailable');return {...structuredClone(f.center.publication),messageId:f.center.publication.shared.messageId,lineup:structuredClone(f.center.publication.shared.lineup),canReplace:false,canSupersede:false,pending:null,candidates:[],currentChange:null,reason:'No replacement is needed.',followUp:{canManage:false,requestId:'',deadlineAt:'',reminderAvailable:false,reminderAvailableAt:'',scheduledReminderAt:''}}}
+  ` }))
  }}]})
  javascript=result.outputFiles.find(file=>file.path.endsWith('.js'))?.text??result.outputFiles[0].text
  stylesheet=(await Promise.all(['style.css','website-ui.css','app.css','website-parity.css','app-atmosphere.css','premium-surfaces.css'].map(file=>readFile('mobile/bundled/'+file,'utf8')))).join('\n')
@@ -32,7 +49,7 @@ test.beforeEach(async({page})=>{
   const params=new URL(location.href).searchParams
   if(params.has('final')){data.center.publication.shared.alreadyFinal=true;data.day.publication.shared.alreadyFinal=true}
   if(params.has('pending'))data.center.publication.shared.pendingFinal=true
-  Object.assign(window,{fixture:{...data,reads:0,dayReads:0,daySettled:0,sharedChanges:0,hold:false,fail:false,holdDay:false,failDay:false}})
+  Object.assign(window,{fixture:{...data,reads:0,dayReads:0,daySettled:0,sharedChanges:0,hold:false,fail:false,holdDay:false,failDay:false,toolReads:{plan:0,publish:0,replace:0},failTool:'',lineupSaves:0,publicationSends:0}})
  },{scope:captainScope,center,day:captainDayFixture(center),snapshot:captainSnapshotFixture()})
  await page.route('**/*',route=>{
   const u=new URL(route.request().url())
@@ -154,6 +171,72 @@ test('leaving Match Center ignores a held match-day response',async({page})=>{
  await expect(center).toHaveCount(0)
  await expect(page.locator('[data-captain-center="0"]')).toBeFocused()
  expect(await page.evaluate(()=>(window as unknown as MatchRecoveryWindow).fixture.sharedChanges)).toBe(0)
+})
+
+type ToolReturnWindow={fixture:{reads:number;toolReads:Record<string,number>;failTool:string;lineupSaves:number;publicationSends:number;sharedChanges:number;center:{publication:{shared:{confirmedCount:number;canFinalize:boolean}}}}}
+const returnTools=[{kind:'plan',step:'lineup',dialog:'Plan your lineup'}, {kind:'publish',step:'messaging',dialog:'Review team lineup'}, {kind:'replace',step:'messaging',dialog:'Replace a lineup player'}] as const
+for(const tool of returnTools)test(`closing ${tool.kind} returns to its Match Center action`,async({page},info)=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width:320,height:844});await page.goto(origin+prefix)
+ await page.addStyleTag({content:':root{font-size:24px!important}'})
+ await page.locator('[data-captain-center="0"]').focus();await page.keyboard.press('Enter')
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await center.locator('[data-match-week-step="availability"]').click()
+ await center.getByRole('combobox',{name:/^Show replies/}).selectOption('waiting')
+ await center.getByLabel('Find a player',{exact:true}).fill('Jordan')
+ const action=center.locator(`[data-center-panel="${tool.step}"] [data-center-action="${tool.kind}"]`)
+ for(const unavailable of [false,true]){
+  await page.evaluate(kind=>{(window as unknown as ToolReturnWindow).fixture.failTool=kind},unavailable?tool.kind:'')
+  await center.locator(`[data-match-week-step="${tool.step}"]`).click()
+  await action.focus();await page.keyboard.press('Enter')
+  const child=page.getByRole('dialog',{name:tool.dialog,exact:true})
+  if(unavailable)await expect(child.getByRole('alert')).toContainText('Synthetic tool read unavailable')
+  else await expect(child.getByRole('heading',{name:tool.dialog,exact:true})).toBeVisible()
+  await child.getByRole('button',{name:'Close',exact:true}).click()
+  await expect(child).toHaveCount(0);await expect(action).toBeFocused()
+  await expect(center.locator(`[data-center-panel="${tool.step}"]`)).toBeVisible()
+  await bounded(page,center)
+  if(!unavailable&&tool.kind==='plan'&&info.project.name==='mobile-webkit')await page.screenshot({path:info.outputPath('match-center-tool-return.png')})
+  await center.locator('[data-match-week-step="availability"]').click()
+  await expect(center.getByRole('combobox',{name:/^Show replies/})).toHaveValue('waiting')
+  await expect(center.getByLabel('Find a player',{exact:true})).toHaveValue('Jordan')
+ }
+ expect(await page.evaluate(kind=>{const f=(window as unknown as ToolReturnWindow).fixture;return {reads:f.reads,toolReads:f.toolReads[kind],lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}},tool.kind)).toEqual({reads:1,toolReads:2,lineupSaves:0,publicationSends:0,sharedChanges:0})
+})
+
+test('working save and final delivery return to refreshed Match Center steps',async({page})=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width:390,height:844});await page.goto(origin+prefix)
+ await page.locator('[data-captain-center="0"]').click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await center.locator('[data-match-week-step="availability"]').click()
+ await center.getByRole('combobox',{name:/^Show replies/}).selectOption('waiting')
+ await center.getByLabel('Find a player',{exact:true}).fill('Jordan')
+ await center.getByRole('button',{name:'Review selected players in lineup',exact:true}).click()
+ const plan=page.getByRole('dialog',{name:'Plan your lineup',exact:true})
+ await plan.getByRole('textbox',{name:/^Match notes/}).fill('Use north entrance for warm-up.')
+ await plan.getByRole('button',{name:'Review working lineup',exact:true}).click()
+ await plan.getByRole('button',{name:'Confirm working save',exact:true}).click()
+ await expect(plan).toHaveCount(0)
+ await expect(center.getByRole('status')).toContainText('Working lineup saved.')
+ await expect(center.locator('[data-center-panel="lineup"]')).toBeVisible()
+ await expect(center.getByRole('heading',{name:'Captain Match Center',exact:true})).toBeFocused()
+ await center.getByRole('button',{name:'Plan lineup',exact:true}).click()
+ await expect(plan.getByRole('textbox',{name:/^Match notes/})).toHaveValue('Use north entrance for warm-up.')
+ await plan.getByRole('button',{name:'Close',exact:true}).click()
+ await page.evaluate(()=>{const s=(window as unknown as ToolReturnWindow).fixture.center.publication.shared;s.confirmedCount=1;s.canFinalize=true})
+ await center.locator('[data-match-week-step="messaging"]').click()
+ await center.getByRole('button',{name:'Review team publishing',exact:true}).click()
+ const publishing=page.getByRole('dialog',{name:'Review team lineup',exact:true})
+ await publishing.getByRole('button',{name:'Send confirmed final lineup',exact:true}).click()
+ await expect(publishing).toHaveCount(0)
+ await expect(center.getByRole('status')).toContainText('Final lineup sent to your team.')
+ await expect(center.locator('[data-center-panel="messaging"]')).toBeVisible()
+ await expect(center.locator('.match-center-progress [data-plan-state="saved"]')).toHaveCount(3)
+ await center.locator('[data-match-week-step="availability"]').click()
+ await expect(center.getByRole('combobox',{name:/^Show replies/})).toHaveValue('waiting')
+ await expect(center.getByLabel('Find a player',{exact:true})).toHaveValue('Jordan')
+ expect(await page.evaluate(()=>{const f=(window as unknown as ToolReturnWindow).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:3,lineupSaves:1,publicationSends:1,sharedChanges:1})
 })
 
 test('switching fixture with a readiness read pending does not show stale counts',async({page})=>{
