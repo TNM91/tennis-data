@@ -31,6 +31,8 @@ export function mountStarterTiq(
   let saved: Awaited<ReturnType<typeof storage.read>> = { history: null, legacy: undefined }
   let step: number | null = null
   let draft: StarterAnswers = {}
+  let initialDraft: StarterAnswers = {}
+  let leaving = false
   let recent: readonly Scorecard[] = []
   let busy = false
   let deviceSaved: Awaited<ReturnType<typeof storage.read>> = saved
@@ -73,8 +75,23 @@ export function mountStarterTiq(
     link.onclick = () => { if (active()) openMatchLog() }
   }
 
+  function cancelAssessment() {
+    step = null
+    leaving = false
+    draft = {}
+    initialDraft = {}
+    render()
+    focus('[data-starter-edit]')
+  }
+
   function editHtml() {
     if (step === null) return ''
+    if (leaving) return `<form class="starter-tiq-form" aria-labelledby="starter-tiq-cancel-title" aria-describedby="starter-tiq-cancel-detail">
+      <header class="starter-tiq-step"><h3 id="starter-tiq-cancel-title" tabindex="-1">Discard unsaved answers?</h3>
+        <p id="starter-tiq-cancel-detail">Keep answering to finish your assessment.</p></header>
+      <div class="starter-tiq-actions"><button type="button" data-starter-keep>Keep answering</button>
+        <button type="button" class="secondary" data-starter-discard>Discard answers</button></div>
+    </form>`
     const group = starterQuestionGroups[step]
     const optional = step === starterQuestionGroups.length - 1
     return `<form class="starter-tiq-form" aria-labelledby="starter-tiq-step">
@@ -162,6 +179,19 @@ export function mountStarterTiq(
 
     const form = host.querySelector<HTMLFormElement>('.starter-tiq-form')
     if (form && step !== null) {
+      if (leaving) {
+        form.onsubmit = event => event.preventDefault()
+        form.querySelector<HTMLButtonElement>('[data-starter-keep]')!.onclick = () => {
+          if (!active() || busy) return
+          leaving = false
+          render()
+          focus('#starter-tiq-step')
+        }
+        form.querySelector<HTMLButtonElement>('[data-starter-discard]')!.onclick = () => {
+          if (active() && !busy) cancelAssessment()
+        }
+        return
+      }
       const group = starterQuestionGroups[step]
       const status = form.querySelector<HTMLElement>('[role="status"]')!
       const updateDraft = () => {
@@ -233,9 +263,12 @@ export function mountStarterTiq(
       }
       form.querySelector<HTMLButtonElement>('[data-starter-cancel]')!.onclick = () => {
         if (!active() || busy) return
-        step = null
-        render()
-        focus('[data-starter-edit]')
+        updateDraft()
+        if (starterQuestionGroups.some(group => group.questions.some(question => draft[question.id] !== initialDraft[question.id]))) {
+          leaving = true
+          render()
+          focus('#starter-tiq-cancel-title')
+        } else cancelAssessment()
       }
       return
     }
@@ -245,6 +278,8 @@ export function mountStarterTiq(
       if (pendingSave) {focus('[data-starter-account]'); return}
       editToAccount = Boolean(accountHistory && pendingChecked)
       draft = { ...(history?.current.answers ?? previousLevel?.prefill) }
+      initialDraft = { ...draft }
+      leaving = false
       step = 0
       render()
       focus('#starter-tiq-step')
