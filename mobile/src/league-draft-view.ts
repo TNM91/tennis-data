@@ -39,20 +39,60 @@ export function openLeagueDraft(client: SupabaseClient, owner: string, current: 
   let stale = false
   let notice = ''
   let disposed = false
+  let formSnapshot = ''
+  let leaveDialog: HTMLDialogElement | null = null
+  let leaveFocus: HTMLElement | null = null
   let disposeCheckout: ReturnType<typeof mountCompetitionPublish>
   const active = () => !disposed && current()
 
+  function closeLeave(restoreFocus = false) {
+    leaveDialog?.close()
+    leaveDialog?.remove()
+    leaveDialog = null
+    if (restoreFocus && active() && leaveFocus?.isConnected) leaveFocus.focus({ preventScroll: true })
+    leaveFocus = null
+  }
+
   function dispose() {
     disposed = true
+    closeLeave()
     disposeCheckout?.()
     dialog.remove()
   }
 
-  function back() {
-    if (busy && pending) return true
+  function exit() {
     dispose()
     if (current() && trigger.isConnected) trigger.focus({ preventScroll: true })
     return true
+  }
+
+  function back() {
+    if (leaveDialog) { closeLeave(true); return true }
+    if (busy && pending) return true
+    const form = dialog.querySelector<HTMLFormElement>('[data-league-draft-form]')
+    if (!pending && form && JSON.stringify([...new FormData(form)]) !== formSnapshot && active()) {
+      const focused = document.activeElement
+      leaveFocus = focused instanceof HTMLElement && form.contains(focused) ? focused : form.querySelector<HTMLElement>('input,select')
+      leaveDialog = document.createElement('dialog')
+      leaveDialog.className = dialog.className
+      leaveDialog.setAttribute('role', 'alertdialog')
+      leaveDialog.setAttribute('aria-labelledby', 'league-draft-discard-title')
+      leaveDialog.setAttribute('aria-describedby', 'league-draft-discard-detail')
+      leaveDialog.innerHTML = `<h2 id="league-draft-discard-title">Discard league changes?</h2>
+        <p id="league-draft-discard-detail">These league details haven’t been saved.</p>
+        <div class="lineup-actions"><button type="button" data-league-draft-stay autofocus>Keep editing</button>
+          <button type="button" class="secondary" data-league-draft-discard>Discard changes</button></div>`
+      leaveDialog.querySelector('[data-league-draft-stay]')?.addEventListener('click', () => closeLeave(true))
+      leaveDialog.querySelector('[data-league-draft-discard]')?.addEventListener('click', () => {
+        if (active()) exit()
+        else closeLeave()
+      })
+      leaveDialog.addEventListener('cancel', event => { event.preventDefault(); closeLeave(true) })
+      document.body.append(leaveDialog)
+      leaveDialog.showModal()
+      return true
+    }
+    return exit()
   }
 
   async function request(write?: LeagueDraftWrite) {
@@ -210,6 +250,7 @@ export function openLeagueDraft(client: SupabaseClient, owner: string, current: 
         })
     }
     const form = dialog.querySelector<HTMLFormElement>('[data-league-draft-form]')
+    formSnapshot = form ? JSON.stringify([...new FormData(form)]) : ''
     form?.addEventListener('input', (event) => {
       const name = (event.target as HTMLInputElement).name
       if (name !== 'startsOn' && name !== 'weeks') return
