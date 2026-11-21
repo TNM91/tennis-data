@@ -23,7 +23,20 @@ export function growthCoachContext(plan: GrowthPlan, work: TrainingCoachWork | n
   return {state:'changed'} as const
 }
 
-export function growthCoachHtml(plan: GrowthPlan, work: TrainingCoachWork | null, locked: boolean) {
+export function growthCoachFollowup(plan: GrowthPlan, work: TrainingCoachWork | null) {
+  const context = growthCoachContext(plan,work)
+  if (plan.state === 'active' || context.state !== 'feedback' || !Number.isFinite(Date.parse(context.review.reviewedAt))) return null
+  const cue = context.review.nextFocus || context.review.note
+  const title = work!.assignments.find(row => row.id === plan.sourceAssignment)!.title
+  return {skill:plan.skill, cue, target:cue.length<=240?cue:'', reviewedAt:context.review.reviewedAt, title,
+    label:context.review.nextFocus?'Coach’s next focus':'Coach feedback'}
+}
+
+export function growthCoachFollowupHtml(seed: NonNullable<ReturnType<typeof growthCoachFollowup>>) {
+  return `<section class="tiq-growth-coach" aria-label="Coach feedback for next plan"><h3>${html(seed.label)}</h3><p>${html(seed.title)} · <time datetime="${html(seed.reviewedAt)}">${html(new Date(seed.reviewedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}))}</time></p><p class="coach-written">${html(seed.cue)}</p>${!seed.target?'<p>Your coach’s full cue is kept here. Write a shorter, measurable target below.</p>':''}</section>`
+}
+
+export function growthCoachHtml(plan: GrowthPlan, work: TrainingCoachWork | null, locked: boolean, canStartPlan=false) {
   if (!plan.sourceAssignment) return ''
   const context = growthCoachContext(plan,work)
   const body = context.state === 'ready'
@@ -33,5 +46,6 @@ export function growthCoachHtml(plan: GrowthPlan, work: TrainingCoachWork | null
     : context.state === 'closed' ? '<h3>Coach check-in</h3><p>Open My Lab → Training inbox → Coach assignments to check in on the current assignment. Your saved plan remains private.</p>'
     : context.state === 'changed' ? '<h3>Coach assignment updated</h3><p>Your private plan is still saved. Open My Lab → Training inbox → Coach assignments to review the current assignment before checking in.</p>'
     : '<h3>Coach check-in unavailable</h3><p>Your private plan is still saved. Refresh to check your current coach connection.</p>'
-  return `<section class="tiq-growth-coach" aria-label="Plan coaching">${body}</section>`
+  const followup=canStartPlan&&growthCoachFollowup(plan,work)
+  return `<section class="tiq-growth-coach" aria-label="Plan coaching">${body}${followup?`<button type="button" class="secondary" data-coach-followup ${locked?'disabled':''}>Plan next practice</button>`:''}</section>`
 }

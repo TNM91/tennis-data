@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest'
 import {growthCheckIn,type GrowthPlan} from '../tiq-growth'
-import {growthCoachContext,growthCoachHtml} from '../../mobile/src/tiq-growth-coach'
+import {growthCoachContext,growthCoachHtml,growthCoachFollowup,growthCoachFollowupHtml} from '../../mobile/src/tiq-growth-coach'
 import type {TrainingCoachWork} from '../../mobile/src/training-inbox-data'
 
 const plan:GrowthPlan={version:1,id:'plan',baseline:'private-baseline',sourceAssignment:'serve-block',state:'active',skill:'serve',target:'8 of 10 second serves in',sessions:3,reviewDate:'2026-11-27',
@@ -45,4 +45,26 @@ it('escapes feedback and removes the coaching surface when it does not belong to
   expect(output).toContain('&lt;img');expect(output).not.toContain('<img');expect(output).not.toContain('<script>');expect(output).not.toContain('<time')
   expect(growthCoachHtml({...plan,sourceAssignment:null},reviewed,false)).toBe('')
   expect(growthCoachHtml(plan,{...reviewed,links:[]},false)).not.toContain('&lt;img')
+})
+
+it('prepares a private follow-up from dated feedback after a plan is finished without copying assessment or practice records',()=>{
+  const finished={...plan,state:'reviewed' as const},review={note:'Smooth finish',nextFocus:'8 of 10 serves deep',reviewedAt:plan.updatedAt},reviewed=changed({tiqGrowth:block,coachReview:review},'completed')
+  const before=JSON.stringify(finished),seed=growthCoachFollowup(finished,reviewed)
+  expect(seed).toEqual({skill:'serve',cue:review.nextFocus,target:review.nextFocus,reviewedAt:review.reviewedAt,title:'Serve practice block',label:'Coach’s next focus'})
+  expect(JSON.stringify(seed)).not.toContain('private-baseline');expect(JSON.stringify(seed)).not.toContain('Private note');expect(JSON.stringify(finished)).toBe(before)
+  expect(growthCoachHtml(finished,reviewed,false,true)).toContain('Plan next practice');expect(growthCoachHtml(finished,reviewed,false,false)).not.toContain('data-coach-followup')
+  expect(growthCoachFollowup({...plan,state:'archived'},reviewed)).not.toBeNull();expect(growthCoachFollowup(plan,reviewed)).toBeNull()
+})
+it('preserves a long cue in full while requiring an editable shorter target, and safely renders note-only feedback',()=>{
+  const finished={...plan,state:'reviewed' as const},cue='a'.repeat(239)+'🎾',reviewed=changed({coachReview:{note:'<img src=x>',nextFocus:cue,reviewedAt:plan.updatedAt}},'completed')
+  const seed=growthCoachFollowup(finished,reviewed)!
+  expect(seed.target).toBe('');expect(seed.cue).toBe(cue);expect(growthCoachFollowupHtml(seed)).toContain(cue)
+  const fallback=growthCoachFollowup(finished,changed({coachReview:{note:'<img src=x>',nextFocus:'',reviewedAt:plan.updatedAt}},'completed'))!
+  expect(fallback.label).toBe('Coach feedback');expect(fallback.target).toBe('<img src=x>');expect(growthCoachFollowupHtml(fallback)).toContain('&lt;img');expect(growthCoachFollowupHtml(fallback)).not.toContain('<img')
+})
+it('does not seed a follow-up from unavailable, paused or undated coach feedback',()=>{
+  const finished={...plan,state:'reviewed' as const},reviewed=changed({coachReview:{note:'Try a deep serve',nextFocus:'',reviewedAt:plan.updatedAt}},'completed')
+  expect(growthCoachFollowup(finished,null)).toBeNull();expect(growthCoachFollowup({...finished,sourceAssignment:'another'},reviewed)).toBeNull()
+  expect(growthCoachFollowup(finished,{...reviewed,links:[{...work.links[0],status:'paused'}]})).toBeNull()
+  expect(growthCoachFollowup(finished,changed({coachReview:{note:'Try a deep serve',reviewedAt:'invalid'}},'completed'))).toBeNull()
 })

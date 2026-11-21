@@ -3030,6 +3030,19 @@ body[data-screen] .app-header .tiq-feature-icon__glyph { inline-size:21px;block-
 .tiq-growth-focus { padding:18px; border:1px solid var(--premium-line); border-radius:20px; background:var(--premium-card); }
 .tiq-growth-focus h3 { font-size:1.5rem; margin-block:8px; }
 .tiq-growth-focus progress { width:100%; accent-color:var(--premium-lime); }
+.lab-practice-focus { margin-block:18px; padding:20px; border:1px solid var(--premium-line); border-radius:22px; background:var(--premium-card); color:var(--premium-copy); overflow-wrap:anywhere; }
+.lab-practice-focus header { display:flex; flex-wrap:wrap; align-items:start; justify-content:space-between; gap:8px; max-width:none; margin:0; padding:0; border:0; }
+.lab-practice-focus h2 { margin:5px 0 0; color:var(--premium-white); font-size:1.125rem; line-height:1.3; }
+.lab-practice-focus p { margin-block:10px; font-size:.85rem; line-height:1.5; }
+.lab-practice-focus .lab-practice-target { margin-top:14px; color:var(--premium-white); font-size:1rem; font-weight:650; }
+.lab-practice-focus progress { appearance:none; display:block; width:100%; height:5px; border:0; border-radius:20px; overflow:hidden; background:var(--premium-inset); accent-color:var(--premium-lime); }
+.lab-practice-focus progress::-webkit-progress-bar { background:var(--premium-inset); }
+.lab-practice-focus progress::-webkit-progress-value { background:var(--premium-lime); border-radius:20px; }
+.lab-practice-focus progress::-moz-progress-bar { background:var(--premium-lime); border-radius:20px; }
+.lab-practice-review { color:var(--premium-lime); font-size:.85rem; font-weight:650; }
+.lab-practice-actions { display:flex; flex-wrap:wrap; gap:8px 12px; margin-top:14px; }
+.lab-practice-actions button { flex:1 1 auto; width:auto; min-height:44px; max-width:100%; margin:0; padding:10px 14px; white-space:normal; }
+.lab-practice-focus button.lab-practice-refresh { width:auto; min-height:44px; margin:0; padding:8px; background:none; border-color:transparent; box-shadow:none; color:var(--premium-copy); font-size:.8rem; }
 .tiq-growth-fields { display:grid; grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr); gap:12px; }
 .tiq-growth-due { color:var(--premium-lime); }
 .tiq-alignment-table { border:1px solid var(--premium-line); border-radius:16px; overflow:hidden; }

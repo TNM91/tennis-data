@@ -124,7 +124,7 @@ export function mountStarterTiq(
       </div>
       ${account && viewing ? `<p class="starter-tiq-account-status" role="status">${html(pendingSave ? 'An account save needs confirmation. Open Rating history to check your kept answers.' : accountNotice)}</p>` : ''}
       ${!viewing ? editHtml() : `
-        ${result ? `<p class="starter-tiq-focus">Practice focus · <strong>${result.focus.skill}</strong></p>
+        ${result ? `<p class="starter-tiq-focus">Assessment focus · <strong>${result.focus.skill}</strong></p>
           ${'target' in result.focus ? `<p>${html(result.focus.target)}</p>` : ''}` : ''}
         <div class="starter-tiq-actions">
           ${result && recommendedDrill ? `<button type="button" data-starter-drill>Try ${recommendedDrill.title}</button>` : ''}
