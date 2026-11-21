@@ -20,6 +20,14 @@ Coach workspace → student → Coach assessments → **Player & coach view**. S
 
 The roster's **Up next for your players** section shows check-ins awaiting feedback, students needing a practice plan, and assigned blocks whose review date has arrived, oldest first. A row opens the exact student/assignment and reuses the existing write validation. A player awaiting feedback is not also told to start a new plan. Reads cover the latest 500 roster records and 2,000 assignments, return at most 25 attention rows, and label truncation. Errors are not displayed as zero tasks. The attention read updates its own region so a late reply cannot interrupt typing in roster search.
 
+## Guided practice review
+
+The plan's **Up next** action opens its drill, focuses the next practice log, starts a fresh assessment, or previews the latest eligible assessment when the practice target or review date is reached. These are deliberate actions; opening a drill or preview never logs practice or finishes a plan.
+
+Both the review preview and the saved review show the starting and review dates, the chosen skill's self-rating labels and court descriptions. Higher, same and lower self-ratings are labelled as self-assessments. Missing or deleted assessments show that the comparison is unavailable. Practice counts never change a TiQ rating.
+
+Review choices exclude the baseline, assessments saved before the plan, and assessment dates earlier than an existing baseline. Unsaved practice notes immediately disable navigation and review shortcuts until the player reviews the log or chooses to leave. This follow-up uses the existing account responses and migration; it adds no API call, collection job or database change.
+
 ## Storage, authorization and cost
 
 `20261120000200_native_tiq_growth.sql` reuses `my_lab_goals` under the owner-specific `tiq-growth:v1` namespace. It adds no table, collector, cron or paid service. Assessments are owner-filtered references, resolved on each read. The existing account-erasure path clears the plans; device erasure clears pending retries.

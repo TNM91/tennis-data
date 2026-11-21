@@ -2,6 +2,7 @@ import {PGlite} from '@electric-sql/pglite'
 import {readFile} from 'node:fs/promises'
 import {readCoachCreate,readCoachReview} from '../../lib/native-coach-contract'
 import {tiqSkills} from '../../lib/tiq-assessment-skills'
+import type {TiqAnswers} from '../../lib/tiq-self-assessment'
 export const growthPlayer='11111111-1111-4111-8111-111111111111',growthPeer='22222222-2222-4222-8222-222222222222'
 export const growthId=(n:number)=>'aaaaaaaa-aaaa-4aaa-8aaa-'+String(n).padStart(12,'0')
 export type GrowthRequest={owner:string;method:string;url:string;write:unknown}
@@ -22,7 +23,10 @@ export async function growthServer(){
   for(const file of ['20261120000100_native_tiq_account_history.sql','20261120000200_native_tiq_growth.sql'])await db.exec(await readFile('supabase/migrations/'+file,'utf8'))
   const day=(await db.query<{d:string}>('select current_date::text d')).rows[0].d
   const answers={serve:2,return:1,rally:2,movement:2,net:1,points:2}
-  async function assess(owner=growthPlayer,n=1){return (await db.query('select write_native_tiq_assessment($1,$2)',[owner,JSON.stringify({kind:'save',id:growthId(n),date:day,answers,version:1,expectedHead:null})])).rows}
+  async function assess(owner=growthPlayer,n=1,changes:Partial<TiqAnswers>={}){
+    const head=(await db.query<{id:string}>('select id from private.tiq_self_assessments where owner_id=$1 order by assessed_on desc,created_at desc,id desc limit 1',[owner])).rows[0]?.id??null
+    return (await db.query('select write_native_tiq_assessment($1,$2)',[owner,JSON.stringify({kind:'save',id:growthId(n),date:day,answers:{...answers,...changes},version:1,expectedHead:head})])).rows
+  }
   await assess();await assess(growthPeer,2)
   await db.query('select write_native_tiq_assessment($1,$2)',[growthPeer,JSON.stringify({kind:'share',id:growthId(2),student:'student-one',linkUpdatedAt:revision,operation:growthId(9),expected:null})])
   async function work(owner:string){const links=(await db.query<{id:string;player_user_id:string;status:string}>('select * from coach_player_links where player_user_id=$1',[owner])).rows

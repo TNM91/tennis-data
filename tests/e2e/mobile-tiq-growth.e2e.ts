@@ -26,14 +26,14 @@ test.beforeEach(async({page,server})=>{
 })
 async function open(page:Page,large=false){await page.goto(origin+'/?tiq-growth=1&unlinked=1'+(large?'&large=1':''));await expect(page.locator('.lab-starter-tiq')).toBeVisible()}
 async function plan(page:Page){await page.getByRole('button',{name:'My improvement plan',exact:true}).click();const d=page.getByRole('dialog',{name:'My improvement plan',exact:true});await expect(d.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled();return d}
-async function create(page:Page){const d=await plan(page);await d.getByRole('button',{name:'Create improvement plan',exact:true}).click();await d.getByLabel('Measurable target').fill('7 of 10 second serves in');await d.getByRole('button',{name:'Review plan',exact:true}).click();await d.getByRole('button',{name:'Save improvement plan',exact:true}).click();await expect(d.getByRole('button',{name:'Review practice log',exact:true})).toBeEnabled();return d}
+async function create(page:Page,sessions=3){const d=await plan(page);await d.getByRole('button',{name:'Create improvement plan',exact:true}).click();await d.getByLabel('Measurable target').fill('7 of 10 second serves in');await d.getByLabel('Practices',{exact:true}).fill(String(sessions));await d.getByRole('button',{name:'Review plan',exact:true}).click();await d.getByRole('button',{name:'Save improvement plan',exact:true}).click();await expect(d.getByRole('button',{name:'Review practice log',exact:true})).toBeEnabled();return d}
 async function workspace(page:Page){await page.getByRole('button',{name:'More',exact:true}).click();await page.locator('[data-app-destination=coach]').click();await page.getByRole('button',{name:'For coaches',exact:true}).click();await page.locator('[data-app-destination=coach-workspace]').click();return page.getByRole('dialog',{name:'Coach workspace',exact:true})}
 async function alignment(page:Page){const w=await workspace(page);await w.getByRole('button',{name:/Alex Rivera/}).last().click();await w.getByRole('button',{name:'Coach assessments',exact:true}).click();await page.getByRole('button',{name:'Player & coach view',exact:true}).click();const d=page.getByRole('dialog',{name:'Player and coach view',exact:true});await expect(d.getByLabel('Player self-assessment')).toBeEnabled();return d}
 test('keeps practice private and recovers a lost log reply after relaunch without duplicates',async({page,server},info)=>{
   await open(page);let d=await create(page)
   await d.getByLabel('What happened on court?').fill('7/10 second serves in');await d.getByRole('button',{name:'Review practice log',exact:true}).click();server.loseReply=true
   await d.getByRole('button',{name:'Confirm practice',exact:true}).click();await expect(d).toContainText('Retry the same update')
-  await page.reload();d=await plan(page);await expect(d).toContainText('An update needs confirmation');await d.getByRole('button',{name:'Retry pending update'}).click();await expect(d).toContainText('1 / 3')
+  await page.reload();d=await plan(page);await expect(d).toContainText('An update needs confirmation');await expect(d.getByLabel('What happened on court?')).toBeDisabled();await d.getByRole('button',{name:'Retry pending update'}).click();await expect(d).toContainText('1 / 3')
   const plans=(await server.db.query<{payload:{logs:unknown[]}}>('select payload from my_lab_goals where user_id=$1',[growthPlayer])).rows
   expect(plans[0].payload.logs).toHaveLength(1);expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
   await d.screenshot({path:info.outputPath('private-improvement-plan.png')})
@@ -84,6 +84,41 @@ test('returns from retaking an assessment to finish a plan without inflating TiQ
   for(let step=0;step<2;step++){for(const select of await card.getByRole('combobox').all())await select.selectOption('2');await card.getByRole('button',{name:'Continue',exact:true}).click()}
   await card.getByRole('button',{name:'Save to my account',exact:true}).click();await expect(card).toContainText('Saved to your account')
   p=await plan(page);const select=p.getByLabel('New self-assessment');const value=await select.locator('option').last().getAttribute('value');await select.selectOption(value!);await p.getByRole('button',{name:'Review completed plan'}).click();await p.getByRole('button',{name:'Confirm review',exact:true}).click();await expect(p).toContainText('Reviewed plan');await expect(p.getByRole('button',{name:'Review practice log'})).toHaveCount(0);await expect(p).toContainText('0 / 3 practices')
+})
+
+test('guides the next practice and protects an unfinished court note from navigation',async({page},info)=>{
+  await open(page);const d=await create(page),next=d.getByRole('region',{name:'Next practice step',exact:true})
+  await expect(next.getByRole('button',{name:'Start this drill'})).toBeEnabled()
+  await expect(d.getByRole('button',{name:'Open Serve Target Call',exact:true})).toHaveCount(0)
+  await d.screenshot({path:info.outputPath('guided-practice-next.png')})
+  await next.getByRole('button',{name:'Start this drill'}).click()
+  const training=page.getByRole('dialog',{name:'Level Up training',exact:true});await expect(training.getByRole('heading',{name:'Serve Target Call',exact:true})).toBeVisible()
+  await training.getByRole('button',{name:'Close Level Up',exact:true}).click();await plan(page)
+  const note=d.getByLabel('What happened on court?');await note.fill('7/10 with a smooth second serve')
+  await expect(next.getByRole('button')).toBeDisabled()
+  await expect(d.getByRole('button',{name:'Retake self-assessment',exact:true})).toBeDisabled()
+  await d.getByRole('button',{name:'Close',exact:true}).click();await d.getByRole('button',{name:'Keep editing'}).click();await expect(note).toHaveValue('7/10 with a smooth second serve')
+  await d.getByRole('button',{name:'Review practice log'}).click();await d.getByRole('button',{name:'Confirm practice'}).click()
+  await next.getByRole('button',{name:'Log next practice'}).click();await expect(note).toBeFocused()
+  await expect(d).toContainText('1 / 3');await expect(d.getByRole('button',{name:'Review completed plan'})).toBeDisabled()
+  await note.fill('Another unfinished note');await expect(d.getByRole('button',{name:'Open Serve Target Call',exact:true})).toBeDisabled()
+})
+
+for(const width of [320,390])test('previews the selected skill before finishing and keeps removed assessments private at '+width+'px',async({page,server},info)=>{
+  await page.setViewportSize({width,height:844});await open(page,width===320);const d=await create(page,1)
+  await d.getByLabel('What happened on court?').fill('7 second serves in');await d.getByRole('button',{name:'Review practice log'}).click();await d.getByRole('button',{name:'Confirm practice'}).click()
+  await expect(d.getByRole('region',{name:'Next practice step'})).toContainText('Your planned practices are logged')
+  await server.assess(growthPlayer,21,{serve:3})
+  await d.getByRole('button',{name:'Refresh plan',exact:true}).click();await d.getByRole('button',{name:'Preview progress review'}).click()
+  const review=d.getByRole('region',{name:'Serve practice review',exact:true})
+  await expect(review).toContainText('Higher self-rating');await expect(review.locator('time')).toHaveCount(2)
+  await expect(review).toContainText('Steady');await expect(review).toContainText('Under pressure')
+  expect((await server.db.query<{payload:{state:string}}>('select payload from my_lab_goals where user_id=$1',[growthPlayer])).rows[0].payload.state).toBe('active')
+  expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await d.screenshot({path:info.outputPath('guided-review-'+width+'.png')})
+  await d.getByRole('button',{name:'Confirm review',exact:true}).click();await expect(d).toContainText('Reviewed plan');await expect(review).toContainText('Higher self-rating')
+  await expect(d.getByRole('region',{name:'Next practice step'})).toHaveCount(0)
+  await server.db.query('delete from private.tiq_self_assessments where owner_id=$1 and id=$2',[growthPlayer,growthId(1)])
+  await d.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect(review).toContainText('Comparison unavailable');await expect(review).not.toContainText('Higher self-rating')
 })
 test('launch usability: new email signup through the first saved assessment and practice',async({page,server},info)=>{
   await server.db.query('delete from private.tiq_self_assessments where owner_id=$1',[growthPlayer])
