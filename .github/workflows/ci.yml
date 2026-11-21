@@ -246,18 +246,32 @@ jobs:
             project: mobile-chrome
             workers: 2
             shard: 1/1
-          - name: Native navigation (WebKit 1/2)
+          # With two Safari shards, one hit the 25-minute limit at ~238 cases.
+          # Keep every case and the same worker/time limits in four smaller shards.
+          - name: Native navigation (WebKit 1/4)
             suite: navigation
             browsers: webkit
             project: mobile-webkit
             workers: 1
-            shard: 1/2
-          - name: Native navigation (WebKit 2/2)
+            shard: 1/4
+          - name: Native navigation (WebKit 2/4)
             suite: navigation
             browsers: webkit
             project: mobile-webkit
             workers: 1
-            shard: 2/2
+            shard: 2/4
+          - name: Native navigation (WebKit 3/4)
+            suite: navigation
+            browsers: webkit
+            project: mobile-webkit
+            workers: 1
+            shard: 3/4
+          - name: Native navigation (WebKit 4/4)
+            suite: navigation
+            browsers: webkit
+            project: mobile-webkit
+            workers: 1
+            shard: 4/4
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
