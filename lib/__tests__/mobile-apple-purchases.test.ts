@@ -78,10 +78,22 @@ it('coalesces earlier-purchase checks instead of starting overlapping StoreKit r
  const first=f.service.recover(owner),second=f.service.recover(owner);await vi.waitFor(()=>expect(f.store.pending).toHaveBeenCalledOnce());release({transactions:[]});expect(await Promise.all([first,second])).toEqual([0,0]);expect(f.post).not.toHaveBeenCalled()
 })
 it('refuses another purchase, restore or manage while confirmation is unresolved, then unlocks after cancellation',async()=>{
- const f=fixture();let finish!:(v:never)=>void;f.store.purchase.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve}))
+ const f=fixture();expect(f.service.isBusy()).toBe(false);let finish!:(v:never)=>void;f.store.purchase.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve}))
  const first=f.service.purchase(owner,sku);await vi.waitFor(()=>expect(f.store.purchase).toHaveBeenCalledOnce())
+ expect(f.service.isBusy()).toBe(true)
  await expect(f.service.purchase(owner,sku)).rejects.toThrow('purchase_in_progress');await expect(f.service.restore(owner,'Sandbox')).rejects.toThrow('purchase_in_progress');await expect(f.service.manage(owner)).rejects.toThrow('purchase_in_progress');expect(f.post).toHaveBeenCalledOnce()
- finish({state:'cancelled'} as never);expect(await first).toBe('cancelled');expect(await f.service.purchase(owner,sku)).toBe('purchased');expect(f.store.purchase).toHaveBeenCalledTimes(2)
+ finish({state:'cancelled'} as never);expect(await first).toBe('cancelled');expect(f.service.isBusy()).toBe(false);expect(await f.service.purchase(owner,sku)).toBe('purchased');expect(f.store.purchase).toHaveBeenCalledTimes(2)
+})
+it('retains the unfinished operation lock across an account change without exposing purchase details',async()=>{
+ const f=fixture();let finish!:(v:never)=>void;f.store.purchase.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve}))
+ const first=f.service.purchase(owner,sku);await vi.waitFor(()=>expect(f.store.purchase).toHaveBeenCalledOnce());f.switchOwner();f.service.setOwner('22222222-2222-4222-8222-222222222222')
+ expect(f.service.isBusy()).toBe(true);await expect(f.service.purchase('22222222-2222-4222-8222-222222222222',sku)).rejects.toThrow('purchase_in_progress');expect(f.store.purchase).toHaveBeenCalledOnce()
+ finish({state:'cancelled'} as never);await expect(first).rejects.toThrow('owner_changed');expect(f.service.isBusy()).toBe(false);expect(f.store.finish).not.toHaveBeenCalled();expect(f.post).toHaveBeenCalledOnce()
+})
+it('keeps a restore observable as busy until Apple returns, without starting another purchase',async()=>{
+ const f=fixture();let finish!:(value:{transactions:typeof tx[]})=>void;f.store.restore.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve}))
+ const first=f.service.restore(owner,'Sandbox');await vi.waitFor(()=>expect(f.store.restore).toHaveBeenCalledOnce());expect(f.service.isBusy()).toBe(true)
+ await expect(f.service.purchase(owner,sku)).rejects.toThrow('purchase_in_progress');finish({transactions:[]});expect(await first).toBe(0);expect(f.service.isBusy()).toBe(false);expect(f.store.purchase).not.toHaveBeenCalled();expect(f.post).not.toHaveBeenCalled()
 })
 it('reports safe pre-confirmation timeouts without granting or retrying a purchase automatically',async()=>{
  for(const phase of ['history','prepare','native'] as const){const f=fixture();if(phase==='history')f.store.pending.mockRejectedValueOnce({code:'purchase_history_timeout',message:'private'});else if(phase==='prepare')f.fail();else f.store.purchase.mockRejectedValueOnce({code:'purchase_preparation_timeout',message:'private'})
