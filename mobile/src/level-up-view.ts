@@ -147,7 +147,8 @@ type TrainingStart='catalog'|'progress'|'inbox'
  |{view:'scorecard';matchDate:string|null;doubles:boolean}
  |{view:'scheduled-focus';focus:ScorecardPractice}
 
-type TrainingLaunch={cardId:string;identitySlug:string;onClose?:()=>void;starterWarmup?:{onFinish:(title:string,elapsedSeconds:number)=>void}}
+type TrainingLaunch={cardId:string;identitySlug:string;onClose?:()=>void;starterWarmup?:{onFinish:(title:string,elapsedSeconds:number)=>void};
+ returnTo?:{label:string;target:string;onReturn:(practice:TrainingSession|null)=>void}}
 
 export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boolean,initial:TrainingStart='catalog',launch?:TrainingLaunch){
  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog training-dialog';dialog.setAttribute('aria-label','Level Up training')
@@ -191,13 +192,14 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  let weekPending:WeeklyChange|null=null,weekBusy=false,weekAttempted=false,weekConflict=false,weekLeaving=false,weekNotice='',plansVersion=0,coachVersion=0
  let reviewingScheduledPractice=false
  let pausedInBackground=false
+ let returnPractice:TrainingSession|null=null
  const completed=new Set<string>(),clock=new TrainingClock(),active=()=>!disposed&&current()
  const dispose=()=>{
   if(disposed)return
   disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;tacticsViewer?.dispose();tacticsViewer=null;practiceCalendar?.dispose();practiceCalendar=null
   version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;practiceModule=null;choices=emptyTrainingChoices()
   const lastCoachWork=coachWork
-  plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';savedWeekPractice=undefined;matchPractice=null;coachPracticeCue=''
+  plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';savedWeekPractice=undefined;matchPractice=null;coachPracticeCue='';returnPractice=null
   clearInterval(tick);document.removeEventListener('visibilitychange',visibility);dialog.remove()
   if(current()){
    if(previous?.isConnected)previous.focus({preventScroll:true})
@@ -205,7 +207,8 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    launch?.onClose?.()
   }
  }
- const requestClose=()=>{if(tacticsViewer?.isOpen()){tacticsViewer.dispose();return}if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(practiceCalendar?.isOpen()){practiceCalendar.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}dispose()}
+ const returnToLaunch=()=>{if(disposed)return;const practice=returnPractice;dispose();if(current())launch?.returnTo?.onReturn(practice)}
+ const requestClose=()=>{if(tacticsViewer?.isOpen()){tacticsViewer.dispose();return}if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(practiceCalendar?.isOpen()){practiceCalendar.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}returnToLaunch()}
  const accessCopy=()=>allowed===true?'Self-guided training saves privately to your account.':allowed===false?`${MEMBERSHIP_TIERS.player_plus.name} access is required to save self-guided training. You can still read the cards and your account history.`:accessError?'Account access could not be checked.':'Checking your player access…'
  const bindCards=()=>dialog.querySelectorAll<HTMLButtonElement>('[data-card]').forEach(button=>{button.onclick=()=>{
   const card=LEVEL_UP_CARDS.find(item=>item.id===button.dataset.card)
@@ -474,7 +477,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.classList.toggle('training-modules-screen',phase==='modules'||phase==='module')
   dialog.classList.toggle('training-direction-screen',phase==='plan'&&!weekPending)
   if(weekPending){renderWeekChange();return}
-  if(confirming){dialog.innerHTML=`<h1 tabindex="-1">Leave this session?</h1><p>${payload?'The save may already be recorded. Check account progress before starting it again.':'Your timer and unsaved training notes will be discarded.'}</p><button type="button" class="secondary" data-keep>Keep training</button><button type="button" data-discard>Discard and close</button>`;dialog.querySelector<HTMLButtonElement>('[data-keep]')!.onclick=()=>{confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})};dialog.querySelector<HTMLButtonElement>('[data-discard]')!.onclick=dispose;return}
+  if(confirming){dialog.innerHTML=`<h1 tabindex="-1">Leave this session?</h1><p>${payload?'The save may already be recorded. Check account progress before starting it again.':'Your timer and unsaved training notes will be discarded.'}</p><button type="button" class="secondary" data-keep>Keep training</button><button type="button" data-discard>Discard and close</button>`;dialog.querySelector<HTMLButtonElement>('[data-keep]')!.onclick=()=>{confirming=false;render();dialog.scrollTop=sessionScroll;dialog.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})};dialog.querySelector<HTMLButtonElement>('[data-discard]')!.onclick=returnToLaunch;return}
   const frozen=Boolean(payload),locked=frozen||saving||checking
   const focusedInboxSection=dialog.querySelector<HTMLElement>('[data-inbox-section]:focus')?.dataset.inboxSection
   const focusedInboxCard=dialog.querySelector<HTMLElement>('[data-inbox-card]:focus')?.dataset.inboxCard
@@ -493,7 +496,15 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    drillBody.querySelectorAll<HTMLDetailsElement>('[data-drill-fold]').forEach(fold=>{fold.open=openDrillFolds.includes(fold.dataset.drillFold)})
    drillBody.scrollTop=drillScroll
   }
-  dialog.querySelector<HTMLButtonElement>('[data-close]')!.onclick=requestClose
+  const close=dialog.querySelector<HTMLButtonElement>('[data-close]')!
+  close.onclick=requestClose
+  if(launch?.returnTo){
+   close.textContent=launch.returnTo.label;close.setAttribute('aria-label',launch.returnTo.label)
+   const context=document.createElement('div');context.className='training-session-track';context.dataset.growthPracticeReturn=''
+   context.innerHTML=`<p><strong>Plan target</strong> ${html(launch.returnTo.target)}</p>${returnPractice&&phase==='progress'?'<p>Your last completed session is saved privately. Review its date and note before adding it to your plan.</p><button type="button" data-return-practice>Review practice for plan</button>':''}`
+   close.closest('header')?.after(context)
+   context.querySelector('[data-return-practice]')?.addEventListener('click',requestClose)
+  }
   dialog.querySelectorAll<HTMLDetailsElement>('details[data-inbox-fold]').forEach(fold=>{
    const key=fold.dataset.inboxFold!
    fold.open=openInboxFolds.has(key)
@@ -764,6 +775,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.querySelector<HTMLButtonElement>('[data-check]')?.addEventListener('click',()=>{void checkSaved()})
  }
  const accepted=(row:TrainingSession)=>{
+  if(launch?.returnTo&&row.cardId===launch.cardId&&row.playerUserId===owner)returnPractice=row
   if(practiceModule&&selected&&practiceModule.cardIds.includes(selected.id))completed.add(selected.id)
   historyVersion++;historyBusy=false;historyError=false
   history=[row,...(history||[]).filter(r=>r.id!==row.id)].sort((a,b)=>Date.parse(b.completedAt)-Date.parse(a.completedAt)).slice(0,80)
@@ -1058,7 +1070,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   dialog.querySelector('[data-week-check]')?.addEventListener('click',()=>{void checkWeekChange()})
   dialog.querySelector('[data-week-close]')?.addEventListener('click',requestClose)
   dialog.querySelector('[data-week-keep]')?.addEventListener('click',()=>{weekLeaving=false;render();focus()})
-  dialog.querySelector('[data-week-leave]')?.addEventListener('click',dispose)
+  dialog.querySelector('[data-week-leave]')?.addEventListener('click',returnToLaunch)
   dialog.querySelector('[data-week-cancel]')?.addEventListener('click',()=>{
    const refresh=weekAttempted
    weekPending=null;weekAttempted=false;weekConflict=false;weekNotice='';reviewingScheduledPractice=false

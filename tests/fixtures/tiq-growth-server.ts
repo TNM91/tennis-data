@@ -8,7 +8,7 @@ export const growthId=(n:number)=>'aaaaaaaa-aaaa-4aaa-8aaa-'+String(n).padStart(
 export type GrowthRequest={owner:string;method:string;url:string;write:unknown}
 export async function growthServer(){
   const db=new PGlite(),revision='2026-11-20T12:00:00.000Z'
-  let loseReply=false,revoked=false,failRead=false,hold=false,connected=false,release:(()=>void)|null=null
+  let loseReply=false,loseTrainingReply=false,revoked=false,failRead=false,hold=false,connected=false,release:(()=>void)|null=null
   const practices=new Map<string,Record<string,unknown>>()
   await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema private;
     create table auth.users(id uuid primary key);
@@ -44,7 +44,7 @@ export async function growthServer(){
     if(failRead&&r.method==='GET')return response({ok:false},503)
     if(revoked&&(url.searchParams.has('student')||url.pathname==='/api/mobile/coach/assessments'))return response({ok:false},403)
     if(url.pathname==='/api/player/level-up-sessions'){
-      if(r.method==='POST'){const session=(r.write as {session:Record<string,unknown>}).session;const saved={...session,playerUserId:r.owner,sessionJson:{cardId:session.cardId}};practices.set(r.owner+':'+session.id,saved);return response({ok:true,session:saved})}
+      if(r.method==='POST'){const session=(r.write as {session:Record<string,unknown>}).session;const saved={...session,playerUserId:r.owner,sessionJson:{cardId:session.cardId}};practices.set(r.owner+':'+session.id,saved);if(loseTrainingReply){loseTrainingReply=false;return response({ok:false},503)}return response({ok:true,session:saved})}
       return response({ok:true,sessions:[...practices.values()].filter(row=>row.playerUserId===r.owner)})
     }
     if(url.pathname==='/api/mobile/coach/connection'){
@@ -83,5 +83,5 @@ export async function growthServer(){
     }
     return response({ok:false},404)
   }
-  return {db,day,request,assess,close:()=>db.close(),set loseReply(value:boolean){loseReply=value},set revoked(value:boolean){revoked=value},set failRead(value:boolean){failRead=value},set hold(value:boolean){hold=value},release:()=>release?.()}
+  return {db,day,request,assess,close:()=>db.close(),set loseReply(value:boolean){loseReply=value},set loseTrainingReply(value:boolean){loseTrainingReply=value},set revoked(value:boolean){revoked=value},set failRead(value:boolean){failRead=value},set hold(value:boolean){hold=value},release:()=>release?.()}
 }

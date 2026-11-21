@@ -1,5 +1,5 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {growthCheckIn, growthReminderCalendar, readGrowthWrite, readPracticeBlock, type GrowthSnapshot, type GrowthWrite, type PracticeBlock} from '../../lib/tiq-growth'
+import {growthCheckIn, growthReminderCalendar, readGrowthWrite, readPracticeBlock, type GrowthSnapshot, type GrowthWrite, type PracticeBlock, type GrowthPlan} from '../../lib/tiq-growth'
 import {tiqSkills, tiqSkillLevels} from '../../lib/tiq-assessment-skills'
 import type {TiqHistory} from '../../lib/tiq-self-assessment'
 import type {CoachSend} from './coach-workspace-data'
@@ -11,6 +11,8 @@ import {cancelCoachFile, exportCoachFile} from './native-coach-files'
 import {loadTrainingCoachWork, type TrainingCoachWork} from './training-inbox-data'
 import {openCoachCheckIn} from './coach-check-in-view'
 import {growthNextStep, growthReviewChoices, growthReviewHtml} from './tiq-growth-review'
+import {prepareGrowthPractice} from './tiq-practice-return'
+import type {TrainingSession} from './level-up-data'
 
 export function practiceBlockFields(block: PracticeBlock) {
   return `<label>Skill<select name="skill">${tiqSkills.map(skill => `<option value="${skill.id}" ${block.skill === skill.id ? 'selected' : ''}>${skill.skill}</option>`).join('')}</select></label>
@@ -37,7 +39,7 @@ export function bindPracticeSkill(form: HTMLFormElement) {
   })
 }
 export function openGrowthPlan(client: SupabaseClient, owner: string, current: () => boolean, trigger: HTMLElement,
-  options: {retake: () => void; drill: (id: string) => void}, send?: CoachSend) {
+  options: {retake: () => void; drill: (id: string, plan:Pick<GrowthPlan,'id'|'target'>) => void;planId?:string;practice?:TrainingSession|null}, send?: CoachSend) {
   const dialog = document.createElement('dialog'); dialog.className = 'captain-lineup-dialog coach-workspace-dialog tiq-growth-dialog'; dialog.setAttribute('aria-label','My improvement plan')
   let disposed = false, busy = false, dirty = false, leaving = false, view: 'plan'|'new'|'confirm' = 'plan', notice = '', generation = 0
   let snapshot: GrowthSnapshot | null = null, ratings: TiqHistory | null = null, work: TrainingCoachWork | null = null, workError = false
@@ -47,12 +49,14 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
   let lastHeading=''
   let leaveAction:(()=>void)|null=null
   let pendingCorrupt=false
+  let selectedPlanId=options.planId??null,returning=Boolean(options.planId),returnPractice=options.practice??null
+  let preparedPracticeId:string|null=null,focusPreparedPractice=false
   const syncEditControls=()=>{
     if(view==='plan'&&(busy||pending||pendingCorrupt||dirty))dialog.querySelectorAll<HTMLButtonElement|HTMLSelectElement>('[data-drill],[data-retake],[data-remind],[data-checkin],[data-archive],[data-select],[data-earlier],[data-growth-next],[data-review] button,[data-review] select').forEach(b=>{b.disabled=true})
     if(view==='plan'&&(busy||dirty))dialog.querySelector<HTMLButtonElement>('[data-refresh]')?.setAttribute('disabled','')
   }
   const active = () => !disposed && current()
-  function dispose() {if(disposed)return; disposed=true; generation++; checkIn?.dispose(); void cancelCoachFile(owner); snapshot=null;ratings=null;work=null;draft=null;pending=null;dialog.close();dialog.remove();if(current()&&trigger.isConnected)trigger.focus({preventScroll:true})}
+  function dispose() {if(disposed)return; disposed=true; generation++; checkIn?.dispose(); void cancelCoachFile(owner); snapshot=null;ratings=null;work=null;draft=null;pending=null;returnPractice=null;preparedPracticeId=null;logNote='';dialog.close();dialog.remove();if(current()&&trigger.isConnected)trigger.focus({preventScroll:true})}
   function back() {
     if (checkIn?.isOpen()) {checkIn.back(); return true}
     if(busy)return true
@@ -61,14 +65,29 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
     if(view==='new'){view='plan';render();return true}
     dispose();return true
   }
-  async function load(id: string | null = null) {
+  async function load(id: string | null = selectedPlanId) {
     if(busy||!active())return
+    selectedPlanId=id
     const visit=++generation;busy=true;snapshot=null;ratings=null;work=null;workError=false;notice='Loading your plan…';render()
     try {
       pendingCorrupt=false
       const [plan, history, saved] = await Promise.all([loadGrowth(client,owner,active,id,send),loadTiqAccount(client,owner,active,{},send),pendingGrowth(owner).catch(()=>{pendingCorrupt=true;return null})])
       if(!active()||visit!==generation)return
       snapshot=plan;ratings=history;pending=saved;notice=saved?'An update needs confirmation. Retry it before changing this plan.':pendingCorrupt?'Device retry details couldn’t load. Discard those retry details and refresh your account plan before editing.':''
+      if(snapshot.selected)selectedPlanId=snapshot.selected.id
+      if(returning){
+        returning=false
+        if(!pending&&!pendingCorrupt){
+          if(returnPractice){
+            const prepared=prepareGrowthPractice(owner,options.planId??'',snapshot.selected,returnPractice)
+            if(prepared.state==='ready'){
+              preparedPracticeId=prepared.session.id;logDate=prepared.session.date;logNote=prepared.session.note;dirty=true;focusPreparedPractice=true
+              notice='Training session saved. Review this date and note, then confirm to add one practice to your plan.'+(prepared.shortened?' The training note was shortened to fit; you can edit it.':'')
+            }else notice=prepared.state==='already-logged'?'That saved practice is already logged in this plan.':'That session can’t be added to this plan. Your current plan is shown.'
+          }else notice=snapshot.selected?.state==='active'?'Back to your plan. Add a court result after you practice.':snapshot.selected?'Your saved plan is shown. Practice logs can be added only to an active plan.':'That plan is no longer available. Open your active plan to continue.'
+        }
+        returnPractice=null
+      }
       baseline=history.head?.id??''
       try {work=await loadTrainingCoachWork(client,owner,active,send?o=>send('GET',o):undefined)} catch {workError=true}
     } catch(error) {snapshot=null;ratings=null;notice=error instanceof Error?error.message:'Your plan couldn’t load.'}
@@ -82,7 +101,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
       await rememberGrowth(owner,write);pending=write
       await writeGrowth(client,owner,active,write,send)
       if(!active())return
-      await clearGrowth(owner);pending=null;draft=null;dirty=false;logNote='';logDate=growthDay();view='plan';busy=false
+      await clearGrowth(owner);pending=null;draft=null;dirty=false;logNote='';logDate=growthDay();preparedPracticeId=null;view='plan';busy=false
       await load(write.id)
     } catch(error) {if(active()){busy=false;notice=(error instanceof GrowthError?error.message:'Save wasn’t confirmed.')+' Retry the same update to check it.';render()}}
   }
@@ -121,7 +140,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
         ${next?`<section class="tiq-growth-next" aria-label="Next practice step"><small class="stat-eyebrow">Up next</small><h4>${next.title}</h4><p>${html(next.copy)}</p><button type="button" data-growth-next ${locked?'disabled':''}>${next.label}</button></section>`:''}
         ${next?.action!=='drill'?`<button type="button" class="secondary" data-drill ${locked?'disabled':''}>Open ${skill.drill.title}</button>`:''}</section>
         ${plan.state==='reviewed'?growthReviewHtml(plan,snapshot.baseline,snapshot.reassessment):''}
-        ${plan.state==='active'?`<form data-log><h3>Log a practice</h3><label>Practice date<input type="date" name="date" value="${growthDay()}" required ${locked?'disabled':''}></label><label>What happened on court?<textarea name="note" maxlength="160" rows="2" placeholder="For example: 7 of 10 second serves in" ${locked?'disabled':''}></textarea></label><button type="submit" ${locked||plan.logs.length>=24?'disabled':''}>Review practice log</button></form>
+        ${plan.state==='active'?`<form data-log><h3>${preparedPracticeId?'Review saved practice':'Log a practice'}</h3>${preparedPracticeId?'<p>From your private training history. Review the date and note before adding one practice to this plan.</p>':''}<label>Practice date<input type="date" name="date" value="${growthDay()}" required ${locked?'disabled':''}></label><label>What happened on court?<textarea name="note" maxlength="160" rows="2" placeholder="For example: 7 of 10 second serves in" ${locked?'disabled':''}></textarea></label><button type="submit" ${locked||plan.logs.length>=24?'disabled':''}>Review practice log</button></form>
           <section><h3>Review your progress</h3><button type="button" class="secondary" data-retake ${locked?'disabled':''}>Retake self-assessment</button>
           <form data-review><label>New self-assessment<select name="assessment" required><option value="">Choose a new assessment</option>${reviewChoices.map(row=>`<option value="${row.id}">${html(row.date)}</option>`).join('')}</select></label><button type="submit" ${locked||!reviewChoices.length?'disabled':''}>Review completed plan</button></form></section>
           <details><summary>Review reminder</summary><p>Add one review to your calendar. Your calendar controls its alert.</p><label>Time<input type="time" data-time value="18:00"></label><button type="button" class="secondary" data-remind ${locked?'disabled':''}>Add review to calendar</button></details>
@@ -142,16 +161,17 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
     const button=(selector:string,action:()=>void)=>{dialog.querySelector(selector)?.addEventListener('click',action)}
     syncEditControls()
     button('[data-close]',back);button('[data-keep]',()=>{leaving=false;leaveAction=null;render()});button('[data-leave]',()=>{const action=leaveAction;dispose();if(current())action?.()})
-    button('[data-refresh]',()=>{void load(plan?.id??null)});button('[data-save]',()=>{void save()});button('[data-retry]',()=>{void save()})
+    button('[data-refresh]',()=>{void load(plan?.id??selectedPlanId)});button('[data-save]',()=>{void save()});button('[data-retry]',()=>{void save()})
     button('[data-forget]',()=>{void clearGrowth(owner).then(()=>{if(active()){pending=null;draft=null;dirty=false;view='plan';void load()}}).catch(()=>{notice='Retry details couldn’t be cleared.';render()})})
-    button('[data-edit]',()=>{draft=null;dirty=false;view='plan';render()})
+    button('[data-edit]',()=>{const editingLog=draft?.kind==='log';draft=null;dirty=editingLog&&Boolean(logNote||preparedPracticeId||logDate!==growthDay());view='plan';render()})
     button('[data-create]',()=>{fields=defaultPracticeBlock();source=null;view='new';render()})
-    button('[data-retake]',()=>{dispose();options.retake()});button('[data-drill]',()=>{if(skill){dispose();options.drill(skill.drill.id)}})
+    const openDrill=()=>{if(skill&&plan&&!locked&&!dirty){const selected={id:plan.id,target:plan.target};dispose();options.drill(skill.drill.id,selected)}}
+    button('[data-retake]',()=>{dispose();options.retake()});button('[data-drill]',openDrill)
     button('[data-growth-next]',()=>{
       if(locked||dirty||!plan||!next)return
       if(next.action==='review'&&reviewChoices[0])selectWrite({kind:'review',id:plan.id,operation:crypto.randomUUID(),expected:plan.revision,assessment:reviewChoices[0].id})
       else if(next.action==='retake'){dispose();options.retake()}
-      else if(next.action==='drill'&&skill){dispose();options.drill(skill.drill.id)}
+      else if(next.action==='drill')openDrill()
       else if(next.action==='log'){const form=dialog.querySelector<HTMLElement>('[data-log]');form?.scrollIntoView({block:'start'});form?.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})}
     })
     button('[data-checkin]',()=>{void sendCheckIn()})
@@ -162,10 +182,11 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
     const form=dialog.querySelector<HTMLFormElement>('[data-new]')
     if(form)bindPracticeSkill(form)
     if(form){form.oninput=()=>{dirty=true;baseline=String(new FormData(form).get('baseline')??baseline);if(!source){const data=new FormData(form);fields={...fields,skill:String(data.get('skill')) as PracticeBlock['skill'],target:String(data.get('target')),sessions:Number(data.get('sessions')),reviewDate:String(data.get('reviewDate'))}}};form.onsubmit=e=>{e.preventDefault();try{selectWrite({kind:'new',id:crypto.randomUUID(),operation:crypto.randomUUID(),expected:null,baseline:String(new FormData(form).get('baseline')),sourceAssignment:source,block:source?fields:practiceBlockFrom(form)})}catch(error){notice=(error as Error).message;dialog.querySelector('[role=status]')!.textContent=notice}}}
-    const log=dialog.querySelector<HTMLFormElement>('[data-log]');if(log){log.querySelector<HTMLInputElement>('[name=date]')!.value=logDate;log.querySelector<HTMLTextAreaElement>('[name=note]')!.value=logNote;log.oninput=()=>{dirty=true;const data=new FormData(log);logDate=String(data.get('date'));logNote=String(data.get('note'));syncEditControls()};log.onsubmit=e=>{e.preventDefault();if(!plan)return;const data=new FormData(log);try{selectWrite({kind:'log',id:plan.id,operation:crypto.randomUUID(),expected:plan.revision,session:{id:crypto.randomUUID(),date:String(data.get('date')),note:String(data.get('note')).trim()}})}catch(error){notice=(error as Error).message;dialog.querySelector('[role=status]')!.textContent=notice}}}
+    const log=dialog.querySelector<HTMLFormElement>('[data-log]');if(log){log.querySelector<HTMLInputElement>('[name=date]')!.value=logDate;log.querySelector<HTMLTextAreaElement>('[name=note]')!.value=logNote;log.oninput=()=>{dirty=true;const data=new FormData(log);logDate=String(data.get('date'));logNote=String(data.get('note'));syncEditControls()};log.onsubmit=e=>{e.preventDefault();if(!plan)return;const data=new FormData(log);try{selectWrite({kind:'log',id:plan.id,operation:crypto.randomUUID(),expected:plan.revision,session:{id:preparedPracticeId??crypto.randomUUID(),date:String(data.get('date')),note:String(data.get('note')).trim()}})}catch(error){notice=(error as Error).message;dialog.querySelector('[role=status]')!.textContent=notice}}}
     const review=dialog.querySelector<HTMLFormElement>('[data-review]');if(review)review.onsubmit=e=>{e.preventDefault();if(plan)selectWrite({kind:'review',id:plan.id,operation:crypto.randomUUID(),expected:plan.revision,assessment:String(new FormData(review).get('assessment'))})}
     button('[data-earlier]',()=>{if(!ratings?.next||busy)return;busy=true;render();void loadTiqAccount(client,owner,active,{cursor:ratings.next},send).then(page=>{if(active()&&ratings){ratings={...ratings,items:[...ratings.items,...page.items.filter(a=>!ratings!.items.some(b=>b.id===a.id))],next:page.next};notice='Earlier assessments loaded.'}}).catch(()=>{notice='Earlier assessments couldn’t load.'}).finally(()=>{if(active()){busy=false;render()}})})
     if(dialog.open&&heading!==lastHeading){lastHeading=heading;dialog.scrollTop=0;dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}
+    if(focusPreparedPractice&&!busy&&view==='plan'&&log){focusPreparedPractice=false;log.scrollIntoView({block:'start'});log.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})}
   }
   dialog.oncancel=e=>{e.preventDefault();back()};document.body.append(dialog);dialog.showModal();void load()
   return {dispose,back,isOpen:()=>!disposed,requestLeave:(action?:()=>void)=>{
