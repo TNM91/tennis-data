@@ -179,7 +179,7 @@ for(const width of [320,390])test('chooses private plan notes for check-in and s
 
 test('keeps full selected notes and asks for fewer rather than cutting off court evidence',async({page,server})=>{
   const first='First practice '+ 'a'.repeat(145),second='Second practice '+ 'b'.repeat(144),p=await coachedPlan(page,server,[first,second])
-  await p.getByRole('button',{name:'Prepare coach check-in'}).click();for(const box of await p.getByRole('checkbox').all())await box.check()
+  await p.getByRole('button',{name:'Prepare coach check-in'}).click();await expect(p.getByRole('checkbox')).toHaveCount(2);for(const box of await p.getByRole('checkbox').all())await box.check()
   await expect(p.locator('[data-share-count]')).toContainText('Choose fewer notes');await expect(p.getByRole('button',{name:'Continue to check-in'})).toBeDisabled();await expect(p.locator('[data-share-proof]')).toContainText(second)
   await p.getByRole('checkbox',{name:new RegExp(first)}).uncheck();await expect(p.getByRole('button',{name:'Continue to check-in'})).toBeEnabled();await p.getByRole('button',{name:'Continue to check-in'}).click()
   await expect(page.getByRole('dialog',{name:'Coach assignment check-in'}).getByLabel('Proof or next-match cue')).toHaveValue(server.day+': '+second)
