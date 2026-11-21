@@ -2,6 +2,7 @@ import {chatTimestamp} from '../../lib/chat-timestamp'
 import {tiqSkillLevels, tiqSkills} from '../../lib/tiq-assessment-skills'
 import {estimateTiqScore, type TiqAssessment} from '../../lib/tiq-self-assessment'
 import {html} from './match-details'
+import {tiqAssessmentChoiceLabel} from './tiq-assessment-label'
 
 export type TiqProgressSelection = {earlier: string; later: string}
 const older = (a: TiqAssessment, b: TiqAssessment) => a.date < b.date || a.date === b.date
@@ -35,11 +36,6 @@ export function tiqProgressSelection(rows: readonly TiqAssessment[], selected: T
 
 const savedDate = (entry: TiqAssessment) => new Date(entry.createdAt).toLocaleString(undefined,
   {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit'})
-const assessmentDate = new Intl.DateTimeFormat('en-US', {month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'})
-function dateLabel(entry: TiqAssessment, rows: readonly TiqAssessment[]) {
-  const sameDay = rows.filter(row => row.date === entry.date).reverse()
-  return assessmentDate.format(new Date(entry.date + 'T12:00:00Z')) + (sameDay.length > 1 ? ` · ${sameDay.findIndex(row => row.id === entry.id) + 1} of ${sameDay.length}` : '')
-}
 
 export function mountTiqProgressComparison(host: HTMLElement, rows: readonly TiqAssessment[], options: {
   selection: TiqProgressSelection | null; moreAvailable: boolean; current: () => boolean; changed: (selection: TiqProgressSelection) => void;
@@ -59,7 +55,7 @@ export function mountTiqProgressComparison(host: HTMLElement, rows: readonly Tiq
     <ul class="tiq-progress-skills" data-tiq-progress-skills></ul>`
   const laterSelect = host.querySelector<HTMLSelectElement>('[data-tiq-later]')!
   const earlierSelect = host.querySelector<HTMLSelectElement>('[data-tiq-earlier]')!
-  const option = (entry: TiqAssessment) => `<option value="${html(entry.id)}">${html(dateLabel(entry, records))}</option>`
+  const option = (entry: TiqAssessment) => `<option value="${html(entry.id)}">${html(tiqAssessmentChoiceLabel(entry, records))}</option>`
   function paint() {
     if (!selection) return
     const comparison = tiqProgressComparison(records, selection)

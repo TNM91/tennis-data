@@ -14,6 +14,7 @@ import {growthNextStep, growthReviewChoices, growthReviewHtml} from './tiq-growt
 import {prepareGrowthPractice} from './tiq-practice-return'
 import type {TrainingSession} from './level-up-data'
 import {growthCoachContext, growthCoachHtml, growthCoachFollowup, growthCoachFollowupHtml} from './tiq-growth-coach'
+import {tiqAssessmentChoiceLabel} from './tiq-assessment-label'
 
 export function practiceBlockFields(block: PracticeBlock) {
   return `<label>Skill<select name="skill">${tiqSkills.map(skill => `<option value="${skill.id}" ${block.skill === skill.id ? 'selected' : ''}>${skill.skill}</option>`).join('')}</select></label>
@@ -160,7 +161,8 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
     if(!active())return
     const proposed=draft?.kind==='new'?draft.block:null
     const plan=snapshot?.selected, skill=tiqSkills.find(s=>s.id===plan?.skill), locked=busy||Boolean(pending)||pendingCorrupt
-    const reviewChoices=plan?growthReviewChoices(plan,snapshot?.baseline??null,ratings?.items??[]):[]
+    const assessments=ratings?.items??[]
+    const reviewChoices=plan?growthReviewChoices(plan,snapshot?.baseline??null,assessments):[]
     const next=plan?growthNextStep(plan,reviewChoices,growthDay()):null
     const reviewId=draft?.kind==='review'?draft.assessment:null
     const proposedReview=reviewChoices.find(row=>row.id===reviewId)??null
@@ -173,7 +175,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
         <p data-share-count aria-live="polite"></p><p data-share-proof class="coach-written"></p><p>Your coach receives this recap and chosen notes. Sending completes the assignment.</p><button type="submit" ${busy||preview.evidence.length>300?'disabled':''}>Continue to check-in</button></form>`
     }
     else if(view==='new')body=`<p>${followup?'Turn your coach’s focus into a measurable court target. This follow-up plan is private.':'Choose one skill, a court target and when to review it. Only you can see this plan.'}</p>${followup?growthCoachFollowupHtml(followup):source?'<p>Using your coach’s practice block. Your assessment and practice logs stay private.</p>':''}
-      <form data-new><label>Starting assessment<select name="baseline" required>${ratings?.items.map(row=>`<option value="${row.id}" ${baseline===row.id?'selected':''}>Self-assessment · ${html(row.date)}</option>`).join('')}</select></label>
+      <form data-new><label>Starting assessment<select name="baseline" required>${assessments.map(row=>`<option value="${row.id}" ${baseline===row.id?'selected':''}>${html(tiqAssessmentChoiceLabel(row,assessments))}</option>`).join('')}</select></label>
       ${practiceBlockFields(fields)}<button type="submit" ${locked?'disabled':''}>Review plan</button></form>`
     else if(view==='confirm'&&draft)body=draft.kind==='new'?`<h3>${html(tiqSkills.find(s=>s.id===proposed?.skill)?.skill??'Practice')}</h3><p>${html(draft.block.target)}</p><p>${draft.block.sessions} practices · Review ${html(draft.block.reviewDate)}</p><p>Your baseline and logs stay private. Practice completion does not change your TiQ.</p><button type="button" data-save ${busy?'disabled':''}>Save improvement plan</button>`
       :`<p>${draft.kind==='log'?`Log practice on ${html(draft.session.date)}?` : draft.kind==='archive'?'Archive this plan? Your saved practice history stays in your account.':'Compare these assessments, then confirm to complete this plan.'}</p>${draft.kind==='log'?`<p class="coach-written">${html(draft.session.note)}</p>`:draft.kind==='review'&&plan?growthReviewHtml(plan,snapshot?.baseline??null,proposedReview):''}<button type="button" data-save ${busy||draft.kind==='review'&&!proposedReview?'disabled':''}>Confirm ${draft.kind==='log'?'practice':draft.kind==='archive'?'archive':'review'}</button>`
@@ -187,7 +189,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
         ${growthCoachHtml(plan,work,locked||dirty,!activePlan&&Boolean(ratings?.items.length))}
         ${plan.state==='active'?`<form data-log><h3>${preparedPracticeId?'Review saved practice':'Log a practice'}</h3>${preparedPracticeId?'<p>From your private training history. Review the date and note before adding one practice to this plan.</p>':''}<label>Practice date<input type="date" name="date" value="${growthDay()}" required ${locked?'disabled':''}></label><label>What happened on court?<textarea name="note" maxlength="160" rows="2" placeholder="For example: 7 of 10 second serves in" ${locked?'disabled':''}></textarea></label><button type="submit" ${locked||plan.logs.length>=24?'disabled':''}>Review practice log</button></form>
           <section><h3>Review your progress</h3><button type="button" class="secondary" data-retake ${locked?'disabled':''}>Retake self-assessment</button>
-          <form data-review><label>New self-assessment<select name="assessment" required><option value="">Choose a new assessment</option>${reviewChoices.map(row=>`<option value="${row.id}">${html(row.date)}</option>`).join('')}</select></label><button type="submit" ${locked||!reviewChoices.length?'disabled':''}>Review completed plan</button></form></section>
+          <form data-review><label>New self-assessment<select name="assessment" required><option value="">Choose a new assessment</option>${reviewChoices.map(row=>`<option value="${row.id}">${html(tiqAssessmentChoiceLabel(row,assessments))}</option>`).join('')}</select></label><button type="submit" ${locked||!reviewChoices.length?'disabled':''}>Review completed plan</button></form></section>
           <details><summary>Review reminder</summary><p>Add one review to your calendar. Your calendar controls its alert.</p><label>Time<input type="time" data-time value="18:00"></label><button type="button" class="secondary" data-remind ${locked?'disabled':''}>Add review to calendar</button></details>
           <button type="button" class="secondary" data-archive ${locked?'disabled':''}>Archive plan</button>`:''}
         <details><summary>Practice history (${plan.logs.length})</summary>${plan.logs.map(log=>`<p><strong>${html(log.date)}</strong> · ${html(log.note||'Practice completed')}</p>`).join('')||'<p>No practices logged yet.</p>'}</details>`:'<p>Make your next practice count. Start with a saved assessment and one measurable court target.</p>'}

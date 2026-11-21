@@ -52,6 +52,41 @@ async function reviewedCoachPlan(page:Page,server:Server,cue='8 of 10 second ser
   const original=(await server.db.query<{payload:Record<string,unknown>}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows[0].payload
   return {p,original,cue}
 }
+test.describe('assessment choices',()=>{
+  test.use({timezoneId:'Pacific/Kiritimati'})
+  for(const width of [320,390]){
+    test('keeps same-day baseline and review choices distinct without changing selected records at '+width+'px',async({page,server},info)=>{
+      await page.setViewportSize({width,height:844});await server.assess(growthPlayer,11);await server.assess(growthPlayer,12)
+      await open(page,width===320);const p=await plan(page);await p.getByRole('button',{name:'Create improvement plan',exact:true}).click()
+      const baseline=p.getByLabel('Starting assessment');await expect(baseline.locator('option')).toHaveCount(3)
+      const labels=await baseline.locator('option').allTextContents();expect(new Set(labels).size).toBe(3);expect(labels.every(label=>label.endsWith('TiQ 6/10'))).toBe(true)
+      const date=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(server.day+'T12:00:00Z'))
+      expect(labels.every(label=>label.startsWith(date))).toBe(true)
+      await expect(baseline.locator('option:checked')).toContainText('3 of 3');await baseline.selectOption(growthId(1))
+      await p.screenshot({path:info.outputPath('same-day-baseline.png')})
+      await p.getByLabel('Measurable target').fill('7 of 10 second serves in');await p.getByRole('button',{name:'Review plan',exact:true}).click();await p.getByRole('button',{name:'Save improvement plan',exact:true}).click()
+      const payload=async()=>(await server.db.query<{payload:{baseline:string;assessment:string|null}}>('select payload from my_lab_goals where user_id=$1',[growthPlayer])).rows[0].payload
+      expect((await payload()).baseline).toBe(growthId(1))
+      await server.assess(growthPlayer,30);await server.assess(growthPlayer,31);await p.getByRole('button',{name:'Refresh plan',exact:true}).click()
+      const review=p.getByLabel('New self-assessment');await expect(review.locator('option')).toHaveCount(3)
+      await expect(review.locator(`option[value="${growthId(30)}"]`)).toContainText('4 of 5');await expect(review.locator(`option[value="${growthId(31)}"]`)).toContainText('5 of 5')
+      await review.selectOption(growthId(30));await p.screenshot({path:info.outputPath('same-day-review-choice.png')});await p.getByRole('button',{name:'Review completed plan',exact:true}).click();await p.getByRole('button',{name:'Confirm review',exact:true}).click();await expect(p).toContainText('Reviewed plan')
+      expect(await payload()).toMatchObject({baseline:growthId(1),assessment:growthId(30)})
+      expect(await p.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await p.screenshot({path:info.outputPath('same-day-plan-review.png')})
+    })
+    test('distinguishes shared same-day assessments and keeps private records out of coach choices at '+width+'px',async({page,server},info)=>{
+      await page.setViewportSize({width,height:844});await server.assess(growthPeer,22)
+      await server.db.query('select write_native_tiq_assessment($1,$2)',[growthPeer,JSON.stringify({kind:'share',id:growthId(22),student:'student-one',linkUpdatedAt:'2026-11-20T12:00:00.000Z',operation:growthId(202),expected:null})])
+      await server.assess(growthPeer,23,{serve:3});await open(page,width===320);const d=await alignment(page),self=d.getByLabel('Player self-assessment')
+      await expect(self.locator('option')).toHaveCount(3);await expect(self.locator(`option[value="${growthId(23)}"]`)).toHaveCount(0)
+      await expect(self.locator('option:checked')).toContainText('2 of 2 · TiQ 6/10');await self.selectOption(growthId(2))
+      await expect(self).toHaveValue(growthId(2));await expect(self.locator('option:checked')).toContainText('1 of 2 · TiQ 6/10');await expect(d.locator('.tiq-alignment-context')).toContainText('Saved')
+      expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+      expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await d.screenshot({path:info.outputPath('same-day-shared-assessments.png')})
+    })
+  }
+})
+
 test('keeps practice private and recovers a lost log reply after relaunch without duplicates',async({page,server},info)=>{
   await open(page);let d=await create(page)
   await d.getByLabel('What happened on court?').fill('7/10 second serves in');await d.getByRole('button',{name:'Review practice log',exact:true}).click();server.loseReply=true

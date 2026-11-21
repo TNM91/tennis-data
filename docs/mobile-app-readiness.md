@@ -2,9 +2,9 @@
 
 ## Current iPhone acceptance — November 20, 2026
 
-Build **331** was verified installable in **TenAceIQ Internal** (the usual T1 testing group), with Nathan enrolled, at **14:15 UTC on November 20**. Its source is `9076faa359ec2f4efbfe59b2d3c0bc0f8fedacf0`. Release verification passed full lint, typecheck, 6,207 unit tests, the production build, signed-package checks and 947 native browser scenarios. One Chromium-only safe-area scenario was intentionally skipped in WebKit and passed in Chromium. These are automated and package checks; physical iPhone acceptance remains pending.
+Build **336** was verified installable in **TenAceIQ Internal** (the usual T1 testing group), with Nathan enrolled, at **06:31 UTC on November 21**. Its release source is `f7e14ca3cc34bf88c35f9cd94f4d13b115b32307`. Release verification passed full lint, typecheck, 6,272 unit tests, the production build, all ten CI checks and signed-package validation. These are automated and package checks; physical iPhone acceptance remains pending.
 
-The App Store submission separately selected **324**, last verified Waiting for Review at the same time. Testing 331 does not establish acceptance of 324. Leave the current submission unchanged while completing beta checks. **Your TiQ** naming, assessment dates and rating explanations are committed locally for the next update and are absent from 331.
+The App Store submission separately selected **324**, last verified Waiting for Review at the same time. Testing 336 does not establish acceptance of 324. Leave the current submission unchanged while completing beta checks. **Your TiQ** naming, assessment dates, rating explanations, coach feedback follow-up plans and My Lab's resume/review handoffs are included in 336. Release evidence is recorded in `output/testflight-336-20261120/release-proof.json`; the folder date identifies when the release work began, not its completion date.
 
 Use a private test team and test accounts for these checks. Record the build, roles, result and any visible support code; keep passwords and purchase receipts private.
 
