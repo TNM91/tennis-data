@@ -28,6 +28,46 @@ async function openDrill(page:Page,title='Return Depth Lane',query=''){
  return training
 }
 const writes=(page:Page)=>page.evaluate(()=>(window as unknown as {drillCapture:Capture}).drillCapture.writes)
+test.describe('Doubles drill playbooks',()=>{
+ for(const [title,players,context] of [
+  ['Serve +1 Partner','Two players','partner'],['Serve Location Call','Four players','doubles'],
+  ['Doubles Return First Move','Four players','doubles'],['Middle Ball Rule','Three players','doubles'],
+  ['Switch Call Drill','Three players','doubles'],['Poach Timing Shadow','Three players','doubles'],
+ ])test('saves a two-round private result with the correct partner context for '+title,async({page})=>{
+  const training=await openDrill(page,title),setup=training.getByRole('region',{name:'Drill setup',exact:true})
+  await expect(setup).toContainText(players);await expect(setup).toContainText('2 rounds · 10 reps per round')
+  const original=await training.locator('.training-drill-routine').innerText()
+  await training.getByRole('combobox',{name:'Practice version',exact:true}).selectOption('pressure')
+  await expect(training.locator('.training-drill-routine')).not.toHaveText(original)
+  await training.getByRole('button',{name:'Start training',exact:true}).click()
+  await expect(training.getByRole('combobox',{name:'Training context',exact:true})).toHaveValue(context)
+  await expect(training.locator('[data-drill-result]')).toHaveCount(2)
+  await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('0')
+  await training.getByRole('spinbutton',{name:'Round 2',exact:true}).fill('8')
+  await expect(training.getByRole('status',{name:'Drill round totals',exact:true})).toContainText('2 of 2 rounds recorded · 8/20')
+  await training.getByRole('textbox',{name:'Your training note',exact:true}).fill('Pair <ready> before the next ball.')
+  await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('2')
+  await training.getByRole('button',{name:'Save completed session',exact:true}).click()
+  const latest=training.locator('.training-history-latest')
+  await expect(latest).toContainText('R1 0/10; R2 8/10. Total 8/20.');await expect(latest).toContainText('2 / 5');await expect(latest).toContainText('Pair <ready>');await expect(latest.locator('ready')).toHaveCount(0)
+  const bodies=await writes(page);expect(bodies).toHaveLength(1);expect(JSON.parse(bodies[0]).session).toMatchObject({context,rating:2,sharedWithCoach:false});expect(JSON.parse(bodies[0]).session).not.toHaveProperty('assignmentId')
+ })
+ for(const width of [320,390])test('keeps roles and two round fields usable at '+width+'px',async({page},info)=>{
+  await page.setViewportSize({width,height:844})
+  const title=width===320?'Serve Location Call':'Poach Timing Shadow',training=await openDrill(page,title,width===320?'&large=1':'')
+  await training.getByRole('combobox',{name:'Practice version',exact:true}).selectOption('pressure')
+  const start=training.getByRole('button',{name:'Start training',exact:true})
+  await expect(start).toBeInViewport({ratio:1});expect(await training.locator('[data-training-drill-body]').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  await page.screenshot({path:info.outputPath('doubles-drill-preview-'+width+'.png')})
+  await start.click();const first=training.getByRole('spinbutton',{name:'Round 1',exact:true}),second=training.getByRole('spinbutton',{name:'Round 2',exact:true})
+  await first.fill('0');await second.fill('8');await second.press('Escape')
+  await training.getByRole('button',{name:'Keep training',exact:true}).click();await expect(second).toBeFocused();await expect(first).toHaveValue('0');await expect(second).toHaveValue('8')
+  await second.scrollIntoViewIfNeeded();expect(await training.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  const boxes=await training.locator('[data-drill-result]').evaluateAll(inputs=>inputs.map(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height})))
+  expect(Math.abs(boxes[0].width-boxes[1].width)).toBeLessThanOrEqual(1);for(const box of boxes)expect(box.height).toBeGreaterThanOrEqual(44)
+  await page.screenshot({path:info.outputPath('doubles-drill-results-'+width+'.png')})
+ })
+})
 test.describe('Drill playbooks',()=>{
  for(const title of ['Serve Target Call','Return Depth Lane','Wall Rally Rhythm','Split-Step Rhythm','Volley Ready Split','30-30 Pressure Game'])test('shows setup and a distinct pressure routine for '+title,async({page})=>{
   const training=await openDrill(page,title)

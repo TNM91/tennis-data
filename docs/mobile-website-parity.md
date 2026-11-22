@@ -1,5 +1,13 @@
 # Website to iPhone parity
 
+## Doubles and serve-plus-one playbooks — local follow-up
+
+The twelve-playbook library now includes Serve +1 Partner, Serve Location Call, Doubles Return First Move, Middle Ball Rule, Switch Call Drill and Poach Timing Shadow. Each new playbook supplies original setup instructions, two distinct versions, two rounds of ten, a count rule and an easier adaptation. Existing card IDs, categories, access rules and coach links are retained. The shared card library uses the control routine by default; iPhone players can choose the pressure routine and save optional counts with a private training note.
+
+The setup distinguishes two-player hitting, four-player doubles and three-player feeding or rehearsal. Receiving-side assignments remain separate from movement during a rally. Middle ownership is agreed rather than always assigned to a forehand; recovery covers both halves; poach timing is rehearsed on the return cue and stays free of live balls in both versions. Counts describe the chosen practice task, not point wins, TiQ changes or an automatically completed coach assignment. Partner and doubles contexts remain distinct in saved sessions.
+
+Service/receiving roles and court boundaries were checked against the [ITF Rules of Tennis, rules 14–17](https://www.world.tennis/media/7221/2026-rules-of-tennis-english.pdf). The [LTA doubles guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/essential-doubles-tactics-and-hand-signals/) was consulted for role and coverage checks. The practice formats, repetition counts and copy are TenAceIQ originals. This adds no imported match data, media, API, schema, billing or collector work. It remains local, outside build 346; the separate pending coach practice-editor API rollout remains required before the combined next beta.
+
 ## TiQ drill playbooks — local follow-up to build 346
 
 The six assessment-linked drills now share original TenAceIQ playbooks: realistic court setup, Build control / Add pressure routines, clear repetition counts, easier adaptations and practice progression. Their default routines are part of the shared website card library; the iPhone preview adds a version selector and compact setup. The active session offers optional round counts, with a responsive layout for narrow screens and larger text.

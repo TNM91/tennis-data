@@ -732,7 +732,7 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
   'poach-timing-shadow': {
     useWhen: 'Use this when poaches are late, obvious, or disconnected from the serve.',
     tennisGoal: 'Train the first move and timing of a poach before using it live.',
-    cue: 'Read the toss, split, cross on the return swing.',
+    cue: 'Agree, read the return cue, cover together.',
     routine: ['Start in net-player ready position.', 'Partner or coach calls serve direction.', 'Split and shadow the poach path across the middle.', 'Repeat 3 sets of 6 and score timing, not speed.'],
     reward: 'You get a cleaner first move for doubles pressure without gambling blindly.',
     proof: 'Poach timing and first move 0-5',
