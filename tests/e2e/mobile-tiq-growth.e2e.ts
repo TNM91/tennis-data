@@ -193,6 +193,86 @@ test('coach observation choices ignore a late refresh after the account changes'
   expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
 })
 
+for(const width of [320,390])test('coach practice draft keeps incomplete fields and returns focus at '+width+'px',async({page,server},info)=>{
+  await page.setViewportSize({width,height:844});await open(page,width===320);const d=await alignment(page)
+  await d.getByRole('button',{name:'Plan practice block',exact:true}).click()
+  const target=d.getByRole('textbox',{name:'Measurable target',exact:true}),count=d.getByLabel('Practices',{exact:true}),date=d.getByLabel('Review date',{exact:true})
+  const raw='  Keep the second serve deep.\nAim for 8 of 10.  '
+  await target.fill(raw);await count.fill('');await date.fill('');await count.focus()
+  await d.getByRole('button',{name:'Close',exact:true}).click();await d.getByRole('button',{name:'Keep editing',exact:true}).click()
+  await expect(count).toHaveValue('');await expect(date).toHaveValue('');await expect(target).toHaveValue(raw);await expect(count).toBeFocused()
+  await target.focus();await target.press('Escape');await d.getByRole('button',{name:'Keep editing',exact:true}).click()
+  await expect(target).toBeFocused();await expect(target).toBeInViewport();await expect(target).toHaveValue(raw)
+  await date.focus();await date.press('Escape');await d.getByRole('button',{name:'Close',exact:true}).click()
+  await expect(date).toBeFocused();await expect(date).toHaveValue('');await expect(count).toHaveValue('')
+  expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  await d.screenshot({path:info.outputPath('coach-practice-draft-'+width+'.png')})
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+})
+
+test('coach practice draft returns from review to the exact editable fields before one explicit assignment',async({page,server})=>{
+  await open(page);const d=await alignment(page);await d.getByRole('button',{name:'Plan practice block',exact:true}).click()
+  await d.getByRole('combobox',{name:'Skill',exact:true}).selectOption('return')
+  const target=d.getByRole('textbox',{name:'Measurable target',exact:true}),raw='  Return 7 of 10 second serves deep.  '
+  await target.fill(raw);await d.getByLabel('Practices',{exact:true}).fill('5');await target.focus()
+  await d.getByRole('button',{name:'Review practice block',exact:true}).click()
+  await d.getByRole('button',{name:'Close',exact:true}).click();await d.getByRole('button',{name:'Keep editing',exact:true}).click()
+  await expect(d.getByRole('button',{name:'Assign practice block',exact:true})).toBeFocused()
+  await d.getByRole('button',{name:'Back',exact:true}).click();await expect(target).toHaveValue(raw);await expect(target).toBeFocused()
+  await expect(d.getByRole('combobox',{name:'Skill',exact:true})).toHaveValue('return');await expect(d.getByLabel('Practices',{exact:true})).toHaveValue('5')
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+  await d.getByRole('button',{name:'Review practice block',exact:true}).click();await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d).toContainText('Practice block assigned.')
+  const rows=(await server.db.query<{assignment_json:{tiqGrowth:{skill:string;target:string;sessions:number}}}>('select assignment_json from coach_assignments')).rows
+  expect(rows).toHaveLength(1);expect(rows[0].assignment_json.tiqGrowth).toMatchObject({skill:'return',target:raw.trim(),sessions:5})
+})
+
+test('coach practice draft keeps an unconfirmed assignment intact without posting when staying',async({page,server})=>{
+  await open(page);const d=await alignment(page);await d.getByRole('button',{name:'Plan practice block',exact:true}).click()
+  await d.getByRole('textbox',{name:'Measurable target',exact:true}).fill('Make 8 of 10 second serves.')
+  await d.getByRole('button',{name:'Review practice block',exact:true}).click()
+  const original=server.request,writes:unknown[]=[];let hideReply=true
+  server.request=async request=>{
+    const response=await original(request)
+    if(new URL(request.url).pathname==='/api/mobile/coach'){
+      if(request.method==='POST')writes.push(request.write)
+      if(hideReply)return {...response,status:503,body:{ok:false}}
+    }
+    return response
+  }
+  await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d.getByRole('button',{name:'Retry same practice block',exact:true})).toBeEnabled()
+  expect(writes).toHaveLength(1);await expect(d.getByRole('button',{name:'Back',exact:true})).toBeDisabled()
+  await d.getByRole('button',{name:'Close',exact:true}).click();await d.getByRole('button',{name:'Keep editing',exact:true}).click()
+  await expect(d.getByRole('button',{name:'Retry same practice block',exact:true})).toBeFocused();expect(writes).toHaveLength(1)
+  hideReply=false;await d.getByRole('button',{name:'Retry same practice block',exact:true}).click();await expect(d).toContainText('Practice block assigned.')
+  expect(writes).toHaveLength(2);expect(writes[1]).toEqual(writes[0]);expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(1)
+})
+
+test('coach practice draft discards only its fields and returns to the selected observation',async({page,server})=>{
+  const earlier=coachObservation(81,'2026-11-20T12:00:00Z','return'),later=coachObservation(82,'2026-11-20T12:01:00Z');coachObservations(server,[later,earlier])
+  await open(page);const d=await alignment(page);await d.getByLabel('Coach observation').selectOption(earlier.id)
+  await d.getByRole('button',{name:'Plan practice block',exact:true}).click();await d.getByRole('textbox',{name:'Measurable target',exact:true}).fill('Unsent coach target');await d.getByLabel('Practices',{exact:true}).fill('')
+  await d.getByRole('button',{name:'Back',exact:true}).click();await d.getByRole('button',{name:'Discard edits',exact:true}).click()
+  await expect(d.getByLabel('Coach observation')).toHaveValue(earlier.id);await expect(d.getByRole('button',{name:'Plan practice block',exact:true})).toBeFocused()
+  await d.getByRole('button',{name:'Plan practice block',exact:true}).click();await expect(d.getByRole('combobox',{name:'Skill',exact:true})).toHaveValue('return');await expect(d.getByLabel('Practices',{exact:true})).toHaveValue('3');await expect(d.getByRole('textbox',{name:'Measurable target',exact:true})).not.toHaveValue('Unsent coach target')
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+})
+
+test('coach practice draft clears private fields and invalidates old warning actions on account change',async({page,server})=>{
+  await open(page);const d=await alignment(page);await d.getByRole('button',{name:'Plan practice block',exact:true}).click();await d.getByRole('textbox',{name:'Measurable target',exact:true}).fill('Private unsent coach target')
+  await d.getByRole('button',{name:'Close',exact:true}).click()
+  await d.evaluate(el=>{(window as unknown as {oldCoachDraftActions:HTMLElement[]}).oldCoachDraftActions=[...el.querySelectorAll<HTMLElement>('[data-keep],[data-discard]')]})
+  await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner());await expect(d).toHaveCount(0)
+  await page.evaluate(()=>{for(const action of (window as unknown as {oldCoachDraftActions:HTMLElement[]}).oldCoachDraftActions)action.click()})
+  await expect(d).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Private unsent coach target');await expect(page.locator('body')).toHaveAttribute('data-screen','lab')
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+})
+
+test('coach practice draft returns an untouched block to its comparison without a warning',async({page,server})=>{
+  await open(page);const d=await alignment(page);await d.getByRole('button',{name:'Plan practice block',exact:true}).click();await d.getByRole('button',{name:'Back',exact:true}).click()
+  await expect(d.getByLabel('Coach observation')).toBeEnabled();await expect(d.getByRole('button',{name:'Keep editing',exact:true})).toHaveCount(0);await expect(d.getByRole('button',{name:'Plan practice block',exact:true})).toBeFocused()
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+})
+
 test('keeps practice private and recovers a lost log reply after relaunch without duplicates',async({page,server},info)=>{
   await open(page);let d=await create(page)
   await d.getByLabel('What happened on court?').fill('7/10 second serves in');await d.getByRole('button',{name:'Review practice log',exact:true}).click();server.loseReply=true

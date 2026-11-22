@@ -442,6 +442,14 @@ The selected observation’s full label and recorded time remain readable outsid
 
 No new account reads, storage, sharing, API, schema, calculation, background work, artwork or styling changes are added. The prior practice-plan cancellation improvement remains included in the local branch. Both follow-ups are local and not yet in TestFlight; physical iPhone acceptance follows a later beta.
 
+### Coach practice-block drafts — local follow-up to build 345
+
+Player & coach view retains raw practice-block fields through a leave decision and when returning from review. Blank practice counts and review dates remain blank, and the target keeps its exact entered text until validation. Keep editing returns to the last field and brings it into view. From the assignment review, keeping returns focus to the assign or retry action; Back restores the editable fields before any assignment attempt.
+
+Discard clears only the unsent draft and returns focus to Plan practice block with the same self-assessment and coach observation selected. An untouched draft returns directly to the comparison. Keeping does not send an assignment, and an unconfirmed assignment keeps its existing ID and payload for explicit retry. Account changes clear the draft and make its old warning actions inactive. Drafts remain memory-only, with no new API, schema, background work, rating calculation, artwork or styling changes.
+
+This follow-up is local, alongside practice-plan cancellation and coach observation choice clarity. It is not yet in TestFlight; full release verification and physical iPhone acceptance remain required before the next beta is treated as accepted.
+
 ## League Office season review — build 83 released
 
 My Lab → League Office adds a connected read-only visit through seasons created by the signed-in account, participant entry records, schedules, recorded results/courts and team standings. The home is generated from the actual website `LeagueOfficeHome` component and its CSS; the optional caption says Workspace in the app without claiming a different membership plan. The website's team standings calculation is extracted into a pure helper and reused unchanged by both callers, including dynamic points and configured standings rules. Unplayed events do not become wins, losses or ties. Individual leagues show recorded player results; this slice does not invent individual standings.
