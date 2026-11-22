@@ -1,10 +1,10 @@
 # iPhone subscriptions and launch readiness — U.S. first
 
-## Current release snapshot — November 21, 2026
+## Current release snapshot — November 22, 2026
 
-Internal build **344** was verified installable and assigned to the usual TenAceIQ Internal testing group at **06:56 UTC on November 22**. The separate App Store submission selected **324** and was Waiting for Review at that check. Pro, Tournament Publishing, League Season Publishing and the membership group were recorded as included in the earlier submission; this release check did not re-audit the catalog, billing flags or business agreements.
+Internal build **345** was verified installable and assigned to the usual TenAceIQ Internal testing group at **10:36 UTC on November 22**. The separate App Store submission selected **324** and was Waiting for Review at that check. Pro, Tournament Publishing, League Season Publishing and the membership group were recorded as included in the earlier submission; this release check did not re-audit the catalog, billing flags or business agreements.
 
-Complete the [current iPhone acceptance checklist](mobile-app-readiness.md#current-iphone-acceptance--november-22-2026), especially notification destinations, purchase/restore and organizer cancellation/recovery. Prior sandbox successes on older products or builds do not establish acceptance of the current offer on 344. Keep the current public review unchanged.
+Complete the [current iPhone acceptance checklist](mobile-app-readiness.md#current-iphone-acceptance--november-22-2026), especially notification destinations, purchase/restore and organizer cancellation/recovery. Prior sandbox successes on older products or builds do not establish acceptance of the current offer on 345. Keep the current public review unchanged.
 
 The approved offer below remains current. Setup gaps and rollout instructions elsewhere in this document are historical unless reconfirmed against the selected candidate; do not rerun a migration, enable purchases or treat an old Missing Metadata note as a new blocker based on those notes alone.
 

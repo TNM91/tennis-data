@@ -412,21 +412,75 @@ Leaving My Lab through the tab controls or Refresh profile reviews unsaved chang
 
 An in-progress save holds the view and asks the player to try leaving after it finishes. An unconfirmed save uses separate copy explaining that it may already have completed; keeping the view retains the original explicit retry operation. Leaving does not undo an accepted save or trigger another one. A changed account closes the warning, clears private work and invalidates its old navigation action. The existing navy confirmation treatment is reused. No new storage, API, schema, notification, polling, automatic save, retry or artwork changes are added. Released in TestFlight 344 with T1 assigned; physical iPhone acceptance remains pending.
 
-### Your TiQ assessment navigation — local follow-up to build 344
+### Your TiQ assessment navigation — released in build 345
 
 Switching tabs or refreshing My Lab while changing an assessment now uses the existing Discard unsaved answers review. Keep answering restores the current step, all entered answers and the last selected question. Discard answers follows the most recently selected destination without saving the assessment or changing the previously saved rating. Empty new assessments and reverted retakes can leave immediately. The existing Cancel flow retains its heading focus and previous behavior.
 
 An assessment save in progress keeps the view open until it completes; the user then chooses navigation again. Durable unconfirmed account saves remain available through Rating history with their existing operation identity. Account changes clear the form and invalidate old discard actions. When an assessment and a scorecard are both being edited, each is reviewed before leaving, including Back to Team results, without duplicate scorecard prompts.
 
-This reuses the existing inline confirmation and centralized account/screen guards. It adds no calculation, storage, account write, coach sharing, API, schema, notification, polling or artwork changes, and no persistence of unsaved answers across force quit. This follow-up is local and not yet in TestFlight; physical iPhone acceptance follows a later beta.
+This reuses the existing inline confirmation and centralized account/screen guards. It adds no calculation, storage, account write, coach sharing, API, schema, notification, polling or artwork changes, and no persistence of unsaved answers across force quit. Released in TestFlight 345 with T1 assigned; physical iPhone acceptance remains pending.
 
-### Your TiQ history change recovery — local follow-up to build 344
+### Your TiQ history change recovery — released in build 345
 
 Rating history keeps an in-progress device import, coach-sharing change, sharing revocation or deletion open through Close, Escape and coaching navigation. It asks the player to try closing again after the save finishes; it does not queue a departure. Loading read-only history and closing a confirmed change still work immediately.
 
 An unconfirmed change uses the existing rounded confirmation treatment with Keep reviewing and Leave history. Keeping restores focus and the same explicit retry operation. Leaving closes without retrying or undoing a change that may already be saved, and directs the player to refresh Rating history before changing it again. Keeping a review clears its requested destination. A later explicit handoff follows only the current choice. Closing returns focus to Rating history through the account refresh, including a failed refresh, without taking focus back after the player moves elsewhere. Account changes force the private history and confirmation closed and invalidate their old actions.
 
-The existing device-import recovery record remains account-scoped. Sharing, revocation and deletion retries remain limited to the open history visit; this does not add an offline queue or force-quit recovery. No new storage, API, schema, account write, coach notification, polling, artwork or styling changes are added. This follows the separately verified assessment navigation update; both are local and not yet in TestFlight. Physical iPhone acceptance follows a later beta.
+The existing device-import recovery record remains account-scoped. Sharing, revocation and deletion retries remain limited to the open history visit; this does not add an offline queue or force-quit recovery. No new storage, API, schema, account write, coach notification, polling, artwork or styling changes are added. Released alongside assessment navigation in TestFlight 345 with T1 assigned; physical iPhone acceptance remains pending.
+
+### Improvement-plan cancellation — local follow-up to build 345
+
+Cancel new plan reviews edits before returning to saved plans. Keep editing preserves the selected assessment, skill, target, practice count and review date, including incomplete blank fields, and restores focus to the selected field. Discard new plan returns to the same Create improvement plan, coach feedback or coach-block invitation, with the invitation visible when needed. An untouched new plan cancels immediately. Editing a reviewed draft retains the same cancellation protection.
+
+Cancelling does not save a plan, alter coach assignments, change an existing plan or send a check-in. Coach-block fields remain read-only; only the player’s starting assessment can change. Close and coaching navigation retain their existing leave behavior, and keeping a review clears its prior destination. Account changes clear the new fields and invalidate the old discard action. Drafts remain memory-only. No new storage, API, schema, rating calculation, sharing, polling, billing, artwork or styling changes are added. This follow-up is local and not yet in TestFlight; physical iPhone acceptance follows a later beta.
+
+### Coach observation choices — local follow-up to build 345
+
+Player & coach view distinguishes observations from the same local calendar day with chronological positions among the loaded records, followed by the coach and court context. PostgreSQL microseconds and stable record-ID ties determine position; numbering does not change the records or imply a rating. The existing latest-12 limit and access rules remain unchanged.
+
+The selected observation’s full label and recorded time remain readable outside the picker. Each picker describes its own selected source for assistive technology. A lone self-assessment or coach observation shows its source without inventing a comparison. Refresh and earlier self-assessment pages keep the selected observation by ID while it remains available; a new practice block still starts from that selected observation’s priority and requires explicit review and assignment. Revoked access clears source details, and late responses after account changes remain ignored.
+
+No new account reads, storage, sharing, API, schema, calculation, background work, artwork or styling changes are added. The prior practice-plan cancellation improvement remains included in the local branch. Both follow-ups are local and not yet in TestFlight; physical iPhone acceptance follows a later beta.
+
+### Coach practice-block drafts — local follow-up to build 345
+
+Player & coach view retains raw practice-block fields through a leave decision and when returning from review. Blank practice counts and review dates remain blank, and the target keeps its exact entered text until validation. Keep editing returns to the last field and brings it into view. From the assignment review, keeping returns focus to the assign or retry action; Back restores the editable fields before any assignment attempt.
+
+Discard clears only the unsent draft and returns focus to Plan practice block with the same self-assessment and coach observation selected. An untouched draft returns directly to the comparison. Keeping does not send an assignment, and an unconfirmed assignment keeps its existing ID and payload for explicit retry. Account changes clear the draft and make its old warning actions inactive. Drafts remain memory-only, with no new API, schema, background work, rating calculation, artwork or styling changes.
+
+This follow-up is local, alongside practice-plan cancellation and coach observation choice clarity. It is not yet in TestFlight; full release verification and physical iPhone acceptance remain required before the next beta is treated as accepted.
+
+### Coach practice-block receipt — local follow-up to build 345
+
+A confirmed practice-block assignment opens a readable receipt with the assigned title, target, practice count, calendar review date and player. The receipt explains the player’s route through My Lab → My improvement plan → Coach practice blocks; it does not claim that a private player plan has started or that its notes are shared. The existing navy surface, typography and buttons are reused.
+
+Done, Close and Escape close the comparison dialog and return focus to Player & coach view in Coach assessments. The existing saved-work callback updates the Coach workspace when Coach assessments closes. Back to comparison instead keeps the selected self-assessment and observation and returns focus to Plan practice block. Neither action sends an assignment.
+
+The receipt is created only after the existing saved-payload check confirms the exact assignment. An unconfirmed reply keeps the same assignment ID and payload for explicit retry, and a late reply after an account change cannot reopen the receipt. Account changes clear its saved details and invalidate its old actions. No new API, schema, polling, notifications, rating calculation, sharing, storage, artwork or stylesheet changes are added. This follow-up is local, with final release checks and physical iPhone acceptance still due before the next beta is treated as accepted.
+
+### Incoming coach blocks — local follow-up to build 345
+
+My improvement plan shows a visible count of incoming coach blocks even when a private plan is active. The existing Coach practice blocks disclosure now previews each valid block’s target, practice count and calendar review date. An active plan’s own assignment is excluded from the incoming count. Completed assignments, recorded check-ins, unavailable or paused coach links and malformed blocks are withheld.
+
+An active plan keeps priority: the player is asked to finish or archive it before starting another block. Open current plan moves focus to the already-selected plan without another account read, or explicitly loads the current plan when viewing an archived one. Unsent notes and pending recovery disable that handoff. New block adoption remains an explicit review/save action, retains read-only coach fields and the private starting assessment choice, and preserves archived practice history. The existing database still enforces one active plan and the exact current coach block.
+
+This uses existing plan and coach-work reads, with no new polling, API, schema, sharing, score calculation, artwork or stylesheet changes. Failed refreshes clear unavailable previews, and late responses after account changes cannot reopen a prior player’s work. This is local alongside the other queued TiQ improvements; final release checks and physical iPhone acceptance remain due before the next beta is treated as accepted.
+
+### Coach block review dates — local follow-up to build 345
+
+Coach practice blocks separate usable review dates from dates needing attention. A date before yesterday or more than 366 days ahead is explained before a new coach plan is started, using the device’s UTC calendar day for the client check. The database’s existing date check remains authoritative. Coach targets and dates are never shifted automatically.
+
+Blocked start buttons describe the needed coach update, and Refresh coach blocks reuses the existing explicit plan refresh. When all incoming blocks need date updates, the player is guided to continue their current plan rather than archive it. Dates are rechecked when starting a block, reviewing a new coach-plan draft and saving an unsent new draft. A day change preserves the read-only source fields and private assessment choice, and explains how to cancel and refresh after the coach update.
+
+An already-sent pending plan update bypasses the new client date check and retains its exact retry ID and payload, allowing the existing recovery flow to confirm a save. The original one-active-plan rule, source authorization and server date validation remain unchanged. No new API, schema, background reads, notifications, sharing, storage, rating calculation, artwork or stylesheet changes are added. This follow-up is local; final release checks and physical iPhone acceptance remain due before the next beta is treated as accepted.
+
+### Coach practice dates — local follow-up to build 345
+
+Player & coach view checks a new practice block’s review date before review and again before its first assignment attempt, reusing the player-side UTC date policy. An unusable date shows an inline alert described by the date field. Focus returns to that field while the raw target, practice count and date remain intact. Editing the date clears its error; Keep editing retains the error and returns to the same field. No date is silently shifted.
+
+A day change after review returns an unsent block to the editable draft. An already-attempted assignment bypasses the new first-send check, retaining the exact retry ID and payload. If its confirmed date has since expired, the receipt explains that a fresh block with a current date is needed, and that the older assignment can be archived in Coach workspace. General assignment editing remains unchanged; this does not claim that editing its ordinary due date also changes an embedded TiQ practice block.
+
+No new API, schema, background work, notifications, sharing, rating calculation, storage, artwork or stylesheet changes are added. Account changes clear the new field-error state and invalidate old form actions. Existing receipt tests now use a relative review date while retaining their human calendar-date and saved-payload assertions. This follow-up is local, with final release checks and physical iPhone acceptance still due before the next beta is treated as accepted.
 
 ## League Office season review — build 83 released
 

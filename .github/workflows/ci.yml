@@ -313,11 +313,16 @@ jobs:
           - name: Native Coach experience
             suite: coach
             browsers: chromium webkit
-          # The combined Coach and assessment suites can exceed 25 minutes.
-          # Keep both engines and every case in separate single-worker jobs.
-          - name: Native Coach assessments
+          # The 322 assessment cases exceed one job's 25-minute window.
+          # Keep every case, one worker and the same deadlines in one job per engine.
+          - name: Native Coach assessments (Chromium)
             suite: coach-assessment
-            browsers: chromium webkit
+            browsers: chromium
+            project: mobile-chrome
+          - name: Native Coach assessments (WebKit)
+            suite: coach-assessment
+            browsers: webkit
+            project: mobile-webkit
           - name: Native navigation (Chromium)
             suite: navigation
             browsers: chromium
@@ -377,7 +382,7 @@ jobs:
         if: matrix.suite == 'coach-assessment'
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4285
-        run: npx playwright test --config=tests/playwright.coach-assessment.config.ts --output=.next/coach-assessment-results
+        run: npx playwright test --config=tests/playwright.coach-assessment.config.ts --project=${{ matrix.project }} --workers=1 --output=.next/coach-assessment-results
       - name: Verify opening preferences and native visual states
         if: matrix.suite == 'coach'
         env:
@@ -421,7 +426,7 @@ jobs:
         if: always() && matrix.suite == 'coach-assessment'
         uses: actions/upload-artifact@v6
         with:
-          name: coach-assessment-ui-fixtures-${{ github.sha }}
+          name: coach-assessment-ui-fixtures-${{ matrix.project }}-${{ github.sha }}
           path: .next/coach-assessment-results/**/*.png
           if-no-files-found: ignore
           retention-days: 3

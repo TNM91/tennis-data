@@ -13,8 +13,10 @@ import {openCoachCheckIn} from './coach-check-in-view'
 import {growthNextStep, growthReviewChoices, growthReviewHtml} from './tiq-growth-review'
 import {prepareGrowthPractice} from './tiq-practice-return'
 import type {TrainingSession} from './level-up-data'
-import {growthCoachContext, growthCoachHtml, growthCoachFollowup, growthCoachFollowupHtml} from './tiq-growth-coach'
+import {growthCoachContext, growthCoachHtml, growthCoachFollowup, growthCoachFollowupHtml, growthCoachBlocks, growthCoachBlocksHtml, growthCoachBlockTiming} from './tiq-growth-coach'
 import {tiqAssessmentChoiceLabel} from './tiq-assessment-label'
+
+const coachBlockDateMessage='This coach block needs a new review date. Cancel this draft and refresh after your coach updates it.'
 
 export function practiceBlockFields(block: PracticeBlock) {
   return `<label>Skill<select name="skill">${tiqSkills.map(skill => `<option value="${skill.id}" ${block.skill === skill.id ? 'selected' : ''}>${skill.skill}</option>`).join('')}</select></label>
@@ -50,9 +52,13 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
   let logDate=growthDay(),logNote=''
   let lastHeading=''
   let leaveAction:(()=>void)|null=null
+  let cancelNew=false,newPlanValues:Record<string,string>|null=null,newPlanFocus:string|null=null
+  type NewPlanOrigin='create'|'followup'|{assignment:string}
+  let newPlanOrigin:NewPlanOrigin='create'
+  const newPlanNames=['baseline','skill','target','sessions','reviewDate'] as const
   let pendingCorrupt=false
   let selectedPlanId=options.planId??null,returning=Boolean(options.planId),returnPractice=options.practice??null
-  let preparedPracticeId:string|null=null,focusPreparedPractice=false
+  let preparedPracticeId:string|null=null,focusPreparedPractice=false,focusCurrent=false
   let share:{plan:GrowthPlan;context:Extract<ReturnType<typeof growthCoachContext>,{state:'ready'}>;notes:string[]}|null=null
   let followup:ReturnType<typeof growthCoachFollowup>=null
   const actionDefaults=new WeakMap<HTMLButtonElement|HTMLSelectElement,boolean>()
@@ -63,17 +69,38 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
   }
   const syncEditControls=()=>{
     if(view!=='plan')return
-    dialog.querySelectorAll<HTMLButtonElement|HTMLSelectElement>('[data-drill],[data-retake],[data-remind],[data-checkin],[data-coach-followup],[data-archive],[data-select],[data-earlier],[data-growth-next],[data-review] button,[data-review] select').forEach(b=>blockAction(b,Boolean(busy||pending||pendingCorrupt||dirty)))
+    dialog.querySelectorAll<HTMLButtonElement|HTMLSelectElement>('[data-drill],[data-retake],[data-remind],[data-checkin],[data-coach-followup],[data-archive],[data-select],[data-open-current],[data-block-refresh],[data-adopt],[data-earlier],[data-growth-next],[data-review] button,[data-review] select').forEach(b=>blockAction(b,Boolean(busy||pending||pendingCorrupt||dirty)))
     const refresh=dialog.querySelector<HTMLButtonElement>('[data-refresh]')
     if(refresh)blockAction(refresh,busy||dirty)
   }
   const active = () => !disposed && current()
-  function dispose() {if(disposed)return; disposed=true; generation++; checkIn?.dispose(); void cancelCoachFile(owner); snapshot=null;ratings=null;work=null;draft=null;pending=null;share=null;followup=null;returnPractice=null;preparedPracticeId=null;logNote='';dialog.close();dialog.remove();if(current()){if(options.restoreFocus)options.restoreFocus();else if(trigger.isConnected)trigger.focus({preventScroll:true})}}
+  function dispose() {if(disposed)return; disposed=true; generation++; checkIn?.dispose(); void cancelCoachFile(owner); snapshot=null;ratings=null;work=null;draft=null;pending=null;share=null;followup=null;returnPractice=null;preparedPracticeId=null;focusCurrent=false;logNote='';newPlanValues=null;newPlanFocus=null;newPlanOrigin='create';cancelNew=false;leaveAction=null;dialog.close();dialog.remove();if(current()){if(options.restoreFocus)options.restoreFocus();else if(trigger.isConnected)trigger.focus({preventScroll:true})}}
+  function focusCurrentPlan(){if(!active())return;const target=dialog.querySelector<HTMLElement>('[data-current-focus]')??dialog.querySelector<HTMLElement>('h2');target?.focus({preventScroll:true});target?.scrollIntoView({block:'start'})}
+  function beginNewPlan(origin:NewPlanOrigin){newPlanValues=null;newPlanFocus=null;newPlanOrigin=origin;cancelNew=false;leaveAction=null;dirty=false}
+  function keepEditing(){
+    if(!active()||busy)return
+    leaving=false;cancelNew=false;leaveAction=null;render()
+    if(view==='new'){const target=dialog.querySelector<HTMLElement>('[data-new] [name="'+(newPlanFocus??'target')+'"]');target?.focus({preventScroll:true});target?.scrollIntoView({block:'nearest'})}
+  }
+  function cancelNewPlan(){
+    if(!active()||busy||pending||pendingCorrupt)return
+    const origin=newPlanOrigin
+    draft=null;share=null;followup=null;source=null;fields=defaultPracticeBlock();baseline=ratings?.head?.id??''
+    newPlanValues=null;newPlanFocus=null;newPlanOrigin='create';dirty=false;leaving=false;cancelNew=false;leaveAction=null;view='plan';notice='';render()
+    const target=typeof origin==='object'?[...dialog.querySelectorAll<HTMLButtonElement>('[data-adopt]')].find(button=>button.dataset.adopt===origin.assignment)
+      :dialog.querySelector<HTMLElement>(origin==='followup'?'[data-coach-followup]':'[data-create]')
+    if(target){const disclosure=target.closest('details');if(disclosure)disclosure.open=true;target.focus({preventScroll:true});target.scrollIntoView({block:'nearest'})}
+    else dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})
+  }
+  function reviewCancelNewPlan(){
+    if(!active()||busy||pending||pendingCorrupt)return
+    if(dirty){cancelNew=true;leaveAction=null;leaving=true;render()}else cancelNewPlan()
+  }
   function back() {
     if (checkIn?.isOpen()) {checkIn.back(); return true}
     if(busy)return true
-    if(leaving){leaving=false;leaveAction=null;render();return true}
-    if(dirty||view==='confirm'){leaving=true;render();return true}
+    if(leaving){keepEditing();return true}
+    if(dirty||view==='confirm'){cancelNew=false;leaveAction=null;leaving=true;render();return true}
     if(view==='new'){view='plan';render();return true}
     dispose();return true
   }
@@ -109,6 +136,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
   async function save() {
     const write=pending??draft
     if(!write||busy||!active())return
+    if(!pending&&write.kind==='new'&&write.sourceAssignment&&growthCoachBlockTiming(write.block)!=='ready'){draft=null;view='new';notice=coachBlockDateMessage;render();return}
     busy=true;notice='Saving your plan…';render()
     try {
       await rememberGrowth(owner,write);pending=write
@@ -161,7 +189,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
       if(!latest||latest.id!==origin.id||!seed){notice='This coach feedback is no longer available. Your saved plan is still in your account.';return}
       if(latest.revision!==origin.revision||JSON.stringify(seed)!==JSON.stringify(before)){notice='Your plan or coach feedback changed. Review the latest details, then choose Plan next practice again.';return}
       if(!history.head){notice='Save a self-assessment before starting your next plan.';return}
-      followup=seed;fields={...defaultPracticeBlock(),skill:seed.skill,target:seed.target};source=null;baseline=history.head.id;dirty=false;view='new';notice=''
+      followup=seed;fields={...defaultPracticeBlock(),skill:seed.skill,target:seed.target};source=null;baseline=history.head.id;beginNewPlan('followup');view='new';notice=''
     }catch(error){if(active()){work=null;workError=true;notice=error instanceof Error?error.message:'Your coach feedback couldn’t be confirmed. Refresh your plan to try again.'}}
     finally{if(active()){busy=false;render()}}
   }
@@ -175,7 +203,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
     const reviewId=draft?.kind==='review'?draft.assessment:null
     const proposedReview=reviewChoices.find(row=>row.id===reviewId)??null
     let body=''
-    if(leaving)body='<p>Your unsaved edits will be discarded. An update already sent may still be saved in your account.</p><button type="button" data-keep>Keep editing</button><button type="button" class="secondary" data-leave>Leave plan</button>'
+    if(leaving)body=cancelNew?'<p>Your new plan has not been saved. Discard it to return to your saved plans.</p><button type="button" data-keep>Keep editing</button><button type="button" class="secondary" data-leave>Discard new plan</button>':'<p>Your unsaved edits will be discarded. An update already sent may still be saved in your account.</p><button type="button" data-keep>Keep editing</button><button type="button" class="secondary" data-leave>Leave plan</button>'
     else if(view==='share'&&share){
       const preview=growthCheckIn(share.plan,share.notes)
       body=`<p>Choose notes to add to your recap. Review and edit before sending.</p><p class="coach-written">${html(preview.recap)}</p>
@@ -189,7 +217,7 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
       :`<p>${draft.kind==='log'?`Log practice on ${html(draft.session.date)}?` : draft.kind==='archive'?'Archive this plan? Your saved practice history stays in your account.':'Compare these assessments, then confirm to complete this plan.'}</p>${draft.kind==='log'?`<p class="coach-written">${html(draft.session.note)}</p>`:draft.kind==='review'&&plan?growthReviewHtml(plan,snapshot?.baseline??null,proposedReview):''}<button type="button" data-save ${busy||draft.kind==='review'&&!proposedReview?'disabled':''}>Confirm ${draft.kind==='log'?'practice':draft.kind==='archive'?'archive':'review'}</button>`
     else if(snapshot) {
       const activePlan=snapshot.plans.find(row=>row.state==='active')
-      body=`${plan&&skill?`<section class="tiq-growth-focus"><small class="stat-eyebrow">${plan.state==='active'?'Your practice focus':plan.state==='reviewed'?'Reviewed plan':'Archived plan'}</small><h3>${skill.skill}</h3><p>${html(plan.target)}</p><p><strong>${plan.logs.length} / ${plan.sessions}</strong> practices · Review ${html(plan.reviewDate)}</p><progress max="${plan.sessions}" value="${Math.min(plan.logs.length,plan.sessions)}" aria-label="Planned practices completed"></progress>
+      body=`${growthCoachBlocksHtml(work,activePlan,locked||dirty,Boolean(ratings?.items.length))}${plan&&skill?`<section class="tiq-growth-focus"><small class="stat-eyebrow">${plan.state==='active'?'Your practice focus':plan.state==='reviewed'?'Reviewed plan':'Archived plan'}</small><h3${plan.state==='active'?' tabindex="-1" data-current-focus':''}>${skill.skill}</h3><p>${html(plan.target)}</p><p><strong>${plan.logs.length} / ${plan.sessions}</strong> practices · Review ${html(plan.reviewDate)}</p><progress max="${plan.sessions}" value="${Math.min(plan.logs.length,plan.sessions)}" aria-label="Planned practices completed"></progress>
         ${plan.state!=='reviewed'?`<p>Baseline · ${snapshot.baseline?`${html(snapshot.baseline.date)} · ${tiqSkillLevels[snapshot.baseline.answers[plan.skill]]}`:'Assessment removed'}</p>`:''}
         ${next?`<section class="tiq-growth-next" aria-label="Next practice step"><small class="stat-eyebrow">Up next</small><h4>${next.title}</h4><p>${html(next.copy)}</p><button type="button" data-growth-next ${locked?'disabled':''}>${next.label}</button></section>`:''}
         ${next?.action!=='drill'?`<button type="button" class="secondary" data-drill ${locked?'disabled':''}>Open ${skill.drill.title}</button>`:''}</section>
@@ -202,23 +230,22 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
           <button type="button" class="secondary" data-archive ${locked?'disabled':''}>Archive plan</button>`:''}
         <details><summary>Practice history (${plan.logs.length})</summary>${plan.logs.map(log=>`<p><strong>${html(log.date)}</strong> · ${html(log.note||'Practice completed')}</p>`).join('')||'<p>No practices logged yet.</p>'}</details>`:'<p>Make your next practice count. Start with a saved assessment and one measurable court target.</p>'}
         ${!activePlan?`<button type="button" data-create ${locked||!ratings?.items.length?'disabled':''}>Create improvement plan</button>${!ratings?.items.length?'<button type="button" class="secondary" data-retake>Save a self-assessment first</button>':''}`:activePlan.id!==plan?.id?`<button type="button" class="secondary" data-select="${activePlan.id}">Open active plan</button>`:''}
-        ${!activePlan&&work?`<details><summary>Coach practice blocks</summary>${work.assignments.filter(a=>a.status==='assigned'&&a.assignment.tiqGrowth&&work!.links.some(l=>l.id===a.studentLinkId&&l.status!=='paused')).map(a=>`<button type="button" class="secondary" data-adopt="${html(a.id)}">Use ${html(a.title)}</button>`).join('')||'<p>No open practice blocks from your coaches.</p>'}</details>`:''}
         ${workError?'<p>Coach practice blocks couldn’t load. Refresh to check them.</p>':''}
         <details><summary>Saved plans (${snapshot.plans.length}${snapshot.more?'+':''})</summary>${snapshot.plans.map(row=>`<button type="button" class="secondary" data-select="${row.id}">${html(tiqSkills.find(s=>s.id===row.skill)?.skill??'Practice')} · ${html(row.reviewDate)} · ${row.state} · ${row.completed} practices</button>`).join('')}${snapshot.more?'<p>Showing your latest 25 plans.</p>':''}</details>
         ${ratings?.next?'<button type="button" class="secondary" data-earlier>Load earlier self-assessments</button>':''}`
     }
-    const heading=leaving?'Leave plan?':view==='share'?'Prepare check-in':view==='new'?followup?'Next practice plan':'Create a plan':view==='confirm'
+    const heading=leaving?cancelNew?'Discard new plan?':'Leave plan?':view==='share'?'Prepare check-in':view==='new'?followup?'Next practice plan':'Create a plan':view==='confirm'
       ?draft?.kind==='review'?'Review progress':draft?.kind==='log'?'Confirm practice':draft?.kind==='archive'?'Archive plan':'Review plan'
       :'Your practice plan'
     dialog.innerHTML=`<header class="coach-workspace-header"><small>Your TiQ</small><h2 tabindex="-1">${heading}</h2><button type="button" class="secondary" data-close ${busy?'disabled':''}>Close</button></header>${body}<p role="status">${html(notice)}</p>
       ${pending?`<button type="button" data-retry ${busy?'disabled':''}>Retry pending update</button>`:''}${pending||pendingCorrupt?`<button type="button" class="secondary" data-forget ${busy?'disabled':''}>Discard retry and refresh</button>`:''}${!leaving&&view==='plan'?`<button type="button" class="secondary" data-refresh ${busy?'disabled':''}>Refresh plan</button>`:!leaving?`<button type="button" class="secondary" data-edit ${locked?'disabled':''}>${view==='confirm'&&draft?.kind==='new'?'Edit plan':view==='new'?'Cancel new plan':'Back to plan'}</button>`:''}`
     const button=(selector:string,action:()=>void)=>{dialog.querySelector(selector)?.addEventListener('click',action)}
     syncEditControls()
-    button('[data-close]',back);button('[data-keep]',()=>{leaving=false;leaveAction=null;render()});button('[data-leave]',()=>{const action=leaveAction;dispose();if(current())action?.()})
+    button('[data-close]',back);button('[data-keep]',keepEditing);button('[data-leave]',()=>{if(!active()||busy)return;if(cancelNew){cancelNewPlan();return}const action=leaveAction;dispose();if(current())action?.()})
     button('[data-refresh]',()=>{void load(plan?.id??selectedPlanId)});button('[data-save]',()=>{void save()});button('[data-retry]',()=>{void save()})
     button('[data-forget]',()=>{void clearGrowth(owner).then(()=>{if(active()){pending=null;draft=null;followup=null;dirty=false;view='plan';void load()}}).catch(()=>{notice='Retry details couldn’t be cleared.';render()})})
-    button('[data-edit]',()=>{if(busy||pending||pendingCorrupt)return;if(draft?.kind==='new'){draft=null;dirty=true;view='new';notice='';render();return}const editingLog=draft?.kind==='log';draft=null;share=null;followup=null;dirty=editingLog&&Boolean(logNote||preparedPracticeId||logDate!==growthDay());view='plan';notice='';render()})
-    button('[data-create]',()=>{fields=defaultPracticeBlock();source=null;followup=null;view='new';render()})
+    button('[data-edit]',()=>{if(busy||pending||pendingCorrupt)return;if(view==='new'){reviewCancelNewPlan();return}if(draft?.kind==='new'){draft=null;dirty=true;view='new';notice='';render();return}const editingLog=draft?.kind==='log';draft=null;share=null;followup=null;dirty=editingLog&&Boolean(logNote||preparedPracticeId||logDate!==growthDay());view='plan';notice='';render()})
+    button('[data-create]',()=>{fields=defaultPracticeBlock();source=null;followup=null;beginNewPlan('create');view='new';render()})
     button('[data-coach-followup]',()=>{void startCoachFollowup()})
     const openDrill=()=>{if(skill&&plan&&!locked&&!dirty){const selected={id:plan.id,target:plan.target};dispose();options.drill(skill.drill.id,selected)}}
     button('[data-retake]',()=>{dispose();options.retake()});button('[data-drill]',openDrill)
@@ -246,20 +273,30 @@ export function openGrowthPlan(client: SupabaseClient, owner: string, current: (
     button('[data-archive]',()=>{if(plan)selectWrite({kind:'archive',id:plan.id,operation:crypto.randomUUID(),expected:plan.revision})})
     button('[data-remind]',()=>{if(!plan||busy)return;const time=dialog.querySelector<HTMLInputElement>('[data-time]')!.value;busy=true;notice='Preparing calendar review…';render();void Promise.resolve().then(()=>growthReminderCalendar(plan,time,owner)).then(ics=>exportCoachFile(owner,active,new Blob([ics],{type:'text/calendar'}),'tiq-progress-review.ics')).then(()=>{notice='Finish adding the review in your calendar. Your calendar controls the alert.'}).catch(error=>{notice=error instanceof Error?error.message:'Calendar export unavailable.'}).finally(()=>{if(active()){busy=false;render()}})})
     dialog.querySelectorAll<HTMLButtonElement>('[data-select]').forEach(b=>b.onclick=()=>{if(!busy&&!dirty)void load(b.dataset.select)})
-    dialog.querySelectorAll<HTMLButtonElement>('[data-adopt]').forEach(b=>b.onclick=()=>{if(locked||!ratings?.items.length)return;const a=work?.assignments.find(a=>a.id===b.dataset.adopt);try{fields=readPracticeBlock(a?.assignment.tiqGrowth);source=a!.id;followup=null;view='new';render()}catch{notice='This practice block is unavailable.';render()}})
+    button('[data-open-current]',()=>{if(!active()||busy||dirty||pending||pendingCorrupt)return;const currentPlan=snapshot?.plans.find(row=>row.state==='active');if(!currentPlan)return;if(snapshot?.selected?.id===currentPlan.id){focusCurrentPlan();return}focusCurrent=true;void load(currentPlan.id)})
+    button('[data-block-refresh]',()=>{if(active()&&!busy&&!dirty&&!pending&&!pendingCorrupt&&view==='plan')void load(plan?.id??selectedPlanId)})
+    dialog.querySelectorAll<HTMLButtonElement>('[data-adopt]').forEach(b=>b.onclick=()=>{if(!active()||busy||pending||pendingCorrupt||dirty||view!=='plan'||snapshot?.plans.some(row=>row.state==='active')||!ratings?.items.length)return;const selected=growthCoachBlocks(work).find(row=>row.assignment.id===b.dataset.adopt);if(selected){if(selected.timing!=='ready'){notice='This coach block needs a new review date. Ask your coach to update it, then refresh your plan.';render();return}fields={...selected.block};source=selected.assignment.id;followup=null;beginNewPlan({assignment:source});view='new';render()}else{notice='This practice block is unavailable.';render()}})
     const form=dialog.querySelector<HTMLFormElement>('[data-new]')
     if(form){bindPracticeSkill(form);if(source)form.querySelectorAll<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>('[name]:not([name=baseline])').forEach(el=>el.disabled=true)}
-    if(form){form.oninput=()=>{dirty=true;baseline=String(new FormData(form).get('baseline')??baseline);if(!source){const data=new FormData(form);fields={...fields,skill:String(data.get('skill')) as PracticeBlock['skill'],target:String(data.get('target')),sessions:Number(data.get('sessions')),reviewDate:String(data.get('reviewDate'))}}};form.onsubmit=e=>{e.preventDefault();try{selectWrite({kind:'new',id:crypto.randomUUID(),operation:crypto.randomUUID(),expected:null,baseline:String(new FormData(form).get('baseline')),sourceAssignment:source,block:source?fields:practiceBlockFrom(form)})}catch(error){notice=(error as Error).message;dialog.querySelector('[role=status]')!.textContent=notice}}}
+    if(form){
+      const control=(name:typeof newPlanNames[number])=>form.querySelector<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>('[name="'+name+'"]')!
+      if(newPlanValues)for(const name of newPlanNames)control(name).value=newPlanValues[name]
+      const rememberFocus=(event:Event)=>{if(!active()||leaving)return;const target=event.target;if((target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target instanceof HTMLSelectElement)&&newPlanNames.some(name=>name===target.name))newPlanFocus=target.name}
+      const capture=(event?:Event)=>{if(!active()||busy||leaving)return;if(event)rememberFocus(event);newPlanValues=Object.fromEntries(newPlanNames.map(name=>[name,control(name).value]));dirty=true;baseline=newPlanValues.baseline;if(!source)fields=practiceBlockDraft(form)}
+      form.addEventListener('focusin',rememberFocus);form.oninput=capture;form.onchange=capture
+      form.onsubmit=e=>{e.preventDefault();capture();try{if(source&&growthCoachBlockTiming(fields)!=='ready')throw Error(coachBlockDateMessage);selectWrite({kind:'new',id:crypto.randomUUID(),operation:crypto.randomUUID(),expected:null,baseline:String(new FormData(form).get('baseline')),sourceAssignment:source,block:source?fields:practiceBlockFrom(form)})}catch(error){notice=(error as Error).message;dialog.querySelector('[role=status]')!.textContent=notice}}
+    }
     const log=dialog.querySelector<HTMLFormElement>('[data-log]');if(log){log.querySelector<HTMLInputElement>('[name=date]')!.value=logDate;log.querySelector<HTMLTextAreaElement>('[name=note]')!.value=logNote;log.oninput=()=>{const data=new FormData(log);logDate=String(data.get('date'));logNote=String(data.get('note'));dirty=Boolean(logNote||preparedPracticeId||logDate!==growthDay());syncEditControls()};log.onsubmit=e=>{e.preventDefault();if(!plan)return;const data=new FormData(log);try{selectWrite({kind:'log',id:plan.id,operation:crypto.randomUUID(),expected:plan.revision,session:{id:preparedPracticeId??crypto.randomUUID(),date:String(data.get('date')),note:String(data.get('note')).trim()}})}catch(error){notice=(error as Error).message;dialog.querySelector('[role=status]')!.textContent=notice}}}
     const review=dialog.querySelector<HTMLFormElement>('[data-review]');if(review)review.onsubmit=e=>{e.preventDefault();if(plan)selectWrite({kind:'review',id:plan.id,operation:crypto.randomUUID(),expected:plan.revision,assessment:String(new FormData(review).get('assessment'))})}
     button('[data-earlier]',()=>{if(!ratings?.next||busy)return;busy=true;render();void loadTiqAccount(client,owner,active,{cursor:ratings.next},send).then(page=>{if(active()&&ratings){ratings={...ratings,items:[...ratings.items,...page.items.filter(a=>!ratings!.items.some(b=>b.id===a.id))],next:page.next};notice='Earlier assessments loaded.'}}).catch(()=>{notice='Earlier assessments couldn’t load.'}).finally(()=>{if(active()){busy=false;render()}})})
     if(dialog.open&&heading!==lastHeading){lastHeading=heading;dialog.scrollTop=0;dialog.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}
+    if(focusCurrent&&!busy&&view==='plan'){focusCurrent=false;focusCurrentPlan()}
     if(focusPreparedPractice&&!busy&&view==='plan'&&log){focusPreparedPractice=false;log.scrollIntoView({block:'start'});log.querySelector<HTMLElement>('[name=note]')?.focus({preventScroll:true})}
   }
   dialog.oncancel=e=>{e.preventDefault();back()};document.body.append(dialog);dialog.showModal();void load()
   return {dispose,back,isOpen:()=>!disposed,requestLeave:(action?:()=>void)=>{
     if(busy)return
     if(checkIn?.isOpen()){checkIn.back();return}
-    if(dirty||view==='confirm'){leaving=true;leaveAction=action??null;render()}else{dispose();action?.()}
+    if(dirty||view==='confirm'){cancelNew=false;leaving=true;leaveAction=action??null;render()}else{dispose();action?.()}
   }}
 }
