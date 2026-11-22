@@ -16,4 +16,8 @@ test('Court geometry diagnostic',async({page},info)=>{
  await dialog.getByRole('button',{name:'Rounds',exact:true}).click();await dump('rounds')
  await dialog.evaluate(el=>{const input=el.querySelector<HTMLInputElement>('[data-drill-result="2"]')!;input.value='8';input.dispatchEvent(new Event('input',{bubbles:true}));input.scrollIntoView({block:'center'})});await dump('last-round')
  await dialog.evaluate(el=>{for(const n of el.querySelectorAll<HTMLElement>('.training-session-clock-head,[data-timer-hint]'))n.style.display='none';const clock=el.querySelector<HTMLElement>('.training-session-clock')!;clock.style.padding='8px 10px';clock.style.gap='4px 8px';for(const n of el.querySelectorAll<HTMLElement>('.training-clock-controls button'))n.style.fontSize='16px'});await dump('forced-compact')
+ await dialog.getByRole('button',{name:'Instructions',exact:true}).click()
+ const wrap=()=>dialog.evaluate(el=>{const title=el.querySelector<HTMLElement>('h1')!;title.style.fontSize='28px';title.replaceChildren(document.createTextNode('On-court'),document.createElement('br'),document.createTextNode('practice'))})
+ await wrap();await dump('two-line-header');expect(await dialog.locator('[data-court-body]').evaluate(el=>el.clientHeight)).toBeGreaterThanOrEqual(96)
+ await dialog.getByRole('button',{name:'Rounds',exact:true}).click();await wrap();const last=dialog.getByRole('spinbutton',{name:'Round 3',exact:true});await last.fill('8');await last.scrollIntoViewIfNeeded();await expect(last).toBeInViewport({ratio:1});expect(await last.evaluate(el=>{const box=el.getBoundingClientRect();return document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)===el})).toBe(true);await dump('two-line-round-entry')
 })
