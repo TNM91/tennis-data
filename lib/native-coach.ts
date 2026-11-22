@@ -5,6 +5,8 @@ import {readNativeCoach, type NativeCoachStudent, type CoachCreate, type CoachRe
 import {loadSharedTacticsBoard, omitAssignmentBoard} from './shared-tactics'
 import {tiqSkills} from './tiq-assessment-skills'
 import {coachRosterPattern, emptyCoachRosterFilter, type CoachRosterFilter} from './coach-roster-filter'
+import {coachPracticeBlock,editableCoachPracticeBlock} from './coach-practice-block'
+import {practiceBlockTiming,readPracticeBlock} from './tiq-growth'
 
 const studentFields = 'id,coach_user_id,player_user_id,player_name,identity_slug,level_label,player_email,player_phone,contact_preference,status,notes,updated_at'
 const assignmentFields = 'id,coach_user_id,student_link_id,title,focus,due_date,status,assignment_json,updated_at'
@@ -99,7 +101,18 @@ export async function editNativeCoach(client:SupabaseClient,owner:string,draft:C
   const row=result.data as CoachAssignmentRow & {coach_user_id:string};if(row.coach_user_id!==owner)throw Error('Assignment ownership mismatch')
   const a=mapCoachAssignmentRow(row)
   if(a.updatedAt!==draft.expectedUpdatedAt||draft.status!==a.status&&draft.status!=='archived'&&(a.status!=='draft'||draft.status!=='assigned')||a.status==='draft'&&draft.status==='assigned'&&s.status==='paused')throw new NativeCoachFault(409,'This assignment changed. Refresh before saving practice details.')
-  const json={...a.assignment,detail:draft.instructions,expectedEvidence:draft.evidence}
+  let growth=draft.tiqGrowth
+  if(!growth&&Object.hasOwn(a.assignment,'tiqGrowth')&&(draft.dueDate!==a.dueDate||draft.instructions!==(typeof a.assignment.detail==='string'?a.assignment.detail.trim():''))){
+   const existing=coachPracticeBlock(a)
+   if(!existing||draft.status!=='assigned')throw new NativeCoachFault(409,'This practice block is closed or changed. Refresh before editing it.')
+   try{growth=readPracticeBlock({...existing,target:draft.instructions,reviewDate:draft.dueDate})}catch{throw new NativeCoachFault(400,'Choose a short practice target and a valid review date.')}
+  }
+  if(growth){
+   const existing=editableCoachPracticeBlock(a,s)
+   if(!existing||existing.skill!==growth.skill)throw new NativeCoachFault(409,'This practice block is closed or changed. Refresh before editing it.')
+   if(practiceBlockTiming(growth)!=='ready')throw new NativeCoachFault(409,'Choose a current review date before updating this practice block.')
+  }
+  const json={...a.assignment,...(growth?{tiqGrowth:growth}:{}),detail:draft.instructions,expectedEvidence:draft.evidence}
   if(JSON.stringify(json).length>32000)throw new NativeCoachFault(400,'Use shorter practice instructions or proof details.')
   const update={title:draft.title,focus:draft.focus,due_date:draft.dueDate,status:draft.status,assignment_json:json,updated_at:advanced(a.updatedAt)}
   const saved=await client.from('coach_assignments').update(update).eq('coach_user_id',owner).eq('student_link_id',selected).eq('id',draft.id).eq('updated_at',draft.expectedUpdatedAt).select('id').abortSignal(AbortSignal.timeout(12000)).maybeSingle()

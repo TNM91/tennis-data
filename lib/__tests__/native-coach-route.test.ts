@@ -5,6 +5,7 @@ vi.mock('../coach-api-auth', () => ({getCoachApiAuth: async () => state.allowed 
 import {GET, POST, PATCH} from '../../app/api/mobile/coach/route'
 import {coachOwner, coachRevision, coachStudentDraft, coachAssignmentDraft, coachReviewDraft} from '../../tests/fixtures/native-coach'
 import {createTacticalTemplate} from '../tactical/templates'
+import {tiqSkills} from '../tiq-assessment-skills'
 type Row = Record<string, unknown>
 let tables: Record<string, Row[]>, calls: {table: string; operation: string; filters: [string, unknown][]; payload?: Row}[], race = false, failure = false
 function client() {return {from: (table: string) => {
@@ -39,6 +40,15 @@ it('validates input and forbids account injection before writes', async () => {
  for (const b of [null, [], {...coachStudentDraft, coachUserId: 'other'}, {...coachAssignmentDraft, status: 'completed'}]) expect((await POST(request('POST', b))).status).toBe(400)
  const oversized = await POST(request('POST', {...coachStudentDraft, notes: '🎾'.repeat(2000)})); expect(oversized.status).toBe(413)
  expect(calls).toEqual([])
+})
+it('updates an owned TiQ block through PATCH with a consistent date and target',async()=>{
+ const date=new Date();date.setUTCDate(date.getUTCDate()+14);const reviewDate=date.toISOString().slice(0,10),block={version:1,skill:'return',target:'Make 9 of 10 returns deep.',sessions:4,reviewDate},a=tables.coach_assignments[0]
+ a.status='assigned';a.assignment_json={cardId:tiqSkills.find(s=>s.id==='return')!.drill.id,tiqGrowth:{...block,sessions:3,target:'Make 8 of 10 returns deep.'},detail:'Make 8 of 10 returns deep.',futureField:'keep'}
+ const body={kind:'edit-assignment',id:a.id,student:'student-one',expectedUpdatedAt:coachRevision,title:a.title,focus:a.focus,dueDate:reviewDate,instructions:block.target,evidence:'Bring court results.',status:'assigned',tiqGrowth:block}
+ const response=await PATCH(request('PATCH',body));expect(response.status).toBe(200);expect(response.headers.get('Cache-Control')).toContain('no-store');expect(tables.coach_assignments).toHaveLength(1);expect(tables.coach_assignments[0]).toMatchObject({due_date:reviewDate,assignment_json:{tiqGrowth:block,detail:block.target,futureField:'keep'}})
+ const writes=calls.filter(c=>c.operation==='update').length
+ for(const patch of [{dueDate:'2026-02-30'},{instructions:'Another target'},{status:'completed'}])expect((await PATCH(request('PATCH',{...body,...patch}))).status).toBe(400)
+ expect(calls.filter(c=>c.operation==='update')).toHaveLength(writes)
 })
 it('creates a manual roster record with no player link, invitation or overwrite', async () => {
  expect((await POST(request('POST', coachStudentDraft))).status).toBe(200)
