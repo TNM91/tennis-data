@@ -1,23 +1,32 @@
 import {getCoachAssignmentReview, getPlayerAssignmentCheckIn} from '../../lib/coach-storage'
-import {readPracticeBlock, type GrowthPlan, type GrowthSummary} from '../../lib/tiq-growth'
-import {formatCalendarDay} from '../../lib/calendar-date'
+import {readPracticeBlock, type PracticeBlock, type GrowthPlan, type GrowthSummary} from '../../lib/tiq-growth'
+import {formatCalendarDay, isValidCalendarDate} from '../../lib/calendar-date'
 import type {TrainingCoachWork} from './training-inbox-data'
 import {html} from './match-details'
 
-export function growthCoachBlocks(work:TrainingCoachWork|null,activeSource:string|null=null){
+export function growthCoachBlockTiming(block:Pick<PracticeBlock,'reviewDate'>,now=new Date()):'ready'|'past'|'future'|'unavailable'{
+  const today=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())
+  if(!Number.isFinite(today)||!isValidCalendarDate(block.reviewDate))return 'unavailable'
+  const days=(Date.parse(block.reviewDate+'T00:00:00Z')-today)/86400000
+  return days < -1?'past':days > 366?'future':'ready'
+}
+
+export function growthCoachBlocks(work:TrainingCoachWork|null,activeSource:string|null=null,now=new Date()){
   return (work?.assignments??[]).flatMap(assignment=>{
     if(assignment.id===activeSource||assignment.status!=='assigned'||getPlayerAssignmentCheckIn(assignment.assignment)
       ||!work!.links.some(link=>link.id===assignment.studentLinkId&&link.status!=='paused'))return []
-    try{return [{assignment,block:readPracticeBlock(assignment.assignment.tiqGrowth)}]}catch{return []}
+    try{const block=readPracticeBlock(assignment.assignment.tiqGrowth);return [{assignment,block,timing:growthCoachBlockTiming(block,now)}]}catch{return []}
   })
 }
 
-export function growthCoachBlocksHtml(work:TrainingCoachWork|null,activePlan:GrowthSummary|undefined,locked:boolean,hasAssessment:boolean){
-  const blocks=growthCoachBlocks(work,activePlan?.sourceAssignment)
+export function growthCoachBlocksHtml(work:TrainingCoachWork|null,activePlan:GrowthSummary|undefined,locked:boolean,hasAssessment:boolean,now=new Date()){
+  const blocks=growthCoachBlocks(work,activePlan?.sourceAssignment,now),ready=blocks.filter(row=>row.timing==='ready').length,needsDate=blocks.length-ready
   if(!work||activePlan&&!blocks.length)return ''
-  return `<div role="region" aria-label="Coach practice blocks">${blocks.length?`<p><strong>${blocks.length} coach practice ${blocks.length===1?'block':'blocks'} ready</strong></p>`:''}
-    ${activePlan?`<p>Finish or archive your current plan before starting a coach block.</p><button type="button" class="secondary" data-open-current ${locked?'disabled':''}>Open current plan</button>`:blocks.length&&!hasAssessment?'<p>Save a self-assessment before starting a coach block.</p>':''}
-    <details><summary>Coach practice blocks</summary>${blocks.map(({assignment,block})=>`<article data-coach-block="${html(assignment.id)}"><h4>${html(assignment.title)}</h4><p class="coach-written">${html(block.target)}</p><p>${block.sessions} ${block.sessions===1?'practice':'practices'} · Review <time datetime="${html(block.reviewDate)}">${html(formatCalendarDay(block.reviewDate))}</time></p>${!activePlan?`<button type="button" class="secondary" data-adopt="${html(assignment.id)}" ${locked||!hasAssessment?'disabled':''}>Use ${html(assignment.title)}</button>`:''}</article>`).join('')||'<p>No open practice blocks from your coaches.</p>'}</details></div>`
+  const reason={past:'Ask your coach to set a new review date, then refresh your plan.',future:'Ask your coach to choose a nearer review date, then refresh your plan.',unavailable:'The review date could not be checked. Refresh your plan before starting this block.'}
+  return `<div role="region" aria-label="Coach practice blocks">${ready?`<p><strong>${ready} coach practice ${ready===1?'block':'blocks'} ready</strong></p>`:''}${needsDate?`<p><strong>${needsDate} coach practice ${needsDate===1?'block needs a new review date':'blocks need new review dates'}</strong></p>`:''}
+    ${activePlan?`<p>${ready?'Finish or archive your current plan before starting a coach block.':'Continue your current plan while your coach updates this block.'}</p><button type="button" class="secondary" data-open-current ${locked?'disabled':''}>Open current plan</button>`:ready&&!hasAssessment?'<p>Save a self-assessment before starting a coach block.</p>':''}
+    ${needsDate?`<button type="button" class="secondary" data-block-refresh ${locked?'disabled':''}>Refresh coach blocks</button>`:''}
+    <details><summary>Coach practice blocks</summary>${blocks.map(({assignment,block,timing},index)=>`<article data-coach-block="${html(assignment.id)}"><h4>${html(assignment.title)}</h4><p class="coach-written">${html(block.target)}</p><p>${block.sessions} ${block.sessions===1?'practice':'practices'} · Review <time datetime="${html(block.reviewDate)}">${html(formatCalendarDay(block.reviewDate))}</time></p>${timing!=='ready'?`<p id="coach-block-date-${index}">${reason[timing]}</p>`:''}${!activePlan?`<button type="button" class="secondary" data-adopt="${html(assignment.id)}"${timing!=='ready'?` aria-describedby="coach-block-date-${index}"`:''} ${locked||!hasAssessment||timing!=='ready'?'disabled':''}>Use ${html(assignment.title)}</button>`:''}</article>`).join('')||'<p>No open practice blocks from your coaches.</p>'}</details></div>`
 }
 
 export function growthCoachContext(plan: GrowthPlan, work: TrainingCoachWork | null) {
