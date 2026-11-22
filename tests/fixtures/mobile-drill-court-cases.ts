@@ -119,7 +119,8 @@ test.describe('On-court practice',()=>{
   await page.setViewportSize({width,height:width===320?568:844})
   const training=await openCourt(page,width===320?'Return Depth Lane':'Middle Ball Rule',width===320?'&large=1':'')
   await training.getByRole('button',{name:'On-court view',exact:true}).click()
-  if(width===320)await training.evaluate(el=>{(el as HTMLElement).style.setProperty('--training-top-clearance','60px');(el as HTMLElement).style.setProperty('--training-bottom-clearance','36px');const title=el.querySelector<HTMLElement>('h1')!;title.style.fontSize='28px';title.style.maxInlineSize='120px'})
+  const wrapTitle=async()=>{const lines=await training.evaluate(el=>{const title=el.querySelector<HTMLElement>('h1')!;title.style.fontSize='28px';title.replaceChildren(document.createTextNode('On-court'),document.createElement('br'),document.createTextNode('practice'));return title.getBoundingClientRect().height/parseFloat(getComputedStyle(title).lineHeight)});expect(lines).toBeCloseTo(2,1)}
+  if(width===320){await training.evaluate(el=>{(el as HTMLElement).style.setProperty('--training-top-clearance','60px');(el as HTMLElement).style.setProperty('--training-bottom-clearance','36px')});await wrapTitle()}
   const box=(await training.boundingBox())!;expect(box.width).toBeGreaterThan(width*.9);expect(box.y).toBeGreaterThanOrEqual(width===320?60:20)
   await expect(training.getByRole('button',{name:'Finish & log',exact:true})).toBeInViewport({ratio:1});await expect(training.getByRole('button',{name:'Pause timer',exact:true})).toBeInViewport({ratio:1})
   expect(await training.locator('[data-court-body]').evaluate(el=>el.clientHeight)).toBeGreaterThanOrEqual(96)
@@ -131,7 +132,7 @@ test.describe('On-court practice',()=>{
   await training.getByRole('button',{name:'Next instruction',exact:true}).scrollIntoViewIfNeeded()
   await info.attach('on-court-layout-'+width,{body:JSON.stringify(await training.evaluate(el=>Array.from(el.querySelectorAll('.training-court-body,.training-court-guide,.training-court-guide>* ,#training-court-page>*')).map(node=>{const style=getComputedStyle(node);return {tag:node.tagName,class:node.className,id:node.id,box:node.getBoundingClientRect().toJSON(),display:style.display,margin:style.margin,padding:style.padding,gap:style.gap,minHeight:style.minHeight,lineHeight:style.lineHeight}}))),contentType:'application/json'})
   await page.screenshot({path:info.outputPath('on-court-instructions-'+width+'.png')})
-  await training.getByRole('button',{name:'Rounds',exact:true}).click();await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('0')
+  await training.getByRole('button',{name:'Rounds',exact:true}).click();if(width===320)await wrapTitle();expect(await training.locator('[data-court-body]').evaluate(el=>el.clientHeight)).toBeGreaterThanOrEqual(96);await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('0')
   const last=training.getByRole('spinbutton',{name:width===320?'Round 3':'Round 2',exact:true});await last.fill('8');await last.scrollIntoViewIfNeeded();await expect(last).toBeInViewport({ratio:1});await expect(training.getByRole('button',{name:'Finish & log',exact:true})).toBeInViewport({ratio:1})
   expect(await last.evaluate(el=>{const box=el.getBoundingClientRect();return document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)===el})).toBe(true)
   expect(await training.locator('[data-court-body]').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await page.screenshot({path:info.outputPath('on-court-rounds-'+width+'.png')})
