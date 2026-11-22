@@ -18,7 +18,7 @@ export function captainHomeFocus(scope:TeamScope,match:CaptainMatch,data:MatchCe
  if(ready.openSeats||ready.duplicates)issues.push({kind:'lineup',label:ready.duplicates?'A player appears more than once in this plan.':`${ready.openSeats} open playing seat${ready.openSeats===1?'':'s'}.`})
  if(ready.attention.length)issues.push({kind:'availability',label:`${ready.attention.length} selected player${ready.attention.length===1?' needs':'s need'} availability review.`})
  if(data.publication.shared.pendingFinal)issues.push({kind:'send',label:'Final lineup delivery needs review.'})
- return {courtsLabel:String(ready.courts)+(ready.defaults?` (${ready.defaults} defaulted)`:''),confirmedLabel:`${ready.available} of ${ready.selected.length}`,waitingLabel:String(ready.attention.length),issues,action:{kind:next.action==='plan'?'lineup':next.action==='publish'?'send':'court',label:next.label,detail:next.reason}}
+ return {courtsLabel:String(ready.courts)+(ready.defaults?` (${ready.defaults} defaulted)`:''),confirmedLabel:`${ready.available} of ${ready.selected.length}`,waitingLabel:String(ready.attention.length),issues,action:{kind:next.action==='plan'?'lineup':next.action==='replies'?'availability':next.action==='publish'?'send':'court',label:next.label,detail:next.reason}}
 }
 export function captainHomeFocusHtml(focus:CaptainHomeMatchFocus|null){
  const value=focus??{courtsLabel:'Not checked',confirmedLabel:'Not checked',waitingLabel:'Not checked',issues:[],action:{kind:'lineup' as const,label:'Check match readiness',detail:'Check this fixture’s private working plan, availability and shared lineup before choosing your next task.'}}

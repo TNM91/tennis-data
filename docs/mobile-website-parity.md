@@ -356,11 +356,17 @@ Check replies marks players from the current private working lineup and adds Sel
 
 Focused synthetic checks cover both phone browser engines, 320/390 CSS-pixel layouts, larger text, failure followed by recovery, a newly pending final update and keyboard focus after leaving during a slow read. Actual lineup, publishing and replacement views are exercised with synthetic data for normal/unavailable close paths; a private-save and final-delivery flow checks refreshed progress, retained filters and exact write counts. Released in TestFlight 339 with the existing internal group assigned. No API or migration was required, and the selected App Store review build is unchanged. Physical iPhone acceptance remains separate.
 
-### Working court context in reply review — local follow-up to build 339
+### Working court context in reply review — released in build 340
 
 Selected-player reply rows show each non-defaulted working court and its doubles partner, or explain an open or removed partner. Review court opens the existing protected lineup editor for the selected fixture. The editor locates the current court ID and player key after its fresh read, including when courts are reordered or labels/names collide. A removed, defaulted or changed assignment shows an explanation and leaves the current lineup available rather than jumping to another player or court. The shortcut changes no assignment.
 
 Closing restores focus to the same reply shortcut and retains all filters. Saving keeps the existing explicit review, version checks and private-plan behavior; other courts and shared team messages remain unchanged. Focused synthetic checks cover both phone engines, 320/390 widths, larger text, changed assignments, safe text rendering and exact save/message counts. This enhancement is committed locally for a future beta; it is not included in 339. No backend change or migration is required, and physical iPhone acceptance is pending.
+
+### Next-decision reply review — local follow-up to build 340
+
+When a saved, complete working lineup has selected players whose availability needs review, Next decision and the captain home card offer Review selected player replies. The action opens Check replies with Selected players only and Needs review selected, clears the old search and focuses the step heading. Same-name unassigned players and stale reply-selection flags cannot put another player into this view. Review court keeps its current court/player identity checks and restores the filtered reply context on close.
+
+The captain home action still reloads Match Center and recomputes the next task before opening it. After an explicit refresh, resolved availability concerns lead to the current publishing or logistics task. Unsaved plans, open seats and duplicate assignments retain planning priority; pending delivery and sent-final match-day checks retain their existing priorities. Opening this filtered view performs no additional request, private save, publication, notification or automatic retry. Existing navy surfaces and controls are reused. This follow-up has not been uploaded to TestFlight; physical iPhone acceptance follows the next beta.
 
 ## League Office season review — build 83 released
 
