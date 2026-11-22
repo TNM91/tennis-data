@@ -1,5 +1,6 @@
 import type { LevelUpCard, LevelUpCategory, LevelUpEquipment, LevelUpIntensity, LevelUpLevel, LevelUpModule, LevelUpSetting } from './level-up-types'
 import {drillPlaybook} from './drill-playbooks'
+import {drillCoachingCues} from './drill-coaching-cues'
 
 type CardSeed = {
   title: string
@@ -891,6 +892,7 @@ function makeCard(seed: CardSeed): LevelUpCard {
   const identitySlugs = seed.identitySlugs ?? identitySlugsFor(seed.tags)
   const content = cardContentEnhancements[id] ?? {}
   const playbook = drillPlaybook(id)
+  const coaching = playbook ? drillCoachingCues(id) : undefined
 
   return {
     id,
@@ -911,11 +913,11 @@ function makeCard(seed: CardSeed): LevelUpCard {
     reward: content.reward ?? buildReward(seed),
     proof: content.proof ?? buildProof(seed),
     ratingLabels: ['Cue', 'Routine', 'Reward', 'Proof'],
-    qualityChecks: content.qualityChecks ?? buildQualityChecks(seed),
-    commonMiss: content.commonMiss ?? buildCommonMiss(seed),
+    qualityChecks: coaching?.qualityChecks ?? content.qualityChecks ?? buildQualityChecks(seed),
+    commonMiss: coaching?.commonMiss ?? content.commonMiss ?? buildCommonMiss(seed),
     proofAnchors: content.proofAnchors ?? buildProofAnchors(seed),
-    progression: content.progression ?? buildProgression(seed, level),
-    regression: content.regression ?? buildRegression(seed),
+    progression: playbook?.advance ?? content.progression ?? buildProgression(seed, level),
+    regression: playbook?.easier ?? content.regression ?? buildRegression(seed),
     safetyNote: content.safetyNote ?? buildSafetyNote(seed),
     ...(playbook ? {playbook} : {}),
     tags: seed.tags,

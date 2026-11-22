@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import {LEVEL_UP_CARDS} from '../level-up/level-up-cards'
 
 const pageSource = readFileSync(join(process.cwd(), 'app/level-up/page.tsx'), 'utf8')
 const contentSource = readFileSync(join(process.cwd(), 'app/level-up/level-up-page-content.tsx'), 'utf8')
@@ -158,8 +159,12 @@ describe('Level Up page', () => {
     expect(levelUpCardsSource).toContain('Serve Pressure Reset')
     expect(levelUpCardsSource).toContain('getRecommendedLevelUpCards')
     expect(levelUpCardsSource).toContain('cardContentEnhancements')
-    expect(levelUpCardsSource).toContain('qualityChecks: content.qualityChecks')
-    expect(levelUpCardsSource).toContain('commonMiss: content.commonMiss')
+    for(const card of LEVEL_UP_CARDS){
+      expect(card.qualityChecks?.length,card.id).toBeGreaterThan(0)
+      expect(card.qualityChecks?.every(check=>check.trim().length>0),card.id).toBe(true)
+      expect(card.commonMiss?.miss.trim().length,card.id).toBeGreaterThan(0)
+      expect(card.commonMiss?.fix.trim().length,card.id).toBeGreaterThan(0)
+    }
     expect(levelUpCardsSource).toContain('proofAnchors: content.proofAnchors')
     expect(levelUpCardsSource).toContain('The player changes direction because they are bored, not because they are balanced.')
     expect(levelUpCardsSource).toContain('Say block, drive, height, or depth before any split-step rep counts.')
