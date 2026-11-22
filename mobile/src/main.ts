@@ -134,6 +134,7 @@ let guest:ReturnType<typeof showGuestExplore>|null=null
 let storageUnavailable=false
 let session: Session | null = null
 let personalMatchForm:PersonalMatchFormSession={}
+let personalMatchLog:ReturnType<typeof mountPersonalMatchLog>|undefined
 let teamScoreDrafts:TeamScoreDraftSession|undefined
 let linkedLabOwner:string|undefined
 let exploreSearch:ExploreSearchState|undefined
@@ -479,7 +480,11 @@ function launchUpdates(trigger:HTMLElement){
   return openSharedMatch(client,owner,active,link.id,button)
  },trigger)
 }
-const guardNavigation=createTeamNavigationGuard(()=>Boolean(teamRoom?.hasDraft()),()=>revision)
+const guardTeamNavigation=createTeamNavigationGuard(()=>Boolean(teamRoom?.hasDraft()),()=>revision)
+function guardNavigation(action:()=>void){
+ const leave=()=>guardTeamNavigation(action)
+ if(personalMatchLog?.isActive())personalMatchLog.requestLeave(leave);else leave()
+}
 navigation.querySelector<HTMLButtonElement>('[data-screen="lab"]')!.onclick = () => {if (!connection?.isSaving()) guardNavigation(()=>{void lab()})}
 navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick = () => openExplore()
 function openExplore(resume?:ExploreVisit) {
@@ -536,6 +541,7 @@ function openMatchup(){
 }
 
 function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeamDestination&{browseFirst?:boolean},returnTo?:TeamResultsReturn){
+  if(personalMatchLog?.isActive()){personalMatchLog.requestLeave(()=>openTeamRoom(initialScope,fromCompete,returnTo));return}
   if(coachWorkspace?.isOpen()){coachWorkspace.requestLeave(()=>{coachWorkspace=null;openTeamRoom(initialScope,fromCompete,returnTo)});return}
   if(comparison?.isNotebookOpen()){comparison.back();return}
   if(goals?.isOpen()){goals.back();return}
@@ -749,6 +755,7 @@ function focusLabCoachShortcut(shortcuts: HTMLElement, ...sectionsAbove: HTMLEle
 }
 
 async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScorecardSeed;backToTeamResults?:()=>void}) {
+  personalMatchLog=undefined
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null;playerChats?.dispose();playerChats=null
@@ -894,7 +901,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
     }catch{if(active())overviewStatus.textContent='Couldn’t load saved practice. Try again when connected.'}
     finally{if(active())overviewButton.disabled=false}
   }
-  app.querySelector<HTMLButtonElement>('#refresh')!.onclick = () => { void lab(error?link:undefined) }
+  app.querySelector<HTMLButtonElement>('#refresh')!.onclick = () => guardNavigation(()=>{void lab(error?link:undefined)})
   app.querySelector<HTMLButtonElement>('#logout')!.onclick = async event => {
     const button=event.currentTarget as HTMLButtonElement;button.disabled=true
     try {await signOut(current.user.id)}
@@ -948,7 +955,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
       },{client,openPlan,openHistory:(trigger,device,changed,closed)=>{
         coachWorkspace=openTiqAccountHistory(client,current.user.id,active,trigger,{device,changed,closed})
       }})
-      mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
+      personalMatchLog=mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
         seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,scoreReviewShortcut,
         onRecentScorecards:starterAssessment.showRecentMatches,
         openPractice:(match,currentMatch)=>openScorecardPractice(current.user.id,currentMatch,match.match_date,match.format==='doubles'),
@@ -1033,6 +1040,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
 }
 
 function clearAccountEntryViews(){
+ personalMatchLog=undefined
  agenda?.dispose();agenda=null;courtInvite?.dispose();courtInvite=null;updates?.dispose();updates=null
  sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null;playerChats?.dispose();playerChats=null
  accountSettings?.dispose();accountSettings=null;emailAuth?.dispose();emailAuth=null;biometricLogin?.dispose();biometricLogin=null
@@ -1042,6 +1050,7 @@ function clearAccountEntryViews(){
  following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null
  recovery?.dispose();recovery=null;details?.dispose();details=null;hub=null;profileOpen=false
  document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
+ document.querySelector<HTMLDialogElement>('[data-personal-navigation-warning]')?.close()
  navigation.hidden=true;headerActions.hidden=true;accountEntry.hidden=true
  document.body.dataset.screen='loading';app.dataset.state='loading'
  app.innerHTML='<p class="app-opening-status" role="status">Opening TenAceIQ…</p>'

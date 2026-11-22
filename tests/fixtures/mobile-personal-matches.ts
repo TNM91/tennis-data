@@ -3,6 +3,7 @@ import type { PersonalMatch } from '../../mobile/src/personal-match-data'
 type Row = Omit<PersonalMatch, 'court_venue_key' | 'court_feedback'> &
   Partial<Pick<PersonalMatch, 'court_venue_key' | 'court_feedback'>> & { owner_user_id: string }
 export const personalMatchFixture = { rows: [] as Row[], writtenIds: [] as string[], loseReceipt: false, historyReads: 0,
+  beforeWrite: undefined as undefined | (()=>Promise<void>),
   courtFeedbackReads: [] as { owner: string | undefined; venue: string | undefined; limit: number; columns: string }[], failCourtFeedbackRead: false,
   teamScoreReads: [] as { owner: string | undefined; keys: string[] }[], failTeamScoreRead: false }
 let missLookup = false
@@ -35,8 +36,9 @@ export function personalMatchQuery() {
     insert(row: Row) { action = 'insert'; values = row; return chain },
     update(row: Partial<Row>) { action = 'update'; values = row; return chain },
     delete() { action = 'delete'; return chain },
-    then(resolve: (result: { data: unknown; error: { message: string } | null }) => void) {
+    async then(resolve: (result: { data: unknown; error: { message: string } | null }) => void) {
       const fixture = personalMatchFixture
+      if (action !== 'read') await fixture.beforeWrite?.()
       if (action === 'read' && !single && !teamScoreKeys && !ratedOnly) fixture.historyReads++
       const fail = (message: string) => resolve({ data: null, error: { message } })
       if (teamScoreKeys) {
