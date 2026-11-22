@@ -2,19 +2,20 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 import type {CaptainData,CaptainMatch} from './captain-data'
 import {loadMatchCenter,type MatchCenter} from './captain-match-center-data'
-import {captainHomeMatch,captainHomeFocus,captainHomeFocusHtml,captainHomeIssueStep} from './captain-home-data'
+import {captainHomeMatch,captainHomeFocus,captainHomeFocusHtml,captainHomeIssueStep,captainHomeSelection} from './captain-home-data'
 import type {CenterStep} from './captain-match-center-view'
 import {matchDate} from './recent-results'
 import {captainFixtureHtml} from './captain-fixture-view'
 import {html} from './match-details'
-export function openCaptainHome(host:HTMLElement,client:SupabaseClient,owner:string,scope:TeamScope,snapshot:CaptainData,current:()=>boolean,onOpen:(match:CaptainMatch,start:boolean|CenterStep)=>void){
- let disposed=false,revision=0,busy=false,id=snapshot.matches[0]?.id||'',data:MatchCenter|null=null,notice='Readiness has not been checked for this visit.'
+export function openCaptainHome(host:HTMLElement,client:SupabaseClient,owner:string,scope:TeamScope,snapshot:CaptainData,current:()=>boolean,onOpen:(match:CaptainMatch,start:boolean|CenterStep)=>void,selection?:{initialFixtureId?:string;onFixtureChange:(id:string)=>void}){
+ const initial=captainHomeSelection(snapshot,selection?.initialFixtureId)
+ let disposed=false,revision=0,busy=false,id=initial.id,data:MatchCenter|null=null,notice=initial.missing?(snapshot.matches.length?'Your selected match could not be confirmed. Choose a match.':'Your selected match is no longer in this loaded schedule. No upcoming matches are available.'):id?'Readiness has not been checked for this visit.':snapshot.matches.length?'Choose a match to check readiness.':'No upcoming matches are in this loaded schedule.'
  const active=()=>!disposed&&current()&&host.isConnected
  const render=()=>{
   if(!active())return
   const match=captainHomeMatch(snapshot,id),focus=data&&match?captainHomeFocus(scope,match,data):null,restore=host.contains(document.activeElement)
-  host.innerHTML=`<h2>Your next match decision</h2>${snapshot.matches.length?`<label for="captain-home-fixture">Choose fixture</label><select id="captain-home-fixture">${snapshot.matches.map(m=>`<option value="${html(m.id)}" ${id===m.id?'selected':''}>${html(matchDate(m.date))} · ${html(m.opponent)}</option>`).join('')}</select>`:'<p>No upcoming fixture is in this loaded schedule.</p>'}${match?captainFixtureHtml(scope,match):`<p>${html(scope.teamName)} · ${html(scope.leagueName)} · ${html(scope.flight)}</p>`}${captainHomeFocusHtml(focus)}<p role="status" tabindex="-1">${html(notice)}</p>${data?`<p class="rating-context">Checked ${html(new Date(data.checkedAt).toLocaleString())}. Counts follow your private plan. Available answers may include player, season, saved or captain-confirmed replies.${data.replies.dayScopedAnswersOmitted?' Day-only answers are excluded for multiple fixtures on this date.':''} Recheck after changes.</p><button type="button" class="secondary" data-home-recheck>Recheck match readiness</button>`:''}`
-  host.querySelector<HTMLSelectElement>('select')?.addEventListener('change',event=>{revision++;busy=false;data=null;id=(event.currentTarget as HTMLSelectElement).value;notice='Readiness has not been checked for this fixture.';render();host.querySelector<HTMLSelectElement>('select')?.focus({preventScroll:true})})
+  host.innerHTML=`<h2>Your next match decision</h2>${snapshot.matches.length?`<label for="captain-home-fixture">Choose fixture</label><select id="captain-home-fixture">${!id?'<option value="" selected>Choose a match</option>':''}${snapshot.matches.map(m=>`<option value="${html(m.id)}" ${id===m.id?'selected':''}>${html(matchDate(m.date))} · ${html(m.opponent)}</option>`).join('')}</select>`:'<p>No upcoming fixture is in this loaded schedule.</p>'}${match?captainFixtureHtml(scope,match):`<p>${html(scope.teamName)} · ${html(scope.leagueName)} · ${html(scope.flight)}</p>`}${captainHomeFocusHtml(focus)}<p role="status" tabindex="-1">${html(notice)}</p>${data?`<p class="rating-context">Checked ${html(new Date(data.checkedAt).toLocaleString())}. Counts follow your private plan. Available answers may include player, season, saved or captain-confirmed replies.${data.replies.dayScopedAnswersOmitted?' Day-only answers are excluded for multiple fixtures on this date.':''} Recheck after changes.</p><button type="button" class="secondary" data-home-recheck>Recheck match readiness</button>`:''}`
+  host.querySelector<HTMLSelectElement>('select')?.addEventListener('change',event=>{if(!active()||!host.contains(event.currentTarget as Node))return;revision++;busy=false;data=null;id=captainHomeSelection(snapshot,(event.currentTarget as HTMLSelectElement).value).id;selection?.onFixtureChange(id);notice=id?'Readiness has not been checked for this fixture.':'Choose a match to check readiness.';render();host.querySelector<HTMLSelectElement>('select')?.focus({preventScroll:true})})
   host.querySelectorAll<HTMLButtonElement>('[data-focus-primary],[data-focus-issue],[data-home-recheck]').forEach(b=>{b.disabled=busy||!match})
   const check=async()=>{
    if(!active()||busy||!match)return;const request=++revision;busy=true;data=null;notice='Checking this fixture’s plan, replies and publishing…';render()
@@ -28,5 +29,5 @@ export function openCaptainHome(host:HTMLElement,client:SupabaseClient,owner:str
   host.querySelector<HTMLButtonElement>('[data-home-recheck]')?.addEventListener('click',()=>{void check()})
   if(restore)host.querySelector<HTMLElement>(busy?'[role="status"]':'[data-focus-primary]')?.focus({preventScroll:true})
  }
- render();return {dispose:()=>{disposed=true;revision++;data=null}}
+ render();if(active())selection?.onFixtureChange(id);return {dispose:()=>{disposed=true;revision++;data=null}}
 }

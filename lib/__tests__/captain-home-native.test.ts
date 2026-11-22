@@ -1,5 +1,5 @@
 import {it,expect} from 'vitest'
-import {captainHomeMatch,captainHomeFocus,captainHomeFocusHtml,captainHomeIssueStep} from '../../mobile/src/captain-home-data'
+import {captainHomeMatch,captainHomeFocus,captainHomeFocusHtml,captainHomeIssueStep,captainHomeSelection} from '../../mobile/src/captain-home-data'
 import type {CaptainData} from '../../mobile/src/captain-data'
 import type {MatchCenter} from '../../mobile/src/captain-match-center-data'
 import ui from '../../mobile/generated/website-ui.json'
@@ -12,6 +12,19 @@ it('escapes fixture details and keeps missing time and facility explicit',()=>{
  const markup=captainFixtureHtml({...scope,teamName:'<Aces>'},{...match,opponent:'<Rallies>',time:'',facility:''})
  expect(markup).toContain('&lt;Aces&gt;');expect(markup).toContain('&lt;Rallies&gt;');expect(markup).not.toContain('<Rallies>')
  expect(markup).toContain('Time not set');expect(markup).toContain('Facility not set');expect(markup).toContain('<dt>Match date</dt>')
+})
+it('restores the chosen fixture by ID after reordering, even when match labels are the same',()=>{
+ const second={...match,id:'second-fixture'},data={matches:[match,second]} as CaptainData
+ expect(captainHomeSelection(data)).toEqual({id:match.id,missing:false})
+ expect(captainHomeSelection(data,second.id)).toEqual({id:second.id,missing:false})
+ data.matches.reverse();expect(captainHomeSelection(data,match.id)).toEqual({id:match.id,missing:false})
+})
+it('withholds a missing, ambiguous or invalid restored fixture instead of choosing another match',()=>{
+ for(const matches of [[match],[match,{...match,id:'requested'},{...match,id:'requested'}],[match,{...match,id:'requested',date:'2026-02-30'}]])expect(captainHomeSelection({matches} as CaptainData,'requested')).toEqual({id:'',missing:true})
+})
+it('keeps an intentionally empty fixture choice and handles an empty schedule without inventing a selection',()=>{
+ expect(captainHomeSelection({matches:[match]} as CaptainData,'')).toEqual({id:'',missing:false})
+ expect(captainHomeSelection({matches:[]} as unknown as CaptainData)).toEqual({id:'',missing:false})
 })
 it('shows unchecked rather than invented zero readiness, using the actual website card',()=>{const h=captainHomeFocusHtml(null);expect(h).toContain('Not checked');expect(h).toContain('Check match readiness');expect(h).toContain('Available shown');expect(h).toContain('Needs review');expect(h).toContain('data-focus-primary');expect(h).not.toContain('data-focus-issue=')})
 it('uses selected-player key matches, counts unavailable/missing replies, and delegates the next action to Match Center',()=>{const c=center();c.replies.people[1].status='unavailable';c.replies.people.push({key:'backup',name:'Backup',status:'available',source:'captain',selected:false});const f=captainHomeFocus(scope,match,c);expect(f.confirmedLabel).toBe('1 of 2');expect(f.waitingLabel).toBe('1');expect(f.action.label).toBe('Review selected player replies');expect(f.action.kind).toBe('availability');expect(f.issues[0].kind).toBe('availability');c.replies.people=c.replies.people.filter(p=>p.key!=='b');expect(captainHomeFocus(scope,match,c).waitingLabel).toBe('1')})

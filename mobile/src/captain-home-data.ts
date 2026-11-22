@@ -12,6 +12,10 @@ export function captainHomeMatch(data:CaptainData,id:string):CaptainMatch|null{
  if(matches.length!==1)return null
  const m=matches[0];return m.id&&m.opponent.trim()&&isValidCalendarDate(m.date)?m:null
 }
+export function captainHomeSelection(data:CaptainData,requested?:string){
+ const match=captainHomeMatch(data,requested??data.matches[0]?.id??'')
+ return {id:match?.id??'',missing:Boolean(requested)&&!match}
+}
 export function captainHomeIssueStep(focus:CaptainHomeMatchFocus|null,index:string):CenterStep|null{
  if(!focus||!/^[0-2]$/.test(index))return null
  const kind=focus.issues[Number(index)]?.kind

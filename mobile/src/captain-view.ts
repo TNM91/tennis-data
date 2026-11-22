@@ -20,6 +20,7 @@ export function captainRepliesHtml(data:CaptainReplies){const labels={available:
 export function showCaptainWorkspace(panel:HTMLElement,client:SupabaseClient,owner:string,scope:TeamScope,isCurrent:()=>boolean,onSharedChange:()=>void=()=>{},onMemberAccessChanged:()=>void=onSharedChange,roomId=''){
  let disposed=false,version=0,data:CaptainData|null=null,tab:'Week'|'Roster'|'Lineups'='Week',filter='',savedNotice=''
  let home:ReturnType<typeof openCaptainHome>|null=null
+ let homeFixtureId:string|undefined,focusHomeAfterLoad=false
  let editor:{dispose:()=>void}|null=null
  const selectedRoster=new Set<string>()
  const current=()=>!disposed && isCurrent()
@@ -29,7 +30,8 @@ export function showCaptainWorkspace(panel:HTMLElement,client:SupabaseClient,own
   const snapshot=data
   home?.dispose();home=null
   panel.innerHTML=`<section class="captain-home" data-captain-home></section><div class="captain-quick-tools" role="group" aria-label="Team planning"><button type="button" class="secondary" id="captain-week-brief">Review week brief</button><button type="button" class="secondary" id="captain-practices">Manage practices</button><button type="button" class="secondary" id="captain-invites">Invite teammates</button><button type="button" class="secondary" id="captain-member-access">Manage chat access</button></div><div class="match-filters" role="group" aria-label="Captain views">${(['Week','Roster','Lineups'] as const).map(value=>`<button type="button" class="secondary" data-captain-tab="${value}" aria-pressed="${tab===value}">${value}</button>`).join('')}</div><p role="status">${html(savedNotice)}</p><div id="captain-content"></div><button type="button" class="secondary" id="captain-refresh">Refresh Captain tools</button>`
-  home=openCaptainHome(panel.querySelector<HTMLElement>('[data-captain-home]')!,client,owner,{...scope},snapshot,current,(match,next)=>{if(!current())return;editor?.dispose();editor=openCaptainMatchCenter(client,owner,{...scope},match,roomId,current,onSharedChange,changed=>{if(changed&&current()){savedNotice='Match tasks updated. Recheck your next decision.';void load()}},next)})
+  home=openCaptainHome(panel.querySelector<HTMLElement>('[data-captain-home]')!,client,owner,{...scope},snapshot,current,(match,next)=>{if(!current())return;editor?.dispose();editor=openCaptainMatchCenter(client,owner,{...scope},match,roomId,current,onSharedChange,changed=>{if(changed&&current()){savedNotice='Match tasks updated. Recheck your next decision.';void load(true)}},next)},{initialFixtureId:homeFixtureId,onFixtureChange:id=>{homeFixtureId=id}})
+  if(focusHomeAfterLoad){focusHomeAfterLoad=false;const target=panel.querySelector<HTMLElement>('[data-captain-home] [data-focus-primary]:enabled')||panel.querySelector<HTMLElement>('#captain-home-fixture')||panel.querySelector<HTMLElement>('[data-captain-home] [role=status]')||panel.querySelector<HTMLElement>('#captain-refresh');target?.focus()}
   panel.querySelector<HTMLButtonElement>('#captain-week-brief')!.onclick=()=>{if(!current())return;editor?.dispose();editor=openCaptainWeekBrief(client,owner,{...scope},roomId,current,onSharedChange,()=>{if(current()){savedNotice='Match tasks updated. Review the latest Captain plans.';void load()}},()=>{if(current()){editor?.dispose();editor=openCaptainPractices(client,owner,{...scope},current)}})}
   panel.querySelector<HTMLButtonElement>('#captain-practices')!.onclick=()=>{if(!current())return;editor?.dispose();editor=openCaptainPractices(client,owner,{...scope},current)}
   panel.querySelector<HTMLButtonElement>('#captain-invites')!.onclick=()=>{editor?.dispose();editor=openCaptainInvites(client,owner,{...scope},current)}
@@ -60,7 +62,7 @@ export function showCaptainWorkspace(panel:HTMLElement,client:SupabaseClient,own
    if(current() && attempt===version)content.querySelector<HTMLButtonElement>('#captain-back')!.onclick=()=>{version++;render()}
   })()}})
  }
- const load=async()=>{home?.dispose();home=null;const attempt=++version;panel.innerHTML='<p role="status">Loading your Captain tools…</p>';try{const result=await loadCaptainData(client,owner,()=>current() && attempt===version,scope);if(!current() || attempt!==version)return;data=result;for(const key of selectedRoster)if(!result.roster.some(p=>p.id===key&&p.playerId))selectedRoster.delete(key);render()}catch(cause){if(current() && attempt===version)notice(cause instanceof Error?cause.message:'Captain tools are unavailable.')}}
+ const load=async(focusHome=false)=>{if(focusHome)focusHomeAfterLoad=true;home?.dispose();home=null;const attempt=++version;panel.innerHTML='<p role="status">Loading your Captain tools…</p>';try{const result=await loadCaptainData(client,owner,()=>current() && attempt===version,scope);if(!current() || attempt!==version)return;data=result;for(const key of selectedRoster)if(!result.roster.some(p=>p.id===key&&p.playerId))selectedRoster.delete(key);render()}catch(cause){if(current() && attempt===version)notice(cause instanceof Error?cause.message:'Captain tools are unavailable.')}}
  void load()
  return {dispose:()=>{disposed=true;home?.dispose();home=null;editor?.dispose();editor=null;version++;data=null;filter='';selectedRoster.clear()}}
 }

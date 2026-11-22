@@ -25,7 +25,7 @@ test.beforeAll(async()=>{
   builder.onResolve({filter:/^\.\/captain-lineup-data$/},()=>({path:'lineup-data',namespace:'fixture'}))
   builder.onLoad({filter:/^lineup-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
    export * from ${JSON.stringify(path.resolve('mobile/src/captain-lineup-data.ts'))};
-   export async function loadLineupEditor(){const f=window.fixture;f.toolReads.plan++;if(f.failTool==='plan')throw Error('Synthetic tool read unavailable');return structuredClone(f.center.lineup)}
+   export async function loadLineupEditor(_client,_owner,_current,_scope,fixtureId){const f=window.fixture;f.toolReads.plan++;if(f.failTool==='plan')throw Error('Synthetic tool read unavailable');const value=structuredClone(f.center.lineup),match=f.snapshot.matches.find(m=>m.id===fixtureId);if(match)value.match={id:match.id,date:match.date,opponent:match.opponent};return value}
    export async function saveLineupEditor(_client,_owner,_current,_data,plan){const f=window.fixture;f.lineupSaves++;f.center.lineup.plan=structuredClone(plan);f.center.lineup.version='saved-two';f.center.publication.draftVersion='saved-two';return 'saved-two'}
   ` }))
   builder.onResolve({filter:/^\.\/captain-publication-data$/},()=>({path:'publication-data',namespace:'fixture'}))
@@ -204,6 +204,67 @@ for(const width of [320,390])test(`lineup planning from replies returns to the r
 
 type ReplyReviewWindow={fixture:{center:ReturnType<typeof captainCenterFixture>;reads:number;lineupSaves:number;publicationSends:number;sharedChanges:number}}
 type IssueReviewWindow=ReplyReviewWindow&{fixture:{fail:boolean;dayReads:number}}
+type FixtureReturnWindow=IssueReviewWindow&{fixture:{snapshot:ReturnType<typeof captainSnapshotFixture>}}
+async function saveSecondFixture(page:Page,width:number){
+ await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
+ if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
+ await page.getByLabel('Choose fixture',{exact:true}).selectOption('fixture-two')
+ const home=page.locator('.captain-home');await home.getByRole('button',{name:'Check match readiness',exact:true}).click()
+ await home.getByRole('button',{name:/^1 selected player needs availability review/}).click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await expect(center.locator('.captain-fixture-hero')).toContainText('South Court Rallies')
+ await center.locator('[data-center-replies] li').getByRole('button',{name:/^Review court/}).click()
+ const plan=page.getByRole('dialog',{name:'Plan your lineup',exact:true})
+ await expect(plan.locator('form')).toContainText('South Court Rallies')
+ await plan.getByRole('textbox',{name:/^Match notes/}).fill('Meet at the north entrance.')
+ await plan.getByRole('button',{name:'Review working lineup',exact:true}).click()
+ await plan.getByRole('button',{name:'Confirm working save',exact:true}).click()
+ await expect(plan).toHaveCount(0);await expect(center.getByRole('status')).toContainText('Working lineup saved.')
+ return {home,center}
+}
+
+for(const width of [320,390])for(const outcome of ['retained','removed','empty'] as const)test(`captain return keeps the saved fixture ${outcome} state at ${width}px`,async({page},info)=>{
+ test.setTimeout(45000)
+ const {home,center}=await saveSecondFixture(page,width)
+ await page.evaluate(value=>{const f=(window as unknown as FixtureReturnWindow).fixture;if(value==='empty')f.snapshot.matches=[];else if(value==='removed')f.snapshot.matches=f.snapshot.matches.filter(m=>m.id!=='fixture-two');else f.snapshot.matches.unshift({...f.snapshot.matches[0],id:'fixture-three',opponent:'New Court Club'})},outcome)
+ await center.getByRole('button',{name:'Back to Captain',exact:true}).click()
+ await expect(center).toHaveCount(0)
+ const fixture=page.getByLabel('Choose fixture',{exact:true}),check=home.getByRole('button',{name:'Check match readiness',exact:true})
+ await expect(home.locator('.website-captain-focus')).toContainText('Not checked')
+ if(outcome==='retained'){
+  await expect(fixture).toHaveValue('fixture-two');await expect(home.locator('.captain-fixture-hero')).toContainText('South Court Rallies')
+  await expect(check).toBeFocused();await expect(check).toBeEnabled()
+ }else if(outcome==='empty'){
+  await expect(fixture).toHaveCount(0);await expect(check).toBeDisabled()
+  await expect(home.getByRole('status')).toBeFocused();await expect(home.getByRole('status')).toContainText('No upcoming matches are available.')
+ }else{
+  await expect(fixture).toHaveValue('');await expect(fixture).toBeFocused();await expect(check).toBeDisabled()
+  await expect(home.getByRole('status')).toContainText('Your selected match could not be confirmed. Choose a match.')
+  await expect(home.locator('.captain-fixture-hero')).toHaveCount(0)
+  await fixture.selectOption('fixture-one');await expect(check).toBeEnabled()
+ }
+ expect(await page.evaluate(()=>{const f=(window as unknown as FixtureReturnWindow).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:3,lineupSaves:1,publicationSends:0,sharedChanges:0})
+ if(outcome!=='empty'){await check.click();await expect(home.locator('.website-captain-focus')).toContainText('1 of 2')}
+ await bounded(page,home)
+ if(outcome==='retained'&&width===390&&info.project.name==='mobile-webkit'){await home.locator('[data-focus-primary]').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('captain-return-readiness.png')})}
+ expect(await page.evaluate(()=>(window as unknown as FixtureReturnWindow).fixture.reads)).toBe(outcome==='empty'?3:4)
+})
+
+test('captain tab changes and explicit refresh keep the selected fixture with unchecked readiness',async({page})=>{
+ await page.goto(origin+prefix);await page.getByLabel('Choose fixture',{exact:true}).selectOption('fixture-two')
+ const home=page.locator('.captain-home');await home.getByRole('button',{name:'Check match readiness',exact:true}).click()
+ for(const tab of ['Roster','Lineups','Week']){
+  await page.getByRole('button',{name:tab,exact:true}).click()
+  await expect(page.getByLabel('Choose fixture',{exact:true})).toHaveValue('fixture-two')
+  await expect(home.locator('.captain-fixture-hero')).toContainText('South Court Rallies')
+  await expect(home.locator('.website-captain-focus')).toContainText('Not checked')
+ }
+ await page.getByRole('button',{name:'Refresh Captain tools',exact:true}).click()
+ await expect(page.getByLabel('Choose fixture',{exact:true})).toHaveValue('fixture-two')
+ await expect(home.locator('.website-captain-focus')).toContainText('Not checked')
+ expect(await page.evaluate(()=>(window as unknown as FixtureReturnWindow).fixture.reads)).toBe(1)
+})
+
 for(const width of [320,390])test(`availability issue opens reply review instead of the primary lineup task at ${width}px`,async({page},info)=>{
  test.setTimeout(45000)
  await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
