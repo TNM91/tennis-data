@@ -2,7 +2,7 @@ import type { PersonalMatch } from '../../mobile/src/personal-match-data'
 
 type Row = Omit<PersonalMatch, 'court_venue_key' | 'court_feedback'> &
   Partial<Pick<PersonalMatch, 'court_venue_key' | 'court_feedback'>> & { owner_user_id: string }
-export const personalMatchFixture = { rows: [] as Row[], writtenIds: [] as string[], loseReceipt: false,
+export const personalMatchFixture = { rows: [] as Row[], writtenIds: [] as string[], loseReceipt: false, historyReads: 0,
   courtFeedbackReads: [] as { owner: string | undefined; venue: string | undefined; limit: number; columns: string }[], failCourtFeedbackRead: false,
   teamScoreReads: [] as { owner: string | undefined; keys: string[] }[], failTeamScoreRead: false }
 let missLookup = false
@@ -37,6 +37,7 @@ export function personalMatchQuery() {
     delete() { action = 'delete'; return chain },
     then(resolve: (result: { data: unknown; error: { message: string } | null }) => void) {
       const fixture = personalMatchFixture
+      if (action === 'read' && !single && !teamScoreKeys && !ratedOnly) fixture.historyReads++
       const fail = (message: string) => resolve({ data: null, error: { message } })
       if (teamScoreKeys) {
         fixture.teamScoreReads.push({ owner: filters.get('owner_user_id'), keys: teamScoreKeys })

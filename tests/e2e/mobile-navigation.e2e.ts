@@ -1475,8 +1475,10 @@ test('first-party unsubmitted scorecards survive remounts in the same account', 
  await expect(page.getByLabel('Result',{exact:true})).toHaveValue('Won')
  await expect(venue).toHaveValue('frontenac-racquet-club')
 
+ await opponent.focus()
  await page.evaluate(() => (window as unknown as {refreshNavigationSession:()=>void}).refreshNavigationSession())
- await resume.click()
+ await expect(opponent).toBeFocused()
+ await expect(resume).toBeDisabled()
  await expect(opponent).toHaveValue('Draft partner')
  await expect(venue).toHaveValue('frontenac-racquet-club')
  await page.getByRole('button',{name:'Cancel',exact:true}).click()
@@ -11574,4 +11576,104 @@ test('launch usability: captain creates a team and a teammate reviews and joins 
  await expect(join.or(handoff).first()).toBeVisible();if(!await join.isVisible())await handoff.click()
  await expect(join).toContainText('Friday Court Crew');await join.screenshot({path:info.outputPath('audit-captain-03-player-preview.png')});await join.getByRole('button',{name:'Join as player',exact:true}).click();await expect(join).toHaveCount(0)
  await expect(page.locator('.chat-room-header')).toContainText('Friday Court Crew');await page.screenshot({path:info.outputPath('audit-captain-04-teammate-chat.png')});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+})
+
+test('My Lab inline scorecard keeps a draft after reconnect',async({page})=>{
+ await useFirstPartyNavigation(page);await page.setViewportSize({width:390,height:844});await page.goto(origin+'/?unlinked=1')
+ await page.getByRole('button',{name:'Log a match',exact:true}).click()
+ const editor=page.locator('[data-match-editor]')
+ await editor.getByLabel('Opponent or doubles team').fill('Private score draft')
+ await editor.getByLabel('Format',{exact:true}).selectOption('doubles')
+ await editor.getByLabel('Score',{exact:true}).fill('6-4 6-3')
+ await editor.getByLabel('Result',{exact:true}).selectOption('Won')
+ await editor.evaluate(el=>{(el as HTMLElement).dataset.continuity='score-draft'})
+ await editor.getByLabel('Score',{exact:true}).focus()
+ await page.evaluate(()=>window.dispatchEvent(new Event('online')))
+ await expect(editor).toHaveAttribute('data-continuity','score-draft')
+ await expect(editor.getByLabel('Opponent or doubles team')).toHaveValue('Private score draft')
+ await expect(editor.getByLabel('Score',{exact:true})).toHaveValue('6-4 6-3')
+ await expect(editor.getByLabel('Score',{exact:true})).toBeFocused()
+ expect(await page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.writtenIds)).toEqual([])
+})
+
+type LabContinuityEvent='online'|'resume'|'same-account'
+type LabContinuityWindow=typeof import('../fixtures/mobile-personal-matches')&{refreshNavigationSession:()=>void;switchNavigationOwner:()=>void}
+async function passiveLabRefresh(page:Page,event:LabContinuityEvent){
+ await page.evaluate(async kind=>{
+  const controls=window as unknown as LabContinuityWindow
+  if(kind==='online')window.dispatchEvent(new Event('online'))
+  else if(kind==='same-account')controls.refreshNavigationSession()
+  else{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'));Reflect.deleteProperty(document,'visibilityState')}
+  await new Promise<void>(resolve=>setTimeout(resolve,0))
+ },event)
+}
+async function personalHistoryReads(page:Page){return page.evaluate(()=>(window as unknown as LabContinuityWindow).personalMatchFixture.historyReads)}
+async function continuityScorecard(page:Page,width=390){await page.setViewportSize({width,height:844});await page.goto(origin+'/?unlinked=1'+(width===320?'&large=1':''))
+ await expect(page.getByRole('button',{name:'Log a match',exact:true})).toBeEnabled()
+ await page.evaluate(()=>{
+  const fixture=(window as unknown as LabContinuityWindow).personalMatchFixture
+  fixture.rows.push({id:crypto.randomUUID(),revision:crypto.randomUUID(),owner_user_id:'11111111-1111-4111-8111-111111111111',created_at:'2026-11-02T12:00:00.000Z',match_date:'2026-11-01',calendar_match_id:null,format:'singles',outcome:'Won',score:'6-4 6-3',opponent:'Continuity practice partner',court_venue_key:'vetta-west',court_feedback:null})
+ })
+ await page.locator('#refresh').click();await page.getByRole('button',{name:'Open scorecard for Continuity practice partner',exact:true}).click()
+ return page.getByRole('article',{name:'Saved scorecard',exact:true})
+}
+for(const event of ['online','resume','same-account'] as const)test(`My Lab inline new scorecard stays open after ${event} at 320px`,async({page})=>{
+ await useFirstPartyNavigation(page);await page.setViewportSize({width:320,height:844});await page.goto(origin+'/?unlinked=1&large=1')
+ await page.getByRole('button',{name:'Log a match',exact:true}).click();const editor=page.locator('[data-match-editor]')
+ await editor.getByLabel('Opponent or doubles team').fill('Private score draft');await editor.getByLabel('Format',{exact:true}).selectOption('doubles');await editor.getByLabel('Score',{exact:true}).fill('6-4 6-3');await editor.getByLabel('Result',{exact:true}).selectOption('Won')
+ await editor.evaluate(el=>{(el as HTMLElement).dataset.continuity='new-score'});await editor.getByLabel('Score',{exact:true}).focus();const reads=await personalHistoryReads(page)
+ await passiveLabRefresh(page,event)
+ await expect(editor).toHaveAttribute('data-continuity','new-score');await expect(editor.getByLabel('Score',{exact:true})).toHaveValue('6-4 6-3');await expect(editor.getByLabel('Score',{exact:true})).toBeFocused()
+ await expect(editor.getByLabel('Opponent or doubles team')).toHaveValue('Private score draft');await expect(editor.getByLabel('Format',{exact:true})).toHaveValue('doubles')
+ expect(await personalHistoryReads(page)).toBe(reads);expect(await editor.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+ expect(await page.evaluate(()=>(window as unknown as LabContinuityWindow).personalMatchFixture.writtenIds)).toEqual([])
+})
+for(const mode of ['score-edit','court-ratings'] as const)for(const event of ['online','resume','same-account'] as const)test(`My Lab inline ${mode} keeps unsaved changes after ${event}`,async({page},info)=>{
+ await useFirstPartyNavigation(page);const scorecard=await continuityScorecard(page)
+ if(mode==='score-edit')await scorecard.getByRole('button',{name:'Edit scorecard',exact:true}).click();else await scorecard.getByRole('button',{name:'Rate this court',exact:true}).click()
+ const editor=page.locator(mode==='score-edit'?'[data-match-editor]':'.lab-court-feedback-editor');await editor.evaluate(el=>{(el as HTMLElement).dataset.continuity='private-edit'})
+ const focus=mode==='score-edit'?editor.getByLabel('Score',{exact:true}):editor.getByRole('group',{name:'Surface condition',exact:true}).getByRole('button',{name:'4 stars',exact:true})
+ if(mode==='score-edit')await focus.fill('6-2 6-1');else await focus.click();await focus.focus();const reads=await personalHistoryReads(page)
+ await passiveLabRefresh(page,event)
+ await expect(editor).toHaveAttribute('data-continuity','private-edit');await expect(focus).toBeFocused()
+ if(mode==='score-edit')await expect(focus).toHaveValue('6-2 6-1');else await expect(focus).toHaveAttribute('aria-pressed','true')
+ expect(await personalHistoryReads(page)).toBe(reads)
+ expect(await page.evaluate(()=>{const f=(window as unknown as LabContinuityWindow).personalMatchFixture;return {score:f.rows[0].score,ratings:f.rows[0].court_feedback,writes:f.writtenIds}})).toEqual({score:'6-4 6-3',ratings:null,writes:[]})
+ if(mode==='court-ratings'&&event==='resume'&&info.project.name==='mobile-webkit')await editor.screenshot({path:info.outputPath('court-ratings-after-resume.png')})
+ await editor.getByRole('button',{name:mode==='score-edit'?'Save scorecard':'Save court ratings',exact:true}).click()
+ await expect(page.getByText(mode==='score-edit'?'Scorecard saved.':'Court ratings saved.',{exact:true})).toBeVisible()
+ const saved=await page.evaluate(()=>(window as unknown as LabContinuityWindow).personalMatchFixture.rows)
+ expect(saved).toHaveLength(1);if(mode==='score-edit')expect(saved[0].score).toBe('6-2 6-1');else expect(saved[0].court_feedback).toEqual({surface:4,lighting:null,court_time:null})
+})
+test('My Lab inline saved scorecard remains open through passive refreshes',async({page})=>{
+ await useFirstPartyNavigation(page);const scorecard=await continuityScorecard(page,320);await scorecard.evaluate(el=>{(el as HTMLElement).dataset.continuity='view-score'})
+ const back=scorecard.getByRole('button',{name:'Back to match log',exact:true});await back.focus();const reads=await personalHistoryReads(page)
+ for(const event of ['online','resume','same-account'] as const){await passiveLabRefresh(page,event);await expect(scorecard).toHaveAttribute('data-continuity','view-score');await expect(back).toBeFocused();expect(await personalHistoryReads(page)).toBe(reads)}
+ await expect(scorecard).toContainText('Continuity practice partner');expect(await page.evaluate(()=>(window as unknown as LabContinuityWindow).personalMatchFixture.writtenIds)).toEqual([])
+})
+for(const mode of ['new-score','score-edit','court-ratings','saved-score'] as const)test(`My Lab inline ${mode} clears private work when the account changes`,async({page})=>{
+ await useFirstPartyNavigation(page);const scorecard=await continuityScorecard(page,320)
+ if(mode==='new-score'){await scorecard.getByRole('button',{name:'Back to match log',exact:true}).click();await page.getByRole('button',{name:'Log a match',exact:true}).click();await page.locator('[data-match-editor]').getByLabel('Opponent or doubles team').fill('Private account draft')}
+ else if(mode==='score-edit'){await scorecard.getByRole('button',{name:'Edit scorecard',exact:true}).click();await page.locator('[data-match-editor]').getByLabel('Score',{exact:true}).fill('6-1 6-0')}
+ else if(mode==='court-ratings'){await scorecard.getByRole('button',{name:'Rate this court',exact:true}).click();await page.locator('.lab-court-feedback-editor').getByRole('group',{name:'Lighting',exact:true}).getByRole('button',{name:'5 stars',exact:true}).click()}
+ await page.evaluate(()=>(window as unknown as LabContinuityWindow).switchNavigationOwner())
+ await expect(page.locator('[data-personal-editor]')).toBeEmpty();await expect(page.locator('#app')).not.toContainText('Continuity practice partner');await expect(page.locator('#app')).not.toContainText('Private account draft')
+ await page.getByRole('button',{name:'Log a match',exact:true}).click();await expect(page.locator('[data-match-editor]').getByLabel('Opponent or doubles team')).toHaveValue('')
+ expect(await page.evaluate(()=>(window as unknown as LabContinuityWindow).personalMatchFixture.writtenIds)).toEqual([])
+})
+test('My Lab inline unconfirmed scorecard keeps the same retry after passive refreshes',async({page})=>{
+ await useFirstPartyNavigation(page);await page.goto(origin+'/?unlinked=1');await page.getByRole('button',{name:'Log a match',exact:true}).click();const editor=page.locator('[data-match-editor]')
+ await editor.getByLabel('Opponent or doubles team').fill('Receipt recovery partner');await editor.getByLabel('Format',{exact:true}).selectOption('singles');await editor.getByLabel('Score',{exact:true}).fill('6-4 6-3');await editor.getByLabel('Result',{exact:true}).selectOption('Won')
+ await page.evaluate(()=>{(window as unknown as LabContinuityWindow).personalMatchFixture.loseReceipt=true});await editor.getByRole('button',{name:'Save scorecard',exact:true}).click()
+ await expect(editor.getByRole('status')).toContainText('Save unconfirmed.');await editor.evaluate(el=>{(el as HTMLElement).dataset.continuity='retry-score'})
+ const receipt=await page.evaluate(()=>(window as unknown as LabContinuityWindow).personalMatchFixture.writtenIds)
+ expect(receipt).toHaveLength(1);const reads=await personalHistoryReads(page)
+ for(const event of ['online','resume','same-account'] as const){await passiveLabRefresh(page,event);await expect(editor).toHaveAttribute('data-continuity','retry-score');await expect(editor.getByRole('button',{name:'Retry save',exact:true})).toBeEnabled();expect(await personalHistoryReads(page)).toBe(reads)}
+ await editor.getByRole('button',{name:'Retry save',exact:true}).click();await expect(page.getByText('Scorecard saved.',{exact:true})).toBeVisible()
+ expect(await page.evaluate(()=>(window as unknown as LabContinuityWindow).personalMatchFixture.writtenIds)).toEqual([...receipt,receipt[0]]);expect(await page.evaluate(()=>(window as unknown as LabContinuityWindow).personalMatchFixture.rows)).toHaveLength(1)
+})
+test('My Lab inline close restores normal passive profile refresh',async({page})=>{
+ await useFirstPartyNavigation(page);const scorecard=await continuityScorecard(page);await scorecard.getByRole('button',{name:'Back to match log',exact:true}).click();await expect(page.locator('[data-personal-editor]')).toBeEmpty()
+ const reads=await personalHistoryReads(page);await passiveLabRefresh(page,'online')
+ await expect.poll(()=>personalHistoryReads(page)).toBe(reads+1);await expect(page.getByRole('button',{name:'Open scorecard for Continuity practice partner',exact:true})).toBeVisible()
 })
