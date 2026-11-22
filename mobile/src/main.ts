@@ -135,6 +135,7 @@ let storageUnavailable=false
 let session: Session | null = null
 let personalMatchForm:PersonalMatchFormSession={}
 let personalMatchLog:ReturnType<typeof mountPersonalMatchLog>|undefined
+let tiqAssessment:ReturnType<typeof mountStarterTiq>|undefined
 let teamScoreDrafts:TeamScoreDraftSession|undefined
 let linkedLabOwner:string|undefined
 let exploreSearch:ExploreSearchState|undefined
@@ -483,7 +484,8 @@ function launchUpdates(trigger:HTMLElement){
 const guardTeamNavigation=createTeamNavigationGuard(()=>Boolean(teamRoom?.hasDraft()),()=>revision)
 function guardNavigation(action:()=>void){
  const leave=()=>guardTeamNavigation(action)
- if(personalMatchLog?.isActive())personalMatchLog.requestLeave(leave);else leave()
+ const leaveScorecard=()=>{if(personalMatchLog?.isActive())personalMatchLog.requestLeave(leave);else leave()}
+ if(tiqAssessment?.isEditing())tiqAssessment.requestLeave(leaveScorecard);else leaveScorecard()
 }
 navigation.querySelector<HTMLButtonElement>('[data-screen="lab"]')!.onclick = () => {if (!connection?.isSaving()) guardNavigation(()=>{void lab()})}
 navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick = () => openExplore()
@@ -541,6 +543,7 @@ function openMatchup(){
 }
 
 function openTeamRoom(initialScope?:TeamChatDestination,fromCompete?:CompeteTeamDestination&{browseFirst?:boolean},returnTo?:TeamResultsReturn){
+  if(tiqAssessment?.isEditing()){tiqAssessment.requestLeave(()=>openTeamRoom(initialScope,fromCompete,returnTo));return}
   if(personalMatchLog?.isActive()){personalMatchLog.requestLeave(()=>openTeamRoom(initialScope,fromCompete,returnTo));return}
   if(coachWorkspace?.isOpen()){coachWorkspace.requestLeave(()=>{coachWorkspace=null;openTeamRoom(initialScope,fromCompete,returnTo)});return}
   if(comparison?.isNotebookOpen()){comparison.back();return}
@@ -756,6 +759,7 @@ function focusLabCoachShortcut(shortcuts: HTMLElement, ...sectionsAbove: HTMLEle
 
 async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScorecardSeed;backToTeamResults?:()=>void}) {
   personalMatchLog=undefined
+  tiqAssessment=undefined
   agenda?.dispose();agenda=null
   updates?.dispose();updates=null
   sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null;playerChats?.dispose();playerChats=null
@@ -955,8 +959,9 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
       },{client,openPlan,openHistory:(trigger,device,changed,closed)=>{
         coachWorkspace=openTiqAccountHistory(client,current.user.id,active,trigger,{device,changed,closed})
       }})
+      tiqAssessment=starterAssessment
       personalMatchLog=mountPersonalMatchLog(matchLog,client,current.user.id,active,personalMatchForm,{
-        seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,scoreReviewShortcut,
+        seed:scorecard,backToTeamResults:scorecardEntry?.backToTeamResults,requestNavigation:guardNavigation,scoreReviewShortcut,
         onRecentScorecards:starterAssessment.showRecentMatches,
         openPractice:(match,currentMatch)=>openScorecardPractice(current.user.id,currentMatch,match.match_date,match.format==='doubles'),
         openRematchInvite:(source,trigger,currentMatch)=>openScorecardInvite(current.user.id,source,trigger,currentMatch),
@@ -1041,6 +1046,7 @@ async function lab(entry?:'coach'|'trophies'|PlayerLink|{scorecard:CalendarScore
 
 function clearAccountEntryViews(){
  personalMatchLog=undefined
+ tiqAssessment=undefined
  agenda?.dispose();agenda=null;courtInvite?.dispose();courtInvite=null;updates?.dispose();updates=null
  sharedMatch?.dispose();sharedMatch=null;teamInvite?.dispose();teamInvite=null;playerChats?.dispose();playerChats=null
  accountSettings?.dispose();accountSettings=null;emailAuth?.dispose();emailAuth=null;biometricLogin?.dispose();biometricLogin=null

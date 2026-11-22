@@ -32,6 +32,189 @@ async function install(page:Page,server:Server){
 }
 test.beforeEach(async({page,server})=>{await install(page,server)})
 const card=(page:Page)=>page.getByRole('region',{name:'Your TiQ',exact:true})
+
+test('assessment navigation keeps partial answers before leaving My Lab',async({page,server})=>{
+  await page.setViewportSize({width:320,height:844});await open(page,true)
+  const rating=card(page)
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click()
+  const answer=rating.getByRole('combobox',{name:'How reliable is your serve?',exact:true})
+  await answer.selectOption('1')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await expect(rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toBeFocused()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(answer).toHaveValue('1');await expect(answer).toBeFocused()
+  expect(server.ordered(tiqPlayer)).toHaveLength(0);expect(server.shares).toHaveLength(0)
+})
+
+for(const destination of ['lab','explore','teams','compete','more'])test('assessment navigation reviews changed answers before opening '+destination,async({page,server})=>{
+  const original=server.add(tiqPlayer,tiqAnswers)
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Retake',exact:true}).click()
+  await rating.getByRole('combobox',{name:'How reliable is your serve?',exact:true}).selectOption('3')
+  const target=page.locator('.app-navigation [data-screen="'+destination+'"]')
+  await target.click()
+  await expect(rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toBeVisible()
+  await expect(rating).toContainText('Leaving My Lab discards the answers you have not saved.')
+  expect(server.ordered(tiqPlayer)).toEqual([original])
+  await rating.getByRole('button',{name:'Discard answers',exact:true}).click()
+  await expect(target).toHaveAttribute('aria-current','page')
+  await expect(page.locator('.starter-tiq-form')).toHaveCount(0)
+  expect(server.ordered(tiqPlayer)).toEqual([original]);expect(server.shares).toHaveLength(0)
+})
+
+for(const step of [2,3])test('assessment navigation restores step '+step+' and its current answer',async({page,server},info)=>{
+  await page.setViewportSize({width:320,height:844});await open(page,true)
+  const rating=card(page),form=rating.locator('.starter-tiq-form')
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click()
+  for(const field of await form.locator('select').all())await field.selectOption('2')
+  await form.getByRole('button',{name:'Continue',exact:true}).click()
+  let label='How do you build a point when the score gets tight?'
+  if(step===3){
+    for(const field of await form.locator('select').all())await field.selectOption('2')
+    await form.getByRole('button',{name:'Continue',exact:true}).click()
+    label='How do you create an opening in singles?'
+  }
+  const answer=rating.getByRole('combobox',{name:label,exact:true});await answer.selectOption('1')
+  await page.locator('#refresh').click()
+  const warning=rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})
+  await expect(warning).toBeFocused()
+  await page.evaluate(()=>{window.dispatchEvent(new Event('online'));(window as unknown as {refreshNavigationSession:()=>void}).refreshNavigationSession()})
+  await expect(warning).toBeVisible();expect(await rating.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+  if(step===3&&info.project.name==='mobile-webkit')await rating.screenshot({path:info.outputPath('tiq-navigation-warning-320.png')})
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(form.getByRole('progressbar')).toHaveAttribute('value',String(step))
+  await expect(answer).toHaveValue('1');await expect(answer).toBeFocused()
+  if(step===3){
+    await rating.getByRole('combobox',{name:'How do you handle being pulled wide in singles?',exact:true}).selectOption('1')
+  }else{
+    await rating.getByRole('combobox',{name:'How do you move between shots?',exact:true}).selectOption('2')
+    await rating.getByRole('combobox',{name:'How comfortable are you finishing at net?',exact:true}).selectOption('2')
+    await form.getByRole('button',{name:'Continue',exact:true}).click()
+  }
+  await form.getByRole('button',{name:'Save to my account',exact:true}).click()
+  await expect(rating).toContainText('Saved to your account')
+  const saved=server.ordered(tiqPlayer);expect(saved).toHaveLength(1);expect(server.shares).toHaveLength(0)
+  expect(saved[0].answers).toEqual(step===2?{...tiqAnswers,points:1}:{...tiqAnswers,'singles-build':1,'singles-cover':1})
+})
+
+for(const mode of ['new','retake'])test('assessment navigation leaves unchanged '+mode+' answers without a warning',async({page,server})=>{
+  const original=mode==='retake'?server.add(tiqPlayer,tiqAnswers):null
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:original?'Retake':'Find my level',exact:true}).click()
+  if(original){const answer=rating.getByRole('combobox').first();await answer.selectOption('3');await answer.selectOption('2')}
+  await page.locator('.app-navigation [data-screen="teams"]').click()
+  await expect(page.locator('.app-navigation [data-screen="teams"]')).toHaveAttribute('aria-current','page')
+  await expect(page.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toHaveCount(0)
+  expect(server.ordered(tiqPlayer)).toEqual(original?[original]:[])
+})
+
+test('assessment navigation uses the latest selected tab and clears a kept departure',async({page,server})=>{
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click()
+  const answer=rating.getByRole('combobox').first();await answer.selectOption('1')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await expect(rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toBeVisible()
+  await page.locator('.app-navigation [data-screen="teams"]').click()
+  await rating.getByRole('button',{name:'Discard answers',exact:true}).click()
+  await expect(page.locator('.app-navigation [data-screen="teams"]')).toHaveAttribute('aria-current','page')
+  await page.locator('.app-navigation [data-screen="lab"]').click()
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click();await answer.selectOption('2')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await rating.getByRole('button',{name:'Cancel',exact:true}).click()
+  await rating.getByRole('button',{name:'Discard answers',exact:true}).click()
+  await expect(page.locator('.app-navigation [data-screen="lab"]')).toHaveAttribute('aria-current','page')
+  await expect(rating.getByRole('button',{name:'Find my level',exact:true})).toBeFocused()
+  expect(server.ordered(tiqPlayer)).toHaveLength(0)
+})
+
+test('assessment navigation can keep answers after Cancel without a hidden departure',async({page})=>{
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click()
+  const answer=rating.getByRole('combobox').first();await answer.selectOption('1')
+  await rating.getByRole('button',{name:'Cancel',exact:true}).click()
+  await page.locator('.app-navigation [data-screen="more"]').click()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(answer).toHaveValue('1');await expect(answer).toBeFocused()
+  await rating.getByRole('button',{name:'Cancel',exact:true}).click()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(rating.locator('#starter-tiq-step')).toBeFocused()
+  await expect(page.locator('.app-navigation [data-screen="lab"]')).toHaveAttribute('aria-current','page')
+})
+
+test('assessment navigation ignores an old discard after the account changes',async({page,server})=>{
+  const original=server.add(tiqPlayer,tiqAnswers)
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Retake',exact:true}).click();await rating.getByRole('combobox').first().selectOption('3')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await expect(rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toBeVisible()
+  await page.evaluate(()=>{
+    const stale=document.querySelector<HTMLButtonElement>('[data-starter-discard]')!
+    ;(window as unknown as {oldAssessmentDiscard:()=>void}).oldAssessmentDiscard=()=>stale.click()
+    ;(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner()
+  })
+  await expect(rating.getByRole('button',{name:'Find my level',exact:true})).toBeVisible()
+  await page.evaluate(()=>(window as unknown as {oldAssessmentDiscard:()=>void}).oldAssessmentDiscard())
+  await expect(page.locator('.app-navigation [data-screen="lab"]')).toHaveAttribute('aria-current','page')
+  await expect(page.locator('.starter-tiq-form')).toHaveCount(0)
+  expect(server.ordered(tiqPlayer)).toEqual([original]);expect(server.ordered(tiqStudent)).toHaveLength(0)
+})
+
+test('assessment navigation holds the view until the current save finishes',async({page,server})=>{
+  const originalRequest=server.request;let release!:()=>void;const waiting=new Promise<void>(resolve=>{release=resolve})
+  const saves:TiqFixtureRequest[]=[]
+  server.request=async request=>{if(request.method==='POST'&&(request.write as {kind?:string})?.kind==='save'){saves.push(request);await waiting}return originalRequest(request)}
+  await open(page);await assess(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Save to my account',exact:true}).click()
+  await expect.poll(()=>saves.length).toBe(1)
+  await page.locator('.app-navigation [data-screen="more"]').click()
+  await expect(rating.getByText('Your assessment is still saving. Try leaving again when it finishes.',{exact:true})).toBeFocused()
+  await expect(rating.getByRole('button',{name:'Save to my account',exact:true})).toBeDisabled()
+  await expect(page.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toHaveCount(0)
+  release();await expect(rating).toContainText('Saved to your account')
+  await expect(page.locator('.app-navigation [data-screen="lab"]')).toHaveAttribute('aria-current','page')
+  await page.locator('.app-navigation [data-screen="more"]').click()
+  await expect(page.locator('.app-navigation [data-screen="more"]')).toHaveAttribute('aria-current','page')
+  expect(saves).toHaveLength(1);expect(server.ordered(tiqPlayer)).toHaveLength(1);expect(server.shares).toHaveLength(0)
+})
+
+test('assessment navigation leaves durable unconfirmed answers available in Rating history',async({page,server})=>{
+  await open(page);await assess(page);server.loseSaveReply=true;const rating=card(page)
+  await rating.getByRole('button',{name:'Save to my account',exact:true}).click()
+  await expect(rating).toContainText('An account save needs confirmation.')
+  const saved=server.ordered(tiqPlayer)[0]
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await expect(page.locator('.app-navigation [data-screen="explore"]')).toHaveAttribute('aria-current','page')
+  await page.locator('.app-navigation [data-screen="lab"]').click()
+  await expect(rating).toContainText('An account save needs confirmation.')
+  const dialog=await history(page);await dialog.getByRole('button',{name:'Check saved assessment',exact:true}).click()
+  await expect(dialog.getByRole('status')).toContainText('Assessment saved to your account.')
+  expect(server.ordered(tiqPlayer)).toEqual([saved]);expect(server.shares).toHaveLength(0)
+})
+
+test('assessment navigation reviews both an assessment and a scorecard without losing kept edits',async({page,server})=>{
+  const original=server.add(tiqPlayer,tiqAnswers);await open(page)
+  await page.evaluate(()=>{
+    const fixture=(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture
+    fixture.rows.push({id:crypto.randomUUID(),revision:crypto.randomUUID(),owner_user_id:'11111111-1111-4111-8111-111111111111',created_at:'2026-11-01T12:00:00Z',match_date:'2026-11-01',calendar_match_id:null,format:'singles',outcome:'Won',score:'6-4 6-3',opponent:'Assessment practice partner'})
+  })
+  await page.locator('#refresh').click()
+  await page.getByRole('button',{name:'Open scorecard for Assessment practice partner',exact:true}).click()
+  await page.getByRole('article',{name:'Saved scorecard',exact:true}).getByRole('button',{name:'Edit scorecard',exact:true}).click()
+  const score=page.locator('[data-match-editor]').getByLabel('Score',{exact:true});await score.fill('6-0 6-0')
+  const rating=card(page);await rating.getByRole('button',{name:'Retake',exact:true}).click()
+  const answer=rating.getByRole('combobox').first();await answer.selectOption('3')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(answer).toHaveValue('3');await expect(score).toHaveValue('6-0 6-0')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await rating.getByRole('button',{name:'Discard answers',exact:true}).click()
+  const warning=page.getByRole('dialog',{name:'Leave unsaved changes?',exact:true});await expect(warning).toBeVisible()
+  await warning.getByRole('button',{name:'Keep editing',exact:true}).click()
+  await expect(score).toHaveValue('6-0 6-0');await expect(score).toBeFocused();await expect(rating.locator('.starter-tiq-form')).toHaveCount(0)
+  expect(server.ordered(tiqPlayer)).toEqual([original])
+  expect(await page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.rows[0].score)).toBe('6-4 6-3')
+})
 async function open(page:Page,large=false){await page.goto(origin+'/?unlinked=1&tiq-account=1'+(large?'&large=1':''));await expect(card(page)).toHaveAttribute('data-tiq-account','ready')}
 async function history(page:Page){await card(page).getByRole('button',{name:'Rating history & sharing'}).click();const dialog=page.getByRole('dialog',{name:'Your TiQ history',exact:true});await expect(dialog).toBeVisible();await expect(dialog.locator('[data-tiq-status]')).not.toContainText('Loading');return dialog}
 async function assess(page:Page){

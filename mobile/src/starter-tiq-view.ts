@@ -33,12 +33,57 @@ export function mountStarterTiq(
   let draft: StarterAnswers = {}
   let initialDraft: StarterAnswers = {}
   let leaving = false
+  let pendingLeave: (()=>void) | undefined
+  let navigating = false
+  let lastQuestion: keyof StarterAnswers | undefined
   let recent: readonly Scorecard[] = []
   let busy = false
   let deviceSaved: Awaited<ReturnType<typeof storage.read>> = saved
   let accountHistory: TiqHistory | null = null, accountSource = false, accountLoading = false, pendingChecked = false
   let accountNotice = '', editToAccount = false
   let pendingSave: Extract<TiqWrite, {kind: 'save'}> | null = null
+
+  const rememberQuestion = (event: Event) => {
+    if (event.target instanceof HTMLSelectElement) lastQuestion = event.target.name as keyof StarterAnswers
+  }
+  host.addEventListener('focusin',rememberQuestion)
+  host.addEventListener('change',rememberQuestion)
+
+  function collectCurrentAnswers() {
+    if (step === null || leaving || busy) return
+    const form = host.querySelector<HTMLFormElement>('.starter-tiq-form')
+    if (!form) return
+    const fields = new FormData(form)
+    for (const {id} of starterQuestionGroups[step].questions) {
+      const value = fields.get(id)
+      if (value === '0' || value === '1' || value === '2' || value === '3') draft[id] = Number(value) as NonNullable<StarterAnswers[typeof id]>
+      else delete draft[id]
+    }
+  }
+
+  const hasChanges = () => starterQuestionGroups.some(group => group.questions.some(question => draft[question.id] !== initialDraft[question.id]))
+
+  function navigate(action:()=>void) {
+    if (!active() || busy) return
+    navigating = true
+    try { action() } finally { navigating = false }
+  }
+
+  function requestLeave(action:()=>void) {
+    if (!active()) return
+    if (busy) {
+      const status = host.querySelector<HTMLElement>('.starter-tiq-form [role="status"]')
+      if (status) {status.textContent='Your assessment is still saving. Try leaving again when it finishes.';status.tabIndex=-1;status.focus()}
+      return
+    }
+    if (step === null || navigating) {navigate(action);return}
+    collectCurrentAnswers()
+    if (!hasChanges()) {navigate(action);return}
+    pendingLeave = action
+    leaving = true
+    render()
+    focus('#starter-tiq-cancel-title')
+  }
 
   function applyAccount(page: TiqHistory) {
     accountHistory = page
@@ -80,6 +125,8 @@ export function mountStarterTiq(
     leaving = false
     draft = {}
     initialDraft = {}
+    pendingLeave = undefined
+    lastQuestion = undefined
     render()
     focus('[data-starter-edit]')
   }
@@ -88,7 +135,7 @@ export function mountStarterTiq(
     if (step === null) return ''
     if (leaving) return `<form class="starter-tiq-form" aria-labelledby="starter-tiq-cancel-title" aria-describedby="starter-tiq-cancel-detail">
       <header class="starter-tiq-step"><h3 id="starter-tiq-cancel-title" tabindex="-1">Discard unsaved answers?</h3>
-        <p id="starter-tiq-cancel-detail">Keep answering to finish your assessment.</p></header>
+        <p id="starter-tiq-cancel-detail">${pendingLeave ? 'Leaving My Lab discards the answers you have not saved.' : 'Keep answering to finish your assessment.'}</p></header>
       <div class="starter-tiq-actions"><button type="button" data-starter-keep>Keep answering</button>
         <button type="button" class="secondary" data-starter-discard>Discard answers</button></div>
     </form>`
@@ -183,29 +230,27 @@ export function mountStarterTiq(
         form.onsubmit = event => event.preventDefault()
         form.querySelector<HTMLButtonElement>('[data-starter-keep]')!.onclick = () => {
           if (!active() || busy) return
+          const restoreQuestion = Boolean(pendingLeave)
+          pendingLeave = undefined
           leaving = false
           render()
-          focus('#starter-tiq-step')
+          const question = restoreQuestion && lastQuestion ? host.querySelector<HTMLFormElement>('.starter-tiq-form')?.elements.namedItem(lastQuestion) : null
+          if (question instanceof HTMLElement) question.focus()
+          else focus('#starter-tiq-step')
         }
         form.querySelector<HTMLButtonElement>('[data-starter-discard]')!.onclick = () => {
-          if (active() && !busy) cancelAssessment()
+          if (!active() || busy) return
+          const action = pendingLeave
+          cancelAssessment()
+          if (action) navigate(action)
         }
         return
       }
-      const group = starterQuestionGroups[step]
       const status = form.querySelector<HTMLElement>('[role="status"]')!
-      const updateDraft = () => {
-        const fields = new FormData(form)
-        for (const { id } of group.questions) {
-          const value = fields.get(id)
-          if (value === '0' || value === '1' || value === '2' || value === '3') draft[id] = Number(value) as NonNullable<StarterAnswers[typeof id]>
-          else delete draft[id]
-        }
-      }
       form.onsubmit = async event => {
         event.preventDefault()
         if (!active() || busy || step === null || !form.reportValidity()) return
-        updateDraft()
+        collectCurrentAnswers()
         if (step < starterQuestionGroups.length - 1) {
           step++
           render()
@@ -256,15 +301,15 @@ export function mountStarterTiq(
       const back = form.querySelector<HTMLButtonElement>('[data-starter-back]')
       if (back) back.onclick = () => {
         if (!active() || busy || step === null || step === 0) return
-        updateDraft()
+        collectCurrentAnswers()
         step--
         render()
         focus('#starter-tiq-step')
       }
       form.querySelector<HTMLButtonElement>('[data-starter-cancel]')!.onclick = () => {
         if (!active() || busy) return
-        updateDraft()
-        if (starterQuestionGroups.some(group => group.questions.some(question => draft[question.id] !== initialDraft[question.id]))) {
+        collectCurrentAnswers()
+        if (hasChanges()) {
           leaving = true
           render()
           focus('#starter-tiq-cancel-title')
@@ -279,6 +324,8 @@ export function mountStarterTiq(
       editToAccount = Boolean(accountHistory && pendingChecked)
       draft = { ...(history?.current.answers ?? previousLevel?.prefill) }
       initialDraft = { ...draft }
+      pendingLeave = undefined
+      lastQuestion = undefined
       leaving = false
       step = 0
       render()
@@ -332,6 +379,8 @@ export function mountStarterTiq(
     if (account) void refreshAccount()
   })
   return {
+    isEditing: () => active() && step !== null && !navigating,
+    requestLeave,
     showRecentMatches(scorecards: readonly Scorecard[]) {
       recent = scorecards.slice(0, 5)
       paintMatchForm()
