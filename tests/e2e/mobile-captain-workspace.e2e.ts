@@ -20,6 +20,8 @@ test.beforeAll(async()=>{
   builder.onResolve({filter:/^\.\/captain-week-brief-data$/},()=>({path:'week-brief-data',namespace:'fixture'}))
   builder.onLoad({filter:/^week-brief-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:path.resolve('mobile/src'),contents:`
    export * from ${JSON.stringify(path.resolve('mobile/src/captain-week-brief-data.ts'))};
+   import {checkBriefMatches as runWeekChecks} from ${JSON.stringify(path.resolve('mobile/src/captain-week-brief-data.ts'))};
+   export async function checkBriefMatches(client,owner,current,scope,fixtures,onResult){return runWeekChecks(client,owner,current,scope,fixtures,onResult,checkBriefMatch)}
    import {loadMatchCenter} from './captain-match-center-data';
    export async function loadCaptainWeekBrief(){const f=window.fixture;f.briefLoads++;return structuredClone(f.week)}
    export async function checkBriefMatch(client,owner,current,scope,selected){const f=window.fixture;f.briefChecks++;return loadMatchCenter(client,owner,current,scope,{id:selected.id,date:selected.date,opponent:selected.away,time:selected.time,facility:selected.facility})}
@@ -27,7 +29,7 @@ test.beforeAll(async()=>{
   builder.onResolve({filter:/^\.\/captain-match-center-data$/},()=>({path:'center-data',namespace:'fixture'}))
   builder.onLoad({filter:/^center-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
    export * from ${JSON.stringify(path.resolve('mobile/src/captain-match-center-data.ts'))};
-   export async function loadMatchCenter(_client,_owner,_current,_scope,match){const f=window.fixture;f.reads++;if(f.hold)await new Promise(resolve=>f.release=resolve);if(f.fail)throw Error('Synthetic read failed');const data=structuredClone(f.center);data.fixture.id=match.id;data.fixture.date=match.date;data.fixture.away=match.opponent;data.lineup.match={id:match.id,date:match.date,opponent:match.opponent};Object.assign(data.publication,{fixtureId:match.id,matchDate:match.date,opponent:match.opponent});return data}
+   export async function loadMatchCenter(_client,_owner,_current,_scope,match){const f=window.fixture;f.reads++;if(f.hold||f.holdAt===f.reads)await new Promise(resolve=>f.release=resolve);f.readSettled++;if(f.fail||f.failFixtureId===match.id)throw Error('Synthetic read failed');const data=structuredClone(f.center);data.fixture.id=match.id;data.fixture.date=match.date;data.fixture.away=match.opponent;data.lineup.match={id:match.id,date:match.date,opponent:match.opponent};Object.assign(data.publication,{fixtureId:match.id,matchDate:match.date,opponent:match.opponent});return data}
    export async function loadMatchCenterDay(){const f=window.fixture;f.dayReads++;if(f.holdDay)await new Promise(resolve=>f.releaseDay=resolve);if(f.failDay)throw Error('Synthetic day read failed');f.daySettled++;return structuredClone(f.day)}
   ` }))
   builder.onResolve({filter:/^\.\/captain-lineup-data$/},()=>({path:'lineup-data',namespace:'fixture'}))
@@ -59,7 +61,7 @@ test.beforeEach(async({page})=>{
   if(params.has('pending'))data.center.publication.shared.pendingFinal=true
   if(params.has('week'))data.snapshot.matches[1].date=data.snapshot.matches[0].date
   const week={scope:data.scope,today:'2026-11-12',through:'2026-11-18',checkedAt:data.center.checkedAt,matches:data.snapshot.matches.map(m=>({...data.center.fixture,id:m.id,date:m.date,away:m.opponent})),moreMatches:false,excluded:0,practices:[],practiceState:'ready',morePractices:false}
-  Object.assign(window,{fixture:{...data,week,briefLoads:0,briefChecks:0,briefChanges:0,reads:0,dayReads:0,daySettled:0,sharedChanges:0,hold:false,fail:false,holdDay:false,failDay:false,toolReads:{plan:0,publish:0,replace:0},failTool:'',lineupSaves:0,publicationSends:0}})
+  Object.assign(window,{fixture:{...data,week,briefLoads:0,briefChecks:0,briefChanges:0,reads:0,readSettled:0,holdAt:0,failFixtureId:'',dayReads:0,daySettled:0,sharedChanges:0,hold:false,fail:false,holdDay:false,failDay:false,toolReads:{plan:0,publish:0,replace:0},failTool:'',lineupSaves:0,publicationSends:0}})
  },{scope:captainScope,center,day:captainDayFixture(center),snapshot:captainSnapshotFixture()})
  await page.route('**/*',route=>{
   const u=new URL(route.request().url())
@@ -718,4 +720,80 @@ test('week brief disposal ignores an in-flight readiness check',async({page})=>{
  await brief.getByRole('button',{name:'Back to Captain',exact:true}).click();await page.evaluate(()=>{(window as unknown as WeekBriefWindow).fixture.release()})
  await expect(page.getByRole('dialog')).toHaveCount(0)
  expect(await page.evaluate(()=>{const f=(window as unknown as WeekBriefWindow).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends}})).toEqual({reads:1,lineupSaves:0,publicationSends:0})
+})
+
+type WeekBatchWindow=WeekBriefWindow&{fixture:{holdAt:number;readSettled:number;failFixtureId:string;week:{moreMatches:boolean}};replayBriefStop:()=>void}
+for(const width of [320,390])test(`week readiness batch checks matches sequentially with visible progress at ${width}px`,async({page},info)=>{
+ const {brief,first,second}=await weekBrief(page,width)
+ if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
+ expect(await page.evaluate(()=>(window as unknown as WeekBatchWindow).fixture.reads)).toBe(0)
+ await page.evaluate(()=>{(window as unknown as WeekBatchWindow).fixture.holdAt=2})
+ await brief.getByRole('button',{name:'Check week readiness',exact:true}).click()
+ await expect(brief.getByRole('status')).toContainText('1 of 2 match checks finished')
+ await expect(first.locator('[data-brief-issue]')).toHaveCount(1);await expect(second.locator('[data-brief-issue]')).toHaveCount(0)
+ await expect(first.locator('[data-brief-check]')).toBeDisabled();await expect(brief.getByRole('button',{name:'Stop checking',exact:true})).toBeFocused()
+ await bounded(page,brief)
+ if(info.project.name==='mobile-webkit')await page.screenshot({path:info.outputPath('week-readiness-progress.png')})
+ await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;f.holdAt=0;f.release()})
+ await expect(brief.getByRole('status')).toContainText('2 of 2 matches checked.')
+ await expect(brief.getByRole('status')).toBeFocused();await expect(first.locator('[data-brief-issue]')).toHaveCount(1);await expect(second.locator('[data-brief-issue]')).toHaveCount(1)
+ await expect(brief.getByRole('button',{name:'Stop checking',exact:true})).toHaveCount(0)
+ expect(await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;return {reads:f.reads,briefLoads:f.briefLoads,briefChecks:f.briefChecks,dayReads:f.dayReads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:2,briefLoads:1,briefChecks:2,dayReads:0,lineupSaves:0,publicationSends:0,sharedChanges:0})
+})
+test('week readiness batch keeps failed matches separate and retries only the requested card',async({page})=>{
+ const {brief,first,second}=await weekBrief(page)
+ await page.evaluate(()=>{(window as unknown as WeekBatchWindow).fixture.failFixtureId='fixture-two'})
+ await brief.getByRole('button',{name:'Check week readiness',exact:true}).click()
+ await expect(brief.getByRole('status')).toContainText('1 of 2 matches checked. 1 could not be checked.')
+ await expect(first.locator('[data-brief-issue]')).toHaveCount(1);await expect(second.locator('[data-brief-issue]')).toHaveCount(0)
+ await expect(second).toContainText('Readiness unavailable');expect(await page.evaluate(()=>(window as unknown as WeekBatchWindow).fixture.reads)).toBe(2)
+ await page.evaluate(()=>{(window as unknown as WeekBatchWindow).fixture.failFixtureId=''})
+ await second.locator('[data-brief-check]').click();await expect(second.locator('[data-brief-issue]')).toHaveCount(1)
+ expect(await page.evaluate(()=>(window as unknown as WeekBatchWindow).fixture.reads)).toBe(3);await expect(first.locator('[data-brief-issue]')).toHaveCount(1)
+})
+test('week readiness batch stops further matches and ignores the held response',async({page})=>{
+ const {brief,first,second}=await weekBrief(page)
+ await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;f.week.matches.push({...f.week.matches[0],id:'fixture-three',away:'Third Court Club'});f.holdAt=2})
+ await brief.getByRole('button',{name:'Refresh week brief',exact:true}).click();await brief.getByRole('button',{name:'Check week readiness',exact:true}).click()
+ await expect(brief.getByRole('status')).toContainText('1 of 3 match checks finished');await brief.getByRole('button',{name:'Stop checking',exact:true}).click()
+ await expect(brief.getByRole('status')).toContainText('Stopped after 1 of 3 match checks.')
+ await expect(brief.getByRole('button',{name:'Check week readiness',exact:true})).toBeFocused();await expect(first.locator('[data-brief-issue]')).toHaveCount(1)
+ await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;f.holdAt=0;f.release()})
+ await expect.poll(()=>page.evaluate(()=>(window as unknown as WeekBatchWindow).fixture.readSettled)).toBe(2)
+ await expect(second.locator('[data-brief-issue]')).toHaveCount(0);await expect(brief.getByRole('status')).toContainText('Stopped after 1 of 3')
+ expect(await page.evaluate(()=>(window as unknown as WeekBatchWindow).fixture.reads)).toBe(2)
+ await second.locator('[data-brief-check]').click();await expect(second.locator('[data-brief-issue]')).toHaveCount(1)
+ await expect(brief.locator('[data-brief-fixture="fixture-three"] [data-brief-issue]')).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as WeekBatchWindow).fixture.reads)).toBe(3)
+})
+test('week readiness batch closes without applying a late check or requesting the next match',async({page})=>{
+ const {brief}=await weekBrief(page);await page.evaluate(()=>{(window as unknown as WeekBatchWindow).fixture.holdAt=1})
+ await brief.getByRole('button',{name:'Check week readiness',exact:true}).click();await expect(brief.getByRole('button',{name:'Stop checking',exact:true})).toBeVisible()
+ await brief.getByRole('button',{name:'Back to Captain',exact:true}).click();await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;f.holdAt=0;f.release()})
+ await expect.poll(()=>page.evaluate(()=>(window as unknown as WeekBatchWindow).fixture.readSettled)).toBe(1)
+ await expect(page.getByRole('dialog')).toHaveCount(0)
+ expect(await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends}})).toEqual({reads:1,lineupSaves:0,publicationSends:0})
+})
+test('week readiness batch clears old summaries and ignores a stop button from an earlier run',async({page})=>{
+ const {brief}=await weekBrief(page);await brief.getByRole('button',{name:'Check week readiness',exact:true}).click()
+ await expect(brief.getByRole('status')).toContainText('2 of 2 matches checked.');await expect(brief.locator('[data-brief-issue]')).toHaveCount(2)
+ await page.evaluate(()=>{(window as unknown as WeekBatchWindow).fixture.holdAt=3});await brief.getByRole('button',{name:'Check week readiness',exact:true}).click()
+ await expect(brief.locator('[data-brief-issue]')).toHaveCount(0)
+ await brief.getByRole('button',{name:'Stop checking',exact:true}).evaluate(button=>{Object.assign(window,{replayBriefStop:()=>{(button as HTMLButtonElement).click()}})})
+ await brief.getByRole('button',{name:'Stop checking',exact:true}).click();await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;f.release()})
+ await expect.poll(()=>page.evaluate(()=>(window as unknown as WeekBatchWindow).fixture.readSettled)).toBe(3)
+ await page.evaluate(()=>{(window as unknown as WeekBatchWindow).fixture.holdAt=4});await brief.getByRole('button',{name:'Check week readiness',exact:true}).click()
+ await page.evaluate(()=>{(window as unknown as WeekBatchWindow).replayBriefStop()});await expect(brief.getByRole('button',{name:'Stop checking',exact:true})).toBeVisible()
+ await expect(brief.getByRole('status')).toContainText('Checking match 1 of 2')
+ await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;f.holdAt=0;f.release()});await expect(brief.getByRole('status')).toContainText('2 of 2 matches checked.')
+ expect(await page.evaluate(()=>(window as unknown as WeekBatchWindow).fixture.reads)).toBe(5)
+})
+
+test('week readiness batch keeps the eight-match sample limit visible',async({page})=>{
+ const {brief}=await weekBrief(page)
+ await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;const original=f.week.matches[0];f.week.matches=Array.from({length:8},(_,index)=>({...original,id:'sample-'+index,away:'Court Club '+(index+1)}));f.week.moreMatches=true})
+ await brief.getByRole('button',{name:'Refresh week brief',exact:true}).click();await brief.getByRole('button',{name:'Check week readiness',exact:true}).click()
+ await expect(brief.getByRole('status')).toContainText('8 of 8 matches checked. More matches may exist.')
+ await expect(brief.locator('[data-brief-card]')).toHaveCount(8);await expect(brief.locator('[data-brief-issue]')).toHaveCount(8)
+ expect(await page.evaluate(()=>{const f=(window as unknown as WeekBatchWindow).fixture;return {reads:f.reads,briefChecks:f.briefChecks,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends}})).toEqual({reads:8,briefChecks:8,lineupSaves:0,publicationSends:0})
 })
