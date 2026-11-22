@@ -111,6 +111,7 @@ function recentOpponents(matches: PersonalMatch[]) {
 type PersonalMatchLogOptions = {
   seed?: CalendarScorecardSeed
   backToTeamResults?: () => void
+  requestNavigation?: (action:()=>void) => void
   scoreReviewShortcut?: HTMLElement
   onRecentScorecards?: (scorecards: readonly Pick<PersonalMatch, 'format' | 'outcome'>[]) => void
   openPractice: (match: PersonalMatch, current: () => boolean) => void
@@ -118,7 +119,7 @@ type PersonalMatchLogOptions = {
 }
 
 export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient, owner: string, current: () => boolean,
-  formSession: PersonalMatchFormSession, {seed, backToTeamResults, scoreReviewShortcut, onRecentScorecards, openPractice, openRematchInvite}: PersonalMatchLogOptions) {
+  formSession: PersonalMatchFormSession, {seed, backToTeamResults, requestNavigation, scoreReviewShortcut, onRecentScorecards, openPractice, openRematchInvite}: PersonalMatchLogOptions) {
   if (scoreReviewShortcut) {
     scoreReviewShortcut.innerHTML = `<button type="button" class="secondary app-tool" aria-controls="lab-team-scorecards">
       <span class="app-tool-icon" aria-hidden="true">${websiteUi.icons.tournaments}</span>
@@ -177,7 +178,7 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
     if(control&&editor.contains(control))lastEditFocus=control
   })
   let scorecardOrigin: { id?: string; button: HTMLButtonElement } | undefined
-  if (back && backToTeamResults) back.onclick = () => { if (active()) requestLeave(backToTeamResults) }
+  if (back && backToTeamResults) back.onclick = () => { if (active()) (requestNavigation ?? requestLeave)(backToTeamResults) }
 
   function requestLeave(action:()=>void) {
     if (!active() || leaving) { action(); return }

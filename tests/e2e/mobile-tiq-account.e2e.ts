@@ -1,4 +1,4 @@
-import {test as base,expect,type Page} from '@playwright/test'
+import {test as base,expect,type Page,type Locator} from '@playwright/test'
 import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
 import path from 'node:path'
@@ -32,6 +32,189 @@ async function install(page:Page,server:Server){
 }
 test.beforeEach(async({page,server})=>{await install(page,server)})
 const card=(page:Page)=>page.getByRole('region',{name:'Your TiQ',exact:true})
+
+test('assessment navigation keeps partial answers before leaving My Lab',async({page,server})=>{
+  await page.setViewportSize({width:320,height:844});await open(page,true)
+  const rating=card(page)
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click()
+  const answer=rating.getByRole('combobox',{name:'How reliable is your serve?',exact:true})
+  await answer.selectOption('1')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await expect(rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toBeFocused()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(answer).toHaveValue('1');await expect(answer).toBeFocused()
+  expect(server.ordered(tiqPlayer)).toHaveLength(0);expect(server.shares).toHaveLength(0)
+})
+
+for(const destination of ['lab','explore','teams','compete','more'])test('assessment navigation reviews changed answers before opening '+destination,async({page,server})=>{
+  const original=server.add(tiqPlayer,tiqAnswers)
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Retake',exact:true}).click()
+  await rating.getByRole('combobox',{name:'How reliable is your serve?',exact:true}).selectOption('3')
+  const target=page.locator('.app-navigation [data-screen="'+destination+'"]')
+  await target.click()
+  await expect(rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toBeVisible()
+  await expect(rating).toContainText('Leaving My Lab discards the answers you have not saved.')
+  expect(server.ordered(tiqPlayer)).toEqual([original])
+  await rating.getByRole('button',{name:'Discard answers',exact:true}).click()
+  await expect(target).toHaveAttribute('aria-current','page')
+  await expect(page.locator('.starter-tiq-form')).toHaveCount(0)
+  expect(server.ordered(tiqPlayer)).toEqual([original]);expect(server.shares).toHaveLength(0)
+})
+
+for(const step of [2,3])test('assessment navigation restores step '+step+' and its current answer',async({page,server},info)=>{
+  await page.setViewportSize({width:320,height:844});await open(page,true)
+  const rating=card(page),form=rating.locator('.starter-tiq-form')
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click()
+  for(const field of await form.locator('select').all())await field.selectOption('2')
+  await form.getByRole('button',{name:'Continue',exact:true}).click()
+  let label='How do you build a point when the score gets tight?'
+  if(step===3){
+    for(const field of await form.locator('select').all())await field.selectOption('2')
+    await form.getByRole('button',{name:'Continue',exact:true}).click()
+    label='How do you create an opening in singles?'
+  }
+  const answer=rating.getByRole('combobox',{name:label,exact:true});await answer.selectOption('1')
+  await page.locator('#refresh').click()
+  const warning=rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})
+  await expect(warning).toBeFocused()
+  await page.evaluate(()=>{window.dispatchEvent(new Event('online'));(window as unknown as {refreshNavigationSession:()=>void}).refreshNavigationSession()})
+  await expect(warning).toBeVisible();expect(await rating.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true)
+  if(step===3&&info.project.name==='mobile-webkit')await rating.screenshot({path:info.outputPath('tiq-navigation-warning-320.png')})
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(form.getByRole('progressbar')).toHaveAttribute('value',String(step))
+  await expect(answer).toHaveValue('1');await expect(answer).toBeFocused()
+  if(step===3){
+    await rating.getByRole('combobox',{name:'How do you handle being pulled wide in singles?',exact:true}).selectOption('1')
+  }else{
+    await rating.getByRole('combobox',{name:'How do you move between shots?',exact:true}).selectOption('2')
+    await rating.getByRole('combobox',{name:'How comfortable are you finishing at net?',exact:true}).selectOption('2')
+    await form.getByRole('button',{name:'Continue',exact:true}).click()
+  }
+  await form.getByRole('button',{name:'Save to my account',exact:true}).click()
+  await expect(rating).toContainText('Saved to your account')
+  const saved=server.ordered(tiqPlayer);expect(saved).toHaveLength(1);expect(server.shares).toHaveLength(0)
+  expect(saved[0].answers).toEqual(step===2?{...tiqAnswers,points:1}:{...tiqAnswers,'singles-build':1,'singles-cover':1})
+})
+
+for(const mode of ['new','retake'])test('assessment navigation leaves unchanged '+mode+' answers without a warning',async({page,server})=>{
+  const original=mode==='retake'?server.add(tiqPlayer,tiqAnswers):null
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:original?'Retake':'Find my level',exact:true}).click()
+  if(original){const answer=rating.getByRole('combobox').first();await answer.selectOption('3');await answer.selectOption('2')}
+  await page.locator('.app-navigation [data-screen="teams"]').click()
+  await expect(page.locator('.app-navigation [data-screen="teams"]')).toHaveAttribute('aria-current','page')
+  await expect(page.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toHaveCount(0)
+  expect(server.ordered(tiqPlayer)).toEqual(original?[original]:[])
+})
+
+test('assessment navigation uses the latest selected tab and clears a kept departure',async({page,server})=>{
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click()
+  const answer=rating.getByRole('combobox').first();await answer.selectOption('1')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await expect(rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toBeVisible()
+  await page.locator('.app-navigation [data-screen="teams"]').click()
+  await rating.getByRole('button',{name:'Discard answers',exact:true}).click()
+  await expect(page.locator('.app-navigation [data-screen="teams"]')).toHaveAttribute('aria-current','page')
+  await page.locator('.app-navigation [data-screen="lab"]').click()
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click();await answer.selectOption('2')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await rating.getByRole('button',{name:'Cancel',exact:true}).click()
+  await rating.getByRole('button',{name:'Discard answers',exact:true}).click()
+  await expect(page.locator('.app-navigation [data-screen="lab"]')).toHaveAttribute('aria-current','page')
+  await expect(rating.getByRole('button',{name:'Find my level',exact:true})).toBeFocused()
+  expect(server.ordered(tiqPlayer)).toHaveLength(0)
+})
+
+test('assessment navigation can keep answers after Cancel without a hidden departure',async({page})=>{
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Find my level',exact:true}).click()
+  const answer=rating.getByRole('combobox').first();await answer.selectOption('1')
+  await rating.getByRole('button',{name:'Cancel',exact:true}).click()
+  await page.locator('.app-navigation [data-screen="more"]').click()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(answer).toHaveValue('1');await expect(answer).toBeFocused()
+  await rating.getByRole('button',{name:'Cancel',exact:true}).click()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(rating.locator('#starter-tiq-step')).toBeFocused()
+  await expect(page.locator('.app-navigation [data-screen="lab"]')).toHaveAttribute('aria-current','page')
+})
+
+test('assessment navigation ignores an old discard after the account changes',async({page,server})=>{
+  const original=server.add(tiqPlayer,tiqAnswers)
+  await open(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Retake',exact:true}).click();await rating.getByRole('combobox').first().selectOption('3')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await expect(rating.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toBeVisible()
+  await page.evaluate(()=>{
+    const stale=document.querySelector<HTMLButtonElement>('[data-starter-discard]')!
+    ;(window as unknown as {oldAssessmentDiscard:()=>void}).oldAssessmentDiscard=()=>stale.click()
+    ;(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner()
+  })
+  await expect(rating.getByRole('button',{name:'Find my level',exact:true})).toBeVisible()
+  await page.evaluate(()=>(window as unknown as {oldAssessmentDiscard:()=>void}).oldAssessmentDiscard())
+  await expect(page.locator('.app-navigation [data-screen="lab"]')).toHaveAttribute('aria-current','page')
+  await expect(page.locator('.starter-tiq-form')).toHaveCount(0)
+  expect(server.ordered(tiqPlayer)).toEqual([original]);expect(server.ordered(tiqStudent)).toHaveLength(0)
+})
+
+test('assessment navigation holds the view until the current save finishes',async({page,server})=>{
+  const originalRequest=server.request;let release!:()=>void;const waiting=new Promise<void>(resolve=>{release=resolve})
+  const saves:TiqFixtureRequest[]=[]
+  server.request=async request=>{if(request.method==='POST'&&(request.write as {kind?:string})?.kind==='save'){saves.push(request);await waiting}return originalRequest(request)}
+  await open(page);await assess(page);const rating=card(page)
+  await rating.getByRole('button',{name:'Save to my account',exact:true}).click()
+  await expect.poll(()=>saves.length).toBe(1)
+  await page.locator('.app-navigation [data-screen="more"]').click()
+  await expect(rating.getByText('Your assessment is still saving. Try leaving again when it finishes.',{exact:true})).toBeFocused()
+  await expect(rating.getByRole('button',{name:'Save to my account',exact:true})).toBeDisabled()
+  await expect(page.getByRole('heading',{name:'Discard unsaved answers?',exact:true})).toHaveCount(0)
+  release();await expect(rating).toContainText('Saved to your account')
+  await expect(page.locator('.app-navigation [data-screen="lab"]')).toHaveAttribute('aria-current','page')
+  await page.locator('.app-navigation [data-screen="more"]').click()
+  await expect(page.locator('.app-navigation [data-screen="more"]')).toHaveAttribute('aria-current','page')
+  expect(saves).toHaveLength(1);expect(server.ordered(tiqPlayer)).toHaveLength(1);expect(server.shares).toHaveLength(0)
+})
+
+test('assessment navigation leaves durable unconfirmed answers available in Rating history',async({page,server})=>{
+  await open(page);await assess(page);server.loseSaveReply=true;const rating=card(page)
+  await rating.getByRole('button',{name:'Save to my account',exact:true}).click()
+  await expect(rating).toContainText('An account save needs confirmation.')
+  const saved=server.ordered(tiqPlayer)[0]
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await expect(page.locator('.app-navigation [data-screen="explore"]')).toHaveAttribute('aria-current','page')
+  await page.locator('.app-navigation [data-screen="lab"]').click()
+  await expect(rating).toContainText('An account save needs confirmation.')
+  const dialog=await history(page);await dialog.getByRole('button',{name:'Check saved assessment',exact:true}).click()
+  await expect(dialog.getByRole('status')).toContainText('Assessment saved to your account.')
+  expect(server.ordered(tiqPlayer)).toEqual([saved]);expect(server.shares).toHaveLength(0)
+})
+
+test('assessment navigation reviews both an assessment and a scorecard without losing kept edits',async({page,server})=>{
+  const original=server.add(tiqPlayer,tiqAnswers);await open(page)
+  await page.evaluate(()=>{
+    const fixture=(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture
+    fixture.rows.push({id:crypto.randomUUID(),revision:crypto.randomUUID(),owner_user_id:'11111111-1111-4111-8111-111111111111',created_at:'2026-11-01T12:00:00Z',match_date:'2026-11-01',calendar_match_id:null,format:'singles',outcome:'Won',score:'6-4 6-3',opponent:'Assessment practice partner'})
+  })
+  await page.locator('#refresh').click()
+  await page.getByRole('button',{name:'Open scorecard for Assessment practice partner',exact:true}).click()
+  await page.getByRole('article',{name:'Saved scorecard',exact:true}).getByRole('button',{name:'Edit scorecard',exact:true}).click()
+  const score=page.locator('[data-match-editor]').getByLabel('Score',{exact:true});await score.fill('6-0 6-0')
+  const rating=card(page);await rating.getByRole('button',{name:'Retake',exact:true}).click()
+  const answer=rating.getByRole('combobox').first();await answer.selectOption('3')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await rating.getByRole('button',{name:'Keep answering',exact:true}).click()
+  await expect(answer).toHaveValue('3');await expect(score).toHaveValue('6-0 6-0')
+  await page.locator('.app-navigation [data-screen="explore"]').click()
+  await rating.getByRole('button',{name:'Discard answers',exact:true}).click()
+  const warning=page.getByRole('dialog',{name:'Leave unsaved changes?',exact:true});await expect(warning).toBeVisible()
+  await warning.getByRole('button',{name:'Keep editing',exact:true}).click()
+  await expect(score).toHaveValue('6-0 6-0');await expect(score).toBeFocused();await expect(rating.locator('.starter-tiq-form')).toHaveCount(0)
+  expect(server.ordered(tiqPlayer)).toEqual([original])
+  expect(await page.evaluate(()=>(window as unknown as typeof import('../fixtures/mobile-personal-matches')).personalMatchFixture.rows[0].score)).toBe('6-4 6-3')
+})
 async function open(page:Page,large=false){await page.goto(origin+'/?unlinked=1&tiq-account=1'+(large?'&large=1':''));await expect(card(page)).toHaveAttribute('data-tiq-account','ready')}
 async function history(page:Page){await card(page).getByRole('button',{name:'Rating history & sharing'}).click();const dialog=page.getByRole('dialog',{name:'Your TiQ history',exact:true});await expect(dialog).toBeVisible();await expect(dialog.locator('[data-tiq-status]')).not.toContainText('Loading');return dialog}
 async function assess(page:Page){
@@ -41,6 +224,197 @@ async function assess(page:Page){
   for(const label of ['How do you move between shots?','How comfortable are you finishing at net?','How do you build a point when the score gets tight?'])await card(page).getByRole('combobox',{name:label,exact:true}).selectOption('2')
   await card(page).getByRole('button',{name:'Continue',exact:true}).click()
 }
+test('history change recovery keeps a sharing update open until its receipt arrives',async({page,server})=>{
+  server.add()
+  const original=server.request,writes:TiqFixtureRequest[]=[]
+  let release:()=>void=()=>{}
+  const receipt=new Promise<void>(resolve=>{release=resolve})
+  server.request=async request=>{
+    const response=await original(request)
+    if(request.method==='POST'){writes.push(structuredClone(request));await receipt}
+    return response
+  }
+  await open(page);const dialog=await history(page)
+  const entry=dialog.locator('.tiq-account-entry').first()
+  await entry.getByLabel('Share with a coach').selectOption('coach-one')
+  await entry.getByRole('button',{name:'Share assessment',exact:true}).click()
+  await expect.poll(()=>writes.length).toBe(1)
+  try{
+    await dialog.getByRole('button',{name:'Close',exact:true}).click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('[data-tiq-status]')).toHaveText('Your rating change is still saving. Try closing again when it finishes.')
+    await cancelHistory(page,dialog);await expect(dialog).toBeVisible()
+    await page.evaluate(()=>document.dispatchEvent(new CustomEvent('tenaceiq:navigate',{detail:{href:'/coach'}})))
+    await expect(dialog).toBeVisible()
+  }finally{release()}
+  await expect(dialog.locator('[data-tiq-status]')).toContainText('shared with the selected coach')
+  await expect(page.locator('body')).toHaveAttribute('data-screen','lab')
+  expect(writes).toHaveLength(1)
+  await dialog.getByRole('button',{name:'Close',exact:true}).click()
+  await expect(dialog).toHaveCount(0)
+})
+
+type HistoryChange='save'|'share'|'revoke'|'delete'
+async function prepareHistoryChange(page:Page,server:Server,kind:HistoryChange,large=false){
+  const row=server.add()
+  if(kind==='save')await page.addInitScript(owner=>localStorage.setItem('starter-tiq:v2:'+owner,JSON.stringify({current:{date:'2026-11-17',answers:{serve:1,return:2,rally:2,movement:2,net:2,points:2}},previous:null})),tiqPlayer)
+  if(kind==='revoke')server.shares.push({assessment:row.id,student:'coach-one',name:'Morgan Courts',operation:crypto.randomUUID(),shared:true,active:true})
+  await open(page,large);const dialog=await history(page),entry=dialog.locator('.tiq-account-entry').first()
+  if(kind==='save')await dialog.locator('.tiq-device-history>summary').click()
+  if(kind==='share')await entry.getByLabel('Share with a coach').selectOption('coach-one')
+  if(kind==='delete')await entry.getByRole('button',{name:'Delete assessment',exact:true}).click()
+  const start=()=>kind==='save'?dialog.getByRole('button',{name:'Save device assessment to account',exact:true}).click()
+    :entry.getByRole('button',{name:kind==='share'?'Share assessment':kind==='revoke'?'Stop sharing':'Delete from account',exact:true}).click()
+  return {dialog,start}
+}
+const leaveHistory=(page:Page)=>page.getByRole('dialog',{name:'Leave an unconfirmed rating change?',exact:true})
+async function cancelHistory(page:Page,dialog:Locator){
+  await dialog.evaluate(element=>element.addEventListener('cancel',()=>element.setAttribute('data-test-cancelled','true'),{once:true}))
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveAttribute('data-test-cancelled','true')
+}
+
+for(const kind of ['save','revoke','delete'] as const)test('history change recovery holds '+kind+' until its receipt arrives',async({page,server})=>{
+  const original=server.request,writes:TiqFixtureRequest[]=[]
+  let release:()=>void=()=>{}
+  const receipt=new Promise<void>(resolve=>{release=resolve})
+  server.request=async request=>{const response=await original(request);if(request.method==='POST'){writes.push(structuredClone(request));await receipt}return response}
+  const {dialog,start}=await prepareHistoryChange(page,server,kind)
+  await start();await expect.poll(()=>writes.length).toBe(1)
+  try{
+    await dialog.getByRole('button',{name:'Close',exact:true}).click()
+    await expect(dialog).toBeVisible();await expect(dialog.locator('[data-tiq-status]')).toBeFocused()
+    await cancelHistory(page,dialog);await expect(dialog).toBeVisible()
+  }finally{release()}
+  await expect(dialog.locator('[data-tiq-status]')).toContainText(kind==='save'?'Assessment saved':kind==='revoke'?'Sharing stopped':'Assessment deleted')
+  expect(writes).toHaveLength(1)
+  await dialog.getByRole('button',{name:'Close',exact:true}).click();await expect(dialog).toHaveCount(0)
+})
+
+for(const kind of ['save','share','revoke','delete'] as const)test('history change recovery keeps and retries the same '+kind+' after a lost receipt',async({page,server},info)=>{
+  const original=server.request,writes:TiqFixtureRequest[]=[]
+  server.request=async request=>{
+    const response=await original(request)
+    if(request.method==='POST'){writes.push(structuredClone(request));if(writes.length===1)return {body:{ok:false},status:503}}
+    return response
+  }
+  await page.setViewportSize({width:320,height:844})
+  const {dialog,start}=await prepareHistoryChange(page,server,kind,true)
+  await start();await expect(dialog.locator('[data-tiq-status]')).toContainText('change wasn’t confirmed')
+  await dialog.getByRole('button',{name:'Close',exact:true}).click()
+  const warning=leaveHistory(page);await expect(warning).toBeVisible();await expect(warning.getByRole('heading')).toBeFocused()
+  await expect(warning).toContainText('may already be saved')
+  expect(await warning.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  if(kind==='share'&&info.project.name==='mobile-webkit')await warning.screenshot({path:info.outputPath('tiq-history-unconfirmed-320.png')})
+  await warning.getByRole('button',{name:'Keep reviewing',exact:true}).click()
+  await expect(warning).not.toBeVisible();await expect(dialog.getByRole('button',{name:'Close',exact:true})).toBeFocused()
+  const retry=dialog.getByRole('button',{name:'Retry same change',exact:true})
+  await retry.focus();await page.keyboard.press('Escape');await expect(warning).toBeVisible()
+  await page.keyboard.press('Escape');await expect(warning).not.toBeVisible();await expect(retry).toBeFocused()
+  expect(writes).toHaveLength(1)
+  await retry.click();await expect(dialog.locator('[data-tiq-status]')).toContainText(kind==='save'?'Assessment saved':kind==='share'?'shared with the selected coach':kind==='revoke'?'Sharing stopped':'Assessment deleted')
+  expect(writes).toHaveLength(2);expect(writes[1]).toEqual(writes[0])
+  expect(server.ordered(tiqPlayer)).toHaveLength(kind==='delete'?0:kind==='save'?2:1)
+  expect(server.shares.filter(share=>share.shared)).toHaveLength(kind==='share'?1:0)
+})
+
+for(const kind of ['save','share','revoke','delete'] as const)test('history change recovery leaves unconfirmed '+kind+' without posting again',async({page,server})=>{
+  const original=server.request,writes:TiqFixtureRequest[]=[]
+  server.request=async request=>{const response=await original(request);if(request.method==='POST'){writes.push(structuredClone(request));if(writes.length===1)return {body:{ok:false},status:503}}return response}
+  const {dialog,start}=await prepareHistoryChange(page,server,kind)
+  await start();await expect(dialog.locator('[data-tiq-status]')).toContainText('change wasn’t confirmed')
+  await dialog.getByRole('button',{name:'Close',exact:true}).click()
+  await leaveHistory(page).getByRole('button',{name:'Leave history',exact:true}).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(card(page).getByRole('button',{name:'Rating history & sharing',exact:true})).toBeFocused()
+  const reopened=await history(page)
+  await expect(reopened.locator('.tiq-account-entry')).toHaveCount(kind==='delete'?0:kind==='save'?2:1)
+  if(kind==='save')await expect(reopened.getByRole('button',{name:'Check saved assessment',exact:true})).toBeVisible()
+  if(kind==='share')await expect(reopened.locator('.tiq-account-entry').first()).toContainText('Shared with Morgan Courts')
+  if(kind==='revoke')await expect(reopened.locator('.tiq-account-entry').first()).toContainText('Private')
+  expect(writes).toHaveLength(1)
+})
+
+test('history change recovery clears a kept destination and follows a later explicit handoff',async({page,server})=>{
+  const original=server.request;let posts=0
+  server.request=async request=>{const response=await original(request);if(request.method==='POST'){posts++;return {body:{ok:false},status:503}}return response}
+  let prepared=await prepareHistoryChange(page,server,'share')
+  await prepared.start();await expect(prepared.dialog.locator('[data-tiq-status]')).toContainText('change wasn’t confirmed')
+  await page.evaluate(()=>document.dispatchEvent(new CustomEvent('tenaceiq:navigate',{detail:{href:'/coach'}})))
+  await leaveHistory(page).getByRole('button',{name:'Keep reviewing',exact:true}).click()
+  await prepared.dialog.getByRole('button',{name:'Close',exact:true}).click()
+  await leaveHistory(page).getByRole('button',{name:'Leave history',exact:true}).click()
+  await expect(page.locator('body')).toHaveAttribute('data-screen','lab')
+  prepared={dialog:await history(page),start:prepared.start}
+  await expect(prepared.dialog.locator('.tiq-account-entry')).toContainText('Shared with Morgan Courts')
+  await prepared.dialog.locator('.tiq-account-entry').getByRole('button',{name:'Stop sharing',exact:true}).click()
+  await expect(prepared.dialog.locator('[data-tiq-status]')).toContainText('change wasn’t confirmed')
+  await page.evaluate(()=>document.dispatchEvent(new CustomEvent('tenaceiq:navigate',{detail:{href:'/coach'}})))
+  await expect(leaveHistory(page)).toBeVisible()
+  await leaveHistory(page).getByRole('button',{name:'Leave history',exact:true}).click()
+  await expect(page.locator('body')).toHaveAttribute('data-screen','coach')
+  expect(posts).toBe(2)
+})
+
+for(const mode of ['failed refresh','moved focus'] as const)test('history change recovery preserves return focus through '+mode,async({page,server})=>{
+  const original=server.request;let posts=0,holdNextRead=false,held=false,release:()=>void=()=>{}
+  const refresh=new Promise<void>(resolve=>{release=resolve})
+  server.request=async request=>{
+    if(request.method==='GET'&&holdNextRead){holdNextRead=false;held=true;await refresh;if(mode==='failed refresh')return {body:{ok:false},status:503}}
+    const response=await original(request)
+    if(request.method==='POST'){posts++;return {body:{ok:false},status:503}}
+    return response
+  }
+  const {dialog,start}=await prepareHistoryChange(page,server,'share')
+  await start();await expect(dialog.locator('[data-tiq-status]')).toContainText('change wasn’t confirmed')
+  await dialog.getByRole('button',{name:'Close',exact:true}).click();holdNextRead=true
+  await leaveHistory(page).getByRole('button',{name:'Leave history',exact:true}).click()
+  await expect.poll(()=>held).toBe(true)
+  const historyButton=card(page).getByRole('button',{name:'Rating history & sharing',exact:true})
+  const beforeRefresh=await historyButton.elementHandle()
+  await expect(historyButton).toBeFocused()
+  if(mode==='moved focus')await page.locator('#refresh').focus()
+  release()
+  await expect.poll(()=>beforeRefresh!.evaluate(element=>element.isConnected)).toBe(false)
+  await expect(mode==='moved focus'?page.locator('#refresh'):historyButton).toBeFocused()
+  if(mode==='failed refresh')await expect(card(page)).toContainText('Account sync is unavailable.')
+  expect(posts).toBe(1)
+})
+
+test('history change recovery closes a read-only load without blocking or replaying it',async({page,server})=>{
+  server.add();await open(page)
+  server.holdRead=true
+  await card(page).getByRole('button',{name:'Rating history & sharing',exact:true}).click()
+  const dialog=page.getByRole('dialog',{name:'Your TiQ history',exact:true})
+  await expect(dialog.locator('[data-tiq-status]')).toHaveText('Loading rating history…')
+  await dialog.getByRole('button',{name:'Close',exact:true}).click();await expect(dialog).toHaveCount(0)
+  server.releaseRead()
+  await expect(card(page)).toContainText('Saved to your account')
+  await expect(leaveHistory(page)).toHaveCount(0)
+})
+
+for(const state of ['saving','unconfirmed'] as const)test('history change recovery clears '+state+' data and old actions when the account changes',async({page,server})=>{
+  const original=server.request;let posts=0,release:()=>void=()=>{}
+  const receipt=new Promise<void>(resolve=>{release=resolve})
+  server.request=async request=>{const response=await original(request);if(request.method==='POST'){posts++;if(state==='saving')await receipt;else return {body:{ok:false},status:503}}return response}
+  const {dialog,start}=await prepareHistoryChange(page,server,'share')
+  await start();await expect.poll(()=>posts).toBe(1)
+  if(state==='unconfirmed'){
+    await expect(dialog.locator('[data-tiq-status]')).toContainText('change wasn’t confirmed')
+    await page.evaluate(()=>document.dispatchEvent(new CustomEvent('tenaceiq:navigate',{detail:{href:'/coach'}})))
+    await expect(leaveHistory(page)).toBeVisible()
+    await leaveHistory(page).getByRole('button',{name:'Leave history',exact:true}).evaluate(button=>{(window as unknown as {oldHistoryLeave:HTMLElement}).oldHistoryLeave=button as HTMLElement})
+  }
+  await page.evaluate(()=>document.querySelector<HTMLButtonElement>('[data-preview-owner]')!.click())
+  release()
+  await expect(card(page)).toHaveAttribute('data-tiq-account','ready')
+  await expect(dialog).toHaveCount(0);await expect(leaveHistory(page)).toHaveCount(0)
+  await page.evaluate(()=>(window as unknown as {oldHistoryLeave?:HTMLElement}).oldHistoryLeave?.click())
+  await expect(page.locator('body')).toHaveAttribute('data-screen','lab')
+  await expect(card(page).getByRole('button',{name:'Find my level',exact:true})).toBeVisible()
+  expect(posts).toBe(1);expect(server.ordered(tiqStudent)).toHaveLength(0)
+})
+
 test('preserves device-only assessments until explicit import and restores the account rating on another device',async({page,browser,server})=>{
   const device=JSON.stringify({current:{date:'2026-11-17',answers:tiqAnswers},previous:{date:'2026-11-16',answers:{...tiqAnswers,serve:1}}})
   await page.addInitScript(({owner,device})=>localStorage.setItem('starter-tiq:v2:'+owner,device),{owner:tiqPlayer,device})
