@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest'
 import {growthCheckIn,type GrowthPlan} from '../tiq-growth'
-import {growthCoachContext,growthCoachHtml,growthCoachFollowup,growthCoachFollowupHtml} from '../../mobile/src/tiq-growth-coach'
+import {growthCoachContext,growthCoachHtml,growthCoachFollowup,growthCoachFollowupHtml,growthCoachBlocks,growthCoachBlocksHtml} from '../../mobile/src/tiq-growth-coach'
 import type {TrainingCoachWork} from '../../mobile/src/training-inbox-data'
 
 const plan:GrowthPlan={version:1,id:'plan',baseline:'private-baseline',sourceAssignment:'serve-block',state:'active',skill:'serve',target:'8 of 10 second serves in',sessions:3,reviewDate:'2026-11-27',
@@ -67,4 +67,46 @@ it('does not seed a follow-up from unavailable, paused or undated coach feedback
   expect(growthCoachFollowup(finished,null)).toBeNull();expect(growthCoachFollowup({...finished,sourceAssignment:'another'},reviewed)).toBeNull()
   expect(growthCoachFollowup(finished,{...reviewed,links:[{...work.links[0],status:'paused'}]})).toBeNull()
   expect(growthCoachFollowup(finished,changed({coachReview:{note:'Try a deep serve',reviewedAt:'invalid'}},'completed'))).toBeNull()
+})
+
+it('offers only open coach blocks from available links without recorded check-ins',()=>{
+  const row=work.assignments[0],check={recap:'Practice complete',evidence:'8/10',completedAt:plan.updatedAt}
+  const incoming:TrainingCoachWork={links:[...work.links,{...work.links[0],id:'paused',status:'paused'}],assignments:[row,{...row,id:'done',status:'completed'},{...row,id:'checked',assignment:{tiqGrowth:block,playerCheckIn:check}},{...row,id:'paused',studentLinkId:'paused'},{...row,id:'missing-link',studentLinkId:'missing'}]}
+  expect(growthCoachBlocks(incoming).map(row=>row.assignment.id)).toEqual(['serve-block'])
+})
+it('withholds malformed blocks instead of presenting an unusable practice target',()=>{
+  const row=work.assignments[0],malformed=[undefined,{...block,sessions:0},{...block,reviewDate:'2026-02-30'},{...block,skill:'unknown'},{...block,target:''}]
+  expect(growthCoachBlocks({...work,assignments:malformed.map((tiqGrowth,index)=>({...row,id:String(index),assignment:{tiqGrowth}}))})).toEqual([])
+  expect(growthCoachBlocks(null)).toEqual([])
+})
+it('keeps incoming record order and excludes the assignment already used by the active plan',()=>{
+  const first={...work.assignments[0],id:'next'},last={...work.assignments[0],id:'later'},incoming={...work,assignments:[first,...work.assignments,last]}
+  expect(growthCoachBlocks(incoming,plan.sourceAssignment).map(row=>row.assignment.id)).toEqual(['next','later'])
+  expect(growthCoachBlocks(incoming).map(row=>row.assignment.id)).toEqual(['next','serve-block','later'])
+})
+it('does not modify coach work while preparing validated previews',()=>{
+  const incoming={links:work.links.map(link=>Object.freeze({...link})),assignments:work.assignments.map(row=>Object.freeze({...row,assignment:Object.freeze({tiqGrowth:Object.freeze({...block})})}))}
+  Object.freeze(incoming.links);Object.freeze(incoming.assignments);Object.freeze(incoming)
+  const before=JSON.stringify(incoming);expect(growthCoachBlocks(incoming)[0].block).toEqual(block);expect(JSON.stringify(incoming)).toBe(before)
+})
+it('renders escaped preview details with a calendar date and single-practice wording',()=>{
+  const incoming={...work,assignments:[{...work.assignments[0],title:'<img src=x>',assignment:{tiqGrowth:{...block,target:'Keep <the finish> high.',sessions:1}}}]}
+  const output=growthCoachBlocksHtml(incoming,undefined,false,true)
+  expect(output).toContain('1 coach practice block ready');expect(output).toContain('1 practice · Review');expect(output).toContain('datetime="2026-11-27"');expect(output).toContain('November 27, 2026')
+  expect(output).toContain('&lt;img');expect(output).toContain('&lt;the finish&gt;');expect(output).not.toContain('<img');expect(output).toContain('data-adopt="serve-block"')
+})
+it('guides players to their active plan without offering to replace it or exposing private records',()=>{
+  const active={...plan,completed:plan.logs.length,sourceAssignment:'another-block'},output=growthCoachBlocksHtml(work,active,false,true)
+  expect(output).toContain('Finish or archive your current plan');expect(output).toContain('data-open-current');expect(output).not.toContain('data-adopt')
+  expect(output).not.toContain('private-baseline');expect(output).not.toContain('Private note');expect(output).not.toContain('revision')
+})
+it('disables starting work during recovery or before an assessment exists',()=>{
+  expect(growthCoachBlocksHtml(work,undefined,true,true)).toMatch(/data-adopt="serve-block" disabled/)
+  const unassessed=growthCoachBlocksHtml(work,undefined,false,false);expect(unassessed).toContain('Save a self-assessment');expect(unassessed).toMatch(/data-adopt="serve-block" disabled/)
+  expect(growthCoachBlocksHtml(work,{...plan,completed:plan.logs.length,sourceAssignment:null},true,true)).toMatch(/data-open-current disabled/)
+})
+it('keeps empty incoming work quiet beside an active plan and distinguishes unavailable work',()=>{
+  expect(growthCoachBlocksHtml(null,undefined,false,true)).toBe('')
+  expect(growthCoachBlocksHtml(work,{...plan,completed:plan.logs.length},false,true)).toBe('')
+  expect(growthCoachBlocksHtml({...work,assignments:[]},undefined,false,true)).toContain('No open practice blocks from your coaches.')
 })

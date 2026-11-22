@@ -1,7 +1,24 @@
 import {getCoachAssignmentReview, getPlayerAssignmentCheckIn} from '../../lib/coach-storage'
-import {readPracticeBlock, type GrowthPlan} from '../../lib/tiq-growth'
+import {readPracticeBlock, type GrowthPlan, type GrowthSummary} from '../../lib/tiq-growth'
+import {formatCalendarDay} from '../../lib/calendar-date'
 import type {TrainingCoachWork} from './training-inbox-data'
 import {html} from './match-details'
+
+export function growthCoachBlocks(work:TrainingCoachWork|null,activeSource:string|null=null){
+  return (work?.assignments??[]).flatMap(assignment=>{
+    if(assignment.id===activeSource||assignment.status!=='assigned'||getPlayerAssignmentCheckIn(assignment.assignment)
+      ||!work!.links.some(link=>link.id===assignment.studentLinkId&&link.status!=='paused'))return []
+    try{return [{assignment,block:readPracticeBlock(assignment.assignment.tiqGrowth)}]}catch{return []}
+  })
+}
+
+export function growthCoachBlocksHtml(work:TrainingCoachWork|null,activePlan:GrowthSummary|undefined,locked:boolean,hasAssessment:boolean){
+  const blocks=growthCoachBlocks(work,activePlan?.sourceAssignment)
+  if(!work||activePlan&&!blocks.length)return ''
+  return `<div role="region" aria-label="Coach practice blocks">${blocks.length?`<p><strong>${blocks.length} coach practice ${blocks.length===1?'block':'blocks'} ready</strong></p>`:''}
+    ${activePlan?`<p>Finish or archive your current plan before starting a coach block.</p><button type="button" class="secondary" data-open-current ${locked?'disabled':''}>Open current plan</button>`:blocks.length&&!hasAssessment?'<p>Save a self-assessment before starting a coach block.</p>':''}
+    <details><summary>Coach practice blocks</summary>${blocks.map(({assignment,block})=>`<article data-coach-block="${html(assignment.id)}"><h4>${html(assignment.title)}</h4><p class="coach-written">${html(block.target)}</p><p>${block.sessions} ${block.sessions===1?'practice':'practices'} · Review <time datetime="${html(block.reviewDate)}">${html(formatCalendarDay(block.reviewDate))}</time></p>${!activePlan?`<button type="button" class="secondary" data-adopt="${html(assignment.id)}" ${locked||!hasAssessment?'disabled':''}>Use ${html(assignment.title)}</button>`:''}</article>`).join('')||'<p>No open practice blocks from your coaches.</p>'}</details></div>`
+}
 
 export function growthCoachContext(plan: GrowthPlan, work: TrainingCoachWork | null) {
   const assignment = work?.assignments.find(row => row.id === plan.sourceAssignment)

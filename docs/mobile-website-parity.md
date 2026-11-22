@@ -458,6 +458,14 @@ Done, Close and Escape close the comparison dialog and return focus to Player & 
 
 The receipt is created only after the existing saved-payload check confirms the exact assignment. An unconfirmed reply keeps the same assignment ID and payload for explicit retry, and a late reply after an account change cannot reopen the receipt. Account changes clear its saved details and invalidate its old actions. No new API, schema, polling, notifications, rating calculation, sharing, storage, artwork or stylesheet changes are added. This follow-up is local, with final release checks and physical iPhone acceptance still due before the next beta is treated as accepted.
 
+### Incoming coach blocks — local follow-up to build 345
+
+My improvement plan shows a visible count of incoming coach blocks even when a private plan is active. The existing Coach practice blocks disclosure now previews each valid block’s target, practice count and calendar review date. An active plan’s own assignment is excluded from the incoming count. Completed assignments, recorded check-ins, unavailable or paused coach links and malformed blocks are withheld.
+
+An active plan keeps priority: the player is asked to finish or archive it before starting another block. Open current plan moves focus to the already-selected plan without another account read, or explicitly loads the current plan when viewing an archived one. Unsent notes and pending recovery disable that handoff. New block adoption remains an explicit review/save action, retains read-only coach fields and the private starting assessment choice, and preserves archived practice history. The existing database still enforces one active plan and the exact current coach block.
+
+This uses existing plan and coach-work reads, with no new polling, API, schema, sharing, score calculation, artwork or stylesheet changes. Failed refreshes clear unavailable previews, and late responses after account changes cannot reopen a prior player’s work. This is local alongside the other queued TiQ improvements; final release checks and physical iPhone acceptance remain due before the next beta is treated as accepted.
+
 ## League Office season review — build 83 released
 
 My Lab → League Office adds a connected read-only visit through seasons created by the signed-in account, participant entry records, schedules, recorded results/courts and team standings. The home is generated from the actual website `LeagueOfficeHome` component and its CSS; the optional caption says Workspace in the app without claiming a different membership plan. The website's team standings calculation is extracted into a pure helper and reused unchanged by both callers, including dynamic points and configured standings rules. Unplayed events do not become wins, losses or ties. Individual leagues show recorded player results; this slice does not invent individual standings.

@@ -337,6 +337,64 @@ for(const action of ['Close','Escape'])test('coach practice receipt closes with 
   await expect(d).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Coach assessments',exact:true}).getByRole('button',{name:'Player & coach view',exact:true})).toBeFocused();expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(1)
 })
 
+async function incomingCoachBlock(server:Server,sessions=3){
+  const block={version:1,skill:'return',target:'Return 8 of 10 second serves deep.',sessions,reviewDate:'2026-12-06'}
+  await server.db.query("insert into coach_assignments values('next-block',$1,'student-one','Return practice block','Return depth',$2,'assigned',$3,now())",[growthPlayer,block.reviewDate,JSON.stringify({tiqGrowth:block})]);return block
+}
+async function playerGoalRows(server:Server){return (await server.db.query<{payload:Record<string,unknown>}>('select payload from my_lab_goals where user_id=$1 order by goal_id',[growthPeer])).rows}
+
+for(const width of [320,390])test('incoming coach block keeps an active plan while previewing new work at '+width+'px',async({page,server},info)=>{
+  await page.setViewportSize({width,height:844});const p=await coachedPlan(page,server,undefined,width===320),block=await incomingCoachBlock(server,width===320?1:4)
+  await p.getByRole('button',{name:'Refresh plan',exact:true}).click();const incoming=p.getByRole('region',{name:'Coach practice blocks',exact:true});await expect(incoming).toBeVisible()
+  await expect(incoming).toContainText('1 coach practice block ready');await incoming.getByText('Coach practice blocks',{exact:true}).click();await expect(incoming).toContainText(block.target);await expect(incoming.locator('time')).toHaveAttribute('datetime',block.reviewDate)
+  await expect(incoming).toContainText(width===320?'1 practice · Review':'4 practices · Review');await expect(incoming).not.toContainText('Serve practice block');await expect(incoming.getByRole('button',{name:/^Use /})).toHaveCount(0)
+  const before=await playerGoalRows(server),reads=server.planReads;await incoming.getByRole('button',{name:'Open current plan',exact:true}).click();await expect(p.getByRole('heading',{name:'Serve',exact:true})).toBeFocused();expect(server.planReads).toBe(reads)
+  await p.getByLabel('What happened on court?',{exact:true}).fill('Keep this unsent court note');await expect(incoming.getByRole('button',{name:'Open current plan',exact:true})).toBeDisabled();await expect(p.getByLabel('What happened on court?',{exact:true})).toHaveValue('Keep this unsent court note')
+  await p.getByLabel('What happened on court?',{exact:true}).fill('');await expect(incoming.getByRole('button',{name:'Open current plan',exact:true})).toBeEnabled()
+  expect(await playerGoalRows(server)).toEqual(before);expect(await p.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await incoming.scrollIntoViewIfNeeded();await p.screenshot({path:info.outputPath('incoming-coach-block-'+width+'.png')})
+})
+
+test('incoming coach block previews before explicit adoption and keeps archived practice intact',async({page,server})=>{
+  const p=await coachedPlan(page,server),block=await incomingCoachBlock(server),original=(await playerGoalRows(server))[0].payload
+  await p.getByRole('button',{name:'Archive plan',exact:true}).click();await p.getByRole('button',{name:'Confirm archive',exact:true}).click();await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled()
+  const incoming=p.getByRole('region',{name:'Coach practice blocks',exact:true});await incoming.getByText('Coach practice blocks',{exact:true}).click();await expect(incoming).toContainText(block.target);const use=incoming.getByRole('button',{name:'Use Return practice block',exact:true})
+  await use.click();await expect(p.getByRole('textbox',{name:'Measurable target',exact:true})).toBeDisabled();await expect(p.getByRole('textbox',{name:'Measurable target',exact:true})).toHaveValue(block.target);await expect(p.getByRole('combobox',{name:'Starting assessment',exact:true})).toBeEnabled()
+  await p.getByRole('button',{name:'Cancel new plan',exact:true}).click();await expect(use).toBeFocused();await expect(use).toBeVisible();expect((await playerGoalRows(server)).filter(row=>row.payload.state==='active')).toHaveLength(0)
+  await use.click();await p.getByRole('button',{name:'Review plan',exact:true}).click();await p.getByRole('button',{name:'Save improvement plan',exact:true}).click();await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled()
+  const rows=await playerGoalRows(server),current=rows.find(row=>row.payload.state==='active')!.payload,archived=rows.find(row=>row.payload.id===original.id)!.payload
+  expect(rows).toHaveLength(2);expect(current.sourceAssignment).toBe('next-block');expect(current.block).toEqual(block);expect(archived.state).toBe('archived');expect(archived.logs).toEqual(original.logs)
+})
+
+test('incoming coach block opens the actual active plan from an archived plan without replacing either',async({page,server})=>{
+  const p=await coachedPlan(page,server),original=(await playerGoalRows(server))[0].payload;await incomingCoachBlock(server)
+  await p.getByRole('button',{name:'Archive plan',exact:true}).click();await p.getByRole('button',{name:'Confirm archive',exact:true}).click();await expect(p.getByRole('button',{name:'Create improvement plan',exact:true})).toBeEnabled()
+  await p.getByRole('button',{name:'Create improvement plan',exact:true}).click();await p.getByRole('textbox',{name:'Measurable target',exact:true}).fill('Make 9 of 10 second serves.');await p.getByRole('button',{name:'Review plan',exact:true}).click();await p.getByRole('button',{name:'Save improvement plan',exact:true}).click();await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled()
+  const before=await playerGoalRows(server);await p.getByText('Saved plans (2)',{exact:true}).click();await p.locator('[data-select="'+original.id+'"]').click();await expect(p).toContainText('Archived plan')
+  const reads=server.planReads;await p.getByRole('region',{name:'Coach practice blocks',exact:true}).getByRole('button',{name:'Open current plan',exact:true}).click();await expect(p.getByLabel('What happened on court?',{exact:true})).toBeVisible();await expect(p.getByRole('heading',{name:'Serve',exact:true})).toBeFocused();await expect(p).toContainText('Make 9 of 10 second serves.');expect(server.planReads).toBe(reads+1);expect(await playerGoalRows(server)).toEqual(before)
+})
+
+test('incoming coach block hides completed, checked-in, paused and malformed work on refresh',async({page,server})=>{
+  const p=await coachedPlan(page,server),block=await incomingCoachBlock(server);await p.getByRole('button',{name:'Refresh plan',exact:true}).click();const incoming=p.getByRole('region',{name:'Coach practice blocks',exact:true});await expect(incoming).toBeVisible();const before=await playerGoalRows(server)
+  const refresh=async()=>{await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled();await expect(incoming).toHaveCount(0);await expect(p).not.toContainText(block.target)}
+  await server.db.query("update coach_assignments set status='completed' where id='next-block'");await refresh()
+  await server.db.query("update coach_assignments set status='assigned',assignment_json=assignment_json||$1::jsonb where id='next-block'",[JSON.stringify({playerCheckIn:{recap:'Finished practice',evidence:'8/10',completedAt:new Date().toISOString()}})]);await refresh()
+  await server.db.query("update coach_assignments set assignment_json=assignment_json-'playerCheckIn' where id='next-block'");await server.db.query("update coach_player_links set status='paused'");await refresh()
+  await server.db.query("update coach_player_links set status='active'");await server.db.query("update coach_assignments set assignment_json=$1::jsonb where id='next-block'",[JSON.stringify({tiqGrowth:{...block,sessions:0}})]);await refresh();expect(await playerGoalRows(server)).toEqual(before)
+})
+
+test('incoming coach block clears unavailable previews and recovers without changing the plan',async({page,server})=>{
+  const p=await coachedPlan(page,server);await incomingCoachBlock(server);await p.getByRole('button',{name:'Refresh plan',exact:true}).click();const incoming=p.getByRole('region',{name:'Coach practice blocks',exact:true});await expect(incoming).toBeVisible();const before=await playerGoalRows(server)
+  server.failRead=true;await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled();await expect(incoming).toHaveCount(0);await expect(p).not.toContainText('Return 8 of 10 second serves deep.')
+  server.failRead=false;await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect(incoming).toBeVisible();expect(await playerGoalRows(server)).toEqual(before)
+})
+
+test('incoming coach block ignores a held coach read after the player account changes',async({page,server})=>{
+  const p=await coachedPlan(page,server);await incomingCoachBlock(server);await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect(p.getByRole('region',{name:'Coach practice blocks',exact:true})).toBeVisible();const before=await playerGoalRows(server),original=server.request;let held=false,release:()=>void=()=>{};const receipt=new Promise<void>(resolve=>{release=resolve})
+  server.request=async request=>{const response=await original(request);if(request.method==='GET'&&new URL(request.url).pathname==='/api/player/coach-assignments'){held=true;await receipt}return response}
+  await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect.poll(()=>held).toBe(true);await page.evaluate(()=>(window as unknown as {switchNavigationOwner:(restore:boolean)=>void}).switchNavigationOwner(true));release()
+  await expect(p).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Return 8 of 10 second serves deep.');await expect(page.locator('body')).toHaveAttribute('data-screen','lab');expect(await playerGoalRows(server)).toEqual(before)
+})
+
 test('keeps practice private and recovers a lost log reply after relaunch without duplicates',async({page,server},info)=>{
   await open(page);let d=await create(page)
   await d.getByLabel('What happened on court?').fill('7/10 second serves in');await d.getByRole('button',{name:'Review practice log',exact:true}).click();server.loseReply=true
