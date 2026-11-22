@@ -1475,8 +1475,10 @@ test('first-party unsubmitted scorecards survive remounts in the same account', 
  await expect(page.getByLabel('Result',{exact:true})).toHaveValue('Won')
  await expect(venue).toHaveValue('frontenac-racquet-club')
 
+ await opponent.focus()
  await page.evaluate(() => (window as unknown as {refreshNavigationSession:()=>void}).refreshNavigationSession())
- await resume.click()
+ await expect(opponent).toBeFocused()
+ await expect(resume).toBeDisabled()
  await expect(opponent).toHaveValue('Draft partner')
  await expect(venue).toHaveValue('frontenac-racquet-club')
  await page.getByRole('button',{name:'Cancel',exact:true}).click()
