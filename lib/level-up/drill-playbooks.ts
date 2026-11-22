@@ -3,7 +3,7 @@ import {DOUBLES_DRILL_PLAYBOOKS} from './doubles-drill-playbooks'
 export type DrillVersionId = 'control' | 'pressure'
 export type DrillVersion = {id:DrillVersionId;label:string;rounds:number;reps:number;focus:string;steps:string[];requiresPartner?:boolean}
 export type DrillPlaybook = {
-  setup:string[];countLabel:string;countRule:string;easier:string;advance:string;
+  players:1|2|3|4;setup:string[];countLabel:string;countRule:string;easier:string;advance:string;
   versions:[DrillVersion,DrillVersion]
 }
 
@@ -11,6 +11,7 @@ export type DrillPlaybook = {
 const playbooks:Record<string,DrillPlaybook>={
   ...DOUBLES_DRILL_PLAYBOOKS,
   'serve-target-call':{
+    players:1,
     setup:['Use a full court, a racket and ten balls. Start behind the baseline.','Aim into the diagonal service box. Use flat markers outside the landing area to divide it into wide, body and T zones.'],
     countLabel:'Serves on target',countRule:'Count a serve only when you call the target before the motion and land in the chosen part of the correct service box. A fault counts as a miss.',
     easier:'Aim for the whole diagonal service box at a comfortable second-serve pace. Keep the same pre-serve routine.',
@@ -21,6 +22,7 @@ const playbooks:Record<string,DrillPlaybook>={
     ],
   },
   'return-depth-lane':{
+    players:2,
     setup:['Work with a server or feeder on the opposite baseline, with ten balls.','Choose a crosscourt or middle lane between the opposite service line and baseline. Use flat markers outside the hitting lane.'],
     countLabel:'Deep returns',countRule:'Count a return only if it lands beyond the opposite service line, inside the chosen lane and court, and you recover to ready. A short ball, fault or missed recovery is a miss.',
     easier:'Use gentle racket feeds from the opposite service line and the full singles width as your target. A feed is practice, not a live-serve test.',
@@ -31,6 +33,7 @@ const playbooks:Record<string,DrillPlaybook>={
     ],
   },
   'wall-rally-rhythm':{
+    players:1,
     setup:['Use a tennis practice wall, a racket and a ball, with clear space behind you.','Choose a visible window above the wall’s net line. Stand far enough back for a comfortable bounce; never use a wall facing people or traffic.'],
     countLabel:'Controlled contacts',countRule:'Count a contact when the ball reaches your chosen window and you reset your feet in balance. A miss or a hit without the reset is a miss; restart the rally and continue the ten attempts.',
     easier:'Drop-hit once, catch the rebound and reset before the next rep. Use a bigger height window.',
@@ -41,6 +44,7 @@ const playbooks:Record<string,DrillPlaybook>={
     ],
   },
   'split-step-rhythm':{
+    players:1,
     setup:['Choose a clear, dry space with room for two controlled steps in either direction.','Use a line as your ready position. A partner can give a contact cue and point left or right; solo, rehearse the same timing with an imagined opponent.'],
     countLabel:'Balanced first moves',countRule:'Count a rep when the contact cue, quiet split landing, balanced first step and return to ready happen in order. A guessed direction, late start or loss of balance is a miss.',
     easier:'Walk the pattern with a predictable direction. Rehearse a small split and balanced first step before adding speed.',
@@ -51,6 +55,7 @@ const playbooks:Record<string,DrillPlaybook>={
     ],
   },
   'volley-ready-split':{
+    players:2,
     setup:['Use a court, a racket, ten balls and a cooperative feeder on the opposite side of the net.','Start near your service line. Choose a deep-middle target between the opposite service line and baseline; keep spare balls outside the movement lane.'],
     countLabel:'Ready volleys',countRule:'Count a rep when you split on the feed, make a compact volley into the chosen target and finish balanced. A missed target, late split or running contact is a miss.',
     easier:'Stay in place, use gentle feeds to a known side and aim for the full singles court. Build balance before closing forward.',
@@ -61,6 +66,7 @@ const playbooks:Record<string,DrillPlaybook>={
     ],
   },
   '30-30-pressure-game':{
+    players:2,
     setup:['Play singles with a partner on a full court. Agree on a five-word opening plan before each point.','Use ten separate pressure points per round. Reset the practice score before each point; these are situation reps, not a recorded match.'],
     countLabel:'Plans followed',countRule:'Count a point when you call a plan, choose a sensible first-ball target and reset before the next point. Winning is not required; do not force an attack when the ball calls for defense.',
     easier:'Use a cooperative second serve and a large crosscourt or middle target. Keep the plan and reset even when the rally is short.',

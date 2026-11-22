@@ -20,7 +20,7 @@ import {MEMBERSHIP_TIERS} from '../../lib/product-story'
 import {html} from './match-details'
 import {matchDate} from './recent-results'
 import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingSave,type TrainingSession,type TrainingSave} from './level-up-data'
-import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave} from './level-up-model'
+import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave,trainingFormats,trainingSetupLabel,type TrainingFormat} from './level-up-model'
 import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillResultsHtml,drillTally,drillSessionNote,DrillResultError,type DrillPractice} from './drill-playbook'
 const trainingCueHtml=(card:LevelUpCard)=>`<p class="training-drill-cue"><strong>On-court cue</strong> ${html(card.cue)}</p>`
 const trainingClockText=(seconds:number)=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`
@@ -99,6 +99,8 @@ const catalogCardsHtml=(cards:LevelUpCard[],limit:number)=>cards.length?`
    <span class="training-catalog-card-title" id="catalog-title-${html(card.id)}"><span class="sr-only">Preview </span>${html(card.title)}</span>
    <span class="training-catalog-card-facts" id="catalog-facts-${html(card.id)}">
     <span class="training-catalog-time">${card.durationMinutes} min</span>
+    <span class="training-catalog-setup">${html(trainingSetupLabel(card))}</span>
+    ${card.playbook?'<span class="training-catalog-tracked">Round tracking</span>':''}
     <span>${html(card.intensity)} intensity · ${html(card.pack)}</span>
    </span>
    <span class="training-catalog-goal" id="catalog-goal-${html(card.id)}">${html(card.tennisGoal)}</span>
@@ -106,7 +108,7 @@ const catalogCardsHtml=(cards:LevelUpCard[],limit:number)=>cards.length?`
   </button>
  </li>`).join('')}</ul>
  ${cards.length>limit?'<button type="button" class="secondary" data-catalog-more>Show more drills</button>':''}`
- :'<div class="training-catalog-empty"><h2>No matching drills</h2><p>Try a different search, practice setting, or time limit.</p></div>'
+ :'<div class="training-catalog-empty"><h2>No matching drills</h2><p>Try a different setup, search, setting or time limit. Clear filters to see all drills.</p></div>'
 const trainingHistoryActionHtml=(card?:LevelUpCard)=>`<button type="button" class="secondary training-history-action" data-progress-control="next-drill" ${card?`data-card="${html(card.id)}"`:'data-catalog'}>${card?'Practice this drill again':'Browse training cards'}</button>`
 export function trainingHistoryHtml(rows:TrainingSession[],complete=true){
  if(!rows.length)return `<div class="training-history-empty"><h2>Your practice starts here</h2><p>Save a completed drill to start your training history.</p>${trainingHistoryActionHtml()}</div>`
@@ -174,6 +176,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  let focusRequestedFeedback=Boolean(requestedFeedbackId),coachPracticeCue=''
  let disposed=false,version=0,historyVersion=0,phase:'match-focus'|'inbox'|'plan'|'catalog'|'modules'|'module'|'card'|'session'|'warmup'|'progress'=scorecardStart?'match-focus':typeof initial==='object'?'inbox':initial,practiceModule:LevelUpModule|null=null,selected:LevelUpCard|null=null,allowed:boolean|null=null,accessError=false,history:TrainingSession[]|null=null,historyError=false,historyComplete=false,historyBusy=false,accessBusy=false,saving=false,checking=false,confirming=false,notice='',instructionsOpen=false,sessionScroll=0,rating='',note='',context='alone',feeling='ready',payload:Readonly<TrainingSave>|null=null
  let query='',setting='',maxMinutes=Infinity,catalogLimit=catalogPageSize,catalogReturnCard=''
+ let catalogFormat:TrainingFormat='',catalogTracked=false
  let choices=(()=>{try{return loadTrainingChoices(owner,window.localStorage)}catch{return emptyTrainingChoices()}})(),choiceStored=true,cardFromPlan=false,cardFromProgress=false
  if(initial==='catalog'&&choices.active)phase='plan'
  let plans:WeeklyLevelUpPlan[]|null=null,coachWork:TrainingCoachWork|null|undefined,plansBusy=false,coachBusy=false,plansError=false,coachError=false,inboxLoaded=false,cardFromInbox=false,sessionDirection=choices.active,sessionOrigin=''
@@ -204,7 +207,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;tacticsViewer?.dispose();tacticsViewer=null;practiceCalendar?.dispose();practiceCalendar=null
   version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;drillPractice=null;sessionField='note';practiceModule=null;choices=emptyTrainingChoices()
   const lastCoachWork=coachWork
-  plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';savedWeekPractice=undefined;matchPractice=null;coachPracticeCue='';returnPractice=null
+  plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';savedWeekPractice=undefined;matchPractice=null;coachPracticeCue='';returnPractice=null;query='';setting='';maxMinutes=Infinity;catalogFormat='';catalogTracked=false;catalogReturnCard=''
   clearInterval(tick);document.removeEventListener('visibilitychange',visibility);dialog.remove()
   if(current()){
    if(previous?.isConnected)previous.focus({preventScroll:true})
@@ -288,9 +291,14 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  <div class="training-catalog-controls">
   <small class="stat-eyebrow">Level Up</small>
   <label>Find a drill<input type="search" maxlength="80" data-search value="${html(query)}" placeholder="Serve, return, footwork…"></label>
+  <div class="training-setup-filter" role="group" aria-label="Practice setup">
+   <span>Practice setup</span><div class="training-setup-options">${trainingFormats.map(format=>`<button type="button" class="secondary" data-training-format="${format.id}" aria-pressed="${format.id===catalogFormat}">${format.label}</button>`).join('')}</div>
+  </div>
+  <button type="button" class="secondary training-tracked-filter" data-catalog-tracked aria-pressed="${catalogTracked}" aria-describedby="training-tracked-help">Round tracking</button>
+  <p id="training-tracked-help">Find drills with setup, two versions and countable rounds.</p>
   <div class="training-catalog-filter-row">
    <label>Practice setting<select data-setting><option value="">Any setting</option>${Object.entries(catalogSettings).map(([key,label])=>`<option value="${key}" ${key===setting?'selected':''}>${label}</option>`).join('')}</select></label>
-   <label>Time available<select data-catalog-time><option value="Infinity">Any length</option>${[5,8].map(minutes=>`<option value="${minutes}" ${minutes===maxMinutes?'selected':''}>Up to ${minutes} min</option>`).join('')}</select></label>
+   <label>Time available<select data-catalog-time><option value="Infinity">Any length</option>${[5,8,10,15].map(minutes=>`<option value="${minutes}" ${minutes===maxMinutes?'selected':''}>Up to ${minutes} min</option>`).join('')}</select></label>
   </div>
  </div>
  <details class="training-inbox-fold" data-inbox-fold="catalog-tools"><summary>More training tools</summary>
@@ -714,15 +722,22 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    const timeSelect=dialog.querySelector<HTMLSelectElement>('[data-catalog-time]')!
    const count=dialog.querySelector<HTMLElement>('[data-catalog-count]')!
    const clear=dialog.querySelector<HTMLButtonElement>('[data-catalog-clear]')!
+   const formatButtons=Array.from(dialog.querySelectorAll<HTMLButtonElement>('[data-training-format]'))
+   const trackedButton=dialog.querySelector<HTMLButtonElement>('[data-catalog-tracked]')!
+   const catalogActive=()=>active()&&phase==='catalog'&&catalogResults.isConnected&&dialog.contains(catalogResults)
    const paintCatalog=()=>{
-    const matches=trainingSelection(LEVEL_UP_CARDS,query,setting,maxMinutes)
+    if(!catalogActive())return
+    const matches=trainingSelection(LEVEL_UP_CARDS,query,setting,maxMinutes,catalogFormat,catalogTracked)
     const visible=Math.min(matches.length,catalogLimit)
     count.textContent=matches.length===1?'1 drill':visible<matches.length?`${visible} of ${matches.length} drills`:`${matches.length} drills`
-    clear.hidden=!query&&!setting&&maxMinutes===Infinity
+    clear.hidden=!query&&!setting&&maxMinutes===Infinity&&!catalogFormat&&!catalogTracked
+    for(const button of formatButtons)button.setAttribute('aria-pressed',String(button.dataset.trainingFormat===catalogFormat))
+    trackedButton.setAttribute('aria-pressed',String(catalogTracked))
     catalogResults.innerHTML=catalogCardsHtml(matches,catalogLimit)
     bindCards()
     const more=catalogResults.querySelector<HTMLButtonElement>('[data-catalog-more]')
     if(more)more.onclick=()=>{
+     if(!catalogActive()||!more.isConnected)return
      const next=catalogLimit
      catalogLimit+=catalogPageSize
      paintCatalog()
@@ -730,12 +745,17 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     }
    }
    const updateFilters=()=>{
+    if(!catalogActive()||!search.isConnected||!settingSelect.isConnected||!timeSelect.isConnected)return
     query=search.value;setting=settingSelect.value;maxMinutes=Number(timeSelect.value)
     catalogLimit=catalogPageSize
     paintCatalog()
    }
    search.oninput=updateFilters;settingSelect.onchange=updateFilters;timeSelect.onchange=updateFilters
+   for(const button of formatButtons)button.onclick=()=>{if(!catalogActive()||!button.isConnected||!trainingFormats.some(format=>format.id===button.dataset.trainingFormat))return;catalogFormat=button.dataset.trainingFormat as TrainingFormat;catalogLimit=catalogPageSize;paintCatalog()}
+   trackedButton.onclick=()=>{if(!catalogActive()||!trackedButton.isConnected)return;catalogTracked=!catalogTracked;catalogLimit=catalogPageSize;paintCatalog()}
    clear.onclick=()=>{
+    if(!catalogActive()||!clear.isConnected)return
+    catalogFormat='';catalogTracked=false
     search.value='';settingSelect.value='';timeSelect.value='Infinity'
     updateFilters();count.focus()
    }

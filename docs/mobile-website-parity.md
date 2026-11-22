@@ -1,5 +1,11 @@
 # Website to iPhone parity
 
+## Drill discovery — local follow-up
+
+The native Level Up catalog now combines Solo / With a partner / Doubles group with the existing search, setting and time filters. Round tracking narrows the library to the twelve upgraded playbooks. Ten- and fifteen-minute choices accommodate those routines. Playbook cards show their actual player count; other cards retain their established setup classification. Setup describes the usual routine, while the preview explains any extra partner needed by a pressure version.
+
+Filters repaint only the results, retaining keyboard focus and the search caret. Opening and returning from a preview restores the choices, expanded page and selected card. Clear filters resets the entire combination; account disposal clears local discovery state and detached controls cannot change active work. No search or filter action saves a session. Private round evidence, self-rated proof, contexts and save recovery keep their existing contracts. This is local, outside build 346, with no new API or schema; the separate coach practice-editor API rollout is still required before the combined beta. Physical iPhone and VoiceOver checks remain pending.
+
 ## Doubles and serve-plus-one playbooks — local follow-up
 
 The twelve-playbook library now includes Serve +1 Partner, Serve Location Call, Doubles Return First Move, Middle Ball Rule, Switch Call Drill and Poach Timing Shadow. Each new playbook supplies original setup instructions, two distinct versions, two rounds of ten, a count rule and an easier adaptation. Existing card IDs, categories, access rules and coach links are retained. The shared card library uses the control routine by default; iPhone players can choose the pressure routine and save optional counts with a private training note.

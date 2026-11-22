@@ -3,6 +3,7 @@ import type {DrillPlaybook} from './drill-playbooks'
 // Original TenAceIQ practice formats; rally coverage and practice counts are not match results.
 export const DOUBLES_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
   'serve-1-partner':{
+    players:2,
     setup:['Two players: a server behind the baseline and a returner in the diagonal receiving court. Use a full singles court and ten balls.','Before each start, choose a serve zone and a large crosscourt or deep-middle target for the server’s first groundstroke. Keep spare balls outside the movement lane.'],
     countLabel:'Connected starts',countRule:'Count one when the serve lands in the called zone of the correct service box, the first groundstroke lands in the chosen target and the server recovers in balance. A serve fault, wrong serve zone or missed first groundstroke is a miss. Repeat service lets and a returner’s net or out ball; do not count a repetition that never offers a first groundstroke.',
     easier:'Use a comfortable second serve, a predictable return to the middle and the full deep half as the groundstroke target. Walk the recovery first.',
@@ -13,6 +14,7 @@ export const DOUBLES_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
     ],
   },
   'serve-location-call':{
+    players:4,
     setup:['Four players: a serving pair and a receiving pair on a doubles court. The server starts behind the baseline; their partner starts inside the service line in the other half of their own court.','The returner uses the diagonal receiving court. Their partner waits clear of the serve’s flight. Before each point, agree on a serve zone and either hold or a planned cross by the server’s partner.'],
     countLabel:'Coordinated serve starts',countRule:'Count one when the serving pair agrees on the plan before the serve, the net player makes the agreed first move and the server covers the space that move leaves. A wrong or late move is a miss. Serve faults, service lets and net or out returns are repeated. The ensuing volley or point result is separate.',
     easier:'Walk the hold and cross positions without a ball, then use a cooperative second serve and crosscourt return. Use spoken calls before play rather than unfamiliar signals.',
@@ -23,6 +25,7 @@ export const DOUBLES_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
     ],
   },
   'doubles-return-first-move':{
+    players:4,
     setup:['Four players on a doubles court. Pick the receiving pair’s deuce and ad returners before the block; only the designated receiver returns the serve.','Choose a large deep-crosscourt or deep-middle return target. The receiver’s partner starts clear of the serve’s flight, near their service line, ready to react to the return quality.'],
     countLabel:'Coordinated return starts',countRule:'Count one when the receiver names a target before the serve, returns into it and both partners recover to cover their next ball. A missed return, late decision or uncovered half is a miss. Repeat service faults and service lets. Count the receiving pair’s start, not the point winner.',
     easier:'Use controlled second serves and a large return target. Rehearse the partner holding position for a weak return and taking a small forward step behind a strong one.',
@@ -33,6 +36,7 @@ export const DOUBLES_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
     ],
   },
   'middle-ball-rule':{
+    players:3,
     setup:['Three players: two partners near their own service line and a feeder across the net. Agree on a starting gap and keep the shared hitting lane clear.','Name who takes a neutral middle ball when both players are balanced. Agree that an early mine call takes priority; never assume forehand or one handedness always owns the middle.'],
     countLabel:'Clear middle decisions',countRule:'Count a feed when one player calls mine early, only that player attempts contact and both partners recover to cover the next feed. A silent ball, conflicting calls, two swings or lost coverage is a miss. Repeat a feed that is net, out or outside the agreed reach.',
     easier:'Walk to predictable middle feeds with one named hitter for the whole round. Pause before contact until the partner clearly gives space.',
@@ -43,6 +47,7 @@ export const DOUBLES_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
     ],
   },
   'switch-call-drill':{
+    players:3,
     setup:['Three players: a pair on one side and a feeder across the net. Start with moderate lobs and plenty of clear space to turn and move after the bounce.','Agree on switch for a change of rally coverage and stay when each player can retain their half. A coverage switch does not change your designated deuce/ad receiving positions.'],
     countLabel:'Coordinated recoveries',countRule:'Count a playable feed when the early switch or stay call matches the situation, one player handles the ball and both recover in balance with one player covering each half. A late call, crossing into each other or leaving a half uncovered is a miss. Repeat net or out feeds.',
     easier:'Walk through a known lob and call the change before moving. Practise the retriever passing behind the partner; add a gentle ball only when both paths are clear.',
@@ -53,6 +58,7 @@ export const DOUBLES_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
     ],
   },
   'poach-timing-shadow':{
+    players:3,
     setup:['Three players rehearse without live balls: a server behind the baseline, their net partner inside the service line in the other half, and a return-cue giver at the opposite baseline.','Agree on hold, fake or cross before the imaginary serve. The cue giver rehearses a return swing after the serve action; the server and net player stay on their own side of the net.'],
     countLabel:'Coordinated rehearsals',countRule:'Count a rehearsal when the plan is agreed, the net player responds to the return cue rather than the serve toss and both partners finish with their assigned coverage. A premature move, wrong action or overlapping paths is a miss. These are no-ball rehearsals, not successful volleys.',
     easier:'Walk the path with pauses after serve, return cue and recovery. Use only hold and a planned cross until the server knows which half to cover.',
