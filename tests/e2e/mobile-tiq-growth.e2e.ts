@@ -273,6 +273,70 @@ test('coach practice draft returns an untouched block to its comparison without 
   expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
 })
 
+async function reviewCoachBlock(page:Page,target='Make 8 of 10 second serves.'){
+  await open(page);const d=await alignment(page);await d.getByRole('button',{name:'Plan practice block',exact:true}).click()
+  await d.getByRole('textbox',{name:'Measurable target',exact:true}).fill(target);await d.getByRole('button',{name:'Review practice block',exact:true}).click();return d
+}
+
+test.describe('coach practice receipt local dates',()=>{
+  test.use({timezoneId:'Pacific/Kiritimati'})
+  for(const width of [320,390])test('coach practice receipt shows the confirmed block and returns to its selected observation at '+width+'px',async({page,server},info)=>{
+    const earlier=coachObservation(81,'2026-11-20T12:00:00Z','return'),later=coachObservation(82,'2026-11-20T12:01:00Z');coachObservations(server,[later,earlier])
+    await page.setViewportSize({width,height:844});await open(page,width===320);const d=await alignment(page);await d.getByLabel('Coach observation').selectOption(earlier.id)
+    await d.getByRole('button',{name:'Plan practice block',exact:true}).click()
+    const target='Return 8 of 10 second serves. Keep <the finish> high.',sessions=width===320?1:4
+    await d.getByRole('textbox',{name:'Measurable target',exact:true}).fill(target);await d.getByLabel('Practices',{exact:true}).fill(String(sessions));await d.getByLabel('Review date',{exact:true}).fill('2026-12-06')
+    await d.getByRole('button',{name:'Review practice block',exact:true}).click();await expect(d).toContainText(width===320?'1 practice · Review':'4 practices · Review');await expect(d).not.toContainText('1 practices');await d.getByRole('button',{name:'Assign practice block',exact:true}).click()
+    const receipt=d.getByRole('region',{name:'Assigned practice block',exact:true});await expect(receipt).toBeVisible();await expect(d.getByRole('heading',{name:'Practice block assigned',exact:true})).toBeFocused()
+    await expect(receipt).toContainText('Return practice block');await expect(receipt).toContainText(target);await expect(receipt).toContainText(width===320?'1 practice · Review':'4 practices · Review');await expect(receipt).not.toContainText('1 practices');await expect(receipt.locator('time')).toHaveAttribute('datetime','2026-12-06');await expect(receipt.locator('time')).toContainText('December 6, 2026')
+    await expect(receipt).toContainText('Alex Rivera');await expect(receipt).toContainText('My Lab → My improvement plan → Coach practice blocks');await expect(receipt.locator('the')).toHaveCount(0)
+    await expect(d.getByRole('button',{name:'Assign practice block',exact:true})).toHaveCount(0);await expect(d.getByRole('table')).toHaveCount(0)
+    expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await receipt.scrollIntoViewIfNeeded();await d.screenshot({path:info.outputPath('coach-practice-receipt-'+width+'.png')})
+    await d.getByRole('button',{name:'Back to comparison',exact:true}).click();await expect(d.getByLabel('Coach observation')).toHaveValue(earlier.id);await expect(d.getByRole('button',{name:'Plan practice block',exact:true})).toBeFocused();await expect(receipt).toHaveCount(0)
+    const rows=(await server.db.query<{assignment_json:{tiqGrowth:{target:string;sessions:number;reviewDate:string}}}>('select assignment_json from coach_assignments')).rows
+    expect(rows).toHaveLength(1);expect(rows[0].assignment_json.tiqGrowth).toMatchObject({target,sessions,reviewDate:'2026-12-06'})
+  })
+})
+
+test('coach practice receipt finishes into the coach workspace with the saved assignment',async({page,server})=>{
+  const d=await reviewCoachBlock(page);await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d.getByRole('region',{name:'Assigned practice block',exact:true})).toBeVisible()
+  await d.getByRole('button',{name:'Done',exact:true}).click();await expect(d).toHaveCount(0)
+  const assessments=page.getByRole('dialog',{name:'Coach assessments',exact:true});await expect(assessments.getByRole('button',{name:'Player & coach view',exact:true})).toBeFocused();await assessments.getByRole('button',{name:'Close',exact:true}).click()
+  const w=page.getByRole('dialog',{name:'Coach workspace',exact:true});await w.getByRole('button',{name:/^Serve practice block/}).click();await expect(w).toContainText('Make 8 of 10 second serves.')
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(1)
+})
+
+test('coach practice receipt waits for confirmation and keeps the same assignment on retry',async({page,server})=>{
+  const d=await reviewCoachBlock(page),original=server.request,writes:unknown[]=[];let hideReply=true
+  server.request=async request=>{const response=await original(request);if(new URL(request.url).pathname==='/api/mobile/coach'){if(request.method==='POST')writes.push(request.write);if(hideReply)return {...response,status:503,body:{ok:false}}}return response}
+  await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d.getByRole('button',{name:'Retry same practice block',exact:true})).toBeEnabled();await expect(d.getByRole('region',{name:'Assigned practice block',exact:true})).toHaveCount(0)
+  hideReply=false;await d.getByRole('button',{name:'Retry same practice block',exact:true}).click();await expect(d.getByRole('region',{name:'Assigned practice block',exact:true})).toBeVisible()
+  expect(writes).toHaveLength(2);expect(writes[1]).toEqual(writes[0]);expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(1)
+})
+
+test('coach practice receipt ignores a held save result after account change',async({page,server})=>{
+  const d=await reviewCoachBlock(page,'Private confirmed coach target'),original=server.request;let held=false,release:()=>void=()=>{};const receipt=new Promise<void>(resolve=>{release=resolve})
+  server.request=async request=>{const response=await original(request);if(new URL(request.url).pathname==='/api/mobile/coach'&&request.method==='POST'){held=true;await receipt}return response}
+  await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect.poll(()=>held).toBe(true);await expect(d.getByRole('button',{name:'Close',exact:true})).toBeDisabled()
+  await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner());release();await expect(d).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Private confirmed coach target');await expect(page.getByRole('region',{name:'Assigned practice block',exact:true})).toHaveCount(0)
+  const rows=(await server.db.query<{coach_user_id:string}>('select coach_user_id from coach_assignments')).rows;expect(rows).toHaveLength(1);expect(rows[0].coach_user_id).toBe(growthPlayer)
+})
+
+test('coach practice receipt clears its saved details and old actions on account change',async({page,server})=>{
+  const d=await reviewCoachBlock(page,'Private confirmed coach target');await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d.getByRole('region',{name:'Assigned practice block',exact:true})).toBeVisible()
+  await d.evaluate(el=>{(window as unknown as {oldCoachReceiptActions:HTMLElement[]}).oldCoachReceiptActions=[...el.querySelectorAll<HTMLElement>('[data-done],[data-back]')]})
+  await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner());await expect(d).toHaveCount(0)
+  await page.evaluate(()=>{for(const action of (window as unknown as {oldCoachReceiptActions:HTMLElement[]}).oldCoachReceiptActions)action.click()})
+  await expect(d).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Private confirmed coach target');await expect(page.locator('body')).toHaveAttribute('data-screen','lab')
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(1)
+})
+
+for(const action of ['Close','Escape'])test('coach practice receipt closes with '+action+' without assigning again',async({page,server})=>{
+  const d=await reviewCoachBlock(page);await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d.getByRole('region',{name:'Assigned practice block',exact:true})).toBeVisible()
+  if(action==='Close')await d.getByRole('button',{name:'Close',exact:true}).click();else await d.press('Escape')
+  await expect(d).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Coach assessments',exact:true}).getByRole('button',{name:'Player & coach view',exact:true})).toBeFocused();expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(1)
+})
+
 test('keeps practice private and recovers a lost log reply after relaunch without duplicates',async({page,server},info)=>{
   await open(page);let d=await create(page)
   await d.getByLabel('What happened on court?').fill('7/10 second serves in');await d.getByRole('button',{name:'Review practice log',exact:true}).click();server.loseReply=true

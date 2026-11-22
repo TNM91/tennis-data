@@ -450,6 +450,14 @@ Discard clears only the unsent draft and returns focus to Plan practice block wi
 
 This follow-up is local, alongside practice-plan cancellation and coach observation choice clarity. It is not yet in TestFlight; full release verification and physical iPhone acceptance remain required before the next beta is treated as accepted.
 
+### Coach practice-block receipt — local follow-up to build 345
+
+A confirmed practice-block assignment opens a readable receipt with the assigned title, target, practice count, calendar review date and player. The receipt explains the player’s route through My Lab → My improvement plan → Coach practice blocks; it does not claim that a private player plan has started or that its notes are shared. The existing navy surface, typography and buttons are reused.
+
+Done, Close and Escape close the comparison dialog and return focus to Player & coach view in Coach assessments. The existing saved-work callback updates the Coach workspace when Coach assessments closes. Back to comparison instead keeps the selected self-assessment and observation and returns focus to Plan practice block. Neither action sends an assignment.
+
+The receipt is created only after the existing saved-payload check confirms the exact assignment. An unconfirmed reply keeps the same assignment ID and payload for explicit retry, and a late reply after an account change cannot reopen the receipt. Account changes clear its saved details and invalidate its old actions. No new API, schema, polling, notifications, rating calculation, sharing, storage, artwork or stylesheet changes are added. This follow-up is local, with final release checks and physical iPhone acceptance still due before the next beta is treated as accepted.
+
 ## League Office season review — build 83 released
 
 My Lab → League Office adds a connected read-only visit through seasons created by the signed-in account, participant entry records, schedules, recorded results/courts and team standings. The home is generated from the actual website `LeagueOfficeHome` component and its CSS; the optional caption says Workspace in the app without claiming a different membership plan. The website's team standings calculation is extracted into a pure helper and reused unchanged by both callers, including dynamic points and configured standings rules. Unplayed events do not become wins, losses or ties. Individual leagues show recorded player results; this slice does not invent individual standings.
