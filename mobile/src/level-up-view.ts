@@ -23,6 +23,7 @@ import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingS
 import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave,trainingFormats,trainingSetupLabel,type TrainingFormat} from './level-up-model'
 import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillResultsHtml,drillTally,drillSessionNote,DrillResultError,type DrillPractice} from './drill-playbook'
 import {drillGuidePage,moveDrillGuide,drillCourtGuideHtml} from './drill-court'
+import {drillHistoryKey,selectDrillHistory,readDrillEvidence,drillHistoryControlsHtml,drillComparisonHtml} from './drill-progress'
 const trainingCueHtml=(card:LevelUpCard)=>`<p class="training-drill-cue"><strong>On-court cue</strong> ${html(card.cue)}</p>`
 const trainingClockText=(seconds:number)=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`
 const trainingSafetyHtml=(card:LevelUpCard)=>card.safetyNote
@@ -110,7 +111,7 @@ const catalogCardsHtml=(cards:LevelUpCard[],limit:number)=>cards.length?`
  </li>`).join('')}</ul>
  ${cards.length>limit?'<button type="button" class="secondary" data-catalog-more>Show more drills</button>':''}`
  :'<div class="training-catalog-empty"><h2>No matching drills</h2><p>Try a different setup, search, setting or time limit. Clear filters to see all drills.</p></div>'
-const trainingHistoryActionHtml=(card?:LevelUpCard)=>`<button type="button" class="secondary training-history-action" data-progress-control="next-drill" ${card?`data-card="${html(card.id)}"`:'data-catalog'}>${card?'Practice this drill again':'Browse training cards'}</button>`
+const trainingHistoryActionHtml=(card?:LevelUpCard,version?:DrillPractice['version'])=>`<button type="button" class="secondary training-history-action" data-progress-control="next-drill" ${card?`data-card="${html(card.id)}"${version?` data-history-version="${version}"`:''}`:'data-catalog'}>${card?'Practice this drill again':'Browse training cards'}</button>`
 export function trainingHistoryHtml(rows:TrainingSession[],complete=true){
  if(!rows.length)return `<div class="training-history-empty"><h2>Your practice starts here</h2><p>Save a completed drill to start your training history.</p>${trainingHistoryActionHtml()}</div>`
  const progress=trainingProgress(rows)
@@ -140,7 +141,7 @@ export function trainingHistoryHtml(rows:TrainingSession[],complete=true){
    <p class="training-history-context">${html(historyContextLabels[row.context]??row.context)} · Felt ${html(row.feeling)}${row.sharedWithCoach?' · Shared with coach':''}</p>
    ${row.identitySlug?`<p class="training-history-context">${html(trainingIdentity(row.identitySlug)?.title||row.identitySlug)}</p>`:''}
    ${row.note?`<div class="training-history-note"><strong>Your note</strong><p class="training-note">${html(row.note)}</p></div>`:''}
-   ${index===0?trainingHistoryActionHtml(lastCard):''}
+   ${index===0?trainingHistoryActionHtml(lastCard,lastCard?readDrillEvidence(lastCard,row)?.version:undefined):''}
   </li>`).join('')}
  </ol>`
 }
@@ -201,6 +202,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  let returnPractice:TrainingSession|null=null
  let drillPractice:DrillPractice|null=null,sessionField='note'
  let onCourt=false,courtPane:'instructions'|'rounds'='instructions',courtPosition=0,sessionControl='',sessionBodyScroll=0
+ let historyCardId=''
  const currentDrillPractice=()=>{if(!selected)return null;if(drillPractice?.cardId!==selected.id)drillPractice=newDrillPractice(selected);return drillPractice}
  const restoreSessionField=(scroll=false)=>{const control=sessionControl?Array.from(dialog.querySelectorAll<HTMLElement>('[data-session-control]')).find(el=>el.dataset.sessionControl===sessionControl&&el.getClientRects().length>0):null;const field=Array.from(dialog.querySelectorAll<HTMLElement>('[data-proof] [name]')).find(el=>el.getAttribute('name')===sessionField&&el.getClientRects().length>0);const target=control??field??dialog.querySelector<HTMLElement>('[data-court-pane],[name=note]');target?.focus({preventScroll:true});if(scroll)target?.scrollIntoView({block:'center'})}
  const completed=new Set<string>(),clock=new TrainingClock(),active=()=>!disposed&&current()
@@ -209,6 +211,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   disposed=true;replyEditor?.dispose();replyEditor=null;coachEditor?.dispose();coachEditor=null;tacticsViewer?.dispose();tacticsViewer=null;practiceCalendar?.dispose();practiceCalendar=null
   version++;plansVersion++;coachVersion++;weekPending=null;clock.pause();payload=null;selected=null;drillPractice=null;sessionField='note';practiceModule=null;choices=emptyTrainingChoices()
   onCourt=false;courtPane='instructions';courtPosition=0;sessionControl=''
+  historyCardId=''
   const lastCoachWork=coachWork
   plans=null;coachWork=null;sessionOrigin='';sessionDirection='';completed.clear();history=null;note='';savedWeekPractice=undefined;matchPractice=null;coachPracticeCue='';returnPractice=null;query='';setting='';maxMinutes=Infinity;catalogFormat='';catalogTracked=false;catalogReturnCard=''
   clearInterval(tick);document.removeEventListener('visibilitychange',visibility);dialog.remove()
@@ -223,12 +226,13 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  const requestClose=()=>{if(tacticsViewer?.isOpen()){tacticsViewer.dispose();return}if(replyEditor?.isOpen()){replyEditor.back();return}if(coachEditor?.isOpen()){coachEditor.back();return}if(practiceCalendar?.isOpen()){practiceCalendar.back();return}if(weekBusy){weekNotice='Wait for this request to finish before closing.';render();return}if(weekPending&&weekAttempted){weekLeaving=true;render();return}if(saving||checking){notice='Wait for this request to finish before closing.';render();return}if(phase==='session'){sessionScroll=dialog.scrollTop;sessionBodyScroll=dialog.querySelector('[data-court-body]')?.scrollTop??0;clock.pause();confirming=true;render();dialog.querySelector<HTMLElement>('[data-keep]')?.focus();return}returnToLaunch()}
  const accessCopy=()=>allowed===true?'Self-guided training saves privately to your account.':allowed===false?`${MEMBERSHIP_TIERS.player_plus.name} access is required to save self-guided training. You can still read the cards and your account history.`:accessError?'Account access could not be checked.':'Checking your player access…'
  const bindCards=()=>dialog.querySelectorAll<HTMLButtonElement>('[data-card]').forEach(button=>{button.onclick=()=>{
+  if(!active()||!button.isConnected||!dialog.contains(button))return
   const card=LEVEL_UP_CARDS.find(item=>item.id===button.dataset.card)
   if(!card)return
   matchPractice=null;matchPracticeSaved=false
   selected=card;cardFromPlan=phase==='plan';cardFromInbox=false;cardFromProgress=phase==='progress'
   catalogReturnCard=phase==='catalog'?card.id:''
-  if(cardFromProgress)practiceModule=null
+  if(cardFromProgress){practiceModule=null;const version=button.dataset.historyVersion;drillPractice=newDrillPractice(card,version==='pressure'?'pressure':'control')}
   sessionDirection=choices.active;sessionOrigin='';phase='card';notice='';render();focus()
  }})
  const focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus()
@@ -321,7 +325,10 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  ${matchPracticeSaved?'<div class="training-scorecard-coach"><p>Use your practice result in a coach check-in when it relates to your assignment.</p><button type="button" class="secondary" data-inbox>Open coach assignments</button></div>':''}
  ${historyBusy?`<p role="status">${history?'Refreshing your practice log…':'Loading your practice log…'}</p>`:''}
  ${historyError?`<p role="alert">${history?.length?'Showing your last loaded sessions. Refresh to try again.':'Training history is unavailable. Refresh to try again.'}</p>`:''}
- ${history&&(!historyError||history.length)?trainingHistoryHtml(history,historyComplete):''}
+ ${history&&(!historyError||history.length||historyCardId)?`${drillHistoryControlsHtml(history,historyCardId)}
+  ${historyCardId?`<h2 class="training-history-selection">${html(LEVEL_UP_CARDS.find(card=>card.id===historyCardId)?.title??'Saved drill')}</h2>`:''}
+  ${drillComparisonHtml(history,historyCardId)}
+  ${historyCardId&&!selectDrillHistory(history,historyCardId).length?'<div class="training-history-empty"><h2>No loaded sessions for this drill</h2><p>Choose another drill or refresh your account progress.</p></div>':trainingHistoryHtml(selectDrillHistory(history,historyCardId),historyComplete)}`:''}
  <details class="training-inbox-fold" data-inbox-fold="progress-tools"><summary data-progress-control="tools">More training tools</summary>
   ${trainingAccessHtml()}${trainingViews()}
   <button type="button" class="secondary" data-inbox>Weekly plans and coach work</button>
@@ -606,7 +613,13 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    if(!action){focus();return}
    action.scrollIntoView({block:'nearest'});action.focus({preventScroll:true})
   })
-  dialog.querySelector<HTMLButtonElement>('[data-history]')?.addEventListener('click',()=>{void readHistory()})
+  const historyRefresh=dialog.querySelector<HTMLButtonElement>('[data-history]')
+  historyRefresh?.addEventListener('click',()=>{if(!active()||phase!=='progress'||!historyRefresh.isConnected||!dialog.contains(historyRefresh))return;historyRefresh.focus({preventScroll:true});void readHistory()})
+  const historyDrill=dialog.querySelector<HTMLSelectElement>('[data-history-drill]')
+  historyDrill?.addEventListener('change',()=>{
+   if(!active()||phase!=='progress'||!historyDrill.isConnected||!dialog.contains(historyDrill)||historyDrill.value&&!LEVEL_UP_CARDS.some(card=>card.id===historyDrill.value))return
+   historyCardId=historyDrill.value;render();dialog.querySelector<HTMLElement>('[data-history-drill]')?.focus({preventScroll:true})
+  })
   dialog.querySelector<HTMLButtonElement>('[data-modules]')?.addEventListener('click',()=>{phase='modules';practiceModule=null;notice='';render();focus()})
   dialog.querySelector<HTMLButtonElement>('[data-modules-back]')?.addEventListener('click',()=>{
    const moduleId=practiceModule?.id
@@ -872,6 +885,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   if(practiceModule&&selected&&practiceModule.cardIds.includes(selected.id))completed.add(selected.id)
   historyVersion++;historyBusy=false;historyError=false
   history=[row,...(history||[]).filter(r=>r.id!==row.id)].sort((a,b)=>Date.parse(b.completedAt)-Date.parse(a.completedAt)).slice(0,80)
+  if(historyCardId)historyCardId=LEVEL_UP_CARDS.some(card=>card.id===drillHistoryKey(row))?drillHistoryKey(row):''
   const practicedRep=cardFromInbox&&inboxSection==='weeks'
    ?trainingInboxLaunches(plans??[],null).find(launch=>launch.key===inboxReturnCard&&launch.cardId===row.cardId):undefined
   const practicedCoachId=cardFromInbox&&inboxSection==='coach'

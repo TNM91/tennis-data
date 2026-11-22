@@ -1,5 +1,13 @@
 # Website to iPhone parity
 
+## Drill progress comparison — local follow-up
+
+Training Progress adds a drill filter and up to three recent logged results with the latest session's practice version and training context. The comparison shows successful counts, entered attempts, rounded percentage, recorded rounds and dates. A blank round remains unrecorded; a real zero remains a result. It compares only loaded sessions, with explicit guidance at the existing eighty-session limit. Different contexts and versions remain visible in the filtered log, while a latest session without usable counts keeps its original note and never borrows an older result as its own.
+
+The comparison decodes only the exact count block already written by the private training log. Unknown, inconsistent or older text remains unchanged in the original note. No result is inferred from free-form prose, and no counts, notes or ratings are rewritten. Practice this drill again opens the last logged version for review, with new blank rounds. Returning from the preview and refreshing preserve the drill choice and focus; an empty loaded window retains the selected drill, and account disposal clears private comparison state and ignores late responses.
+
+This local candidate follows the verified On-court view commit. It needs no API, migration, purchase, collector or artwork change. Local evidence is recorded in `output/drill-progress-20261122`; the combined native candidate remains outside TestFlight build 347. A later beta, physical iPhone and VoiceOver acceptance remain pending. Public review build 324 is unchanged.
+
 ## On-court drill practice — local follow-up
 
 Tracked drills gain an optional phone-focused session view. The selected routine appears one instruction at a time, with bounded Previous / Next controls, the original cue and access to full instructions and safety. Instructions / Rounds switches between guidance and the existing optional counts. A compact timer and Finish & log remain reachable while the body scrolls, including at larger text sizes. The view respects existing safe-area clearances and does not request browser fullscreen.
