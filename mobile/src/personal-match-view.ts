@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { Clipboard } from '@capacitor/clipboard'
+import { confirmScorecardNavigation } from './navigation-warning'
 import { courtFeedbackLabels, courtFeedbackList } from './court-feedback-view'
 import { localCalendarDate } from './calendar-data'
 import { mountPersonalRecentForm } from './lab-recent-form'
@@ -167,8 +168,34 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
   let teamReviewCount = 0
   let more = false, reading = false, writing = false
   let openingScorecard = false
+  let leaving = false
+  let leaveState: (() => {kind:'scorecard'|'ratings';unconfirmed:boolean} | undefined) | undefined
+  let lastEditFocus: HTMLElement | undefined
+  editor.addEventListener('focusin',event=>{if(event.target instanceof HTMLElement)lastEditFocus=event.target})
+  editor.addEventListener('click',event=>{
+    const control=event.target instanceof Element?event.target.closest<HTMLElement>('button,input,select,textarea'):null
+    if(control&&editor.contains(control))lastEditFocus=control
+  })
   let scorecardOrigin: { id?: string; button: HTMLButtonElement } | undefined
-  if (back && backToTeamResults) back.onclick = () => { if (active() && !writing) backToTeamResults() }
+  if (back && backToTeamResults) back.onclick = () => { if (active()) requestLeave(backToTeamResults) }
+
+  function requestLeave(action:()=>void) {
+    if (!active() || leaving) { action(); return }
+    if (writing) {
+      status.textContent = 'Your scorecard is still saving. Try leaving again when it finishes.'
+      status.tabIndex = -1; status.focus()
+      return
+    }
+    const navigate = () => {
+      if (!active() || writing) return
+      // A nested handoff belongs to this same reviewed departure.
+      leaving = true
+      try { action() } finally { leaving = false }
+    }
+    const state = leaveState?.()
+    if (!state) { navigate(); return }
+    void confirmScorecardNavigation(state.kind,state.unconfirmed,lastEditFocus).then(leave=>{if(leave)navigate()})
+  }
 
   function setWriting(pending: boolean) {
     writing = pending
@@ -176,6 +203,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
   }
 
   function showMatchHistory(visible: boolean) {
+    leaveState = undefined
+    lastEditFocus = undefined
     history.hidden = formHost.hidden = !visible
     add.disabled = !visible || reading
     if (scoreReviewShortcut) scoreReviewShortcut.hidden = !visible || teamReviewCount === 0
@@ -479,6 +508,8 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       button, key: button.dataset.ratingKey as keyof CourtFeedback, value: Number(button.dataset.ratingValue),
     }))
     let draft: PersonalMatchDraft | undefined
+    leaveState = () => draft || courtFeedbackKeys.some(key=>ratings[key]!==original[key])
+      ? {kind:'ratings',unconfirmed:Boolean(draft)} : undefined
     const update = () => {
       for (const { button, key, value } of stars) {
         const filled = value <= (ratings[key] ?? 0)
@@ -611,6 +642,9 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
       input.value = value
     }
     let draft: PersonalMatchDraft | undefined
+    const initialFields = JSON.stringify([...new FormData(form)])
+    leaveState = () => draft || !canResume && JSON.stringify([...new FormData(form)]) !== initialFields
+      ? {kind:'scorecard',unconfirmed:Boolean(draft)} : undefined
     const remember = () => {
       if (!canResume || !active() || writing || draft) return
       const formValues = new FormData(form)
@@ -797,4 +831,5 @@ export function mountPersonalMatchLog(host: HTMLElement, client: SupabaseClient,
   }
   if (seed) void openCalendarMatch(seed)
   else void readHistory()
+  return {isActive:()=>active()&&!leaving,requestLeave}
 }
