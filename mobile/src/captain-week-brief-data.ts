@@ -19,3 +19,15 @@ export async function loadCaptainWeekBrief(client:SupabaseClient,owner:string,cu
 }
 export const briefMatch=(scope:TeamScope,fixture:TeamFixture):CaptainMatch=>({id:fixture.id,date:fixture.date,time:fixture.time,facility:fixture.facility,opponent:fixtureOpponent(fixture,scope)})
 export async function checkBriefMatch(client:SupabaseClient,owner:string,current:()=>boolean,scope:TeamScope,selected:TeamFixture,read:typeof loadMatchCenter=loadMatchCenter):Promise<MatchCenter>{await scenarioOwner(client,owner,current);const result=await read(client,owner,current,scope,briefMatch(scope,selected));await scenarioOwner(client,owner,current);if(fixtureSignature(result.fixture)!==fixtureSignature(selected))throw Error('This fixture changed. Refresh your week brief.');return result}
+export type BriefMatchCheck={fixtureId:string;completed:number;total:number;data:MatchCenter|null}
+export async function checkBriefMatches(client:SupabaseClient,owner:string,current:()=>boolean,scope:TeamScope,fixtures:TeamFixture[],onResult:(result:BriefMatchCheck)=>void,read:typeof checkBriefMatch=checkBriefMatch){
+ const sample=fixtures.slice(0,8).map(f=>({...f})),ids=sample.map(f=>f.id),frozenScope={...scope}
+ if(ids.some(id=>!id.trim())||new Set(ids).size!==ids.length)throw Error('Match identities changed. Refresh your week brief.')
+ for(let index=0;index<sample.length;index++){
+  if(!current())return
+  let data:MatchCenter|null=null
+  try{data=await read(client,owner,current,frozenScope,sample[index])}catch{if(!current())return}
+  if(!current())return
+  onResult({fixtureId:sample[index].id,completed:index+1,total:sample.length,data})
+ }
+}
