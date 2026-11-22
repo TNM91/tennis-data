@@ -1,10 +1,10 @@
 # TenAceIQ mobile readiness — 2026-10-23
 
-## Current iPhone acceptance — November 20, 2026
+## Current iPhone acceptance — November 21, 2026
 
-Build **336** was verified installable in **TenAceIQ Internal** (the usual T1 testing group), with Nathan enrolled, at **06:31 UTC on November 21**. Its release source is `f7e14ca3cc34bf88c35f9cd94f4d13b115b32307`. Release verification passed full lint, typecheck, 6,272 unit tests, the production build, all ten CI checks and signed-package validation. These are automated and package checks; physical iPhone acceptance remains pending.
+Build **339** was verified installable in **TenAceIQ Internal** (the usual T1 testing group), with Nathan enrolled, at **22:38 UTC on November 21**. Its release source is `599c28985c55bd5dedaa3bfca6418963dd269b4d`. Release verification passed full lint, typecheck, 6,279 automated tests, the production build, all ten CI checks and signed-package validation. The signed JavaScript and theme styles match the tested bundle. These are automated and package checks; physical iPhone acceptance remains pending.
 
-The App Store submission separately selected **324**, last verified Waiting for Review at the same time. Testing 336 does not establish acceptance of 324. Leave the current submission unchanged while completing beta checks. **Your TiQ** naming, assessment dates, rating explanations, coach feedback follow-up plans and My Lab's resume/review handoffs are included in 336. Release evidence is recorded in `output/testflight-336-20261120/release-proof.json`; the folder date identifies when the release work began, not its completion date.
+The public App Store submission remains **324**, last verified Waiting for Review at the same time. Leave the current submission unchanged while completing beta checks. Build 339 includes Match Day refresh recovery, connected tool returns and selected-player reply review. Release evidence is recorded in `output/testflight-339-20261121/release-proof.json`, with a scoped phone checklist in the same folder. The working-court reply shortcuts described in [mobile website parity](mobile-website-parity.md) are a local follow-up and are not included in 339.
 
 Use a private test team and test accounts for these checks. Record the build, roles, result and any visible support code; keep passwords and purchase receipts private.
 

@@ -3081,6 +3081,9 @@ body[data-screen] .app-header .tiq-feature-icon__glyph { inline-size:21px;block-
 @media(max-width:350px) { .tiq-growth-fields { grid-template-columns:minmax(0,1fr); gap:0; } .tiq-alignment-table [role=row] { padding:10px 8px; gap:5px; } }
 
 .match-center-players input[type=checkbox] { accent-color:var(--premium-lime); }
+.match-center-players .match-center-reply-court { display:grid; gap:6px; min-inline-size:0; margin-block-start:8px; }
+.match-center-players .match-center-reply-court p { margin:0; overflow-wrap:anywhere; }
+.match-center-players .match-center-reply-court button { justify-self:start; inline-size:auto; max-inline-size:100%; min-block-size:44px; margin-block:2px 0; font-size:.8125rem; }
 .match-center-players select {
  appearance:none; -webkit-appearance:none; padding-inline-end:2.4rem;
  border-radius:var(--premium-control-radius); background-color:var(--premium-inset); color:var(--premium-white);
