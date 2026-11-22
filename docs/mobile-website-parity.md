@@ -474,6 +474,14 @@ Blocked start buttons describe the needed coach update, and Refresh coach blocks
 
 An already-sent pending plan update bypasses the new client date check and retains its exact retry ID and payload, allowing the existing recovery flow to confirm a save. The original one-active-plan rule, source authorization and server date validation remain unchanged. No new API, schema, background reads, notifications, sharing, storage, rating calculation, artwork or stylesheet changes are added. This follow-up is local; final release checks and physical iPhone acceptance remain due before the next beta is treated as accepted.
 
+### Coach practice dates — local follow-up to build 345
+
+Player & coach view checks a new practice block’s review date before review and again before its first assignment attempt, reusing the player-side UTC date policy. An unusable date shows an inline alert described by the date field. Focus returns to that field while the raw target, practice count and date remain intact. Editing the date clears its error; Keep editing retains the error and returns to the same field. No date is silently shifted.
+
+A day change after review returns an unsent block to the editable draft. An already-attempted assignment bypasses the new first-send check, retaining the exact retry ID and payload. If its confirmed date has since expired, the receipt explains that a fresh block with a current date is needed, and that the older assignment can be archived in Coach workspace. General assignment editing remains unchanged; this does not claim that editing its ordinary due date also changes an embedded TiQ practice block.
+
+No new API, schema, background work, notifications, sharing, rating calculation, storage, artwork or stylesheet changes are added. Account changes clear the new field-error state and invalidate old form actions. Existing receipt tests now use a relative review date while retaining their human calendar-date and saved-payload assertions. This follow-up is local, with final release checks and physical iPhone acceptance still due before the next beta is treated as accepted.
+
 ## League Office season review — build 83 released
 
 My Lab → League Office adds a connected read-only visit through seasons created by the signed-in account, participant entry records, schedules, recorded results/courts and team standings. The home is generated from the actual website `LeagueOfficeHome` component and its CSS; the optional caption says Workspace in the app without claiming a different membership plan. The website's team standings calculation is extracted into a pure helper and reused unchanged by both callers, including dynamic points and configured standings rules. Unplayed events do not become wins, losses or ties. Individual leagues show recorded player results; this slice does not invent individual standings.

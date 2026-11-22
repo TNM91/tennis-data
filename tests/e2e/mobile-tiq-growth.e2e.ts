@@ -284,17 +284,17 @@ test.describe('coach practice receipt local dates',()=>{
     const earlier=coachObservation(81,'2026-11-20T12:00:00Z','return'),later=coachObservation(82,'2026-11-20T12:01:00Z');coachObservations(server,[later,earlier])
     await page.setViewportSize({width,height:844});await open(page,width===320);const d=await alignment(page);await d.getByLabel('Coach observation').selectOption(earlier.id)
     await d.getByRole('button',{name:'Plan practice block',exact:true}).click()
-    const target='Return 8 of 10 second serves. Keep <the finish> high.',sessions=width===320?1:4
-    await d.getByRole('textbox',{name:'Measurable target',exact:true}).fill(target);await d.getByLabel('Practices',{exact:true}).fill(String(sessions));await d.getByLabel('Review date',{exact:true}).fill('2026-12-06')
+    const target='Return 8 of 10 second serves. Keep <the finish> high.',sessions=width===320?1:4,reviewDate=shiftedCoachDay(server,14),reviewLabel=new Date(reviewDate+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',month:'long',day:'numeric',year:'numeric'})
+    await d.getByRole('textbox',{name:'Measurable target',exact:true}).fill(target);await d.getByLabel('Practices',{exact:true}).fill(String(sessions));await d.getByLabel('Review date',{exact:true}).fill(reviewDate)
     await d.getByRole('button',{name:'Review practice block',exact:true}).click();await expect(d).toContainText(width===320?'1 practice · Review':'4 practices · Review');await expect(d).not.toContainText('1 practices');await d.getByRole('button',{name:'Assign practice block',exact:true}).click()
     const receipt=d.getByRole('region',{name:'Assigned practice block',exact:true});await expect(receipt).toBeVisible();await expect(d.getByRole('heading',{name:'Practice block assigned',exact:true})).toBeFocused()
-    await expect(receipt).toContainText('Return practice block');await expect(receipt).toContainText(target);await expect(receipt).toContainText(width===320?'1 practice · Review':'4 practices · Review');await expect(receipt).not.toContainText('1 practices');await expect(receipt.locator('time')).toHaveAttribute('datetime','2026-12-06');await expect(receipt.locator('time')).toContainText('December 6, 2026')
+    await expect(receipt).toContainText('Return practice block');await expect(receipt).toContainText(target);await expect(receipt).toContainText(width===320?'1 practice · Review':'4 practices · Review');await expect(receipt).not.toContainText('1 practices');await expect(receipt.locator('time')).toHaveAttribute('datetime',reviewDate);await expect(receipt.locator('time')).toContainText(reviewLabel)
     await expect(receipt).toContainText('Alex Rivera');await expect(receipt).toContainText('My Lab → My improvement plan → Coach practice blocks');await expect(receipt.locator('the')).toHaveCount(0)
     await expect(d.getByRole('button',{name:'Assign practice block',exact:true})).toHaveCount(0);await expect(d.getByRole('table')).toHaveCount(0)
     expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await receipt.scrollIntoViewIfNeeded();await d.screenshot({path:info.outputPath('coach-practice-receipt-'+width+'.png')})
     await d.getByRole('button',{name:'Back to comparison',exact:true}).click();await expect(d.getByLabel('Coach observation')).toHaveValue(earlier.id);await expect(d.getByRole('button',{name:'Plan practice block',exact:true})).toBeFocused();await expect(receipt).toHaveCount(0)
     const rows=(await server.db.query<{assignment_json:{tiqGrowth:{target:string;sessions:number;reviewDate:string}}}>('select assignment_json from coach_assignments')).rows
-    expect(rows).toHaveLength(1);expect(rows[0].assignment_json.tiqGrowth).toMatchObject({target,sessions,reviewDate:'2026-12-06'})
+    expect(rows).toHaveLength(1);expect(rows[0].assignment_json.tiqGrowth).toMatchObject({target,sessions,reviewDate})
   })
 })
 
@@ -393,6 +393,50 @@ test('incoming coach block ignores a held coach read after the player account ch
   server.request=async request=>{const response=await original(request);if(request.method==='GET'&&new URL(request.url).pathname==='/api/player/coach-assignments'){held=true;await receipt}return response}
   await p.getByRole('button',{name:'Refresh plan',exact:true}).click();await expect.poll(()=>held).toBe(true);await page.evaluate(()=>(window as unknown as {switchNavigationOwner:(restore:boolean)=>void}).switchNavigationOwner(true));release()
   await expect(p).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Return 8 of 10 second serves deep.');await expect(page.locator('body')).toHaveAttribute('data-screen','lab');expect(await playerGoalRows(server)).toEqual(before)
+})
+
+async function coachDateDraft(page:Page,server:Server,days:number,target='  Make 8 of 10 second serves.  '){
+  await page.clock.setFixedTime(new Date(server.day+'T12:00:00Z'));await open(page);const d=await alignment(page);await d.getByRole('button',{name:'Plan practice block',exact:true}).click();await d.getByRole('textbox',{name:'Measurable target',exact:true}).fill(target);await d.getByLabel('Review date',{exact:true}).fill(shiftedCoachDay(server,days));return d
+}
+
+test.describe('coach practice date validation local days',()=>{
+  test.use({timezoneId:'Pacific/Kiritimati'})
+  for(const width of [320,390])test('coach practice date validation preserves fields while correcting past and distant dates at '+width+'px',async({page,server},info)=>{
+    await page.setViewportSize({width,height:844});const raw='  Keep the return deep.\nAim for 8 of 10.  ',d=await coachDateDraft(page,server,-2,raw),date=d.getByLabel('Review date',{exact:true}),target=d.getByRole('textbox',{name:'Measurable target',exact:true}),error=d.locator('#coach-practice-date-error');await d.getByLabel('Practices',{exact:true}).fill('5')
+    await d.getByRole('button',{name:'Review practice block',exact:true}).click();await expect(error).toBeVisible();await expect(error).toHaveAttribute('role','alert');await expect(d.locator('[role=status]')).toBeEmpty();await expect(error).toContainText('Choose a current review date');await expect(date).toHaveAttribute('aria-invalid','true');await expect(date).toHaveAttribute('aria-describedby','coach-practice-date-error');await expect(date).toBeFocused();await expect(date).toBeInViewport();await expect(target).toHaveValue(raw);expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+    await d.getByRole('button',{name:'Close',exact:true}).click();await d.getByRole('button',{name:'Keep editing',exact:true}).click();await expect(date).toBeFocused();await expect(target).toHaveValue(raw);await expect(d.getByLabel('Practices',{exact:true})).toHaveValue('5');await expect(date).toHaveValue(shiftedCoachDay(server,-2));await expect(error).toBeVisible()
+    await date.fill(shiftedCoachDay(server,367));await expect(error).toBeHidden();await expect(date).not.toHaveAttribute('aria-invalid',/./);await d.getByRole('button',{name:'Review practice block',exact:true}).click();await expect(error).toContainText('Choose a nearer review date');await expect(date).toBeFocused();expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await d.screenshot({path:info.outputPath('coach-practice-date-validation-'+width+'.png')})
+    const valid=shiftedCoachDay(server,7);await date.fill(valid);await expect(error).toBeHidden();await d.getByRole('button',{name:'Review practice block',exact:true}).click();await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d.getByRole('region',{name:'Assigned practice block',exact:true})).toBeVisible()
+    const rows=(await server.db.query<{due_date:string;assignment_json:{tiqGrowth:{target:string;sessions:number;reviewDate:string}}}>('select due_date,assignment_json from coach_assignments')).rows;expect(rows).toHaveLength(1);expect(rows[0].assignment_json.tiqGrowth).toMatchObject({target:raw.trim(),sessions:5,reviewDate:valid})
+  })
+})
+
+for(const days of [-1,366])test('coach practice date validation accepts the inclusive review boundary '+days,async({page,server})=>{
+  const d=await coachDateDraft(page,server,days);await d.getByRole('button',{name:'Review practice block',exact:true}).click();await expect(d.getByRole('button',{name:'Assign practice block',exact:true})).toBeEnabled();await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d.getByRole('region',{name:'Assigned practice block',exact:true})).toBeVisible();const rows=(await server.db.query<{assignment_json:{tiqGrowth:{reviewDate:string}}}>('select assignment_json from coach_assignments')).rows;expect(rows).toHaveLength(1);expect(rows[0].assignment_json.tiqGrowth.reviewDate).toBe(shiftedCoachDay(server,days))
+})
+
+test('coach practice date validation rechecks before the first assignment and returns to the same raw draft',async({page,server})=>{
+  const raw='  Keep this exact target until I assign it.  ',d=await coachDateDraft(page,server,-1,raw);await d.getByLabel('Practices',{exact:true}).fill('4');await d.getByRole('button',{name:'Review practice block',exact:true}).click();await page.clock.setFixedTime(new Date(shiftedCoachDay(server,2)+'T12:00:00Z'));await d.getByRole('button',{name:'Assign practice block',exact:true}).click()
+  await expect(d.locator('#coach-practice-date-error')).toContainText('Choose a current review date');await expect(d.getByLabel('Review date',{exact:true})).toBeFocused();await expect(d.getByRole('textbox',{name:'Measurable target',exact:true})).toHaveValue(raw);await expect(d.getByLabel('Practices',{exact:true})).toHaveValue('4');await expect(d.getByLabel('Review date',{exact:true})).toHaveValue(shiftedCoachDay(server,-1));expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+  await d.getByLabel('Review date',{exact:true}).fill(shiftedCoachDay(server,7));await d.getByRole('button',{name:'Review practice block',exact:true}).click();await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d.getByRole('region',{name:'Assigned practice block',exact:true})).toBeVisible();expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(1)
+})
+
+test('coach practice date validation keeps an already-attempted assignment retry after its date changes',async({page,server})=>{
+  const d=await coachDateDraft(page,server,-1);await d.getByRole('button',{name:'Review practice block',exact:true}).click();const original=server.request,writes:unknown[]=[];let hideReply=true
+  server.request=async request=>{const response=await original(request);if(new URL(request.url).pathname==='/api/mobile/coach'){if(request.method==='POST')writes.push(request.write);if(hideReply)return {...response,status:503,body:{ok:false}}}return response}
+  await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect(d.getByRole('button',{name:'Retry same practice block',exact:true})).toBeEnabled();await page.clock.setFixedTime(new Date(shiftedCoachDay(server,2)+'T12:00:00Z'));await d.getByRole('button',{name:'Close',exact:true}).click();await d.getByRole('button',{name:'Keep editing',exact:true}).click();await expect(d.getByRole('button',{name:'Retry same practice block',exact:true})).toBeFocused()
+  hideReply=false;await d.getByRole('button',{name:'Retry same practice block',exact:true}).click();const receipt=d.getByRole('region',{name:'Assigned practice block',exact:true});await expect(receipt).toBeVisible();await expect(receipt).toContainText('Plan a new practice block');expect(writes).toHaveLength(2);expect(writes[1]).toEqual(writes[0]);const rows=(await server.db.query<{assignment_json:{tiqGrowth:{reviewDate:string}}}>('select assignment_json from coach_assignments')).rows;expect(rows).toHaveLength(1);expect(rows[0].assignment_json.tiqGrowth.reviewDate).toBe(shiftedCoachDay(server,-1))
+})
+
+test('coach practice date validation clears old error actions after the account changes',async({page,server})=>{
+  const d=await coachDateDraft(page,server,-2,'Private coach date draft');await d.getByRole('button',{name:'Review practice block',exact:true}).click();await expect(d.locator('#coach-practice-date-error')).toBeVisible();await d.evaluate(el=>{(window as unknown as {oldCoachDateForm:HTMLFormElement}).oldCoachDateForm=el.querySelector<HTMLFormElement>('[data-block]')!})
+  await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner());await expect(d).toHaveCount(0);await page.evaluate(()=>(window as unknown as {oldCoachDateForm:HTMLFormElement}).oldCoachDateForm.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));await expect(d).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Private coach date draft');expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+})
+
+test('coach practice date validation confirms an in-flight save without replacing it when the day changes',async({page,server})=>{
+  const d=await coachDateDraft(page,server,-1);await d.getByRole('button',{name:'Review practice block',exact:true}).click();const original=server.request;let held=false,release:()=>void=()=>{};const responseReady=new Promise<void>(resolve=>{release=resolve})
+  server.request=async request=>{const response=await original(request);if(request.method==='POST'&&new URL(request.url).pathname==='/api/mobile/coach'){held=true;await responseReady}return response}
+  await d.getByRole('button',{name:'Assign practice block',exact:true}).click();await expect.poll(()=>held).toBe(true);await page.clock.setFixedTime(new Date(shiftedCoachDay(server,2)+'T12:00:00Z'));release();const receipt=d.getByRole('region',{name:'Assigned practice block',exact:true});await expect(receipt).toBeVisible();await expect(receipt).toContainText('Plan a new practice block');const rows=(await server.db.query<{assignment_json:{tiqGrowth:{reviewDate:string}}}>('select assignment_json from coach_assignments')).rows;expect(rows).toHaveLength(1);expect(rows[0].assignment_json.tiqGrowth.reviewDate).toBe(shiftedCoachDay(server,-1))
 })
 
 function shiftedCoachDay(server:Server,days:number){const date=new Date(server.day+'T12:00:00Z');date.setUTCDate(date.getUTCDate()+days);return date.toISOString().slice(0,10)}
