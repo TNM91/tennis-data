@@ -2,6 +2,8 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {expect, it, vi} from 'vitest'
 import {loadCoachWorkspace, saveCoachWorkspace, coachWriteMatches,coachWriteRetryable, CoachWorkspaceError, type CoachSend} from '../../mobile/src/coach-workspace-data'
 import {coachOwner, coachSnapshot, coachAssignmentDraft, coachReviewDraft} from '../../tests/fixtures/native-coach'
+import {readCoachEdit} from '../native-coach-contract'
+import {tiqSkills} from '../tiq-assessment-skills'
 function account() {return {auth: {getSession: vi.fn(async () => ({data: {session: {user: {id: coachOwner}, access_token: 'synthetic-coach-token'}}, error: null}))}} as unknown as SupabaseClient}
 const reply = (selected = '') => ({status: 200, headers: {}, url: 'https://www.tenaceiq.com/api/mobile/coach', data: {ok: true, ...coachSnapshot(selected)}})
 it('uses current bearer authentication and bounded private requests', async () => {
@@ -54,4 +56,19 @@ it('edits with PATCH and requires an unchanged revision for retry after recovery
  const send=vi.fn<CoachSend>().mockResolvedValue({...reply('student-one'),data:{ok:true,...saved}})
  expect((await saveCoachWorkspace(account(),coachOwner,()=>true,draft,false,send)).confirmed).toBe(true)
  expect(send.mock.calls.map(c=>c[0])).toEqual(['PATCH'])
+})
+it('confirms a TiQ edit only when the embedded block, summary, date and drill all match',()=>{
+ const snapshot=coachSnapshot('student-one'),a=snapshot.detail!.assignments[0]
+ const block={version:1,skill:'return',target:'9 of 10 returns deep.',sessions:4,reviewDate:'2026-12-06'}
+ const draft=readCoachEdit({kind:'edit-assignment',id:a.id,student:a.studentLinkId,expectedUpdatedAt:a.updatedAt,title:a.title,focus:a.focus,dueDate:block.reviewDate,instructions:block.target,evidence:'',status:'assigned',tiqGrowth:block})
+ a.status='assigned';a.dueDate=block.reviewDate;a.assignment={detail:block.target,expectedEvidence:'',cardId:tiqSkills.find(s=>s.id==='return')!.drill.id,tiqGrowth:block};a.updatedAt='2026-11-22T12:00:00Z'
+ expect(coachWriteMatches(snapshot,draft)).toBe(true)
+ for(const patch of [{sessions:3},{target:'Another target'},{reviewDate:'2026-12-07'},{extra:'invalid'}]){a.assignment.tiqGrowth={...block,...patch};expect(coachWriteMatches(snapshot,draft)).toBe(false)}
+ a.assignment.tiqGrowth=block;a.assignment.cardId='another-drill';expect(coachWriteMatches(snapshot,draft)).toBe(false)
+})
+it('does not retry a block after its connection pauses or a player check-in arrives',()=>{
+ const snapshot=coachSnapshot('student-one'),a=snapshot.detail!.assignments[0],s=snapshot.detail!.student,block={version:1,skill:'return',target:'9 of 10 returns deep.',sessions:4,reviewDate:'2026-12-06'}
+ const draft=readCoachEdit({kind:'edit-assignment',id:a.id,student:a.studentLinkId,expectedUpdatedAt:a.updatedAt,title:a.title,focus:a.focus,dueDate:block.reviewDate,instructions:block.target,evidence:'',status:'assigned',tiqGrowth:block})
+ a.status='assigned';a.assignment={cardId:tiqSkills.find(s=>s.id==='return')!.drill.id,tiqGrowth:block};s.linked=true;s.status='active';expect(coachWriteRetryable(snapshot,draft)).toBe(true)
+ s.status='paused';expect(coachWriteRetryable(snapshot,draft)).toBe(false);s.status='active';a.assignment.playerCheckIn={};expect(coachWriteRetryable(snapshot,draft)).toBe(false)
 })

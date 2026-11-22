@@ -8,6 +8,8 @@ import {assignmentBoardReference} from '../../lib/shared-tactics'
 import {sameTacticalBoardReference} from '../../lib/tactical/board-reference'
 import {tiqSkills} from '../../lib/tiq-assessment-skills'
 import {coachRosterParams, type CoachRosterFilter} from '../../lib/coach-roster-filter'
+import {editableCoachPracticeBlock} from '../../lib/coach-practice-block'
+import {readPracticeBlock} from '../../lib/tiq-growth'
 
 export type CoachSend = (method: 'GET' | 'POST' | 'PATCH', options: HttpOptions) => Promise<HttpResponse>
 const transport: CoachSend = (method, options) => method === 'GET' ? CapacitorHttp.get(options) : method === 'POST' ? CapacitorHttp.post(options) : CapacitorHttp.patch(options)
@@ -30,8 +32,12 @@ export function coachWriteMatches(snapshot: NativeCoachSnapshot, draft: CoachWri
   if ('kind' in draft && (draft.kind === 'student'||draft.kind==='edit-student')) return detail.student.id === draft.id && detail.student.name === draft.name && detail.student.level === draft.level && detail.student.notes === draft.notes&&(draft.kind==='student'||detail.student.status===draft.status&&detail.student.updatedAt!==draft.expectedUpdatedAt&&(draft.identity===undefined||detail.student.identity===draft.identity)&&(draft.email===undefined||detail.student.email===draft.email)&&(draft.phone===undefined||detail.student.phone===draft.phone)&&(draft.contactPreference===undefined||detail.student.contactPreference===draft.contactPreference))
   const assignment = detail.assignments.find(a => a.id === draft.id)
   if (!assignment || detail.student.id !== draft.student || assignment.studentLinkId !== draft.student) return false
+  if('kind' in draft&&(draft.kind==='assignment'||draft.kind==='edit-assignment')&&draft.tiqGrowth){
+    const block=draft.tiqGrowth
+    try{readPracticeBlock(assignment.assignment.tiqGrowth)}catch{return false}
+    if(Object.entries(block).some(([key,value])=>(assignment.assignment.tiqGrowth as Record<string,unknown>)[key]!==value)||assignment.assignment.cardId!==tiqSkills.find(skill=>skill.id===block.skill)?.drill.id)return false
+  }
   if ('kind' in draft && draft.kind === 'assignment') {
-    if (draft.tiqGrowth && (!assignment.assignment.tiqGrowth || Object.entries(draft.tiqGrowth).some(([key,value]) => (assignment.assignment.tiqGrowth as Record<string,unknown>)[key] !== value))) return false
     if (draft.tactics && !sameTacticalBoardReference(draft.tactics, assignmentBoardReference(assignment.assignment))) return false
     if (draft.assessmentDrill && assignment.assignment.cardId !== tiqSkills.find(skill => skill.id === draft.assessmentDrill)?.drill.id) return false
   }
@@ -46,6 +52,7 @@ export function coachWriteRetryable(snapshot:NativeCoachSnapshot,draft:CoachWrit
  if('kind' in draft&&(draft.kind==='student'||draft.kind==='edit-student'))return draft.kind==='student'?false:s.id===draft.id&&s.updatedAt===draft.expectedUpdatedAt
  const a=snapshot.detail?.assignments.find(a=>a.id===draft.id)
  if('kind' in draft&&draft.kind==='assignment')return !a
+ if('kind' in draft&&draft.kind==='edit-assignment'&&draft.tiqGrowth&&a&&!editableCoachPracticeBlock(a,s))return false
  return a?.updatedAt===draft.expectedUpdatedAt
 }
 export async function saveCoachWorkspace(client: SupabaseClient, owner: string, current: () => boolean, draft: CoachWrite, lookup = false, send: CoachSend = transport) {
