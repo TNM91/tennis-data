@@ -146,7 +146,8 @@ window.addEventListener(CALENDAR_WEEKLY_REP_CHANGED,event=>{
 const coachNextAssignment=createCoachNextAssignment(client,()=>session?.user.id)
 let revision = 0
 let labTeamReturnVersion:number|undefined
-const hasOpenLabEdit=()=>labTeamReturnVersion===revision||Boolean(app.querySelector('.starter-tiq-form'))
+// Passive refreshes must keep inline scorecard work mounted; account changes still clear it.
+const hasOpenLabEdit=()=>labTeamReturnVersion===revision||Boolean(app.querySelector('.starter-tiq-form, [data-personal-editor] > *'))
 let profileOpen=false
 let connection: ReturnType<typeof showPlayerConnection> | null = null
 let details: ReturnType<typeof createMatchDetails> | null = null
