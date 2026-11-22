@@ -1328,6 +1328,16 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 .training-court-footer { flex:none;margin:0 -12px -12px;padding:10px 12px;border-block-start:1px solid var(--premium-line);background:var(--premium-page); }
 .training-court-footer button { min-block-size:48px;margin:0;padding:10px;background:var(--premium-action);color:var(--premium-page);font-size:.9375rem; }
 .training-session-screen :is([data-court-instructions],[data-session-rounds],[data-session-details])[hidden] { display:none; }
+@media (max-height:640px) {
+ .training-court-screen .training-session-clock { gap:4px 8px;margin-block:6px;padding:8px 10px; }
+ .training-court-screen .training-clock-controls button { font-size:max(16px,.75rem); }
+ .training-court-screen .training-court-tools button.secondary { font-size:.8125rem; }
+ /* Leave room for round fields when large text wraps the title. The timer's
+    pause/resume control stays visible; its status and hint remain accessible. */
+ .training-court-screen :is(.training-session-clock-head,[data-timer-hint]) {
+  position:absolute;inline-size:1px;block-size:1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;
+ }
+}
 .training-progress-screen { overscroll-behavior:contain;scroll-padding-block:76px 12px; }
 .training-progress-screen .training-inbox-header h1 { font-size:1.1rem;text-wrap:balance; }
 .training-history-toolbar,.training-history-meta { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px; }
