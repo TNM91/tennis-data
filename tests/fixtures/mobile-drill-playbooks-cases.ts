@@ -1,5 +1,7 @@
 import {test,expect,type Page} from '@playwright/test'
 import './mobile-drill-discovery-cases'
+import './mobile-drill-court-cases'
+import './mobile-drill-progress-cases'
 const origin='http://127.0.0.1:4283'
 type Capture={writes:string[];failFirst:boolean;hold:boolean;release:(()=>void)|null;stale:HTMLFormElement|null}
 async function openDrill(page:Page,title='Return Depth Lane',query=''){
@@ -154,7 +156,7 @@ test.describe('Drill playbooks',()=>{
   await expect(latest).toContainText('Keep <finish> high.');await expect(latest).toContainText('2 / 5');await expect(latest.locator('finish')).toHaveCount(0)
   const bodies=await writes(page);expect(bodies).toHaveLength(1);const saved=JSON.parse(bodies[0]).session;expect(saved.rating).toBe(2);expect(saved.sharedWithCoach).toBe(false);expect(saved.note).not.toContain('R3');expect(saved).not.toHaveProperty('assignmentId')
   await latest.getByRole('button',{name:'Practice this drill again',exact:true}).click()
-  await expect(training.getByRole('combobox',{name:'Practice version',exact:true})).toHaveValue('control')
+  await expect(training.getByRole('combobox',{name:'Practice version',exact:true})).toHaveValue('pressure')
   await training.getByRole('button',{name:'Start training',exact:true}).click()
   for(const field of await training.locator('[data-drill-result]').all())await expect(field).toHaveValue('')
  })

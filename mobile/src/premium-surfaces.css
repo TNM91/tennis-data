@@ -1294,12 +1294,76 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 .training-session-log [data-notice]:not(:empty) { margin-block:12px 0;padding:8px 10px;border-inline-start:2px solid var(--premium-royal-line);background:var(--premium-inset);border-radius:8px; }
 .training-session-screen :is([data-timer],[data-finish-warmup],[data-proof] button) { min-block-size:44px;margin:6px 0 0;padding:8px 10px;font-size:.875rem; }
 .training-session-screen [data-proof] button:not(.secondary) { background:var(--premium-action);color:var(--premium-page); }
+.training-clock-controls:has([data-court-toggle]) { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+.training-session-screen .training-clock-controls button { min-inline-size:0;min-block-size:44px;margin:0;padding:8px;font-size:.8125rem; }
+.training-dialog.training-session-screen.training-court-screen[open] {
+ display:flex;flex-direction:column;overflow:hidden;inline-size:calc(100vw - 16px);max-inline-size:760px;
+ block-size:calc(100dvh - var(--training-top-clearance) - var(--training-bottom-clearance));padding:12px;
+}
+.training-court-screen .training-inbox-header { position:static;flex:none;margin:-12px -12px 0;padding:8px 12px; }
+.training-court-screen .training-inbox-header h1 { font-size:1.125rem; }
+.training-court-screen .training-session-clock { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;flex:none;margin:8px 0;padding:10px 12px; }
+.training-court-screen .training-session-clock h2 { grid-area:1 / 1;margin:0;font-size:.875rem;align-self:center; }
+.training-court-screen [data-clock] { grid-area:1 / 2;margin:0;font-size:1.5rem; }
+.training-court-screen .training-session-clock-head { grid-area:2 / 1 / auto / -1; }
+.training-court-screen .training-session-clock-head small { display:none; }
+.training-court-screen .training-clock-controls { grid-column:1 / -1; }
+.training-court-screen [data-timer-hint] { grid-column:1 / -1;margin:0;font-size:.6875rem; }
+.training-court-tools { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;flex:none;margin-block:0 10px; }
+.training-court-tools button.secondary { min-inline-size:0;min-block-size:44px;margin:0;padding:8px;font-size:.875rem;border-color:var(--premium-line);background:var(--premium-inset); }
+.training-court-tools button[aria-pressed="true"] { border-color:var(--premium-lime);background:linear-gradient(154deg,transparent 55%,#a7c8ff12 55%,#a7c8ff12 56%,transparent 56%),var(--premium-card);color:var(--premium-white); }
+.training-court-body { flex:1 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;margin-inline:-12px;padding:0 12px 12px;scroll-padding-block:8px; }
+.training-court-guide { margin:0;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card); }
+.training-court-guide .training-court-dose { margin:0 0 12px;color:var(--premium-ice);font-size:.75rem; }
+.training-court-guide [data-court-position] { color:var(--premium-lime);font-size:.8125rem; }
+.training-court-guide #training-court-page { display:block;min-block-size:0;margin:0;padding:0;white-space:normal; }
+.training-court-guide [data-court-instruction] { margin:8px 0 16px;color:var(--premium-white);font-size:1.0625rem;line-height:1.5; }
+.training-court-step-controls { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+.training-court-step-controls button.secondary { min-inline-size:0;min-block-size:48px;margin:0;padding:8px;font-size:.875rem; }
+.training-court-step-controls [aria-disabled="true"] { opacity:.5; }
+.training-court-guide .training-court-cue { margin:14px 0 0;font-size:.8125rem; }
+.training-court-cue strong { display:block;margin-block-end:4px;color:var(--premium-ice); }
+.training-court-screen .training-session-log { margin:0;padding:0;border:0;background:transparent; }
+.training-court-screen .training-rounds { margin-block:0; }
+.training-court-footer { flex:none;margin:0 -12px -12px;padding:10px 12px;border-block-start:1px solid var(--premium-line);background:var(--premium-page); }
+.training-court-footer button { min-block-size:48px;margin:0;padding:10px;background:var(--premium-action);color:var(--premium-page);font-size:.9375rem; }
+.training-session-screen :is([data-court-instructions],[data-session-rounds],[data-session-details])[hidden] { display:none; }
+@media (max-height:640px) {
+ .training-court-screen .training-session-clock { gap:4px 8px;margin-block:6px;padding:8px 10px; }
+ .training-court-screen .training-clock-controls button { font-size:max(16px,.75rem); }
+ .training-court-screen .training-court-tools button.secondary { font-size:.8125rem; }
+ /* Leave room for round fields when large text wraps the title. The timer's
+    pause/resume control stays visible; its status and hint remain accessible. */
+ .training-court-screen :is(.training-session-clock-head,[data-timer-hint]) {
+  position:absolute;inline-size:1px;block-size:1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;
+ }
+}
 .training-progress-screen { overscroll-behavior:contain;scroll-padding-block:76px 12px; }
 .training-progress-screen .training-inbox-header h1 { font-size:1.1rem;text-wrap:balance; }
 .training-history-toolbar,.training-history-meta { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px; }
 .training-history-toolbar .stat-eyebrow { color:var(--premium-ice);font-size:.6875rem; }
 .training-history-toolbar [data-history] { inline-size:auto;min-block-size:44px;margin:0;padding:8px 12px;font-size:.8125rem; }
 .training-history-toolbar [aria-disabled="true"] { opacity:.72; }
+.training-history-filter { margin-block:12px; }
+.training-history-filter label { display:block;color:var(--premium-white);font-size:.875rem;font-weight:650; }
+.training-history-filter select {
+ display:block;inline-size:100%;min-inline-size:0;max-inline-size:100%;min-block-size:48px;margin-block:6px 0;padding:8px 32px 8px 12px;
+ appearance:none;-webkit-appearance:none;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);color:var(--premium-white);font-size:max(16px,.875rem);
+ background-image:linear-gradient(45deg,transparent 50%,var(--premium-ice) 50%),linear-gradient(135deg,var(--premium-ice) 50%,transparent 50%);background-position:calc(100% - 18px) center,calc(100% - 13px) center;background-size:5px 5px;background-repeat:no-repeat;
+}
+.training-progress-screen .training-history-filter p { font-size:.75rem; }
+.training-progress-screen .training-history-selection { margin:16px 0 8px;font-size:1.125rem;line-height:1.3; }
+.training-drill-comparison { margin:10px 0;padding:12px 14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:var(--premium-surface);box-shadow:none; }
+.training-progress-screen .training-drill-comparison h2 { margin:0 0 6px;font-size:1rem; }
+.training-drill-comparison ol { list-style:none;margin:10px 0;padding:0; }
+.training-drill-comparison li { margin:0;padding-block:10px;border-block-end:1px solid var(--premium-line); }
+.training-drill-comparison li:last-child { border-block-end:0; }
+.training-round-result-head { display:flex;justify-content:space-between;align-items:baseline;gap:8px;color:var(--premium-white);font-size:.875rem;line-height:1.4; }
+.training-round-result-head strong { min-inline-size:0; }
+.training-round-result-head>span { flex:none;color:var(--premium-lime);font-weight:700;font-variant-numeric:tabular-nums; }
+.training-round-result-track { display:block;inline-size:100%;block-size:6px;margin-block:8px;overflow:hidden;fill:var(--premium-inset); }
+.training-round-result-fill { fill:var(--premium-lime); }
+.training-progress-screen .training-drill-comparison p { font-size:.75rem; }
 .training-progress-screen p { margin:7px 0;color:var(--premium-copy);font-size:.8125rem;line-height:1.45; }
 .training-progress-screen [role="alert"] { padding:8px 10px;border-inline-start:2px solid var(--premium-royal-line);border-radius:8px;background:var(--premium-inset); }
 :is(.training-history-overview,.training-history-empty,.training-history-item) {
