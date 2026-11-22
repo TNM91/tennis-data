@@ -18,9 +18,10 @@ it.each(ids)('keeps %s discoverable with its original context and a private two-
  expect(()=>drillSessionNote(card,{...practice,results:['0','8','9']},'')).toThrow('Review the current drill')
  expect(newDrillPractice(card)!.results).toEqual(['',''])
 })
-it('extends the library to twelve playbooks without replacing the six assessment-linked drills',()=>{
+it('keeps every doubles and assessment-linked playbook as the library grows',()=>{
  const all=LEVEL_UP_CARDS.filter(card=>card.playbook)
- expect(all).toHaveLength(12);expect(new Set(all.map(card=>card.id)).size).toBe(12)
+ expect(new Set(all.map(card=>card.id)).size).toBe(all.length)
+ for(const id of ids)expect(all.some(card=>card.id===id)).toBe(true)
  for(const skill of tiqSkills){expect(all.some(card=>card.id===skill.drill.id)).toBe(true);expect(ids).not.toContain(skill.drill.id)}
 })
 it('does not count a doubles or plus-one session as a completed assessment-linked practice plan',()=>{

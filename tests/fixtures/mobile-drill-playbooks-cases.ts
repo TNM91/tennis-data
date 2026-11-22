@@ -29,6 +29,49 @@ async function openDrill(page:Page,title='Return Depth Lane',query=''){
  return training
 }
 const writes=(page:Page)=>page.evaluate(()=>(window as unknown as {drillCapture:Capture}).drillCapture.writes)
+test.describe('Groundstroke drill playbooks',()=>{
+ for(const [title,context,rounds] of [
+  ['Basket Forehand Crosscourt','alone',3],['Basket Backhand Crosscourt','alone',3],
+  ['Crosscourt Consistency','partner',3],['Defense-Neutral-Attack Rally','partner',2],
+  ['Return Plus-One Recover','partner',2],['Approach Volley Close','partner',2],
+ ] as const)test('previews both versions and privately saves '+title,async({page})=>{
+  const training=await openDrill(page,title),routine=training.locator('.training-drill-routine'),control=await routine.innerText()
+  await expect(training.getByRole('region',{name:'Drill setup',exact:true})).toContainText(rounds+' rounds · 10 reps per round')
+  await training.getByRole('combobox',{name:'Practice version',exact:true}).selectOption('pressure')
+  await expect(routine).not.toHaveText(control);await expect(training.getByRole('combobox',{name:'Practice version',exact:true})).toBeFocused()
+  await training.getByRole('button',{name:'Start training',exact:true}).click()
+  await expect(training.getByRole('combobox',{name:'Training context',exact:true})).toHaveValue(context)
+  await expect(training.locator('[data-drill-result]')).toHaveCount(rounds)
+  await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('0')
+  await training.getByRole('spinbutton',{name:'Round '+rounds,exact:true}).fill('8')
+  await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('2')
+  await training.getByRole('button',{name:'Save completed session',exact:true}).click()
+  await expect(training.locator('.training-history-latest')).toContainText(title)
+  await expect(training.locator('.training-history-latest')).toContainText('Add pressure')
+  const saved=JSON.parse((await writes(page))[0]).session
+  expect(saved.context).toBe(context);expect(saved.rating).toBe(2);expect(saved.sharedWithCoach).toBe(false)
+  expect(saved.note).toContain('R1 0/10; R'+rounds+' 8/10. Total 8/20.');expect(saved).not.toHaveProperty('assignmentId')
+ })
+ for(const width of [320,390])test('keeps raw groundstroke rounds and confirms an interrupted save at '+width+'px',async({page},info)=>{
+  await page.setViewportSize({width,height:844})
+  const training=await openDrill(page,'Crosscourt Consistency','&training-session-lost-response=1'+(width===320?'&large=1':''))
+  await training.getByRole('combobox',{name:'Practice version',exact:true}).selectOption('pressure')
+  await training.getByRole('button',{name:'Start training',exact:true}).click()
+  const first=training.getByRole('spinbutton',{name:'Round 1',exact:true}),third=training.getByRole('spinbutton',{name:'Round 3',exact:true})
+  await first.fill('0');await third.fill('8');await third.press('Escape')
+  await training.getByRole('button',{name:'Keep training',exact:true}).click();await expect(third).toBeFocused()
+  await expect(first).toHaveValue('0');await expect(training.getByRole('spinbutton',{name:'Round 2',exact:true})).toHaveValue('');await expect(third).toHaveValue('8')
+  expect(await training.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  await third.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('groundstroke-rounds-'+width+'.png')})
+  await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('3')
+  await training.getByRole('button',{name:'Save completed session',exact:true}).click()
+  await expect(training.locator('[data-notice]')).toHaveText('Check whether this session saved before retrying.')
+  await training.getByRole('button',{name:'Check whether this session saved',exact:true}).click()
+  await expect(training.locator('.training-history-latest')).toContainText('R1 0/10; R3 8/10. Total 8/20.')
+  expect(await writes(page)).toHaveLength(1)
+ })
+})
+
 test.describe('Doubles drill playbooks',()=>{
  for(const [title,players,context] of [
   ['Serve +1 Partner','Two players','partner'],['Serve Location Call','Four players','doubles'],
