@@ -73,6 +73,43 @@ async function workspaceInView(center:Locator,step:string){
  await expect(heading).toBeFocused()
  await expect.poll(async()=>heading.evaluate(el=>{const h=el.getBoundingClientRect(),d=el.closest('dialog')!.getBoundingClientRect();return h.top>=d.top&&h.bottom<=d.bottom&&h.top-d.top<d.height*.4})).toBe(true)
 }
+async function selectAppearance(control:Locator){
+ return control.evaluate(el=>{
+  const s=getComputedStyle(el),palette=getComputedStyle(document.documentElement)
+  const color=(name:string)=>{const style=document.createElement('span').style;style.color=palette.getPropertyValue(name).trim();return style.color}
+  return {tag:el.tagName,appearance:s.appearance,background:s.backgroundColor,color:s.color,border:s.borderColor,radius:s.borderRadius,boxSizing:s.boxSizing,height:el.getBoundingClientRect().height,fontSize:parseFloat(s.fontSize),image:s.backgroundImage,colorScheme:s.colorScheme,outline:s.outlineStyle,outlineWidth:parseFloat(s.outlineWidth),outlineColor:s.outlineColor,navy:color('--premium-inset'),white:color('--premium-white'),line:color('--premium-line'),ice:color('--premium-ice')}
+ })
+}
+for(const width of [320,390])test(`captain selects share navy styling and visible keyboard focus at ${width}px`,async({page},info)=>{
+ await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
+ if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
+ const opponent='South Court Rallies · Friday evening doubles at the north-side community courts'
+ await page.evaluate(value=>{(window as unknown as {fixture:{snapshot:ReturnType<typeof captainSnapshotFixture>}}).fixture.snapshot.matches[1].opponent=value},opponent)
+ await page.getByRole('button',{name:'Refresh Captain tools',exact:true}).click()
+ const fixture=page.getByRole('combobox',{name:'Choose fixture',exact:true}),base=await selectAppearance(fixture)
+ expect(base).toMatchObject({tag:'SELECT',appearance:'none',background:base.navy,color:base.white,border:base.line,boxSizing:'border-box',colorScheme:'dark'})
+ expect(base.height).toBeGreaterThanOrEqual(48);expect(base.fontSize).toBeGreaterThanOrEqual(16);expect(base.image).toContain('linear-gradient')
+ await fixture.focus();await page.keyboard.press('Tab');await page.keyboard.press('Shift+Tab');await expect(fixture).toBeFocused()
+ let focused=await selectAppearance(fixture)
+ expect(focused.outline).toBe('solid');expect(focused.outlineWidth).toBeGreaterThanOrEqual(2);expect(focused.outlineColor).toBe(focused.ice)
+ await fixture.selectOption('fixture-two');await expect(fixture).toBeFocused()
+ await expect(fixture.locator('option:checked')).toContainText(opponent)
+ await expect(page.locator('.captain-home .captain-fixture-hero')).toContainText(opponent)
+ await bounded(page,page.locator('#app'))
+ if(width===390&&info.project.name==='mobile-webkit'){await fixture.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('captain-select-navy.png')})}
+ await page.locator('[data-captain-center="1"]').click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await center.locator('[data-match-week-step="availability"]').click()
+ const replies=center.getByRole('combobox',{name:/^Show replies/}),replyStyle=await selectAppearance(replies)
+ expect(replyStyle).toMatchObject({tag:'SELECT',appearance:'none',background:base.background,color:base.color,border:base.border,radius:base.radius,colorScheme:'dark'})
+ expect(replyStyle.height).toBeGreaterThanOrEqual(48)
+ await replies.focus();await page.keyboard.press('Tab');await page.keyboard.press('Shift+Tab');await expect(replies).toBeFocused()
+ focused=await selectAppearance(replies)
+ expect(focused.outline).toBe('solid');expect(focused.outlineWidth).toBeGreaterThanOrEqual(2);expect(focused.outlineColor).toBe(focused.ice)
+ await replies.selectOption('waiting');await expect(center.locator('[data-center-replies] li')).toHaveCount(1)
+ await bounded(page,center)
+ expect(await page.evaluate(()=>{const f=(window as unknown as {fixture:{reads:number;lineupSaves:number;publicationSends:number;sharedChanges:number}}).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:1,lineupSaves:0,publicationSends:0,sharedChanges:0})
+})
 for(const width of [320,390])test(`captain readiness and match steps stay usable at ${width}px`,async({page},info)=>{
  await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
  if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
