@@ -18,7 +18,7 @@ export type CoachCreate =
 export type CoachReview = {id: string; student: string; expectedUpdatedAt: string; note: string; nextFocus: string}
 export type CoachEdit =
   | {kind:'edit-student';id:string;expectedUpdatedAt:string;name:string;level:string;notes:string;status:CoachStudentStatus;identity?:string;email?:string;phone?:string;contactPreference?:string}
-  | {kind:'edit-assignment';id:string;student:string;expectedUpdatedAt:string;title:string;focus:string;dueDate:string|null;instructions:string;evidence:string;status:CoachAssignment['status']}
+  | {kind:'edit-assignment';id:string;student:string;expectedUpdatedAt:string;title:string;focus:string;dueDate:string|null;instructions:string;evidence:string;status:CoachAssignment['status'];tiqGrowth?:PracticeBlock}
 export type CoachWrite=CoachCreate|CoachReview|CoachEdit
 export const coachRecord = (v: unknown): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error('Invalid coach record')
@@ -103,6 +103,9 @@ export function readCoachEdit(value:unknown):CoachEdit {
   return {...(r.identity===undefined?{}:{identity:text(r.identity,240)}),...(r.email===undefined?{}:{email:text(r.email,320)}),...(r.phone===undefined?{}:{phone:text(r.phone,80)}),...(r.contactPreference===undefined?{}:{contactPreference:text(r.contactPreference,20)}),kind:r.kind,id,expectedUpdatedAt,name:text(r.name,300,true).trim(),level:text(r.level,160).trim(),notes:text(r.notes,8000).trim(),status:r.status as CoachStudentStatus}
  }
  if(r.kind!=='edit-assignment'||!['draft','assigned','completed','archived'].includes(String(r.status)))throw Error('Invalid assignment edit')
- keys(r,['kind','id','student','expectedUpdatedAt','title','focus','dueDate','instructions','evidence','status'])
- return {kind:r.kind,id,student:coachId(r.student),expectedUpdatedAt,title:text(r.title,300,true).trim(),focus:text(r.focus,1000).trim(),dueDate:date(r.dueDate),instructions:text(r.instructions,8000).trim(),evidence:text(r.evidence,2000).trim(),status:r.status as CoachAssignment['status']}
+ keys(r,['kind','id','student','expectedUpdatedAt','title','focus','dueDate','instructions','evidence','status','tiqGrowth'])
+ const growth=r.tiqGrowth===undefined?undefined:readPracticeBlock(r.tiqGrowth)
+ const edit:Extract<CoachEdit,{kind:'edit-assignment'}>={kind:r.kind,id,student:coachId(r.student),expectedUpdatedAt,title:text(r.title,300,true).trim(),focus:text(r.focus,1000).trim(),dueDate:date(r.dueDate),instructions:text(r.instructions,8000).trim(),evidence:text(r.evidence,2000).trim(),status:r.status as CoachAssignment['status'],...(growth?{tiqGrowth:growth}:{})}
+ if(growth&&(edit.status!=='assigned'||edit.dueDate!==growth.reviewDate||edit.instructions!==growth.target))throw Error('Keep the practice target and review date together.')
+ return edit
 }
