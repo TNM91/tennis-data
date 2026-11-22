@@ -321,6 +321,8 @@ test('keeps a long coach cue whole and cancels the follow-up without saving or c
   const cue='Serve cue '.repeat(27).trim(),{p,original}=await reviewedCoachPlan(page,server,cue)
   await p.getByRole('button',{name:'Plan next practice'}).click();await expect(p.getByLabel('Measurable target')).toHaveValue('');await expect(p.getByRole('region',{name:'Coach feedback for next plan'})).toContainText(cue);await expect(p).toContainText('Write a shorter, measurable target')
   await p.getByLabel('Measurable target').fill('8 of 10 serves to a deep target');await p.getByRole('button',{name:'Cancel new plan',exact:true}).click()
+  await expect(p.getByRole('heading',{name:'Discard new plan?',exact:true})).toBeVisible();await p.getByRole('button',{name:'Discard new plan',exact:true}).click()
+  await expect(p.getByRole('button',{name:'Plan next practice',exact:true})).toBeFocused()
   await expect(p.getByRole('button',{name:'Plan next practice'})).toBeEnabled();expect((await server.db.query<{payload:unknown}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows.map(row=>row.payload)).toEqual([original])
 })
 
@@ -361,6 +363,117 @@ for(const width of [320,390])test('keeps plan and alignment controls within the 
   expect(await p.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await p.screenshot({path:info.outputPath('plan-'+width+'.png')});await p.getByRole('button',{name:'Close',exact:true}).click()
   const d=await alignment(page);expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await d.screenshot({path:info.outputPath('alignment-'+width+'.png')})
 })
+test('plan cancellation reviews a changed target before discarding the new plan',async({page,server})=>{
+  await open(page);const p=await plan(page)
+  await p.getByRole('button',{name:'Create improvement plan',exact:true}).click()
+  await p.getByRole('textbox',{name:'Measurable target',exact:true}).fill('8 of 10 second serves under pressure')
+  await p.getByRole('button',{name:'Cancel new plan',exact:true}).click()
+  await expect(p.getByRole('heading',{name:'Discard new plan?',exact:true})).toBeVisible()
+  await p.getByRole('button',{name:'Keep editing',exact:true}).click()
+  await expect(p.getByRole('textbox',{name:'Measurable target',exact:true})).toHaveValue('8 of 10 second serves under pressure')
+  await expect(p.getByRole('textbox',{name:'Measurable target',exact:true})).toBeFocused()
+  expect((await server.db.query('select * from my_lab_goals')).rows).toHaveLength(0)
+})
+
+for(const width of [320,390])test('plan cancellation keeps incomplete fields and the chosen baseline at '+width+'px',async({page,server},info)=>{
+  await server.assess(growthPlayer,30,{serve:3})
+  await page.setViewportSize({width,height:844});await open(page,width===320);const p=await plan(page)
+  await p.getByRole('button',{name:'Create improvement plan',exact:true}).click()
+  const baseline=p.getByLabel('Starting assessment'),target=p.getByRole('textbox',{name:'Measurable target',exact:true}),sessions=p.getByLabel('Practices',{exact:true}),date=p.getByLabel('Review date',{exact:true})
+  const reviewDate=await date.inputValue()
+  await baseline.selectOption(growthId(1));await target.fill('  8 of 10 deep rallies under pressure  ')
+  await p.getByRole('combobox',{name:'Skill',exact:true}).selectOption('rally');await date.fill('');await sessions.fill('')
+  await p.getByRole('button',{name:width===320?'Cancel new plan':'Close',exact:true}).click()
+  await expect(p.getByRole('heading',{name:width===320?'Discard new plan?':'Leave plan?',exact:true})).toBeVisible()
+  expect(await p.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  if(width===320&&info.project.name==='mobile-webkit')await p.screenshot({path:info.outputPath('plan-cancel-review-320.png')})
+  await p.getByRole('button',{name:'Keep editing',exact:true}).click()
+  await expect(target).toHaveValue('  8 of 10 deep rallies under pressure  ');await expect(baseline).toHaveValue(growthId(1))
+  await expect(p.getByRole('combobox',{name:'Skill',exact:true})).toHaveValue('rally');await expect(sessions).toHaveValue('');await expect(date).toHaveValue('');await expect(sessions).toBeFocused()
+  await expect.poll(()=>sessions.evaluate(el=>{const r=el.getBoundingClientRect(),d=el.closest('dialog')!.getBoundingClientRect();return r.top>=d.top&&r.bottom<=Math.min(d.bottom,innerHeight)+1})).toBe(true)
+  expect((await server.db.query('select * from my_lab_goals')).rows).toHaveLength(0)
+  await sessions.fill('4');await date.fill(reviewDate);await p.getByRole('button',{name:'Review plan',exact:true}).click()
+  await p.getByRole('button',{name:'Edit plan',exact:true}).click();await p.getByRole('button',{name:'Cancel new plan',exact:true}).click()
+  await p.getByRole('button',{name:'Keep editing',exact:true}).click();await expect(date).toBeFocused();await expect(baseline).toHaveValue(growthId(1));await expect(sessions).toHaveValue('4')
+  await p.getByRole('button',{name:'Review plan',exact:true}).click();await p.getByRole('button',{name:'Save improvement plan',exact:true}).click()
+  await expect(p.getByRole('button',{name:'Refresh plan',exact:true})).toBeEnabled()
+  const rows=(await server.db.query<{payload:{baseline:string;block:{skill:string;target:string;sessions:number;reviewDate:string}}}>('select payload from my_lab_goals where user_id=$1',[growthPlayer])).rows
+  expect(rows).toHaveLength(1);expect(rows[0].payload.baseline).toBe(growthId(1));expect(rows[0].payload.block).toMatchObject({skill:'rally',target:'8 of 10 deep rallies under pressure',sessions:4,reviewDate})
+})
+
+test('plan cancellation returns an untouched new plan immediately to its entry',async({page,server})=>{
+  await open(page);const p=await plan(page),reads=server.planReads
+  await p.getByRole('button',{name:'Create improvement plan',exact:true}).click();await p.getByRole('button',{name:'Cancel new plan',exact:true}).click()
+  await expect(p.getByRole('button',{name:'Create improvement plan',exact:true})).toBeFocused();await expect(p.getByRole('heading',{name:'Discard new plan?',exact:true})).toHaveCount(0)
+  expect(server.planReads).toBe(reads);expect((await server.db.query('select * from my_lab_goals')).rows).toHaveLength(0)
+})
+
+test('plan cancellation returns an untouched coach follow-up to the same feedback',async({page,server})=>{
+  const {p,original,cue}=await reviewedCoachPlan(page,server)
+  await p.getByRole('button',{name:'Plan next practice',exact:true}).click();await expect(p.getByRole('heading',{name:'Next practice plan',exact:true})).toBeVisible()
+  const reads=server.planReads
+  await p.getByRole('button',{name:'Cancel new plan',exact:true}).click()
+  await expect(p.getByRole('button',{name:'Plan next practice',exact:true})).toBeFocused();await expect(p.getByRole('region',{name:'Plan coaching',exact:true})).toContainText(cue)
+  expect(server.planReads).toBe(reads);expect((await server.db.query<{payload:unknown}>('select payload from my_lab_goals where user_id=$1',[growthPeer])).rows.map(row=>row.payload)).toEqual([original])
+})
+
+for(const changed of [false,true])test('plan cancellation returns '+(changed?'a changed':'an untouched')+' coach block to its original invitation',async({page,server})=>{
+  const day=new Date(server.day+'T12:00:00Z');day.setUTCDate(day.getUTCDate()+7)
+  const block={version:1,skill:'serve',target:'8 of 10 second serves in',sessions:3,reviewDate:day.toISOString().slice(0,10)}
+  await server.db.query("insert into coach_assignments values('practice-block',$1,'student-one','Serve practice block','Second serve',$2,'assigned',$3,now())",[growthPlayer,block.reviewDate,JSON.stringify({tiqGrowth:block,cardId:'serve-target-call'})])
+  await server.assess(growthPeer,30,{serve:3})
+  const before=(await server.db.query('select * from coach_assignments')).rows
+  await open(page);await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner());const p=await plan(page)
+  await p.getByText('Coach practice blocks',{exact:true}).click()
+  await p.getByRole('button',{name:'Use Serve practice block',exact:true}).click()
+  const baseline=p.getByLabel('Starting assessment')
+  if(changed){
+    await baseline.selectOption(growthId(2));await p.getByRole('button',{name:'Cancel new plan',exact:true}).click();await p.getByRole('button',{name:'Keep editing',exact:true}).click()
+    await expect(baseline).toHaveValue(growthId(2));await expect(baseline).toBeFocused()
+  }
+  await expect(p.getByRole('textbox',{name:'Measurable target',exact:true})).toBeDisabled();await expect(p.getByLabel('Practices',{exact:true})).toBeDisabled();await expect(p.getByRole('combobox',{name:'Skill',exact:true})).toBeDisabled();await expect(p.getByLabel('Review date',{exact:true})).toBeDisabled()
+  await p.getByRole('button',{name:'Cancel new plan',exact:true}).click()
+  if(changed)await p.getByRole('button',{name:'Discard new plan',exact:true}).click()
+  const invitation=p.getByRole('button',{name:'Use Serve practice block',exact:true});await expect(invitation).toBeFocused();await expect(invitation).toBeVisible()
+  expect((await server.db.query('select * from coach_assignments')).rows).toEqual(before);expect((await server.db.query('select * from my_lab_goals')).rows).toHaveLength(0)
+  await invitation.click();await expect(baseline).toHaveValue(growthId(30));await expect(p.getByRole('textbox',{name:'Measurable target',exact:true})).toHaveValue(block.target)
+})
+
+test('plan cancellation clears a kept departure and follows only a later navigation choice',async({page,server})=>{
+  await open(page);const p=await plan(page)
+  await p.getByRole('button',{name:'Create improvement plan',exact:true}).click();const target=p.getByRole('textbox',{name:'Measurable target',exact:true})
+  await target.fill('8 of 10 serves in');await p.getByRole('button',{name:'Cancel new plan',exact:true}).click();await page.keyboard.press('Escape');await expect(target).toBeFocused()
+  await p.getByRole('button',{name:'Cancel new plan',exact:true}).click()
+  await page.evaluate(()=>document.dispatchEvent(new CustomEvent('tenaceiq:navigate',{detail:{href:'/coach'}})))
+  await expect(p.getByRole('heading',{name:'Leave plan?',exact:true})).toBeVisible();await expect(p.getByRole('button',{name:'Discard new plan',exact:true})).toHaveCount(0)
+  await p.getByRole('button',{name:'Keep editing',exact:true}).click();await p.getByRole('button',{name:'Cancel new plan',exact:true}).click();await p.getByRole('button',{name:'Discard new plan',exact:true}).click()
+  await expect(page.locator('body')).toHaveAttribute('data-screen','lab');await expect(p.getByRole('button',{name:'Create improvement plan',exact:true})).toBeFocused()
+  await p.getByRole('button',{name:'Create improvement plan',exact:true}).click();await target.fill('A different private target')
+  await page.evaluate(()=>document.dispatchEvent(new CustomEvent('tenaceiq:navigate',{detail:{href:'/coach'}})))
+  await p.getByRole('button',{name:'Leave plan',exact:true}).click();await expect(p).toHaveCount(0);await expect(page.locator('body')).toHaveAttribute('data-screen','coach')
+  expect((await server.db.query('select * from my_lab_goals')).rows).toHaveLength(0)
+})
+
+test('plan cancellation removes private fields and ignores an old discard after account change',async({page,server})=>{
+  await open(page);const p=await plan(page);await p.getByRole('button',{name:'Create improvement plan',exact:true}).click()
+  await p.getByRole('textbox',{name:'Measurable target',exact:true}).fill('Private court target for my account');await p.getByRole('button',{name:'Cancel new plan',exact:true}).click()
+  await p.getByRole('button',{name:'Discard new plan',exact:true}).evaluate(button=>{if(!(button instanceof HTMLButtonElement))throw Error('Expected a discard button');(window as unknown as {oldPlanDiscard:HTMLButtonElement}).oldPlanDiscard=button})
+  await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner())
+  await expect(p).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Private court target for my account')
+  await page.evaluate(()=>(window as unknown as {oldPlanDiscard:HTMLButtonElement}).oldPlanDiscard.click())
+  await expect(page.locator('body')).toHaveAttribute('data-screen','lab');await expect(p).toHaveCount(0)
+  expect((await server.db.query('select * from my_lab_goals')).rows).toHaveLength(0)
+})
+
+test('plan cancellation discards only the current draft and starts the next one cleanly',async({page,server})=>{
+  await open(page);const p=await plan(page);await p.getByRole('button',{name:'Create improvement plan',exact:true}).click()
+  const target=p.getByRole('textbox',{name:'Measurable target',exact:true}),sessions=p.getByLabel('Practices',{exact:true}),baseline=p.getByLabel('Starting assessment')
+  const initial=await target.inputValue();await target.fill('Do not carry this target forward');await sessions.fill('')
+  await p.getByRole('button',{name:'Cancel new plan',exact:true}).click();await p.getByRole('button',{name:'Discard new plan',exact:true}).click();await expect(p.getByRole('button',{name:'Create improvement plan',exact:true})).toBeFocused()
+  await p.getByRole('button',{name:'Create improvement plan',exact:true}).click();await expect(target).toHaveValue(initial);await expect(sessions).toHaveValue('3');await expect(baseline).toHaveValue(growthId(1))
+  await p.getByRole('button',{name:'Cancel new plan',exact:true}).click();await expect(p.getByRole('button',{name:'Create improvement plan',exact:true})).toBeFocused();expect((await server.db.query('select * from my_lab_goals')).rows).toHaveLength(0)
+})
+
 test('keeps incomplete edits through a close decision and never treats a failed read as an empty plan',async({page,server})=>{
   await open(page);const p=await plan(page);await p.getByRole('button',{name:'Create improvement plan'}).click();await p.getByLabel('Measurable target').fill('');await p.getByRole('button',{name:'Close',exact:true}).click();await p.getByRole('button',{name:'Keep editing'}).click();await expect(p.getByLabel('Measurable target')).toHaveValue('')
   await p.getByRole('button',{name:'Close',exact:true}).click();await p.getByRole('button',{name:'Leave plan',exact:true}).click();server.failRead=true

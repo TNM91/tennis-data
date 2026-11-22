@@ -412,21 +412,27 @@ Leaving My Lab through the tab controls or Refresh profile reviews unsaved chang
 
 An in-progress save holds the view and asks the player to try leaving after it finishes. An unconfirmed save uses separate copy explaining that it may already have completed; keeping the view retains the original explicit retry operation. Leaving does not undo an accepted save or trigger another one. A changed account closes the warning, clears private work and invalidates its old navigation action. The existing navy confirmation treatment is reused. No new storage, API, schema, notification, polling, automatic save, retry or artwork changes are added. Released in TestFlight 344 with T1 assigned; physical iPhone acceptance remains pending.
 
-### Your TiQ assessment navigation — local follow-up to build 344
+### Your TiQ assessment navigation — released in build 345
 
 Switching tabs or refreshing My Lab while changing an assessment now uses the existing Discard unsaved answers review. Keep answering restores the current step, all entered answers and the last selected question. Discard answers follows the most recently selected destination without saving the assessment or changing the previously saved rating. Empty new assessments and reverted retakes can leave immediately. The existing Cancel flow retains its heading focus and previous behavior.
 
 An assessment save in progress keeps the view open until it completes; the user then chooses navigation again. Durable unconfirmed account saves remain available through Rating history with their existing operation identity. Account changes clear the form and invalidate old discard actions. When an assessment and a scorecard are both being edited, each is reviewed before leaving, including Back to Team results, without duplicate scorecard prompts.
 
-This reuses the existing inline confirmation and centralized account/screen guards. It adds no calculation, storage, account write, coach sharing, API, schema, notification, polling or artwork changes, and no persistence of unsaved answers across force quit. This follow-up is local and not yet in TestFlight; physical iPhone acceptance follows a later beta.
+This reuses the existing inline confirmation and centralized account/screen guards. It adds no calculation, storage, account write, coach sharing, API, schema, notification, polling or artwork changes, and no persistence of unsaved answers across force quit. Released in TestFlight 345 with T1 assigned; physical iPhone acceptance remains pending.
 
-### Your TiQ history change recovery — local follow-up to build 344
+### Your TiQ history change recovery — released in build 345
 
 Rating history keeps an in-progress device import, coach-sharing change, sharing revocation or deletion open through Close, Escape and coaching navigation. It asks the player to try closing again after the save finishes; it does not queue a departure. Loading read-only history and closing a confirmed change still work immediately.
 
 An unconfirmed change uses the existing rounded confirmation treatment with Keep reviewing and Leave history. Keeping restores focus and the same explicit retry operation. Leaving closes without retrying or undoing a change that may already be saved, and directs the player to refresh Rating history before changing it again. Keeping a review clears its requested destination. A later explicit handoff follows only the current choice. Closing returns focus to Rating history through the account refresh, including a failed refresh, without taking focus back after the player moves elsewhere. Account changes force the private history and confirmation closed and invalidate their old actions.
 
-The existing device-import recovery record remains account-scoped. Sharing, revocation and deletion retries remain limited to the open history visit; this does not add an offline queue or force-quit recovery. No new storage, API, schema, account write, coach notification, polling, artwork or styling changes are added. This follows the separately verified assessment navigation update; both are local and not yet in TestFlight. Physical iPhone acceptance follows a later beta.
+The existing device-import recovery record remains account-scoped. Sharing, revocation and deletion retries remain limited to the open history visit; this does not add an offline queue or force-quit recovery. No new storage, API, schema, account write, coach notification, polling, artwork or styling changes are added. Released alongside assessment navigation in TestFlight 345 with T1 assigned; physical iPhone acceptance remains pending.
+
+### Improvement-plan cancellation — local follow-up to build 345
+
+Cancel new plan reviews edits before returning to saved plans. Keep editing preserves the selected assessment, skill, target, practice count and review date, including incomplete blank fields, and restores focus to the selected field. Discard new plan returns to the same Create improvement plan, coach feedback or coach-block invitation, with the invitation visible when needed. An untouched new plan cancels immediately. Editing a reviewed draft retains the same cancellation protection.
+
+Cancelling does not save a plan, alter coach assignments, change an existing plan or send a check-in. Coach-block fields remain read-only; only the player’s starting assessment can change. Close and coaching navigation retain their existing leave behavior, and keeping a review clears its prior destination. Account changes clear the new fields and invalidate the old discard action. Drafts remain memory-only. No new storage, API, schema, rating calculation, sharing, polling, billing, artwork or styling changes are added. This follow-up is local and not yet in TestFlight; physical iPhone acceptance follows a later beta.
 
 ## League Office season review — build 83 released
 
