@@ -1,4 +1,5 @@
 import type { LevelUpCard, LevelUpCategory, LevelUpEquipment, LevelUpIntensity, LevelUpLevel, LevelUpModule, LevelUpSetting } from './level-up-types'
+import {drillPlaybook} from './drill-playbooks'
 
 type CardSeed = {
   title: string
@@ -895,6 +896,7 @@ function makeCard(seed: CardSeed): LevelUpCard {
   const intensity = seed.intensity ?? (seed.category === 'mobility-stretch' || seed.category === 'mental-routine' ? 'low' : 'medium')
   const identitySlugs = seed.identitySlugs ?? identitySlugsFor(seed.tags)
   const content = cardContentEnhancements[id] ?? {}
+  const playbook = drillPlaybook(id)
 
   return {
     id,
@@ -911,7 +913,7 @@ function makeCard(seed: CardSeed): LevelUpCard {
     useWhen: content.useWhen ?? buildUseWhen(seed),
     tennisGoal: content.tennisGoal ?? buildTennisGoal(seed),
     cue: content.cue ?? buildCue(seed),
-    routine: content.routine ?? buildRoutine(seed),
+    routine: playbook?.versions[0].steps ?? content.routine ?? buildRoutine(seed),
     reward: content.reward ?? buildReward(seed),
     proof: content.proof ?? buildProof(seed),
     ratingLabels: ['Cue', 'Routine', 'Reward', 'Proof'],
@@ -921,6 +923,7 @@ function makeCard(seed: CardSeed): LevelUpCard {
     progression: content.progression ?? buildProgression(seed, level),
     regression: content.regression ?? buildRegression(seed),
     safetyNote: content.safetyNote ?? buildSafetyNote(seed),
+    ...(playbook ? {playbook} : {}),
     tags: seed.tags,
     identitySlugs: identitySlugs.length ? identitySlugs : undefined,
   }

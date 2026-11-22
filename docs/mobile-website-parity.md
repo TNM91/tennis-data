@@ -1,5 +1,13 @@
 # Website to iPhone parity
 
+## TiQ drill playbooks — local follow-up to build 346
+
+The six assessment-linked drills now share original TenAceIQ playbooks: realistic court setup, Build control / Add pressure routines, clear repetition counts, easier adaptations and practice progression. Their default routines are part of the shared website card library; the iPhone preview adds a version selector and compact setup. The active session offers optional round counts, with a responsive layout for narrow screens and larger text.
+
+An entered zero is a result; a blank round remains unrecorded. Only completed ten-attempt rounds contribute to the displayed total. The selected version and entered counts save in the existing private training note. With no counts, the original note remains unchanged. Raw entries survive close/keep, timer pauses and backgrounding; an unconfirmed save freezes the same note, identity and counts for checking or retry. Overlong notes and invalid counts require correction without truncating the draft. Repeating a drill starts new blank rounds.
+
+Practice counts, the subjective 0–5 proof score and the TiQ assessment remain distinct. This change does not alter ratings, complete coach assignments, share private notes automatically, or add API/schema/collector/billing work. It is not in build 346. The preceding coach practice-block editor still requires its separate compatible API rollout before a combined native release. Physical iPhone and VoiceOver acceptance remain release checks.
+
 Updated October 24, 2026. Baseline: released website and iPhone build 45. The website defines product depth and role-based tasks; iPhone adaptations should improve those tasks without silently removing them. Team chat intentionally follows a GroupMe-style sports conversation model.
 
 ## Evidence and limits
