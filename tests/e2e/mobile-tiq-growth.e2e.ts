@@ -3,6 +3,7 @@ import {build} from 'esbuild'
 import {readFile} from 'node:fs/promises'
 import path from 'node:path'
 import {growthServer,growthPlayer,growthPeer,growthId,type GrowthRequest} from '../fixtures/tiq-growth-server'
+import type {CoachAssessment} from '../../lib/native-coach-assessment-contract'
 const origin='http://127.0.0.1:4286'
 let javascript='',stylesheet='',shell=''
 type Server=Awaited<ReturnType<typeof growthServer>>
@@ -85,6 +86,111 @@ test.describe('assessment choices',()=>{
       expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await d.screenshot({path:info.outputPath('same-day-shared-assessments.png')})
     })
   }
+})
+
+function coachObservation(id:number,createdAt:string,focus:CoachAssessment['observation']['focus']='serve'):CoachAssessment{
+  return {id:growthId(id),coach:'Morgan Courts',createdAt,observation:{context:'drill',skills:{serve:3,return:1,rally:2},focus,note:'Court observation '+id}}
+}
+function coachObservations(server:Server,rows:CoachAssessment[]){
+  const original=server.request;let reads=0
+  server.request=async request=>{
+    const response=await original(request)
+    if(request.method==='GET'&&new URL(request.url).pathname==='/api/mobile/coach/assessments'&&response.status===200){reads++;return {...response,body:{...(response.body as Record<string,unknown>),assessments:rows}}}
+    return response
+  }
+  return {get reads(){return reads}}
+}
+async function playerAlignment(page:Page){
+  await page.locator('.lab-starter-tiq').getByRole('button',{name:'Coach assessments',exact:true}).click()
+  await page.getByRole('dialog',{name:'Coach assessments',exact:true}).getByRole('button',{name:'Player & coach view',exact:true}).click()
+  const d=page.getByRole('dialog',{name:'Player and coach view',exact:true});await expect(d.getByLabel('Player self-assessment')).toBeEnabled();return d
+}
+test('coach observation choices distinguish two same-day observations before planning practice',async({page,server})=>{
+  const earlier=coachObservation(81,'2026-11-20T12:00:00.000001Z','return'),later=coachObservation(82,'2026-11-20T12:00:00.000002Z')
+  coachObservations(server,[later,earlier]);await open(page);const d=await alignment(page),select=d.getByLabel('Coach observation')
+  const first=await select.locator('option[value="'+earlier.id+'"]').textContent(),second=await select.locator('option[value="'+later.id+'"]').textContent()
+  expect(first).not.toBe(second)
+  await expect(select.locator('option[value="'+earlier.id+'"]')).toContainText('1 of 2');await expect(select.locator('option:checked')).toContainText('2 of 2')
+  await select.selectOption(earlier.id);await expect(d.locator('.tiq-alignment-context')).toContainText('1 of 2')
+  await d.getByRole('button',{name:'Plan practice block',exact:true}).click();await expect(d.getByRole('combobox',{name:'Skill',exact:true})).toHaveValue('return')
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+})
+
+test.describe('coach observation local dates',()=>{
+  test.use({timezoneId:'Pacific/Kiritimati'})
+  for(const width of [320,390])test('coach observation choices use the local day and readable selected details at '+width+'px',async({page,server},info)=>{
+    const previous=coachObservation(80,'2026-11-19T09:59:59.999999Z'),earlier=coachObservation(81,'2026-11-19T10:00:00.000001Z','return'),later=coachObservation(82,'2026-11-19T10:00:00.000002Z')
+    coachObservations(server,[later,earlier,previous]);await page.setViewportSize({width,height:844});await open(page,width===320);const d=await alignment(page),select=d.getByLabel('Coach observation')
+    await expect(select.locator('option[value="'+previous.id+'"]')).not.toContainText('of ')
+    await expect(select.locator('option[value="'+earlier.id+'"]')).toContainText('Nov 20, 2026 · 1 of 2')
+    await select.selectOption(earlier.id);await expect(select).toHaveAttribute('aria-describedby','tiq-alignment-coach-context')
+    const selected=d.locator('#tiq-alignment-coach-context');await expect(selected).toContainText('Nov 20, 2026 · 1 of 2 · Morgan Courts · On-court drill');await expect(selected).toContainText('Recorded')
+    await expect(d.getByLabel('Player self-assessment')).toHaveAttribute('aria-describedby','tiq-alignment-player-context')
+    expect(await d.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+    await expect(selected).toHaveCSS('background-color','rgba(0, 0, 0, 0)')
+    await selected.scrollIntoViewIfNeeded()
+    await d.screenshot({path:info.outputPath('coach-observation-choices-'+width+'.png')})
+    await d.getByRole('button',{name:'Plan practice block',exact:true}).click();await expect(d.getByRole('combobox',{name:'Skill',exact:true})).toHaveValue('return')
+    expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+  })
+})
+
+for(const role of ['coach','player'] as const)test('coach observation choices describe a lone selection without implying a comparison for '+role,async({page,server})=>{
+  const earlier=coachObservation(81,'2026-11-20T12:00:00Z','return'),later=coachObservation(82,'2026-11-20T12:01:00Z')
+  coachObservations(server,[later,earlier]);await open(page);const d=role==='coach'?await alignment(page):await playerAlignment(page),self=d.getByLabel('Player self-assessment'),coach=d.getByLabel('Coach observation')
+  await self.selectOption('');await coach.selectOption(earlier.id)
+  await expect(d.getByRole('table')).toHaveCount(0);await expect(d.locator('#tiq-alignment-player-context')).toHaveCount(0)
+  await expect(d.locator('#tiq-alignment-coach-context')).toContainText('1 of 2');await expect(coach).toHaveAttribute('aria-describedby','tiq-alignment-coach-context')
+  await coach.selectOption('');await expect(d.locator('.tiq-alignment-context')).toHaveCount(0);await expect(coach).not.toHaveAttribute('aria-describedby',/./)
+  const id=role==='coach'?growthId(2):growthId(1);await self.selectOption(id)
+  await expect(d.locator('#tiq-alignment-player-context')).toContainText('Player:');await expect(d.locator('#tiq-alignment-coach-context')).toHaveCount(0);await expect(d.getByRole('table')).toHaveCount(0)
+  if(role==='player')await expect(d.getByRole('button',{name:'Plan practice block',exact:true})).toHaveCount(0)
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+})
+
+test('coach observation choices keep the exact selected record through refreshed order and new observations',async({page,server})=>{
+  const earlier=coachObservation(81,'2026-11-20T12:00:00Z','return'),later=coachObservation(82,'2026-11-20T12:01:00Z'),rows=[later,earlier]
+  coachObservations(server,rows);await open(page);const d=await alignment(page),select=d.getByLabel('Coach observation')
+  await select.selectOption(earlier.id)
+  rows.unshift(coachObservation(83,'2026-11-20T12:02:00Z'));rows.push(coachObservation(80,'2026-11-20T11:59:00Z'))
+  await d.getByRole('button',{name:'Refresh shared assessments',exact:true}).click();await expect(select).toBeEnabled();await expect(select).toHaveValue(earlier.id)
+  await expect(d.locator('#tiq-alignment-coach-context')).toContainText('2 of 4');await expect(d).toContainText('Court observation 81');await expect(d).not.toContainText('Court observation 83')
+  await d.getByRole('button',{name:'Plan practice block',exact:true}).click();await expect(d.getByRole('combobox',{name:'Skill',exact:true})).toHaveValue('return')
+  await d.getByRole('button',{name:'Review practice block',exact:true}).click();await d.getByRole('button',{name:'Assign practice block',exact:true}).click()
+  await expect(d).toContainText('Practice block assigned.')
+  const assignments=(await server.db.query<{focus:string;assignment_json:{tiqGrowth:{skill:string}}}>('select focus,assignment_json from coach_assignments')).rows
+  expect(assignments).toHaveLength(1);expect(assignments[0].assignment_json.tiqGrowth.skill).toBe('return')
+})
+
+test('coach observation choices stay selected when loading earlier self-assessments without another observation read',async({page,server})=>{
+  for(let n=20;n<46;n++)await server.assess(growthPlayer,n)
+  const earlier=coachObservation(81,'2026-11-20T12:00:00Z','return'),later=coachObservation(82,'2026-11-20T12:01:00Z'),counter=coachObservations(server,[later,earlier])
+  await open(page);const d=await playerAlignment(page),select=d.getByLabel('Coach observation');await select.selectOption(earlier.id)
+  const label=await select.locator('option:checked').textContent(),reads=counter.reads
+  await expect(d.getByLabel('Player self-assessment').locator('option')).toHaveCount(26)
+  await d.getByRole('button',{name:'Load earlier self-assessments',exact:true}).click();await expect(d.getByLabel('Player self-assessment').locator('option')).toHaveCount(28)
+  await expect(select).toHaveValue(earlier.id);await expect(select.locator('option:checked')).toHaveText(label!);await expect(d.locator('#tiq-alignment-coach-context')).toContainText('1 of 2');expect(counter.reads).toBe(reads)
+})
+
+test('coach observation choices clear revoked details and recover only records still available',async({page,server})=>{
+  const earlier=coachObservation(81,'2026-11-20T12:00:00Z','return'),later=coachObservation(82,'2026-11-20T12:01:00Z'),rows=[later,earlier]
+  coachObservations(server,rows);await open(page);const d=await alignment(page);await d.getByLabel('Coach observation').selectOption(earlier.id)
+  server.revoked=true;await d.getByRole('button',{name:'Refresh shared assessments',exact:true}).click();await expect(d).toContainText('couldn’t load')
+  await expect(d.locator('.tiq-alignment-context')).toHaveCount(0);await expect(d.getByRole('table')).toHaveCount(0);await expect(d).not.toContainText('Court observation 81')
+  server.revoked=false;rows.splice(1,1);await d.getByRole('button',{name:'Refresh shared assessments',exact:true}).click()
+  await expect(d.getByLabel('Coach observation')).toHaveValue(later.id);await expect(d.locator('#tiq-alignment-coach-context')).not.toContainText('of ');await expect(d).not.toContainText('Court observation 81')
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
+})
+
+test('coach observation choices ignore a late refresh after the account changes',async({page,server})=>{
+  const rows=[coachObservation(81,'2026-11-20T12:00:00Z')];coachObservations(server,rows)
+  await open(page);const d=await alignment(page),original=server.request;let held=false,release:()=>void=()=>{}
+  const receipt=new Promise<void>(resolve=>{release=resolve})
+  server.request=async request=>{const response=await original(request);if(request.method==='GET'&&new URL(request.url).pathname==='/api/mobile/coach/assessments'){held=true;await receipt}return response}
+  await d.getByRole('button',{name:'Refresh shared assessments',exact:true}).click();await expect.poll(()=>held).toBe(true)
+  await page.evaluate(()=>(window as unknown as {switchNavigationOwner:()=>void}).switchNavigationOwner());release()
+  await expect(d).toHaveCount(0);await expect(page.locator('body')).not.toContainText('Court observation 81');await expect(page.locator('body')).toHaveAttribute('data-screen','lab')
+  expect((await server.db.query('select * from coach_assignments')).rows).toHaveLength(0)
 })
 
 test('keeps practice private and recovers a lost log reply after relaunch without duplicates',async({page,server},info)=>{

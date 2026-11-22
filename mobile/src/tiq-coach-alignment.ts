@@ -1,7 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {NativeCoachStudent, NativeCoachSnapshot} from '../../lib/native-coach-contract'
 import {readCoachCreate} from '../../lib/native-coach-contract'
-import {assessmentContexts, type CoachAssessment} from '../../lib/native-coach-assessment-contract'
+import type {CoachAssessment} from '../../lib/native-coach-assessment-contract'
 import type {TiqHistory} from '../../lib/tiq-self-assessment'
 import {tiqSkills, tiqSkillLevels} from '../../lib/tiq-assessment-skills'
 import type {PracticeBlock} from '../../lib/tiq-growth'
@@ -11,6 +11,7 @@ import {assignCoachPractice, type CoachSend} from './coach-workspace-data'
 import {bindPracticeSkill, defaultPracticeBlock, practiceBlockDraft, practiceBlockFields, practiceBlockFrom} from './tiq-growth-view'
 import {html} from './match-details'
 import {tiqAssessmentChoiceLabel} from './tiq-assessment-label'
+import {coachAssessmentChoiceLabel} from './coach-assessment-label'
 
 export function openTiqCoachAlignment(client: SupabaseClient, owner: string, current: () => boolean, trigger: HTMLElement,
   options: {student?: NativeCoachStudent; assigned?: (snapshot:NativeCoachSnapshot)=>void}, send?: CoachSend) {
@@ -32,11 +33,11 @@ export function openTiqCoachAlignment(client: SupabaseClient, owner: string, cur
     else if(view==='plan')body=`<p>Give ${html(student?.name??'your player')} one measurable focus. Their assessment and practice logs remain private unless they share them.</p><form data-block>${practiceBlockFields(block)}<button type="submit">Review practice block</button></form>`
     else if(view==='confirm'&&draft)body=`<h3>${html(draft.title)}</h3><p>${html(draft.tiqGrowth!.target)}</p><p>${draft.tiqGrowth!.sessions} practices · Review ${html(draft.dueDate!)}</p><p>Shares this assignment with ${html(student?.name??'your player')}. It does not change their TiQ.</p><button type="button" data-assign ${busy?'disabled':''}>${notice?'Retry same practice block':'Assign practice block'}</button>`
     else body=`<p>Compare how the player sees their game with what a coach observed. Different dates and court situations can explain different answers.</p>${history?`
-      <label>Player self-assessment<select data-self ${busy?'disabled':''}><option value="">${student?'No shared self-assessment':'No saved self-assessment'}</option>${assessments.map(row=>`<option value="${row.id}" ${row.id===selfId?'selected':''}>${html(tiqAssessmentChoiceLabel(row,assessments))}</option>`).join('')}</select></label>
+      <label>Player self-assessment<select data-self ${self?'aria-describedby="tiq-alignment-player-context"':''} ${busy?'disabled':''}><option value="">${student?'No shared self-assessment':'No saved self-assessment'}</option>${assessments.map(row=>`<option value="${row.id}" ${row.id===selfId?'selected':''}>${html(tiqAssessmentChoiceLabel(row,assessments))}</option>`).join('')}</select></label>
       ${student?'<p>Only assessments the player has shared with you appear here.</p>':''}
-      <label>Coach observation<select data-coach ${busy?'disabled':''}><option value="">No shared coach observation</option>${observations.map(row=>`<option value="${row.id}" ${row.id===coachId?'selected':''}>${html(new Date(row.createdAt).toLocaleDateString())} · ${html(row.coach)} · ${assessmentContexts[row.observation.context]}</option>`).join('')}</select></label>
-      ${self&&coach?`<p class="tiq-alignment-context"><strong>Player:</strong> ${html(tiqAssessmentChoiceLabel(self,assessments))}<br>Saved ${html(new Date(self.createdAt).toLocaleString())}<br><strong>${html(coach.coach)}:</strong> ${html(new Date(coach.createdAt).toLocaleString())} · ${assessmentContexts[coach.observation.context]}</p>
-        <div class="tiq-alignment-table" role="table" aria-label="Player and coach skill comparison"><div role="row"><span role="columnheader">Skill</span><span role="columnheader">Player</span><span role="columnheader">Coach</span></div>${tiqSkills.map(skill=>{const observed=coach.observation.skills[skill.id];return `<div role="row"><strong role="rowheader">${skill.skill}</strong><span role="cell">${tiqSkillLevels[self.answers[skill.id]]}</span><span role="cell">${observed===undefined?'Not observed':tiqSkillLevels[observed]}</span></div>`}).join('')}</div>
+      <label>Coach observation<select data-coach ${coach?'aria-describedby="tiq-alignment-coach-context"':''} ${busy?'disabled':''}><option value="">No shared coach observation</option>${observations.map(row=>`<option value="${row.id}" ${row.id===coachId?'selected':''}>${html(coachAssessmentChoiceLabel(row,observations))}</option>`).join('')}</select></label>
+      ${self||coach?`<p class="tiq-alignment-context">${self?`<span id="tiq-alignment-player-context"><strong>Player:</strong> ${html(tiqAssessmentChoiceLabel(self,assessments))}<br>Saved ${html(new Date(self.createdAt).toLocaleString())}</span>`:''}${self&&coach?'<br>':''}${coach?`<span id="tiq-alignment-coach-context"><strong>Coach observation:</strong> ${html(coachAssessmentChoiceLabel(coach,observations))}<br>Recorded ${html(new Date(coach.createdAt).toLocaleString())}</span>`:''}</p>`:''}
+      ${self&&coach?`<div class="tiq-alignment-table" role="table" aria-label="Player and coach skill comparison"><div role="row"><span role="columnheader">Skill</span><span role="columnheader">Player</span><span role="columnheader">Coach</span></div>${tiqSkills.map(skill=>{const observed=coach.observation.skills[skill.id];return `<div role="row"><strong role="rowheader">${skill.skill}</strong><span role="cell">${tiqSkillLevels[self.answers[skill.id]]}</span><span role="cell">${observed===undefined?'Not observed':tiqSkillLevels[observed]}</span></div>`}).join('')}</div>
         <p>${tiqSkills.filter(s=>coach.observation.skills[s.id]===self.answers[s.id]).length} matching · ${tiqSkills.filter(s=>coach.observation.skills[s.id]!==undefined&&coach.observation.skills[s.id]!==self.answers[s.id]).length} different · ${tiqSkills.filter(s=>coach.observation.skills[s.id]===undefined).length} not observed</p><p>These are observations, not a verified rating. Discuss a difference and use a court check to choose what to practise.</p>`:'<p>Select a player assessment and a coach observation to compare the six skills.</p>'}
       ${coach?.observation.note?`<p class="coach-written">${html(coach.observation.note)}</p>`:''}
       ${coach?.observation.focus?`<p><strong>Coach’s practice priority:</strong> ${html(tiqSkills.find(s=>s.id===coach.observation.focus)!.skill)}</p>`:''}

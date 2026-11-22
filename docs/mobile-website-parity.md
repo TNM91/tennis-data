@@ -434,6 +434,14 @@ Cancel new plan reviews edits before returning to saved plans. Keep editing pres
 
 Cancelling does not save a plan, alter coach assignments, change an existing plan or send a check-in. Coach-block fields remain read-only; only the player’s starting assessment can change. Close and coaching navigation retain their existing leave behavior, and keeping a review clears its prior destination. Account changes clear the new fields and invalidate the old discard action. Drafts remain memory-only. No new storage, API, schema, rating calculation, sharing, polling, billing, artwork or styling changes are added. This follow-up is local and not yet in TestFlight; physical iPhone acceptance follows a later beta.
 
+### Coach observation choices — local follow-up to build 345
+
+Player & coach view distinguishes observations from the same local calendar day with chronological positions among the loaded records, followed by the coach and court context. PostgreSQL microseconds and stable record-ID ties determine position; numbering does not change the records or imply a rating. The existing latest-12 limit and access rules remain unchanged.
+
+The selected observation’s full label and recorded time remain readable outside the picker. Each picker describes its own selected source for assistive technology. A lone self-assessment or coach observation shows its source without inventing a comparison. Refresh and earlier self-assessment pages keep the selected observation by ID while it remains available; a new practice block still starts from that selected observation’s priority and requires explicit review and assignment. Revoked access clears source details, and late responses after account changes remain ignored.
+
+No new account reads, storage, sharing, API, schema, calculation, background work, artwork or styling changes are added. The prior practice-plan cancellation improvement remains included in the local branch. Both follow-ups are local and not yet in TestFlight; physical iPhone acceptance follows a later beta.
+
 ## League Office season review — build 83 released
 
 My Lab → League Office adds a connected read-only visit through seasons created by the signed-in account, participant entry records, schedules, recorded results/courts and team standings. The home is generated from the actual website `LeagueOfficeHome` component and its CSS; the optional caption says Workspace in the app without claiming a different membership plan. The website's team standings calculation is extracted into a pure helper and reused unchanged by both callers, including dynamic points and configured standings rules. Unplayed events do not become wins, losses or ties. Individual leagues show recorded player results; this slice does not invent individual standings.
