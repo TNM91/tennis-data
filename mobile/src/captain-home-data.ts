@@ -1,4 +1,5 @@
 import type {CaptainHomeMatchFocus} from '../../lib/captain-home-match-focus'
+import type {CenterStep} from './captain-match-center-view'
 import {isValidCalendarDate} from '../../lib/calendar-date'
 import {matchCenterContext,matchCenterFixture,matchCenterNext,type MatchCenter} from './captain-match-center-data'
 import type {CaptainData,CaptainMatch} from './captain-data'
@@ -11,6 +12,15 @@ export function captainHomeMatch(data:CaptainData,id:string):CaptainMatch|null{
  if(matches.length!==1)return null
  const m=matches[0];return m.id&&m.opponent.trim()&&isValidCalendarDate(m.date)?m:null
 }
+export function captainHomeSelection(data:CaptainData,requested?:string){
+ const match=captainHomeMatch(data,requested??data.matches[0]?.id??'')
+ return {id:match?.id??'',missing:Boolean(requested)&&!match}
+}
+export function captainHomeIssueStep(focus:CaptainHomeMatchFocus|null,index:string):CenterStep|null{
+ if(!focus||!/^[0-2]$/.test(index))return null
+ const kind=focus.issues[Number(index)]?.kind
+ return kind==='lineup'?'lineup':kind==='availability'?'availability':kind==='send'?'messaging':null
+}
 export function captainHomeFocus(scope:TeamScope,match:CaptainMatch,data:MatchCenter):CaptainHomeMatchFocus{
  matchCenterContext(scope,match,data.lineup,data.publication);matchCenterFixture(scope,match,data.fixture)
  if(!Number.isFinite(Date.parse(data.checkedAt)))throw Error('Readiness time could not be confirmed.')
@@ -18,7 +28,7 @@ export function captainHomeFocus(scope:TeamScope,match:CaptainMatch,data:MatchCe
  if(ready.openSeats||ready.duplicates)issues.push({kind:'lineup',label:ready.duplicates?'A player appears more than once in this plan.':`${ready.openSeats} open playing seat${ready.openSeats===1?'':'s'}.`})
  if(ready.attention.length)issues.push({kind:'availability',label:`${ready.attention.length} selected player${ready.attention.length===1?' needs':'s need'} availability review.`})
  if(data.publication.shared.pendingFinal)issues.push({kind:'send',label:'Final lineup delivery needs review.'})
- return {courtsLabel:String(ready.courts)+(ready.defaults?` (${ready.defaults} defaulted)`:''),confirmedLabel:`${ready.available} of ${ready.selected.length}`,waitingLabel:String(ready.attention.length),issues,action:{kind:next.action==='plan'?'lineup':next.action==='publish'?'send':'court',label:next.label,detail:next.reason}}
+ return {courtsLabel:String(ready.courts)+(ready.defaults?` (${ready.defaults} defaulted)`:''),confirmedLabel:`${ready.available} of ${ready.selected.length}`,waitingLabel:String(ready.attention.length),issues,action:{kind:next.action==='plan'?'lineup':next.action==='replies'?'availability':next.action==='publish'?'send':'court',label:next.label,detail:next.reason}}
 }
 export function captainHomeFocusHtml(focus:CaptainHomeMatchFocus|null){
  const value=focus??{courtsLabel:'Not checked',confirmedLabel:'Not checked',waitingLabel:'Not checked',issues:[],action:{kind:'lineup' as const,label:'Check match readiness',detail:'Check this fixture’s private working plan, availability and shared lineup before choosing your next task.'}}

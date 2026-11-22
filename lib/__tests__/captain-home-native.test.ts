@@ -1,5 +1,5 @@
 import {it,expect} from 'vitest'
-import {captainHomeMatch,captainHomeFocus,captainHomeFocusHtml} from '../../mobile/src/captain-home-data'
+import {captainHomeMatch,captainHomeFocus,captainHomeFocusHtml,captainHomeIssueStep,captainHomeSelection} from '../../mobile/src/captain-home-data'
 import type {CaptainData} from '../../mobile/src/captain-data'
 import type {MatchCenter} from '../../mobile/src/captain-match-center-data'
 import ui from '../../mobile/generated/website-ui.json'
@@ -13,8 +13,43 @@ it('escapes fixture details and keeps missing time and facility explicit',()=>{
  expect(markup).toContain('&lt;Aces&gt;');expect(markup).toContain('&lt;Rallies&gt;');expect(markup).not.toContain('<Rallies>')
  expect(markup).toContain('Time not set');expect(markup).toContain('Facility not set');expect(markup).toContain('<dt>Match date</dt>')
 })
+it('restores the chosen fixture by ID after reordering, even when match labels are the same',()=>{
+ const second={...match,id:'second-fixture'},data={matches:[match,second]} as CaptainData
+ expect(captainHomeSelection(data)).toEqual({id:match.id,missing:false})
+ expect(captainHomeSelection(data,second.id)).toEqual({id:second.id,missing:false})
+ data.matches.reverse();expect(captainHomeSelection(data,match.id)).toEqual({id:match.id,missing:false})
+})
+it('withholds a missing, ambiguous or invalid restored fixture instead of choosing another match',()=>{
+ for(const matches of [[match],[match,{...match,id:'requested'},{...match,id:'requested'}],[match,{...match,id:'requested',date:'2026-02-30'}]])expect(captainHomeSelection({matches} as CaptainData,'requested')).toEqual({id:'',missing:true})
+})
+it('keeps an intentionally empty fixture choice and handles an empty schedule without inventing a selection',()=>{
+ expect(captainHomeSelection({matches:[match]} as CaptainData,'')).toEqual({id:'',missing:false})
+ expect(captainHomeSelection({matches:[]} as unknown as CaptainData)).toEqual({id:'',missing:false})
+})
 it('shows unchecked rather than invented zero readiness, using the actual website card',()=>{const h=captainHomeFocusHtml(null);expect(h).toContain('Not checked');expect(h).toContain('Check match readiness');expect(h).toContain('Available shown');expect(h).toContain('Needs review');expect(h).toContain('data-focus-primary');expect(h).not.toContain('data-focus-issue=')})
-it('uses selected-player key matches, counts unavailable/missing replies, and delegates the next action to Match Center',()=>{const c=center();c.replies.people[1].status='unavailable';c.replies.people.push({key:'backup',name:'Backup',status:'available',source:'captain',selected:false});const f=captainHomeFocus(scope,match,c);expect(f.confirmedLabel).toBe('1 of 2');expect(f.waitingLabel).toBe('1');expect(f.action.label).toBe('Review working lineup');expect(f.issues[0].kind).toBe('availability');c.replies.people=c.replies.people.filter(p=>p.key!=='b');expect(captainHomeFocus(scope,match,c).waitingLabel).toBe('1')})
+it('uses selected-player key matches, counts unavailable/missing replies, and delegates the next action to Match Center',()=>{const c=center();c.replies.people[1].status='unavailable';c.replies.people.push({key:'backup',name:'Backup',status:'available',source:'captain',selected:false});const f=captainHomeFocus(scope,match,c);expect(f.confirmedLabel).toBe('1 of 2');expect(f.waitingLabel).toBe('1');expect(f.action.label).toBe('Review selected player replies');expect(f.action.kind).toBe('availability');expect(f.issues[0].kind).toBe('availability');c.replies.people=c.replies.people.filter(p=>p.key!=='b');expect(captainHomeFocus(scope,match,c).waitingLabel).toBe('1')})
 it('surfaces open seats, duplicate assignments, defaults and pending delivery without implying a send',()=>{const c=center();c.lineup.plan.courts[0].players=['a',''];c.publication.shared.pendingFinal=true;const f=captainHomeFocus(scope,match,c);expect(f.issues.map(i=>i.kind)).toEqual(['lineup','send']);expect(f.action.label).toBe('Review pending final update');c.lineup.plan.courts[0].players=['a','a'];expect(captainHomeFocus(scope,match,c).issues[0].label).toContain('more than once');c.lineup.plan.courts[0].defaulted=true;expect(captainHomeFocus(scope,match,c).courtsLabel).toContain('1 defaulted')})
 it('withholds scope, fixture, draft-version and invalid timestamp mismatches',()=>{for(const mutate of [(c:MatchCenter)=>{c.publication.draftVersion='new'},(c:MatchCenter)=>{c.fixture.away='Other'},(c:MatchCenter)=>{c.checkedAt='bad'}]){const c=center();mutate(c);expect(()=>captainHomeFocus(scope,match,c)).toThrow()}expect(()=>captainHomeFocus({...scope,flight:'4.5'},match,center())).toThrow()})
+it('opens the workspace for the clicked issue instead of the primary next task',()=>{
+ const f=captainHomeFocus(scope,match,center())
+ f.issues=[{kind:'lineup',label:'Open seats'},{kind:'availability',label:'Replies need review'},{kind:'send',label:'Delivery needs review'}]
+ expect(captainHomeIssueStep(f,'0')).toBe('lineup')
+ expect(captainHomeIssueStep(f,'1')).toBe('availability')
+ expect(captainHomeIssueStep(f,'2')).toBe('messaging')
+})
+it('follows the current issue ordering without matching labels or assuming availability is first',()=>{
+ const f=captainHomeFocus(scope,match,center())
+ f.issues=[{kind:'availability',label:'Same label'}];expect(captainHomeIssueStep(f,'0')).toBe('availability')
+ f.issues=[{kind:'send',label:'Same label'},{kind:'lineup',label:'Same label'}]
+ expect(captainHomeIssueStep(f,'0')).toBe('messaging');expect(captainHomeIssueStep(f,'1')).toBe('lineup')
+})
+it('refuses missing, malformed and out-of-range issue indices',()=>{
+ const f=captainHomeFocus(scope,match,center());f.issues=[{kind:'availability',label:'Replies'}]
+ for(const index of ['', '-1', '3', '01', '1.0', '1e0', '0x0', 'NaN', ' 0 ', '1'])expect(captainHomeIssueStep(f,index),index).toBeNull()
+ expect(captainHomeIssueStep(null,'0')).toBeNull()
+})
+it('does not turn an unsupported issue into a different task',()=>{
+ const f=captainHomeFocus(scope,match,center());f.issues=[{kind:'chat',label:'Chat'}]
+ expect(captainHomeIssueStep(f,'0')).toBeNull()
+})
 it('escapes dynamic labels once and generates only the requested issue controls without executable markup',()=>{const f=captainHomeFocus(scope,match,center());f.action.detail='TIQ_CAPTAIN_ACTION <script>';const h=captainHomeFocusHtml(f);expect(h).toContain('TIQ_CAPTAIN_ACTION &lt;script&gt;');expect(h).not.toContain('<script>');for(let i=0;i<4;i++){expect(ui.captainFocus[i].match(/data-focus-issue=/g)?.length||0).toBe(i);expect(ui.captainFocus[i]).not.toMatch(/ style=|<script|onclick=/)}})

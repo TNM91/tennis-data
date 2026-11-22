@@ -20,7 +20,7 @@ describe('fixture-specific native Captain Match Center',()=>{
  it('loads four explicit read snapshots and requires exact fixture/scope/version agreement',async()=>{const read=reads(),result=await loadMatchCenter(client,'owner',()=>true,scope,match,read);expect(result.lineup.version).toBe(lineup.version);expect(read.lineup).toHaveBeenCalledWith(client,'owner',expect.any(Function),scope,match.id);for(const fn of Object.values(read))expect(fn).toHaveBeenCalledTimes(1);for(const changed of [{...publication,draftVersion:'new'},{...publication,fixtureId:'other'},{...publication,scope:{...scope,flight:'4.5'}}])expect(()=>matchCenterContext(scope,match,lineup,changed)).toThrow();expect(()=>matchCenterFixture(scope,match,{...fixture,away:'Other'})).toThrow()})
  it('fails closed on any incomplete source or response after disposal without further reads',async()=>{const read=reads();read.replies.mockRejectedValue(Error('denied'));await expect(loadMatchCenter(client,'owner',()=>true,scope,match,read)).rejects.toThrow();const idle=reads();await expect(loadMatchCenter(client,'owner',()=>false,scope,match,idle)).rejects.toThrow();expect(idle.lineup).not.toHaveBeenCalled();let n=0;await expect(loadMatchCenter(client,'owner',()=>++n===1,scope,match,reads())).rejects.toThrow('no longer open')})
  it('distinguishes a private court revision from the shared courts without treating sent flags as proof',()=>{expect(workingCourtsMatchShared(center)).toBe(true);expect(workingCourtsMatchShared({...center,lineup:{...lineup,plan:{...lineup.plan,courts:[{...lineup.plan.courts[0],label:'New court'}]}}})).toBe(false);expect(workingCourtsMatchShared({...center,publication:{...publication,shared:{...publication.shared,active:false}}})).toBe(false)})
- it('prioritizes pending delivery, final match-day checks, open seats and uncertain replies correctly',()=>{expect(matchCenterNext({...center,publication:{...publication,shared:{...publication.shared,pendingFinal:true}}}).action).toBe('publish');expect(matchCenterNext({...center,publication:final}).action).toBe('day');expect(matchCenterNext({...center,lineup:{...lineup,version:''}}).action).toBe('plan');expect(matchCenterNext({...center,replies:{...replies,people:[{...replies.people[0],status:'waiting'}]}}).action).toBe('plan');expect(matchCenterNext(center).label).toBe('Review final lineup')})
+ it('prioritizes pending delivery, final match-day checks, open seats and uncertain replies correctly',()=>{expect(matchCenterNext({...center,publication:{...publication,shared:{...publication.shared,pendingFinal:true}}}).action).toBe('publish');expect(matchCenterNext({...center,publication:final}).action).toBe('day');expect(matchCenterNext({...center,lineup:{...lineup,version:''}}).action).toBe('plan');expect(matchCenterNext({...center,replies:{...replies,people:[{...replies.people[0],status:'waiting'}]}}).action).toBe('replies');expect(matchCenterNext(center).label).toBe('Review final lineup')})
  it('shows court-confirmation progress without inventing player acknowledgement counts or exposing private notes/tokens',()=>{const markup=centerProgressHtml({...center,lineup:{...lineup,plan:{...lineup.plan,notes:'do not disclose'}}});expect(markup).toContain('1 of 1 courts confirmed');expect(markup).not.toContain('do not disclose');expect(markup).not.toContain(publication.expectedCardToken);expect(markup).not.toContain('players confirmed')})
  it('counts only explicit arrival check-ins from the exact delivered final shared card',()=>{expect(matchCenterArrivals(final,[message])).toMatchObject({available:true,here:1,onMyWay:0,runningLate:1,people:[{profileId:'a',name:'Alex'},{profileId:'b',name:'Jordan'}]});expect(matchCenterArrivals(publication,[message]).available).toBe(false);expect(matchCenterArrivals(final,[{...message,id:'other'}]).available).toBe(false);expect(matchCenterArrivals(final,[message,message]).available).toBe(false)})
  it('withholds arrivals for a changed, deleted, completed, unpublished, different-date or different-lineup card',()=>{for(const card of [{...message.card!,state:'archived'},{...message.card!,completed:true},{...message.card!,published:false},{...message.card!,matchDate:'2026-11-01'},{...message.card!,opponent:'Other'},{...message.card!,lineup:[{label:'Other',players:['Alex','Jordan'],defaulted:false}]},{...message.card!,cardType:'other'}])expect(matchCenterArrivals(final,[{...message,card}]).available).toBe(false);expect(matchCenterArrivals(final,[{...message,deletedAt:'now'}]).available).toBe(false)})
@@ -28,6 +28,40 @@ describe('fixture-specific native Captain Match Center',()=>{
  it('keeps an empty explicit arrival snapshot distinct from players being absent',()=>{const result=matchCenterArrivals(final,[{...message,card:{...message.card!,arrivals:[]}}]);expect(result).toMatchObject({available:true,here:0,onMyWay:0,runningLate:0,people:[]});expect(result.reason).toContain('do not mean a player is absent')})
  it('rechecks publication and fixture before bounded match-day reads and rejects crossed replacement/card versions',async()=>{const read={publication:vi.fn().mockResolvedValue(final),fixture:vi.fn().mockResolvedValue({fixture,today:center.today}),replacement:vi.fn().mockResolvedValue(replacement),chat:vi.fn().mockResolvedValue({messages:[message]})};const result=await loadMatchCenterDay(client,'owner',()=>true,scope,match,'room',center,read);expect(result.arrivals.here).toBe(1);expect(read.chat).toHaveBeenCalledWith(client,'owner',expect.any(Function),scope,'room');read.replacement.mockResolvedValueOnce({...replacement,expectedCardToken:'b'.repeat(64)});await expect(loadMatchCenterDay(client,'owner',()=>true,scope,match,'room',center,read)).rejects.toThrow('shared lineup changed');read.fixture.mockResolvedValueOnce({fixture:{...fixture,facility:'Other'},today:center.today});await expect(loadMatchCenterDay(client,'owner',()=>true,scope,match,'room',center,read)).rejects.toThrow('fixture details changed')})
  it('renders replacement and arrival snapshots without candidate identities, reply tokens or HTML execution',()=>{const day={publication:final,replacement:{currentChange:{courtLabel:'<Court>',replacementPlayerName:'<Alex>',response:'declined',pending:false},canReplace:false,canSupersede:true,reason:''},arrivals:matchCenterArrivals(final,[message]),checkedAt:center.checkedAt},markup=centerDayHtml(day);expect(markup).toContain('Replacement declined');expect(markup).toContain('&lt;Alex&gt;');expect(markup).not.toContain('<Alex>');expect(markup).not.toContain('expectedCardToken');expect(markup).not.toContain('candidates')})
+})
+
+describe('next selected-player availability review',()=>{
+ it('routes uncertain, unavailable, waiting and missing selected replies to Check replies',()=>{
+  for(const status of ['maybe','unavailable','waiting'] as const){
+   const c=structuredClone(center);c.replies.people[1].status=status
+   expect(matchCenterNext(c),status).toMatchObject({action:'replies',label:'Review selected player replies'})
+  }
+  const c=structuredClone(center);c.replies.people=c.replies.people.filter(p=>p.key!=='b')
+  expect(matchCenterNext(c).action).toBe('replies')
+  expect(centerStepForAction('replies')).toBe('availability')
+ })
+ it('ignores a same-name unassigned player even if the reply claims that player is selected',()=>{
+  const c=structuredClone(center)
+  c.lineup.roster.push({key:'bench',playerId:'bench',name:'Jordan'})
+  c.replies.people.push({key:'bench',name:'Jordan',status:'waiting',source:'player',selected:true})
+  expect(matchCenterNext(c).action).toBe('publish')
+ })
+ it('keeps an unsaved or incomplete plan ahead of reply review and explains duplicate assignments',()=>{
+  for(const issue of ['unsaved','open-seat','duplicate'] as const){
+   const c=structuredClone(center);c.replies.people[1].status='waiting'
+   if(issue==='unsaved')c.lineup.version=''
+   if(issue==='open-seat')c.lineup.plan.courts[0].players[0]=''
+   if(issue==='duplicate')c.lineup.plan.courts[0].players=['a','a']
+   const next=matchCenterNext(c);expect(next.action,issue).toBe('plan')
+   if(issue==='duplicate')expect(next.reason).toBe('Choose each player only once before publishing.')
+  }
+ })
+ it('preserves pending delivery and final match-day priorities even when availability needs review',()=>{
+  const c=structuredClone(center);c.replies.people[1].status='waiting';c.publication.shared.pendingFinal=true
+  expect(matchCenterNext(c).action).toBe('publish')
+  c.publication.shared.pendingFinal=false;c.publication.shared.alreadyFinal=true
+  expect(matchCenterNext(c).action).toBe('day')
+ })
 })
 
 describe('shared website match-week navigation',()=>{

@@ -22,11 +22,12 @@ export async function loadMatchCenter(client:SupabaseClient,owner:string,current
 }
 const courtShape=(courts:{label:string;players:string[];defaulted?:boolean}[])=>JSON.stringify(courts.map(c=>[c.label,c.defaulted===true,c.players]))
 export function workingCourtsMatchShared(data:MatchCenter){if(!data.publication.shared.active)return false;return courtShape(data.lineup.plan.courts.map(c=>({label:c.label,defaulted:c.defaulted,players:c.defaulted?[]:c.players.map(key=>data.lineup.roster.find(p=>p.key===key)?.name||'')})))===courtShape(data.publication.shared.lineup)}
-export function matchCenterNext(data:MatchCenter):{action:'plan'|'publish'|'day';label:string;reason:string}{
+export function matchCenterNext(data:MatchCenter):{action:'plan'|'replies'|'publish'|'day';label:string;reason:string}{
  const pub=data.publication,ready=lineupReadiness(data.lineup.plan,data.lineup.roster,data.replies)
  if(pub.shared.pendingFinal)return {action:'publish',label:'Review pending final update',reason:'Check the existing delivery before sending another update.'}
  if(pub.shared.alreadyFinal)return {action:'day',label:'Check match-day status',reason:'The final lineup is recorded as sent. Check replacements and arrival updates.'}
- if(!data.lineup.version||ready.openSeats||ready.duplicates||ready.attention.length)return {action:'plan',label:'Review working lineup',reason:ready.openSeats?'Fill the open playing seats before publishing.':ready.attention.length?'Review selected players who are unavailable, uncertain or waiting.':'Save a private working lineup before sharing.'}
+ if(!data.lineup.version||ready.openSeats||ready.duplicates)return {action:'plan',label:'Review working lineup',reason:ready.openSeats?'Fill the open playing seats before publishing.':ready.duplicates?'Choose each player only once before publishing.':'Save a private working lineup before sharing.'}
+ if(ready.attention.length)return {action:'replies',label:'Review selected player replies',reason:'Check the selected players whose availability still needs review.'}
  if(pub.shared.active)return {action:'publish',label:pub.shared.canFinalize?'Review final lineup':'Check court confirmations',reason:pub.shared.canFinalize?'Review the confirmed shared courts before sending the final lineup.':'Some shared courts still need replies or captain attention.'}
  const advice=captainBriefNext({hasScope:true,hasLineup:Boolean(data.lineup.version)&&ready.selected.length>0,responseRisks:ready.attention.length,hasLogistics:Boolean(data.lineup.plan.location.trim()&&data.lineup.plan.arrivalTime.trim())});if(advice.kind==='logistics'||advice.kind==='lineup')return {action:'plan',label:advice.title,reason:advice.detail}
  return {action:'publish',label:'Review team publishing',reason:pub.proposal.canShare?'Review the saved courts before posting the proposal to your team.':pub.proposal.reason||'Check the saved court plan before publishing.'}
