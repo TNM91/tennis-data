@@ -2,11 +2,12 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 import type {CaptainData,CaptainMatch} from './captain-data'
 import {loadMatchCenter,type MatchCenter} from './captain-match-center-data'
-import {captainHomeMatch,captainHomeFocus,captainHomeFocusHtml} from './captain-home-data'
+import {captainHomeMatch,captainHomeFocus,captainHomeFocusHtml,captainHomeIssueStep} from './captain-home-data'
+import type {CenterStep} from './captain-match-center-view'
 import {matchDate} from './recent-results'
 import {captainFixtureHtml} from './captain-fixture-view'
 import {html} from './match-details'
-export function openCaptainHome(host:HTMLElement,client:SupabaseClient,owner:string,scope:TeamScope,snapshot:CaptainData,current:()=>boolean,onOpen:(match:CaptainMatch,next:boolean)=>void){
+export function openCaptainHome(host:HTMLElement,client:SupabaseClient,owner:string,scope:TeamScope,snapshot:CaptainData,current:()=>boolean,onOpen:(match:CaptainMatch,start:boolean|CenterStep)=>void){
  let disposed=false,revision=0,busy=false,id=snapshot.matches[0]?.id||'',data:MatchCenter|null=null,notice='Readiness has not been checked for this visit.'
  const active=()=>!disposed&&current()&&host.isConnected
  const render=()=>{
@@ -21,9 +22,9 @@ export function openCaptainHome(host:HTMLElement,client:SupabaseClient,owner:str
    catch{if(active()&&request===revision)notice='Readiness unavailable or this fixture changed. Refresh Captain tools or check again.'}
    finally{if(active()&&request===revision){busy=false;render()}}
   }
-  const open=(next:boolean)=>{if(!active()||busy||!match||!data)return;revision++;data=null;notice='Recheck readiness after returning from the match task.';render();onOpen(match,next)}
+  const open=(start:boolean|CenterStep)=>{if(!active()||busy||!match||!data)return;revision++;data=null;notice='Recheck readiness after returning from the match task.';render();onOpen(match,start)}
   host.querySelector<HTMLButtonElement>('[data-focus-primary]')!.onclick=()=>{if(data)open(true);else void check()}
-  host.querySelectorAll<HTMLButtonElement>('[data-focus-issue]').forEach(b=>{b.onclick=()=>open(false)})
+  host.querySelectorAll<HTMLButtonElement>('[data-focus-issue]').forEach(b=>{b.onclick=()=>{if(!host.contains(b))return;const step=captainHomeIssueStep(focus,b.dataset.focusIssue??'');if(step)open(step)}})
   host.querySelector<HTMLButtonElement>('[data-home-recheck]')?.addEventListener('click',()=>{void check()})
   if(restore)host.querySelector<HTMLElement>(busy?'[role="status"]':'[data-focus-primary]')?.focus({preventScroll:true})
  }

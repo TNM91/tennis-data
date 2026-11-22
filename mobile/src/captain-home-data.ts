@@ -1,4 +1,5 @@
 import type {CaptainHomeMatchFocus} from '../../lib/captain-home-match-focus'
+import type {CenterStep} from './captain-match-center-view'
 import {isValidCalendarDate} from '../../lib/calendar-date'
 import {matchCenterContext,matchCenterFixture,matchCenterNext,type MatchCenter} from './captain-match-center-data'
 import type {CaptainData,CaptainMatch} from './captain-data'
@@ -10,6 +11,11 @@ export function captainHomeMatch(data:CaptainData,id:string):CaptainMatch|null{
  const matches=data.matches.filter(m=>m.id===id)
  if(matches.length!==1)return null
  const m=matches[0];return m.id&&m.opponent.trim()&&isValidCalendarDate(m.date)?m:null
+}
+export function captainHomeIssueStep(focus:CaptainHomeMatchFocus|null,index:string):CenterStep|null{
+ if(!focus||!/^[0-2]$/.test(index))return null
+ const kind=focus.issues[Number(index)]?.kind
+ return kind==='lineup'?'lineup':kind==='availability'?'availability':kind==='send'?'messaging':null
 }
 export function captainHomeFocus(scope:TeamScope,match:CaptainMatch,data:MatchCenter):CaptainHomeMatchFocus{
  matchCenterContext(scope,match,data.lineup,data.publication);matchCenterFixture(scope,match,data.fixture)

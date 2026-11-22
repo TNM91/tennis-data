@@ -68,6 +68,11 @@ async function bounded(page:Page,host:Locator){
  }).map(el=>el.textContent?.trim()))
  expect(escaped).toEqual([])
 }
+async function workspaceInView(center:Locator,step:string){
+ const heading=center.locator(`[data-center-panel="${step}"] [data-step-heading]`)
+ await expect(heading).toBeFocused()
+ await expect.poll(async()=>heading.evaluate(el=>{const h=el.getBoundingClientRect(),d=el.closest('dialog')!.getBoundingClientRect();return h.top>=d.top&&h.bottom<=d.bottom&&h.top-d.top<d.height*.4})).toBe(true)
+}
 for(const width of [320,390])test(`captain readiness and match steps stay usable at ${width}px`,async({page},info)=>{
  await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
  if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
@@ -198,6 +203,88 @@ for(const width of [320,390])test(`lineup planning from replies returns to the r
 })
 
 type ReplyReviewWindow={fixture:{center:ReturnType<typeof captainCenterFixture>;reads:number;lineupSaves:number;publicationSends:number;sharedChanges:number}}
+type IssueReviewWindow=ReplyReviewWindow&{fixture:{fail:boolean;dayReads:number}}
+for(const width of [320,390])test(`availability issue opens reply review instead of the primary lineup task at ${width}px`,async({page},info)=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
+ if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
+ await page.evaluate(()=>{(window as unknown as IssueReviewWindow).fixture.center.lineup.plan.courts.push({id:'open-court',label:'Doubles 2',slotType:'doubles',defaulted:false,players:['','']})})
+ const home=page.locator('.captain-home');await home.getByRole('button',{name:'Check match readiness',exact:true}).click()
+ await expect(home.locator('[data-focus-primary]')).toHaveText('Review working lineup')
+ const issue=home.getByRole('button',{name:/^1 selected player needs availability review/})
+ await expect(issue).toHaveAttribute('data-focus-issue','1');await issue.focus();await page.keyboard.press('Enter')
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await expect(center.locator('[data-center-panel="availability"] [data-step-heading]')).toBeFocused()
+ await workspaceInView(center,'availability')
+ await expect(center.getByRole('checkbox',{name:'Selected players only',exact:true})).toBeChecked()
+ await expect(center.getByRole('combobox',{name:/^Show replies/})).toHaveValue('needs-review')
+ await expect(center.locator('[data-center-replies] li')).toHaveCount(1);await expect(center.locator('[data-center-replies] li')).toContainText('Jordan Lee')
+ await expect(center.locator('.match-center-next [data-center-action="plan"]')).toBeVisible()
+ await expect(page.getByRole('dialog',{name:'Plan your lineup',exact:true})).toHaveCount(0)
+ await bounded(page,center)
+ if(width===390&&info.project.name==='mobile-webkit'){await center.locator('[data-center-panel="availability"] [data-step-heading]').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('issue-reply-handoff.png')})}
+ await center.getByRole('button',{name:'Back to Captain',exact:true}).click()
+ await expect(home.locator('.website-captain-focus')).toContainText('Not checked');await expect(page.getByLabel('Choose fixture',{exact:true})).toHaveValue('fixture-one')
+ expect(await page.evaluate(()=>{const f=(window as unknown as IssueReviewWindow).fixture;return {reads:f.reads,dayReads:f.dayReads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:2,dayReads:0,lineupSaves:0,publicationSends:0,sharedChanges:0})
+})
+
+for(const width of [320,390])for(const kind of ['lineup','send'] as const)test(`${kind} issue opens its current workspace without opening a publishing tool at ${width}px`,async({page})=>{
+ test.setTimeout(45000)
+ await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
+ if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
+ await page.evaluate(()=>{const c=(window as unknown as IssueReviewWindow).fixture.center;c.lineup.plan.courts.push({id:'open-court',label:'Doubles 2',slotType:'doubles',defaulted:false,players:['','']});c.publication.shared.pendingFinal=true})
+ const home=page.locator('.captain-home');await home.getByRole('button',{name:'Check match readiness',exact:true}).click()
+ await page.evaluate(target=>{const c=(window as unknown as IssueReviewWindow).fixture.center;if(target==='lineup'){c.lineup.plan.courts.push({id:'latest-court',label:'Singles',slotType:'singles',defaulted:false,players:['']});c.lineup.version='latest-plan';c.publication.draftVersion='latest-plan'}else{c.publication.shared.pendingFinal=false;c.publication.shared.alreadyFinal=true;c.publication.shared.confirmedCount=1}},kind)
+ await home.locator(`[data-focus-issue="${kind==='lineup'?0:2}"]`).click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true}),step=kind==='lineup'?'lineup':'messaging'
+ await expect(center.locator(`[data-center-panel="${step}"] [data-step-heading]`)).toBeFocused()
+ await workspaceInView(center,step)
+ if(kind==='lineup'){
+  await expect(center.locator('[data-center-panel="lineup"] .captain-counts>div').nth(1).locator('strong')).toHaveText('3')
+  await expect(center.locator('.match-center-next [data-center-action="publish"]')).toBeVisible()
+ }else{
+  await expect(center.locator('.match-center-progress')).toContainText('Final update sent')
+  await expect(center.locator('.match-center-progress [data-plan-state="attention"]')).toHaveCount(0)
+  await expect(center.locator('.match-center-next [data-center-action="day"]')).toBeVisible()
+ }
+ await expect(page.getByRole('dialog',{name:'Review team lineup',exact:true})).toHaveCount(0)
+ await expect(page.getByRole('dialog',{name:'Plan your lineup',exact:true})).toHaveCount(0)
+ await bounded(page,center)
+ expect(await page.evaluate(()=>{const f=(window as unknown as IssueReviewWindow).fixture;return {reads:f.reads,dayReads:f.dayReads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:2,dayReads:0,lineupSaves:0,publicationSends:0,sharedChanges:0})
+})
+
+test('issue handoff withholds a failed read and keeps its destination for explicit retry',async({page})=>{
+ await page.goto(origin+prefix)
+ const home=page.locator('.captain-home');await home.getByRole('button',{name:'Check match readiness',exact:true}).click()
+ await page.evaluate(()=>(window as unknown as IssueReviewWindow).fixture.fail=true)
+ await home.locator('[data-focus-issue="0"]').click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await expect(center.getByRole('status')).toContainText('Match Center unavailable')
+ await expect(center.locator('[data-center-panel]')).toHaveCount(0)
+ await page.evaluate(()=>{const f=(window as unknown as IssueReviewWindow).fixture;f.fail=false;for(const p of f.center.replies.people)p.status='available'})
+ await center.getByRole('button',{name:'Refresh Match Center',exact:true}).click()
+ await expect(center.locator('[data-center-panel="availability"] [data-step-heading]')).toBeFocused()
+ await expect(center.getByRole('checkbox',{name:'Selected players only',exact:true})).toBeChecked()
+ await expect(center.getByRole('combobox',{name:/^Show replies/})).toHaveValue('needs-review')
+ await expect(center.locator('[data-center-replies]')).toContainText('No selected-player replies need review in this checked snapshot.')
+ await expect(center.locator('.match-center-next [data-center-action="publish"]')).toBeVisible()
+ expect(await page.evaluate(()=>{const f=(window as unknown as IssueReviewWindow).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:3,lineupSaves:0,publicationSends:0,sharedChanges:0})
+})
+
+test('a replaced issue button cannot open its previous fixture',async({page})=>{
+ await page.goto(origin+prefix)
+ const home=page.locator('.captain-home');await home.getByRole('button',{name:'Check match readiness',exact:true}).click()
+ const previous=await home.locator('[data-focus-issue="0"]').elementHandle();expect(previous).not.toBeNull()
+ await page.getByLabel('Choose fixture',{exact:true}).selectOption('fixture-two')
+ await home.getByRole('button',{name:'Check match readiness',exact:true}).click()
+ await expect(home.locator('.website-captain-focus')).toContainText('1 of 2')
+ await previous!.evaluate(button=>(button as HTMLButtonElement).click())
+ await expect(page.getByRole('dialog',{name:'Captain Match Center',exact:true})).toHaveCount(0)
+ await expect(home.locator('.captain-fixture-hero')).toContainText('South Court Rallies')
+ await expect(home.locator('.website-captain-focus')).toContainText('1 of 2')
+ expect(await page.evaluate(()=>(window as unknown as IssueReviewWindow).fixture.reads)).toBe(2)
+})
+
 for(const width of [320,390])test(`next reply action reveals selected concerns and keeps court review context at ${width}px`,async({page},info)=>{
  test.setTimeout(45000)
  await page.setViewportSize({width,height:844});await page.goto(origin+prefix)
