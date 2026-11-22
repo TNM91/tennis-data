@@ -1,6 +1,8 @@
 import {PGlite} from '@electric-sql/pglite'
 import {readFile} from 'node:fs/promises'
-import {readCoachCreate,readCoachReview} from '../../lib/native-coach-contract'
+import {readCoachCreate,readCoachReview,readCoachEdit,coachRecord} from '../../lib/native-coach-contract'
+import {editNativeCoach,NativeCoachFault} from '../../lib/native-coach'
+import {coachDb} from './coach-db'
 import {tiqSkills} from '../../lib/tiq-assessment-skills'
 import type {TiqAnswers} from '../../lib/tiq-self-assessment'
 export const growthPlayer='11111111-1111-4111-8111-111111111111',growthPeer='22222222-2222-4222-8222-222222222222'
@@ -34,10 +36,13 @@ export async function growthServer(){
     const rows=(await db.query<Record<string,unknown>>('select a.* from coach_assignments a join coach_player_links l on l.id=a.student_link_id where l.player_user_id=$1',[owner])).rows
     return {ok:true,coachLinks:links.map(l=>({id:l.id,playerUserId:l.player_user_id,status:l.status,identitySlug:''})),assignments:rows.map(assignment)}
   }
-  function assignment(row:Record<string,unknown>){return {id:row.id,studentLinkId:row.student_link_id,title:row.title,focus:row.focus??'',dueDate:row.due_date?new Date(row.due_date as string).toISOString().slice(0,10):null,status:row.status,assignment:row.assignment_json,updatedAt:row.updated_at}}
-  async function workspace(owner:string,student:string){const s={id:'student-one',name:'Alex Rivera',level:'Developing',identity:'',status:'active',linked:true,notes:'',updatedAt:revision}
+  function assignment(row:Record<string,unknown>){return {id:row.id,studentLinkId:row.student_link_id,title:row.title,focus:row.focus??'',dueDate:row.due_date?new Date(row.due_date as string).toISOString().slice(0,10):null,status:row.status,assignment:row.assignment_json,updatedAt:row.updated_at instanceof Date?row.updated_at.toISOString():row.updated_at}}
+  async function workspace(owner:string,student:string){
+    const links=(await db.query<{id:string;player_name:string;status:string;player_user_id:string|null;updated_at:string|Date}>('select * from coach_player_links where coach_user_id=$1',[owner])).rows
+    const students=links.map(row=>({id:row.id,name:row.player_name,level:'Developing',identity:'',status:row.status,linked:Boolean(row.player_user_id),notes:'',updatedAt:row.updated_at instanceof Date?row.updated_at.toISOString():row.updated_at}))
+    const s=students.find(row=>row.id===student)
     const rows=(await db.query<Record<string,unknown>>('select * from coach_assignments where coach_user_id=$1',[owner])).rows
-    return {ok:true,owner,checkedAt:new Date().toISOString(),students:owner===growthPlayer?[s]:[],moreStudents:false,detail:student?{student:s,assignments:rows.map(assignment),moreAssignments:false}:null}
+    return {ok:true,owner,checkedAt:new Date().toISOString(),students,moreStudents:false,detail:s?{student:s,assignments:rows.filter(row=>row.student_link_id===s.id).map(assignment),moreAssignments:false}:null}
   }
   async function request(r:GrowthRequest){
     const url=new URL(r.url),response=(body:unknown,status=200)=>({body,status})
@@ -71,6 +76,18 @@ export async function growthServer(){
     if(url.pathname==='/api/mobile/coach/assessments')return response({ok:true,owner:r.owner,student:url.searchParams.get('student'),assessments:[{id:growthId(8),coach:'Morgan Courts',createdAt:revision,observation:{context:'drill',skills:{serve:3,return:1,rally:2},focus:'serve',note:'Try your second serve target under pressure.'}}]})
     if(url.pathname==='/api/mobile/coach'){
       if(r.method==='PATCH'){
+        if('kind' in coachRecord(r.write)){
+          const edit=readCoachEdit(r.write);if(edit.kind!=='edit-assignment')return response({ok:false},400)
+          const links=(await db.query<Record<string,unknown>>('select * from coach_player_links')).rows
+          const rows=(await db.query<Record<string,unknown>>('select *,updated_at::text original_revision from coach_assignments')).rows
+          const stamp=(value:unknown)=>value instanceof Date?value.toISOString():value
+          const adapter=coachDb({coach_player_links:links.map(row=>({...row,updated_at:stamp(row.updated_at),identity_slug:'',level_label:'Developing',notes:''})),coach_assignments:rows.map(row=>({...row,updated_at:stamp(row.updated_at),due_date:row.due_date?new Date(row.due_date as string).toISOString().slice(0,10):null}))})
+          try{await editNativeCoach(adapter.client,r.owner,edit)}catch(error){if(error instanceof NativeCoachFault)return response({ok:false,message:error.message},error.status);throw error}
+          const saved=adapter.tables.coach_assignments.find(row=>row.id===edit.id)!,original=rows.find(row=>row.id===edit.id)!
+          const result=await db.query('update coach_assignments set title=$4,focus=$5,due_date=$6,status=$7,assignment_json=$8::jsonb,updated_at=$9 where id=$1 and coach_user_id=$2 and student_link_id=$3 and updated_at=$10::timestamptz returning id',[edit.id,r.owner,edit.student,saved.title,saved.focus,saved.due_date,saved.status,JSON.stringify(saved.assignment_json),saved.updated_at,original.original_revision])
+          if(!result.rows.length)return response({ok:false},409)
+          return response(await workspace(r.owner,edit.student))
+        }
         const review=readCoachReview(r.write)
         await db.query("update coach_assignments set assignment_json=assignment_json||$3::jsonb,updated_at=now() where id=$1 and coach_user_id=$2",[review.id,r.owner,JSON.stringify({coachReview:{note:review.note,nextFocus:review.nextFocus,reviewedAt:new Date().toISOString()}})])
         return response(await workspace(r.owner,review.student))

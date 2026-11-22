@@ -1,15 +1,10 @@
 import {getCoachAssignmentReview, getPlayerAssignmentCheckIn} from '../../lib/coach-storage'
-import {readPracticeBlock, type PracticeBlock, type GrowthPlan, type GrowthSummary} from '../../lib/tiq-growth'
-import {formatCalendarDay, isValidCalendarDate} from '../../lib/calendar-date'
+import {readPracticeBlock, practiceBlockTiming as growthCoachBlockTiming, type GrowthPlan, type GrowthSummary} from '../../lib/tiq-growth'
+import {formatCalendarDay} from '../../lib/calendar-date'
 import type {TrainingCoachWork} from './training-inbox-data'
 import {html} from './match-details'
 
-export function growthCoachBlockTiming(block:Pick<PracticeBlock,'reviewDate'>,now=new Date()):'ready'|'past'|'future'|'unavailable'{
-  const today=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())
-  if(!Number.isFinite(today)||!isValidCalendarDate(block.reviewDate))return 'unavailable'
-  const days=(Date.parse(block.reviewDate+'T00:00:00Z')-today)/86400000
-  return days < -1?'past':days > 366?'future':'ready'
-}
+export {growthCoachBlockTiming}
 
 export function growthCoachBlocks(work:TrainingCoachWork|null,activeSource:string|null=null,now=new Date()){
   return (work?.assignments??[]).flatMap(assignment=>{

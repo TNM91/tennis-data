@@ -1,4 +1,5 @@
 import '../fixtures/mobile-coach-unread-cases'
+import '../fixtures/mobile-drill-playbooks-cases'
 import '../fixtures/mobile-coach-catchup-cases'
 import '../fixtures/mobile-coach-conversation-tools-cases'
 import '../fixtures/mobile-coach-auto-catchup-cases'
@@ -10870,7 +10871,7 @@ test('Training session keeps its log through pauses and returns a confirmed prac
  await expect(rating).toHaveValue('4')
  await expect(note).toHaveValue(noteText)
  await inbox.getByRole('button',{name:'Save completed session',exact:true}).click()
- await expect(inbox.getByRole('status')).toHaveText('Check whether this session saved before retrying.')
+ await expect(inbox.locator('[data-notice]')).toHaveText('Check whether this session saved before retrying.')
  await expect(note).toBeDisabled()
  await expect(note).toHaveValue(noteText)
  await inbox.getByRole('button',{name:'Check whether this session saved',exact:true}).click()

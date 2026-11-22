@@ -1,5 +1,35 @@
 # Website to iPhone parity
 
+## Groundstroke and transition playbooks — local follow-up
+
+Six existing cards now use original, countable playbooks: Basket Forehand Crosscourt, Basket Backhand Crosscourt, Crosscourt Consistency, Defense-Neutral-Attack Rally, Return Plus-One Recover and Approach Volley Close. This brings the tracked library to eighteen. Two are solo self-feed routines; four use a partner. The three groundstroke routines use three rounds of ten; the three sequence routines use two rounds of ten. Each has a distinct pressure version, clear setup, a count rule, an easier adaptation and progression guidance. The shared website cards use the control routine; iPhone previews and sessions retain the existing version and private-log controls.
+
+Crosscourt contacts are counted per player, with misses retained rather than erased by streak resets. Self-feeds remain distinct from reading a live ball. Return plus-one describes the returner's second contact, separate from the server's serve-plus-one. Decision sequences do not require an attack; approach sequences connect to a controlled partner reply, with a split on contact. Legacy coaching notes were aligned with those rules, including removing an unconditional center recovery cue.
+
+The [LTA rally guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/how-to-play-better-tennis-rallies/) and [practice guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/how-to-get-more-from-your-tennis-practices) were consulted for position, margin and practice-context checks. The formats, counts and copy are TenAceIQ originals; no media or imported results are added. No API, schema, billing, collector, theme or session-engine change is needed. These remain local, outside build 346; the separate coach practice-editor API rollout is still required before a combined beta. Physical iPhone and VoiceOver acceptance remain pending.
+
+## Drill discovery — local follow-up
+
+The native Level Up catalog now combines Solo / With a partner / Doubles group with the existing search, setting and time filters. Round tracking narrows the library to the eighteen upgraded playbooks. Ten- and fifteen-minute choices accommodate those routines. Playbook cards show their actual player count; other cards retain their established setup classification. Setup describes the usual routine, while the preview explains any extra partner needed by a pressure version.
+
+Filters repaint only the results, retaining keyboard focus and the search caret. Opening and returning from a preview restores the choices, expanded page and selected card. Clear filters resets the entire combination; account disposal clears local discovery state and detached controls cannot change active work. No search or filter action saves a session. Private round evidence, self-rated proof, contexts and save recovery keep their existing contracts. This is local, outside build 346, with no new API or schema; the separate coach practice-editor API rollout is still required before the combined beta. Physical iPhone and VoiceOver checks remain pending.
+
+## Doubles and serve-plus-one playbooks — local follow-up
+
+The doubles collection includes Serve +1 Partner, Serve Location Call, Doubles Return First Move, Middle Ball Rule, Switch Call Drill and Poach Timing Shadow. Each playbook supplies original setup instructions, two distinct versions, two rounds of ten, a count rule and an easier adaptation. Existing card IDs, categories, access rules and coach links are retained. The shared card library uses the control routine by default; iPhone players can choose the pressure routine and save optional counts with a private training note.
+
+The setup distinguishes two-player hitting, four-player doubles and three-player feeding or rehearsal. Receiving-side assignments remain separate from movement during a rally. Middle ownership is agreed rather than always assigned to a forehand; recovery covers both halves; poach timing is rehearsed on the return cue and stays free of live balls in both versions. Counts describe the chosen practice task, not point wins, TiQ changes or an automatically completed coach assignment. Partner and doubles contexts remain distinct in saved sessions.
+
+Service/receiving roles and court boundaries were checked against the [ITF Rules of Tennis, rules 14–17](https://www.world.tennis/media/7221/2026-rules-of-tennis-english.pdf). The [LTA doubles guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/essential-doubles-tactics-and-hand-signals/) was consulted for role and coverage checks. The practice formats, repetition counts and copy are TenAceIQ originals. This adds no imported match data, media, API, schema, billing or collector work. It remains local, outside build 346; the separate pending coach practice-editor API rollout remains required before the combined next beta.
+
+## TiQ drill playbooks — local follow-up to build 346
+
+The six assessment-linked drills now share original TenAceIQ playbooks: realistic court setup, Build control / Add pressure routines, clear repetition counts, easier adaptations and practice progression. Their default routines are part of the shared website card library; the iPhone preview adds a version selector and compact setup. The active session offers optional round counts, with a responsive layout for narrow screens and larger text.
+
+An entered zero is a result; a blank round remains unrecorded. Only completed ten-attempt rounds contribute to the displayed total. The selected version and entered counts save in the existing private training note. With no counts, the original note remains unchanged. Raw entries survive close/keep, timer pauses and backgrounding; an unconfirmed save freezes the same note, identity and counts for checking or retry. Overlong notes and invalid counts require correction without truncating the draft. Repeating a drill starts new blank rounds.
+
+Practice counts, the subjective 0–5 proof score and the TiQ assessment remain distinct. This change does not alter ratings, complete coach assignments, share private notes automatically, or add API/schema/collector/billing work. It is not in build 346. The preceding coach practice-block editor still requires its separate compatible API rollout before a combined native release. Physical iPhone and VoiceOver acceptance remain release checks.
+
 Updated October 24, 2026. Baseline: released website and iPhone build 45. The website defines product depth and role-based tasks; iPhone adaptations should improve those tasks without silently removing them. Team chat intentionally follows a GroupMe-style sports conversation model.
 
 ## Evidence and limits
@@ -481,6 +511,16 @@ Player & coach view checks a new practice block’s review date before review an
 A day change after review returns an unsent block to the editable draft. An already-attempted assignment bypasses the new first-send check, retaining the exact retry ID and payload. If its confirmed date has since expired, the receipt explains that a fresh block with a current date is needed, and that the older assignment can be archived in Coach workspace. General assignment editing remains unchanged; this does not claim that editing its ordinary due date also changes an embedded TiQ practice block.
 
 No new API, schema, background work, notifications, sharing, rating calculation, storage, artwork or stylesheet changes are added. Account changes clear the new field-error state and invalidate old form actions. Existing receipt tests now use a relative review date while retaining their human calendar-date and saved-payload assertions. This follow-up is local, with final release checks and physical iPhone acceptance still due before the next beta is treated as accepted.
+
+### Edit an existing coach practice block — local follow-up to build 346
+
+Coach workspace → an open assigned TiQ block → Edit practice block changes its measurable target, 1–12 practices and review date together. The existing skill stays fixed. Review precedes saving; the confirmed assignment shows the saved count, target and human-readable calendar date. Raw fields and field focus survive Keep editing and returning from review. Date guidance uses the same UTC policy on the client and server, rechecks before the first write and never silently shifts a date. Unconfirmed writes retain the exact pending payload and require an explicit saved-work check before retrying.
+
+The compatible Coach PATCH contract accepts an optional validated `tiqGrowth` value. Writes remain owner/student/assignment scoped and use the existing assignment revision condition. Only an open block for a connected, unpaused player can change; its drill cannot change, and completed/archived blocks or any recorded check-in/review stay protected. Metadata is retained. An older client's eligible target/date edit updates the embedded block consistently while preserving its skill and count; it cannot rewrite closed work or store an invalid block.
+
+Player-owned plans, logs, assessments and ratings are neither read nor rewritten by a coach edit. A player who already started keeps their existing plan and sees the existing assignment-changed guidance. A new adoption uses the current shared block. Confirmation checks require the complete embedded block and matching drill, not only the ordinary due date. Existing assignment-update alerts still apply; no background reads, jobs, schema, billing, artwork or stylesheet changes are introduced.
+
+This implementation is local. Deploy the compatible API before releasing a beta with the new editor. Build 346 remains the current TestFlight release, and public App Store build 324 stays unchanged. The earlier local follow-ups to build 345 described above shipped together in build 346; their package and hosted execution evidence is in `output/testflight-346-20261122/release-proof.json`. Physical iPhone acceptance of the new editor remains due after its later beta is available.
 
 ## League Office season review — build 83 released
 

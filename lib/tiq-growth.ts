@@ -3,6 +3,12 @@ import {tiqSkills, type TiqSkillId} from './tiq-assessment-skills'
 import {readTiqAssessment, tiqUuid, type TiqAssessment} from './tiq-self-assessment'
 
 export type PracticeBlock = {version: 1; skill: TiqSkillId; target: string; sessions: number; reviewDate: string}
+export function practiceBlockTiming(block:Pick<PracticeBlock,'reviewDate'>,now=new Date()):'ready'|'past'|'future'|'unavailable'{
+  const today=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())
+  if(!Number.isFinite(today)||!isValidCalendarDate(block.reviewDate))return 'unavailable'
+  const days=(Date.parse(block.reviewDate+'T00:00:00Z')-today)/86400000
+  return days < -1?'past':days > 366?'future':'ready'
+}
 export type GrowthSession = {id: string; date: string; note: string}
 export type GrowthPlan = PracticeBlock & {id: string; baseline: string; sourceAssignment: string | null;
   state: 'active' | 'reviewed' | 'archived'; logs: GrowthSession[]; assessment: string | null;

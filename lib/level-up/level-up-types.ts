@@ -1,3 +1,5 @@
+import type {DrillPlaybook} from './drill-playbooks'
+
 export type LevelUpCategory =
   | 'court-drill'
   | 'solo-drill'
@@ -76,6 +78,7 @@ export type LevelUpCard = {
   progression?: string
   regression?: string
   safetyNote?: string
+  playbook?: DrillPlaybook
   tags: string[]
   identitySlugs?: string[]
 }

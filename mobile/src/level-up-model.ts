@@ -6,10 +6,24 @@ export function trainingWorkType(card:LevelUpCard):TrainingSave['workType']{retu
 // Same category/context mapping as the website player-live-workbench.
 export function trainingContexts(card:LevelUpCard){return trainingWorkType(card)==='court'?['alone','partner','singles','doubles']:['alone']}
 export function initialTrainingContext(card:LevelUpCard){if(trainingWorkType(card)!=='court')return 'alone';if(card.category==='doubles-drill'||card.tags.includes('doubles')||card.tags.includes('doubles-communication'))return 'doubles';if(card.category==='partner-drill'||card.equipment.includes('partner'))return 'partner';return 'alone'}
-export function trainingSelection(cards:LevelUpCard[],query:string,setting:string,maxMinutes=Infinity){
+export const trainingFormats=[{id:'',label:'All setups'},{id:'solo',label:'Solo'},{id:'partner',label:'With a partner'},{id:'doubles',label:'Doubles group'}] as const
+export type TrainingFormat=typeof trainingFormats[number]['id']
+// Classify the usual setup. A drill's optional variation may ask for an extra partner.
+export function trainingSetup(card:LevelUpCard):Exclude<TrainingFormat,''>{
+ const players=card.playbook?.players
+ if(players)return players===1?'solo':players===2?'partner':'doubles'
+ const context=initialTrainingContext(card)
+ return context==='doubles'?'doubles':context==='partner'?'partner':'solo'
+}
+export function trainingSetupLabel(card:LevelUpCard){
+ const players=card.playbook?.players
+ return players?players===1?'Solo':`${players} players`:trainingFormats.find(format=>format.id===trainingSetup(card))!.label
+}
+export function trainingSelection(cards:LevelUpCard[],query:string,setting:string,maxMinutes=Infinity,format:TrainingFormat='',tracked=false){
  const q=query.trim().toLocaleLowerCase()
  return cards.filter(card=>card.durationMinutes<=maxMinutes
   &&(!setting||card.setting.some(place=>place===setting))
+  &&(!format||trainingSetup(card)===format)&&(!tracked||Boolean(card.playbook))
   &&(!q||[card.title,card.useWhen,card.tennisGoal,card.pack,...card.tags].join(' ').toLocaleLowerCase().includes(q)))
 }
 export function freezeTrainingSave(card:LevelUpCard,rating:number,note:string,context:string,feeling:string,seconds:number,id:string,completedAt:string,identitySlug=''):Readonly<TrainingSave>{
