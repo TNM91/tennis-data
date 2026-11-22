@@ -10,12 +10,20 @@ test.describe.configure({retries:0,timeout:20000})
 test.beforeAll(async()=>{
  const result=await build({stdin:{resolveDir:process.cwd(),sourcefile:'captain-workspace-fixture.ts',loader:'ts',contents:`
  import {showCaptainWorkspace} from './mobile/src/captain-view';
+ import {openCaptainWeekBrief} from './mobile/src/captain-week-brief-view';
  const fixture=(window as any).fixture;let active=true;
- const view=showCaptainWorkspace(document.querySelector('#app')!,{} as never,'synthetic-owner',fixture.scope,()=>active,()=>{fixture.sharedChanges++},undefined,'synthetic-room');
+ const view=new URL(location.href).searchParams.has('week')?openCaptainWeekBrief({} as never,'synthetic-owner',fixture.scope,'synthetic-room',()=>active,()=>{fixture.sharedChanges++},()=>{fixture.briefChanges++},()=>{}):showCaptainWorkspace(document.querySelector('#app')!,{} as never,'synthetic-owner',fixture.scope,()=>active,()=>{fixture.sharedChanges++},undefined,'synthetic-room');
  fixture.dispose=()=>{active=false;view.dispose()};
  `},bundle:true,minify:true,platform:'browser',format:'esm',outfile:'captain-workspace-fixture.js',write:false,jsx:'automatic',loader:{'.module.css':'local-css'},plugins:[{name:'synthetic-captain-reads',setup(builder){
   builder.onResolve({filter:/^\.\/captain-data$/},()=>({path:'captain-data',namespace:'fixture'}))
   builder.onLoad({filter:/^captain-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`export * from ${JSON.stringify(path.resolve('mobile/src/captain-data.ts'))};export async function loadCaptainData(){return structuredClone(window.fixture.snapshot)}` }))
+  builder.onResolve({filter:/^\.\/captain-week-brief-data$/},()=>({path:'week-brief-data',namespace:'fixture'}))
+  builder.onLoad({filter:/^week-brief-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:path.resolve('mobile/src'),contents:`
+   export * from ${JSON.stringify(path.resolve('mobile/src/captain-week-brief-data.ts'))};
+   import {loadMatchCenter} from './captain-match-center-data';
+   export async function loadCaptainWeekBrief(){const f=window.fixture;f.briefLoads++;return structuredClone(f.week)}
+   export async function checkBriefMatch(client,owner,current,scope,selected){const f=window.fixture;f.briefChecks++;return loadMatchCenter(client,owner,current,scope,{id:selected.id,date:selected.date,opponent:selected.away,time:selected.time,facility:selected.facility})}
+  ` }))
   builder.onResolve({filter:/^\.\/captain-match-center-data$/},()=>({path:'center-data',namespace:'fixture'}))
   builder.onLoad({filter:/^center-data$/,namespace:'fixture'},()=>({loader:'ts',resolveDir:process.cwd(),contents:`
    export * from ${JSON.stringify(path.resolve('mobile/src/captain-match-center-data.ts'))};
@@ -49,7 +57,9 @@ test.beforeEach(async({page})=>{
   const params=new URL(location.href).searchParams
   if(params.has('final')){data.center.publication.shared.alreadyFinal=true;data.day.publication.shared.alreadyFinal=true}
   if(params.has('pending'))data.center.publication.shared.pendingFinal=true
-  Object.assign(window,{fixture:{...data,reads:0,dayReads:0,daySettled:0,sharedChanges:0,hold:false,fail:false,holdDay:false,failDay:false,toolReads:{plan:0,publish:0,replace:0},failTool:'',lineupSaves:0,publicationSends:0}})
+  if(params.has('week'))data.snapshot.matches[1].date=data.snapshot.matches[0].date
+  const week={scope:data.scope,today:'2026-11-12',through:'2026-11-18',checkedAt:data.center.checkedAt,matches:data.snapshot.matches.map(m=>({...data.center.fixture,id:m.id,date:m.date,away:m.opponent})),moreMatches:false,excluded:0,practices:[],practiceState:'ready',morePractices:false}
+  Object.assign(window,{fixture:{...data,week,briefLoads:0,briefChecks:0,briefChanges:0,reads:0,dayReads:0,daySettled:0,sharedChanges:0,hold:false,fail:false,holdDay:false,failDay:false,toolReads:{plan:0,publish:0,replace:0},failTool:'',lineupSaves:0,publicationSends:0}})
  },{scope:captainScope,center,day:captainDayFixture(center),snapshot:captainSnapshotFixture()})
  await page.route('**/*',route=>{
   const u=new URL(route.request().url())
@@ -624,4 +634,88 @@ test('switching fixture with a readiness read pending does not show stale counts
  await expect(home.locator('.captain-fixture-hero')).toContainText('South Court Rallies')
  await expect(home.locator('.website-captain-focus')).toContainText('Not checked')
  await expect(home.getByRole('button',{name:'Check match readiness',exact:true})).toBeEnabled()
+})
+
+type WeekBriefWindow=IssueReviewWindow&{fixture:{week:{matches:Array<{id:string;away:string}>};briefLoads:number;briefChecks:number;briefChanges:number;toolReads:Record<string,number>;hold:boolean;release:()=>void};replayBriefIssue:()=>void}
+async function weekBrief(page:Page,width=390){
+ await page.setViewportSize({width,height:844});await page.goto(origin+prefix+'?week')
+ const brief=page.getByRole('dialog',{name:'Your Captain week brief',exact:true})
+ await expect(brief.locator('[data-brief-fixture="fixture-two"]')).toContainText('South Court Rallies')
+ return {brief,first:brief.locator('[data-brief-fixture="fixture-one"]'),second:brief.locator('[data-brief-fixture="fixture-two"]')}
+}
+for(const width of [320,390])test(`week brief reply issue returns to its exact match at ${width}px`,async({page},info)=>{
+ const {brief,first,second}=await weekBrief(page,width)
+ if(width===320)await page.addStyleTag({content:':root{font-size:24px!important}'})
+ await page.evaluate(()=>{const f=(window as unknown as WeekBriefWindow).fixture;f.center.lineup.plan.courts[0].players[0]='';f.center.publication.shared.pendingFinal=true})
+ await second.locator('[data-brief-check]').click()
+ await expect(second.locator('[data-brief-issue]')).toHaveCount(3)
+ await expect(second).toContainText('Review pending final update')
+ await bounded(page,brief)
+ await second.getByRole('button',{name:/^Review selected replies for/}).click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await workspaceInView(center,'availability')
+ await expect(center.locator('.captain-fixture-hero')).toContainText('South Court Rallies')
+ await expect(center.getByRole('checkbox',{name:'Selected players only',exact:true})).toBeChecked()
+ await expect(center.getByRole('combobox',{name:/^Show replies/})).toHaveValue('needs-review')
+ await expect(center.locator('[data-center-replies]')).toContainText('Jordan Lee')
+ await center.getByRole('button',{name:'Back to Captain',exact:true}).click()
+ await expect(second.locator('[data-brief-check]')).toBeFocused()
+ await expect(second.locator('[data-brief-issue]')).toHaveCount(0)
+ await expect(second).toContainText('Readiness not checked for this visit.')
+ await expect(first).toContainText('Readiness not checked for this visit.')
+ await expect.poll(()=>second.locator('[data-brief-check]').evaluate(el=>{const r=el.getBoundingClientRect(),d=el.closest('dialog')!.getBoundingClientRect();return r.top>=d.top&&r.bottom<=d.bottom})).toBe(true)
+ await bounded(page,brief)
+ if(info.project.name==='mobile-webkit')await page.screenshot({path:info.outputPath('week-brief-match-return.png')})
+ expect(await page.evaluate(()=>{const f=(window as unknown as WeekBriefWindow).fixture;return {reads:f.reads,briefLoads:f.briefLoads,briefChecks:f.briefChecks,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,dayReads:f.dayReads}})).toEqual({reads:2,briefLoads:1,briefChecks:1,lineupSaves:0,publicationSends:0,dayReads:0})
+})
+for(const kind of ['lineup','delivery'] as const)test(`week brief ${kind} issue opens the requested workspace`,async({page})=>{
+ const {second}=await weekBrief(page)
+ await page.evaluate(()=>{const f=(window as unknown as WeekBriefWindow).fixture;f.center.lineup.plan.courts[0].players[0]='';f.center.publication.shared.pendingFinal=true})
+ await second.locator('[data-brief-check]').click();await second.getByRole('button',{name:new RegExp('^Review '+kind+' for')}).click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true});await workspaceInView(center,kind==='lineup'?'lineup':'messaging')
+ await expect(center.locator('.captain-fixture-hero')).toContainText('South Court Rallies')
+ expect(await page.evaluate(()=>{const f=(window as unknown as WeekBriefWindow).fixture;return {toolReads:f.toolReads,dayReads:f.dayReads,publicationSends:f.publicationSends}})).toEqual({toolReads:{plan:0,publish:0,replace:0},dayReads:0,publicationSends:0})
+ await page.keyboard.press('Escape');await expect(second.locator('[data-brief-check]')).toBeFocused()
+})
+test('week brief issue retry keeps its destination and shows resolved replies',async({page})=>{
+ const {second}=await weekBrief(page);await second.locator('[data-brief-check]').click()
+ await page.evaluate(()=>{(window as unknown as WeekBriefWindow).fixture.fail=true})
+ await second.getByRole('button',{name:/^Review selected replies for/}).click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true})
+ await expect(center.getByRole('status')).toContainText('Match Center unavailable')
+ await expect(center.locator('[data-center-panel]')).toHaveCount(0)
+ await page.evaluate(()=>{const f=(window as unknown as WeekBriefWindow).fixture;f.fail=false;f.center.replies.people.forEach(p=>{p.status='available'})})
+ await center.getByRole('button',{name:'Refresh Match Center',exact:true}).click();await workspaceInView(center,'availability')
+ await expect(center.locator('[data-center-replies]')).toContainText('No selected-player replies need review')
+ expect(await page.evaluate(()=>{const f=(window as unknown as WeekBriefWindow).fixture;return {reads:f.reads,briefChecks:f.briefChecks,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends}})).toEqual({reads:3,briefChecks:1,lineupSaves:0,publicationSends:0})
+})
+test('week brief rejects replaced issue buttons and altered fixture or issue identities',async({page})=>{
+ const {brief,first,second}=await weekBrief(page);await second.locator('[data-brief-check]').click()
+ await second.locator('[data-brief-issue]').evaluate(button=>{Object.assign(window,{replayBriefIssue:()=>{(button as HTMLButtonElement).click()}})})
+ await first.locator('[data-brief-check]').click();await page.evaluate(()=>{(window as unknown as WeekBriefWindow).replayBriefIssue()})
+ await expect(page.getByRole('dialog',{name:'Captain Match Center',exact:true})).toHaveCount(0)
+ for(const token of ['-1','00','3',''])await second.locator('[data-brief-issue]').evaluate((button,value)=>{(button as HTMLElement).dataset.briefIssue=value;(button as HTMLButtonElement).click()},token)
+ await second.evaluate(row=>{(row as HTMLElement).dataset.briefFixture='fixture-one';const b=row.querySelector<HTMLButtonElement>('[data-brief-issue]')!;b.dataset.briefIssue='0';b.click()})
+ await expect(page.getByRole('dialog',{name:'Captain Match Center',exact:true})).toHaveCount(0)
+ await expect(brief).toBeVisible();expect(await page.evaluate(()=>(window as unknown as WeekBriefWindow).fixture.reads)).toBe(2)
+})
+test('week brief saved task returns to its match and rechecks only on request',async({page})=>{
+ const {brief,second}=await weekBrief(page);await second.locator('[data-brief-check]').click();await second.getByRole('button',{name:/^Review selected replies for/}).click()
+ const center=page.getByRole('dialog',{name:'Captain Match Center',exact:true});await center.getByRole('button',{name:'Review selected players in lineup',exact:true}).click()
+ const plan=page.getByRole('dialog',{name:'Plan your lineup',exact:true})
+ await plan.getByRole('textbox',{name:/^Match notes/}).fill('Warm up at the north courts.')
+ await plan.getByRole('button',{name:'Review working lineup',exact:true}).click();await plan.getByRole('button',{name:'Confirm working save',exact:true}).click()
+ await expect(center.getByRole('status')).toContainText('Working lineup saved.');await center.getByRole('button',{name:'Back to Captain',exact:true}).click()
+ await expect(second.locator('[data-brief-check]')).toBeFocused();await expect(second.locator('[data-brief-issue]')).toHaveCount(0)
+ expect(await page.evaluate(()=>(window as unknown as WeekBriefWindow).fixture.reads)).toBe(3)
+ await second.locator('[data-brief-check]').click();await expect(second.locator('[data-brief-issue]')).toHaveCount(1)
+ expect(await page.evaluate(()=>{const f=(window as unknown as WeekBriefWindow).fixture;return {reads:f.reads,briefChecks:f.briefChecks,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends,sharedChanges:f.sharedChanges}})).toEqual({reads:4,briefChecks:2,lineupSaves:1,publicationSends:0,sharedChanges:0})
+ await brief.getByRole('button',{name:'Back to Captain',exact:true}).click();expect(await page.evaluate(()=>(window as unknown as WeekBriefWindow).fixture.briefChanges)).toBe(1)
+})
+test('week brief disposal ignores an in-flight readiness check',async({page})=>{
+ const {brief,second}=await weekBrief(page);await page.evaluate(()=>{(window as unknown as WeekBriefWindow).fixture.hold=true})
+ await second.locator('[data-brief-check]').click();await expect(brief.getByRole('status')).toContainText('Checking this match')
+ await brief.getByRole('button',{name:'Back to Captain',exact:true}).click();await page.evaluate(()=>{(window as unknown as WeekBriefWindow).fixture.release()})
+ await expect(page.getByRole('dialog')).toHaveCount(0)
+ expect(await page.evaluate(()=>{const f=(window as unknown as WeekBriefWindow).fixture;return {reads:f.reads,lineupSaves:f.lineupSaves,publicationSends:f.publicationSends}})).toEqual({reads:1,lineupSaves:0,publicationSends:0})
 })
