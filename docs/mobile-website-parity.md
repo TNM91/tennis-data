@@ -420,6 +420,14 @@ An assessment save in progress keeps the view open until it completes; the user 
 
 This reuses the existing inline confirmation and centralized account/screen guards. It adds no calculation, storage, account write, coach sharing, API, schema, notification, polling or artwork changes, and no persistence of unsaved answers across force quit. This follow-up is local and not yet in TestFlight; physical iPhone acceptance follows a later beta.
 
+### Your TiQ history change recovery — local follow-up to build 344
+
+Rating history keeps an in-progress device import, coach-sharing change, sharing revocation or deletion open through Close, Escape and coaching navigation. It asks the player to try closing again after the save finishes; it does not queue a departure. Loading read-only history and closing a confirmed change still work immediately.
+
+An unconfirmed change uses the existing rounded confirmation treatment with Keep reviewing and Leave history. Keeping restores focus and the same explicit retry operation. Leaving closes without retrying or undoing a change that may already be saved, and directs the player to refresh Rating history before changing it again. Keeping a review clears its requested destination. A later explicit handoff follows only the current choice. Closing returns focus to Rating history through the account refresh, including a failed refresh, without taking focus back after the player moves elsewhere. Account changes force the private history and confirmation closed and invalidate their old actions.
+
+The existing device-import recovery record remains account-scoped. Sharing, revocation and deletion retries remain limited to the open history visit; this does not add an offline queue or force-quit recovery. No new storage, API, schema, account write, coach notification, polling, artwork or styling changes are added. This follows the separately verified assessment navigation update; both are local and not yet in TestFlight. Physical iPhone acceptance follows a later beta.
+
 ## League Office season review — build 83 released
 
 My Lab → League Office adds a connected read-only visit through seasons created by the signed-in account, participant entry records, schedules, recorded results/courts and team standings. The home is generated from the actual website `LeagueOfficeHome` component and its CSS; the optional caption says Workspace in the app without claiming a different membership plan. The website's team standings calculation is extracted into a pure helper and reused unchanged by both callers, including dynamic points and configured standings rules. Unplayed events do not become wins, losses or ties. Individual leagues show recorded player results; this slice does not invent individual standings.

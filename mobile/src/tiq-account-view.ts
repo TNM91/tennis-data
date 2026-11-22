@@ -23,14 +23,49 @@ export function openTiqAccountHistory(client: SupabaseClient, owner: string, cur
   let focusAfter: string | null = 'heading'
   let historyConfirmed = false, comparisonOpen = false
   let comparisonSelection: TiqProgressSelection | null = null
+  let leaveAction: (() => void) | undefined, leaveFocus: HTMLElement | null = null
   const devices = (options.device ?? []).filter((entry, index, rows) => rows.findIndex(other => JSON.stringify(other) === JSON.stringify(entry)) === index)
   const active = () => !disposed && current() && trigger.isConnected
   function dispose() {
     if (disposed) return
-    disposed = true; entries = []; snapshot = null; pending = null; operation = null; comparisonSelection = null
+    disposed = true; entries = []; snapshot = null; pending = null; operation = null; comparisonSelection = null; leaveAction = undefined; leaveFocus = null
+    dialog.querySelector<HTMLDialogElement>('[data-tiq-leave-warning]')?.close()
     dialog.close(); dialog.remove()
     if (current() && trigger.isConnected) trigger.focus({preventScroll: true})
     if (current()) options.closed?.()
+  }
+  function keepReviewing() {
+    if (!active()) return
+    dialog.querySelector<HTMLDialogElement>('[data-tiq-leave-warning]')?.close()
+    leaveAction = undefined
+    const target = leaveFocus?.isConnected ? leaveFocus : dialog.querySelector<HTMLElement>('[data-tiq-retry]')
+    leaveFocus = null
+    target?.focus({preventScroll: true})
+  }
+  function requestLeave(action?: () => void, origin?: HTMLElement) {
+    if (!active()) return
+    if (busy && operation) {
+      const status = dialog.querySelector<HTMLElement>('[data-tiq-status]')!
+      status.textContent = 'Your rating change is still saving. Try closing again when it finishes.'
+      status.tabIndex = -1; status.focus()
+      return
+    }
+    if (operation) {
+      leaveAction = action
+      const warning = dialog.querySelector<HTMLDialogElement>('[data-tiq-leave-warning]')!
+      if (!warning.open) {
+        leaveFocus = origin ?? (document.activeElement instanceof HTMLElement && dialog.contains(document.activeElement) ? document.activeElement : null)
+        warning.showModal(); warning.querySelector<HTMLElement>('h2')?.focus()
+      }
+      return
+    }
+    dispose()
+    if (current()) action?.()
+  }
+  function back() {
+    if (dialog.querySelector<HTMLDialogElement>('[data-tiq-leave-warning]')?.open) keepReviewing()
+    else requestLeave()
+    return true
   }
   async function load(more = false, message = '') {
     if (!active() || busy) return
@@ -118,8 +153,23 @@ export function openTiqAccountHistory(client: SupabaseClient, owner: string, cur
       ${snapshot?.next ? `<button type="button" class="secondary" data-tiq-more ${locked ? 'disabled' : ''}>Load earlier assessments</button>` : ''}
       ${snapshot?.moreCoaches ? '<p>Showing your latest 50 coach connections.</p>' : ''}
       ${!options.student && devices.length ? `<details class="tiq-device-history"><summary>Assessments on this device</summary><p>These device copies stay private unless you save them to your account.</p>${devices.map((entry, index) => `<div><p>${html(formatCalendarDay(entry.date))}</p><button type="button" class="secondary" data-tiq-import="${index}" ${locked || !snapshot ? 'disabled' : ''}>Save device assessment to account</button></div>`).join('')}</details>` : ''}
-      <button type="button" class="secondary" data-tiq-refresh ${busy || operation ? 'disabled' : ''}>Refresh history</button>`
-    dialog.querySelector('[data-tiq-close]')!.addEventListener('click', dispose)
+      <button type="button" class="secondary" data-tiq-refresh ${busy || operation ? 'disabled' : ''}>Refresh history</button>
+      <dialog class="native-coach-decision" data-tiq-leave-warning aria-labelledby="tiq-history-leave-title" aria-describedby="tiq-history-leave-detail">
+        <h2 id="tiq-history-leave-title" tabindex="-1">Leave an unconfirmed rating change?</h2>
+        <p id="tiq-history-leave-detail">This change may already be saved. Leaving closes this view without retrying. Refresh Rating history before changing it again.</p>
+        <button type="button" data-tiq-stay>Keep reviewing</button><button type="button" class="secondary" data-tiq-leave>Leave history</button>
+      </dialog>`
+    const close = dialog.querySelector<HTMLButtonElement>('[data-tiq-close]')!
+    close.addEventListener('click', () => requestLeave(undefined, close))
+    const warning = dialog.querySelector<HTMLDialogElement>('[data-tiq-leave-warning]')!
+    warning.oncancel = event => {event.preventDefault(); event.stopPropagation(); keepReviewing()}
+    warning.querySelector('[data-tiq-stay]')!.addEventListener('click', keepReviewing)
+    warning.querySelector('[data-tiq-leave]')!.addEventListener('click', () => {
+      if (!active()) return
+      const action = leaveAction
+      dispose()
+      if (current()) action?.()
+    })
     const comparison = dialog.querySelector<HTMLDetailsElement>('.tiq-progress-comparison')
     const comparisonHost = comparison?.querySelector<HTMLElement>('[data-tiq-progress]')
     if (comparison && comparisonHost) {
@@ -164,8 +214,8 @@ export function openTiqAccountHistory(client: SupabaseClient, owner: string, cur
       focusAfter = null
     }
   }
-  dialog.oncancel = event => {event.preventDefault(); dispose()}
+  dialog.oncancel = event => {event.preventDefault(); requestLeave()}
   document.body.append(dialog); dialog.showModal(); void load()
   dialog.querySelector<HTMLElement>('h2')?.focus()
-  return {dispose, back() {dispose(); return true}, isOpen: () => !disposed, requestLeave(action?: () => void) {dispose(); action?.()}}
+  return {dispose, back, isOpen: () => !disposed, requestLeave}
 }

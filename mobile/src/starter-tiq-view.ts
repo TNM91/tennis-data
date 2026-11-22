@@ -98,10 +98,16 @@ export function mountStarterTiq(
       const [page, pending] = await Promise.all([loadTiqAccount(account.client, owner, active), readPendingTiq(owner)])
       if (!active()) return
       accountHistory = page; pendingSave = pending; pendingChecked = true; accountNotice = ''
-      if (step === null && !document.querySelector('dialog[open]')) {applyAccount(page); render()}
+      if (step === null && !document.querySelector('dialog[open]')) {applyAccount(page); renderAccountRefresh()}
     } catch {
-      if (active()) {accountNotice = 'Account sync is unavailable. Device assessments are still available.'; if (step === null && !document.querySelector('dialog[open]')) render()}
+      if (active()) {accountNotice = 'Account sync is unavailable. Device assessments are still available.'; if (step === null && !document.querySelector('dialog[open]')) renderAccountRefresh()}
     } finally {accountLoading = false}
+  }
+
+  function renderAccountRefresh() {
+    const keepHistoryFocus = document.activeElement === host.querySelector('[data-starter-account]')
+    render()
+    if (keepHistoryFocus) focus('[data-starter-account]')
   }
 
   function paintMatchForm() {
