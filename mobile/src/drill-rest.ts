@@ -49,7 +49,7 @@ export function restCountdownHtml(state:RestSnapshot,locked=false,shortcut:Drill
   <p role="timer" aria-label="Rest remaining" aria-live="off" data-rest-clock>${restTime(state.remaining)}</p>
   <svg class="training-rest-track" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="4" rx="2"/><rect data-rest-fill width="${state.remaining/state.duration*100}" height="4" rx="2"/></svg>
   <label for="training-rest-duration">Rest duration</label>
-  <div class="training-rest-select"><select id="training-rest-duration" data-rest-duration data-session-control="rest-duration" aria-describedby="training-rest-help" ${locked||state.phase==='running'?'disabled':''}>${restDurations(plan).map(seconds=>`<option value="${seconds}" ${seconds===state.duration?'selected':''}>${seconds} seconds${seconds===plan?.seconds?' · Drill rest':''}</option>`).join('')}</select></div>
+  <div class="training-rest-select"><select id="training-rest-duration" data-rest-duration data-session-control="rest-duration" aria-describedby="training-rest-help" ${locked||state.phase==='running'?'disabled':''}>${restDurations(plan).map(seconds=>`<option value="${seconds}" ${seconds===state.duration?'selected':''}>${seconds} sec${seconds===plan?.seconds?' · Drill rest':''}</option>`).join('')}</select></div>
   <div class="training-rest-actions">
    <button type="button" ${ready?'class="secondary" ':''}data-rest-action="toggle" data-session-control="rest-toggle" ${locked?'disabled':''}>${restAction(state)}</button>
    <button type="button" class="secondary" data-rest-action="reset" data-session-control="rest-reset" ${locked||state.phase==='idle'?'disabled':''}>Reset rest</button>
