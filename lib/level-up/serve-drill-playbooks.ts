@@ -4,6 +4,7 @@ import type {DrillPlaybook} from './drill-playbooks'
 export const SERVE_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  'serve-target-ladder':{
   players:1,
+  rest:{seconds:45,guidance:'30–45 seconds between rounds.'},
   setup:['Use a full court, a racket and ten balls. Serve from behind the baseline into the diagonally opposite service box. Keep spare balls away from your feet.','Use broad wide, middle (body) and T lanes across the width of that service box. Place any flat markers outside the landing area. The five-target pattern is wide, body, T, body, wide.'],
   countLabel:'Target serves',countRule:'Count a serve when you call the next zone before the motion and land in that zone of the correct service box. A fault, wrong zone or missing call is a miss. Repeat service lets; a caught unused toss is not an attempt. Keep the pattern moving after a miss.',
   easier:'Use the whole diagonal service box as the target at a comfortable pace. Note the larger target if you adapt the drill; use the same setup when comparing sessions.',
@@ -15,6 +16,7 @@ export const SERVE_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  },
  'second-serve-routine-reps':{
   players:1,
+  rest:{seconds:45,guidance:'30–45 seconds between rounds.'},
   setup:['Use a court, a racket and ten balls. Start behind the baseline and choose a large target inside the diagonal service box. These are live serves; use a separate shadow drill for no-ball rehearsal.','Choose one breath, a target call and a comfortable motion you can repeat. Finish balanced and use the same reset after a make or a miss. Keep your feet clear of the baseline until contact.'],
   countLabel:'Routine reps kept',countRule:'Count a completed serve when the breath, target call, comfortable motion, balanced finish and calm reset all happen. A net or out fault can still count for this routine task; a foot fault or missed routine step cannot. Repeat service lets and unused tosses. This count is not serve accuracy.',
   easier:'Serve at an easier pace toward the whole diagonal service box while keeping the same breath, target call and reset. Do not replace the routine with a hurried push.',

@@ -11,6 +11,17 @@ export function newDrillPractice(card:LevelUpCard,version:DrillVersionId='contro
 export function selectedDrillVersion(card:LevelUpCard,practice:DrillPractice|null){
  return practice?.cardId===card.id?card.playbook?.versions.find(mode=>mode.id===practice.version):undefined
 }
+export function drillRestGuidance(card:LevelUpCard,practice:DrillPractice|null){
+ return selectedDrillVersion(card,practice)?card.playbook?.rest??null:null
+}
+export function drillRestSummaryHtml(card:LevelUpCard,practice:DrillPractice|null){
+ const plan=drillRestGuidance(card,practice)
+ return plan?` <span class="training-rest-summary">Drill rest: ${html(plan.guidance)}</span>`:''
+}
+export function drillDoseSummaryHtml(card:LevelUpCard,practice:DrillPractice|null,view:'setup'|'session'='setup'){
+ const mode=selectedDrillVersion(card,practice)
+ return mode?`<p class="${view==='session'?'training-session-dose':'training-playbook-dose'}">${mode.rounds} rounds · ${mode.reps} reps per round${drillRestSummaryHtml(card,practice)}</p>`:''
+}
 export function drillRoundTotals(card:LevelUpCard,practice:DrillPractice){
  const mode=selectedDrillVersion(card,practice)
  if(!mode||practice.results.length!==mode.rounds)throw new DrillResultError('Review the current drill before saving.','note')
@@ -59,7 +70,7 @@ export function drillSetupHtml(card:LevelUpCard,practice:DrillPractice|null,choo
  if(!book||!mode)return ''
  return `<section class="training-playbook" aria-label="Drill setup">
   ${choose?`<label for="training-drill-version">Practice version</label><select id="training-drill-version" data-drill-version aria-describedby="training-version-help">${book.versions.map(version=>`<option value="${html(version.id)}" ${mode.id===version.id?'selected':''}>${html(version.label)}</option>`).join('')}</select>`:`<strong>${html(mode.label)}</strong>`}
-  <p class="training-playbook-dose">${mode.rounds} rounds · ${mode.reps} reps per round</p>
+  ${drillDoseSummaryHtml(card,practice)}
   <p id="training-version-help">${html(mode.focus)}${mode.requiresPartner?' A partner is needed for this version.':''}</p>
   <h3>Set up</h3><ul>${book.setup.map(step=>`<li>${html(step)}</li>`).join('')}</ul>
   <details class="training-inbox-fold" data-drill-fold="adapt"><summary>Adjust the challenge</summary><p><strong>Make it easier</strong> ${html(book.easier)}</p><p><strong>When to progress</strong> ${html(book.advance)}</p></details>
