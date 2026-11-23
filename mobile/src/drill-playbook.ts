@@ -50,6 +50,10 @@ export function drillTally(card:LevelUpCard,practice:DrillPractice){
  const total=drillRoundTotals(card,practice)
  return total.recorded?`${total.recorded} of ${total.mode.rounds} rounds recorded · ${total.clean}/${total.attempts} ${card.playbook!.countLabel.toLowerCase()}`:'No round results entered.'
 }
+export function drillRoundFeedback(card:LevelUpCard,practice:DrillPractice){
+ try{return {text:drillTally(card,practice),field:null}}
+ catch(error){return {text:error instanceof DrillResultError?error.message:'Review the current drill before saving.',field:error instanceof DrillResultError&&error.field.startsWith('drill-round-')?error.field:null}}
+}
 export function drillEvidence(card:LevelUpCard,practice:DrillPractice|null){
  if(!practice)return ''
  const total=drillRoundTotals(card,practice)
@@ -80,13 +84,13 @@ export function drillSetupHtml(card:LevelUpCard,practice:DrillPractice|null,choo
 export function drillResultsHtml(card:LevelUpCard,practice:DrillPractice|null,locked:boolean,rest:RestSnapshot|null=null){
  const book=card.playbook,mode=selectedDrillVersion(card,practice)
  if(!book||!mode||!practice)return ''
- let tally='Check the round counts below.';try{tally=drillTally(card,practice)}catch{/* Preserve invalid raw input for correction. */}
+ const feedback=drillRoundFeedback(card,practice)
  return `<fieldset class="training-rounds" ${locked?'disabled':''} aria-describedby="training-round-help">
   <legend>Round results <span>(optional)</span></legend>
   <p><strong>${html(mode.label)} · ${html(book.countLabel)}</strong></p><p id="training-round-help">Finish all ${mode.reps} attempts before logging a round. Leave unfinished rounds blank.</p>
   <details class="training-inbox-fold" data-inbox-fold="drill-count-rule-${html(card.id)}"><summary>What counts?</summary><p>${html(book.countRule)}</p></details>
-  <div class="training-round-grid">${practice.results.map((value,index)=>`<label for="training-drill-round-${index}">Round ${index+1}<span><input id="training-drill-round-${index}" name="drill-round-${index}" data-drill-result="${index}" type="number" inputmode="numeric" enterkeyhint="${index===practice.results.length-1?'done':'next'}" min="0" max="${mode.reps}" step="1" value="${html(value)}" aria-describedby="training-round-help"/><span aria-hidden="true">/ ${mode.reps}</span></span></label>`).join('')}</div>
-  <output data-drill-tally data-session-control="round-summary" tabindex="-1" aria-label="Drill round totals" aria-live="polite" aria-atomic="true">${html(tally)}</output>
+  <div class="training-round-grid">${practice.results.map((value,index)=>`<label for="training-drill-round-${index}">Round ${index+1}<span><input id="training-drill-round-${index}" name="drill-round-${index}" data-drill-result="${index}" type="number" inputmode="numeric" enterkeyhint="${index===practice.results.length-1?'done':'next'}" min="0" max="${mode.reps}" step="1" value="${html(value)}" ${feedback.field==='drill-round-'+index?'aria-invalid="true" ':''}aria-describedby="training-round-help${feedback.field==='drill-round-'+index?' training-round-totals':''}"/><span aria-hidden="true">/ ${mode.reps}</span></span></label>`).join('')}</div>
+  <output data-drill-tally data-session-control="round-summary" tabindex="-1" aria-label="Drill round totals" aria-live="polite" aria-atomic="true"><span id="training-round-totals" data-drill-feedback>${html(feedback.text)}</span></output>
   ${rest?roundRestButtonHtml(rest,locked):''}
   <p class="training-rounds-help">Entered counts and the practice version save with your private note. Blank rounds stay unrecorded. These counts do not change your TiQ rating.</p>
  </fieldset>`

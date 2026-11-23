@@ -22,7 +22,7 @@ import {matchDate} from './recent-results'
 import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingSave,type TrainingSession,type TrainingSave} from './level-up-data'
 import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave,trainingFormats,trainingSetupLabel,type TrainingFormat} from './level-up-model'
 import {trainingContextLabel,cardTrainingContextHint} from '../../lib/level-up/training-context'
-import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillDoseSummaryHtml,drillResultsHtml,drillTally,drillSessionNote,drillRoundShortcut,drillRestGuidance,DrillResultError,type DrillPractice} from './drill-playbook'
+import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillDoseSummaryHtml,drillResultsHtml,drillRoundFeedback,drillSessionNote,drillRoundShortcut,drillRestGuidance,DrillResultError,type DrillPractice} from './drill-playbook'
 import {drillGuidePage,moveDrillGuide,drillCourtGuideHtml} from './drill-court'
 import {drillCoachingHtml} from './drill-coaching'
 import {RestCountdown,restCountdownHtml,paintRestCountdown,restTabHtml,restDurations} from './drill-rest'
@@ -932,8 +932,14 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     const practice=currentDrillPractice()
     if(practice&&selected){
      practice.results=practice.results.map((_,index)=>String(fields.get('drill-round-'+index)??''))
-     const tally=form.querySelector<HTMLOutputElement>('[data-drill-tally]')
-     if(tally){let text='Check the round counts above.';try{text=drillTally(selected,practice)}catch{/* Keep invalid counts available for correction. */}if(tally.textContent!==text)tally.textContent=text}
+     const feedback=drillRoundFeedback(selected,practice)
+     const tally=form.querySelector<HTMLElement>('[data-drill-feedback]')
+     if(tally&&tally.textContent!==feedback.text)tally.textContent=feedback.text
+     form.querySelectorAll<HTMLInputElement>('[data-drill-result]').forEach(input=>{
+      const invalid=input.name===feedback.field,description='training-round-help'+(invalid?' training-round-totals':'')
+      if(invalid){if(input.getAttribute('aria-invalid')!=='true')input.setAttribute('aria-invalid','true')}else input.removeAttribute('aria-invalid')
+      if(input.getAttribute('aria-describedby')!==description)input.setAttribute('aria-describedby',description)
+     })
     }
    }
    form.oninput=capture;form.onchange=capture

@@ -1,5 +1,11 @@
 # TenAceIQ mobile readiness — 2026-10-23
 
+## Round corrections — local follow-up after build 352
+
+Invalid round counts now name the first round needing a correction and the selected version's allowed range. The same shared validator supplies this message while typing and after view changes. Its text is linked to the affected field through an accessible description and `aria-invalid`; correcting or clearing the count removes that association and restores the totals. With several invalid counts, feedback advances to the next correction in round order. Focus, raw values, zero and unfinished rounds stay intact.
+
+The correction text sits in the existing totals region with no additional panel or styling. Linking the field to the message text itself preserves the actual correction rather than reading only the totals region's accessible label. Unchanged feedback avoids repeated text/attribute updates. Frozen-save, stale-control and account guards still apply; feedback adds nothing to saved notes, ratings or timer state. Evidence: `output/drill-round-feedback-20261123`. Queued locally for the next beta with round keyboard entry and rounds-to-rest; TestFlight 352 and public review 324 remain unchanged. Physical iPhone and VoiceOver acceptance remain pending.
+
 ## Round keyboard entry — local follow-up after build 352
 
 Tracked drill round fields offer Next until the last round, then Done. Enter advances without leaving On-court view or submitting Full log; Shift+Enter returns to the previous round. The final field focuses the existing totals, where Enter remains inert. Implicit keyboard submissions use the same handoff, while an explicit Save completed session remains available even when a round field has focus. Blank rounds stay unfinished, zero stays recorded and invalid counts remain editable. Notes keep normal multiline entry.

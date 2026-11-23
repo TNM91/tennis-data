@@ -208,6 +208,41 @@ async function smallRoundRestHeader(training:Locator){
  await training.evaluate(el=>{(el as HTMLElement).style.setProperty('--training-top-clearance','60px');(el as HTMLElement).style.setProperty('--training-bottom-clearance','36px');const title=el.querySelector<HTMLElement>('h1')!;title.style.fontSize='28px';title.replaceChildren(document.createTextNode('On-court'),document.createElement('br'),document.createTextNode('practice'))})
 }
 
+test.describe('Drill round correction feedback',()=>{
+ for(const width of [320,390])test('identifies the correction without moving focus or changing counts at '+width+'px',async({page},info)=>{
+  await page.setViewportSize({width,height:width===320?568:844})
+  const training=await openRest(page,width===320?'&large=1':'','Return Depth Lane',{plannedRest:true})
+  if(width===320)await smallRoundRestHeader(training)
+  await training.getByRole('button',{name:'Rounds',exact:true}).click()
+  const first=training.getByRole('spinbutton',{name:'Round 1',exact:true}),second=training.getByRole('spinbutton',{name:'Round 2',exact:true}),summary=training.getByRole('status',{name:'Drill round totals',exact:true})
+  await first.fill('11');await expect(summary).toHaveText('Use a whole number from 0 to 10 for round 1.');await expect(first).toBeFocused();await expect(first).toHaveValue('11');await expect(first).toHaveAttribute('aria-invalid','true');await expect(first).toHaveAccessibleDescription(/Use a whole number from 0 to 10 for round 1\./)
+  await expect(second).not.toHaveAttribute('aria-invalid');await expect(second).toHaveValue('');await expect(first).toHaveAttribute('aria-describedby','training-round-help training-round-totals')
+  await summary.scrollIntoViewIfNeeded();await expect(summary).toBeInViewport({ratio:1});expect(await summary.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await page.screenshot({path:info.outputPath('round-correction-'+width+'.png')})
+  await first.fill('0');await expect(summary).toHaveText('1 of 3 rounds recorded · 0/10 deep returns');await expect(first).not.toHaveAttribute('aria-invalid');await expect(first).toHaveAttribute('aria-describedby','training-round-help');await expect(second).toHaveValue('');expect(await writes(page)).toHaveLength(0)
+ })
+ test('uses the selected dose and preserves corrections across views and Close',async({page})=>{
+  const training=await openRest(page,'','Serve +1 Conditioning',{plannedRest:true});await training.getByRole('button',{name:'Rounds',exact:true}).click()
+  const first=training.getByRole('spinbutton',{name:'Round 1',exact:true}),second=training.getByRole('spinbutton',{name:'Round 2',exact:true}),summary=training.getByRole('status',{name:'Drill round totals',exact:true})
+  await second.fill('7');await expect(summary).toHaveText('Use a whole number from 0 to 6 for round 2.');await expect(second).toHaveAttribute('aria-invalid','true')
+  await first.fill('8');await expect(summary).toHaveText('Use a whole number from 0 to 6 for round 1.');await expect(first).toHaveAttribute('aria-invalid','true');await expect(second).not.toHaveAttribute('aria-invalid');await expect(second).toHaveValue('7')
+  await training.getByRole('button',{name:'Full log',exact:true}).click();await expect(summary).toHaveText('Use a whole number from 0 to 6 for round 1.');await expect(first).toHaveAccessibleDescription(/Use a whole number from 0 to 6 for round 1\./)
+  await first.fill('0');await expect(first).toBeFocused();await expect(summary).toHaveText('Use a whole number from 0 to 6 for round 2.');await expect(second).toHaveAttribute('aria-invalid','true');await expect(first).not.toHaveAttribute('aria-invalid')
+  await second.press('Escape');await training.getByRole('button',{name:'Keep training',exact:true}).click();await expect(second).toBeFocused();await expect(second).toHaveValue('7');await expect(second).toHaveAccessibleDescription(/Use a whole number from 0 to 6 for round 2\./)
+  await second.fill('4');await expect(summary).toContainText('4/12');await expect(second).not.toHaveAttribute('aria-invalid');await expect(second).toHaveAttribute('aria-describedby','training-round-help')
+  await training.getByRole('button',{name:'On-court view',exact:true}).click();await expect(first).toHaveValue('0');await expect(second).toHaveValue('4');await expect(training.getByRole('spinbutton',{name:'Round 3',exact:true})).toHaveValue('');await expect(summary).toContainText('4/12');expect(await writes(page)).toHaveLength(0)
+ })
+ test('ignores stale feedback events while a save is uncertain and after account disposal',async({page})=>{
+  const training=await openRest(page);await training.getByRole('button',{name:'Rounds',exact:true}).click();await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('0')
+  await page.evaluate(()=>{const state=(window as unknown as RestWindow).restCapture;state.failFirst=true;state.stale=Array.from(document.querySelectorAll<HTMLElement>('[data-drill-result]'))})
+  await training.getByRole('button',{name:'Finish & log',exact:true}).click();await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('2');await training.getByRole('button',{name:'Save completed session',exact:true}).click();await expect(training.getByRole('button',{name:'Retry same session',exact:true})).toBeVisible()
+  const summary=training.getByRole('status',{name:'Drill round totals',exact:true});await expect(summary).toHaveText('1 of 3 rounds recorded · 0/10 deep returns')
+  await page.evaluate(()=>{for(const el of (window as unknown as RestWindow).restCapture.stale){(el as HTMLInputElement).value='11';el.dispatchEvent(new Event('input',{bubbles:true}))}const current=document.querySelector<HTMLInputElement>('[data-drill-result]')!;current.value='11';current.dispatchEvent(new Event('input',{bubbles:true}))})
+  await expect(summary).toHaveText('1 of 3 rounds recorded · 0/10 deep returns');await expect(training.locator('[aria-invalid=true]')).toHaveCount(0);expect(await writes(page)).toHaveLength(1)
+  await training.getByRole('button',{name:'Retry same session',exact:true}).click();await expect(training.locator('.training-history-latest')).toContainText('R1 0/10');const saved=await writes(page);expect(saved).toHaveLength(2);expect(saved[1]).toBe(saved[0])
+  await page.evaluate(()=>{(window as unknown as RestWindow).switchNavigationOwner();for(const el of (window as unknown as RestWindow).restCapture.stale)el.dispatchEvent(new Event('input',{bubbles:true}))});await expect(training).toHaveCount(0);expect(await writes(page)).toHaveLength(2)
+ })
+})
+
 test.describe('Drill round keyboard entry',()=>{
  test.setTimeout(45000)
  for(const width of [320,390])test('moves through rounds without finishing or saving at '+width+'px',async({page},info)=>{
@@ -230,7 +265,7 @@ test.describe('Drill round keyboard entry',()=>{
  test('reviews full-log counts without submitting and preserves explicit save and multiline notes',async({page})=>{
   const training=await openRest(page);await training.getByRole('button',{name:'Full log',exact:true}).click()
   const first=training.getByRole('spinbutton',{name:'Round 1',exact:true}),second=training.getByRole('spinbutton',{name:'Round 2',exact:true}),third=training.getByRole('spinbutton',{name:'Round 3',exact:true}),summary=training.getByRole('status',{name:'Drill round totals',exact:true})
-  await first.fill('11');await first.press('Enter');await expect(second).toBeFocused();await expect(first).toHaveValue('11');await expect(summary).toContainText('Check the round counts above.')
+  await first.fill('11');await first.press('Enter');await expect(second).toBeFocused();await expect(first).toHaveValue('11');await expect(summary).toHaveText('Use a whole number from 0 to 10 for round 1.')
   await second.press('Shift+Enter');await first.fill('0');await first.press('Enter');await second.fill('4');await second.press('Enter');await third.press('Enter');await expect(summary).toBeFocused();await summary.press('Enter')
   expect(await writes(page)).toHaveLength(0);await expect(third).toHaveValue('');await expect(training.getByRole('button',{name:'On-court view',exact:true})).toBeVisible()
   const note=training.locator('[name=note]');await note.fill('Depth first');await note.press('Enter');await note.press('End');await note.press('x');await expect(note).toHaveValue('Depth first\nx')

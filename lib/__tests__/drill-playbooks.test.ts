@@ -2,7 +2,7 @@ import {expect,it} from 'vitest'
 import {LEVEL_UP_CARDS} from '../level-up/level-up-cards'
 import {tiqSkills} from '../tiq-assessment-skills'
 import {drillPlaybook} from '../level-up/drill-playbooks'
-import {newDrillPractice,drillRoundTotals,drillSessionNote,drillTally,drillEvidence,drillSetupHtml,drillResultsHtml} from '../../mobile/src/drill-playbook'
+import {newDrillPractice,drillRoundTotals,drillSessionNote,drillTally,drillRoundFeedback,drillEvidence,drillSetupHtml,drillResultsHtml} from '../../mobile/src/drill-playbook'
 import {freezeTrainingSave} from '../../mobile/src/level-up-model'
 
 const card=LEVEL_UP_CARDS.find(card=>card.id==='return-depth-lane')!
@@ -40,6 +40,19 @@ it('escapes setup and draft values, exposes the selected version, and locks unce
  const dangerous={...card,playbook:{...card.playbook!,setup:['<img src=x>','A & B'],countRule:'<script> no',countLabel:'<target>'}},practice={...newDrillPractice(card,'pressure')!,results:['" onfocus="evil','0','']}
  const setup=drillSetupHtml(dangerous,practice,true),fields=drillResultsHtml(dangerous,practice,true)
  expect(setup).toContain('&lt;img src=x&gt;');expect(setup).toContain('value="pressure" selected');expect(setup).not.toContain('<img')
- expect(fields).toContain('&quot; onfocus=&quot;evil');expect(fields).toContain('fieldset class="training-rounds" disabled');expect(fields).toContain('value="0"');expect(fields).not.toContain('<script>');expect(fields).toContain('Check the round counts below.')
+ expect(fields).toContain('&quot; onfocus=&quot;evil');expect(fields).toContain('fieldset class="training-rounds" disabled');expect(fields).toContain('value="0"');expect(fields).not.toContain('<script>');expect(fields).toContain('Use a whole number from 0 to 10 for round 1.')
  const legacy={...card,playbook:undefined};expect(newDrillPractice(legacy)).toBeNull();expect(drillSetupHtml(legacy,null,true)).toBe('');expect(drillResultsHtml(legacy,null,false)).toBe('')
+})
+it('reports the first correction using each selected drill dose without changing raw counts',()=>{
+ for(const drill of LEVEL_UP_CARDS.filter(card=>card.playbook))for(const mode of drill.playbook!.versions){
+  const practice=newDrillPractice(drill,mode.id)!;practice.results[0]='0';practice.results[1]=String(mode.reps+1);const before=structuredClone(practice)
+  expect(drillRoundFeedback(drill,practice)).toEqual({text:`Use a whole number from 0 to ${mode.reps} for round 2.`,field:'drill-round-1'});expect(practice).toEqual(before)
+  practice.results[0]='-1';expect(drillRoundFeedback(drill,practice).field).toBe('drill-round-0')
+  practice.results[0]='0';practice.results[1]='';expect(drillRoundFeedback(drill,practice)).toEqual({text:drillTally(drill,practice),field:null});expect(drillRoundTotals(drill,practice)).toMatchObject({recorded:1,clean:0,attempts:mode.reps})
+ }
+})
+it('asks for drill review without associating a stale identity with a round field',()=>{
+ const practice=newDrillPractice(card)!
+ for(const draft of [{...practice,cardId:'other'},{...practice,version:'retired' as typeof practice.version},{...practice,results:['0']}])expect(drillRoundFeedback(card,draft)).toEqual({text:'Review the current drill before saving.',field:null})
+ expect(drillRoundFeedback(card,practice)).toEqual({text:'No round results entered.',field:null})
 })
