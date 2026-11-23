@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import {LEVEL_UP_CARDS} from '../level-up/level-up-cards'
 
 const pageSource = readFileSync(join(process.cwd(), 'app/level-up/page.tsx'), 'utf8')
 const contentSource = readFileSync(join(process.cwd(), 'app/level-up/level-up-page-content.tsx'), 'utf8')
@@ -158,8 +159,12 @@ describe('Level Up page', () => {
     expect(levelUpCardsSource).toContain('Serve Pressure Reset')
     expect(levelUpCardsSource).toContain('getRecommendedLevelUpCards')
     expect(levelUpCardsSource).toContain('cardContentEnhancements')
-    expect(levelUpCardsSource).toContain('qualityChecks: content.qualityChecks')
-    expect(levelUpCardsSource).toContain('commonMiss: content.commonMiss')
+    for(const card of LEVEL_UP_CARDS){
+      expect(card.qualityChecks?.length,card.id).toBeGreaterThan(0)
+      expect(card.qualityChecks?.every(check=>check.trim().length>0),card.id).toBe(true)
+      expect(card.commonMiss?.miss.trim().length,card.id).toBeGreaterThan(0)
+      expect(card.commonMiss?.fix.trim().length,card.id).toBeGreaterThan(0)
+    }
     expect(levelUpCardsSource).toContain('proofAnchors: content.proofAnchors')
     expect(levelUpCardsSource).toContain('The player changes direction because they are bored, not because they are balanced.')
     expect(levelUpCardsSource).toContain('Say block, drive, height, or depth before any split-step rep counts.')
@@ -170,7 +175,7 @@ describe('Level Up page', () => {
     expect(levelUpCardsSource).toContain('Slow the ball down and restart the count whenever the recovery line is skipped.')
     expect(levelUpCardsSource).toContain('Freeze the split for one beat and call the target before the feed counts.')
     expect(levelUpCardsSource).toContain('Score the close and split first. The volley only counts after the player earns ready feet.')
-    expect(levelUpCardsSource).toContain('Move closer, soften the feed, and count only blocks with hands reset in front.')
+    expect(LEVEL_UP_CARDS.find(card=>card.id==='reaction-volley-wall')?.commonMiss?.fix).toContain('catch and reset')
     expect(levelUpCardsSource).toContain('Name the state before the swing: defend, neutral, or attack.')
     expect(levelUpCardsSource).toContain('Call serve location and plus-one target as a pair before the rep begins.')
     expect(levelUpCardsSource).toContain('Say target and plus-one before the motion. If either is missing, restart the rep.')

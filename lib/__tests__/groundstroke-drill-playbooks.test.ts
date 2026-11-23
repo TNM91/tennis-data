@@ -22,9 +22,9 @@ it.each(cases)('finds %s with the correct setup and saves its own rounds private
  expect(saved.note).toContain('R1 0/10; R'+rounds+' 8/10. Total 8/20.');expect(saved).not.toHaveProperty('assignmentId');expect(Object.isFrozen(saved)).toBe(true)
  expect(newDrillPractice(card)!.results).toEqual(Array(rounds).fill(''));expect(JSON.stringify(card)).toBe(before)
 })
-it('extends the tracked library to eighteen without replacing earlier playbooks or card identities',()=>{
+it('keeps the six groundstroke playbooks alongside the expanded tracked library',()=>{
  const all=LEVEL_UP_CARDS.filter(card=>card.playbook)
- expect(all).toHaveLength(18);expect(new Set(all.map(card=>card.id)).size).toBe(18)
+ expect(all).toHaveLength(22);expect(new Set(all.map(card=>card.id)).size).toBe(22)
  expect(Object.keys(GROUNDSTROKE_DRILL_PLAYBOOKS).sort()).toEqual(cases.map(([id])=>id).sort())
  for(const skill of tiqSkills){expect(all.some(card=>card.id===skill.drill.id)).toBe(true);expect(cases.map(([id])=>id)).not.toContain(skill.drill.id)}
 })

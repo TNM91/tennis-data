@@ -1323,6 +1323,19 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 .training-court-step-controls [aria-disabled="true"] { opacity:.5; }
 .training-court-guide .training-court-cue { margin:14px 0 0;font-size:.8125rem; }
 .training-court-cue strong { display:block;margin-block-end:4px;color:var(--premium-ice); }
+.training-dialog .training-coaching {
+ margin-block:12px;padding:0 2px;min-inline-size:0;border:0;border-block-start:1px solid var(--premium-line);
+ border-radius:0;background:transparent;box-shadow:none;overflow-wrap:anywhere;
+}
+.training-dialog .training-coaching>summary { min-block-size:48px;padding-block:12px;color:var(--premium-ice); }
+.training-dialog .training-coaching h3 { margin:14px 0 8px;font-size:.875rem;color:var(--premium-white); }
+.training-dialog .training-coaching p,.training-dialog .training-coaching li { font-size:.8125rem;line-height:1.55;color:var(--premium-copy); }
+.training-dialog .training-coaching strong { color:var(--premium-white); }
+.training-dialog .training-coaching ul { margin:0;padding-inline-start:1.2em; }
+.training-dialog .training-coaching li+li { margin-block-start:8px; }
+.training-coaching-correction { margin-block:14px;padding-inline-start:12px;border-inline-start:2px solid var(--premium-ice); }
+.training-coaching-correction p { margin-block:8px; }
+.training-coaching-correction strong { display:block;margin-block-end:3px; }
 .training-court-screen .training-session-log { margin:0;padding:0;border:0;background:transparent; }
 .training-court-screen .training-rounds { margin-block:0; }
 .training-court-footer { flex:none;margin:0 -12px -12px;padding:10px 12px;border-block-start:1px solid var(--premium-line);background:var(--premium-page); }

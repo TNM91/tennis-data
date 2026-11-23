@@ -1,20 +1,48 @@
 # Website to iPhone parity
 
-## Drill progress comparison — local follow-up
+## Serve placement and routine playbooks — local follow-up after build 348
+
+Serve Target Ladder and Second-Serve Routine Reps now use original playbooks with distinct control/pressure routines, three rounds of ten, setup, count rules, easier adaptations and quick coaching. The tracked library has twenty-two drills: eight solo, nine partner and five doubles. Card IDs, settings, duration, access and existing coach links stay unchanged. Shared website cards use the control routine; native users can select the version and use On-court view, private counts, comparisons and a fresh repeat.
+
+The ladder repeats a wide/body/T/body/wide pattern on both service sides; its pressure version alternates serving sides for each target pair. Faults and wrong zones stay misses. Routine reps score preparation, a balanced finish and reset separately from placement: a net or out fault can still meet that practice rule, while a foot fault or missing routine step cannot. Neither metric is a TiQ change, and the routine count is explicitly not serve accuracy. Service lets and unused tosses are replayed. Old notes receive no inferred counts and the drills do not automatically satisfy the exact serve drill in a TiQ plan.
+
+Serve Pressure Reset retains its original three-card order. Its save-recovery browser check now enters zero/blank/recorded rounds, verifies that only a confirmed save advances the block, and opens the second upgraded drill without marking it complete. The save notice is addressed directly so the additional round-total status cannot make that check ambiguous.
+
+The [LTA second-serve guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/how-to-improve-your-second-serve/) and [serving rules](https://www.lta.org.uk/play/how-to-get-started/rules-scoring/) were consulted for practice context, the diagonal service box and lets. Formats, counts and wording are TenAceIQ originals; no external media or imported results are added. Evidence is recorded in `output/serve-pressure-20261122`. No API, schema, purchase, collector or artwork change is needed. A later beta and physical iPhone/VoiceOver acceptance remain pending; build 348 and public review build 324 are untouched.
+
+## Net and wall volley playbooks — local follow-up after build 348
+
+Volley Punch Target and Reaction Volley Wall now use original, trackable playbooks. The catalog has twenty tracked drills: six solo, nine with a partner and five for doubles groups. Both upgrades keep their existing card IDs, settings, duration, coach links and access rules. Each has setup instructions, three rounds of ten, distinct Build control / Add pressure routines, a count rule, an easier version and progression guidance. Shared website cards use the control routine; native previews, On-court view, private round logs, comparisons and fresh repeats use the selected version.
+
+Volley Punch Target counts placement with compact, balanced contact on playable feeds. It replaces an automatic forward step with a ready reset. Reaction Volley Wall separates unscored starting shots and deliberate catches from counted rebound-volley attempts. Pressure work alternates sides, retains misses and offers a catch/reset when rushed; the copy does not present it as a measured reaction-time test. Old free-form session notes remain unchanged, with no inferred historical counts. Related net work does not automatically satisfy an exact TiQ practice plan or coach assignment.
+
+On-court timer controls show Pause / Resume with unchanged full accessible labels, keeping the toolbar stable when the wall-drill title wraps on a short phone. Full log and warm-up retain Pause timer / Resume timer. Close/Keep acceptance requires the focused round field to be fully visible and hit-testable, as well as retaining its raw value and the fixed finish action.
+
+The [LTA volley guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/how-to-improve-your-tennis-volleys/) and [solo/partner practice examples](https://www.lta.org.uk/play/tennis-at-home/at-home-tennis-drills/) were consulted for volley contact and practice context. The formats, counts and wording are TenAceIQ originals; no third-party media or imported results are included. No API, schema, billing, collector or artwork change is needed. Evidence is recorded in `output/net-volley-20261122`; beta and physical iPhone/VoiceOver acceptance remain pending. Build 348 and public review build 324 are untouched by this local work.
+
+## Drill quick coaching — local follow-up after build 348
+
+The original eighteen tracked playbooks supply distinct quality checks and practical corrections in shared card content, extended to twenty by the net-playbook follow-up above. This replaces generic coaching defaults and aligns the easier/progression notes with each playbook, including no-ball poach rehearsals, designated receiving sides, separate partner contact counts and practice decisions rather than point wins.
+
+Native previews and sessions add a collapsed Quick coaching disclosure with the selected version's focus, three rep checks, a common mistake, a correction and the existing easier adaptation. On-court users can read it below Instructions or Rounds without leaving the session. The disclosure uses the existing navy surface, a subtle divider and ice-blue text; it adds no boxed blue panel or lime action treatment. Expanded session state survives view switches, backgrounding and Close/Keep with focus restoration; fresh sessions start collapsed. Reading guidance never logs a round, adds note text, saves a session, changes TiQ or completes a coach assignment.
+
+This local follow-up needs no API, migration, billing, collector or artwork change. Verification evidence is recorded in `output/drill-coaching-20261122`. TestFlight/device acceptance remains pending; build 348 and public review build 324 are unchanged by the local work.
+
+## Drill progress comparison — released in build 348
 
 Training Progress adds a drill filter and up to three recent logged results with the latest session's practice version and training context. The comparison shows successful counts, entered attempts, rounded percentage, recorded rounds and dates. A blank round remains unrecorded; a real zero remains a result. It compares only loaded sessions, with explicit guidance at the existing eighty-session limit. Different contexts and versions remain visible in the filtered log, while a latest session without usable counts keeps its original note and never borrows an older result as its own.
 
 The comparison decodes only the exact count block already written by the private training log. Unknown, inconsistent or older text remains unchanged in the original note. No result is inferred from free-form prose, and no counts, notes or ratings are rewritten. Practice this drill again opens the last logged version for review, with new blank rounds. Returning from the preview and refreshing preserve the drill choice and focus; an empty loaded window retains the selected drill, and account disposal clears private comparison state and ignores late responses.
 
-This local candidate follows the verified On-court view commit. It needs no API, migration, purchase, collector or artwork change. Local evidence is recorded in `output/drill-progress-20261122`; the combined native candidate remains outside TestFlight build 347. A later beta, physical iPhone and VoiceOver acceptance remain pending. Public review build 324 is unchanged.
+This is released with On-court view in build 348. It needs no API, migration, purchase, collector or artwork change. Local evidence is recorded in `output/drill-progress-20261122`, and release evidence in `output/testflight-348-20261122/final-candidate`. Physical iPhone and VoiceOver acceptance remain pending. Public review build 324 is unchanged.
 
-## On-court drill practice — local follow-up
+## On-court drill practice — released in build 348
 
 Tracked drills gain an optional phone-focused session view. The selected routine appears one instruction at a time, with bounded Previous / Next controls, the original cue and access to full instructions and safety. Instructions / Rounds switches between guidance and the existing optional counts. A compact timer and Finish & log remain reachable while the body scrolls, including at larger text sizes. The view respects existing safe-area clearances and does not request browser fullscreen.
 
 Finish & log pauses the timer, opens the full session form and focuses the self-rated proof field. Switching views or instructions never saves, scores a round or changes TiQ. Raw zero/blank counts, private notes, rating, context, feeling, guide position and meaningful focus survive view changes, close/keep and backgrounding. Unconfirmed saves retain the existing frozen payload and explicit check/retry; stale controls and account changes cannot restore private work. Legacy drills and starter warm-ups keep their established session views.
 
-This is a local candidate after build 347, with no backend, schema, pricing, collector or artwork change. Automated Chrome/WebKit checks and package verification are recorded in `output/on-court-focus-20261122`. A new TestFlight release, physical iPhone and VoiceOver acceptance remain pending. Public review build 324 is unchanged.
+This is released in build 348, with no backend, schema, pricing, collector or artwork change. Automated Chrome/WebKit checks are recorded in `output/on-court-focus-20261122`; final release checks and package verification are in `output/testflight-348-20261122/final-candidate`. Physical iPhone and VoiceOver acceptance remain pending. Public review build 324 is unchanged.
 
 ## Groundstroke and transition playbooks — released in build 347
 

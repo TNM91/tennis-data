@@ -1,5 +1,6 @@
 import type { LevelUpCard, LevelUpCategory, LevelUpEquipment, LevelUpIntensity, LevelUpLevel, LevelUpModule, LevelUpSetting } from './level-up-types'
 import {drillPlaybook} from './drill-playbooks'
+import {drillCoachingCues} from './drill-coaching-cues'
 
 type CardSeed = {
   title: string
@@ -52,6 +53,14 @@ function identitySlugsFor(tags: string[]) {
 }
 
 const cardContentEnhancements: Record<string, CardContentEnhancement> = {
+  'serve-target-ladder': {
+    useWhen: 'Use this when you want a clear placement plan for both serving sides.',
+    tennisGoal: 'Move through wide, body and T targets while keeping the serve routine steady.',
+    cue: 'Call the zone, place the serve, keep the pattern.',
+    reward: 'You leave with a target count from a repeatable practice pattern.',
+    proof: 'Serve placement and target discipline 0-5',
+    safetyNote: 'Use a clear court and comfortable pace. Keep spare balls away from your feet and collect only when play has stopped.',
+  },
   'cone-recover-shadow-swing': {
     useWhen: 'Use this when you finish shots and catch yourself watching instead of recovering.',
     tennisGoal: 'Build the habit of recovering before judging the shot so you are ready for the next ball.',
@@ -327,10 +336,9 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     useWhen: 'Use this when second serves get rushed, tentative, or emotionally tied to the last miss.',
     tennisGoal: 'Make the second serve routine repeatable under small pressure.',
     cue: 'Same breath, same target, committed shape.',
-    routine: ['Start every rep with one breath and a called target.', 'Hit or shadow 8 second serves with the same tempo.', 'After any miss, run the full routine before the next ball.', 'Play 3 rounds and score routine commitment, not just makes.'],
     reward: 'Second serves become a repeatable process instead of a panic swing.',
     proof: 'Second-serve routine commitment 0-5',
-    qualityChecks: ['Breath, target, and tempo happen before every serve or shadow serve.', 'A miss triggers the same routine instead of a rushed correction.', 'The player scores commitment to the process, not only whether the serve went in.'],
+    qualityChecks: ['Breath, target, and tempo happen before every serve.', 'A miss triggers the same routine instead of a rushed correction.', 'Routine quality and serves landed are separate counts.'],
     commonMiss: {
       miss: 'The second serve becomes either a push or a rescue swing after the first miss.',
       fix: 'Require the same breath, target, and shape call before the next ball can be struck.',
@@ -342,6 +350,7 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     },
     progression: 'Start each round at 30-40 once the routine stays stable.',
     regression: 'Shadow the serve path and target call before adding the ball.',
+    safetyNote: 'Use a clear court and comfortable pace. Keep spare balls clear of the serving area and collect only when play has stopped.',
   },
   'basket-forehand-crosscourt': {
     useWhen: 'Use this when forehand reps get big, flat, or disconnected from recovery.',
@@ -757,11 +766,10 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
   'volley-punch-target': {
     useWhen: 'Use this when volleys float, swing too much, or miss because the target is unclear.',
     tennisGoal: 'Build a compact volley punch with a target before contact.',
-    cue: 'Target first, punch short, recover forward.',
-    routine: ['Choose deep middle, short angle, or behind the player.', 'Partner feeds 8 controlled volleys.', 'Punch to the called target and recover one step forward.', 'Repeat 3 rounds and score target plus compact contact.'],
+    cue: 'Target, short contact, ready.',
     reward: 'You get a volley that has a job instead of just blocking the ball back.',
     proof: 'Volley target and compact contact 0-5',
-    qualityChecks: ['Target is named before the feed arrives.', 'Hands stay in front and the stroke stays short.', 'Recovery goes forward or ready, not backward after contact.'],
+    qualityChecks: ['Target is named before the feed arrives.', 'Hands stay in front and the stroke stays short.', 'Reset in balance before the next feed.'],
     commonMiss: {
       miss: 'The volley turns into a swing because the target is late.',
       fix: 'Call the target before the feed and count only short-contact volleys.',
@@ -769,10 +777,11 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     proofAnchors: {
       low: 'Target was late or contact got long.',
       mid: 'Target and compact contact showed up on some feeds.',
-      high: 'Target, short punch, and forward-ready recovery stayed connected.',
+      high: 'Target, compact contact, and a balanced reset stayed connected.',
     },
     progression: 'Let the feeder vary forehand and backhand volleys once contact stays compact.',
     regression: 'Use hand feeds and a bigger target until the swing stays short.',
+    safetyNote: 'Keep spare balls clear. Stop and reset for a stray ball; do not rush forward into the next feed.',
   },
   'approach-volley-close': {
     useWhen: 'Use this when the approach shot is fine but the first volley is late or off balance.',
@@ -797,13 +806,12 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     useWhen: 'Use this alone with a wall when volley hands need rhythm without big swings.',
     tennisGoal: 'Train short volley contact, quick reset, and balanced hands with a wall.',
     cue: 'Short block, reset hands, stay balanced.',
-    routine: ['Stand close enough that big swings are impossible.', 'Volley softly to the wall for 20-30 seconds.', 'Reset the hands in front after every touch.', 'Run 4 blocks and score compact hands plus balance.'],
     reward: 'You build net touch and readiness without needing a partner.',
     proof: 'Reaction volley hands 0-5',
     qualityChecks: ['Contact stays short enough that the racquet face never wraps behind the body.', 'Hands reset in front before the next wall touch.', 'Feet and shoulders stay quiet while the hands work.'],
     commonMiss: {
       miss: 'The wall speed gets exciting and the volley becomes a swing.',
-      fix: 'Move closer, soften the feed, and count only blocks with hands reset in front.',
+      fix: 'Soften the starting ball or catch and reset whenever the rebound rushes you.',
     },
     proofAnchors: {
       low: 'Contact got long or balance changed to chase the wall rebound.',
@@ -812,6 +820,7 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     },
     progression: 'Alternate forehand and backhand volleys when balance stays quiet.',
     regression: 'Catch the ball between touches and reset the hands before the next volley.',
+    safetyNote: 'Keep comfortable rebound space with nobody nearby. Use a softer start or catch and reset when rushed; never chase an unsafe rebound.',
   },
   'middle-ball-rule': {
     useWhen: 'Use this when doubles partners hesitate or both reach for the same middle ball.',
@@ -891,6 +900,7 @@ function makeCard(seed: CardSeed): LevelUpCard {
   const identitySlugs = seed.identitySlugs ?? identitySlugsFor(seed.tags)
   const content = cardContentEnhancements[id] ?? {}
   const playbook = drillPlaybook(id)
+  const coaching = playbook ? drillCoachingCues(id) : undefined
 
   return {
     id,
@@ -911,11 +921,11 @@ function makeCard(seed: CardSeed): LevelUpCard {
     reward: content.reward ?? buildReward(seed),
     proof: content.proof ?? buildProof(seed),
     ratingLabels: ['Cue', 'Routine', 'Reward', 'Proof'],
-    qualityChecks: content.qualityChecks ?? buildQualityChecks(seed),
-    commonMiss: content.commonMiss ?? buildCommonMiss(seed),
+    qualityChecks: coaching?.qualityChecks ?? content.qualityChecks ?? buildQualityChecks(seed),
+    commonMiss: coaching?.commonMiss ?? content.commonMiss ?? buildCommonMiss(seed),
     proofAnchors: content.proofAnchors ?? buildProofAnchors(seed),
-    progression: content.progression ?? buildProgression(seed, level),
-    regression: content.regression ?? buildRegression(seed),
+    progression: playbook?.advance ?? content.progression ?? buildProgression(seed, level),
+    regression: playbook?.easier ?? content.regression ?? buildRegression(seed),
     safetyNote: content.safetyNote ?? buildSafetyNote(seed),
     ...(playbook ? {playbook} : {}),
     tags: seed.tags,
