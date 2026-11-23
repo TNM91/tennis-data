@@ -1,5 +1,15 @@
 # Website to iPhone parity
 
+## Serve placement and routine playbooks — local follow-up after build 348
+
+Serve Target Ladder and Second-Serve Routine Reps now use original playbooks with distinct control/pressure routines, three rounds of ten, setup, count rules, easier adaptations and quick coaching. The tracked library has twenty-two drills: eight solo, nine partner and five doubles. Card IDs, settings, duration, access and existing coach links stay unchanged. Shared website cards use the control routine; native users can select the version and use On-court view, private counts, comparisons and a fresh repeat.
+
+The ladder repeats a wide/body/T/body/wide pattern on both service sides; its pressure version alternates serving sides for each target pair. Faults and wrong zones stay misses. Routine reps score preparation, a balanced finish and reset separately from placement: a net or out fault can still meet that practice rule, while a foot fault or missing routine step cannot. Neither metric is a TiQ change, and the routine count is explicitly not serve accuracy. Service lets and unused tosses are replayed. Old notes receive no inferred counts and the drills do not automatically satisfy the exact serve drill in a TiQ plan.
+
+Serve Pressure Reset retains its original three-card order. Its save-recovery browser check now enters zero/blank/recorded rounds, verifies that only a confirmed save advances the block, and opens the second upgraded drill without marking it complete. The save notice is addressed directly so the additional round-total status cannot make that check ambiguous.
+
+The [LTA second-serve guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/how-to-improve-your-second-serve/) and [serving rules](https://www.lta.org.uk/play/how-to-get-started/rules-scoring/) were consulted for practice context, the diagonal service box and lets. Formats, counts and wording are TenAceIQ originals; no external media or imported results are added. Evidence is recorded in `output/serve-pressure-20261122`. No API, schema, purchase, collector or artwork change is needed. A later beta and physical iPhone/VoiceOver acceptance remain pending; build 348 and public review build 324 are untouched.
+
 ## Net and wall volley playbooks — local follow-up after build 348
 
 Volley Punch Target and Reaction Volley Wall now use original, trackable playbooks. The catalog has twenty tracked drills: six solo, nine with a partner and five for doubles groups. Both upgrades keep their existing card IDs, settings, duration, coach links and access rules. Each has setup instructions, three rounds of ten, distinct Build control / Add pressure routines, a count rule, an easier version and progression guidance. Shared website cards use the control routine; native previews, On-court view, private round logs, comparisons and fresh repeats use the selected version.

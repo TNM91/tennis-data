@@ -4,6 +4,7 @@ import './mobile-drill-court-cases'
 import './mobile-drill-progress-cases'
 import './mobile-drill-coaching-cases'
 import './mobile-net-drill-cases'
+import './mobile-serve-drill-cases'
 const origin='http://127.0.0.1:4283'
 type Capture={writes:string[];failFirst:boolean;hold:boolean;release:(()=>void)|null;stale:HTMLFormElement|null}
 async function openDrill(page:Page,title='Return Depth Lane',query=''){

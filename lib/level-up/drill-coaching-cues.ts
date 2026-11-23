@@ -4,6 +4,14 @@ type DrillCoachingCues=Required<Pick<LevelUpCard,'qualityChecks'|'commonMiss'>>
 
 // Original practice guidance. The playbook's count rule remains the scoring rule.
 const cues:Record<string,DrillCoachingCues>={
+ 'serve-target-ladder':{
+  qualityChecks:['Call the next zone before the motion.','Use the diagonal service box for the side you are serving from.','Keep the target order and tally after a miss.'],
+  commonMiss:{miss:'You restart the target pattern after a fault or chase pace instead of the called zone.',fix:'Keep the miss in the ten and move to the next zone. Use larger targets or return to five serves per side when the routine becomes rushed.'},
+ },
+ 'second-serve-routine-reps':{
+  qualityChecks:['Breathe and choose a target before starting the motion.','Finish balanced from a legal starting position.','Use the same calm reset after a make or a miss.'],
+  commonMiss:{miss:'A missed serve changes your next routine into a hurried correction.',fix:'Pause, breathe and name the next target before serving again. Count the routine separately from the landing result; do not erase the missed attempt.'},
+ },
  'volley-punch-target':{
   qualityChecks:['Choose the target before the feed.','Use a compact stroke with the racket ready in front.','Finish balanced and reset before the next feed.'],
   commonMiss:{miss:'You swing at the volley or keep moving forward until the next feed rushes you.',fix:'Use gentle feeds to a known side and a larger target. Reset in balance instead of automatically stepping closer to the net.'},

@@ -1,6 +1,7 @@
 import {DOUBLES_DRILL_PLAYBOOKS} from './doubles-drill-playbooks'
 import {GROUNDSTROKE_DRILL_PLAYBOOKS} from './groundstroke-drill-playbooks'
 import {NET_DRILL_PLAYBOOKS} from './net-drill-playbooks'
+import {SERVE_DRILL_PLAYBOOKS} from './serve-drill-playbooks'
 
 export type DrillVersionId = 'control' | 'pressure'
 export type DrillVersion = {id:DrillVersionId;label:string;rounds:number;reps:number;focus:string;steps:string[];requiresPartner?:boolean}
@@ -14,6 +15,7 @@ const playbooks:Record<string,DrillPlaybook>={
   ...DOUBLES_DRILL_PLAYBOOKS,
   ...GROUNDSTROKE_DRILL_PLAYBOOKS,
   ...NET_DRILL_PLAYBOOKS,
+  ...SERVE_DRILL_PLAYBOOKS,
   'serve-target-call':{
     players:1,
     setup:['Use a full court, a racket and ten balls. Start behind the baseline.','Aim into the diagonal service box. Use flat markers outside the landing area to divide it into wide, body and T zones.'],

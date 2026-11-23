@@ -12,8 +12,8 @@ test.describe('Drill discovery',()=>{
  test('finds all tracked drills by setup and shows accurate player counts',async({page})=>{
   const training=await openCatalog(page)
   await training.getByRole('button',{name:'Round tracking',exact:true}).click()
-  await expect(training.locator('[data-catalog-count]')).toHaveText('20 drills')
-  for(const [name,count] of [['Solo',6],['With a partner',9],['Doubles group',5]] as const){
+  await expect(training.locator('[data-catalog-count]')).toHaveText('22 drills')
+  for(const [name,count] of [['Solo',8],['With a partner',9],['Doubles group',5]] as const){
    await training.getByRole('button',{name,exact:true}).click()
    await expect(training.locator('[data-catalog-count]')).toHaveText(count+' drills')
    await expect(training.locator('[data-cards] [data-card]')).toHaveCount(count)
@@ -21,7 +21,7 @@ test.describe('Drill discovery',()=>{
   await expect(training.getByRole('button',{name:'Preview Middle Ball Rule',exact:true})).toHaveAccessibleDescription(/3 players.*Round tracking/)
   await expect(training.getByRole('button',{name:'Preview Serve Location Call',exact:true})).toHaveAccessibleDescription(/4 players.*Round tracking/)
   await training.getByRole('button',{name:'All setups',exact:true}).click()
-  await expect(training.locator('[data-cards] [data-card]')).toHaveCount(20)
+  await expect(training.locator('[data-cards] [data-card]')).toHaveCount(22)
   expect(await trainingWrites(page)).toBe(0)
  })
  test('combines every filter, explains empty results and clears them together',async({page})=>{
