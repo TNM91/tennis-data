@@ -4,13 +4,10 @@ import {nativeWebsiteAdapters} from './native-website-adapters.mjs'
 import { build } from 'esbuild'
 import { mkdir, copyFile, writeFile, readFile, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import {nativeBundleTarget} from './native-bundle-target.mjs'
 
 const root = new URL('../', import.meta.url)
-const preview = process.argv.includes('--first-party-preview')
-const fullApp = process.argv.includes('--first-party-full')
-if (preview && fullApp) throw Error('Choose one first-party bundle target.')
-const firstParty = preview || fullApp
-const tournamentPractice = fullApp && process.env.TIQ_IOS_DISTRIBUTION === 'internal'
+const {preview,fullApp,firstParty,tournamentPractice,android,distribution,capacitorConfig} = nativeBundleTarget(process.argv.slice(2))
 const output = new URL(preview ? '../.next/mobile-first-party-preview/' : 'bundled/', root)
 const result = await build({
   entryPoints: [fileURLToPath(new URL('src/main.ts', root))],
@@ -29,7 +26,7 @@ if (firstParty) {
     throw Error('External import code is present in the first-party bundle: '+externalImports.map(([name])=>name).join(', '))
   }
   const hasPractice = inputs.some(([name, input]) => /(?:^|\/)tournament-practice\.ts$/.test(name) && input.bytesInOutput > 0)
-  if (hasPractice !== tournamentPractice) throw Error('Tournament practice does not match the iOS distribution channel.')
+  if (hasPractice !== tournamentPractice) throw Error('Tournament practice does not match the selected distribution channel.')
   await mkdir(output,{recursive:true})
   for(const file of result.outputFiles)await writeFile(file.path,file.contents)
 }
@@ -37,6 +34,9 @@ await copyFile(new URL('src/index.html', root), new URL('index.html', output))
 const scopeManifest = new URL('release-scope.json', output)
 if(firstParty)await writeFile(scopeManifest,JSON.stringify({profile:'first-party-full',version:1})+'\n')
 else await rm(scopeManifest,{force:true})
+const androidScope = new URL('android-release.json', output)
+if(android)await writeFile(androidScope,JSON.stringify({platform:'android',profile:'first-party-full',distribution,version:1})+'\n')
+else await rm(androidScope,{force:true})
 await writeFile(new URL('style.css',output),scopeNativeStyles(await readFile(new URL('src/style.css',root),'utf8')))
 await copyFile(new URL('src/website-parity.css', root), new URL('website-parity.css', output))
 await copyFile(new URL('src/app-atmosphere.css', root), new URL('app-atmosphere.css', output))
@@ -61,11 +61,7 @@ await copyFile(new URL('../../public/brand/web/header-logo-transparent.png', imp
 if (preview) {
   console.log('Built the full-app first-party preview in .next/mobile-first-party-preview. This preview has no native packaging target.')
 } else {
-  await writeFile(new URL('capacitor.config.json', root), JSON.stringify({
-    appId: 'com.tenaceiq.prototype', appName: 'TenAceIQ Prototype',
-    webDir: 'bundled', loggingBehavior: 'none',
-    plugins: {PushNotifications: {presentationOptions: []}},
-  }, null, 2) + '\n')
+  await writeFile(new URL('capacitor.config.json', root), JSON.stringify(capacitorConfig, null, 2) + '\n')
   console.log(fullApp?'Built the full-app first-party bundle for native packaging.':'Built bundled client. No development server URL. Run cap sync android before building the APK.')
 }
 

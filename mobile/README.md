@@ -1,6 +1,6 @@
-# TenAceIQ mobile feasibility prototype
+# TenAceIQ mobile app
 
-Apple is the current priority; Android work is deferred. Signed TestFlight builds are active through build 82. The owner has no Mac; the protected GitHub Mac workflow signs and uploads internal betas. Current scope and acceptance limits are tracked in [website-to-iPhone parity](../docs/mobile-website-parity.md). The early feasibility instructions below are retained as historical setup notes; they do not describe the current Apple enrollment or release state.
+The current first-party app is available in TestFlight 353. Android preparation uses the same full app and backend; see [Android release preparation](android-release.md) for the developer build and remaining Google Play work. The protected GitHub Mac workflow signs iOS builds. Current scope and acceptance limits are tracked in [website-to-iPhone parity](../docs/mobile-website-parity.md). The early feasibility instructions below are historical setup notes, not the current store-release status.
 
 ## Bundled My Lab proof (October 23, 2026)
 
