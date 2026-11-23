@@ -62,10 +62,12 @@ test.describe('On-court practice',()=>{
   await training.getByRole('button',{name:'Save completed session',exact:true}).click();await expect(training.locator('.training-history-latest')).toContainText('R1 0/10; R3 8/10')
   const saved=JSON.parse((await writes(page))[0]).session;expect(saved).toMatchObject({rating:2,context:'partner',feeling:'tight',sharedWithCoach:false});expect(saved.note).toContain('Add pressure');expect(saved.note).toContain('Keep <finish> high.\nRecover first.');expect(saved).not.toHaveProperty('courtPosition')
  })
- test('returns Enter from a round to the full form without saving or hidden validation',async({page})=>{
+ test('advances Enter within rounds and opens the full form only on Finish without saving or hidden validation',async({page})=>{
   const training=await openCourt(page);await training.getByRole('button',{name:'On-court view',exact:true}).click();await training.getByRole('button',{name:'Rounds',exact:true}).click()
   const round=training.getByRole('spinbutton',{name:'Round 1',exact:true})
   await round.fill('8');await round.press('Enter')
+  await expect(training.getByRole('spinbutton',{name:'Round 2',exact:true})).toBeFocused();await expect(training.getByRole('button',{name:'Full log',exact:true})).toBeVisible();await expect(training.locator('[data-notice]')).toHaveText('');expect(await writes(page)).toHaveLength(0)
+  await training.getByRole('button',{name:'Finish & log',exact:true}).click()
   await expect(training.getByRole('heading',{name:'Training session',exact:true})).toBeVisible();await expect(training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true})).toBeFocused();await expect(round).toHaveValue('8');expect(await writes(page)).toHaveLength(0)
  })
  test('keeps guide position, pane, body scroll and input focus through background and Close',async({page})=>{
@@ -82,7 +84,7 @@ test.describe('On-court practice',()=>{
   const training=await openCourt(page);await training.getByRole('button',{name:'On-court view',exact:true}).click();await training.getByRole('button',{name:'Rounds',exact:true}).click()
   const round=training.getByRole('spinbutton',{name:'Round 1',exact:true});await round.fill('11');await training.getByRole('button',{name:'Finish & log',exact:true}).click()
   await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('3')
-  await training.locator('[data-proof]').evaluate(el=>el.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true})))
+  await training.locator('[data-proof]').evaluate(el=>el.dispatchEvent(new SubmitEvent('submit',{cancelable:true,bubbles:true,submitter:el.querySelector<HTMLButtonElement>('[type=submit]')})))
   await expect(round).toBeFocused();await expect(round).toBeInViewport({ratio:1});await expect(round).toHaveValue('11');expect(await writes(page)).toHaveLength(0)
   await round.fill('10');await training.getByRole('button',{name:'Save completed session',exact:true}).click();await expect(training.locator('.training-history-latest')).toContainText('R1 10/10')
  })

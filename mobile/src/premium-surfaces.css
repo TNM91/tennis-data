@@ -1278,6 +1278,7 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 .training-session-log [data-proof] .training-round-grid input { inline-size:100%;min-inline-size:0;min-block-size:48px;margin-block:6px 0;padding-inline:6px;font-size:1.125rem;text-align:center;font-variant-numeric:tabular-nums; }
 .training-round-grid label>span>span { text-align:center;white-space:nowrap;font-size:.75rem; }
 .training-rounds output { display:block;color:var(--premium-white);font-size:.875rem;font-weight:650; }
+.training-rounds output:focus { outline:2px solid var(--premium-ice);outline-offset:4px;border-radius:4px; }
 .training-rounds .training-rounds-help { color:var(--premium-copy);font-size:.75rem; }
 @container drill-rounds (max-width:16rem) {
  .training-round-grid,.training-round-grid:has(>label:nth-child(2):last-child) { grid-template-columns:1fr; }

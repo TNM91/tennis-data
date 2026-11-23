@@ -1,5 +1,9 @@
 # Website to iPhone parity
 
+## Round keyboard entry — local follow-up after build 352
+
+Native tracked-drill sessions use Next/Done keyboard hints for their actual number of rounds. Enter advances through fields, Shift+Enter moves back and the last field focuses the existing totals without finishing or saving. A keyboard that submits without a key event gets the same handoff; explicit Save still works with a round focused. Blank, zero and invalid raw counts retain their meaning, notes remain multiline and Close/Keep restores totals focus. Frozen-save, detached-control and account guards remain in place. The totals use the established ice focus treatment and update their live text only when it changes. Website practice, APIs, schema, ratings and timers are unchanged. Evidence: `output/drill-round-entry-20261123`. Queued locally with rounds-to-rest for a later beta; TestFlight 352 and public review 324 remain unchanged. Physical iPhone keyboard and VoiceOver acceptance remain pending.
+
 ## Rounds to rest — local follow-up after build 352
 
 Tracked on-court drills offer Start rest directly below the round results. The action uses the currently chosen duration, resumes paused remaining time and opens a running countdown without resetting it. A completed rest restarts only through the explicit Start rest again action. If a View rest tap crosses the deadline before the next visual tick, it opens the finished countdown instead of starting another. The selected Rest tab receives focus and the existing manual return-to-round action remains available.

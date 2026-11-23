@@ -208,6 +208,56 @@ async function smallRoundRestHeader(training:Locator){
  await training.evaluate(el=>{(el as HTMLElement).style.setProperty('--training-top-clearance','60px');(el as HTMLElement).style.setProperty('--training-bottom-clearance','36px');const title=el.querySelector<HTMLElement>('h1')!;title.style.fontSize='28px';title.replaceChildren(document.createTextNode('On-court'),document.createElement('br'),document.createTextNode('practice'))})
 }
 
+test.describe('Drill round keyboard entry',()=>{
+ test.setTimeout(45000)
+ for(const width of [320,390])test('moves through rounds without finishing or saving at '+width+'px',async({page},info)=>{
+  await page.setViewportSize({width,height:width===320?568:844})
+  const training=await openRest(page,width===320?'&large=1':'','Return Depth Lane',{plannedRest:true})
+  if(width===320)await smallRoundRestHeader(training)
+  await training.getByRole('button',{name:'Rounds',exact:true}).click()
+  const first=training.getByRole('spinbutton',{name:'Round 1',exact:true}),second=training.getByRole('spinbutton',{name:'Round 2',exact:true}),third=training.getByRole('spinbutton',{name:'Round 3',exact:true}),summary=training.getByRole('status',{name:'Drill round totals',exact:true})
+  await first.fill('0');await first.press('Enter');await expect(second).toBeFocused()
+  await second.press('Shift+Enter');await expect(first).toBeFocused();await first.press('Shift+Enter');await expect(first).toBeFocused()
+  await first.press('Enter');await second.fill('4');await second.press('Enter');await expect(third).toBeFocused()
+  await third.press('Enter');await expect(summary).toBeFocused();await expect(summary).toBeInViewport({ratio:1})
+  await expect(first).toHaveAttribute('enterkeyhint','next');await expect(second).toHaveAttribute('enterkeyhint','next');await expect(third).toHaveAttribute('enterkeyhint','done')
+  await expect(first).toHaveValue('0');await expect(second).toHaveValue('4');await expect(third).toHaveValue('');await expect(summary).toContainText('4/20')
+  await summary.press('Enter');await expect(summary).toBeFocused();await expect(training.getByRole('button',{name:'Full log',exact:true})).toBeVisible();await expect(training.locator('[data-round-rest]')).toHaveText('Start rest · 45 sec')
+  expect(await training.locator('[data-court-body]').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);expect(await writes(page)).toHaveLength(0)
+  await page.screenshot({path:info.outputPath('round-keyboard-summary-'+width+'.png')})
+  await summary.press('Escape');await training.getByRole('button',{name:'Keep training',exact:true}).click();await expect(summary).toBeFocused();await expect(third).toHaveValue('')
+ })
+ test('reviews full-log counts without submitting and preserves explicit save and multiline notes',async({page})=>{
+  const training=await openRest(page);await training.getByRole('button',{name:'Full log',exact:true}).click()
+  const first=training.getByRole('spinbutton',{name:'Round 1',exact:true}),second=training.getByRole('spinbutton',{name:'Round 2',exact:true}),third=training.getByRole('spinbutton',{name:'Round 3',exact:true}),summary=training.getByRole('status',{name:'Drill round totals',exact:true})
+  await first.fill('11');await first.press('Enter');await expect(second).toBeFocused();await expect(first).toHaveValue('11');await expect(summary).toContainText('Check the round counts above.')
+  await second.press('Shift+Enter');await first.fill('0');await first.press('Enter');await second.fill('4');await second.press('Enter');await third.press('Enter');await expect(summary).toBeFocused();await summary.press('Enter')
+  expect(await writes(page)).toHaveLength(0);await expect(third).toHaveValue('');await expect(training.getByRole('button',{name:'On-court view',exact:true})).toBeVisible()
+  const note=training.locator('[name=note]');await note.fill('Depth first');await note.press('Enter');await note.press('End');await note.press('x');await expect(note).toHaveValue('Depth first\nx')
+  await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('2');await first.focus()
+  await training.getByRole('button',{name:'Save completed session',exact:true}).click();await expect(training.locator('.training-history-latest')).toContainText('R1 0/10')
+  const saved=await writes(page);expect(saved).toHaveLength(1);const session=JSON.parse(saved[0]).session;expect(session.note).toContain('Depth first\nx');expect(session.note).toContain('R2 4/10');expect(session.note).not.toContain('R3');expect(session.rating).toBe(2)
+ })
+ test('handles implicit submit and held keys for the actual number of rounds',async({page})=>{
+  const training=await openRest(page,'','Middle Ball Rule');await training.getByRole('button',{name:'Rounds',exact:true}).click()
+  const first=training.getByRole('spinbutton',{name:'Round 1',exact:true}),second=training.getByRole('spinbutton',{name:'Round 2',exact:true}),summary=training.getByRole('status',{name:'Drill round totals',exact:true})
+  await expect(first).toHaveAttribute('enterkeyhint','next');await expect(second).toHaveAttribute('enterkeyhint','done');await expect(training.locator('[data-drill-result]')).toHaveCount(2)
+  await first.fill('0');await first.evaluate(el=>el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',repeat:true,bubbles:true,cancelable:true})));await expect(first).toBeFocused()
+  await first.evaluate(el=>(el.closest('form') as HTMLFormElement).requestSubmit());await expect(second).toBeFocused();await expect(first).toHaveValue('0')
+  await second.evaluate(el=>(el.closest('form') as HTMLFormElement).requestSubmit());await expect(summary).toBeFocused();await expect(second).toHaveValue('')
+  await summary.evaluate(el=>(el.closest('form') as HTMLFormElement).requestSubmit());await expect(summary).toBeFocused();await expect(training.getByRole('button',{name:'Full log',exact:true})).toBeVisible();expect(await writes(page)).toHaveLength(0)
+ })
+ test('keeps old keyboard and submit events inert during save recovery and account changes',async({page})=>{
+  const training=await openRest(page);await training.getByRole('button',{name:'Rounds',exact:true}).click();await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('0')
+  await page.evaluate(()=>{const state=(window as unknown as RestWindow).restCapture;state.stale=Array.from(document.querySelectorAll<HTMLElement>('[data-drill-result],[data-proof]'));state.failFirst=true})
+  await training.getByRole('button',{name:'Finish & log',exact:true}).click();await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('2');await training.getByRole('button',{name:'Save completed session',exact:true}).click();await expect(training.getByRole('button',{name:'Retry same session',exact:true})).toBeVisible()
+  await page.evaluate(()=>{for(const el of (window as unknown as RestWindow).restCapture.stale){el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));if(el instanceof HTMLFormElement)el.requestSubmit()}const input=document.querySelector<HTMLInputElement>('[data-drill-result]');input?.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}))})
+  await expect(training.getByRole('button',{name:'On-court view',exact:true})).toBeDisabled();expect(await writes(page)).toHaveLength(1)
+  await training.getByRole('button',{name:'Retry same session',exact:true}).click();await expect(training.locator('.training-history-latest')).toContainText('R1 0/10');const saved=await writes(page);expect(saved).toHaveLength(2);expect(saved[1]).toBe(saved[0])
+  await page.evaluate(()=>{(window as unknown as RestWindow).switchNavigationOwner();for(const el of (window as unknown as RestWindow).restCapture.stale){el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));if(el instanceof HTMLFormElement)el.requestSubmit()}});await expect(training).toHaveCount(0);expect(await writes(page)).toHaveLength(2)
+ })
+})
+
 test.describe('On-court round rest shortcuts',()=>{
  for(const width of [320,390])test('starts rest from rounds and views it without resetting counts at '+width+'px',async({page},info)=>{
   await page.setViewportSize({width,height:width===320?568:844})

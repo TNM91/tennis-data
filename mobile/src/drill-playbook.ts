@@ -85,8 +85,8 @@ export function drillResultsHtml(card:LevelUpCard,practice:DrillPractice|null,lo
   <legend>Round results <span>(optional)</span></legend>
   <p><strong>${html(mode.label)} · ${html(book.countLabel)}</strong></p><p id="training-round-help">Finish all ${mode.reps} attempts before logging a round. Leave unfinished rounds blank.</p>
   <details class="training-inbox-fold" data-inbox-fold="drill-count-rule-${html(card.id)}"><summary>What counts?</summary><p>${html(book.countRule)}</p></details>
-  <div class="training-round-grid">${practice.results.map((value,index)=>`<label for="training-drill-round-${index}">Round ${index+1}<span><input id="training-drill-round-${index}" name="drill-round-${index}" data-drill-result="${index}" type="number" inputmode="numeric" min="0" max="${mode.reps}" step="1" value="${html(value)}" aria-describedby="training-round-help"/><span aria-hidden="true">/ ${mode.reps}</span></span></label>`).join('')}</div>
-  <output data-drill-tally aria-label="Drill round totals" aria-live="polite" aria-atomic="true">${html(tally)}</output>
+  <div class="training-round-grid">${practice.results.map((value,index)=>`<label for="training-drill-round-${index}">Round ${index+1}<span><input id="training-drill-round-${index}" name="drill-round-${index}" data-drill-result="${index}" type="number" inputmode="numeric" enterkeyhint="${index===practice.results.length-1?'done':'next'}" min="0" max="${mode.reps}" step="1" value="${html(value)}" aria-describedby="training-round-help"/><span aria-hidden="true">/ ${mode.reps}</span></span></label>`).join('')}</div>
+  <output data-drill-tally data-session-control="round-summary" tabindex="-1" aria-label="Drill round totals" aria-live="polite" aria-atomic="true">${html(tally)}</output>
   ${rest?roundRestButtonHtml(rest,locked):''}
   <p class="training-rounds-help">Entered counts and the practice version save with your private note. Blank rounds stay unrecorded. These counts do not change your TiQ rating.</p>
  </fieldset>`

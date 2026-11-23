@@ -183,7 +183,7 @@ test.describe('Drill playbooks',()=>{
   await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('3')
   const count=training.getByRole('spinbutton',{name:'Round 1',exact:true})
   await count.fill('11')
-  await training.locator('[data-proof]').evaluate(el=>el.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true})))
+  await training.locator('[data-proof]').evaluate(el=>el.dispatchEvent(new SubmitEvent('submit',{cancelable:true,bubbles:true,submitter:el.querySelector<HTMLButtonElement>('[type=submit]')})))
   await expect(training.locator('[data-notice]')).toHaveText('Use a whole number from 0 to 10 for round 1.');await expect(count).toBeFocused();await expect(count).toHaveValue('11');expect(await writes(page)).toHaveLength(0)
   await count.fill('10');await training.getByRole('button',{name:'Save completed session',exact:true}).click()
   await expect(training.locator('.training-history-latest')).toContainText('R1 10/10')

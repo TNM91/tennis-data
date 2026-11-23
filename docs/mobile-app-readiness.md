@@ -1,5 +1,11 @@
 # TenAceIQ mobile readiness — 2026-10-23
 
+## Round keyboard entry — local follow-up after build 352
+
+Tracked drill round fields offer Next until the last round, then Done. Enter advances without leaving On-court view or submitting Full log; Shift+Enter returns to the previous round. The final field focuses the existing totals, where Enter remains inert. Implicit keyboard submissions use the same handoff, while an explicit Save completed session remains available even when a round field has focus. Blank rounds stay unfinished, zero stays recorded and invalid counts remain editable. Notes keep normal multiline entry.
+
+The totals reuse the existing ice focus outline and session focus restoration through Close/Keep. Keyboard events from detached, frozen or previous-account controls cannot navigate or create a save; uncertain-save retries retain their original payload. Unchanged totals do not receive redundant live text updates. No API, migration, artwork, additional panel or timer is introduced. Evidence: `output/drill-round-entry-20261123`. This is local follow-up work for the next beta, alongside rounds-to-rest below; TestFlight 352 and public review 324 remain unchanged. Physical iPhone keyboard and VoiceOver acceptance remain pending.
+
 ## Rounds to rest — local follow-up after build 352
 
 Tracked on-court drills offer Start rest directly below the round results. The action uses the currently chosen duration, resumes paused remaining time and opens a running countdown without resetting it. A completed rest restarts only through the explicit Start rest again action. If a View rest tap crosses the deadline before the next visual tick, it opens the finished countdown instead of starting another. The selected Rest tab receives focus and the existing manual return-to-round action remains available.

@@ -933,11 +933,32 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     if(practice&&selected){
      practice.results=practice.results.map((_,index)=>String(fields.get('drill-round-'+index)??''))
      const tally=form.querySelector<HTMLOutputElement>('[data-drill-tally]')
-     if(tally){try{tally.textContent=drillTally(selected,practice)}catch{tally.textContent='Check the round counts above.'}}
+     if(tally){let text='Check the round counts above.';try{text=drillTally(selected,practice)}catch{/* Keep invalid counts available for correction. */}if(tally.textContent!==text)tally.textContent=text}
     }
    }
    form.oninput=capture;form.onchange=capture
-   form.onsubmit=event=>{event.preventDefault();if(!active()||phase!=='session'||!form.isConnected||!dialog.contains(form))return;capture();if(onCourt)finishCourt();else void save()}
+   const moveRoundEntry=(input:HTMLInputElement,backward=false)=>{
+    if(!sessionControlActive(input)||!form.contains(input)||input.matches(':disabled'))return
+    const inputs=Array.from(form.querySelectorAll<HTMLInputElement>('[data-drill-result]')),index=inputs.indexOf(input)
+    if(index<0)return
+    capture()
+    const next=backward?inputs[Math.max(0,index-1)]:inputs[index+1]
+    if(next===input)return
+    if(next){sessionControl='';sessionField=next.name}else sessionControl='round-summary'
+    restoreSessionField(true)
+   }
+   form.addEventListener('keydown',event=>{
+    if(event.key!=='Enter'||event.isComposing)return
+    const field=event.target
+    if(field instanceof HTMLInputElement&&field.matches('[data-drill-result]')){event.preventDefault();if(!event.repeat)moveRoundEntry(field,event.shiftKey)}
+    else if(field instanceof HTMLElement&&field.matches('[data-drill-tally]'))event.preventDefault()
+   })
+   form.onsubmit=event=>{
+    event.preventDefault();if(!active()||phase!=='session'||!form.isConnected||!dialog.contains(form))return
+    // Some keyboards submit without a key event. Explicit Save still has a submitter.
+    if(!event.submitter){const field=document.activeElement;if(field instanceof HTMLInputElement&&form.contains(field)&&field.matches('[data-drill-result]')){moveRoundEntry(field);return}if(field instanceof HTMLElement&&form.contains(field)&&field.matches('[data-drill-tally]'))return}
+    capture();if(onCourt)finishCourt();else void save()
+   }
   }
   const drillVersion=dialog.querySelector<HTMLSelectElement>('[data-drill-version]')
   drillVersion?.addEventListener('change',()=>{if(!active()||phase!=='card'||!selected||!drillVersion.isConnected||!['control','pressure'].includes(drillVersion.value))return;drillPractice=newDrillPractice(selected,drillVersion.value as DrillPractice['version']);render();dialog.querySelector<HTMLElement>('[data-drill-version]')?.focus({preventScroll:true})})
