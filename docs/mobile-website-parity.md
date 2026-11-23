@@ -1,8 +1,18 @@
 # Website to iPhone parity
 
+## Net and wall volley playbooks — local follow-up after build 348
+
+Volley Punch Target and Reaction Volley Wall now use original, trackable playbooks. The catalog has twenty tracked drills: six solo, nine with a partner and five for doubles groups. Both upgrades keep their existing card IDs, settings, duration, coach links and access rules. Each has setup instructions, three rounds of ten, distinct Build control / Add pressure routines, a count rule, an easier version and progression guidance. Shared website cards use the control routine; native previews, On-court view, private round logs, comparisons and fresh repeats use the selected version.
+
+Volley Punch Target counts placement with compact, balanced contact on playable feeds. It replaces an automatic forward step with a ready reset. Reaction Volley Wall separates unscored starting shots and deliberate catches from counted rebound-volley attempts. Pressure work alternates sides, retains misses and offers a catch/reset when rushed; the copy does not present it as a measured reaction-time test. Old free-form session notes remain unchanged, with no inferred historical counts. Related net work does not automatically satisfy an exact TiQ practice plan or coach assignment.
+
+On-court timer controls show Pause / Resume with unchanged full accessible labels, keeping the toolbar stable when the wall-drill title wraps on a short phone. Full log and warm-up retain Pause timer / Resume timer. Close/Keep acceptance requires the focused round field to be fully visible and hit-testable, as well as retaining its raw value and the fixed finish action.
+
+The [LTA volley guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/how-to-improve-your-tennis-volleys/) and [solo/partner practice examples](https://www.lta.org.uk/play/tennis-at-home/at-home-tennis-drills/) were consulted for volley contact and practice context. The formats, counts and wording are TenAceIQ originals; no third-party media or imported results are included. No API, schema, billing, collector or artwork change is needed. Evidence is recorded in `output/net-volley-20261122`; beta and physical iPhone/VoiceOver acceptance remain pending. Build 348 and public review build 324 are untouched by this local work.
+
 ## Drill quick coaching — local follow-up after build 348
 
-The eighteen tracked playbooks now supply distinct quality checks and practical corrections in shared card content. This replaces generic coaching defaults and aligns the easier/progression notes with each playbook, including no-ball poach rehearsals, designated receiving sides, separate partner contact counts and practice decisions rather than point wins.
+The original eighteen tracked playbooks supply distinct quality checks and practical corrections in shared card content, extended to twenty by the net-playbook follow-up above. This replaces generic coaching defaults and aligns the easier/progression notes with each playbook, including no-ball poach rehearsals, designated receiving sides, separate partner contact counts and practice decisions rather than point wins.
 
 Native previews and sessions add a collapsed Quick coaching disclosure with the selected version's focus, three rep checks, a common mistake, a correction and the existing easier adaptation. On-court users can read it below Instructions or Rounds without leaving the session. The disclosure uses the existing navy surface, a subtle divider and ice-blue text; it adds no boxed blue panel or lime action treatment. Expanded session state survives view switches, backgrounding and Close/Keep with focus restoration; fresh sessions start collapsed. Reading guidance never logs a round, adds note text, saves a session, changes TiQ or completes a coach assignment.
 

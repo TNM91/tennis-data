@@ -758,11 +758,10 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
   'volley-punch-target': {
     useWhen: 'Use this when volleys float, swing too much, or miss because the target is unclear.',
     tennisGoal: 'Build a compact volley punch with a target before contact.',
-    cue: 'Target first, punch short, recover forward.',
-    routine: ['Choose deep middle, short angle, or behind the player.', 'Partner feeds 8 controlled volleys.', 'Punch to the called target and recover one step forward.', 'Repeat 3 rounds and score target plus compact contact.'],
+    cue: 'Target, short contact, ready.',
     reward: 'You get a volley that has a job instead of just blocking the ball back.',
     proof: 'Volley target and compact contact 0-5',
-    qualityChecks: ['Target is named before the feed arrives.', 'Hands stay in front and the stroke stays short.', 'Recovery goes forward or ready, not backward after contact.'],
+    qualityChecks: ['Target is named before the feed arrives.', 'Hands stay in front and the stroke stays short.', 'Reset in balance before the next feed.'],
     commonMiss: {
       miss: 'The volley turns into a swing because the target is late.',
       fix: 'Call the target before the feed and count only short-contact volleys.',
@@ -770,10 +769,11 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     proofAnchors: {
       low: 'Target was late or contact got long.',
       mid: 'Target and compact contact showed up on some feeds.',
-      high: 'Target, short punch, and forward-ready recovery stayed connected.',
+      high: 'Target, compact contact, and a balanced reset stayed connected.',
     },
     progression: 'Let the feeder vary forehand and backhand volleys once contact stays compact.',
     regression: 'Use hand feeds and a bigger target until the swing stays short.',
+    safetyNote: 'Keep spare balls clear. Stop and reset for a stray ball; do not rush forward into the next feed.',
   },
   'approach-volley-close': {
     useWhen: 'Use this when the approach shot is fine but the first volley is late or off balance.',
@@ -798,13 +798,12 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     useWhen: 'Use this alone with a wall when volley hands need rhythm without big swings.',
     tennisGoal: 'Train short volley contact, quick reset, and balanced hands with a wall.',
     cue: 'Short block, reset hands, stay balanced.',
-    routine: ['Stand close enough that big swings are impossible.', 'Volley softly to the wall for 20-30 seconds.', 'Reset the hands in front after every touch.', 'Run 4 blocks and score compact hands plus balance.'],
     reward: 'You build net touch and readiness without needing a partner.',
     proof: 'Reaction volley hands 0-5',
     qualityChecks: ['Contact stays short enough that the racquet face never wraps behind the body.', 'Hands reset in front before the next wall touch.', 'Feet and shoulders stay quiet while the hands work.'],
     commonMiss: {
       miss: 'The wall speed gets exciting and the volley becomes a swing.',
-      fix: 'Move closer, soften the feed, and count only blocks with hands reset in front.',
+      fix: 'Soften the starting ball or catch and reset whenever the rebound rushes you.',
     },
     proofAnchors: {
       low: 'Contact got long or balance changed to chase the wall rebound.',
@@ -813,6 +812,7 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     },
     progression: 'Alternate forehand and backhand volleys when balance stays quiet.',
     regression: 'Catch the ball between touches and reset the hands before the next volley.',
+    safetyNote: 'Keep comfortable rebound space with nobody nearby. Use a softer start or catch and reset when rushed; never chase an unsafe rebound.',
   },
   'middle-ball-rule': {
     useWhen: 'Use this when doubles partners hesitate or both reach for the same middle ball.',

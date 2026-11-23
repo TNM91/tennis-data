@@ -206,7 +206,17 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  let coachingOpen=false
  let historyCardId=''
  const currentDrillPractice=()=>{if(!selected)return null;if(drillPractice?.cardId!==selected.id)drillPractice=newDrillPractice(selected);return drillPractice}
- const restoreSessionField=(scroll=false)=>{const control=sessionControl?Array.from(dialog.querySelectorAll<HTMLElement>('[data-session-control]')).find(el=>el.dataset.sessionControl===sessionControl&&el.getClientRects().length>0):null;const field=Array.from(dialog.querySelectorAll<HTMLElement>('[data-proof] [name]')).find(el=>el.getAttribute('name')===sessionField&&el.getClientRects().length>0);const target=control??field??dialog.querySelector<HTMLElement>('[data-court-pane],[name=note]');target?.focus({preventScroll:true});if(scroll)target?.scrollIntoView({block:'center'})}
+ const restoreSessionField=(scroll=false)=>{
+  const control=sessionControl?Array.from(dialog.querySelectorAll<HTMLElement>('[data-session-control]')).find(el=>el.dataset.sessionControl===sessionControl&&el.getClientRects().length>0):null
+  const field=Array.from(dialog.querySelectorAll<HTMLElement>('[data-proof] [name]')).find(el=>el.getAttribute('name')===sessionField&&el.getClientRects().length>0)
+  const target=control??field??dialog.querySelector<HTMLElement>('[data-court-pane],[name=note]');target?.focus({preventScroll:true})
+  if(scroll){target?.scrollIntoView({block:'center'});return}
+  const body=onCourt?dialog.querySelector<HTMLElement>('[data-court-body]'):null
+  if(target&&body?.contains(target)){
+   const rect=target.getBoundingClientRect(),bounds=body.getBoundingClientRect()
+   if(rect.top<bounds.top||rect.bottom>bounds.bottom)target.scrollIntoView({block:'nearest',inline:'nearest'})
+  }
+ }
  const completed=new Set<string>(),clock=new TrainingClock(),active=()=>!disposed&&current()
  const dispose=()=>{
   if(disposed)return
@@ -402,6 +412,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  }
  const timerHint=()=>pausedInBackground?'Paused while the app was in the background.':onCourt?'Pauses in background · 2-hour limit.':'The timer pauses in the background. Up to two hours per session.'
  const timerAction=()=>clock.running()?'Pause timer':'Resume timer'
+ const timerButtonText=()=>onCourt?(clock.running()?'Pause':'Resume'):timerAction()
  const paintSessionClock=()=>{
   const elapsed=dialog.querySelector<HTMLElement>('[data-clock]')
   if(!elapsed)return
@@ -416,7 +427,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    state.toggleAttribute('data-clock-running',clock.running())
   }
   const control=dialog.querySelector<HTMLButtonElement>('[data-timer]')
-  if(control)control.textContent=timerAction()
+  if(control){control.textContent=timerButtonText();control.setAttribute('aria-label',timerAction())}
   const hint=dialog.querySelector<HTMLElement>('[data-timer-hint]')
   if(hint)hint.textContent=timerHint()
  }
@@ -429,7 +440,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    <h2>${html(card.title)}</h2>
    <p role="timer" data-clock>${trainingClockText(clock.seconds())}</p>
    <div class="training-clock-controls">
-    <button type="button" class="secondary" data-timer data-session-control="timer" ${locked?'disabled':''}>${timerAction()}</button>
+    <button type="button" class="secondary" data-timer data-session-control="timer" aria-label="${timerAction()}" ${locked?'disabled':''}>${timerButtonText()}</button>
     ${!warmup&&drillGuidePage(card,currentDrillPractice(),courtPosition)?`<button type="button" class="secondary" data-court-toggle data-session-control="view" ${locked?'disabled':''}>${onCourt?'Full log':'On-court view'}</button>`:''}
    </div>
    <p data-timer-hint>${timerHint()}</p>

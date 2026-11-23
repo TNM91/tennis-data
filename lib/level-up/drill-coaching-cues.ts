@@ -4,6 +4,14 @@ type DrillCoachingCues=Required<Pick<LevelUpCard,'qualityChecks'|'commonMiss'>>
 
 // Original practice guidance. The playbook's count rule remains the scoring rule.
 const cues:Record<string,DrillCoachingCues>={
+ 'volley-punch-target':{
+  qualityChecks:['Choose the target before the feed.','Use a compact stroke with the racket ready in front.','Finish balanced and reset before the next feed.'],
+  commonMiss:{miss:'You swing at the volley or keep moving forward until the next feed rushes you.',fix:'Use gentle feeds to a known side and a larger target. Reset in balance instead of automatically stepping closer to the net.'},
+ },
+ 'reaction-volley-wall':{
+  qualityChecks:['Use a soft start and a distance that gives you time.','Meet the rebound before the bounce with a compact stroke into the window.','Reset your racket and balance before the next counted contact.'],
+  commonMiss:{miss:'The rebound gets faster and you reach or make a longer swing to keep it going.',fix:'Soften the starting ball or catch and reset whenever the rebound rushes you. Keep the misses in your tally; do not move closer to force faster contacts.'},
+ },
  'serve-target-call':{
   qualityChecks:['Call the diagonal service-box target before starting your motion.','Keep the same breath and bounce routine after a make or a miss.','Use a pace that lets you aim and finish in balance.'],
   commonMiss:{miss:'You speed up after a fault and start serving before choosing the next target.',fix:'Pause behind the baseline, name the target and repeat your routine. Keep the fault in the count; do not add a replacement serve.'},

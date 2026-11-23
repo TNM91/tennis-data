@@ -175,7 +175,7 @@ describe('Level Up page', () => {
     expect(levelUpCardsSource).toContain('Slow the ball down and restart the count whenever the recovery line is skipped.')
     expect(levelUpCardsSource).toContain('Freeze the split for one beat and call the target before the feed counts.')
     expect(levelUpCardsSource).toContain('Score the close and split first. The volley only counts after the player earns ready feet.')
-    expect(levelUpCardsSource).toContain('Move closer, soften the feed, and count only blocks with hands reset in front.')
+    expect(LEVEL_UP_CARDS.find(card=>card.id==='reaction-volley-wall')?.commonMiss?.fix).toContain('catch and reset')
     expect(levelUpCardsSource).toContain('Name the state before the swing: defend, neutral, or attack.')
     expect(levelUpCardsSource).toContain('Call serve location and plus-one target as a pair before the rep begins.')
     expect(levelUpCardsSource).toContain('Say target and plus-one before the motion. If either is missing, restart the rep.')

@@ -6,8 +6,8 @@ import {drillGuidePage,moveDrillGuide,drillCourtGuideHtml} from '../../mobile/sr
 import {freezeTrainingSave} from '../../mobile/src/level-up-model'
 
 const card=LEVEL_UP_CARDS.find(card=>card.id==='return-depth-lane')!
-it('opens all eighteen playbooks in their selected version without changing their dose',()=>{
- const cards=LEVEL_UP_CARDS.filter(card=>card.playbook);expect(cards).toHaveLength(18)
+it('opens all twenty playbooks in their selected version without changing their dose',()=>{
+ const cards=LEVEL_UP_CARDS.filter(card=>card.playbook);expect(cards).toHaveLength(20)
  for(const card of cards)for(const mode of card.playbook!.versions){const page=drillGuidePage(card,newDrillPractice(card,mode.id),0)!;expect(page.instruction).toBe(mode.steps[0]);expect(page.mode).toBe(mode);expect(page.total).toBe(mode.steps.length)}
 })
 it('bounds instruction navigation without wrapping or completing rounds',()=>{

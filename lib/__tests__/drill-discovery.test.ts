@@ -6,7 +6,7 @@ import {trainingSelection,trainingSetup,trainingSetupLabel,initialTrainingContex
 const guided=LEVEL_UP_CARDS.filter(card=>card.playbook)
 it('finds every tracked drill once across the three practical setups',()=>{
  const groups=(['solo','partner','doubles'] as const).map(format=>trainingSelection(LEVEL_UP_CARDS,'','',Infinity,format,true))
- expect(groups.map(group=>group.length)).toEqual([5,8,5])
+ expect(groups.map(group=>group.length)).toEqual([6,9,5])
  expect(groups.flat().map(card=>card.id).sort()).toEqual(guided.map(card=>card.id).sort())
 })
 it('names the actual player count instead of implying all doubles drills need four',()=>{
