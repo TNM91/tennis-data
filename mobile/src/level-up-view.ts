@@ -21,6 +21,7 @@ import {html} from './match-details'
 import {matchDate} from './recent-results'
 import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingSave,type TrainingSession,type TrainingSave} from './level-up-data'
 import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave,trainingFormats,trainingSetupLabel,type TrainingFormat} from './level-up-model'
+import {trainingContextLabel,cardTrainingContextHint} from '../../lib/level-up/training-context'
 import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillResultsHtml,drillTally,drillSessionNote,DrillResultError,type DrillPractice} from './drill-playbook'
 import {drillGuidePage,moveDrillGuide,drillCourtGuideHtml} from './drill-court'
 import {drillCoachingHtml} from './drill-coaching'
@@ -93,7 +94,6 @@ export function trainingModuleHtml(practiceModule:LevelUpModule,completed:Readon
   ${practiceModule.successCriteria?`<p>${html(practiceModule.successCriteria)}</p>`:''}
  </details>`
 }
-const historyContextLabels:Record<string,string>={alone:'Solo',partner:'With a partner',singles:'Singles',doubles:'Doubles',coach:'With a coach'}
 const catalogSettings={home:'Home',driveway:'Driveway',garage:'Garage',court:'Court',wall:'Wall',gym:'Gym','match-day':'Match day'}
 const catalogPageSize=24
 const catalogCardsHtml=(cards:LevelUpCard[],limit:number)=>cards.length?`
@@ -139,7 +139,7 @@ export function trainingHistoryHtml(rows:TrainingSession[],complete=true){
     <div><dt>Self-rated proof</dt><dd>${row.rating} / 5</dd></div>
     <div><dt>Time</dt><dd>${trainingTime(row.elapsedSeconds)}</dd></div>
    </dl>
-   <p class="training-history-context">${html(historyContextLabels[row.context]??row.context)} · Felt ${html(row.feeling)}${row.sharedWithCoach?' · Shared with coach':''}</p>
+   <p class="training-history-context">${html(trainingContextLabel(row.context))} · Felt ${html(row.feeling)}${row.sharedWithCoach?' · Shared with coach':''}</p>
    ${row.identitySlug?`<p class="training-history-context">${html(trainingIdentity(row.identitySlug)?.title||row.identitySlug)}</p>`:''}
    ${row.note?`<div class="training-history-note"><strong>Your note</strong><p class="training-note">${html(row.note)}</p></div>`:''}
    ${index===0?trainingHistoryActionHtml(lastCard,lastCard?readDrillEvidence(lastCard,row)?.version:undefined):''}
@@ -485,9 +485,10 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
      <option value="">Choose a proof rating</option>
      ${[0,1,2,3,4,5].map(value=>`<option value="${value}" ${String(value)===rating?'selected':''}>${value} / 5</option>`).join('')}
     </select></label>
-    <label>Training context<select name="context" ${locked?'disabled':''}>
-     ${trainingContexts(card).map(value=>`<option value="${value}" ${value===context?'selected':''}>${value}</option>`).join('')}
+    <label>Training context<select name="context" ${cardTrainingContextHint(card)?'aria-describedby="training-context-help"':''} ${locked?'disabled':''}>
+     ${trainingContexts(card).map(value=>`<option value="${value}" ${value===context?'selected':''}>${html(trainingContextLabel(value))}</option>`).join('')}
     </select></label>
+    ${cardTrainingContextHint(card)?`<p id="training-context-help">${html(cardTrainingContextHint(card))}</p>`:''}
     <label>How did you feel?<select name="feeling" ${locked?'disabled':''}>
      ${['ready','tight','tired','nervous'].map(value=>`<option value="${value}" ${value===feeling?'selected':''}>${value}</option>`).join('')}
     </select></label>

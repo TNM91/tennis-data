@@ -1,5 +1,13 @@
 # Website to iPhone parity
 
+## Partner conditioning context — local follow-up after build 349
+
+Native discovery, session defaults and website card handoffs now use shared work-type/context rules. Return +1 Conditioning remains physical work, appears under With a partner and defaults to partner context. It keeps Solo as an explicit adaptation; ordinary physical and mental cards retain their solo choices, and court contexts are unchanged. The card remains a note/self-rated-proof drill, without inferred round tracking.
+
+Native context options use the same readable labels as history and drill comparisons while preserving stored enum values. Partner conditioning shows an accessible note explaining that solo practice is an adaptation. Existing solo records stay solo. Frozen private-save receipts still require the exact selected context. Website workbench setup changes retain a specifically selected card, and an older `context=alone` repeat link retains its card and context. The body-work label is Body & conditioning, which also fits physical work done on court.
+
+The existing session payload builder, row mapper and database constraint already allow physical/partner sessions. No API, schema, permission, subscription, notification, collector or artwork changes are required. Local evidence is recorded in `output/partner-context-20261122`, including native phone flows and an isolated browser fixture that renders the actual website workbench. The fixture uses no account or external network access. These changes are queued for a later beta; TestFlight 349 and public review build 324 remain unchanged.
+
 ## Return positioning and second-serve decisions — local follow-up after build 349
 
 Return Step-In Game and Second-Serve Attack or Build now have control/pressure playbooks, distinct coaching corrections and private round tracking. Step-In uses three rounds of ten; Attack or Build retains three rounds of six. The candidate has twenty-four tracked drills (eight solo, eleven partner and five doubles). Existing card IDs, category, setting, duration, access and coach links are preserved. Shared website cards use the control routine; native players can change versions and use On-court view, comparison and a fresh repeat.

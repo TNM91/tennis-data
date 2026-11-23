@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, typ
 import { useSearchParams } from 'next/navigation'
 import { LEVEL_UP_HISTORY_UNAVAILABLE, readLevelUpSessionHistory } from '@/lib/level-up/read-session-history'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
+import {cardTrainingWorkType,cardTrainingContext} from '@/lib/level-up/training-context'
+import type {LevelUpWorkType} from '@/lib/level-up-sessions'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { notifyLevelUpProgressSynced } from '@/lib/level-up/level-up-progress-events'
 import { getLevelUpProfileForIdentity, recommendLevelUpCards } from '@/lib/level-up/recommendations'
@@ -9951,16 +9953,11 @@ function buildCardQuestHref(startHref: string) {
 }
 
 function getCardWorkType(card: LevelUpCard) {
-  if (card.category === 'mental-routine') return 'mental'
-  if (['strength-stability', 'conditioning', 'mobility-stretch', 'recovery-reset'].includes(card.category)) return 'physical'
-  return 'court'
+  return cardTrainingWorkType(card)
 }
 
-function getCardContext(card: LevelUpCard, workType: string) {
-  if (workType !== 'court') return 'alone'
-  if (card.category === 'doubles-drill' || card.tags.includes('doubles') || card.tags.includes('doubles-communication')) return 'doubles'
-  if (card.category === 'partner-drill' || card.equipment.includes('partner')) return 'partner'
-  return 'alone'
+function getCardContext(card: LevelUpCard, workType: LevelUpWorkType) {
+  return cardTrainingContext(card,workType)
 }
 
 function getCardFocus(identitySlug: string, card: LevelUpCard) {
