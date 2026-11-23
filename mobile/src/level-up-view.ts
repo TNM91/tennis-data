@@ -485,10 +485,10 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
      <option value="">Choose a proof rating</option>
      ${[0,1,2,3,4,5].map(value=>`<option value="${value}" ${String(value)===rating?'selected':''}>${value} / 5</option>`).join('')}
     </select></label>
-    <label>Training context<select name="context" ${cardTrainingContextHint(card)?'aria-describedby="training-context-help"':''} ${locked?'disabled':''}>
+    <label>Training context<select name="context" ${cardTrainingContextHint(card,undefined,true)?'aria-describedby="training-context-help"':''} ${locked?'disabled':''}>
      ${trainingContexts(card).map(value=>`<option value="${value}" ${value===context?'selected':''}>${html(trainingContextLabel(value))}</option>`).join('')}
     </select></label>
-    ${cardTrainingContextHint(card)?`<p id="training-context-help">${html(cardTrainingContextHint(card))}</p>`:''}
+    ${cardTrainingContextHint(card,undefined,true)?`<p id="training-context-help">${html(cardTrainingContextHint(card,undefined,true))}</p>`:''}
     <label>How did you feel?<select name="feeling" ${locked?'disabled':''}>
      ${['ready','tight','tired','nervous'].map(value=>`<option value="${value}" ${value===feeling?'selected':''}>${value}</option>`).join('')}
     </select></label>
@@ -942,7 +942,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    if(!payload){
     if(rating==='')throw Error('Choose a proof rating.')
     clock.pause()
-    const sessionNote=drillSessionNote(selected,currentDrillPractice(),note,matchPractice?targetNote():'')
+    const sessionNote=drillSessionNote(selected,currentDrillPractice(),note,matchPractice?targetNote():'',context)
     payload=freezeTrainingSave(selected,Number(rating),sessionNote,context,feeling,clock.seconds(),'level-up-'+crypto.randomUUID(),new Date().toISOString(),sessionDirection)
    }
   }catch(error){

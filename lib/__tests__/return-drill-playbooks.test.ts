@@ -37,6 +37,6 @@ it('requires the exact planned return drill rather than crediting either new dri
  expect(JSON.stringify(plan)).toBe(before)
 })
 it('retains card identities and adds both return tasks to the tracked library',()=>{
- expect(Object.keys(RETURN_DRILL_PLAYBOOKS).sort()).toEqual(cases.map(c=>c[0]).sort());expect(LEVEL_UP_CARDS.filter(card=>card.playbook)).toHaveLength(24)
+ expect(Object.keys(RETURN_DRILL_PLAYBOOKS).sort()).toEqual(cases.map(c=>c[0]).sort());expect(LEVEL_UP_CARDS.filter(card=>card.playbook)).toHaveLength(26)
  for(const [id] of cases){const card=get(id);expect(card.category).toBe('partner-drill');expect(card.equipment).toEqual(['partner']);expect(card.setting).toEqual(['court']);expect(card.qualityChecks).toHaveLength(3);expect(card.progression).toBe(card.playbook!.advance);expect(card.regression).toBe(card.playbook!.easier)}
 })

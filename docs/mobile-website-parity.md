@@ -1,8 +1,18 @@
 # Website to iPhone parity
 
+## Short conditioning playbooks — local follow-up after build 349
+
+Serve +1 Conditioning and Return +1 Conditioning now use original control/pressure playbooks, three rounds of six and at least sixty seconds of rest between rounds, extended when balance fades. Both retain physical work type, card IDs, settings, duration, access and coach links. The tracked library has twenty-six drills: nine solo, twelve partner and five doubles. The existing catalogue displays 24 of 26 until Show more is selected; setup filters still return complete smaller groups.
+
+Serve +1 is solo serving plus a clearly labelled shadow first groundstroke. Its count is a serve-and-recovery rehearsal, not live +1 accuracy or a reaction test. Return +1 uses a partner, a real return and one live next groundstroke. Partner feeds that cannot offer the agreed playable +1 are repeated; the player's own misses remain attempts. Counts describe completed practice patterns, not point wins, fitness scores or TiQ changes. Older notes receive no inferred counts and these drills do not automatically satisfy a related exact TiQ plan.
+
+Native saves reject entered round results in an explicitly partner-required version when the context is Solo, including a recorded zero. The error preserves the note and raw rounds and focuses Training context; the player can choose With a partner, or clear the optional counts and save the solo adaptation note. This also covers the existing partner-cued pressure version of Split-Step Rhythm. Historical records are read unchanged. Context guidance mentions round fields only in the native screen that provides them; the website keeps its general adaptation guidance.
+
+The [LTA solo-practice guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/how-to-train-and-practice-tennis-skills-by-yourself/) and [practice context](https://www.lta.org.uk/advantage-home/content/three-mistakes-you-might-be-making-during-practice/) were consulted. The formats, doses, rest convention, counts and copy are TenAceIQ originals, not a prescribed fitness assessment. No external media or imported results are included. Local evidence is recorded in `output/conditioning-practice-20261122`. No API, schema, purchase, collector or artwork changes are needed. TestFlight 349 and public review build 324 remain unchanged; beta and physical iPhone/VoiceOver acceptance follow a later release.
+
 ## Partner conditioning context — local follow-up after build 349
 
-Native discovery, session defaults and website card handoffs now use shared work-type/context rules. Return +1 Conditioning remains physical work, appears under With a partner and defaults to partner context. It keeps Solo as an explicit adaptation; ordinary physical and mental cards retain their solo choices, and court contexts are unchanged. The card remains a note/self-rated-proof drill, without inferred round tracking.
+Native discovery, session defaults and website card handoffs use shared work-type/context rules. Return +1 Conditioning remains physical work, appears under With a partner and defaults to partner context. It keeps Solo as an explicit adaptation; ordinary physical and mental cards retain their solo choices, and court contexts are unchanged. That setup-only batch kept the card note-based; the conditioning follow-up above adds optional round tracking.
 
 Native context options use the same readable labels as history and drill comparisons while preserving stored enum values. Partner conditioning shows an accessible note explaining that solo practice is an adaptation. Existing solo records stay solo. Frozen private-save receipts still require the exact selected context. Website workbench setup changes retain a specifically selected card, and an older `context=alone` repeat link retains its card and context. The body-work label is Body & conditioning, which also fits physical work done on court.
 

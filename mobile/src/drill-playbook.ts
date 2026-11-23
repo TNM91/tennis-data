@@ -32,7 +32,11 @@ export function drillEvidence(card:LevelUpCard,practice:DrillPractice|null){
  if(!total.recorded)return ''
  return `${total.mode.label} · ${card.playbook!.countLabel}: ${total.rounds.flatMap(round=>round?[`R${round.round} ${round.count}/${total.mode.reps}`]:[]).join('; ')}. Total ${total.clean}/${total.attempts}.`
 }
-export function drillSessionNote(card:LevelUpCard,practice:DrillPractice|null,note:string,target=''){
+export function drillSessionNote(card:LevelUpCard,practice:DrillPractice|null,note:string,target='',context=''){
+ if(practice&&context==='alone'){
+  const total=drillRoundTotals(card,practice)
+  if(total.mode.requiresPartner&&total.recorded)throw new DrillResultError('These round results need a partner. Choose With a partner, or clear the rounds to save a solo note.','context')
+ }
  const evidence=drillEvidence(card,practice)
  const result=[target,evidence,note.trim()].filter(Boolean).join('\n\n')
  if(result.length>700)throw new DrillResultError('Your results and note exceed 700 characters. Shorten your note; your round counts will stay.','note')

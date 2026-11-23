@@ -16,8 +16,8 @@ function roundTrip(context='partner'){
 it('finds partner conditioning under its actual setup while preserving physical work type',()=>{
  expect(cardTrainingWorkType(card)).toBe('physical');expect(cardTrainingContext(card)).toBe('partner');expect(initialTrainingContext(card)).toBe('partner');expect(trainingSetup(card)).toBe('partner')
  expect(trainingSelection(LEVEL_UP_CARDS,card.title,'court',10,'partner').map(card=>card.id)).toEqual([card.id]);expect(trainingSelection(LEVEL_UP_CARDS,card.title,'court',10,'solo')).toEqual([])
- expect(trainingContexts(card)).toEqual(['alone','partner']);expect(card.playbook).toBeUndefined()
- expect(cardTrainingContextHint(card)).toContain('Choose solo practice only if you have adapted it');expect(cardTrainingContextHint()).toBe('');expect(cardTrainingContextHint(card,'mental')).toBe('')
+ expect(trainingContexts(card)).toEqual(['alone','partner']);expect(card.playbook).toBeDefined()
+ expect(cardTrainingContextHint(card,undefined,true)).toContain('leave the round results blank');expect(cardTrainingContextHint(card)).toContain('Choose solo practice only if you have adapted it');expect(cardTrainingContextHint({...card,playbook:undefined})).toContain('Choose solo practice only if you have adapted it');expect(cardTrainingContextHint()).toBe('');expect(cardTrainingContextHint(card,'mental')).toBe('')
 })
 it('leaves ordinary physical and mental choices solo and keeps court choices unchanged',()=>{
  for(const id of ['jump-rope-intervals','wall-sit-leg-durability','three-step-reset']){const solo=LEVEL_UP_CARDS.find(card=>card.id===id)!;expect(cardTrainingContext(solo)).toBe('alone');expect(trainingContexts(solo)).toEqual(['alone'])}

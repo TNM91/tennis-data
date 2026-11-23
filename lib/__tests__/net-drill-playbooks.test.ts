@@ -25,7 +25,7 @@ it.each(ids)('discovers and privately records both versions of %s without invent
 })
 it('adds exactly two net playbooks without replacing earlier tracked drills or card identities',()=>{
  expect(Object.keys(NET_DRILL_PLAYBOOKS).sort()).toEqual([...ids].sort())
- const cards=LEVEL_UP_CARDS.filter(card=>card.playbook);expect(cards).toHaveLength(24);expect(new Set(cards.map(card=>card.id)).size).toBe(24)
+ const cards=LEVEL_UP_CARDS.filter(card=>card.playbook);expect(cards).toHaveLength(26);expect(new Set(cards.map(card=>card.id)).size).toBe(26)
  for(const id of ['serve-target-call','return-depth-lane','wall-rally-rhythm','split-step-rhythm','volley-ready-split','30-30-pressure-game','serve-1-partner','serve-location-call','doubles-return-first-move','middle-ball-rule','switch-call-drill','poach-timing-shadow','basket-forehand-crosscourt','basket-backhand-crosscourt','crosscourt-consistency','defense-neutral-attack-rally','return-plus-one-recover','approach-volley-close'])expect(cards.some(card=>card.id===id)).toBe(true)
 })
 it('leaves older free-form notes unchanged rather than inferring counts after the upgrade',()=>{

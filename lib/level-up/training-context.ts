@@ -22,7 +22,8 @@ export function cardTrainingContexts(workType:LevelUpWorkType,card?:LevelUpCard)
  return workType==='physical'&&card&&hasPartner(card)?['alone','partner']:['alone']
 }
 
-export function cardTrainingContextHint(card?:LevelUpCard,workType:LevelUpWorkType=card?cardTrainingWorkType(card):'court'){
+export function cardTrainingContextHint(card?:LevelUpCard,workType:LevelUpWorkType=card?cardTrainingWorkType(card):'court',roundResults=false){
+ if(roundResults&&workType==='physical'&&card&&hasPartner(card)&&card.playbook?.versions.some(mode=>mode.requiresPartner))return 'This drill uses a partner. For solo adaptations, leave the round results blank and save your practice note.'
  return workType==='physical'&&card&&hasPartner(card)?'This drill uses a partner. Choose solo practice only if you have adapted it to work alone.':''
 }
 
