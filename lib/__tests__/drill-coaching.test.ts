@@ -5,9 +5,9 @@ import {drillCoachingHtml} from '../../mobile/src/drill-coaching'
 import {newDrillPractice,drillSessionNote} from '../../mobile/src/drill-playbook'
 
 const get=(id:string)=>LEVEL_UP_CARDS.find(card=>card.id===id)!
-it('gives all twenty-two tracked drills distinct corrections and the same progression rules as their playbooks',()=>{
+it('gives all twenty-four tracked drills distinct corrections and the same progression rules as their playbooks',()=>{
  const cards=LEVEL_UP_CARDS.filter(card=>card.playbook)
- expect(cards).toHaveLength(22)
+ expect(cards).toHaveLength(24)
  expect(new Set(cards.map(card=>card.commonMiss?.fix)).size).toBe(cards.length)
  for(const card of cards){
   expect(drillCoachingCues(card.id)).toBeDefined();expect(card.qualityChecks).toHaveLength(3)

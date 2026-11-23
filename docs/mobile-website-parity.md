@@ -1,5 +1,13 @@
 # Website to iPhone parity
 
+## Return positioning and second-serve decisions — local follow-up after build 349
+
+Return Step-In Game and Second-Serve Attack or Build now have control/pressure playbooks, distinct coaching corrections and private round tracking. Step-In uses three rounds of ten; Attack or Build retains three rounds of six. The candidate has twenty-four tracked drills (eight solo, eleven partner and five doubles). Existing card IDs, category, setting, duration, access and coach links are preserved. Shared website cards use the control routine; native players can change versions and use On-court view, comparison and a fresh repeat.
+
+Players choose a starting intent, then adapt to the actual serve. Stepping forward or attacking is conditional on time and balance; a neutral return can meet the second-serve task. Counts also require the named deep target and recovery, and do not measure point wins or change TiQ. Serve faults and lets repeat; missed returns of valid serves remain attempts. Earlier free-form notes are not converted, and related drills do not automatically satisfy an exact TiQ plan or coach assignment.
+
+The [LTA return-of-serve guidance](https://www.lta.org.uk/advantage-home/content/simple-steps-to-improving-your-return-of-serve/) was checked for adapting position and swing to the actual serve. Formats, counts and copy are TenAceIQ originals; no external media or imported results are added. Local evidence is recorded in `output/return-decisions-20261122`. No API, schema, pricing, collector or artwork changes are needed. These two upgrades are pending a later beta and physical iPhone/VoiceOver acceptance; TestFlight 349 and public review build 324 remain unchanged.
+
 ## Serve placement and routine playbooks — local follow-up after build 348
 
 Serve Target Ladder and Second-Serve Routine Reps now use original playbooks with distinct control/pressure routines, three rounds of ten, setup, count rules, easier adaptations and quick coaching. The tracked library has twenty-two drills: eight solo, nine partner and five doubles. Card IDs, settings, duration, access and existing coach links stay unchanged. Shared website cards use the control routine; native users can select the version and use On-court view, private counts, comparisons and a fresh repeat.

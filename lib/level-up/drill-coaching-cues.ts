@@ -4,6 +4,14 @@ type DrillCoachingCues=Required<Pick<LevelUpCard,'qualityChecks'|'commonMiss'>>
 
 // Original practice guidance. The playbook's count rule remains the scoring rule.
 const cues:Record<string,DrillCoachingCues>={
+ 'return-step-in-game':{
+  qualityChecks:['Choose your starting position and intent before the toss.','Adjust to the actual serve; step forward only with time and balance.','Reach the agreed deep target and recover ready.'],
+  commonMiss:{miss:'You step inside automatically and rush the return because the drill says step in.',fix:'Start where you can see and handle the serve. Hold or give yourself more time when needed; count the planned start, deep target and recovery rather than the forward step.'},
+ },
+ 'second-serve-attack-or-build':{
+  qualityChecks:['Read time, height and balance before deciding to attack.','Choose build or neutral when the serve takes the attacking chance away.','Keep the agreed deep target and recover after the return.'],
+  commonMiss:{miss:'You commit to attacking before the toss and force the shot when the serve jams or stretches you.',fix:'Choose an intent early, then let the actual serve change your choice. A balanced build or neutral return can count; a forced attack cannot.'},
+ },
  'serve-target-ladder':{
   qualityChecks:['Call the next zone before the motion.','Use the diagonal service box for the side you are serving from.','Keep the target order and tally after a miss.'],
   commonMiss:{miss:'You restart the target pattern after a fault or chase pace instead of the called zone.',fix:'Keep the miss in the ten and move to the next zone. Use larger targets or return to five serves per side when the routine becomes rushed.'},

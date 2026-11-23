@@ -40,7 +40,7 @@ it('keeps these drills separate from the exact serve practice in a TiQ plan',()=
  expect(JSON.stringify(plan)).toBe(before)
 })
 it('retains the serve practice block order and advances only its confirmed completion set',()=>{
- expect(Object.keys(SERVE_DRILL_PLAYBOOKS).sort()).toEqual([...ids].sort());expect(LEVEL_UP_CARDS.filter(card=>card.playbook)).toHaveLength(22)
+ expect(Object.keys(SERVE_DRILL_PLAYBOOKS).sort()).toEqual([...ids].sort());expect(LEVEL_UP_CARDS.filter(card=>card.playbook)).toHaveLength(24)
  const practiceBlock=LEVEL_UP_MODULES.find(block=>block.id==='serve-pressure-reset')!,completed=new Set<string>()
  expect(practiceBlock.cardIds).toEqual([...ids,'double-fault-reset']);expect(get('double-fault-reset').playbook).toBeUndefined()
  expect(trainingModuleHtml(practiceBlock,completed)).toContain('0 of 3 drills saved');expect(completed.size).toBe(0)

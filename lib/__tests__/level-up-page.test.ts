@@ -179,7 +179,7 @@ describe('Level Up page', () => {
     expect(levelUpCardsSource).toContain('Name the state before the swing: defend, neutral, or attack.')
     expect(levelUpCardsSource).toContain('Call serve location and plus-one target as a pair before the rep begins.')
     expect(levelUpCardsSource).toContain('Say target and plus-one before the motion. If either is missing, restart the rep.')
-    expect(levelUpCardsSource).toContain('Choose block, drive, or height before the toss and score only returns that match that job.')
+    expect(LEVEL_UP_CARDS.find(card=>card.id==='return-step-in-game')?.commonMiss?.fix).toContain('Hold or give yourself more time')
     expect(levelUpCardsSource).toContain('Call and first move were early, visible, and repeatable.')
     expect(levelUpCardsSource).toContain('Recovered before watching 0-5')
     expect(levelUpCardsSource).toContain('Serve target clarity 0-5')
