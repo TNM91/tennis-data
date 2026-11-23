@@ -25,7 +25,7 @@ import {trainingContextLabel,cardTrainingContextHint} from '../../lib/level-up/t
 import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillResultsHtml,drillTally,drillSessionNote,DrillResultError,type DrillPractice} from './drill-playbook'
 import {drillGuidePage,moveDrillGuide,drillCourtGuideHtml} from './drill-court'
 import {drillCoachingHtml} from './drill-coaching'
-import {RestCountdown,restCountdownHtml,paintRestCountdown} from './drill-rest'
+import {RestCountdown,restCountdownHtml,paintRestCountdown,restTabHtml} from './drill-rest'
 import {drillHistoryKey,selectDrillHistory,readDrillEvidence,drillHistoryControlsHtml,drillComparisonHtml} from './drill-progress'
 const trainingCueHtml=(card:LevelUpCard)=>`<p class="training-drill-cue"><strong>On-court cue</strong> ${html(card.cue)}</p>`
 const trainingClockText=(seconds:number)=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`
@@ -466,7 +466,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   ${onCourt?`<div class="training-court-tools" role="group" aria-label="On-court tools">
    <button type="button" class="secondary" data-court-pane="instructions" data-session-control="court-instructions" aria-controls="training-court-instructions" aria-pressed="${courtPane==='instructions'}">Steps</button>
    <button type="button" class="secondary" data-court-pane="rounds" data-session-control="court-rounds" aria-controls="training-court-rounds" aria-pressed="${courtPane==='rounds'}">Rounds</button>
-   <button type="button" class="secondary" data-court-pane="rest" data-session-control="court-rest" aria-controls="training-court-rest" aria-pressed="${courtPane==='rest'}">Rest</button>
+   ${restTabHtml(rest.snapshot(),courtPane==='rest')}
   </div><div class="training-court-body" data-court-body><div id="training-court-instructions" data-court-instructions ${courtPane==='instructions'?'':'hidden'}>${drillCourtGuideHtml(card,currentDrillPractice(),courtPosition)}`:''}
   ${onCourt?'':trainingCueHtml(card)}
   ${onCourt?'':drillCoachingHtml(card,currentDrillPractice(),true,coachingOpen)}
@@ -856,7 +856,6 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   })
   dialog.querySelectorAll<HTMLButtonElement>('[data-court-pane]').forEach(button=>button.addEventListener('click',()=>{
    if(!sessionControlActive(button)||!onCourt||!['instructions','rounds','rest'].includes(button.dataset.courtPane??''))return
-   if(courtPane==='rest'&&button.dataset.courtPane!=='rest')rest.pause()
    courtPane=button.dataset.courtPane as typeof courtPane;render()
    dialog.querySelector<HTMLElement>('[data-court-pane="'+courtPane+'"]')?.focus({preventScroll:true})
   }))

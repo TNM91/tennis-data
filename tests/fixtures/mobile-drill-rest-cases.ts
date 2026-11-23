@@ -1,12 +1,14 @@
 import {test,expect,type Page} from '@playwright/test'
 
-type RestCapture={writes:string[];failFirst:boolean;stale:HTMLElement[]}
+type RestCapture={writes:string[];failFirst:boolean;stale:HTMLElement[];announcements:string[]}
 type RestWindow=Window&{restCapture:RestCapture;switchNavigationOwner:()=>void}
 async function openRest(page:Page,query=''){
  await page.clock.install({time:new Date('2026-11-23T04:00:00Z')})
  await page.goto('http://127.0.0.1:4283/?training-inbox-review=1'+query)
+ // Keep locator actions from adding real elapsed time to exact countdown checks.
+ await page.clock.pauseAt(new Date('2026-11-23T04:01:00Z'))
  await page.evaluate(()=>{
-  const state:RestCapture={writes:[],failFirst:false,stale:[]},original=window.fetch.bind(window)
+  const state:RestCapture={writes:[],failFirst:false,stale:[],announcements:[]},original=window.fetch.bind(window)
   ;(window as unknown as RestWindow).restCapture=state
   window.fetch=async(input,init)=>{
    const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href)
@@ -43,9 +45,31 @@ test.describe('On-court rest countdown',()=>{
   await training.getByRole('button',{name:'Start rest',exact:true}).click();await page.clock.fastForward(10000);await expect(remaining).toHaveText('01:20')
   await background(page);await page.clock.fastForward(90000);await expect(remaining).toHaveText('01:20');await expect(training.locator('[data-rest-state]')).toHaveText('Paused')
   await training.getByRole('button',{name:'Resume rest',exact:true}).click();await page.clock.fastForward(5000)
-  await training.getByRole('button',{name:'Steps',exact:true}).click();await page.clock.fastForward(90000);await training.getByRole('button',{name:'Rest',exact:true}).click();await expect(remaining).toHaveText('01:15')
-  await training.getByRole('button',{name:'Resume rest',exact:true}).click();await training.getByRole('button',{name:'Full log',exact:true}).click();await page.clock.fastForward(90000)
-  await training.getByRole('button',{name:'On-court view',exact:true}).click();await expect(remaining).toHaveText('01:15');await expect(training.locator('[data-rest-state]')).toHaveText('Paused');expect(await writes(page)).toHaveLength(0)
+  await training.getByRole('button',{name:'Steps',exact:true}).click();await page.clock.fastForward(10000);await training.getByRole('button',{name:'Rest',exact:true}).click();await expect(remaining).toHaveText('01:05')
+  await training.getByRole('button',{name:'Full log',exact:true}).click();await page.clock.fastForward(90000)
+  await training.getByRole('button',{name:'On-court view',exact:true}).click();await expect(remaining).toHaveText('01:05');await expect(training.locator('[data-rest-state]')).toHaveText('Paused');expect(await writes(page)).toHaveLength(0)
+ })
+ test('continues while logging rounds and reading steps, then pauses through Close and Keep',async({page})=>{
+  const training=await openRest(page)
+  await training.getByRole('button',{name:'Start rest',exact:true}).click();await training.getByRole('button',{name:'Rounds',exact:true}).click()
+  await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('0');await training.getByRole('spinbutton',{name:'Round 3',exact:true}).fill('8');await page.clock.fastForward(15000)
+  await expect(training.locator('[data-rest-indicator]')).toHaveAttribute('data-rest-phase','running');await expect(training.getByRole('button',{name:'Rest',exact:true})).toHaveAccessibleDescription('Rest countdown running.')
+  await training.getByRole('button',{name:'Steps',exact:true}).click();const next=training.getByRole('button',{name:'Next instruction',exact:true});await next.click();await page.clock.fastForward(10000)
+  await expect(next).toBeFocused();await expect(training.locator('[data-court-position]')).toHaveText('Instruction 2 of 4')
+  await next.press('Escape');await training.getByRole('button',{name:'Keep training',exact:true}).click();await expect(next).toBeFocused();await expect(training.locator('[data-rest-indicator]')).toHaveAttribute('data-rest-phase','paused')
+  await page.clock.fastForward(90000);await training.getByRole('button',{name:'Rest',exact:true}).click();await expect(training.getByRole('timer',{name:'Rest remaining',exact:true})).toHaveText('00:35')
+  await training.getByRole('button',{name:'Resume rest',exact:true}).click();await training.getByRole('button',{name:'Rounds',exact:true}).click();const third=training.getByRole('spinbutton',{name:'Round 3',exact:true});await third.focus();await page.clock.fastForward(5000)
+  await expect(third).toBeFocused();await expect(third).toHaveValue('8');await expect(training.getByRole('spinbutton',{name:'Round 1',exact:true})).toHaveValue('0');await expect(training.getByRole('spinbutton',{name:'Round 2',exact:true})).toHaveValue('');expect(await writes(page)).toHaveLength(0)
+ })
+ test('announces one completion while another pane is open without moving focus or creating results',async({page})=>{
+  const training=await openRest(page)
+  await training.getByRole('button',{name:'Start rest',exact:true}).click();await training.getByRole('button',{name:'Rounds',exact:true}).click();const third=training.getByRole('spinbutton',{name:'Round 3',exact:true});await third.fill('8')
+  await training.locator('[data-rest-live-state]').evaluate(el=>{new MutationObserver(()=>{(window as unknown as RestWindow).restCapture.announcements.push(el.textContent||'')}).observe(el,{subtree:true,childList:true,characterData:true})})
+  await page.clock.fastForward(65000);await expect(training.locator('[data-rest-live-state]')).toHaveText('Rest finished.');await expect(training.locator('[data-rest-indicator]')).toHaveAttribute('data-rest-phase','complete')
+  await expect(third).toBeFocused();await expect(third).toHaveValue('8');await expect(training.getByRole('button',{name:'Rounds',exact:true})).toHaveAttribute('aria-pressed','true');await expect(training.getByRole('button',{name:'Rest',exact:true})).toHaveAccessibleDescription('Rest finished.')
+  await page.clock.fastForward(90000);expect(await page.evaluate(()=>(window as unknown as RestWindow).restCapture.announcements)).toEqual(['Rest finished.'])
+  await expect(training.getByRole('spinbutton',{name:'Round 1',exact:true})).toHaveValue('');await expect(training.getByRole('spinbutton',{name:'Round 2',exact:true})).toHaveValue('');expect(await writes(page)).toHaveLength(0)
+  await training.getByRole('button',{name:'Rest',exact:true}).click();await expect(training.getByRole('timer',{name:'Rest remaining',exact:true})).toHaveText('00:00');await expect(training.getByRole('button',{name:'Start rest again',exact:true})).toBeEnabled()
  })
  test('keeps focus through Close and saves only the player round evidence before a fresh repeat',async({page})=>{
   const training=await openRest(page)
@@ -70,7 +94,7 @@ test.describe('On-court rest countdown',()=>{
   const saved=await writes(page);expect(saved).toHaveLength(2);expect(saved[1]).toBe(saved[0])
  })
  test('disposes the countdown and its controls when the account changes',async({page})=>{
-  const training=await openRest(page);await training.getByRole('button',{name:'Start rest',exact:true}).click();await page.evaluate(()=>{(window as unknown as RestWindow).restCapture.stale=Array.from(document.querySelectorAll<HTMLElement>('[data-rest-action],[data-court-pane]'));(window as unknown as RestWindow).switchNavigationOwner()})
+  const training=await openRest(page);await training.getByRole('button',{name:'Start rest',exact:true}).click();await training.getByRole('button',{name:'Rounds',exact:true}).click();await page.evaluate(()=>{(window as unknown as RestWindow).restCapture.stale=Array.from(document.querySelectorAll<HTMLElement>('[data-rest-action],[data-court-pane]'));(window as unknown as RestWindow).switchNavigationOwner()})
   await page.clock.fastForward(120000);await expect(training).toHaveCount(0);await page.evaluate(()=>{for(const el of (window as unknown as RestWindow).restCapture.stale)el.dispatchEvent(new Event('click',{bubbles:true}))})
   await expect(page.getByRole('timer',{name:'Rest remaining',exact:true})).toHaveCount(0);expect(await writes(page)).toHaveLength(0)
  })
@@ -86,5 +110,10 @@ test.describe('On-court rest countdown',()=>{
   await page.screenshot({path:info.outputPath('on-court-rest-'+width+'.png')})
   for(const control of [training.getByRole('combobox',{name:'Rest duration',exact:true}),training.getByRole('button',{name:'Start rest',exact:true})]){await control.scrollIntoViewIfNeeded();await expect(control).toBeInViewport({ratio:1});expect(await control.evaluate(el=>{const b=el.getBoundingClientRect();return document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)===el})).toBe(true);expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44)}
   await training.getByRole('button',{name:'Start rest',exact:true}).click();await expect(training.getByRole('button',{name:'Pause rest',exact:true})).toBeFocused();await training.getByRole('button',{name:'Reset rest',exact:true}).click();await expect(training.getByRole('button',{name:'Start rest',exact:true})).toBeFocused();expect(await writes(page)).toHaveLength(0)
+  await training.getByRole('button',{name:'Start rest',exact:true}).click();await training.getByRole('button',{name:'Rounds',exact:true}).click();const third=training.getByRole('spinbutton',{name:'Round 3',exact:true});await third.fill('8');await third.scrollIntoViewIfNeeded();await page.clock.fastForward(5000)
+  const indicator=training.locator('[data-rest-indicator]');await expect(indicator).toHaveAttribute('data-rest-phase','running');await expect(indicator).toBeInViewport({ratio:1});await expect(indicator.locator('circle')).toBeVisible()
+  expect(await training.getByRole('button',{name:'Rest',exact:true}).evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);await expect(third).toBeFocused();await expect(third).toBeInViewport({ratio:1})
+  await page.screenshot({path:info.outputPath('on-court-rest-continuity-'+width+'.png')})
+  await page.clock.fastForward(60000);await expect(indicator).toHaveAttribute('data-rest-phase','complete');await expect(indicator.locator('path')).toBeVisible();await expect(third).toBeFocused();await expect(third).toHaveValue('8');expect(await writes(page)).toHaveLength(0)
  })
 })

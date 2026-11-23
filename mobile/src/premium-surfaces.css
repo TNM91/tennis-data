@@ -1312,6 +1312,12 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 .training-court-tools { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex:none;margin-block:0 10px; }
 .training-court-tools button.secondary { min-inline-size:0;min-block-size:44px;margin:0;padding:8px;font-size:.875rem;border-color:var(--premium-line);background:var(--premium-inset); }
 .training-court-tools button[aria-pressed="true"] { border-color:var(--premium-lime);background:linear-gradient(154deg,transparent 55%,#a7c8ff12 55%,#a7c8ff12 56%,transparent 56%),var(--premium-card);color:var(--premium-white); }
+.training-court-tools [data-court-pane="rest"] { position:relative; }
+.training-rest-indicator { position:absolute;inset-inline-end:6px;inset-block-start:5px;display:grid;place-items:center;inline-size:12px;block-size:12px;color:var(--premium-lime);pointer-events:none; }
+.training-court-tools .training-rest-indicator svg { display:block;inline-size:12px;block-size:12px;max-inline-size:100%; }
+.training-rest-indicator[data-rest-phase="paused"] { color:var(--premium-ice); }
+.training-court-tools .training-rest-indicator[hidden] { display:none; }
+.training-rest-live-status { position:absolute;inline-size:1px;block-size:1px;margin:0;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap; }
 .training-court-body { flex:1 1 auto;min-block-size:0;overflow-y:auto;overscroll-behavior:contain;margin-inline:-12px;padding:0 12px 12px;scroll-padding-block:8px; }
 .training-court-guide { margin:0;padding:14px;border:1px solid var(--premium-line);border-radius:var(--premium-panel-radius);background:radial-gradient(ellipse at top right,var(--premium-royal-deep),transparent 72%),var(--premium-card); }
 .training-court-guide .training-court-dose { margin:0 0 12px;color:var(--premium-ice);font-size:.75rem; }

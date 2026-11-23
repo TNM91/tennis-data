@@ -29,10 +29,16 @@ export class RestCountdown {
 const restTime=(seconds:number)=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`
 const restState=(state:RestSnapshot)=>({idle:'Ready when you are',running:'Resting',paused:'Paused',complete:'Rest finished'})[state.phase]
 const restAction=(state:RestSnapshot)=>({idle:'Start rest',running:'Pause rest',paused:'Resume rest',complete:'Start rest again'})[state.phase]
+const restNotice=(state:RestSnapshot)=>({idle:'Optional rest countdown.',running:'Rest countdown running.',paused:'Rest countdown paused.',complete:'Rest finished.'})[state.phase]
+const restIndicator=(state:RestSnapshot)=>state.phase==='idle'?'':`<svg viewBox="0 0 12 12" width="12" height="12" fill="none">${state.phase==='running'?'<circle cx="6" cy="6" r="3" fill="currentColor"/>':state.phase==='paused'?'<path d="M4 2v8M8 2v8" stroke="currentColor" stroke-width="2"/>':'<path d="m2 6 3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'}</svg>`
+export function restTabHtml(state:RestSnapshot,selected=false){
+ return `<button type="button" class="secondary" data-court-pane="rest" data-session-control="court-rest" aria-controls="training-court-rest" aria-describedby="training-rest-status" aria-pressed="${selected}">Rest<span class="training-rest-indicator" data-rest-indicator data-rest-phase="${state.phase}" aria-hidden="true" ${state.phase==='idle'?'hidden':''}>${restIndicator(state)}</span></button>
+ <span id="training-rest-status" class="training-rest-live-status" data-rest-live-state role="status" aria-live="polite" aria-atomic="true">${restNotice(state)}</span>`
+}
 export function restCountdownHtml(state:RestSnapshot,locked=false){
  return `<section class="training-rest" aria-label="Between rounds">
   <small class="stat-eyebrow">Between rounds</small>
-  <p data-rest-state role="status" aria-live="polite" aria-atomic="true">${restState(state)}</p>
+  <p data-rest-state>${restState(state)}</p>
   <p role="timer" aria-label="Rest remaining" aria-live="off" data-rest-clock>${restTime(state.remaining)}</p>
   <svg class="training-rest-track" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="4" rx="2"/><rect data-rest-fill width="${state.remaining/state.duration*100}" height="4" rx="2"/></svg>
   <label for="training-rest-duration">Rest duration</label>
@@ -45,6 +51,9 @@ export function restCountdownHtml(state:RestSnapshot,locked=false){
  </section>`
 }
 export function paintRestCountdown(root:HTMLElement,state:RestSnapshot,locked=false){
+ const live=root.querySelector('[data-rest-live-state]'),indicator=root.querySelector<HTMLElement>('[data-rest-indicator]')
+ if(live&&live.textContent!==restNotice(state))live.textContent=restNotice(state)
+ if(indicator&&indicator.dataset.restPhase!==state.phase){indicator.dataset.restPhase=state.phase;indicator.hidden=state.phase==='idle';indicator.innerHTML=restIndicator(state)}
  const clock=root.querySelector('[data-rest-clock]')
  if(!clock)return
  const status=root.querySelector('[data-rest-state]'),toggle=root.querySelector<HTMLButtonElement>('[data-rest-action="toggle"]'),reset=root.querySelector<HTMLButtonElement>('[data-rest-action="reset"]'),duration=root.querySelector<HTMLSelectElement>('[data-rest-duration]')

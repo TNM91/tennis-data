@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {RestCountdown,REST_DURATIONS,restCountdownHtml} from '../../mobile/src/drill-rest'
+import {RestCountdown,REST_DURATIONS,restCountdownHtml,restTabHtml,type RestSnapshot} from '../../mobile/src/drill-rest'
 
 describe('Optional on-court rest countdown',()=>{
  it('waits for an explicit start and uses a sixty-second default',()=>{
@@ -40,7 +40,8 @@ describe('Optional on-court rest countdown',()=>{
  it('offers read-only timer output and explicit button actions without a submit control',()=>{
   const view=restCountdownHtml(new RestCountdown().snapshot())
   expect(view).toContain('role="timer" aria-label="Rest remaining" aria-live="off"')
-  expect(view).toContain('data-rest-state role="status" aria-live="polite"')
+  expect(view).not.toContain('role="status"')
+  expect(restTabHtml(new RestCountdown().snapshot())).toContain('data-rest-live-state role="status" aria-live="polite"')
   expect(view).toContain('Pauses when you leave the app.')
   expect(view.match(/<option /g)).toHaveLength(5)
   expect(view).not.toMatch(/type="submit"|autofocus|name="(?:rating|note|context|drill-round)/)
@@ -51,5 +52,16 @@ describe('Optional on-court rest countdown',()=>{
   expect(view).toMatch(/data-rest-duration[^>]*disabled/)
   expect(view).toMatch(/data-rest-action="toggle"[^>]*disabled/)
   expect(view).toMatch(/data-rest-action="reset"[^>]*disabled/)
+ })
+ it('keeps the Rest tab name stable and exposes each state outside the hidden pane',()=>{
+  const notices={idle:'Optional rest countdown.',running:'Rest countdown running.',paused:'Rest countdown paused.',complete:'Rest finished.'}
+  for(const phase of ['idle','running','paused','complete'] as const){
+   const state:RestSnapshot={duration:60,remaining:phase==='complete'?0:45,phase},view=restTabHtml(state)
+   expect(view).toContain('aria-describedby="training-rest-status"');expect(view).toContain('aria-pressed="false">Rest<span')
+   expect(view).toContain('data-rest-phase="'+phase+'" aria-hidden="true"');expect(view).toContain(notices[phase])
+   expect(view).toContain('id="training-rest-status"');expect(view).toContain('aria-live="polite" aria-atomic="true"')
+   expect(view.includes('<svg')).toBe(phase!=='idle');expect(view).not.toMatch(/type="submit"|autofocus/)
+   expect(state).toEqual({duration:60,remaining:phase==='complete'?0:45,phase})
+  }
  })
 })
