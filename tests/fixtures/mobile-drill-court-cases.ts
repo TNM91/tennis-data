@@ -54,7 +54,7 @@ test.describe('On-court practice',()=>{
   await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('0');await training.getByRole('spinbutton',{name:'Round 3',exact:true}).fill('8')
   await training.getByRole('button',{name:'Full log',exact:true}).click();await expect(training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true})).toHaveValue('2')
   await training.getByRole('button',{name:'On-court view',exact:true}).click();await expect(training.getByRole('button',{name:'Rounds',exact:true})).toHaveAttribute('aria-pressed','true');await expect(training.getByRole('spinbutton',{name:'Round 3',exact:true})).toHaveValue('8')
-  await training.getByRole('button',{name:'Instructions',exact:true}).click();await expect(training.locator('[data-court-position]')).toHaveText('Instruction 2 of 4')
+  await training.getByRole('button',{name:'Steps',exact:true}).click();await expect(training.locator('[data-court-position]')).toHaveText('Instruction 2 of 4')
   await training.getByRole('button',{name:'Finish & log',exact:true}).click()
   await expect(training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true})).toBeFocused();await expect(training.locator('[data-clock-state]')).toHaveText('Paused')
   await expect(training.getByRole('combobox',{name:'How did you feel?',exact:true})).toHaveValue('tight');await expect(training.getByRole('textbox',{name:'Your training note',exact:true})).toHaveValue('Keep <finish> high.\nRecover first.')
@@ -75,7 +75,7 @@ test.describe('On-court practice',()=>{
   await expect(training.locator('[data-clock-state]')).toHaveText('Paused');await expect(round).toHaveValue('8')
   const scroll=await training.locator('[data-court-body]').evaluate(el=>el.scrollTop)
   await round.press('Escape');await training.getByRole('button',{name:'Keep training',exact:true}).click();await expect(round).toBeFocused();expect(await training.locator('[data-court-body]').evaluate(el=>el.scrollTop)).toBe(scroll)
-  await training.getByRole('button',{name:'Instructions',exact:true}).click();const next=training.getByRole('button',{name:'Next instruction',exact:true});await next.click();await next.press('Escape');await training.getByRole('button',{name:'Keep training',exact:true}).click()
+  await training.getByRole('button',{name:'Steps',exact:true}).click();const next=training.getByRole('button',{name:'Next instruction',exact:true});await next.click();await next.press('Escape');await training.getByRole('button',{name:'Keep training',exact:true}).click()
   await expect(next).toBeFocused();await expect(training.locator('[data-court-position]')).toHaveText('Instruction 3 of 4');expect(await writes(page)).toHaveLength(0)
  })
  test('reveals the visible correction field after invalid focus-view round entries',async({page})=>{
@@ -112,7 +112,7 @@ test.describe('On-court practice',()=>{
  test('starts a repeat fresh and leaves drills without playbooks in the full session view',async({page})=>{
   const training=await openCourt(page);await training.getByRole('button',{name:'On-court view',exact:true}).click();await training.getByRole('button',{name:'Next instruction',exact:true}).click();await training.getByRole('button',{name:'Rounds',exact:true}).click();await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('8');await training.getByRole('button',{name:'Finish & log',exact:true}).click();await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('4');await training.getByRole('button',{name:'Save completed session',exact:true}).click()
   await training.getByRole('button',{name:'Practice this drill again',exact:true}).click();await training.getByRole('button',{name:'Start training',exact:true}).click();await expect(training.getByRole('heading',{name:'Training session',exact:true})).toBeVisible();await expect(training.getByRole('spinbutton',{name:'Round 1',exact:true})).toHaveValue('')
-  await training.getByRole('button',{name:'On-court view',exact:true}).click();await expect(training.locator('[data-court-position]')).toHaveText('Instruction 1 of 4');await expect(training.getByRole('button',{name:'Instructions',exact:true})).toHaveAttribute('aria-pressed','true')
+  await training.getByRole('button',{name:'On-court view',exact:true}).click();await expect(training.locator('[data-court-position]')).toHaveText('Instruction 1 of 4');await expect(training.getByRole('button',{name:'Steps',exact:true})).toHaveAttribute('aria-pressed','true')
   await openCourt(page,'Cone Recover + Shadow Swing','',false);const legacy=page.getByRole('dialog',{name:'Level Up training',exact:true});await legacy.getByRole('button',{name:'Start training',exact:true}).click();await expect(legacy.getByRole('button',{name:'On-court view',exact:true})).toHaveCount(0)
  })
  for(const width of [320,390])test('uses the phone space with equal reachable controls at '+width+'px',async({page},info)=>{
