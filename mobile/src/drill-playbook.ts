@@ -1,6 +1,7 @@
 import type {LevelUpCard} from '../../lib/level-up/level-up-types'
 import type {DrillVersionId} from '../../lib/level-up/drill-playbooks'
 import {html} from './match-details'
+import {roundRestButtonHtml,type RestSnapshot} from './drill-rest'
 
 export type DrillPractice={cardId:string;version:DrillVersionId;results:string[]}
 export class DrillResultError extends Error{constructor(message:string,readonly field:string){super(message)}}
@@ -76,7 +77,7 @@ export function drillSetupHtml(card:LevelUpCard,practice:DrillPractice|null,choo
   <details class="training-inbox-fold" data-drill-fold="adapt"><summary>Adjust the challenge</summary><p><strong>Make it easier</strong> ${html(book.easier)}</p><p><strong>When to progress</strong> ${html(book.advance)}</p></details>
  </section>`
 }
-export function drillResultsHtml(card:LevelUpCard,practice:DrillPractice|null,locked:boolean){
+export function drillResultsHtml(card:LevelUpCard,practice:DrillPractice|null,locked:boolean,rest:RestSnapshot|null=null){
  const book=card.playbook,mode=selectedDrillVersion(card,practice)
  if(!book||!mode||!practice)return ''
  let tally='Check the round counts below.';try{tally=drillTally(card,practice)}catch{/* Preserve invalid raw input for correction. */}
@@ -86,6 +87,7 @@ export function drillResultsHtml(card:LevelUpCard,practice:DrillPractice|null,lo
   <details class="training-inbox-fold" data-inbox-fold="drill-count-rule-${html(card.id)}"><summary>What counts?</summary><p>${html(book.countRule)}</p></details>
   <div class="training-round-grid">${practice.results.map((value,index)=>`<label for="training-drill-round-${index}">Round ${index+1}<span><input id="training-drill-round-${index}" name="drill-round-${index}" data-drill-result="${index}" type="number" inputmode="numeric" min="0" max="${mode.reps}" step="1" value="${html(value)}" aria-describedby="training-round-help"/><span aria-hidden="true">/ ${mode.reps}</span></span></label>`).join('')}</div>
   <output data-drill-tally aria-label="Drill round totals" aria-live="polite" aria-atomic="true">${html(tally)}</output>
+  ${rest?roundRestButtonHtml(rest,locked):''}
   <p class="training-rounds-help">Entered counts and the practice version save with your private note. Blank rounds stay unrecorded. These counts do not change your TiQ rating.</p>
  </fieldset>`
 }

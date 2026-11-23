@@ -485,7 +485,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   <section class="training-session-log" ${onCourt&&courtPane!=='rounds'?'hidden':''}>
    ${onCourt?'':`<h2>Log your session</h2><p>${matchPractice?'Save your target and result to your private training history.':sessionOrigin?`Private practice from ${html(sessionOrigin)}.`:'Save your proof to your private training history.'}</p>${sessionDirection?`<p>Training direction · ${html(trainingIdentity(sessionDirection)?.title||'')}</p>`:''}`}
    <form data-proof>
-    <div id="training-court-rounds" data-session-rounds ${onCourt&&courtPane!=='rounds'?'hidden':''}>${drillResultsHtml(card,currentDrillPractice(),locked)}</div>
+    <div id="training-court-rounds" data-session-rounds ${onCourt&&courtPane!=='rounds'?'hidden':''}>${drillResultsHtml(card,currentDrillPractice(),locked,onCourt?rest.snapshot():null)}</div>
     <div data-session-details ${onCourt?'hidden':''}>
     <label>Self-rated proof (0–5)<select name="rating" ${onCourt?'':'required'} ${locked?'disabled':''}>
      <option value="">Choose a proof rating</option>
@@ -862,6 +862,21 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    courtPane=button.dataset.courtPane as typeof courtPane;render()
    dialog.querySelector<HTMLElement>('[data-court-pane="'+courtPane+'"]')?.focus({preventScroll:true})
   }))
+  const roundRest=dialog.querySelector<HTMLButtonElement>('[data-round-rest]')
+  roundRest?.addEventListener('click',()=>{
+   if(!sessionControlActive(roundRest)||!onCourt||courtPane!=='rounds'||roundRest.disabled)return
+   const intent=roundRest.dataset.roundRestPhase,state=rest.snapshot()
+   if(!['idle','running','paused','complete'].includes(intent??''))return
+   // A View rest tap can cross the deadline without asking for another rest.
+   if(intent!=='running'){
+    if(intent!==state.phase){paintRestCountdown(dialog,state,false,currentRoundShortcut());return}
+    if(state.phase==='complete')rest.reset()
+    rest.start()
+   }
+   courtPane='rest';sessionControl='court-rest';render()
+   dialog.querySelector('[data-court-body]')?.scrollTo({top:0})
+   dialog.querySelector<HTMLElement>('[data-court-pane="rest"]')?.focus({preventScroll:true})
+  })
   dialog.querySelectorAll<HTMLButtonElement>('[data-rest-action]').forEach(button=>button.addEventListener('click',()=>{
    if(!sessionControlActive(button)||!onCourt||courtPane!=='rest'||button.disabled)return
    const state=rest.snapshot()

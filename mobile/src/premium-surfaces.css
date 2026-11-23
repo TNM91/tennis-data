@@ -1363,6 +1363,7 @@ dialog.roster-player-dialog:has(>[data-roster-player]) {
 .training-dialog .training-rest select { display:block;inline-size:100%;min-inline-size:0;min-block-size:48px;margin:0;padding:10px 32px 10px 10px;appearance:none;-webkit-appearance:none;border:1px solid var(--premium-line);border-radius:var(--premium-control-radius);background:var(--premium-inset);color:var(--premium-white);font-size:max(16px,.875rem); }
 .training-rest-actions { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-block:14px; }
 .training-rest-actions button { min-inline-size:0;min-block-size:48px;margin:0;padding:10px 8px;font-size:.875rem;overflow-wrap:anywhere; }
+.training-dialog .training-round-rest { display:block;inline-size:100%;min-block-size:48px;margin-block:14px 0;padding:10px 12px;font-size:max(16px,.875rem);white-space:normal;overflow-wrap:anywhere; }
 .training-rest #training-rest-help { margin:0;color:var(--premium-copy);font-size:.8125rem;line-height:1.5; }
 @media (max-height:640px) {
  .training-rest [data-rest-round] { margin-block:6px 10px; }
