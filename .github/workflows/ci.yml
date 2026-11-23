@@ -95,11 +95,13 @@ jobs:
 
       - name: Use the Ubuntu archive for browser dependencies
         run: |
-          # The Azure package mirror can throttle font downloads until this job times out.
+          # Regional package mirrors can throttle font downloads until this job times out.
           # Keep the same signed Ubuntu packages and existing test/time limit.
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
-          fi
+          for apt_file in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$apt_file" ]; then
+              sudo sed -E -i 's#https?://(azure|([a-z0-9-]+\.)?ec2)\.archive\.ubuntu\.com/ubuntu#https://archive.ubuntu.com/ubuntu#g' "$apt_file"
+            fi
+          done
 
       - name: Install browser engines
         run: npx playwright install --with-deps chromium webkit
@@ -230,11 +232,13 @@ jobs:
 
       - name: Use the Ubuntu archive for browser dependencies
         run: |
-          # The Azure package mirror can throttle font downloads until this job times out.
+          # Regional package mirrors can throttle font downloads until this job times out.
           # Keep the same signed Ubuntu packages and existing test/time limit.
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
-          fi
+          for apt_file in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$apt_file" ]; then
+              sudo sed -E -i 's#https?://(azure|([a-z0-9-]+\.)?ec2)\.archive\.ubuntu\.com/ubuntu#https://archive.ubuntu.com/ubuntu#g' "$apt_file"
+            fi
+          done
 
       - name: Install browser engines
         run: npx playwright install --with-deps chromium webkit
@@ -276,11 +280,13 @@ jobs:
 
       - name: Use the Ubuntu archive for browser dependencies
         run: |
-          # The Azure package mirror can throttle font downloads until this job times out.
+          # Regional package mirrors can throttle font downloads until this job times out.
           # Keep the same signed Ubuntu packages and existing test/time limit.
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
-          fi
+          for apt_file in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$apt_file" ]; then
+              sudo sed -E -i 's#https?://(azure|([a-z0-9-]+\.)?ec2)\.archive\.ubuntu\.com/ubuntu#https://archive.ubuntu.com/ubuntu#g' "$apt_file"
+            fi
+          done
 
       - name: Install browser engines
         run: npx playwright install --with-deps chromium webkit
@@ -363,10 +369,12 @@ jobs:
           cache: npm
       - name: Use the Ubuntu archive for browser dependencies
         run: |
-          # Preserve signed Ubuntu packages while avoiding the throttled Azure mirror.
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
-          fi
+          # Preserve signed Ubuntu packages while avoiding throttled regional mirrors.
+          for apt_file in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if [ -f "$apt_file" ]; then
+              sudo sed -E -i 's#https?://(azure|([a-z0-9-]+\.)?ec2)\.archive\.ubuntu\.com/ubuntu#https://archive.ubuntu.com/ubuntu#g' "$apt_file"
+            fi
+          done
       - name: Install locked dependencies and browser engines
         run: |
           npm ci

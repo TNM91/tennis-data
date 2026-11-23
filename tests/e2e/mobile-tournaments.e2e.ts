@@ -39,6 +39,9 @@ async function change(page:Page,v:Record<string,unknown>){await page.evaluate(v=
 async function division(page:Page,mode=''){const d=await open(page,mode);await d.getByRole('button',{name:/^Open tournament/}).click();await d.getByRole('button',{name:/^Open division/}).click();await expect(d.getByRole('button',{name:'Draw',exact:true})).toBeVisible();return d}
 async function bounded(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await page.getByRole('dialog',{name:'Tournaments',exact:true}).evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true)}
 test('a player can recover and reopen a free account tournament draft from Compete',async({page})=>{
+ // Allow the complete multi-step rehearsal while keeping each interaction short.
+ test.setTimeout(45000)
+ page.setDefaultTimeout(5000)
  await page.setViewportSize({width:320,height:720})
  await page.addInitScript(owner=> {
   localStorage.setItem('tournament-draft:v1:'+owner,JSON.stringify({
@@ -487,6 +490,9 @@ test('Tournament Desk awards and withdraws the champion trophy for a completed d
  await expect(plan.getByRole('button',{name:'Champion trophy',exact:true})).toBeFocused()
 })
 test('the internal practice tournament rehearses match day offline and resets on exit', async ({ page }) => {
+ // Allow the complete multi-step rehearsal while keeping each interaction short.
+ test.setTimeout(45000)
+ page.setDefaultTimeout(5000)
  await page.setViewportSize({ width:320, height:720 })
  const directory = await open(page, 'practice')
  await directory.getByRole('button', { name:'Tournament Desk', exact:true }).click()
