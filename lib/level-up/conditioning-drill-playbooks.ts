@@ -4,6 +4,7 @@ import type {DrillPlaybook} from './drill-playbooks'
 export const CONDITIONING_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  'serve-1-conditioning':{
   players:1,
+  rest:{seconds:60,minimumSeconds:60,guidance:'At least 60 seconds between rounds.'},
   setup:['Use a clear court, a racket and six balls. Warm up first and serve at a comfortable pace from behind the baseline into the diagonal service box. Keep spare balls outside your movement lane.','After the serve, recover to a balanced ready position, split for an imagined return and shadow one controlled groundstroke. The +1 is a shadow rehearsal, not a live second ball; never chase your own serve.'],
   countLabel:'Serve recovery patterns',countRule:'Count a pattern when the serve lands in the selected diagonal service-box target, then you recover, split, shadow the planned groundstroke and reset in balance. A serve fault or missing movement step is a miss. Replay service lets and unused tosses. One served ball and its rehearsal use one attempt. These counts describe practice quality, not a fitness score or live +1 accuracy.',
   easier:'Use the whole diagonal service box and a slower, smaller shadow movement. Keep the full rest; log fewer completed rounds rather than rushing to finish.',
@@ -15,6 +16,7 @@ export const CONDITIONING_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  },
  'return-1-conditioning':{
   players:2,
+  rest:{seconds:60,minimumSeconds:60,guidance:'At least 60 seconds between rounds.'},
   setup:['Use a court, two rackets and six balls with a cooperative server. Warm up first. Agree on a broad deep singles target for your return and next groundstroke, with a manageable reply to a known side.','Each attempt is a return, recovery and split, one live +1 groundstroke, then a balanced reset. Stop after that second shot. Keep the pace cooperative and spare balls clear; solo adaptations use notes without round counts.'],
   countLabel:'Return recovery patterns',countRule:'Count a pattern when the return and next groundstroke land in the agreed deep target, with a balanced recovery, split and reset between starts. Your own missed return, missed +1 or skipped movement is a miss. Replay serve faults and service lets. If the partner cannot supply the agreed playable reply after a good return, restart the whole pattern without an attempt; a playable reply that you miss still counts. These are partner practice counts, not point wins or a fitness score.',
   easier:'Use predictable controlled second serves, a larger target and a gentle reply to the same side. For a solo adaptation, shadow the sequence and save a note with the round fields blank.',

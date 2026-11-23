@@ -4,6 +4,7 @@ import type {DrillPlaybook} from './drill-playbooks'
 export const NET_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  'volley-punch-target':{
   players:2,
+  rest:{seconds:45,guidance:'30–45 seconds between rounds.'},
   setup:['Use a court, two rackets and ten balls. The volleyer starts between the service line and net with room to finish balanced; a cooperative feeder stands across the net.','Choose one large deep-middle target between the opposite service line and baseline. Keep spare balls and markers outside both players’ paths.'],
   countLabel:'Placed volleys',countRule:'Count a volley when you contact the feed before the bounce, use a compact stroke into the chosen target and reset balanced. A bounce, missed target or running contact is a miss. Repeat a feed that is net, out or outside the agreed reach.',
   easier:'Use gentle feeds to a known side and a larger in-court target. Reset in place between feeds instead of adding a forward move.',
@@ -15,6 +16,7 @@ export const NET_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  },
  'reaction-volley-wall':{
   players:1,
+  rest:{seconds:30,guidance:'30 seconds between rounds.'},
   setup:['Use a tennis practice wall, a racket and one ball, with clear, dry rebound space and nobody in the hitting area. Choose a visible window above the wall’s net line.','Stand at a comfortable distance for a soft rebound volley without rushing or reaching. A gentle starting shot sends the ball to the wall; that starting shot is not a counted attempt.'],
   countLabel:'Controlled wall volleys',countRule:'Count a rebound volley when you contact it before the bounce, send it into the chosen window with a compact stroke and reset balanced. A missed volley, bounce or missed window is a miss. Starting shots and deliberate reset catches are not attempts.',
   easier:'Use a softer starting ball, a bigger window and one rebound volley followed by a catch and reset. Choose space and pace that give you time; do not move closer to force faster contacts.',

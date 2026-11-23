@@ -4,6 +4,7 @@ import type {DrillPlaybook} from './drill-playbooks'
 export const RETURN_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  'return-step-in-game':{
   players:2,
+  rest:{seconds:45,guidance:'30–45 seconds between rounds.'},
   setup:['Use a full court, two rackets and ten balls. Work with a server at a manageable pace. Choose a broad crosscourt or middle target beyond the opposite service line, inside the singles court.','Choose a starting position that gives you time to see the serve and make a balanced return. Step in only when the ball and your balance allow it; holding position or starting farther back can be the right choice.'],
   countLabel:'Planned return starts',countRule:'Count a return when you choose a position and intent before the toss, adjust to the actual serve, land in the agreed deep target and recover ready. A missed return, forced step in or missing recovery is a miss. Repeat serve faults and service lets; every attempted return of a valid serve uses an attempt. Point wins are not counted.',
   easier:'Use controlled second serves, a larger deep target and a starting position that gives you more time. Keep the same pace and position when comparing sessions.',
@@ -15,6 +16,7 @@ export const RETURN_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  },
  'second-serve-attack-or-build':{
   players:2,
+  rest:{seconds:45,guidance:'30–45 seconds between rounds.'},
   setup:['Use a full court, two rackets and six balls. A partner serves controlled second serves. Agree on a large deep crosscourt or middle target inside the singles court.','An attacking return is available when the serve gives you time to move forward and contact in balance. Otherwise build with margin or use a compact neutral return. Choose your intent early, but make the final choice from the ball you receive.'],
   countLabel:'Balanced return choices',countRule:'Count a return when you read the serve, attack only from a balanced opportunity or choose build/neutral when needed, land in the agreed deep target and recover ready. A neutral return can count. A forced attack, missed target or missing recovery is a miss. Repeat serve faults and service lets; missed returns of valid serves still use an attempt. Do not count point wins.',
   easier:'Use predictable second serves and the full deep singles court as your target. Build with margin first; you do not need an attacking return for the rep to count.',

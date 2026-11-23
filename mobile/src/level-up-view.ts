@@ -22,10 +22,10 @@ import {matchDate} from './recent-results'
 import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingSave,type TrainingSession,type TrainingSave} from './level-up-data'
 import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave,trainingFormats,trainingSetupLabel,type TrainingFormat} from './level-up-model'
 import {trainingContextLabel,cardTrainingContextHint} from '../../lib/level-up/training-context'
-import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillResultsHtml,drillTally,drillSessionNote,drillRoundShortcut,DrillResultError,type DrillPractice} from './drill-playbook'
+import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillResultsHtml,drillTally,drillSessionNote,drillRoundShortcut,drillRestGuidance,DrillResultError,type DrillPractice} from './drill-playbook'
 import {drillGuidePage,moveDrillGuide,drillCourtGuideHtml} from './drill-court'
 import {drillCoachingHtml} from './drill-coaching'
-import {RestCountdown,restCountdownHtml,paintRestCountdown,restTabHtml} from './drill-rest'
+import {RestCountdown,restCountdownHtml,paintRestCountdown,restTabHtml,restDurations} from './drill-rest'
 import {drillHistoryKey,selectDrillHistory,readDrillEvidence,drillHistoryControlsHtml,drillComparisonHtml} from './drill-progress'
 const trainingCueHtml=(card:LevelUpCard)=>`<p class="training-drill-cue"><strong>On-court cue</strong> ${html(card.cue)}</p>`
 const trainingClockText=(seconds:number)=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`
@@ -208,6 +208,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  let historyCardId=''
  const currentDrillPractice=()=>{if(!selected)return null;if(drillPractice?.cardId!==selected.id)drillPractice=newDrillPractice(selected);return drillPractice}
  const currentRoundShortcut=()=>selected&&phase==='session'?drillRoundShortcut(selected,currentDrillPractice()):null
+ const currentRestGuidance=()=>selected?drillRestGuidance(selected,currentDrillPractice()):null
  const restoreSessionField=(scroll=false)=>{
   const control=sessionControl?Array.from(dialog.querySelectorAll<HTMLElement>('[data-session-control]')).find(el=>el.dataset.sessionControl===sessionControl&&el.getClientRects().length>0):null
   const field=Array.from(dialog.querySelectorAll<HTMLElement>('[data-proof] [name]')).find(el=>el.getAttribute('name')===sessionField&&el.getClientRects().length>0)
@@ -503,7 +504,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     </div>
    </form>
   </section>
-  ${onCourt?`<div id="training-court-rest" data-session-rest ${courtPane==='rest'?'':'hidden'}>${restCountdownHtml(rest.snapshot(),locked,currentRoundShortcut())}</div>${drillCoachingHtml(card,currentDrillPractice(),true,coachingOpen)}</div><footer class="training-court-footer"><button type="button" data-court-finish data-session-control="court-finish">Finish &amp; log</button></footer>`:''}`
+  ${onCourt?`<div id="training-court-rest" data-session-rest ${courtPane==='rest'?'':'hidden'}>${restCountdownHtml(rest.snapshot(),locked,currentRoundShortcut(),currentRestGuidance())}</div>${drillCoachingHtml(card,currentDrillPractice(),true,coachingOpen)}</div><footer class="training-court-footer"><button type="button" data-court-finish data-session-control="court-finish">Finish &amp; log</button></footer>`:''}`
  const inboxHtml=()=>`
   <header class="training-inbox-header"><h1 tabindex="-1">Training inbox</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button></header>
   <div class="match-filters training-inbox-tabs" role="group" aria-label="Training inbox sections">
@@ -836,7 +837,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    drillPractice=newDrillPractice(selected,mode?.id);sessionField='note'
    onCourt=false;courtPane='instructions';courtPosition=0;sessionControl='';sessionBodyScroll=0;coachingOpen=false
    context=mode?.requiresPartner?'partner':initialTrainingContext(selected);rating='';note='';feeling='ready'
-   clock.reset();clock.start();rest.setDuration(60);notice='';render();focus()
+   clock.reset();clock.start();rest.setDuration(currentRestGuidance()?.seconds??60);notice='';render();focus()
    if(matchPractice&&!historyComplete)void readHistory()
   })
   const timerButton=dialog.querySelector<HTMLButtonElement>('[data-timer]')
@@ -875,7 +876,8 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const restDuration=dialog.querySelector<HTMLSelectElement>('[data-rest-duration]')
   restDuration?.addEventListener('change',()=>{
    if(!sessionControlActive(restDuration)||!onCourt||courtPane!=='rest'||restDuration.disabled)return
-   rest.setDuration(Number(restDuration.value));paintRestCountdown(dialog,rest.snapshot(),false,currentRoundShortcut());restDuration.focus({preventScroll:true})
+   const seconds=Number(restDuration.value);if(restDurations(currentRestGuidance()).some(value=>value===seconds))rest.setDuration(seconds)
+   paintRestCountdown(dialog,rest.snapshot(),false,currentRoundShortcut());restDuration.focus({preventScroll:true})
   })
   const restRound=dialog.querySelector<HTMLButtonElement>('[data-rest-round]')
   restRound?.addEventListener('click',()=>{

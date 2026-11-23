@@ -11,6 +11,9 @@ export function newDrillPractice(card:LevelUpCard,version:DrillVersionId='contro
 export function selectedDrillVersion(card:LevelUpCard,practice:DrillPractice|null){
  return practice?.cardId===card.id?card.playbook?.versions.find(mode=>mode.id===practice.version):undefined
 }
+export function drillRestGuidance(card:LevelUpCard,practice:DrillPractice|null){
+ return selectedDrillVersion(card,practice)?card.playbook?.rest??null:null
+}
 export function drillRoundTotals(card:LevelUpCard,practice:DrillPractice){
  const mode=selectedDrillVersion(card,practice)
  if(!mode||practice.results.length!==mode.rounds)throw new DrillResultError('Review the current drill before saving.','note')

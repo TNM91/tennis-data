@@ -78,4 +78,22 @@ describe('Optional on-court rest countdown',()=>{
   expect(view).toContain('&lt;Round &amp; 2&gt;');expect(view).not.toContain('<Round')
   expect(view).toMatch(/data-rest-round[^>]*disabled/)
  })
+ it('marks the drill rest without replacing a manually selected longer duration',()=>{
+  const view=restCountdownHtml({duration:90,remaining:90,phase:'idle'},false,null,{seconds:45,guidance:'30–45 seconds between rounds.'})
+  expect(view).toContain('Drill rest: 30–45 seconds between rounds.')
+  expect(view).toMatch(/value="45"[^>]*>45 seconds · Drill rest<\/option>/)
+  expect(view).toMatch(/value="90" selected>90 seconds<\/option>/)
+  expect(view).not.toMatch(/value="45" selected/)
+ })
+ it('only offers durations at or above the conditioning minimum and retains save locks',()=>{
+  const view=restCountdownHtml({duration:60,remaining:60,phase:'idle'},true,null,{seconds:60,minimumSeconds:60,guidance:'At least 60 seconds between rounds.'})
+  expect(view.match(/<option /g)).toHaveLength(3);expect(view).not.toMatch(/value="(?:30|45)"/)
+  expect(view).toContain('value="60" selected>60 seconds · Drill rest')
+  expect(view).toMatch(/data-rest-duration[^>]*disabled/);expect(view).toContain('Take longer if needed.')
+ })
+ it('escapes rest guidance and does not invent a plan for a generic countdown',()=>{
+  const view=restCountdownHtml({duration:30,remaining:30,phase:'idle'},false,null,{seconds:30,guidance:'<Rest & reset>'})
+  expect(view).toContain('&lt;Rest &amp; reset&gt;');expect(view).not.toContain('<Rest')
+  expect(restCountdownHtml(new RestCountdown().snapshot())).not.toContain('Drill rest:')
+ })
 })

@@ -4,6 +4,7 @@ import type {DrillPlaybook} from './drill-playbooks'
 export const GROUNDSTROKE_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  'basket-forehand-crosscourt':{
   players:1,
+  rest:{seconds:45,guidance:'30–45 seconds between rounds.'},
   setup:['Use a full court, racket and ten balls. Put the basket outside your movement lane.','Choose a forehand starting spot near your baseline and a diagonal target inside the opposite singles sideline, between the service line and baseline. Mark a nearby ready spot without placing a cone underfoot.'],
   countLabel:'Controlled forehands',countRule:'Count a self-fed forehand when it lands in the chosen crosscourt target and you finish balanced, then recover to your ready spot. Each attempted hit is one rep; a miss stays in the ten.',
   easier:'Use gentle drop feeds and the whole diagonal half of the singles court. Keep a balanced finish before narrowing the target.',
@@ -15,6 +16,7 @@ export const GROUNDSTROKE_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  },
  'basket-backhand-crosscourt':{
   players:1,
+  rest:{seconds:45,guidance:'30–45 seconds between rounds.'},
   setup:['Use a full court, racket and ten balls. Keep the basket and loose balls outside your steps.','Choose a backhand starting spot near your baseline and a diagonal target inside the opposite singles sideline, between the service line and baseline. Choose a nearby ready spot suited to that target.'],
   countLabel:'Controlled backhands',countRule:'Count a self-fed backhand when you prepare the turn, land in the chosen crosscourt target and recover in balance. Count every attempted hit, including misses; do not restart the ten.',
   easier:'Use a gentle drop feed and a larger diagonal target. Rehearse the turn without a ball first if spacing is difficult.',
@@ -26,6 +28,7 @@ export const GROUNDSTROKE_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  },
  'crosscourt-consistency':{
   players:2,
+  rest:{seconds:45,guidance:'30–45 seconds between rounds.'},
   setup:['Two players rally in a diagonal singles lane, with targets inside the sidelines and beyond the service lines. Keep the pace cooperative.','Choose which diagonal to use and a ready position for each player. Agree on height and depth margin; each player records their own contacts, not a combined rally score.'],
   countLabel:'Controlled rally balls',countRule:'Count your own contact when it lands deep in the agreed crosscourt lane and you recover ready. Your miss uses an attempt; your partner’s miss does not. Restart the rally as needed without erasing your count.',
   easier:'Rally from closer positions with a larger target and comfortable pace. Use the same positions for both rounds you compare.',
@@ -37,6 +40,7 @@ export const GROUNDSTROKE_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  },
  'defense-neutral-attack-rally':{
   players:2,
+  rest:{seconds:45,guidance:'45 seconds between rounds.'},
   setup:['One player practices decisions; the partner starts from the opposite baseline and provides controlled, reachable balls. Choose large targets inside the singles court.','Each attempt is a sequence of up to three player contacts: recover from a wide ball, build from balance, then read the next ball. Stop if a shot is missed; never force a sprint or an attack.'],
   countLabel:'Well-chosen sequences',countRule:'Count a sequence only when your defend, build or attack calls fit your balance and the ball, your shots stay inside the agreed court targets and you recover ready. Staying defensive or neutral can be correct. A player miss ends the attempt; replace an unplayable partner feed.',
   easier:'Use predictable reachable feeds and stop after the first recovery ball. Add the next contact only when you can recover without rushing.',
@@ -48,6 +52,7 @@ export const GROUNDSTROKE_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  },
  'return-plus-one-recover':{
   players:2,
+  rest:{seconds:45,guidance:'45 seconds between rounds.'},
   setup:['Use a server and returner on a full singles court. Agree on a deep return target and a large target for the returner’s next groundstroke.','The same partner serves and plays the next reply. One attempt is the return plus the returner’s next shot; stop after those two returner contacts. Keep spare balls clear.'],
   countLabel:'Connected return starts',countRule:'Count a sequence when the return reaches the named target, you recover and split on the partner’s next contact, and your next shot lands in its target from balance. A missed player shot is a miss; replace serve faults or unplayable partner replies.',
   easier:'Start with a gentle racket feed, then a predictable reply. This rehearses the pattern without claiming a live-serve result.',
@@ -59,6 +64,7 @@ export const GROUNDSTROKE_DRILL_PLAYBOOKS:Record<string,DrillPlaybook>={
  },
  'approach-volley-close':{
   players:2,
+  rest:{seconds:45,guidance:'45 seconds between rounds.'},
   setup:['The player begins near the baseline; a partner on the opposite baseline starts each sequence with a comfortable short feed. Agree on a deep approach target and a large first-volley target.','The partner replies to the approach with a controlled, reachable ball. Stop after the first volley. Keep balls and markers outside the player’s path toward the net.'],
   countLabel:'Connected net approaches',countRule:'Count a sequence when the approach lands in its target, you close in balance and split on the partner’s contact, then land the first volley in its target. A missed player shot ends the attempt; replace an unplayable partner feed or reply.',
   easier:'Rehearse the approach and close without a ball, then use a predictable gentle feed and a larger volley target. Add the reply only when the steps connect.',

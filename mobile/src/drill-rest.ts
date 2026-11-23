@@ -1,7 +1,9 @@
 import {html} from './match-details'
 import type {DrillRoundShortcut} from './drill-playbook'
+import type {DrillRestPlan} from '../../lib/level-up/drill-playbooks'
 
 export const REST_DURATIONS=[30,45,60,90,120] as const
+export const restDurations=(plan:DrillRestPlan|null=null)=>REST_DURATIONS.filter(seconds=>seconds>=(plan?.minimumSeconds??0))
 export type RestSnapshot={duration:number;remaining:number;phase:'idle'|'running'|'paused'|'complete'}
 
 // Keep sub-second elapsed time when pausing; a rest countdown never records a rep.
@@ -38,7 +40,7 @@ export function restTabHtml(state:RestSnapshot,selected=false){
  return `<button type="button" class="secondary" data-court-pane="rest" data-session-control="court-rest" aria-controls="training-court-rest" aria-describedby="training-rest-status" aria-pressed="${selected}">Rest<span class="training-rest-indicator" data-rest-indicator data-rest-phase="${state.phase}" aria-hidden="true" ${state.phase==='idle'?'hidden':''}>${restIndicator(state)}</span></button>
  <span id="training-rest-status" class="training-rest-live-status" data-rest-live-state role="status" aria-live="polite" aria-atomic="true">${restNotice(state)}</span>`
 }
-export function restCountdownHtml(state:RestSnapshot,locked=false,shortcut:DrillRoundShortcut|null=null){
+export function restCountdownHtml(state:RestSnapshot,locked=false,shortcut:DrillRoundShortcut|null=null,plan:DrillRestPlan|null=null){
  const ready=state.phase==='complete'&&Boolean(shortcut)
  return `<section class="training-rest" aria-label="Between rounds">
   <small class="stat-eyebrow">Between rounds</small>
@@ -47,12 +49,12 @@ export function restCountdownHtml(state:RestSnapshot,locked=false,shortcut:Drill
   <p role="timer" aria-label="Rest remaining" aria-live="off" data-rest-clock>${restTime(state.remaining)}</p>
   <svg class="training-rest-track" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="4" rx="2"/><rect data-rest-fill width="${state.remaining/state.duration*100}" height="4" rx="2"/></svg>
   <label for="training-rest-duration">Rest duration</label>
-  <div class="training-rest-select"><select id="training-rest-duration" data-rest-duration data-session-control="rest-duration" aria-describedby="training-rest-help" ${locked||state.phase==='running'?'disabled':''}>${REST_DURATIONS.map(seconds=>`<option value="${seconds}" ${seconds===state.duration?'selected':''}>${seconds} seconds</option>`).join('')}</select></div>
+  <div class="training-rest-select"><select id="training-rest-duration" data-rest-duration data-session-control="rest-duration" aria-describedby="training-rest-help" ${locked||state.phase==='running'?'disabled':''}>${restDurations(plan).map(seconds=>`<option value="${seconds}" ${seconds===state.duration?'selected':''}>${seconds} seconds${seconds===plan?.seconds?' · Drill rest':''}</option>`).join('')}</select></div>
   <div class="training-rest-actions">
    <button type="button" ${ready?'class="secondary" ':''}data-rest-action="toggle" data-session-control="rest-toggle" ${locked?'disabled':''}>${restAction(state)}</button>
    <button type="button" class="secondary" data-rest-action="reset" data-session-control="rest-reset" ${locked||state.phase==='idle'?'disabled':''}>Reset rest</button>
   </div>
-  <p id="training-rest-help">Visual countdown. Follow your drill’s rest guidance and take longer if needed. Pauses when you leave the app.</p>
+  <p id="training-rest-help">${plan?`Drill rest: ${html(plan.guidance)} `:''}Visual countdown. Take longer if needed. Pauses when you leave the app.</p>
  </section>`
 }
 export function paintRestCountdown(root:HTMLElement,state:RestSnapshot,locked=false,shortcut:DrillRoundShortcut|null=null){
