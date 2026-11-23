@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {androidAppId,nativeBundleTarget} from './native-bundle-target.mjs'
+import {googleBillingGradle} from './android-google-billing.mjs'
 
 export function checkAndroidConfig(config,scope) {
   assert.deepEqual(scope,{platform:'android',profile:'first-party-full',distribution:scope?.distribution,version:1})
@@ -10,11 +11,11 @@ export function androidGradle(source) {
   assert.ok(source.includes(`namespace = "${androidAppId}"`)&&source.includes(`applicationId "${androidAppId}"`),'Unexpected Android application identity')
   if(source.includes("def tiqBuildNumber = System.getenv('TIQ_ANDROID_BUILD_NUMBER')")){
     assert.ok(source.includes('versionCode tiqBuildNumber.toInteger()')&&source.includes('applicationIdSuffix ".dev"')&&/release \{\s+debuggable false/.test(source),'Unexpected managed Android build configuration')
-    return source.includes('buildFeatures { buildConfig true }')?source:source.replace('android {','android {\n    buildFeatures { buildConfig true }')
+    return googleBillingGradle(source.includes('buildFeatures { buildConfig true }')?source:source.replace('android {','android {\n    buildFeatures { buildConfig true }'))
   }
   assert.ok(source.includes('versionCode 1')&&source.includes('versionName "1.0"'),'Unexpected Android version template')
   assert.ok(source.includes('    buildTypes {'),'Unexpected Android build template')
-  return source.replace('android {',`def tiqBuildNumber = System.getenv('TIQ_ANDROID_BUILD_NUMBER') ?: '1'
+  return googleBillingGradle(source.replace('android {',`def tiqBuildNumber = System.getenv('TIQ_ANDROID_BUILD_NUMBER') ?: '1'
 if (!(tiqBuildNumber ==~ /[1-9][0-9]{0,8}/)) throw new GradleException('Use a positive Android build number of at most nine digits.')
 
 android {
@@ -22,7 +23,7 @@ android {
         debug {
             applicationIdSuffix ".dev"
             debuggable true
-        }`).replace('        release {','        release {\n            debuggable false')
+        }`).replace('        release {','        release {\n            debuggable false'))
 }
 export const androidManifest=`<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -67,6 +68,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(TiqGooglePurchases.class);
         super.onCreate(savedInstanceState);
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
     }

@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url'
 import {spawnSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {androidAppId} from './native-bundle-target.mjs'
+import {googleBillingJava} from './android-google-billing.mjs'
 import {checkAndroidConfig,androidGradle,androidManifest,androidDataExtraction,androidMainActivity,androidLegacyIcon,androidAdaptiveIcon,androidStyles,androidStyles27,androidStyles29} from './android-project.mjs'
 
 const mobile=fileURLToPath(new URL('../',import.meta.url)),project=resolve(mobile,'android'),marker=resolve(project,'.tenaceiq-project.json')
@@ -27,6 +28,7 @@ const files={
   'app/build.gradle':androidGradle(currentGradle),
   'app/src/main/AndroidManifest.xml':androidManifest,
   'app/src/main/java/com/tenaceiq/app/MainActivity.java':androidMainActivity,
+  'app/src/main/java/com/tenaceiq/app/TiqGooglePurchases.java':await googleBillingJava(),
   'app/src/main/res/xml/data_extraction_rules.xml':androidDataExtraction,
   'app/src/main/res/values/tenaceiq_launcher.xml':'<resources><color name="tenaceiq_launcher_background">#061326</color><color name="tenaceiq_accent">#b5eb46</color></resources>\n',
   'app/src/main/res/values/styles.xml':androidStyles,

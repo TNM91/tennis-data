@@ -35,6 +35,22 @@ Debug builds permit local WebView inspection. Release builds disable it, reject 
 
 ## Before Google Play testing and launch
 
+### Purchase implementation status
+
+The Android project now includes Google Play Billing 9.1.0 through `TiqGooglePurchases`. Its product catalog is generated from the approved Pro and event prices. It selects the monthly Pro base plan (`monthly`) and single-event purchase options (`standard`) and returns Google's formatted price only when the product, USD amount and subscription period match. No fallback price is displayed.
+
+The purchase controller supports cancellation, pending approval, automatic recovery on sign-in/resume, account switching, already acknowledged purchases and repeat delivery with the same operation ID. It requires authenticated server preparation and an exact account/event-bound durable delivery receipt. The native bridge has no acknowledgement or consumption method. These actions belong on the server after the entitlement is saved.
+
+The server-side reader exchanges a scoped, short-lived service-account assertion with Google and checks the canonical `subscriptionsv2` or `productsv2` resource through fixed HTTPS endpoints. It validates the account binding, event-attempt binding, approved offer, region, quantity, test/production scope, refunds and current subscription state. Cancelled auto-renewal keeps its remaining paid period; on-hold, paused and expired states do not grant access. It returns verification evidence, not an entitlement grant.
+
+Checkout is **not mounted in the app**. The authenticated fulfillment endpoints, separate Google purchase ledger, entitlement integration, server acknowledgement/consumption, refund handling and authenticated real-time developer notifications still need to be completed before activation. No schema, production environment or Apple purchase behavior was changed in this pass. This deliberately leaves purchases inactive until fulfillment is complete; providing credentials alone must not enable checkout.
+
+Server-only configuration for the reader is `GOOGLE_PLAY_ENABLED=true`, `GOOGLE_PLAY_PURCHASE_MODE=test|production`, `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL` and secret `GOOGLE_PLAY_PRIVATE_KEY`. None belongs in a public environment variable, native bundle or committed environment file. This reader has no write operation and cannot settle or refund a purchase.
+
+The `.dev` developer package cannot purchase production products. License testing needs the production package on the appropriate Google Play test track, matching signing configuration and configured products/base plan/purchase options. A passing emulator build does not establish Google sandbox billing acceptance.
+
+### Remaining launch gates
+
 1. Confirm the owner's Play Console account and business identity, reserve the production package, and set up protected signing and Play App Signing. The local release bundle is unsigned and no Play upload is configured.
 2. Implement and verify Google Play billing for Pro and event purchases, including pending/cancelled purchases, server verification, restore/reconciliation and existing subscriber access. The current Apple purchase bridge is iOS-specific. Do not advertise working Android purchases until that flow passes.
 3. Add the Android push configuration and notification channels, runtime permission, token registration, delivery and notification navigation. Having the Capacitor push plugin installed does not establish working Android notifications.
