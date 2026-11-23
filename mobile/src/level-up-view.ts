@@ -22,7 +22,7 @@ import {matchDate} from './recent-results'
 import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingSave,type TrainingSession,type TrainingSave} from './level-up-data'
 import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave,trainingFormats,trainingSetupLabel,type TrainingFormat} from './level-up-model'
 import {trainingContextLabel,cardTrainingContextHint} from '../../lib/level-up/training-context'
-import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillResultsHtml,drillTally,drillSessionNote,drillRoundShortcut,drillRestGuidance,DrillResultError,type DrillPractice} from './drill-playbook'
+import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillDoseSummaryHtml,drillResultsHtml,drillTally,drillSessionNote,drillRoundShortcut,drillRestGuidance,DrillResultError,type DrillPractice} from './drill-playbook'
 import {drillGuidePage,moveDrillGuide,drillCourtGuideHtml} from './drill-court'
 import {drillCoachingHtml} from './drill-coaching'
 import {RestCountdown,restCountdownHtml,paintRestCountdown,restTabHtml,restDurations} from './drill-rest'
@@ -465,6 +465,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    <button type="button" class="secondary" data-close aria-label="Close Level Up" ${saving||checking?'disabled':''}>Close</button>
   </header>
   ${sessionTimerHtml(card,locked)}
+  ${onCourt?'':drillDoseSummaryHtml(card,currentDrillPractice(),'session')}
   ${onCourt?`<div class="training-court-tools" role="group" aria-label="On-court tools">
    <button type="button" class="secondary" data-court-pane="instructions" data-session-control="court-instructions" aria-controls="training-court-instructions" aria-pressed="${courtPane==='instructions'}">Steps</button>
    <button type="button" class="secondary" data-court-pane="rounds" data-session-control="court-rounds" aria-controls="training-court-rounds" aria-pressed="${courtPane==='rounds'}">Rounds</button>

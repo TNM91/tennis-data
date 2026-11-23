@@ -1,5 +1,5 @@
 import type {LevelUpCard} from '../../lib/level-up/level-up-types'
-import {selectedDrillVersion,type DrillPractice} from './drill-playbook'
+import {selectedDrillVersion,drillRestSummaryHtml,type DrillPractice} from './drill-playbook'
 import {html} from './match-details'
 
 export function drillGuidePage(card:LevelUpCard,practice:DrillPractice|null,position:number){
@@ -16,7 +16,7 @@ export function drillCourtGuideHtml(card:LevelUpCard,practice:DrillPractice|null
  const page=drillGuidePage(card,practice,position)
  if(!page)return ''
  return `<section class="training-court-guide" aria-label="On-court instructions">
-  <p class="training-court-dose">${html(page.mode.label)} · ${page.mode.rounds} rounds · ${page.mode.reps} reps</p>
+  <p class="training-court-dose">${html(page.mode.label)} · ${page.mode.rounds} rounds · ${page.mode.reps} reps${drillRestSummaryHtml(card,practice)}</p>
   <div id="training-court-page" role="status" aria-live="polite" aria-atomic="true">
    <strong data-court-position>Instruction ${page.index+1} of ${page.total}</strong>
    <p data-court-instruction>${html(page.instruction)}</p>

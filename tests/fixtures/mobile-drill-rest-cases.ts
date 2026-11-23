@@ -1,8 +1,8 @@
-import {test,expect,type Page} from '@playwright/test'
+import {test,expect,type Page,type Locator} from '@playwright/test'
 
 type RestCapture={writes:string[];failFirst:boolean;stale:HTMLElement[];announcements:string[]}
 type RestWindow=Window&{restCapture:RestCapture;switchNavigationOwner:()=>void}
-async function openRest(page:Page,query='',title='Return Depth Lane',options:{plannedRest?:boolean;version?:'control'|'pressure'}={}){
+async function openRest(page:Page,query='',title='Return Depth Lane',options:{plannedRest?:boolean;version?:'control'|'pressure';beforeStart?:(training:Locator)=>Promise<void>}={}){
  await page.clock.install({time:new Date('2026-11-23T04:00:00Z')})
  await page.goto('http://127.0.0.1:4283/?training-inbox-review=1'+query)
  // Keep locator actions from adding real elapsed time to exact countdown checks.
@@ -22,6 +22,7 @@ async function openRest(page:Page,query='',title='Return Depth Lane',options:{pl
  const training=page.getByRole('dialog',{name:'Level Up training',exact:true})
  await training.getByRole('searchbox',{name:'Find a drill',exact:true}).fill(title);await training.getByRole('button',{name:'Preview '+title,exact:true}).click()
  if(options.version)await training.getByRole('combobox',{name:'Practice version',exact:true}).selectOption(options.version)
+ await options.beforeStart?.(training)
  await training.getByRole('button',{name:'Start training',exact:true}).click();await training.getByRole('button',{name:'On-court view',exact:true}).click();await training.getByRole('button',{name:'Rest',exact:true}).click()
  // Existing countdown cases use an explicit minute; plan cases keep the drill default.
  if(!options.plannedRest)await training.getByRole('combobox',{name:'Rest duration',exact:true}).selectOption('60')
@@ -130,7 +131,9 @@ test.describe('On-court rest countdown',()=>{
   await expect(page.getByRole('timer',{name:'Rest remaining',exact:true})).toHaveCount(0);expect(await writes(page)).toHaveLength(0)
  })
  for(const width of [320,390])test('keeps equal rest tabs and countdown controls reachable at '+width+'px',async({page},info)=>{
-  await page.setViewportSize({width,height:width===320?568:844});const training=await openRest(page,width===320?'&large=1':'','Return Depth Lane',{plannedRest:true})
+  await page.setViewportSize({width,height:width===320?568:844});const training=await openRest(page,width===320?'&large=1':'','Return Depth Lane',{plannedRest:true,beforeStart:async preview=>{
+   const summary=preview.locator('.training-playbook .training-rest-summary');await expect(summary).toHaveText('Drill rest: 30–45 seconds between rounds.');await summary.scrollIntoViewIfNeeded();await expect(summary).toBeInViewport({ratio:1});expect(await summary.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await page.screenshot({path:info.outputPath('rest-preview-'+width+'.png')})
+  }})
   if(width===320)await training.evaluate(el=>{(el as HTMLElement).style.setProperty('--training-top-clearance','60px');(el as HTMLElement).style.setProperty('--training-bottom-clearance','36px');const title=el.querySelector<HTMLElement>('h1')!;title.style.fontSize='28px';title.replaceChildren(document.createTextNode('On-court'),document.createElement('br'),document.createTextNode('practice'))})
   expect(await training.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);expect(await training.locator('[data-court-body]').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
   const tabs=await training.locator('[data-court-pane]').evaluateAll(nodes=>nodes.map(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height,overflow:el.scrollWidth>el.clientWidth})))
@@ -142,6 +145,13 @@ test.describe('On-court rest countdown',()=>{
   await page.screenshot({path:info.outputPath('on-court-rest-'+width+'.png')})
   for(const control of [training.getByRole('combobox',{name:'Rest duration',exact:true}),training.getByRole('button',{name:'Start rest',exact:true})]){await control.scrollIntoViewIfNeeded();await expect(control).toBeInViewport({ratio:1});expect(await control.evaluate(el=>{const b=el.getBoundingClientRect();return document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)===el})).toBe(true);expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44)}
   await training.getByRole('button',{name:'Start rest',exact:true}).click();await expect(training.getByRole('button',{name:'Pause rest',exact:true})).toBeFocused();await training.getByRole('button',{name:'Reset rest',exact:true}).click();await expect(training.getByRole('button',{name:'Start rest',exact:true})).toBeFocused();expect(await writes(page)).toHaveLength(0)
+  await training.getByRole('button',{name:'Steps',exact:true}).click()
+  if(width===320)await training.evaluate(el=>{const title=el.querySelector<HTMLElement>('h1')!;title.style.fontSize='28px';title.replaceChildren(document.createTextNode('On-court'),document.createElement('br'),document.createTextNode('practice'))})
+  const summary=training.locator('.training-court-guide .training-rest-summary');await expect(summary).toHaveText('Drill rest: 30–45 seconds between rounds.');await summary.scrollIntoViewIfNeeded();await expect(summary).toBeInViewport({ratio:1});expect(await summary.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  expect(await training.locator('[data-court-body]').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);await page.screenshot({path:info.outputPath('rest-steps-'+width+'.png')})
+  const instructionNext=training.getByRole('button',{name:'Next instruction',exact:true});await instructionNext.scrollIntoViewIfNeeded();await expect(instructionNext).toBeInViewport({ratio:1});expect(await instructionNext.evaluate(el=>{const b=el.getBoundingClientRect();return document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)===el})).toBe(true)
+  await instructionNext.click();await expect(instructionNext).toBeFocused();await expect(training.locator('[data-court-position]')).toHaveText('Instruction 2 of 4');await expect(summary).toHaveText('Drill rest: 30–45 seconds between rounds.');expect(await writes(page)).toHaveLength(0)
+  await training.getByRole('button',{name:'Rest',exact:true}).click()
   await training.getByRole('button',{name:'Start rest',exact:true}).click();await training.getByRole('button',{name:'Rounds',exact:true}).click();const third=training.getByRole('spinbutton',{name:'Round 3',exact:true});await third.fill('8');await third.scrollIntoViewIfNeeded();await page.clock.fastForward(5000)
   const indicator=training.locator('[data-rest-indicator]');await expect(indicator).toHaveAttribute('data-rest-phase','running');await expect(indicator).toBeInViewport({ratio:1});await expect(indicator.locator('circle')).toBeVisible()
   expect(await training.getByRole('button',{name:'Rest',exact:true}).evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);await expect(third).toBeFocused();await expect(third).toBeInViewport({ratio:1})
@@ -162,12 +172,15 @@ test.describe('On-court drill rest plans',()=>{
   {title:'30-30 Pressure Game',seconds:'45',hint:'45 seconds between rounds.'},
  ])test('uses planned rest for '+drill.title+' and resets a fresh repeat without changing saved counts',async({page},info)=>{
   await page.setViewportSize({width:390,height:844})
-  const training=await openRest(page,'',drill.title,{plannedRest:true,version:'pressure'}),duration=training.getByRole('combobox',{name:'Rest duration',exact:true}),remaining=training.getByRole('timer',{name:'Rest remaining',exact:true})
+  const training=await openRest(page,'',drill.title,{plannedRest:true,version:'pressure',beforeStart:async preview=>{await expect(preview.locator('.training-playbook .training-rest-summary')).toHaveText('Drill rest: '+drill.hint)}}),duration=training.getByRole('combobox',{name:'Rest duration',exact:true}),remaining=training.getByRole('timer',{name:'Rest remaining',exact:true})
   await expect(duration).toHaveValue(drill.seconds);await expect(remaining).toHaveText('00:'+drill.seconds);await expect(duration).toHaveAccessibleDescription('Drill rest: '+drill.hint+' Visual countdown. Take longer if needed. Pauses when you leave the app.')
   await expect(duration.locator('option:checked')).toHaveText(drill.seconds+' seconds · Drill rest');await page.clock.fastForward(10000);await expect(remaining).toHaveText('00:'+drill.seconds)
   await page.screenshot({path:info.outputPath('rest-plan-'+drill.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png')})
+  await training.getByRole('button',{name:'Steps',exact:true}).click();await expect(training.locator('.training-court-guide .training-rest-summary')).toHaveText('Drill rest: '+drill.hint);await training.getByRole('button',{name:'Next instruction',exact:true}).click();await expect(training.locator('[data-court-position]')).toHaveText('Instruction 2 of 4');await training.getByRole('button',{name:'Rest',exact:true}).click();await expect(duration).toHaveValue(drill.seconds);await expect(remaining).toHaveText('00:'+drill.seconds)
   await training.getByRole('button',{name:'Rounds',exact:true}).click();await training.getByRole('spinbutton',{name:'Round 1',exact:true}).fill('0');await training.getByRole('button',{name:'Rest',exact:true}).click()
   await duration.selectOption('90');await training.getByRole('button',{name:'Start rest',exact:true}).click();await page.clock.fastForward(10000);await training.getByRole('button',{name:'Full log',exact:true}).click();await page.clock.fastForward(90000)
+  await expect(training.locator('.training-session-dose .training-rest-summary')).toHaveText('Drill rest: '+drill.hint);await expect(training.locator('.training-session-dose .training-rest-summary')).toBeVisible()
+  if(drill.title==='Return Depth Lane')await page.screenshot({path:info.outputPath('rest-full-log.png')})
   await training.getByRole('button',{name:'On-court view',exact:true}).click();await expect(duration).toHaveValue('90');await expect(remaining).toHaveText('01:20');await expect(training.locator('[data-rest-state]')).toHaveText('Paused')
   await training.getByRole('button',{name:'Reset rest',exact:true}).click();await expect(remaining).toHaveText('01:30');await expect(duration).toHaveValue('90');expect(await writes(page)).toHaveLength(0)
   await training.getByRole('button',{name:'Finish & log',exact:true}).click();await training.getByRole('combobox',{name:'Self-rated proof (0–5)',exact:true}).selectOption('2');await training.getByRole('button',{name:'Save completed session',exact:true}).click()
@@ -178,14 +191,15 @@ test.describe('On-court drill rest plans',()=>{
  })
  test('keeps the conditioning minimum after a forged duration change without resetting paused time',async({page},info)=>{
   await page.setViewportSize({width:390,height:844})
-  const training=await openRest(page,'','Serve +1 Conditioning',{plannedRest:true,version:'pressure'}),duration=training.getByRole('combobox',{name:'Rest duration',exact:true}),remaining=training.getByRole('timer',{name:'Rest remaining',exact:true})
+  const training=await openRest(page,'','Serve +1 Conditioning',{plannedRest:true,version:'pressure',beforeStart:async preview=>{const summary=preview.locator('.training-playbook .training-rest-summary');await expect(summary).toHaveText('Drill rest: At least 60 seconds between rounds.');await summary.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('rest-preview-conditioning.png')})}}),duration=training.getByRole('combobox',{name:'Rest duration',exact:true}),remaining=training.getByRole('timer',{name:'Rest remaining',exact:true})
   await expect(duration).toHaveValue('60');await expect(remaining).toHaveText('01:00');expect(await duration.locator('option').evaluateAll(nodes=>nodes.map(n=>(n as HTMLOptionElement).value))).toEqual(['60','90','120'])
   await expect(duration).toHaveAccessibleDescription('Drill rest: At least 60 seconds between rounds. Visual countdown. Take longer if needed. Pauses when you leave the app.')
   await page.screenshot({path:info.outputPath('rest-plan-conditioning.png')})
+  await training.getByRole('button',{name:'Steps',exact:true}).click();await expect(training.locator('.training-court-guide .training-rest-summary')).toHaveText('Drill rest: At least 60 seconds between rounds.');await training.getByRole('button',{name:'Rest',exact:true}).click();await expect(duration).toHaveValue('60');await expect(remaining).toHaveText('01:00')
   await duration.selectOption('90');await training.getByRole('button',{name:'Start rest',exact:true}).click();await page.clock.fastForward(10000);await training.getByRole('button',{name:'Pause rest',exact:true}).click()
   await duration.evaluate(el=>{const select=el as HTMLSelectElement;select.add(new Option('30 seconds','30'));select.value='30';select.dispatchEvent(new Event('change',{bubbles:true}))})
   await expect(duration).toHaveValue('90');await expect(remaining).toHaveText('01:20');await expect(training.locator('[data-rest-state]')).toHaveText('Paused');await page.clock.fastForward(90000);await expect(remaining).toHaveText('01:20')
-  await training.getByRole('button',{name:'Full log',exact:true}).click();await training.getByRole('button',{name:'On-court view',exact:true}).click();await expect(duration).toHaveValue('90');expect(await duration.locator('option').evaluateAll(nodes=>nodes.map(n=>(n as HTMLOptionElement).value))).toEqual(['60','90','120'])
+  await training.getByRole('button',{name:'Full log',exact:true}).click();await expect(training.locator('.training-session-dose .training-rest-summary')).toHaveText('Drill rest: At least 60 seconds between rounds.');await expect(training.locator('.training-session-dose .training-rest-summary')).toBeVisible();await training.getByRole('button',{name:'On-court view',exact:true}).click();await expect(duration).toHaveValue('90');expect(await duration.locator('option').evaluateAll(nodes=>nodes.map(n=>(n as HTMLOptionElement).value))).toEqual(['60','90','120'])
   await training.getByRole('button',{name:'Rounds',exact:true}).click();await expect(training.getByRole('spinbutton',{name:'Round 1',exact:true})).toHaveValue('');expect(await writes(page)).toHaveLength(0)
  })
 })
