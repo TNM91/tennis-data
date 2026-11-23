@@ -22,6 +22,18 @@ export function drillRoundTotals(card:LevelUpCard,practice:DrillPractice){
  })
  return {mode,clean,recorded,attempts:recorded*mode.reps,rounds}
 }
+export type DrillRoundShortcut={index:number;label:string}
+export function drillRoundShortcut(card:LevelUpCard,practice:DrillPractice|null):DrillRoundShortcut|null{
+ const mode=selectedDrillVersion(card,practice)
+ if(!mode||!practice||mode.rounds<1||practice.results.length!==mode.rounds)return null
+ try{drillRoundTotals(card,practice)}catch(error){
+  const match=error instanceof DrillResultError?error.field.match(/^drill-round-(\d+)$/):null
+  const index=match?Number(match[1]):-1
+  return index>=0&&index<mode.rounds?{index,label:`Review round ${index+1}`}:null
+ }
+ const index=practice.results.indexOf('')
+ return index>=0?{index,label:`Open round ${index+1}`}:{index:0,label:'Review rounds'}
+}
 export function drillTally(card:LevelUpCard,practice:DrillPractice){
  const total=drillRoundTotals(card,practice)
  return total.recorded?`${total.recorded} of ${total.mode.rounds} rounds recorded · ${total.clean}/${total.attempts} ${card.playbook!.countLabel.toLowerCase()}`:'No round results entered.'
