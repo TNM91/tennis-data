@@ -24,7 +24,7 @@ it.each(cases)('finds %s with the correct setup and saves its own rounds private
 })
 it('keeps the six groundstroke playbooks alongside the expanded tracked library',()=>{
  const all=LEVEL_UP_CARDS.filter(card=>card.playbook)
- expect(all).toHaveLength(22);expect(new Set(all.map(card=>card.id)).size).toBe(22)
+ expect(all).toHaveLength(26);expect(new Set(all.map(card=>card.id)).size).toBe(26)
  expect(Object.keys(GROUNDSTROKE_DRILL_PLAYBOOKS).sort()).toEqual(cases.map(([id])=>id).sort())
  for(const skill of tiqSkills){expect(all.some(card=>card.id===skill.drill.id)).toBe(true);expect(cases.map(([id])=>id)).not.toContain(skill.drill.id)}
 })

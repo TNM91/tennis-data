@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {LEVEL_UP_CARDS} from '../level-up/level-up-cards'
+import {cardTrainingContexts} from '../level-up/training-context'
 
 const pageSource = readFileSync(join(process.cwd(), 'app/level-up/page.tsx'), 'utf8')
 const contentSource = readFileSync(join(process.cwd(), 'app/level-up/level-up-page-content.tsx'), 'utf8')
@@ -179,7 +180,7 @@ describe('Level Up page', () => {
     expect(levelUpCardsSource).toContain('Name the state before the swing: defend, neutral, or attack.')
     expect(levelUpCardsSource).toContain('Call serve location and plus-one target as a pair before the rep begins.')
     expect(levelUpCardsSource).toContain('Say target and plus-one before the motion. If either is missing, restart the rep.')
-    expect(levelUpCardsSource).toContain('Choose block, drive, or height before the toss and score only returns that match that job.')
+    expect(LEVEL_UP_CARDS.find(card=>card.id==='return-step-in-game')?.commonMiss?.fix).toContain('Hold or give yourself more time')
     expect(levelUpCardsSource).toContain('Call and first move were early, visible, and repeatable.')
     expect(levelUpCardsSource).toContain('Recovered before watching 0-5')
     expect(levelUpCardsSource).toContain('Serve target clarity 0-5')
@@ -1843,7 +1844,7 @@ describe('Level Up page', () => {
     expect(liveWorkbenchSource).toContain('Shared with coach')
     expect(liveWorkbenchSource).toContain('normalizeAssignmentWorkType')
     expect(liveWorkbenchSource).toContain('useState(requestedDrillId || (requestedCard ? `card-${requestedCard.id}` : hasCoachAssignment ?')
-    expect(liveWorkbenchSource).toContain("buildCardDrillOption(requestedCard, identitySlug, hasCoachAssignment ? 'coach' : undefined)")
+    expect(liveWorkbenchSource).toContain("buildCardDrillOption(requestedCard, identitySlug, hasCoachAssignment ? 'coach' : cardContext)")
     expect(liveWorkbenchSource).toContain('const nextDrillId = requestedCard ? `card-${requestedCard.id}` : `${nextFocusId}-coach-${nextWorkType}`')
     expect(liveWorkbenchSource).toContain('setActiveDrillId(nextDrillId)')
     expect(liveWorkbenchSource).toContain('assignmentId: assignmentId || undefined')
@@ -1868,14 +1869,14 @@ describe('Level Up page', () => {
     expect(playerDevelopmentSource).toContain('starterSmartNext: `If it scores 4/5')
     expect(liveWorkbenchSource).toContain('type EditingStep')
     expect(liveWorkbenchSource).toContain('setEditingStep')
-    expect(liveWorkbenchSource).toContain('contextOptionsByWorkType')
+    expect(liveWorkbenchSource).toContain('cardTrainingContexts(workType,activeDrill?.sourceCard)')
     expect(liveWorkbenchSource).toContain("openEditingStep('work')")
     expect(liveWorkbenchSource).toContain("setEditingStep(hasCoachAssignment ? null : 'setup')")
     expect(liveWorkbenchSource).toContain('contextOptions.map')
-    expect(liveWorkbenchSource).toContain("court: ['alone', 'partner', 'singles', 'doubles']")
+    expect(cardTrainingContexts('court')).toEqual(['alone', 'partner', 'singles', 'doubles'])
     expect(liveWorkbenchSource).toContain('liveCoachChallengeEntry')
     expect(liveWorkbenchSource).toContain('On court')
-    expect(liveWorkbenchSource).toContain('Off court: body')
+    expect(liveWorkbenchSource).toContain('Body & conditioning')
     expect(liveWorkbenchSource).toContain('function showActivity')
     expect(liveWorkbenchSource).toContain('function chooseDrillOption')
     expect(liveWorkbenchSource).toContain('if (drillId === activeDrill.id) return')

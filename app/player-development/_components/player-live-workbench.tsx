@@ -8,6 +8,7 @@ import { LEVEL_UP_HISTORY_UNAVAILABLE, readLevelUpSessionHistory } from '@/lib/l
 import { buildPracticeHistoryRepeatHref } from '@/lib/practice-history-repeat'
 import { getPreviousPracticeProof } from '@/lib/practice-proof-comparison'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
+import {cardTrainingWorkType,cardTrainingContexts,cardTrainingContext,cardTrainingContextHint} from '@/lib/level-up/training-context'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import type { LevelUpSessionJson } from '@/lib/level-up-sessions'
 import {
@@ -284,7 +285,7 @@ type PlayerLiveWorkbenchProps = {
 
 const workTypeLabels: Record<WorkType, string> = {
   court: 'On court',
-  physical: 'Off court: body',
+  physical: 'Body & conditioning',
   mental: 'Off court: mind',
 }
 
@@ -294,12 +295,6 @@ const contextLabels: Record<TrainingContext, string> = {
   singles: 'Singles points',
   doubles: 'Doubles',
   coach: 'Coach challenge',
-}
-
-const contextOptionsByWorkType: Record<WorkType, TrainingContext[]> = {
-  court: ['alone', 'partner', 'singles', 'doubles'],
-  physical: ['alone'],
-  mental: ['alone'],
 }
 
 const feelingLabels: Record<PlayerFeeling, string> = {
@@ -459,9 +454,10 @@ export default function PlayerLiveWorkbench({
   const drillOptions = useMemo(
     () => {
       const baseOptions = buildDrillOptions(activeFocus, { solo, partner, offCourt, performance })
-      return requestedCard ? [buildCardDrillOption(requestedCard, identitySlug, hasCoachAssignment ? 'coach' : undefined), ...baseOptions] : baseOptions
+      const cardContext = requestedCard && cardTrainingContexts(getCardLiveWorkType(requestedCard),requestedCard).includes(context) ? context : undefined
+      return requestedCard ? [buildCardDrillOption(requestedCard, identitySlug, hasCoachAssignment ? 'coach' : cardContext), ...baseOptions] : baseOptions
     },
-    [activeFocus, hasCoachAssignment, identitySlug, partner, performance, requestedCard, solo, offCourt],
+    [activeFocus, context, hasCoachAssignment, identitySlug, partner, performance, requestedCard, solo, offCourt],
   )
   const filteredDrills = drillOptions.filter((drill) => drill.workType === workType && drill.context === context)
   const visibleDrills = filteredDrills.length
@@ -474,7 +470,8 @@ export default function PlayerLiveWorkbench({
   const proofTarget = activeDrill ? getProofCounterTarget(activeDrill) : 10
   const activeCourtsideCommand = getLiveCourtsideCommand(activeDrill, activeDrillSteps, proofTarget, readiness)
   const quickNoteChips = getQuickNoteChips(activeDrill)
-  const contextOptions = contextOptionsByWorkType[workType]
+  const contextOptions = cardTrainingContexts(workType,activeDrill?.sourceCard)
+  const contextHelp = cardTrainingContextHint(activeDrill?.sourceCard,workType)
   const recentSessions = sessions.slice(0, 4)
   function getHistoryRepeatHref(saved: SavedSession) {
     const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === saved.cardId)
@@ -1074,7 +1071,7 @@ export default function PlayerLiveWorkbench({
     setTomorrowStarterCheck(null)
     setActiveTomorrowStarterMode(null)
     setTomorrowStarterCompletion(null)
-    const nextContextOptions = contextOptionsByWorkType[nextWorkType]
+    const nextContextOptions = cardTrainingContexts(nextWorkType,requestedCard&&getCardLiveWorkType(requestedCard)===nextWorkType?requestedCard:undefined)
     setWorkType(nextWorkType)
     if (!nextContextOptions.includes(context)) {
       setContext(hasCoachAssignment ? 'coach' : nextContextOptions[0])
@@ -2464,7 +2461,7 @@ export default function PlayerLiveWorkbench({
         <div className={styles.liveStepPanel} data-collapsed={editingStep !== 'setup' ? 'true' : 'false'}>
           <span>3. Setup</span>
           <strong>Who is training with you?</strong>
-          <div className={styles.liveContextGrid} aria-label="Choose training setup">
+          <div className={styles.liveContextGrid} role="group" aria-label="Choose training setup" aria-describedby={contextHelp?'live-training-context-help':undefined}>
             {contextOptions.map((key) => (
               <button
                 type="button"
@@ -2476,6 +2473,7 @@ export default function PlayerLiveWorkbench({
               </button>
             ))}
           </div>
+          {contextHelp?<p id="live-training-context-help">{contextHelp}</p>:null}
           <div className={styles.liveSetupActions}>
             <span>Selected: {contextLabels[context]}</span>
             <button type="button" className="button-primary" onClick={showActivity}>
@@ -3597,16 +3595,11 @@ async function syncCustomQuestCompletion(
 }
 
 function getCardLiveWorkType(card: LevelUpCard): WorkType {
-  if (card.category === 'mental-routine') return 'mental'
-  if (['strength-stability', 'conditioning', 'mobility-stretch', 'recovery-reset'].includes(card.category)) return 'physical'
-  return 'court'
+  return cardTrainingWorkType(card)
 }
 
 function getCardLiveContext(card: LevelUpCard, workType: WorkType): TrainingContext {
-  if (workType !== 'court') return 'alone'
-  if (card.category === 'doubles-drill' || card.tags.includes('doubles') || card.tags.includes('doubles-communication')) return 'doubles'
-  if (card.category === 'partner-drill' || card.equipment.includes('partner')) return 'partner'
-  return 'alone'
+  return cardTrainingContext(card,workType)
 }
 
 function pickRow(rows: TrainingRow[], focusId: string, fallback: string): TrainingRow {

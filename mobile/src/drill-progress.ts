@@ -3,6 +3,7 @@ import type {LevelUpCard} from '../../lib/level-up/level-up-types'
 import type {TrainingSession} from './level-up-data'
 import {drillEvidence,newDrillPractice} from './drill-playbook'
 import {html} from './match-details'
+import {trainingContextLabel} from '../../lib/level-up/training-context'
 
 export const drillHistoryKey=(row:TrainingSession)=>row.cardId||row.focusId
 export function drillHistoryChoices(rows:TrainingSession[],selected=''){
@@ -41,7 +42,6 @@ export function recentDrillResults(rows:TrainingSession[],card:LevelUpCard){
  if(!reference)return []
  return sessions.flatMap(row=>{const result=readDrillEvidence(card,row);return result&&result.version===reference.version&&row.context===latest.context?[{row,result}]:[]}).slice(0,3)
 }
-const contexts:Record<string,string>={alone:'Solo',partner:'With a partner',singles:'Singles',doubles:'Doubles',coach:'With a coach'}
 export function drillHistoryControlsHtml(rows:TrainingSession[],selected:string){
  const choices=drillHistoryChoices(rows,selected)
  if(!choices.length)return ''
@@ -57,7 +57,7 @@ export function drillComparisonHtml(rows:TrainingSession[],selected:string){
  const results=recentDrillResults(rows,card)
  return `<section class="training-drill-comparison" aria-label="Recent round results">
   <h2>Recent round results</h2>
-  ${results.length?`<p>${html(results[0].result.label)} · ${html(contexts[results[0].row.context]??results[0].row.context)}</p>
+  ${results.length?`<p>${html(results[0].result.label)} · ${html(trainingContextLabel(results[0].row.context))}</p>
    <ol role="list">${results.map(({row,result},index)=>`<li>
     <div class="training-round-result-head"><strong>${result.clean} / ${result.attempts} ${html(card.playbook!.countLabel.toLowerCase())}</strong><span>${result.percent}%</span></div>
     <svg class="training-round-result-track" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect width="100" height="6" rx="3"/><rect class="training-round-result-fill" width="${result.percent}" height="6" rx="3"/></svg>

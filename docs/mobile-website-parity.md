@@ -1,5 +1,31 @@
 # Website to iPhone parity
 
+## Short conditioning playbooks — local follow-up after build 349
+
+Serve +1 Conditioning and Return +1 Conditioning now use original control/pressure playbooks, three rounds of six and at least sixty seconds of rest between rounds, extended when balance fades. Both retain physical work type, card IDs, settings, duration, access and coach links. The tracked library has twenty-six drills: nine solo, twelve partner and five doubles. The existing catalogue displays 24 of 26 until Show more is selected; setup filters still return complete smaller groups.
+
+Serve +1 is solo serving plus a clearly labelled shadow first groundstroke. Its count is a serve-and-recovery rehearsal, not live +1 accuracy or a reaction test. Return +1 uses a partner, a real return and one live next groundstroke. Partner feeds that cannot offer the agreed playable +1 are repeated; the player's own misses remain attempts. Counts describe completed practice patterns, not point wins, fitness scores or TiQ changes. Older notes receive no inferred counts and these drills do not automatically satisfy a related exact TiQ plan.
+
+Native saves reject entered round results in an explicitly partner-required version when the context is Solo, including a recorded zero. The error preserves the note and raw rounds and focuses Training context; the player can choose With a partner, or clear the optional counts and save the solo adaptation note. This also covers the existing partner-cued pressure version of Split-Step Rhythm. Historical records are read unchanged. Context guidance mentions round fields only in the native screen that provides them; the website keeps its general adaptation guidance.
+
+The [LTA solo-practice guidance](https://www.lta.org.uk/play/tennis-tips-and-techniques/how-to-train-and-practice-tennis-skills-by-yourself/) and [practice context](https://www.lta.org.uk/advantage-home/content/three-mistakes-you-might-be-making-during-practice/) were consulted. The formats, doses, rest convention, counts and copy are TenAceIQ originals, not a prescribed fitness assessment. No external media or imported results are included. Local evidence is recorded in `output/conditioning-practice-20261122`. No API, schema, purchase, collector or artwork changes are needed. TestFlight 349 and public review build 324 remain unchanged; beta and physical iPhone/VoiceOver acceptance follow a later release.
+
+## Partner conditioning context — local follow-up after build 349
+
+Native discovery, session defaults and website card handoffs use shared work-type/context rules. Return +1 Conditioning remains physical work, appears under With a partner and defaults to partner context. It keeps Solo as an explicit adaptation; ordinary physical and mental cards retain their solo choices, and court contexts are unchanged. That setup-only batch kept the card note-based; the conditioning follow-up above adds optional round tracking.
+
+Native context options use the same readable labels as history and drill comparisons while preserving stored enum values. Partner conditioning shows an accessible note explaining that solo practice is an adaptation. Existing solo records stay solo. Frozen private-save receipts still require the exact selected context. Website workbench setup changes retain a specifically selected card, and an older `context=alone` repeat link retains its card and context. The body-work label is Body & conditioning, which also fits physical work done on court.
+
+The existing session payload builder, row mapper and database constraint already allow physical/partner sessions. No API, schema, permission, subscription, notification, collector or artwork changes are required. Local evidence is recorded in `output/partner-context-20261122`, including native phone flows and an isolated browser fixture that renders the actual website workbench. The fixture uses no account or external network access. These changes are queued for a later beta; TestFlight 349 and public review build 324 remain unchanged.
+
+## Return positioning and second-serve decisions — local follow-up after build 349
+
+Return Step-In Game and Second-Serve Attack or Build now have control/pressure playbooks, distinct coaching corrections and private round tracking. Step-In uses three rounds of ten; Attack or Build retains three rounds of six. The candidate has twenty-four tracked drills (eight solo, eleven partner and five doubles). Existing card IDs, category, setting, duration, access and coach links are preserved. Shared website cards use the control routine; native players can change versions and use On-court view, comparison and a fresh repeat.
+
+Players choose a starting intent, then adapt to the actual serve. Stepping forward or attacking is conditional on time and balance; a neutral return can meet the second-serve task. Counts also require the named deep target and recovery, and do not measure point wins or change TiQ. Serve faults and lets repeat; missed returns of valid serves remain attempts. Earlier free-form notes are not converted, and related drills do not automatically satisfy an exact TiQ plan or coach assignment.
+
+The [LTA return-of-serve guidance](https://www.lta.org.uk/advantage-home/content/simple-steps-to-improving-your-return-of-serve/) was checked for adapting position and swing to the actual serve. Formats, counts and copy are TenAceIQ originals; no external media or imported results are added. Local evidence is recorded in `output/return-decisions-20261122`. No API, schema, pricing, collector or artwork changes are needed. These two upgrades are pending a later beta and physical iPhone/VoiceOver acceptance; TestFlight 349 and public review build 324 remain unchanged.
+
 ## Serve placement and routine playbooks — local follow-up after build 348
 
 Serve Target Ladder and Second-Serve Routine Reps now use original playbooks with distinct control/pressure routines, three rounds of ten, setup, count rules, easier adaptations and quick coaching. The tracked library has twenty-two drills: eight solo, nine partner and five doubles. Card IDs, settings, duration, access and existing coach links stay unchanged. Shared website cards use the control routine; native users can select the version and use On-court view, private counts, comparisons and a fresh repeat.

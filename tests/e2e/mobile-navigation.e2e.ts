@@ -1,4 +1,8 @@
 import '../fixtures/mobile-coach-unread-cases'
+import '../fixtures/mobile-return-drill-cases'
+import '../fixtures/mobile-partner-context-cases'
+import '../fixtures/mobile-conditioning-drill-cases'
+import '../fixtures/partner-workbench-cases'
 import '../fixtures/mobile-drill-playbooks-cases'
 import '../fixtures/mobile-coach-catchup-cases'
 import '../fixtures/mobile-coach-conversation-tools-cases'
