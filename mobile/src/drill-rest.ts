@@ -34,6 +34,10 @@ export class RestCountdown {
 const restTime=(seconds:number)=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`
 const restState=(state:RestSnapshot)=>({idle:'Ready when you are',running:'Resting',paused:'Paused',complete:'Rest finished'})[state.phase]
 const restAction=(state:RestSnapshot)=>({idle:'Start rest',running:'Pause rest',paused:'Resume rest',complete:'Start rest again'})[state.phase]
+const roundRestLabel=(state:RestSnapshot)=>state.phase==='running'?'View rest':`${restAction(state)} · ${state.phase==='paused'?restTime(state.remaining)+' left':state.duration+' sec'}`
+export function roundRestButtonHtml(state:RestSnapshot,locked=false){
+ return `<button type="button" class="secondary training-round-rest" data-round-rest data-round-rest-phase="${state.phase}" data-session-control="round-rest" aria-controls="training-court-rest" ${locked?'disabled':''}>${roundRestLabel(state)}</button>`
+}
 const restNotice=(state:RestSnapshot)=>({idle:'Optional rest countdown.',running:'Rest countdown running.',paused:'Rest countdown paused.',complete:'Rest finished.'})[state.phase]
 const restIndicator=(state:RestSnapshot)=>state.phase==='idle'?'':`<svg viewBox="0 0 12 12" width="12" height="12" fill="none">${state.phase==='running'?'<circle cx="6" cy="6" r="3" fill="currentColor"/>':state.phase==='paused'?'<path d="M4 2v8M8 2v8" stroke="currentColor" stroke-width="2"/>':'<path d="m2 6 3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'}</svg>`
 export function restTabHtml(state:RestSnapshot,selected=false){
@@ -58,6 +62,13 @@ export function restCountdownHtml(state:RestSnapshot,locked=false,shortcut:Drill
  </section>`
 }
 export function paintRestCountdown(root:HTMLElement,state:RestSnapshot,locked=false,shortcut:DrillRoundShortcut|null=null){
+ const fromRounds=root.querySelector<HTMLButtonElement>('[data-round-rest]')
+ if(fromRounds){
+  const label=roundRestLabel(state)
+  if(fromRounds.textContent!==label)fromRounds.textContent=label
+  if(fromRounds.dataset.roundRestPhase!==state.phase)fromRounds.dataset.roundRestPhase=state.phase
+  if(fromRounds.disabled!==locked)fromRounds.disabled=locked
+ }
  const live=root.querySelector('[data-rest-live-state]'),indicator=root.querySelector<HTMLElement>('[data-rest-indicator]')
  if(live&&live.textContent!==restNotice(state))live.textContent=restNotice(state)
  if(indicator&&indicator.dataset.restPhase!==state.phase){indicator.dataset.restPhase=state.phase;indicator.hidden=state.phase==='idle';indicator.innerHTML=restIndicator(state)}

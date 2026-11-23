@@ -22,7 +22,7 @@ import {matchDate} from './recent-results'
 import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingSave,type TrainingSession,type TrainingSave} from './level-up-data'
 import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave,trainingFormats,trainingSetupLabel,type TrainingFormat} from './level-up-model'
 import {trainingContextLabel,cardTrainingContextHint} from '../../lib/level-up/training-context'
-import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillDoseSummaryHtml,drillResultsHtml,drillTally,drillSessionNote,drillRoundShortcut,drillRestGuidance,DrillResultError,type DrillPractice} from './drill-playbook'
+import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillDoseSummaryHtml,drillResultsHtml,drillRoundFeedback,drillSessionNote,drillRoundShortcut,drillRestGuidance,DrillResultError,type DrillPractice} from './drill-playbook'
 import {drillGuidePage,moveDrillGuide,drillCourtGuideHtml} from './drill-court'
 import {drillCoachingHtml} from './drill-coaching'
 import {RestCountdown,restCountdownHtml,paintRestCountdown,restTabHtml,restDurations} from './drill-rest'
@@ -485,7 +485,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   <section class="training-session-log" ${onCourt&&courtPane!=='rounds'?'hidden':''}>
    ${onCourt?'':`<h2>Log your session</h2><p>${matchPractice?'Save your target and result to your private training history.':sessionOrigin?`Private practice from ${html(sessionOrigin)}.`:'Save your proof to your private training history.'}</p>${sessionDirection?`<p>Training direction · ${html(trainingIdentity(sessionDirection)?.title||'')}</p>`:''}`}
    <form data-proof>
-    <div id="training-court-rounds" data-session-rounds ${onCourt&&courtPane!=='rounds'?'hidden':''}>${drillResultsHtml(card,currentDrillPractice(),locked)}</div>
+    <div id="training-court-rounds" data-session-rounds ${onCourt&&courtPane!=='rounds'?'hidden':''}>${drillResultsHtml(card,currentDrillPractice(),locked,onCourt?rest.snapshot():null)}</div>
     <div data-session-details ${onCourt?'hidden':''}>
     <label>Self-rated proof (0–5)<select name="rating" ${onCourt?'':'required'} ${locked?'disabled':''}>
      <option value="">Choose a proof rating</option>
@@ -862,6 +862,21 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
    courtPane=button.dataset.courtPane as typeof courtPane;render()
    dialog.querySelector<HTMLElement>('[data-court-pane="'+courtPane+'"]')?.focus({preventScroll:true})
   }))
+  const roundRest=dialog.querySelector<HTMLButtonElement>('[data-round-rest]')
+  roundRest?.addEventListener('click',()=>{
+   if(!sessionControlActive(roundRest)||!onCourt||courtPane!=='rounds'||roundRest.disabled)return
+   const intent=roundRest.dataset.roundRestPhase,state=rest.snapshot()
+   if(!['idle','running','paused','complete'].includes(intent??''))return
+   // A View rest tap can cross the deadline without asking for another rest.
+   if(intent!=='running'){
+    if(intent!==state.phase){paintRestCountdown(dialog,state,false,currentRoundShortcut());return}
+    if(state.phase==='complete')rest.reset()
+    rest.start()
+   }
+   courtPane='rest';sessionControl='court-rest';render()
+   dialog.querySelector('[data-court-body]')?.scrollTo({top:0})
+   dialog.querySelector<HTMLElement>('[data-court-pane="rest"]')?.focus({preventScroll:true})
+  })
   dialog.querySelectorAll<HTMLButtonElement>('[data-rest-action]').forEach(button=>button.addEventListener('click',()=>{
    if(!sessionControlActive(button)||!onCourt||courtPane!=='rest'||button.disabled)return
    const state=rest.snapshot()
@@ -917,12 +932,39 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     const practice=currentDrillPractice()
     if(practice&&selected){
      practice.results=practice.results.map((_,index)=>String(fields.get('drill-round-'+index)??''))
-     const tally=form.querySelector<HTMLOutputElement>('[data-drill-tally]')
-     if(tally){try{tally.textContent=drillTally(selected,practice)}catch{tally.textContent='Check the round counts above.'}}
+     const feedback=drillRoundFeedback(selected,practice)
+     const tally=form.querySelector<HTMLElement>('[data-drill-feedback]')
+     if(tally&&tally.textContent!==feedback.text)tally.textContent=feedback.text
+     form.querySelectorAll<HTMLInputElement>('[data-drill-result]').forEach(input=>{
+      const invalid=input.name===feedback.field,description='training-round-help'+(invalid?' training-round-totals':'')
+      if(invalid){if(input.getAttribute('aria-invalid')!=='true')input.setAttribute('aria-invalid','true')}else input.removeAttribute('aria-invalid')
+      if(input.getAttribute('aria-describedby')!==description)input.setAttribute('aria-describedby',description)
+     })
     }
    }
    form.oninput=capture;form.onchange=capture
-   form.onsubmit=event=>{event.preventDefault();if(!active()||phase!=='session'||!form.isConnected||!dialog.contains(form))return;capture();if(onCourt)finishCourt();else void save()}
+   const moveRoundEntry=(input:HTMLInputElement,backward=false)=>{
+    if(!sessionControlActive(input)||!form.contains(input)||input.matches(':disabled'))return
+    const inputs=Array.from(form.querySelectorAll<HTMLInputElement>('[data-drill-result]')),index=inputs.indexOf(input)
+    if(index<0)return
+    capture()
+    const next=backward?inputs[Math.max(0,index-1)]:inputs[index+1]
+    if(next===input)return
+    if(next){sessionControl='';sessionField=next.name}else sessionControl='round-summary'
+    restoreSessionField(true)
+   }
+   form.addEventListener('keydown',event=>{
+    if(event.key!=='Enter'||event.isComposing)return
+    const field=event.target
+    if(field instanceof HTMLInputElement&&field.matches('[data-drill-result]')){event.preventDefault();if(!event.repeat)moveRoundEntry(field,event.shiftKey)}
+    else if(field instanceof HTMLElement&&field.matches('[data-drill-tally]'))event.preventDefault()
+   })
+   form.onsubmit=event=>{
+    event.preventDefault();if(!active()||phase!=='session'||!form.isConnected||!dialog.contains(form))return
+    // Some keyboards submit without a key event. Explicit Save still has a submitter.
+    if(!event.submitter){const field=document.activeElement;if(field instanceof HTMLInputElement&&form.contains(field)&&field.matches('[data-drill-result]')){moveRoundEntry(field);return}if(field instanceof HTMLElement&&form.contains(field)&&field.matches('[data-drill-tally]'))return}
+    capture();if(onCourt)finishCourt();else void save()
+   }
   }
   const drillVersion=dialog.querySelector<HTMLSelectElement>('[data-drill-version]')
   drillVersion?.addEventListener('change',()=>{if(!active()||phase!=='card'||!selected||!drillVersion.isConnected||!['control','pressure'].includes(drillVersion.value))return;drillPractice=newDrillPractice(selected,drillVersion.value as DrillPractice['version']);render();dialog.querySelector<HTMLElement>('[data-drill-version]')?.focus({preventScroll:true})})
