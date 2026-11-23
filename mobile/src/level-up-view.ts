@@ -22,7 +22,7 @@ import {matchDate} from './recent-results'
 import {loadTrainingHistory,trainingAccess,saveTrainingSession,confirmsTrainingSave,type TrainingSession,type TrainingSave} from './level-up-data'
 import {TrainingClock,trainingContexts,initialTrainingContext,trainingSelection,trainingTime,trainingProgress,freezeTrainingSave,trainingFormats,trainingSetupLabel,type TrainingFormat} from './level-up-model'
 import {trainingContextLabel,cardTrainingContextHint} from '../../lib/level-up/training-context'
-import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillResultsHtml,drillTally,drillSessionNote,DrillResultError,type DrillPractice} from './drill-playbook'
+import {newDrillPractice,selectedDrillVersion,drillSetupHtml,drillResultsHtml,drillTally,drillSessionNote,drillRoundShortcut,DrillResultError,type DrillPractice} from './drill-playbook'
 import {drillGuidePage,moveDrillGuide,drillCourtGuideHtml} from './drill-court'
 import {drillCoachingHtml} from './drill-coaching'
 import {RestCountdown,restCountdownHtml,paintRestCountdown,restTabHtml} from './drill-rest'
@@ -207,6 +207,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  let coachingOpen=false
  let historyCardId=''
  const currentDrillPractice=()=>{if(!selected)return null;if(drillPractice?.cardId!==selected.id)drillPractice=newDrillPractice(selected);return drillPractice}
+ const currentRoundShortcut=()=>selected&&phase==='session'?drillRoundShortcut(selected,currentDrillPractice()):null
  const restoreSessionField=(scroll=false)=>{
   const control=sessionControl?Array.from(dialog.querySelectorAll<HTMLElement>('[data-session-control]')).find(el=>el.dataset.sessionControl===sessionControl&&el.getClientRects().length>0):null
   const field=Array.from(dialog.querySelectorAll<HTMLElement>('[data-proof] [name]')).find(el=>el.getAttribute('name')===sessionField&&el.getClientRects().length>0)
@@ -422,7 +423,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
  }
  const paintTimerControls=()=>{
   paintSessionClock()
-  paintRestCountdown(dialog,rest.snapshot(),Boolean(payload)||saving||checking)
+  paintRestCountdown(dialog,rest.snapshot(),Boolean(payload)||saving||checking,currentRoundShortcut())
   const state=dialog.querySelector<HTMLElement>('[data-clock-state]')
   if(state){
    state.textContent=clock.running()?'Running':'Paused'
@@ -502,7 +503,7 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     </div>
    </form>
   </section>
-  ${onCourt?`<div id="training-court-rest" data-session-rest ${courtPane==='rest'?'':'hidden'}>${restCountdownHtml(rest.snapshot(),locked)}</div>${drillCoachingHtml(card,currentDrillPractice(),true,coachingOpen)}</div><footer class="training-court-footer"><button type="button" data-court-finish data-session-control="court-finish">Finish &amp; log</button></footer>`:''}`
+  ${onCourt?`<div id="training-court-rest" data-session-rest ${courtPane==='rest'?'':'hidden'}>${restCountdownHtml(rest.snapshot(),locked,currentRoundShortcut())}</div>${drillCoachingHtml(card,currentDrillPractice(),true,coachingOpen)}</div><footer class="training-court-footer"><button type="button" data-court-finish data-session-control="court-finish">Finish &amp; log</button></footer>`:''}`
  const inboxHtml=()=>`
   <header class="training-inbox-header"><h1 tabindex="-1">Training inbox</h1><button type="button" class="secondary" data-close aria-label="Close Level Up">Close</button></header>
   <div class="match-filters training-inbox-tabs" role="group" aria-label="Training inbox sections">
@@ -867,14 +868,20 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
     if(state.phase==='running')rest.pause()
     else{if(state.phase==='complete')rest.reset();rest.start()}
    }else return
-   paintRestCountdown(dialog,rest.snapshot())
+   paintRestCountdown(dialog,rest.snapshot(),false,currentRoundShortcut())
    const focusTarget=button.dataset.restAction==='reset'?dialog.querySelector<HTMLButtonElement>('[data-rest-action="toggle"]'):button
    focusTarget?.focus({preventScroll:true})
   }))
   const restDuration=dialog.querySelector<HTMLSelectElement>('[data-rest-duration]')
   restDuration?.addEventListener('change',()=>{
    if(!sessionControlActive(restDuration)||!onCourt||courtPane!=='rest'||restDuration.disabled)return
-   rest.setDuration(Number(restDuration.value));paintRestCountdown(dialog,rest.snapshot());restDuration.focus({preventScroll:true})
+   rest.setDuration(Number(restDuration.value));paintRestCountdown(dialog,rest.snapshot(),false,currentRoundShortcut());restDuration.focus({preventScroll:true})
+  })
+  const restRound=dialog.querySelector<HTMLButtonElement>('[data-rest-round]')
+  restRound?.addEventListener('click',()=>{
+   if(!sessionControlActive(restRound)||!onCourt||courtPane!=='rest'||restRound.hidden||restRound.disabled||rest.snapshot().phase!=='complete')return
+   const target=currentRoundShortcut();if(!target)return
+   courtPane='rounds';sessionControl='';sessionField='drill-round-'+target.index;render();restoreSessionField(true)
   })
   dialog.querySelectorAll<HTMLButtonElement>('[data-court-step]').forEach(button=>button.addEventListener('click',()=>{
    if(!sessionControlActive(button)||!onCourt||courtPane!=='instructions'||!selected||!['-1','1'].includes(button.dataset.courtStep??''))return
@@ -1236,6 +1243,6 @@ export function openLevelUp(client:SupabaseClient,owner:string,current:()=>boole
   const wasRunning=clock.running();clock.pause();rest.pause()
   if(active()){pausedInBackground=wasRunning||pausedInBackground;paintTimerControls()}
  }
- const tick=setInterval(()=>{if(!active()){dispose();return}paintSessionClock();paintRestCountdown(dialog,rest.snapshot(),Boolean(payload)||saving||checking)},1000)
+ const tick=setInterval(()=>{if(!active()){dispose();return}paintSessionClock();paintRestCountdown(dialog,rest.snapshot(),Boolean(payload)||saving||checking,currentRoundShortcut())},1000)
  document.addEventListener('visibilitychange',visibility);dialog.oncancel=e=>{e.preventDefault();if(confirming){confirming=false;render();restoreSession()}else requestClose()};document.body.append(dialog);render();dialog.showModal();focus();void readAccess();if(!scorecardStart&&!calendarRepStart&&!scheduledFocus)void readHistory();if(phase==='inbox'){inboxLoaded=true;void readPlans();if(!calendarRepStart)void readCoach()}return {dispose,isOpen:()=>!disposed,back:requestClose}
 }

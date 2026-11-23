@@ -64,4 +64,18 @@ describe('Optional on-court rest countdown',()=>{
    expect(state).toEqual({duration:60,remaining:phase==='complete'?0:45,phase})
   }
  })
+ it('offers the manual round shortcut only when rest has finished',()=>{
+  const shortcut={index:1,label:'Open round 2'}
+  for(const phase of ['idle','running','paused'] as const)expect(restCountdownHtml({duration:60,remaining:30,phase},false,shortcut)).toMatch(/data-rest-round[^>]*hidden/)
+  const view=restCountdownHtml({duration:60,remaining:0,phase:'complete'},false,shortcut)
+  expect(view).toContain('>Open round 2</button>');expect(view).not.toMatch(/data-rest-round[^>]*hidden/)
+  expect(view).toMatch(/class="secondary" data-rest-action="toggle"/)
+  expect(view).not.toContain('type="submit"')
+  expect(restCountdownHtml({duration:60,remaining:0,phase:'complete'})).toMatch(/data-rest-round[^>]*hidden/)
+ })
+ it('escapes the shortcut label and locks it with an unconfirmed session',()=>{
+  const view=restCountdownHtml({duration:60,remaining:0,phase:'complete'},true,{index:1,label:'<Round & 2>'})
+  expect(view).toContain('&lt;Round &amp; 2&gt;');expect(view).not.toContain('<Round')
+  expect(view).toMatch(/data-rest-round[^>]*disabled/)
+ })
 })
