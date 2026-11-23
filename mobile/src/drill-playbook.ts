@@ -16,11 +16,11 @@ export function drillRestGuidance(card:LevelUpCard,practice:DrillPractice|null){
 }
 export function drillRestSummaryHtml(card:LevelUpCard,practice:DrillPractice|null){
  const plan=drillRestGuidance(card,practice)
- return plan?`<span class="training-rest-summary">Drill rest: ${html(plan.guidance)}</span>`:''
+ return plan?` <span class="training-rest-summary">Drill rest: ${html(plan.guidance)}</span>`:''
 }
 export function drillDoseSummaryHtml(card:LevelUpCard,practice:DrillPractice|null,view:'setup'|'session'='setup'){
  const mode=selectedDrillVersion(card,practice)
- return mode?`<p class="${view==='session'?'training-session-track training-session-dose':'training-playbook-dose'}">${mode.rounds} rounds · ${mode.reps} reps per round${drillRestSummaryHtml(card,practice)}</p>`:''
+ return mode?`<p class="${view==='session'?'training-session-dose':'training-playbook-dose'}">${mode.rounds} rounds · ${mode.reps} reps per round${drillRestSummaryHtml(card,practice)}</p>`:''
 }
 export function drillRoundTotals(card:LevelUpCard,practice:DrillPractice){
  const mode=selectedDrillVersion(card,practice)
