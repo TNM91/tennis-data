@@ -529,6 +529,19 @@ body.native-chat-conversation .chat-send-button { background:var(--premium-lime)
 .competitions-dialog .tournament-standings>li>button,.league-standings>li>button { grid-column:1/-1;margin:0!important; }
 .league-standings>li:has(.league-team-open)>.standing-position { display:grid;margin-block-start:0; }
 .competitions-dialog .competition-empty { border-style:solid;border-color:#34546c;background:var(--premium-surface); }
+.competitions-dialog .competition-feedback { min-inline-size:0;margin-block:20px;padding:20px;border:1px solid var(--premium-line);border-radius:20px;background:var(--premium-surface); }
+.competition-feedback-heading { display:flex;align-items:center;gap:14px;min-inline-size:0; }
+.competition-feedback-heading>span { display:inline-flex;flex:none;color:var(--premium-ice); }
+.competitions-dialog .competition-feedback h3 { margin:0;font-size:1.125rem;line-height:1.4;letter-spacing:-.02em;overflow-wrap:anywhere; }
+.competitions-dialog .competition-feedback p { margin-block:14px 0;font-size:.875rem;line-height:1.65;color:var(--premium-copy);overflow-wrap:anywhere; }
+.competitions-dialog .competition-feedback button { min-block-size:48px;margin-block:18px 0;padding:12px 16px;font-size:.875rem;line-height:1.5; }
+.competition-feedback[data-kind="error"] { border-block-start:2px solid #d8a48b; }
+.competition-feedback[data-kind="error"] .competition-feedback-heading>span { color:#e9bfaa; }
+.competition-loading-preview { display:grid;gap:12px;margin-block-start:20px; }
+.competition-loading-preview>span { display:block;padding:18px;border:1px solid var(--premium-line);border-radius:14px;background:var(--premium-inset); }
+.competition-loading-preview>span::before,.competition-loading-preview>span::after { content:"";display:block;block-size:8px;inline-size:65%;border-radius:4px;background:#25465e; }
+.competition-loading-preview>span::after { inline-size:42%;margin-block-start:12px;background:#1b374d; }
+.competitions-dialog .competition-feedback:focus { outline:2px solid var(--premium-ice);outline-offset:3px; }
 .competitions-dialog .competition-checked { font-size:.75rem;color:#a9c6d9; }
 
 /* Browse, enter, follow the decision — the same hierarchy for both disciplines. */
