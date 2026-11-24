@@ -34,7 +34,8 @@ export function createGooglePlayPurchases(client:SupabaseClient,fulfillment:Goog
  const platform=options.platform??Capacitor.getPlatform(),store=options.store??NativeGooglePlay
  const available=platform==='android'&&(options.available??Capacitor.isPluginAvailable('TiqGooglePurchases'))
  let owner:string|null=null,epoch=0,disposed=false,busy=false,refreshRequested=false,handle:PluginListenerHandle|undefined
- const operations=new Map<string,string>(),inflight=new Map<string,Promise<boolean>>(),listeners=new Set<()=>void>()
+ const operations=new Map<string,string>(),inflight=new Map<string,Promise<boolean>>(),listeners=new Set<()=>void>(),busyListeners=new Set<()=>void>()
+ const notifyBusy=()=>{for(const listener of busyListeners){try{listener()}catch{/* Display updates cannot interrupt billing. */}}}
  async function session(expected:string,visit:number){
   if(disposed||epoch!==visit||owner!==expected)fail('owner_changed')
   const result=await client.auth.getSession()
@@ -80,9 +81,9 @@ export function createGooglePlayPurchases(client:SupabaseClient,fulfillment:Goog
  async function exclusive<T>(expected:string,work:(visit:number)=>Promise<T>){
   if(!available||disposed)fail('google_store_unavailable')
   if(busy)fail('google_purchase_in_progress')
-  busy=true;const visit=epoch
+  busy=true;notifyBusy();const visit=epoch
   try{await session(expected,visit);return await work(visit)}finally{
-   busy=false
+   busy=false;notifyBusy()
    if(refreshRequested){refreshRequested=false;if(owner&&!disposed)void recover(owner).catch(()=>{})}
   }
  }
@@ -129,6 +130,7 @@ export function createGooglePlayPurchases(client:SupabaseClient,fulfillment:Goog
   },
   async manage(expected:string){return exclusive(expected,visit=>native(()=>store.manage(),expected,visit))},
   subscribe(listener:()=>void){listeners.add(listener);return()=>listeners.delete(listener)},
-  dispose(){disposed=true;epoch++;owner=null;operations.clear();listeners.clear();void handle?.remove()},
+  subscribeBusy(listener:()=>void){busyListeners.add(listener);return()=>busyListeners.delete(listener)},
+  dispose(){disposed=true;epoch++;owner=null;operations.clear();listeners.clear();busyListeners.clear();void handle?.remove()},
  }
 }

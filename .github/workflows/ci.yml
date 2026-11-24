@@ -110,12 +110,12 @@ jobs:
       - name: Verify the captain-to-player match week
         run: npm run test:e2e:captain-week
 
-      - name: Verify Apple membership loading and recovery
+      - name: Verify Apple and Google membership loading and recovery
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:4259
         run: |
           node mobile/scripts/build-website-ui.mjs
-          npx playwright test tests/e2e/mobile-apple-memberships.e2e.ts --project=mobile-chrome --project=mobile-webkit
+          npx playwright test tests/e2e/mobile-apple-memberships.e2e.ts tests/e2e/mobile-google-memberships.e2e.ts --project=mobile-chrome --project=mobile-webkit
 
       - name: Verify iPhone poll sheets and team tools
         env:
@@ -201,6 +201,15 @@ jobs:
         with:
           name: apple-membership-ui-fixtures-${{ github.sha }}
           path: .next/playwright-results/**/apple-membership-*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Save Google membership UI fixtures
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: google-membership-ui-fixtures-${{ github.sha }}
+          path: .next/playwright-results/**/google-membership-*.png
           if-no-files-found: ignore
           retention-days: 3
 

@@ -24,7 +24,7 @@ import {openCoachConnection} from './coach-connection-view'
 import {openNativeTactics} from './coach-tactics-view'
 import {navigationHtml,currentTab,appHubHtml,homeShortcutsHtml,bindAppDestinations,type AppScreen,type AppHub,type AppDestination} from './app-navigation'
 import {mountCompeteTeams,type CompeteTeamDestination} from './compete-teams'
-import {applePurchases} from './apple-purchases'
+import {storePurchases} from './store-memberships'
 import {showEmailAuth} from './email-auth'
 import {openAccountSettings} from './account-settings'
 import {openingPreferences,resolveOpeningScreen} from './opening-screen'
@@ -723,7 +723,7 @@ const updatesCounter=createUpdatesCounter(client,count=>{
  updatesEntry.setAttribute('aria-label',count===null?'Updates':'Updates, '+count+' unread')
  const badge=updatesEntry.querySelector<HTMLElement>('.updates-header-badge')!;badge.hidden=count===null||count===0;badge.textContent=count===null?'':count>99?'99+':String(count)
 })
-const nativePurchases=applePurchases(client)
+const nativePurchases=storePurchases(client)
 const signOut=createNativeSignOut(client,async owner=>{
  await nativePush.beforeSignOut(owner)
  if(teamScoreDrafts?.owner===owner)await teamScoreDrafts.clear()

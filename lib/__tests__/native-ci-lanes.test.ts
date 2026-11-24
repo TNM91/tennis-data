@@ -10,6 +10,7 @@ const lanes=['captain-weekly-continuity','native-league-browser','native-tournam
 const steps=lanes.flatMap(key=>jobs[key].steps)
 const suites=[
  ['mobile-apple-memberships.e2e.ts','captain-weekly-continuity','4259'],
+ ['mobile-google-memberships.e2e.ts','captain-weekly-continuity','4259'],
  ['mobile-chat-poll-sheets.e2e.ts','captain-weekly-continuity','4260'],
  ['mobile-chat-experience.e2e.ts','captain-weekly-continuity','4261'],
  ['mobile-lab-scoreboard.e2e.ts','captain-weekly-continuity','4262'],
@@ -56,7 +57,7 @@ describe('independent native browser CI lanes',()=>{
  })
 
  it('retains the existing diagnostic images and bounded retention on failure',()=>{
-  const paths=['tournaments-results/**/tournaments-*.png','competitions-results/**/competitions-*.png','import-corrections-results/**/import-corrections-*.png','native-insights-results/**/native-insights-*.png','lab-scoreboard-results/**/lab-scoreboard-*.png','chat-experience-results/**/chat-experience-*.png','chat-poll-results/**/chat-poll-*.png','playwright-results/**/apple-membership-*.png','captain-workspace-results/**/*.png']
+  const paths=['tournaments-results/**/tournaments-*.png','competitions-results/**/competitions-*.png','import-corrections-results/**/import-corrections-*.png','native-insights-results/**/native-insights-*.png','lab-scoreboard-results/**/lab-scoreboard-*.png','chat-experience-results/**/chat-experience-*.png','chat-poll-results/**/chat-poll-*.png','playwright-results/**/apple-membership-*.png','playwright-results/**/google-membership-*.png','captain-workspace-results/**/*.png']
   for(const path of paths){
    const matching=steps.filter(step=>step.uses==='actions/upload-artifact@v6'&&step.with?.path==='.next/'+path)
    expect(matching,path).toHaveLength(1)

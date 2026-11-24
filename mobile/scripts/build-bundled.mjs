@@ -5,6 +5,7 @@ import { build } from 'esbuild'
 import { mkdir, copyFile, writeFile, readFile, rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import {nativeBundleTarget} from './native-bundle-target.mjs'
+import {nativeMembershipAdapter} from './native-membership-adapter.mjs'
 
 const root = new URL('../', import.meta.url)
 const {preview,fullApp,firstParty,tournamentPractice,android,distribution,capacitorConfig} = nativeBundleTarget(process.argv.slice(2))
@@ -17,7 +18,7 @@ const result = await build({
   define:{TIQ_FIRST_PARTY_BUILD:String(firstParty),TIQ_TOURNAMENT_PRACTICE:String(tournamentPractice)},
   metafile:firstParty,
   write:!firstParty,
-  plugins:[nativeWebsiteAdapters()],
+  plugins:[nativeMembershipAdapter(android),nativeWebsiteAdapters()],
 })
 if (firstParty) {
   const inputs = Object.values(result.metafile.outputs).flatMap(file => Object.entries(file.inputs))
@@ -27,6 +28,9 @@ if (firstParty) {
   }
   const hasPractice = inputs.some(([name, input]) => /(?:^|\/)tournament-practice\.ts$/.test(name) && input.bytesInOutput > 0)
   if (hasPractice !== tournamentPractice) throw Error('Tournament practice does not match the selected distribution channel.')
+  const hasGoogleMembership = inputs.some(([name,input])=>/(?:^|\/)google-memberships\.ts$/.test(name)&&input.bytesInOutput>0)
+  const hasAppleMembership = inputs.some(([name,input])=>/(?:^|\/)apple-memberships\.ts$/.test(name)&&input.bytesInOutput>0)
+  if(hasGoogleMembership!==android||hasAppleMembership===android)throw Error('The membership screen does not match the native platform.')
   await mkdir(output,{recursive:true})
   for(const file of result.outputFiles)await writeFile(file.path,file.contents)
 }
@@ -40,7 +44,7 @@ else await rm(androidScope,{force:true})
 await writeFile(new URL('style.css',output),scopeNativeStyles(await readFile(new URL('src/style.css',root),'utf8')))
 await copyFile(new URL('src/website-parity.css', root), new URL('website-parity.css', output))
 await copyFile(new URL('src/app-atmosphere.css', root), new URL('app-atmosphere.css', output))
-await writeFile(new URL('premium-surfaces.css',output),(await readFile(new URL('src/premium-surfaces.css',root),'utf8')).replace(/\r\n/g,'\n'))
+await writeFile(new URL('premium-surfaces.css',output),(await readFile(new URL('src/premium-surfaces.css',root),'utf8')).replace(/\r\n/g,'\n')+(android?'\n'+(await readFile(new URL('src/google-memberships.css',root),'utf8')).replace(/\r\n/g,'\n'):''))
 await copyFile(new URL('generated/website-ui.css', root), new URL('website-ui.css', output))
 await mkdir(new URL('brand/courts/',output),{recursive:true})
 await mkdir(new URL('brand/approved/',output),{recursive:true})

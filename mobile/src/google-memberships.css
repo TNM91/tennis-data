@@ -1,0 +1,25 @@
+.google-membership-panel .google-pro-heading{display:flex;align-items:center;gap:14px;padding:0;margin:0;border:0;background:transparent;box-shadow:none}
+.account-settings-dialog .google-pro-heading h2{margin:0;font-size:1.25rem;letter-spacing:-.02em}
+.account-settings-dialog .google-pro-heading p{margin:4px 0 0;font-size:.8125rem;line-height:1.5}
+.google-pro-mark{display:grid;place-items:center;flex:none;inline-size:48px;block-size:48px;border:1px solid var(--premium-line);border-radius:14px;background:var(--premium-inset);color:var(--premium-lime);font-size:.75rem;font-weight:800;letter-spacing:.08em}
+.google-pro-includes{display:grid;gap:0;margin:20px 0;padding:0;list-style:none}
+.google-pro-includes li{display:flex;align-items:center;gap:12px;padding:12px 0;border-block-end:1px solid var(--premium-line);min-inline-size:0}
+.google-pro-includes li:last-child{border:0}
+.google-pro-includes svg{inline-size:22px;block-size:22px;flex:none;color:var(--premium-ice)}
+.google-pro-includes span{display:grid;gap:4px;min-inline-size:0}
+.google-pro-includes strong{font-size:.9375rem;font-weight:650}
+.google-pro-includes small{margin:0;color:var(--premium-copy);font-size:.75rem;line-height:1.5}
+.google-membership-panel [data-google-status]:empty,.google-membership-panel [data-google-error]:empty{display:none}
+.google-membership-panel [data-google-status],.google-membership-panel [data-google-error]{line-height:1.5;overflow-wrap:anywhere}
+.account-settings-dialog .google-membership-panel .google-pro-price{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;margin:18px 0 12px;color:var(--premium-white)}
+.google-pro-price strong{font-size:2.5rem;font-weight:750;letter-spacing:-.04em;line-height:1.1}
+.google-pro-price span{color:var(--premium-copy);font-size:.875rem}
+.google-membership-panel .google-pro-buy{inline-size:100%;min-block-size:50px;margin:0;padding:14px 16px;border:0;border-radius:14px;background:var(--premium-lime);color:var(--premium-page);font:inherit;font-weight:750;line-height:1.4;white-space:normal}
+.google-membership-panel button:disabled{opacity:.55;cursor:wait}
+.google-membership-panel .google-pro-recovery{display:grid;gap:8px;margin-block:18px 6px}
+.google-membership-panel .google-pro-recovery button.secondary,.google-membership-panel [data-google-retry]{min-block-size:48px;margin:0;padding:12px 14px;border:1px solid var(--premium-line);border-radius:12px;background:var(--premium-inset);color:var(--premium-ice);font-size:.8125rem;line-height:1.5;white-space:normal}
+.account-settings-dialog .google-membership-panel .google-pro-terms{margin-block:12px;font-size:.75rem;line-height:1.6}
+.account-settings-dialog .google-membership-panel .google-pro-test{color:var(--premium-lime);font-size:.75rem;line-height:1.5}
+.account-settings-dialog .google-membership-panel .google-pro-active{color:var(--premium-lime);font-size:1.125rem;font-weight:700}
+.google-membership-panel button:focus-visible{outline:2px solid var(--premium-ice);outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.google-membership-panel *{scroll-behavior:auto}}
