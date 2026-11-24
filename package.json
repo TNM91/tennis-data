@@ -133,6 +133,7 @@
     "@vercel/functions": "^3.9.5",
     "@vercel/speed-insights": "^2.0.0",
     "framer-motion": "^12.38.0",
+    "jose": "6.2.3",
     "next": "16.4.6",
     "node-fetch": "2.7.0",
     "qrcode": "^1.5.4",
