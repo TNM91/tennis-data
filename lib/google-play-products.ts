@@ -2,6 +2,8 @@ import {APPLE_PRO_PRODUCT} from './apple-membership-products'
 import {FIRST_PARTY_COMPETITION_FEES} from './first-party-competition-prices'
 
 export const GOOGLE_PLAY_PACKAGE='com.tenaceiq.app'
+export const GOOGLE_SUBSCRIPTION_STATES=['SUBSCRIPTION_STATE_ACTIVE','SUBSCRIPTION_STATE_IN_GRACE_PERIOD','SUBSCRIPTION_STATE_CANCELED','SUBSCRIPTION_STATE_EXPIRED','SUBSCRIPTION_STATE_ON_HOLD','SUBSCRIPTION_STATE_PAUSED','SUBSCRIPTION_STATE_PENDING','SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED'] as const
+export type GoogleSubscriptionState=typeof GOOGLE_SUBSCRIPTION_STATES[number]
 // Reuse the approved commercial terms. Google products/offers must be configured separately.
 export const GOOGLE_PLAY_PRODUCTS=[
  {kind:'pro',id:APPLE_PRO_PRODUCT.productId,type:'subs',name:APPLE_PRO_PRODUCT.name,amountCents:APPLE_PRO_PRODUCT.expectedUSPriceCents,basePlanId:'monthly',purchaseOptionId:null},

@@ -43,11 +43,23 @@ The purchase controller supports cancellation, pending approval, automatic recov
 
 The server-side reader exchanges a scoped, short-lived service-account assertion with Google and checks the canonical `subscriptionsv2` or `productsv2` resource through fixed HTTPS endpoints. It validates the account binding, event-attempt binding, approved offer, region, quantity, test/production scope, refunds and current subscription state. Cancelled auto-renewal keeps its remaining paid period; on-hold, paused and expired states do not grant access. It returns verification evidence, not an entitlement grant.
 
-Checkout is **not mounted in the app**. The authenticated fulfillment endpoints, separate Google purchase ledger, entitlement integration, server acknowledgement/consumption, refund handling and authenticated real-time developer notifications still need to be completed before activation. No schema, production environment or Apple purchase behavior was changed in this pass. This deliberately leaves purchases inactive until fulfillment is complete; providing credentials alone must not enable checkout.
+Checkout is **not mounted in the app**. Pro now has an authenticated preparation/reconciliation API, a separate private ledger migration, account-scoped entitlement integration and server acknowledgment after the grant is saved. This rollout accepts only server-approved license-test accounts and test purchases. Production mode, league/tournament fulfillment and authenticated real-time developer notifications remain disabled or incomplete. The migration and API must be released before enabling their flags; no production schema or environment was changed during local implementation.
 
 Server-only configuration for the reader is `GOOGLE_PLAY_ENABLED=true`, `GOOGLE_PLAY_PURCHASE_MODE=test|production`, `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL` and secret `GOOGLE_PLAY_PRIVATE_KEY`. None belongs in a public environment variable, native bundle or committed environment file. This reader has no write operation and cannot settle or refund a purchase.
 
 The `.dev` developer package cannot purchase production products. License testing needs the production package on the appropriate Google Play test track, matching signing configuration and configured products/base plan/purchase options. A passing emulator build does not establish Google sandbox billing acceptance.
+
+### Pro fulfillment rollout
+
+`supabase/migrations/20261123000100_google_pro_purchase_fulfillment.sql` creates `tenaceiq_google` with account bindings, a token-hash ledger and short-lived operation leases. Raw Google purchase tokens are not stored. All tables are private even to direct service-role queries; audited service-only RPCs perform writes. The migration preserves Apple's store-specific records, extends the existing self-only native RLS entry point, and adds Google's exact schema/cascade checks to the existing deletion audit without replacing its prior checks or function attributes.
+
+`/api/mobile/google-purchases` authenticates every request. Preparation rechecks existing web, Apple and Google access before returning a stable account binding. Reconciliation verifies Google's current status, saves Pro access, acknowledges the subscription, then returns a settled receipt bound to the exact owner and token hash. An acknowledgment failure leaves a recoverable saved grant and blocks another purchase. Retries reverify current status, preserve known acknowledgment/replacement history and never replay a stale access decision. Inactive or refunded grants are closed without acknowledging a rejected payment.
+
+Paused and on-hold subscriptions remove Pro access while blocking a second subscription through either native store. After verified expiry, a new purchase can be offered again. Production notifications are still required to keep those decisions current when the app is closed.
+
+The API requires `GOOGLE_PLAY_FULFILLMENT_ENABLED=true`, `GOOGLE_PLAY_ENTITLEMENTS_ENABLED=true`, the reader's server-only credentials, and `GOOGLE_PLAY_PURCHASE_MODE=test`. The private account must also be approved for license testing. Production mode is rejected even if these flags are set. `GOOGLE_PLAY_ENTITLEMENTS_ENABLED` controls the combined access-reader rollout separately from checkout: once paid access is activated, keep it enabled when pausing new purchases.
+
+Release order: verify existing Apple/deletion checks; apply the migration; release the API with flags off; configure Google products and license testers; approve only the designated test accounts; enable test flags; wire and accept the native Pro checkout. Complete authenticated notifications, refund/revocation handling, event publication, deletion/billing disclosures and production eligibility before enabling real payments. Do not remove the new schema without a reviewed reverse migration: the deletion audit and native RLS entry point depend on it after installation.
 
 ### Remaining launch gates
 

@@ -1,6 +1,6 @@
 import 'server-only'
 import {createHash,createHmac} from 'node:crypto'
-import {googleBinding,googlePlayProduct,googlePurchaseToken,type GooglePlayProduct} from './google-play-products'
+import {GOOGLE_SUBSCRIPTION_STATES,googleBinding,googlePlayProduct,googlePurchaseToken,type GooglePlayProduct,type GoogleSubscriptionState} from './google-play-products'
 
 export class GooglePurchaseVerificationError extends Error {
  constructor(code:'google_purchase_mismatch'|'google_purchase_pending'|'google_test_purchase'){super(code)}
@@ -24,7 +24,7 @@ export function googleEventBinding(owner:string,kind:'league'|'tournament',targe
  return createHmac('sha256',secret).update(['tenaceiq:google:event:v1',owner.toLowerCase(),kind,target.toLowerCase(),attempt.toLowerCase()].join(':')).digest('hex')
 }
 export type GooglePurchaseExpectation={productId:string;purchaseToken:string;accountId:string;profileId:string|null;allowTest:boolean}
-export type VerifiedGooglePurchase={productId:string;kind:GooglePlayProduct['kind'];tokenHash:string;accountId:string;profileId:string|null;environment:'Test'|'Production';active:boolean;acknowledged:boolean;consumed:boolean;expiresAt:number|null;purchasedAt:number;linkedTokenHash:string|null}
+export type VerifiedGooglePurchase={productId:string;kind:GooglePlayProduct['kind'];tokenHash:string;accountId:string;profileId:string|null;environment:'Test'|'Production';subscriptionState:GoogleSubscriptionState|null;active:boolean;acknowledged:boolean;consumed:boolean;expiresAt:number|null;purchasedAt:number;linkedTokenHash:string|null}
 export function verifiedGooglePurchase(value:unknown,expected:GooglePurchaseExpectation,now=Date.now()):VerifiedGooglePurchase {
  const product=googlePlayProduct(expected.productId),data=object(value)
  if(!product||!googlePurchaseToken(expected.purchaseToken)||!googleBinding(expected.accountId)||(product.kind==='pro'?expected.profileId!==null:!googleBinding(expected.profileId))||data.regionCode!=='US')return mismatch()
@@ -35,13 +35,13 @@ export function verifiedGooglePurchase(value:unknown,expected:GooglePurchaseExpe
  if(identifiers.obfuscatedExternalAccountId!==expected.accountId||(identifiers.obfuscatedExternalProfileId??null)!==expected.profileId)return mismatch()
  const acknowledged=data.acknowledgementState==='ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED'
  if(!acknowledged&&data.acknowledgementState!=='ACKNOWLEDGEMENT_STATE_PENDING')return mismatch()
- let active=false,expiresAt:number|null=null,consumed=false,purchasedAt:number,linkedTokenHash:string|null=null
+ let active=false,expiresAt:number|null=null,consumed=false,purchasedAt:number,linkedTokenHash:string|null=null,subscriptionState:GoogleSubscriptionState|null=null
  if(subscription){
   if(!Array.isArray(data.lineItems)||data.lineItems.length!==1)return mismatch()
   const line=object(data.lineItems[0]),offer=object(line.offerDetails),plan=object(line.autoRenewingPlan)
   if(line.productId!==product.id||offer.basePlanId!==product.basePlanId||offer.offerId!==undefined||typeof plan.autoRenewEnabled!=='boolean'||line.prepaidPlan!==undefined)return mismatch()
-  const states=['SUBSCRIPTION_STATE_ACTIVE','SUBSCRIPTION_STATE_IN_GRACE_PERIOD','SUBSCRIPTION_STATE_CANCELED','SUBSCRIPTION_STATE_EXPIRED','SUBSCRIPTION_STATE_ON_HOLD','SUBSCRIPTION_STATE_PAUSED','SUBSCRIPTION_STATE_PENDING','SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED']
-  if(!states.includes(String(data.subscriptionState)))return mismatch()
+  if(!GOOGLE_SUBSCRIPTION_STATES.some(state=>state===data.subscriptionState))return mismatch()
+  subscriptionState=data.subscriptionState as GoogleSubscriptionState
   if(data.subscriptionState==='SUBSCRIPTION_STATE_PENDING')throw new GooglePurchaseVerificationError('google_purchase_pending')
   purchasedAt=timestamp(data.startTime,now)
   expiresAt=instant(line.expiryTime);if(expiresAt<purchasedAt)return mismatch()
@@ -58,5 +58,5 @@ export function verifiedGooglePurchase(value:unknown,expected:GooglePurchaseExpe
   purchasedAt=timestamp(data.purchaseCompletionTime,now)
   active=state==='PURCHASED'&&offer.refundableQuantity===1
  }
- return {productId:product.id,kind:product.kind,tokenHash:createHash('sha256').update(expected.purchaseToken).digest('hex'),accountId:expected.accountId,profileId:expected.profileId,environment:test?'Test':'Production',active,acknowledged,consumed,expiresAt,purchasedAt,linkedTokenHash}
+ return {productId:product.id,kind:product.kind,tokenHash:createHash('sha256').update(expected.purchaseToken).digest('hex'),accountId:expected.accountId,profileId:expected.profileId,environment:test?'Test':'Production',subscriptionState,active,acknowledged,consumed,expiresAt,purchasedAt,linkedTokenHash}
 }

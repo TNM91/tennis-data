@@ -17,19 +17,23 @@ async function boundedJson(response:Response,maximum=65536){
  const reader=response.body.getReader(),decoder=new TextDecoder();let bytes=0,text=''
  try{for(;;){const next=await reader.read();if(next.done)break;bytes+=next.value.length;if(bytes>maximum){await reader.cancel();throw Error('google_verification_unavailable')}text+=decoder.decode(next.value,{stream:true})}text+=decoder.decode();const data=JSON.parse(text);if(!data||typeof data!=='object'||Array.isArray(data))throw Error();return data as Record<string,unknown>}catch{throw Error('google_verification_unavailable')}finally{reader.releaseLock()}
 }
+export async function googlePublisherAuthorization(config:GooglePlayConfiguration,send:typeof fetch=fetch,now=Date.now()){
+  const seconds=Math.floor(now/1000),encoded=(value:object)=>Buffer.from(JSON.stringify(value)).toString('base64url')
+  const unsigned=encoded({alg:'RS256',typ:'JWT'})+'.'+encoded({iss:config.email,scope,aud:tokenUrl,iat:seconds,exp:seconds+300})
+  const assertion=unsigned+'.'+sign('RSA-SHA256',Buffer.from(unsigned),config.key).toString('base64url')
+  const auth=await boundedJson(await send(tokenUrl,{method:'POST',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000),headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion})}),8192)
+  if(auth.token_type!=='Bearer'||typeof auth.access_token!=='string'||!/^[-._~+\/=A-Za-z0-9]{16,4096}$/.test(auth.access_token)||typeof auth.expires_in!=='number'||auth.expires_in<=0||auth.expires_in>3600)throw Error('google_verification_unavailable')
+  return 'Bearer '+auth.access_token
+}
 // This reader cannot acknowledge, consume, refund, or grant access. Durable fulfillment must come first.
 export function googlePurchaseReader(config:GooglePlayConfiguration,send:typeof fetch=fetch){
  return {async verify(expected:GooglePurchaseExpectation,now=Date.now()){
   try{
   const product=googlePlayProduct(expected.productId)
   if(!product||!googlePurchaseToken(expected.purchaseToken))throw Error('google_purchase_mismatch')
-  const seconds=Math.floor(now/1000),encoded=(value:object)=>Buffer.from(JSON.stringify(value)).toString('base64url')
-  const unsigned=encoded({alg:'RS256',typ:'JWT'})+'.'+encoded({iss:config.email,scope,aud:tokenUrl,iat:seconds,exp:seconds+300})
-  const assertion=unsigned+'.'+sign('RSA-SHA256',Buffer.from(unsigned),config.key).toString('base64url')
-  const auth=await boundedJson(await send(tokenUrl,{method:'POST',redirect:'error',signal:AbortSignal.timeout(10000),headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion})}),8192)
-  if(auth.token_type!=='Bearer'||typeof auth.access_token!=='string'||!/^[-._~+\/=A-Za-z0-9]{16,4096}$/.test(auth.access_token)||typeof auth.expires_in!=='number'||auth.expires_in<=0||auth.expires_in>3600)throw Error('google_verification_unavailable')
+  const authorization=await googlePublisherAuthorization(config,send,now)
   const resource=product.type==='subs'?'subscriptionsv2':'productsv2',url=`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${GOOGLE_PLAY_PACKAGE}/purchases/${resource}/tokens/${encodeURIComponent(expected.purchaseToken)}`
-  const data=await boundedJson(await send(url,{method:'GET',redirect:'error',signal:AbortSignal.timeout(10000),headers:{Authorization:'Bearer '+auth.access_token}}))
+  const data=await boundedJson(await send(url,{method:'GET',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000),headers:{Authorization:authorization}}))
   const verified=verifiedGooglePurchase(data,{...expected,allowTest:config.mode==='test'&&expected.allowTest},now)
   if(config.mode==='test'&&verified.environment!=='Test')throw Error('google_purchase_mismatch')
   return verified

@@ -6,7 +6,7 @@ import {APPLE_MEMBERSHIP_SCOPE_HEADER,APPLE_PRO_PRODUCT,APPLE_PRO_SCOPE,appleMem
 import {DEFAULT_ENTITLEMENTS,buildProductAccessState} from './access-model-core'
 import {normalizeSubscriptionStatus} from './subscription-status'
 import {normalizeUserRole} from './roles'
-import {appleUuid,appleTransactionId,type AppleEnvironment} from './apple-purchase-contract'
+import {appleUuid,appleTransactionId,mergeAppleAccess,type AppleEnvironment} from './apple-purchase-contract'
 import {applePurchaseConfiguration,appleVerification,currentAppleMembership,type ApplePurchaseConfiguration} from './apple-purchase-server'
 export type ApplePurchaseContext={owner:string;service:SupabaseClient;config:ApplePurchaseConfiguration;accountToken:string|null;webBlocked:boolean;activeProductId:string|null;canPurchase:boolean;pro?:boolean}
 export const appleUnavailable=()=>accountResponse({ok:false,code:'apple_unavailable',message:'Apple membership is temporarily unavailable. Your purchase can be synced later.'},503)
@@ -17,20 +17,22 @@ export async function applePurchaseContext(request:Request):Promise<{response:Re
  if(!base||!key)return {context:null}
  const service=accountClient(key),ready=await service.rpc('apple_purchase_catalog_ready')
  if(ready.error||ready.data!==true)return {response:appleUnavailable()}
- const [profile,account,access]=await Promise.all([
+ const [profile,account,access,google]=await Promise.all([
   service.from('profiles').select('role,stripe_subscription_id,player_plus_subscription_active,player_plus_subscription_status,player_plus_access_expires_at,coach_subscription_active,coach_subscription_status,coach_access_expires_at,captain_subscription_active,captain_subscription_status,captain_access_expires_at,tiq_team_league_entry_enabled,tiq_individual_league_creator_enabled,league_access_expires_at').eq('id',identity.user.id).maybeSingle(),
-  service.rpc('apple_purchase_account',{p_owner:identity.user.id}),service.rpc('apple_purchase_access',{p_owner:identity.user.id})
+  service.rpc('apple_purchase_account',{p_owner:identity.user.id}),service.rpc('apple_purchase_access',{p_owner:identity.user.id}),
+  process.env.GOOGLE_PLAY_ENTITLEMENTS_ENABLED==='true'?service.rpc('google_purchase_access',{p_owner:identity.user.id}):Promise.resolve({data:null,error:null})
  ])
  if(profile.error||!profile.data||account.error||access.error||!access.data||access.data.ownerId!==identity.user.id||account.data&&account.data.ownerId!==identity.user.id)return {response:appleUnavailable()}
+ if(google.error||process.env.GOOGLE_PLAY_ENTITLEMENTS_ENABLED==='true'&&(!google.data||google.data.ownerId!==identity.user.id||typeof google.data.purchaseBlocked!=='boolean'||google.data.proExpiresAt!==null&&(typeof google.data.proExpiresAt!=='string'||!Number.isFinite(Date.parse(google.data.proExpiresAt)))))return {response:appleUnavailable()}
  if(base.mode==='sandbox'&&account.data?.sandboxEnabled!==true)return {context:null}
  const wantsPro=request.headers.get(APPLE_MEMBERSHIP_SCOPE_HEADER)===APPLE_PRO_SCOPE
  const pro=wantsPro&&Object.hasOwn(access.data,'proExpiresAt')
  const config={...base,environment:(account.data?.sandboxEnabled===true?'Sandbox':'Production') as AppleEnvironment}
  const row=profile.data,web={...DEFAULT_ENTITLEMENTS,playerPlusSubscriptionActive:row.player_plus_subscription_active===true,playerPlusSubscriptionStatus:normalizeSubscriptionStatus(row.player_plus_subscription_status),playerPlusAccessExpiresAt:row.player_plus_access_expires_at,coachSubscriptionActive:row.coach_subscription_active===true,coachSubscriptionStatus:normalizeSubscriptionStatus(row.coach_subscription_status),coachAccessExpiresAt:row.coach_access_expires_at,captainSubscriptionActive:row.captain_subscription_active===true,captainSubscriptionStatus:normalizeSubscriptionStatus(row.captain_subscription_status),captainAccessExpiresAt:row.captain_access_expires_at,tiqTeamLeagueEntryEnabled:row.tiq_team_league_entry_enabled===true,tiqIndividualLeagueCreatorEnabled:row.tiq_individual_league_creator_enabled===true,leagueAccessExpiresAt:row.league_access_expires_at}
- const known=buildProductAccessState(normalizeUserRole(row.role),web)
+ const known=buildProductAccessState(normalizeUserRole(row.role),google.data?mergeAppleAccess(web,{playerExpiresAt:google.data.proExpiresAt,captainExpiresAt:google.data.proExpiresAt,proExpiresAt:google.data.proExpiresAt}):web)
  const webStatuses=pro?[row.coach_subscription_status,row.captain_subscription_status]:[row.player_plus_subscription_status,row.coach_subscription_status,row.captain_subscription_status]
  const unresolvedWeb=!!row.stripe_subscription_id&&webStatuses.some(v=>['active','trial','trialing','past_due'].includes(String(v)))
- const webBlocked=(pro?known.canUseCoachWorkflow||known.canUseCaptainWorkflow:known.canUseAdvancedPlayerInsights||known.canUseLeagueTools)||unresolvedWeb
+ const webBlocked=(pro?known.canUseCoachWorkflow||known.canUseCaptainWorkflow:known.canUseAdvancedPlayerInsights||known.canUseLeagueTools)||unresolvedWeb||google.data?.purchaseBlocked===true
  const activeProductId=pro&&access.data.proExpiresAt?APPLE_PRO_PRODUCT.productId:access.data.captainExpiresAt?'com.tenaceiq.app.captain.monthly':access.data.playerExpiresAt?'com.tenaceiq.app.player.monthly':null
  return {context:{owner:identity.user.id,service,config,accountToken:account.data?.accountToken||null,webBlocked,activeProductId,canPurchase:base.mode!=='off'&&(!wantsPro||pro)&&!webBlocked&&!activeProductId,pro}}
 }

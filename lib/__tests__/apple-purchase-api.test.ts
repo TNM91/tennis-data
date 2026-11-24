@@ -21,6 +21,18 @@ function fixture(){
 }
 beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','synthetic-server-key')})
 afterEach(()=>vi.unstubAllEnvs())
+
+it('blocks a second store subscription when verified Google Pro is already active',async()=>{
+ const f=fixture();vi.stubEnv('GOOGLE_PLAY_ENTITLEMENTS_ENABLED','true')
+ f.values.google_purchase_access={data:{ownerId:owner,proExpiresAt:new Date(Date.now()+86400000).toISOString(),purchaseBlocked:true},error:null}
+ const loaded=await applePurchaseContext(request());if('response'in loaded||!loaded.context)throw Error('Fixture unavailable')
+ expect(loaded.context.webBlocked).toBe(true);expect(loaded.context.canPurchase).toBe(false)
+ expect((await prepareApplePurchase(loaded.context,sku)).status).toBe(409)
+ f.values.google_purchase_access.data={ownerId:owner,proExpiresAt:null,purchaseBlocked:true}
+ const paused=await applePurchaseContext(request());expect('context'in paused&&paused.context?.canPurchase).toBe(false)
+ f.values.google_purchase_access.data=null
+ const unavailable=await applePurchaseContext(request());expect('response'in unavailable&&unavailable.response.status).toBe(503)
+})
 describe('Apple purchase server account boundary',()=>{
  it('authenticates even when off and never reaches the database while disabled',async()=>{
   const f=fixture();m.config.mockReturnValue(null);expect(await applePurchaseContext(request())).toEqual({context:null});expect(f.rpc).not.toHaveBeenCalled();m.identity.mockResolvedValue(null);const r=await applePurchaseContext(request());expect('response'in r&&r.response.status).toBe(401)

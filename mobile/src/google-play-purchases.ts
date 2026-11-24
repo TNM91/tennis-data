@@ -17,7 +17,7 @@ export type GooglePlayFulfillment={
  reconcile:(owner:string,transaction:GooglePlayTransaction,operationId:string)=>Promise<unknown>
 }
 export const NativeGooglePlay=registerPlugin<GooglePlayStore>('TiqGooglePurchases')
-const errorCodes=new Set(['google_store_unavailable','google_products_unavailable','google_purchase_in_progress','google_purchase_sync_pending','google_existing_purchase','google_account_mismatch','google_existing_access','google_purchase_pending','google_unavailable','owner_changed'])
+const errorCodes=new Set(['google_store_unavailable','google_products_unavailable','google_purchase_in_progress','google_purchase_sync_pending','google_existing_purchase','google_account_mismatch','google_existing_access','google_purchase_pending','google_unavailable','owner_changed','sign_in_required','try_later'])
 export class GooglePlayPurchaseError extends Error {
  constructor(code:string){super(errorCodes.has(code)?code:'google_unavailable')}
 }
