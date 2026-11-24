@@ -35,7 +35,39 @@ Debug builds permit local WebView inspection. Release builds disable it, reject 
 
 ## Before Google Play testing and launch
 
+### Current release checkpoint
+
+The latest native package is **Android developer build 3**. Its developer APK is signed for `com.tenaceiq.app.dev`; its `com.tenaceiq.app` release AAB is unsigned. Neither is a published Google Play test release. The current Apple submission is managed independently.
+
+| Area | Verified evidence | Remaining work |
+| --- | --- | --- |
+| Shared app and Android Pro screen | Build 3 compiled and passed release lint; 88 Apple/Google phone browser checks passed | Physical Android acceptance and Google Play install |
+| Pro preparation and reconciliation API | Deployed with Google configuration absent | Install the purchase-ledger migration, configure Google and approve designated test accounts |
+| Background Pro lifecycle | Local commit `d49b3cf78e2a5ed2d9c8673d4d191dc09b6126ba`; 6,579 unit tests, production build and three local API checks passed | Install the notification migration, release the endpoint inactive, configure authenticated Pub/Sub and accept real delivery |
+| League and tournament payments | Catalog, native purchase controller and canonical reader exist | Android event fulfillment and publication, including refund/revocation acceptance |
+| Notifications, verified links and app lock | Shared routes and plugins exist | Android push delivery, final signing certificate/domain association, Android biometric implementation and device checks |
+| Play Console and signing | Account readiness is unconfirmed; no protected Play upload signing is configured | Verify account/business identity, package ownership, signing and test-track access |
+
+Check the verification records under `output/google-membership-ui-20261123/` and `output/google-pro-notifications-20261123/` in the main checkout when preparing a release. These records distinguish synthetic/local checks from real Google billing acceptance. Building an unsigned AAB or passing browser checks does not satisfy the live gates.
+
+### Immediate setup order
+
+1. Open [Google Play Console](https://play.google.com/console/) using the intended owner account. Confirm whether the developer account already exists and whether identity verification is complete. If creating one, the owner must complete the applicable identity, agreement and payment steps. Choose the account type that matches the actual owner; do not choose a different type to avoid testing requirements. See [Google's account setup guide](https://support.google.com/googleplay/android-developer/answer/6112435?hl=en) and [account types](https://support.google.com/googleplay/android-developer/answer/13634885?hl=en).
+2. Make TenAceIQ's Supabase SQL Editor accessible, verify the existing Apple/deletion audits, then apply `20261123000100_google_pro_purchase_fulfillment.sql` followed by `20261123000200_google_pro_notifications.sql`. Keep Google checkout inactive during migration and configuration. Recheck all purchase/deletion audits afterward.
+3. Confirm `com.tenaceiq.app` in Play Console and configure protected upload signing and Play App Signing before preparing an upload. The `.dev` APK is for development and the unsigned AAB is an intermediate artifact.
+4. Configure the monthly Pro product/base plan from the catalog below, publisher API access, authenticated Pub/Sub and designated license testers. Finish the inactive backend release before enabling only the reviewed test configuration. Real payment mode remains unavailable.
+5. Upload a signed production-package bundle to the internal test track, distribute its opt-in link, and accept Pro purchase, pending approval, restore, cancellation, renewal, hold/recovery and refund/revocation on an Android device. Use a Google Play test payment method. Internal testers and license testers are separate settings; an internal-test install alone does not prevent real charges. See [Google's billing test guide](https://developer.android.com/google/play/billing/test).
+6. Complete the remaining app and store gates before a public Android release, including event purchases, push/deep links, permissions/accessibility, listing and Data safety declarations. For personal developer accounts created after November 13, 2023, Google requires at least 12 closed testers opted in continuously for at least 14 days before applying for production access. An internal test does not satisfy that closed-test requirement. Confirm the actual account's requirement in Play Console and [Google's testing policy](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en).
+
 ### Purchase implementation status
+
+The approved catalog is below. These amounts configure the products; the app displays Google's verified localized price. Player remains free and Pro combines Captain and Coach tools.
+
+| Product | Google product ID | US amount | Base plan / purchase option | Android activation |
+| --- | --- | --- | --- | --- |
+| Pro | `com.tenaceiq.app.pro.monthly` | $4.99/month | `monthly` | Pro license testing after setup and acceptance |
+| Publish tournament | `com.tenaceiq.app.tournament.publish` | $5.00/event | `standard` | Keep unavailable until event fulfillment passes |
+| Publish league | `com.tenaceiq.app.league.publish` | $25.00/season | `standard` | Keep unavailable until event fulfillment passes |
 
 The Android project now includes Google Play Billing 9.1.0 through `TiqGooglePurchases`. Its product catalog is generated from the approved Pro and event prices. It selects the monthly Pro base plan (`monthly`) and single-event purchase options (`standard`) and returns Google's formatted price only when the product, USD amount and subscription period match. No fallback price is displayed.
 
@@ -82,7 +114,7 @@ A test-track install alone does not prevent real charges. Confirm the Google Acc
 ### Remaining launch gates
 
 1. Confirm the owner's Play Console account and business identity, reserve the production package, and set up protected signing and Play App Signing. The local release bundle is unsigned and no Play upload is configured.
-2. Implement and verify Google Play billing for Pro and event purchases, including pending/cancelled purchases, server verification, restore/reconciliation and existing subscriber access. The current Apple purchase bridge is iOS-specific. Do not advertise working Android purchases until that flow passes.
+2. Accept the implemented Google Pro purchase, restore and lifecycle flows on the real Play test track. Finish Android league/tournament fulfillment and publication, including pending/cancelled purchases, canonical verification and refund/revocation handling. Keep Android payments unavailable until each applicable flow passes.
 3. Add the Android push configuration and notification channels, runtime permission, token registration, delivery and notification navigation. Having the Capacitor push plugin installed does not establish working Android notifications.
 4. Verify Android link ownership with the final signing certificates and a production `assetlinks.json`. The manifest contains supported HTTPS routes, but verified App Links are not yet established. Test account recovery and invitation handoffs on a device.
 5. Complete Android permissions, keyboard/Back behavior, edge-to-edge layouts, background/resume, offline/session storage, media selection, sharing, location/maps and accessibility testing. Android biometric locking needs a separate implementation; the present app-lock bridge is iOS-specific.
