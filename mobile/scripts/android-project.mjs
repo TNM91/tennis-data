@@ -36,6 +36,9 @@ export const androidManifest=`<?xml version="1.0" encoding="utf-8"?>
   <application android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules"
       android:usesCleartextTraffic="false" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
       android:label="@string/app_name" android:supportsRtl="true" android:theme="@style/AppTheme">
+    <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="tenaceiq_activity" />
+    <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+    <meta-data android:name="firebase_analytics_collection_deactivated" android:value="true" />
     <activity android:name=".MainActivity" android:label="@string/title_activity_main" android:theme="@style/AppTheme.NoActionBarLaunch"
         android:exported="true" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize"
         android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density">

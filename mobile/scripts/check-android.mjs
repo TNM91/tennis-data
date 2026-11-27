@@ -5,6 +5,7 @@ import {resolve} from 'node:path'
 import {createHash} from 'node:crypto'
 import {checkAndroidConfig} from './android-project.mjs'
 import {googleBillingJava,googleBillingVersion} from './android-google-billing.mjs'
+import {checkAndroidFirebaseConfig} from './android-firebase.mjs'
 const mobile=fileURLToPath(new URL('../',import.meta.url)),project=resolve(mobile,'android'),read=name=>readFile(resolve(project,name),'utf8'),hash=data=>createHash('sha256').update(data).digest('hex')
 const config=JSON.parse(await read('app/src/main/assets/capacitor.config.json')),scope=JSON.parse(await read('app/src/main/assets/public/android-release.json'))
 checkAndroidConfig(config,scope)
@@ -19,5 +20,9 @@ assert.match(await read('app/src/main/java/com/tenaceiq/app/MainActivity.java'),
 assert.ok(gradle.includes(`implementation "com.android.billingclient:billing:${googleBillingVersion}"`))
 assert.equal(await read('app/src/main/java/com/tenaceiq/app/TiqGooglePurchases.java'),await googleBillingJava())
 const activity=await read('app/src/main/java/com/tenaceiq/app/MainActivity.java')
+let firebase=null
+try { firebase=await readFile(resolve(project,'app/google-services.json')) } catch(error) { if(error?.code!=='ENOENT')throw error }
+if(firebase)checkAndroidFirebaseConfig(firebase)
+assert.match(manifest,/com\.google\.firebase\.messaging\.default_notification_channel_id/)
 assert.ok(activity.indexOf('registerPlugin(TiqGooglePurchases.class)')>=0&&activity.indexOf('registerPlugin(TiqGooglePurchases.class)')<activity.indexOf('super.onCreate'))
 console.log(JSON.stringify({platform:'android',profile:'first-party-full',distribution:scope.distribution,targetSdk:36,bundledAssetsMatch:true,approvedIconBytesMatch:true,sourceChecksPassed:true,googlePlaySubmissionReady:false}))

@@ -6,6 +6,7 @@ import {spawnSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {androidAppId} from './native-bundle-target.mjs'
 import {googleBillingJava} from './android-google-billing.mjs'
+import {checkAndroidFirebaseConfig} from './android-firebase.mjs'
 import {checkAndroidConfig,androidGradle,androidManifest,androidDataExtraction,androidMainActivity,androidLegacyIcon,androidAdaptiveIcon,androidStyles,androidStyles27,androidStyles29} from './android-project.mjs'
 
 const mobile=fileURLToPath(new URL('../',import.meta.url)),project=resolve(mobile,'android'),marker=resolve(project,'.tenaceiq-project.json')
@@ -35,6 +36,12 @@ const files={
   'app/src/main/res/values-v27/styles.xml':androidStyles27,
   'app/src/main/res/values-v29/styles.xml':androidStyles29,
   'app/src/main/res/drawable-nodpi/tenaceiq_app_icon.png':await readFile(new URL('../../public/brand/approved/TiQ_AppIcon_Approved.png',import.meta.url)),
+}
+const firebasePath=process.env.TIQ_ANDROID_GOOGLE_SERVICES_FILE?.trim()
+if(firebasePath || previous?.files?.['app/google-services.json']){
+  const firebase=await readFile(firebasePath?resolve(firebasePath):resolve(project,'app/google-services.json'))
+  checkAndroidFirebaseConfig(firebase)
+  files['app/google-services.json']=firebase
 }
 for(const name of ['ic_launcher','ic_launcher_round']){
   files[`app/src/main/res/mipmap-anydpi/${name}.xml`]=androidLegacyIcon

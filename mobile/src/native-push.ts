@@ -13,6 +13,7 @@ import {pushCoachDestination} from './coach-alert-handoff'
 import {coachActivityHeader, coachActivityVersion, readCoachActivityPush} from '../../lib/coach-activity'
 import type {ChatUnread} from './chat-unread'
 import {readAppLink} from './app-links'
+import {androidPushToken} from '../../lib/native-activity-push-token'
 type Installation={id:string;secret:string;owner:string}
 type PushReply={ok:boolean;available?:boolean}
 export function pushTeamDestination(data:unknown,userId:string):TeamChatDestination|null {
@@ -32,19 +33,20 @@ export function pushHitDestination(data:unknown,userId:string):string|null {
  const href='https://www.tenaceiq.com'+row.href,link=readAppLink(href)
  return link?.kind==='player-chat'&&link.hit?href:null
 }
-export async function nativePushRequest(session:Session,data?:unknown,transport=CapacitorHttp,hits=firstPartyBuild):Promise<PushReply>{
- const options={url:'https://www.tenaceiq.com/api/mobile/'+(hits?'first-party/hit-alerts':'push'),headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',...(hits?{[coachActivityHeader]:coachActivityVersion}:{})},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:12000}
+export async function nativePushRequest(session:Session,data?:unknown,transport=CapacitorHttp,hits=firstPartyBuild,platform=Capacitor.getPlatform()):Promise<PushReply>{
+ const options={url:'https://www.tenaceiq.com/api/mobile/'+(hits?platform==='android'?'first-party/android-alerts':'first-party/hit-alerts':'push'),headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',...(hits?{[coachActivityHeader]:coachActivityVersion}:{})},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:12000}
  const response=data===undefined?await transport.get(options):await transport.post({...options,data})
  if(response.status!==200 || response.data?.ok!==true)throw Error('Notification settings could not be saved.')
  return response.data
 }
 export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDestination)=>void,deps:{platform?:string;plugin?:PushNotificationsPlugin;storage?:SupportedStorage;clearDelivered?:()=>Promise<void>;setBadge?:(count:number)=>Promise<{applied:boolean}>;request?:(session:Session,data?:unknown)=>Promise<PushReply>;onCoachOpen?:(conversation:string,owner:string)=>void;onCoachActivityOpen?:(notice:string,owner:string)=>void;onHitOpen?:(href:string,owner:string)=>void;onReceive?:(owner:string)=>void;mountCoachAlerts?:(host:HTMLElement)=>void}={}) {
  const hitAlerts=firstPartyBuild
- const supported=(deps.platform || Capacitor.getPlatform())==='ios'
- const storageKey=hitAlerts?'native-hit-push-installation-v1':'native-push-installation-v1'
+ const platform=deps.platform || Capacitor.getPlatform(),android=platform==='android'&&hitAlerts,supported=platform==='ios'||android
+ const phone=android?'Android phone':'iPhone'
+ const storageKey=android?'native-android-hit-push-installation-v1':hitAlerts?'native-hit-push-installation-v1':'native-push-installation-v1'
  const alertName=hitAlerts?'app notifications':'chat notifications'
- const plugin=deps.plugin || PushNotifications,storage=deps.storage || (supported?getNativeAuthStorage():undefined),request=deps.request || nativePushRequest
- const clearDelivered=deps.clearDelivered || (()=>nativeNotificationCleanup.clearDelivered()),setBadge=deps.setBadge || (count=>nativeNotificationCleanup.setBadge({count}))
+ const plugin=deps.plugin || PushNotifications,storage=deps.storage || (supported?getNativeAuthStorage():undefined),request=deps.request || ((session:Session,data?:unknown)=>nativePushRequest(session,data,CapacitorHttp,hitAlerts,platform))
+ const clearDelivered=deps.clearDelivered || (android?()=>plugin.removeAllDeliveredNotifications():()=>nativeNotificationCleanup.clearDelivered()),setBadge=deps.setBadge || (count=>nativeNotificationCleanup.setBadge({count}))
  let disposed=false,resumeHandle:PluginListenerHandle|null=null,initialized=false,current:Session|null=null,version=0,host:HTMLElement|null=null,installation:Installation|null=null,available=false,busy=false,notice='Checking '+alertName+'…',actionHandle:PluginListenerHandle|null=null,receiptHandle:PluginListenerHandle|null=null
  let pendingAction:unknown=null
  let chain:Promise<unknown>=Promise.resolve()
@@ -72,7 +74,7 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   host.replaceChildren()
   host.setAttribute('aria-label',hitAlerts?'Practice & coaching alerts':'Chat notifications')
   const title=document.createElement('h2');title.textContent=hitAlerts?'Practice & coaching alerts':'Chat notifications'
-  const text=document.createElement('p');text.textContent=hitAlerts?'Get reminders for upcoming hitting plans. Choose coaching activity alerts below. iPhone Settings controls banners and sounds.':'Allow chat notifications on this iPhone. iPhone Settings controls banners, sounds and badges. Team and room mute settings still apply. Coach & player alerts are a separate choice below. Message text stays private.'
+  const text=document.createElement('p');text.textContent=hitAlerts?'Get reminders for upcoming hitting plans. Choose coaching activity alerts below. '+(android?'Android notification settings control':'iPhone Settings controls')+' banners and sounds.':'Allow chat notifications on this iPhone. iPhone Settings controls banners, sounds and badges. Team and room mute settings still apply. Coach & player alerts are a separate choice below. Message text stays private.'
   const status=document.createElement('p');status.setAttribute('role','status');status.textContent=notice
   const button=document.createElement('button');button.type='button';button.className='secondary';button.disabled=busy;button.textContent=installation?.owner===current.user.id?'Turn off '+alertName:available?'Enable '+alertName:'Check '+alertName
   button.onclick=()=>{void enqueue(async()=>{if(!current)return;busy=true;render();try{if(installation?.owner===current.user.id)await disable(current);else await enable(true)}catch{notice='Couldn’t save '+alertName+'. Check your connection and try again.'}finally{busy=false;render()}})}
@@ -93,14 +95,14 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   await request(session,{installationId:device.id,secret:device.secret,enabled:false})
   await plugin.unregister()
   await clearAlerts()
-  device.owner='';await save();notice=hitAlerts?'App notifications are off on this iPhone.':'Chat notifications are off on this iPhone. Your Coach alert choice stays saved.'
+  device.owner='';await save();notice=hitAlerts?'App notifications are off on this '+phone+'.':'Chat notifications are off on this iPhone. Your Coach alert choice stays saved.'
  }
  const getToken=async()=>{
   let done=false,timer:ReturnType<typeof setTimeout>|undefined,resolveToken:(token:string)=>void=()=>{},rejectToken:()=>void=()=>{}
   const result=new Promise<string>((resolve,reject)=>{resolveToken=resolve;rejectToken=()=>reject(Error('Registration unavailable'))})
   const handles:PluginListenerHandle[]=[]
   try{
-   handles.push(await plugin.addListener('registration',token=>{if(!done && /^[a-f0-9]{64,256}$/i.test(token.value)){done=true;resolveToken(token.value.toLowerCase())}}))
+   handles.push(await plugin.addListener('registration',token=>{if(!done && (android?androidPushToken(token.value):/^[a-f0-9]{64,256}$/i.test(token.value))){done=true;resolveToken(android?token.value:token.value.toLowerCase())}}))
    handles.push(await plugin.addListener('registrationError',()=>{if(!done){done=true;rejectToken()}}))
    timer=setTimeout(()=>{if(!done){done=true;rejectToken()}},12000)
    // Attach rejection handling before a synchronous native registration callback.
@@ -120,15 +122,17 @@ export function createNativePush(client:SupabaseClient,onOpen:(scope:TeamChatDes
   if(!valid(session.user.id,epoch))return
   if(permission.receive!=='granted'){
    if(device.owner===session.user.id)await disable(session)
-   notice=permission.receive==='denied'?'Allow notifications for TenAceIQ in iPhone Settings, then try again.':'Choose Enable '+alertName+' when you’re ready.';return
+   notice=permission.receive==='denied'?'Allow notifications for TenAceIQ in '+(android?'Android notification settings':'iPhone Settings')+', then try again.':'Choose Enable '+alertName+' when you’re ready.';return
   }
+  if(android)await plugin.createChannel({id:'tenaceiq_activity',name:'Practice & coaching',description:'Hitting reminders and coaching updates',importance:4,visibility:0})
+  if(!valid(session.user.id,epoch))return
   const token=await getToken()
   if(!valid(session.user.id,epoch)){await plugin.unregister();return}
   // No token, device secret or message text is logged or stored in browser storage.
   await request(session,{installationId:device.id,secret:device.secret,token,enabled:true})
   device.owner=session.user.id;await save()
   if(!valid(session.user.id,epoch)){await disable(session);return}
-  notice=hitAlerts?'App notifications are on for this iPhone.':'Chat notifications are on for this iPhone. Mute, block and account choices still apply.'
+  notice=hitAlerts?'App notifications are on for this '+phone+'.':'Chat notifications are on for this iPhone. Mute, block and account choices still apply.'
   if(prompt)badgeStopped=false
   badgeApplied=null;scheduleBadge()
  }

@@ -1,6 +1,7 @@
 import 'server-only'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {deliverAppleNotifications,nativePushConfiguration} from './native-chat-push-server'
+import {deliverActivityNotifications,nativeActivityPushConfiguration} from './native-activity-push-server'
+import {nativeActivityPushToken} from './native-activity-push-token'
 import {teamChatMessageId} from './team-chat-cursor'
 
 export {nativePushConfigured as nativeHitPushConfigured} from './native-chat-push-server'
@@ -14,13 +15,13 @@ function nativeHitPayload(recipient:string,href:string) {
 }
 
 export async function sendDueNativeHitPush(service:SupabaseClient,hit?:string) {
-  const config=nativePushConfiguration()
+  const config=nativeActivityPushConfiguration()
   if (!config) return {attempted:0,failed:0}
   const claim=await service.rpc('claim_native_hit_push',hit?{p_hit:hit}:{}).abortSignal(AbortSignal.timeout(5000)).retry(false)
   if (claim.error || !Array.isArray(claim.data) || claim.data.length>12) throw Error('Hit reminder claim unavailable')
   const rows=claim.data as Claim[]
   if (rows.some(row=>!row||![row.reminder_id,row.attempt_id,row.installation_id,row.profile_id,row.room_id,row.hit_id].every(teamChatMessageId)
-      || !/^[a-f0-9]{64,256}$/.test(row.device_token) || !Number.isFinite(Date.parse(row.starts_at))
+      || !nativeActivityPushToken(row.device_token) || !Number.isFinite(Date.parse(row.starts_at))
       || !Number.isFinite(Date.parse(row.updated_at)))) throw Error('Invalid hit reminder claim')
   if (!rows.length) return {attempted:0,failed:0}
   const current=await service.rpc('native_hit_push_current',{
@@ -29,7 +30,7 @@ export async function sendDueNativeHitPush(service:SupabaseClient,hit?:string) {
   }).abortSignal(AbortSignal.timeout(4000)).retry(false)
   if (current.error || !Array.isArray(current.data) || current.data.length>rows.length) throw Error('Hit reminder eligibility unavailable')
   const eligible=new Set(current.data.map(row=>row.attempt_id))
-  const outcomes=await deliverAppleNotifications(rows.filter(row=>eligible.has(row.attempt_id)&&Date.parse(row.starts_at)>Date.now()).map(row=>({
+  const outcomes=await deliverActivityNotifications(rows.filter(row=>eligible.has(row.attempt_id)&&Date.parse(row.starts_at)>Date.now()).map(row=>({
     device:row,href:'/chats?room='+row.room_id+'&hit='+row.hit_id,collapseId:row.room_id,
     expiresAt:0,
   })),config,nativeHitPayload)
