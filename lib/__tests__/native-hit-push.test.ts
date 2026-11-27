@@ -1,11 +1,11 @@
 import {afterEach,expect,it,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {sendDueNativeHitPush} from '../native-hit-push'
-import {deliverAppleNotifications,nativePushConfiguration} from '../native-chat-push-server'
+import {deliverActivityNotifications,nativeActivityPushConfiguration} from '../native-activity-push-server'
 
 vi.mock('server-only',()=>({}))
-vi.mock('../native-chat-push-server',()=>({
-  deliverAppleNotifications:vi.fn(),nativePushConfiguration:vi.fn(),
+vi.mock('../native-activity-push-server',()=>({
+  deliverActivityNotifications:vi.fn(),nativeActivityPushConfiguration:vi.fn(),
 }))
 const id=(n:number)=>'92ed28bf-1641-4bcf-a03c-'+String(n).padStart(12,'0')
 const device=(n:number)=>({
@@ -26,8 +26,8 @@ it('sends only current claims, expires them at the provider immediately, and rec
   const rows=Array.from({length:4},(_,i)=>device(i+1))
   const [sent,revoked,expired,unavailable]=rows
   const {rpc,service}=mockDatabase(rows,[sent.attempt_id,expired.attempt_id,unavailable.attempt_id])
-  vi.mocked(nativePushConfiguration).mockReturnValue({} as NonNullable<ReturnType<typeof nativePushConfiguration>>)
-  vi.mocked(deliverAppleNotifications).mockImplementation(async(requests,_config,payloadFor)=>{
+  vi.mocked(nativeActivityPushConfiguration).mockReturnValue({} as NonNullable<ReturnType<typeof nativeActivityPushConfiguration>>)
+  vi.mocked(deliverActivityNotifications).mockImplementation(async(requests,_config,payloadFor)=>{
     expect(requests.map(x=>x.device)).toEqual([sent,expired,unavailable])
     expect(requests.some(x=>x.device===revoked)).toBe(false)
     for(const {device,href,expiresAt,collapseId} of requests){
@@ -54,8 +54,8 @@ it('sends only current claims, expires them at the provider immediately, and rec
 
 it('returns after one bounded claim lookup when no push is due',async()=>{
   const {rpc,service}=mockDatabase([],[])
-  vi.mocked(nativePushConfiguration).mockReturnValue({} as NonNullable<ReturnType<typeof nativePushConfiguration>>)
+  vi.mocked(nativeActivityPushConfiguration).mockReturnValue({} as NonNullable<ReturnType<typeof nativeActivityPushConfiguration>>)
   expect(await sendDueNativeHitPush(service)).toEqual({attempted:0,failed:0})
   expect(rpc).toHaveBeenCalledExactlyOnceWith('claim_native_hit_push',{})
-  expect(deliverAppleNotifications).not.toHaveBeenCalled()
+  expect(deliverActivityNotifications).not.toHaveBeenCalled()
 })
