@@ -3,7 +3,7 @@ import {createClient} from '@supabase/supabase-js'
 const st=vi.hoisted(()=>({configured:true,deliver:vi.fn(),after:vi.fn()}))
 vi.mock('server-only',()=>({}))
 vi.mock('next/server',()=>({after:st.after}))
-vi.mock('../native-chat-push-server',()=>({nativePushConfiguration:()=>st.configured?{}:null,deliverAppleNotifications:st.deliver}))
+vi.mock('../native-activity-push-server',()=>({nativeActivityPushConfiguration:()=>st.configured?{}:null,deliverActivityNotifications:st.deliver}))
 import {nativeCoachActivityPayload,sendNativeCoachActivityPush,scheduleCoachActivityPush} from '../native-coach-activity-push'
 import {coachActivityHref,coachActivityPushHref,readCoachActivityHref,readCoachActivityPush} from '../coach-activity'
 const actor='11111111-1111-4111-8111-111111111111',recipient='22222222-2222-4222-8222-222222222222',notice='33333333-3333-4333-8333-333333333333',installation='44444444-4444-4444-8444-444444444444'
