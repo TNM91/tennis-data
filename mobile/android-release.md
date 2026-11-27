@@ -33,6 +33,16 @@ Debug builds permit local WebView inspection. Release builds disable it, reject 
 
 `check:android` verifies source configuration, first-party scope, copied app/theme bytes, application identity and approved icon bytes. It does not replace native compilation, release lint, emulator/device acceptance, signing or Google Play review.
 
+## Windows emulator checkpoint - November 27
+
+A separate Pixel 6 virtual phone, `TenAceIQ_Play_API36`, is installed and booted with Google's Android 16 Play Store image (`system-images/android-36/google_apis_playstore/x86_64@7.0.0`). Windows Hypervisor Platform is usable. The emulator uses two virtual CPUs, 2,560 MB RAM, software graphics and a 3 GB data partition; large boot snapshots are disabled. The earlier foundation AVD is preserved.
+
+Run `output/android-emulator-20261127/Start-TenAceIQ-Android.cmd` from the main checkout to reopen it. Close the emulator normally when finished to release its CPU and memory. The launcher preserves its data and refuses to start a second emulator when one is already running.
+
+Developer build 3 is installed as `com.tenaceiq.app.dev`; all 23 bundled asset files match the signed AAB uploaded to Google Play. Initial native UI observations cover launch, welcome, guest Explore and public court listings, a loaded league card, the league sheet's Close action, account-entry handoff, keyboard appearance and returning to welcome. No obvious clipping was observed on those screens. These observations do not establish signed-in flows or a Google Play installation.
+
+The owner must sign into Google Play directly inside the virtual phone before the T1 production package can be installed and accepted. Gboard initially displayed its handwriting toolbar and a floating keyboard. Native Back/keyboard dismissal, a docked keyboard, enlarged text, signed-in role flows and the store install remain pending. Emulator toolbar/shortcut automation did not establish Back delivery, so do not report that check as passed or infer a product defect from it alone. See `output/android-emulator-20261127/emulator-test-checkpoint.json` and `payload-comparison.json` in the main checkout.
+
 ## Before Google Play testing and launch
 
 ### Current release checkpoint
