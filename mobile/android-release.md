@@ -2,6 +2,12 @@
 
 The Android lane packages the full first-party TenAceIQ app, starting from the TestFlight 353 source. It does not revive the older server-loaded prototype or change the Apple submission. External data imports remain excluded.
 
+## Latest internal release — November 27
+
+**Build 4 is available on the existing Google Play internal track, with T1 selected and its two testers retained.** The release uses app commit `c09689175c956bffa65a42a9fab0a5dba9e7aeef`. All thirteen CI jobs passed; one WebKit tactics timeout passed when only its Coach job was retried. The signed bundle passed strict signature verification, and all 1,078 original payload files were unchanged by signing. Google accepted version 1.0 (4), target SDK 36, with no blocking validation errors.
+
+The focused API release, PR #1873, passed every check and deployed from production commit `de7c6baa549622323c62407d7219d301b511f4fb`. Its authenticated live smoke returned Android availability false and iPhone availability true. **Android sending remains disabled pending approval of production activation.** Do not claim background notification or tap acceptance until the private device test passes. Google checkout remains disabled pending merchant activation and real license-test acceptance. The Apple submission was not replaced or withdrawn.
+
 ## Local developer build
 
 Use Node 22, Java 21, Android SDK platform 36 and the Build Tools version selected by the locked Capacitor Android template. Install dependencies at the repository root and in `mobile/`. Set `ANDROID_HOME` to the installed SDK and `JAVA_HOME` to Java 21.
@@ -57,7 +63,7 @@ Migration `20261127000100_android_activity_push.sql` is installed in production.
 
 The Firebase project is `tenaceiq-df2ac`, on the no-cost Spark plan. The production Android app is registered, Cloud Messaging v1 is enabled and Analytics is unlinked. The owner approved the separate Cloud Terms and a dedicated FCM-only sender. Its registered public certificate and protected local credential recovery were verified; Google issued a short-lived messaging authorization. `FIREBASE_PRIVATE_KEY` is a production-only Vercel Secret; `FIREBASE_PROJECT_ID` and `FIREBASE_CLIENT_EMAIL` are server configuration. `ANDROID_PUSH_ENABLED=false` preserves inactive delivery until release acceptance. No private key is bundled or committed.
 
-For Android preparation, set `TIQ_ANDROID_GOOGLE_SERVICES_FILE` to the approved client `google-services.json`. Preparation validates the production package, app/project identity and client key, refuses a server service-account key, and preserves an already managed client file. The manifest disables Analytics collection and automatic messaging initialization; registration follows opt-in. The next build must pass native compilation/lint and actual background notification/tap tests before Android delivery is called accepted.
+For Android preparation, set `TIQ_ANDROID_GOOGLE_SERVICES_FILE` to the approved client `google-services.json`. Preparation validates the production package, app/project identity and client key, refuses a server service-account key, and preserves an already managed client file. The manifest disables Analytics collection and automatic messaging initialization; registration follows opt-in. Build 4 passed native release compilation and lint; actual background notification/tap tests remain required before Android delivery is called accepted. Use a separate generated project for debug builds: the production Firebase client does not match the `.dev` application ID.
 
 T1 is also selected and saved under Google Play License testing with its existing two accounts. This is separate from internal-track assignment. The owner reports merchant setup is awaiting bank verification; the console has not exposed completed merchant setup yet. Google products, publisher access, purchase acceptance and lifecycle tests remain unfinished. Do not enable checkout or describe real purchases as tested.
 
@@ -155,7 +161,7 @@ A test-track install alone does not prevent real charges. Confirm the Google Acc
 
 1. Accept a physical install from the active internal track and complete certificate readback and portable upload-key custody. The organization account is verified, the production package exists, Play App Signing is active and build 3 is available to the assigned T1 group. None of those console checks establishes device acceptance or public-release readiness.
 2. Accept the implemented Google Pro purchase, restore and lifecycle flows on the real Play test track. Finish Android league/tournament fulfillment and publication, including pending/cancelled purchases, canonical verification and refund/revocation handling. Keep Android payments unavailable until each applicable flow passes.
-3. Add the Android push configuration and notification channels, runtime permission, token registration, delivery and notification navigation. Having the Capacitor push plugin installed does not establish working Android notifications.
+3. Accept Android push on the Play-installed build. Sender configuration, private channels, runtime permission, account-bound registration and notification navigation are implemented. Production activation approval and actual background delivery, tap and revocation checks remain outstanding.
 4. Verify Android link ownership with the final signing certificates and a production `assetlinks.json`. The manifest contains supported HTTPS routes, but verified App Links are not yet established. Test account recovery and invitation handoffs on a device.
 5. Complete Android permissions, keyboard/Back behavior, edge-to-edge layouts, background/resume, offline/session storage, media selection, sharing, location/maps and accessibility testing. Android biometric locking needs a separate implementation; the present app-lock bridge is iOS-specific.
 6. Prepare the Google Play listing and screenshots from the tested Android app, reviewer access, Data safety, privacy and content declarations. Complete the account's required test track before applying for production access.
