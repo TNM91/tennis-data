@@ -22,6 +22,12 @@ The build 5 client fix refreshes the matching open conversation in place, includ
 
 An earlier build 5 attempt was interrupted when the entire emulator host exited. The same device restarted without wiping its data; build 5 and the signed-in account were retained, and the fresh retest above completed. Windows crash metadata did not identify a cause. Do not label that interruption as an established TenAceIQ crash, or treat emulator acceptance as physical Android lock-screen acceptance.
 
+### Prepared for the next app build
+
+Coaching notification settings now reread availability when reopened. An unavailable provider offers an enabled Check Coach alerts action instead of a disabled opt-in button; checking never enables alerts. The same read resolves an interrupted save without repeating it. Device registration is still required before opting in, and existing owner/epoch checks reject stale responses. Reads are limited to settings entry or an explicit check, with no polling. This client change is not included in Android build 5 or the existing TestFlight build, and does not change the Apple submission.
+
+Focused verification passed: 16 Chromium/WebKit phone-browser checks, 24 related unit tests, lint on the changed source/fixtures and repository type checking. Existing opt-ins can still be disabled while provider delivery is unavailable. The full native release gates and signed package remain for the next batched app build.
+
 ## Local developer build
 
 Use Node 22, Java 21, Android SDK platform 36 and the Build Tools version selected by the locked Capacitor Android template. Install dependencies at the repository root and in `mobile/`. Set `ANDROID_HOME` to the installed SDK and `JAVA_HOME` to Java 21.

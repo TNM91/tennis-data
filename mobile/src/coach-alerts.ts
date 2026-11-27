@@ -23,12 +23,13 @@ export function createCoachAlerts(client:SupabaseClient,registered:()=>boolean,s
   const title=document.createElement('h3');title.textContent='Coach & player alerts'
   const description=document.createElement('p');description.textContent=firstPartyBuild?'Choose '+(android?'Android':'iPhone')+' alerts for assignments, player check-ins and coach feedback. Enable app notifications on this '+phone+' first. Practice details stay private on your lock screen.':'Choose iPhone alerts for private Coach conversations. This account choice applies to iPhones where chat notifications are on. Message text stays private.'
   const status=document.createElement('p');status.setAttribute('role','status');status.textContent=notice||(value?value.enabled?'Coach alerts are on for your account.':'Coach alerts are off.':'Checking Coach alerts…')
-  const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=uncertain||!value?'Check Coach alerts':value.enabled?'Turn off Coach alerts':'Turn on Coach alerts'
-  button.disabled=busy||Boolean(value&&!value.enabled&&!uncertain&&(!registered()||!value.available))
-  button.onclick=()=>{void run(value&&!uncertain?!value.enabled:undefined)}
+  const checking=uncertain||!value||!value.enabled&&!value.available
+  const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=checking?'Check Coach alerts':value?.enabled?'Turn off Coach alerts':'Turn on Coach alerts'
+  button.disabled=busy||Boolean(!checking&&value&&!value.enabled&&!registered())
+  button.onclick=()=>{void run(value&&!checking?!value.enabled:undefined)}
   host.append(title,description,status,button)
   if(value&&!registered()){const hint=document.createElement('p');hint.textContent=firstPartyBuild?'Enable app notifications on this '+phone+' to receive coaching alerts here.':'Enable chat notifications on this iPhone to receive alerts here.';host.append(hint)}
-  else if(value&&!value.available){const hint=document.createElement('p');hint.textContent=(android?'Android':'iPhone')+' delivery is temporarily unavailable. You can still turn Coach alerts off.';host.append(hint)}
+  else if(value&&!value.available){const hint=document.createElement('p');hint.textContent=(android?'Android':'iPhone')+' delivery is temporarily unavailable. '+(value.enabled?'You can still turn Coach alerts off.':'Check Coach alerts to try again.');host.append(hint)}
  }
  const run=async(enabled?:boolean)=>{
   if(disposed||!owner||busy||enabled===true&&!registered())return
@@ -38,7 +39,8 @@ export function createCoachAlerts(client:SupabaseClient,registered:()=>boolean,s
   finally{if(valid(user,version)){busy=false;render()}}
  }
  return {
-  mount(element:HTMLElement){host=element;render()},
+  // Reopening settings reads current capability without changing the saved opt-in.
+  mount(element:HTMLElement){if(disposed)return;const changed=host!==element;host=element;if(changed&&owner&&!busy)void run();else render()},
   setOwner(next:string|null){if(disposed||next===owner)return;owner=next;epoch++;value=null;busy=false;notice='';uncertain=false;if(next)void run();else host?.replaceChildren()},
   dispose(){disposed=true;epoch++;owner=null;host?.replaceChildren();host=null;value=null},
  }

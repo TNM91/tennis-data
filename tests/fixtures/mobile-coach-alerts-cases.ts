@@ -1,8 +1,54 @@
 import {test,expect,type Page} from '@playwright/test'
-type Preview=Window&{coachAlertFixture:{enabled:boolean;registered:boolean;available:boolean;failSave:boolean;failRead:boolean;hold:boolean;resolveFail:boolean;blocked:boolean;autoOpen:boolean;revision:number;reads:number;writes:boolean[];opens:string[];release:()=>void;resume:()=>void;tap:(recipient?:string,href?:string)=>void;mount:()=>void};switchNavigationOwner:()=>void}
+type Preview=Window&{coachAlertFixture:{enabled:boolean;registered:boolean;available:boolean;failSave:boolean;failRead:boolean;hold:boolean;resolveFail:boolean;blocked:boolean;autoOpen:boolean;revision:number;reads:number;writes:boolean[];opens:string[];release:()=>void;resume:()=>void;remount:()=>void;tap:(recipient?:string,href?:string)=>void;mount:()=>void};switchNavigationOwner:()=>void}
 async function mount(page:Page,width=390,registered=true){await page.routeWebSocket('**/*',ws=>ws.close());await page.setViewportSize({width,height:844});await page.goto('http://127.0.0.1:4283/?large=1');await expect(page.locator('#app')).toHaveAttribute('data-state','ready');await page.evaluate(value=>{const f=(window as unknown as Preview).coachAlertFixture;f.registered=value;f.mount()},registered);await expect(page.getByRole('button',{name:'Turn on Coach alerts',exact:true})).toBeVisible();return page.locator('[data-coach-alert-preview]')}
 for(const width of [320,390])test('Coach alerts require a separate explicit choice at '+width+'px',async({page})=>{const host=await mount(page,width);await expect(host).toContainText('Coach alerts are off.');await expect(host.getByRole('button',{name:'Turn off chat notifications',exact:true})).toBeEnabled();expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.writes)).toEqual([]);await host.getByRole('button',{name:'Turn on Coach alerts',exact:true}).click();await expect(host.getByRole('button',{name:'Turn off Coach alerts',exact:true})).toBeEnabled();await host.getByRole('button',{name:'Turn off Coach alerts',exact:true}).click();await expect(host).toContainText('Coach alerts are off.');expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.writes)).toEqual([true,false]);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)})
 test('Coach alerts need registration here without changing the saved account choice',async({page})=>{const host=await mount(page,320,false);await expect(host.getByRole('button',{name:'Turn on Coach alerts',exact:true})).toBeDisabled();await expect(host).toContainText('Enable chat notifications on this iPhone');expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.writes)).toEqual([])})
+
+test('unavailable coaching delivery has a working recheck without opting in',async({page})=>{
+ const host=await mount(page,320)
+ await page.evaluate(()=>{const f=(window as unknown as Preview).coachAlertFixture;f.available=false;f.remount()})
+ await expect(host).toContainText('delivery is temporarily unavailable')
+ const check=host.getByRole('button',{name:'Check Coach alerts',exact:true});await expect(check).toBeEnabled()
+ await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.available=true)
+ await check.click();await expect(host.getByRole('button',{name:'Turn on Coach alerts',exact:true})).toBeEnabled()
+ expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.writes)).toEqual([])
+ await host.getByRole('button',{name:'Turn on Coach alerts',exact:true}).click()
+ await expect(host.getByRole('button',{name:'Turn off Coach alerts',exact:true})).toBeEnabled()
+ expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.writes)).toEqual([true])
+})
+
+test('reopening coaching settings refreshes availability once without changing the account choice',async({page})=>{
+ const host=await mount(page)
+ await page.evaluate(()=>{const f=(window as unknown as Preview).coachAlertFixture;f.available=false;f.remount()})
+ await expect(host.getByRole('button',{name:'Check Coach alerts',exact:true})).toBeEnabled()
+ const reads=await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.reads)
+ await page.evaluate(()=>{const f=(window as unknown as Preview).coachAlertFixture;f.available=true;f.remount()})
+ await expect(host.getByRole('button',{name:'Turn on Coach alerts',exact:true})).toBeEnabled()
+ await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))))
+ expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.reads)).toBe(reads+1)
+ expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.writes)).toEqual([])
+})
+
+test('reopening coaching settings resolves a lost save response without repeating the choice',async({page})=>{
+ const host=await mount(page)
+ await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.failSave=true)
+ await host.getByRole('button',{name:'Turn on Coach alerts',exact:true}).click();await expect(host).toContainText('Your choice wasn’t confirmed.')
+ await page.evaluate(()=>{const f=(window as unknown as Preview).coachAlertFixture;f.failSave=false;f.remount()})
+ await expect(host.getByRole('button',{name:'Turn off Coach alerts',exact:true})).toBeEnabled()
+ expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.writes)).toEqual([true])
+})
+
+test('unavailable coaching delivery still allows an existing opt-in to be turned off',async({page})=>{
+ const host=await mount(page)
+ await host.getByRole('button',{name:'Turn on Coach alerts',exact:true}).click()
+ await expect(host.getByRole('button',{name:'Turn off Coach alerts',exact:true})).toBeEnabled()
+ await page.evaluate(()=>{const f=(window as unknown as Preview).coachAlertFixture;f.available=false;f.remount()})
+ await expect(host).toContainText('You can still turn Coach alerts off.')
+ await host.getByRole('button',{name:'Turn off Coach alerts',exact:true}).click()
+ await expect(host.getByRole('button',{name:'Check Coach alerts',exact:true})).toBeEnabled()
+ await expect(host).toContainText('Check Coach alerts to try again.')
+ expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.writes)).toEqual([true,false])
+})
 test('an interrupted preference save requires a read before another change',async({page})=>{const host=await mount(page);await page.evaluate(()=>{(window as unknown as Preview).coachAlertFixture.failSave=true});await host.getByRole('button',{name:'Turn on Coach alerts',exact:true}).click();await expect(host).toContainText('Your choice wasn’t confirmed.');await page.evaluate(()=>{(window as unknown as Preview).coachAlertFixture.failSave=false});await host.getByRole('button',{name:'Check Coach alerts',exact:true}).click();await expect(host.getByRole('button',{name:'Turn off Coach alerts',exact:true})).toBeEnabled();expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.writes)).toEqual([true])})
 test('an owned alert resolves the exact current connection and rejects foreign payloads',async({page})=>{await mount(page);await page.evaluate(()=>{const f=(window as unknown as Preview).coachAlertFixture;f.tap('foreign');f.tap(undefined,'/messages?thread=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa&owner=other')});await expect(page.getByRole('complementary',{name:'Coach message alert'})).toBeHidden();await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.tap());await page.getByRole('button',{name:'Open conversation',exact:true}).click();await expect(page.locator('[data-coach-alert-opened="student-one"]')).toBeVisible();expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.opens)).toEqual(['student-one'])})
 test('an alert preserves an open form and an unavailable connection never opens another conversation',async({page})=>{await mount(page);await page.evaluate(()=>{const f=(window as unknown as Preview).coachAlertFixture;f.blocked=true;f.tap()});await page.getByRole('button',{name:'Open conversation',exact:true}).click();await expect(page.getByRole('complementary',{name:'Coach message alert'})).toContainText('Close your current form');expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.opens)).toEqual([]);await page.evaluate(()=>{const f=(window as unknown as Preview).coachAlertFixture;f.blocked=false;f.resolveFail=true});await page.getByRole('button',{name:'Open conversation',exact:true}).click();await expect(page.getByRole('complementary',{name:'Coach message alert'})).toContainText('couldn’t open');expect(await page.evaluate(()=>(window as unknown as Preview).coachAlertFixture.opens)).toEqual([])})
