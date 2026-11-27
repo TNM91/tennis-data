@@ -1,6 +1,6 @@
 import 'server-only'
 import {createPrivateKey,sign} from 'node:crypto'
-import {GOOGLE_PLAY_PACKAGE,googlePlayProduct,googlePurchaseToken} from './google-play-products'
+import {GOOGLE_PLAY_PACKAGE,GOOGLE_PLAY_PRODUCTS,googleBinding,googlePlayProduct,googlePurchaseToken} from './google-play-products'
 import {GooglePurchaseVerificationError,verifiedGooglePurchase,type GooglePurchaseExpectation} from './google-play-verification'
 
 const tokenUrl='https://oauth2.googleapis.com/token',scope='https://www.googleapis.com/auth/androidpublisher'
@@ -42,4 +42,20 @@ export function googlePurchaseReader(config:GooglePlayConfiguration,send:typeof 
    throw Error('google_verification_unavailable')
   }
  }}
+}
+
+// For a first delivery while the app is closed, discover the binding only from
+// Google's canonical resource. The caller must resolve an existing account and
+// reverify under the purchase lease before saving access.
+export async function googleProNotificationPurchase(config:GooglePlayConfiguration,token:string,send:typeof fetch=fetch,now=Date.now()){
+ if(config.mode!=='test'||!googlePurchaseToken(token))throw Error('google_purchase_mismatch')
+ const authorization=await googlePublisherAuthorization(config,send,now)
+ const url=`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${GOOGLE_PLAY_PACKAGE}/purchases/subscriptionsv2/tokens/${encodeURIComponent(token)}`
+ const data=await boundedJson(await send(url,{method:'GET',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(10000),headers:{Authorization:authorization}}))
+ const identifiers=data.externalAccountIdentifiers as Record<string,unknown>|undefined
+ const accountId=identifiers?.obfuscatedExternalAccountId
+ if(!googleBinding(accountId))throw Error('google_purchase_mismatch')
+ const verified=verifiedGooglePurchase(data,{productId:GOOGLE_PLAY_PRODUCTS[0].id,purchaseToken:token,accountId,profileId:null,allowTest:true},now)
+ if(verified.environment!=='Test')throw Error('google_purchase_mismatch')
+ return verified
 }

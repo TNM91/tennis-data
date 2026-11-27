@@ -35,7 +35,21 @@ Only explicitly approved test accounts may have `tenaceiq_google.accounts.test_e
 
 Verify purchase, cancellation, pending payment, acknowledgment interruption, app restart, restore, account switching, expiration, pause/on-hold, existing Apple/web access, and access to both Captain and Coach. Save verified access before Google acknowledgment. A retry must reverify current status and keep one account-bound purchase row.
 
+Use an explicitly approved free TenAceIQ test account for new-purchase acceptance, and preserve the owner's existing access for duplicate-purchase coverage. The Google Play license-test account and the signed-in TenAceIQ account are separate identities; purchase and restore must retain the correct app-account binding.
+
 Complete authenticated real-time notifications, refund/revocation handling and deletion/billing disclosures before accepting real payments. Event publication fulfillment remains a separate requirement. Do not remove the Google schema after installation without a reviewed reverse migration; native access and the deletion audit depend on it.
+
+## Subscription notification endpoint
+
+`POST /api/google/notifications` is released inactive. Keep `GOOGLE_PLAY_RTDN_ENABLED` absent until the Play merchant account, products, publisher access and authenticated Pub/Sub delivery are configured. Bank verification is complete; the prepared Play merchant form still requires the owner's final submission. Do not repeat the bank-verification step.
+
+The endpoint verifies Google's signed OIDC token against fixed Google keys, the exact audience and the verified service-account email. It also requires the configured Pub/Sub subscription and `com.tenaceiq.app` package. Notifications trigger a fresh canonical Google purchase read and settlement under the existing purchase lease; their event type never directly grants or revokes access. Completed duplicate messages are acknowledged without repeating purchase verification. Transient failures return `503` so Pub/Sub can retry.
+
+Migration `20261123000200_google_pro_notifications.sql` is already installed and audited in TenAceIQ production. This release records that migration and does not reapply it. A fresh environment must install the purchase-ledger migration first. Notification records remain private, contain hashes rather than raw tokens or payloads, and cascade with the account.
+
+Activation additionally requires `GOOGLE_PLAY_RTDN_AUDIENCE=https://www.tenaceiq.com/api/google/notifications`, `GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL`, and the exact `GOOGLE_PLAY_RTDN_SUBSCRIPTION=projects/PROJECT_ID/subscriptions/SUBSCRIPTION_ID`, together with the existing test-only Google reader and entitlement settings. Do not reuse the FCM-only Android notification sender as the publisher reader. Keep Google checkout and test-account approval disabled until the reviewed configuration is ready.
+
+While inactive, one bounded POST smoke must return `503`, `google_notification_unavailable`, and private/no-store caching. That proves the deployment guard, not actual Pub/Sub delivery or Google purchase acceptance. The current Apple submission remains unchanged.
 
 ## Verification and release
 
