@@ -26,7 +26,7 @@ export function createNativePush(...[client,onOpen,deps={}]:Parameters<typeof ac
    register:async()=>register({value:'b'.repeat(64)}),unregister:async()=>{},
    checkPermissions:async()=>({receive:'prompt'}),requestPermissions:async()=>({receive:'granted'}),
   } as unknown as PushNotificationsPlugin
-  return actual(client,onOpen,{...deps,platform:'ios',plugin,clearDelivered:async()=>{},
+  return actual(client,onOpen,{...deps,platform:query.get('hit-alerts')==='android'?'android':'ios',plugin,clearDelivered:async()=>{},
    storage:{getItem:async()=>saved,setItem:async(_key,value)=>{saved=value},removeItem:async()=>{}},
    request:async(_session,data)=>{
     if(data && typeof (data as {enabled?:boolean}).enabled==='boolean')state.writes.push((data as {enabled:boolean}).enabled)

@@ -10,7 +10,7 @@ import {publishCoachMessageCounts} from './coach-message-catchup'
 import {createAppLinkHandoff,appLinkTitle} from './app-links'
 import {openSharedMatch} from './shared-match-view'
 import {openTeamInvite} from './team-invite-view'
-import {openPlayerChats} from './player-chats-view'
+import {openPlayerChats,refreshOpenPlayerChatHit} from './player-chats-view'
 import {playerSetupHtml} from './player-setup'
 import {openCoachResources} from './coach-resources-view'
 import {openCoachMessages} from './coach-messages-view'
@@ -193,7 +193,11 @@ document.addEventListener('tenaceiq:open-shared-link',event=>{
  if(appLinks.receive(e.detail.href)){event.preventDefault();resumeAppLink()}
 })
 function resumeAppLink(){
- if(!session||!appLinks.peek())return
+ const pending=appLinks.peek()
+ if(!session||!pending)return
+ if(!connection?.isSaving()&&pending.kind==='player-chat'&&pending.hit&&refreshOpenPlayerChatHit(session.user.id,pending.id,pending.hit)){
+  appLinks.take(session.user.id);return
+ }
  if(connection?.isSaving()||document.querySelector('dialog[open]')){
   incoming.querySelector('p span')!.textContent='Close your current form to open this link.';return
  }

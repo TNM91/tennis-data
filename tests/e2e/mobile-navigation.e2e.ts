@@ -771,6 +771,57 @@ test('a hitting plan push opens the right chat after enabling iPhone alerts',asy
  await expect.poll(()=>page.evaluate(()=>Reflect.get(window,'hitAlertsFixture').writes)).toEqual([true,false])
 })
 
+for (const platform of ['ios','android']) {
+test('a hitting reminder refreshes an open chat without losing its unsent message on '+platform,async({page})=>{
+ await page.clock.setFixedTime(new Date('2026-11-18T23:50:00Z'))
+ await useFirstPartyNavigation(page)
+ await page.goto(origin+'/?player-chat=1&chat-hit=1&hit-alerts='+platform)
+ await page.evaluate(()=>{
+  const fixture=Reflect.get(window,'playerChatFixture')
+  fixture.title='Jamie'
+  fixture.hit={id:'f2407652-e697-4388-aa96-0ea474852368',room:fixture.room,proposedBy:'11111111-1111-4111-8111-111111111111',
+   clubId:'vetta-west',date:'2026-11-18',time:'18:00',startsAt:'2026-11-19T00:00:00Z',status:'proposed'}
+ })
+ await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:/^Chats/}).click()
+ await page.getByRole('button',{name:'Enable app notifications',exact:true}).click()
+ await page.getByRole('region',{name:'Conversations',exact:true}).getByRole('button',{name:/^Jamie/}).click()
+ const chat=page.getByRole('dialog',{name:'Jamie',exact:true})
+ await expect(chat).toContainText('Waiting for')
+ await chat.getByRole('textbox',{name:'Message',exact:true}).fill('See you at the club!')
+ await page.evaluate(()=>{
+  const fixture=Reflect.get(window,'playerChatFixture')
+  fixture.hit.status='accepted'
+  Reflect.get(window,'hitAlertsFixture').tap('/chats?room='+fixture.room+'&hit='+fixture.hit.id)
+ })
+ await expect(chat).toContainText('Confirmed · On both calendars')
+ await expect(chat.getByRole('heading',{name:'Hitting plan'})).toBeFocused()
+ await expect(chat.getByRole('textbox',{name:'Message',exact:true})).toHaveValue('See you at the club!')
+ await expect(page.locator('dialog.player-chats-dialog')).toHaveCount(1)
+ await expect(page.getByRole('complementary',{name:'Shared link'})).toBeHidden()
+ await chat.getByRole('button',{name:'Suggest another time'}).click()
+ await chat.getByLabel('Start time (CT)',{exact:true}).fill('19:00')
+ await page.clock.setFixedTime(new Date('2026-11-18T23:50:02Z'))
+ await page.evaluate(()=>{
+  const fixture=Reflect.get(window,'playerChatFixture')
+  Reflect.get(window,'hitAlertsFixture').tap('/chats?room='+fixture.room+'&hit='+fixture.hit.id)
+ })
+ await expect(chat.getByLabel('Start time (CT)',{exact:true})).toHaveValue('19:00')
+ await expect(chat.getByRole('textbox',{name:'Message',exact:true})).toHaveValue('See you at the club!')
+ await expect(page.getByRole('complementary',{name:'Shared link'})).toContainText('Close your current form')
+ await chat.locator('[data-chat-hit-form]').getByRole('button',{name:'Back',exact:true}).click()
+ await page.clock.setFixedTime(new Date('2026-11-18T23:50:04Z'))
+ await page.evaluate(()=>{
+  const fixture=Reflect.get(window,'playerChatFixture')
+  fixture.hit.status='cancelled'
+  Reflect.get(window,'hitAlertsFixture').tap('/chats?room='+fixture.room+'&hit='+fixture.hit.id)
+ })
+ await expect(chat).toContainText('Cancelled')
+ await expect(chat).not.toContainText('Confirmed · On both calendars')
+ await expect(chat.getByRole('status')).toContainText('This hitting plan changed')
+ await expect(chat.getByRole('textbox',{name:'Message',exact:true})).toHaveValue('See you at the club!')
+})
+}
+
 test('Chats pins a team and group, applies a group icon and shows recent conversations',async({page})=>{
  await useFirstPartyNavigation(page)
  await page.setViewportSize({width:320,height:780})

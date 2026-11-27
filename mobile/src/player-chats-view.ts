@@ -7,7 +7,7 @@ import {
   newPlayerChatInvite,playerChatInviteHref,playerChatInviteToken,type PlayerChatAction,type PlayerChatInbox,type PlayerChatRoom,
 } from '../../lib/player-chats-contract'
 import { playerChatApiUrl,PlayerChatError,playerChatTransport } from '../../lib/player-chats-transport'
-import { teamChatCursor } from '../../lib/team-chat-cursor'
+import { teamChatCursor,teamChatMessageId } from '../../lib/team-chat-cursor'
 import { html } from './html'
 import { watchTeamChat } from './team-chat-live'
 import { groupPracticeStart } from '../../lib/group-practice-contract'
@@ -24,6 +24,14 @@ import { chatInboxOrder,playerInboxKey } from './chat-inbox-order'
 
 type ComposerPage = 'new' | 'group'
 const contactSearchKey = (value:string) => value.normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase().trim()
+const openConversations = new Map<HTMLDialogElement,{owner:string;refreshHit:(room:string,hit:string)=>boolean}>()
+
+export function refreshOpenPlayerChatHit(owner:string,room:string,hit:string) {
+  for (const conversation of openConversations.values()) {
+    if (conversation.owner===owner && conversation.refreshHit(room,hit)) return true
+  }
+  return false
+}
 
 export function playerChatsForAccount(client: SupabaseClient,owner: string,active: () => boolean,browser = false) {
   return playerChatTransport(owner,async ({query,action})=>{
@@ -82,6 +90,7 @@ export function openPlayerChats(
 
   function dispose() {
     disposed = true
+    openConversations.delete(dialog)
     listeners.abort()
     void resumeHandle?.remove()
     clearTimeout(contactTimer)
@@ -160,6 +169,22 @@ export function openPlayerChats(
       const result = await transport.act({action:'read',room:next.id,id:newest.id}).catch(()=>null)
       if (result && active()) lastRead.set(id,newest.id)
     }
+  }
+  async function loadHit(id: string,hit: string) {
+    await loadRoom(id)
+    if (!active() || !room) return
+    const confirmed = room.confirmedHit ?? room.hit
+    focusHit = confirmed?.id===hit && confirmed.status==='accepted'
+    if (!focusHit) notice='This hitting plan changed. Check the chat for the latest details.'
+  }
+  function refreshHit(id: string,hit: string) {
+    if (!teamChatMessageId(id) || !teamChatMessageId(hit) || !active() || !dialog.open ||
+      busy || pending || page!=='room' || room?.id!==id || practiceDraft || hitDraft ||
+      iconEditor?.isOpen() || directions?.isOpen() ||
+      Array.from(document.querySelectorAll('dialog[open]')).at(-1)!==dialog) return false
+    // Refresh the existing room in place: keep its message draft and source navigation.
+    void run(()=>loadHit(id,hit))
+    return true
   }
   function openRematch(hit: string) {
     return run(async ()=>{
@@ -759,16 +784,13 @@ export function openPlayerChats(
   }
   dialog.oncancel = event=>{event.preventDefault();back()}
   document.body.append(dialog); render(); dialog.showModal()
+  openConversations.set(dialog,{owner,refreshHit})
   if (initial.token) void preview(initial.token)
   else if (initial.rematch) void openRematch(initial.rematch)
   else if (initial.room) void run(async ()=>{
     if (!initial.hit) inbox=await transport.inbox()
-    await loadRoom(initial.room!)
-    if (initial.hit && room) {
-      const confirmed = room.confirmedHit ?? room.hit
-      focusHit = confirmed?.id===initial.hit && confirmed.status==='accepted'
-      if (!focusHit) notice='This hitting plan changed. Check the chat for the latest details.'
-    }
+    if (initial.hit) await loadHit(initial.room!,initial.hit)
+    else await loadRoom(initial.room!)
   })
   else if (initial.compose) void refreshContacts()
   else void openInbox()
