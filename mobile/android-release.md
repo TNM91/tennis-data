@@ -79,7 +79,7 @@ The Firebase project is `tenaceiq-df2ac`, on the no-cost Spark plan. The product
 
 For Android preparation, set `TIQ_ANDROID_GOOGLE_SERVICES_FILE` to the approved client `google-services.json`. Preparation validates the production package, app/project identity and client key, refuses a server service-account key, and preserves an already managed client file. The manifest disables Analytics collection and automatic messaging initialization; registration follows opt-in. Build 4 passed native release compilation and lint and the coaching background/tap checks described above. Use a separate generated project for debug builds: the production Firebase client does not match the `.dev` application ID.
 
-T1 is also selected and saved under Google Play License testing with its existing two accounts. This is separate from internal-track assignment. The owner reports merchant setup is awaiting bank verification; the console has not exposed completed merchant setup yet. Google products, publisher access, purchase acceptance and lifecycle tests remain unfinished. Do not enable checkout or describe real purchases as tested.
+T1 is also selected and saved under Google Play License testing with its existing two accounts. This is separate from internal-track assignment. Bank verification is complete. The existing verified TenAceIQ organization profile is selected in the Play merchant form, with website, software category, support email and statement name prepared; its final merchant-agreement submission still requires the owner. Google products, publisher access, purchase acceptance and lifecycle tests remain unfinished. Keep checkout inactive and preserve the current Apple review.
 
 ## Before Google Play testing and launch
 
