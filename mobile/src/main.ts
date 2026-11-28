@@ -113,7 +113,8 @@ function launchAccount(trigger:HTMLButtonElement){
  const scoreDrafts=teamScoreDrafts
  accountSettings=openAccountSettings(client,owner,()=>visit===revision&&owner===session?.user.id,()=>signOut(owner),trigger,
   firstPartyBuild?()=>{accountSettings?.dispose();accountSettings=null;guardNavigation(()=>{void lab('trophies')})}:undefined,
-  scoreDrafts?.owner===owner?()=>scoreDrafts.clear():undefined)
+  scoreDrafts?.owner===owner?()=>scoreDrafts.clear():undefined,
+  nativePush.supportsCoachAlerts()?host=>nativePush.mount(host):undefined)
 }
 let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof import('./data-imports-view').openDataImports>|null=null

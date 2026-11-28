@@ -10,6 +10,7 @@ import '../fixtures/mobile-coach-conversation-tools-cases'
 import '../fixtures/mobile-coach-auto-catchup-cases'
 import '../fixtures/mobile-coach-message-links-cases'
 import '../fixtures/mobile-coach-alerts-cases'
+import '../fixtures/mobile-notification-settings-cases'
 import '../fixtures/mobile-chat-receipts-cases'
 import '../fixtures/mobile-coach-chats-cases'
 import '../fixtures/mobile-chat-catchup-cases'
@@ -54,6 +55,30 @@ async function useFirstPartyNavigation(page:Page) {
  const previewScript = preview.outputFiles.find(file => file.path.endsWith('.js'))!.text
  await page.route(origin+'/app.js',route=>route.fulfill({contentType:'text/javascript',body:previewScript}))
 }
+
+test('Notification settings support first-party Android registration from the account menu',async({page})=>{
+ await useFirstPartyNavigation(page)
+ await page.setViewportSize({width:320,height:720})
+ await page.goto(origin+'/?large=1&hit-alerts=android')
+ await expect(page.locator('#app')).toHaveAttribute('data-state','ready')
+ await page.getByRole('button',{name:'Account settings',exact:true}).click()
+ const dialog=page.getByRole('dialog',{name:'Account settings',exact:true})
+ await dialog.getByRole('button',{name:'Notifications',exact:true}).click()
+ const section=dialog.getByRole('region',{name:'Notifications',exact:true})
+ await expect(section.getByRole('heading',{name:'Practice & coaching alerts',exact:true})).toBeInViewport()
+ await expect(section.getByRole('button',{name:'Turn on Coach alerts',exact:true})).toBeDisabled()
+ expect(await page.evaluate(()=>(window as unknown as {hitAlertsFixture:{writes:boolean[]}}).hitAlertsFixture.writes)).toEqual([])
+ await section.getByRole('button',{name:'Enable app notifications',exact:true}).click()
+ await expect(section).toContainText('App notifications are on for this Android phone.')
+ await expect(section.getByRole('button',{name:'Turn on Coach alerts',exact:true})).toBeEnabled()
+ await section.getByRole('button',{name:'Turn on Coach alerts',exact:true}).click()
+ await expect(section).toContainText('Coach alerts are on for your account.')
+ await dialog.getByRole('button',{name:'Close account settings',exact:true}).click()
+ await page.locator('.app-navigation [data-screen="teams"]').click()
+ await expect(page.getByRole('button',{name:'Turn off app notifications',exact:true})).toBeEnabled()
+ await expect(page.getByRole('button',{name:'Turn off Coach alerts',exact:true})).toBeEnabled()
+ expect(await page.evaluate(()=>(window as unknown as {hitAlertsFixture:{writes:boolean[]}}).hitAlertsFixture.writes)).toEqual([true])
+})
 
 test('League draft previews the season and price and recovers a lost save response',async({page})=>{
  await useFirstPartyNavigation(page)

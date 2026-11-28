@@ -200,6 +200,7 @@ body[data-screen="lab"] .player-setup .native-entry-hero h1 { max-inline-size:14
  margin:0;padding:10px 8px;min-block-size:44px;border:1px solid var(--premium-line);border-radius:12px;
  background:var(--premium-inset);color:var(--premium-ice);font-size:.8125rem;line-height:1.4;
 }
+.account-settings-dialog .account-section-links button:last-child:nth-child(odd) { grid-column:1/-1; }
 .account-settings-dialog :is(.account-access-panel,.apple-membership-panel,.account-controls,.account-load-state,.account-request-status) {
  min-inline-size:0;margin-block:16px;padding:18px;border:1px solid var(--premium-line);border-radius:18px;background:var(--premium-surface);
 }

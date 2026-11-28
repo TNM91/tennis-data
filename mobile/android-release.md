@@ -26,6 +26,14 @@ The build 5 client fix refreshes the matching open conversation in place, includ
 
 An earlier build 5 attempt was interrupted when the entire emulator host exited. The same device restarted without wiping its data; build 5 and the signed-in account were retained, and the fresh retest above completed. Windows crash metadata did not identify a cause. Do not label that interruption as an established TenAceIQ crash, or treat emulator acceptance as physical Android lock-screen acceptance.
 
+### Prepared for the next native build
+
+Account settings now has a Notifications shortcut for supported iPhone/Android notification controls. It uses the same device registration and saved Coach choice as Chats. Both views stay synchronized; opening or closing settings does not change consent. A Coach save can finish after the sheet closes and update the remaining view. Disposed controls cannot change alerts, and an immediate busy guard prevents rapid device-alert taps from reversing a choice. Unsupported platforms and accounts with a pending deletion request omit the shortcut. Existing navy cards, account-section focus handling and large-text layouts are reused.
+
+Verification passed: 18 new Chromium/WebKit phone-browser checks, all 6,612 unit tests across 1,127 files, repository lint/type checking, extension syntax and a local production build of 387 pages. A rapid-tap regression failed before the guard and passed afterward. The first local production build hit Windows sandbox path permissions while loading Next's config; only the build was retried with filesystem access and passed. No compiler or CSP protections were weakened. The final first-party Android bundle and managed-project checks passed, including matching app/theme and approved icon bytes.
+
+This change is saved for the next batched native release. No new Android/iOS binary was uploaded for it, and the Apple submission was not changed. Evidence is `output/notification-settings-20261127/verification-proof.json` in the main checkout.
+
 ### Changes introduced in Android build 6
 
 Coaching notification settings now reread availability when reopened. An unavailable provider offers an enabled Check Coach alerts action instead of a disabled opt-in button; checking never enables alerts. The same read resolves an interrupted save without repeating it. Device registration is still required before opting in, and existing owner/epoch checks reject stale responses. Reads are limited to settings entry or an explicit check, with no polling. This client change is included in Android build 6, is not included in the existing TestFlight build, and does not change the Apple submission.

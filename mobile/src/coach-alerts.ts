@@ -15,10 +15,14 @@ export async function coachAlertRequest(client:SupabaseClient,owner:string,curre
 }
 export function createCoachAlerts(client:SupabaseClient,registered:()=>boolean,send?:CoachSend){
  const android=firstPartyBuild&&Capacitor.getPlatform()==='android',phone=android?'Android phone':'iPhone'
- let owner:string|null=null,epoch=0,host:HTMLElement|null=null,value:Preferences|null=null,busy=false,notice='',disposed=false,uncertain=false
+ let owner:string|null=null,epoch=0,value:Preferences|null=null,busy=false,notice='',disposed=false,uncertain=false
+ const hosts=new Map<HTMLElement,object>()
  const valid=(user:string,version:number)=>!disposed&&owner===user&&epoch===version
  const render=()=>{
-  if(!host?.isConnected||!owner||disposed)return
+  for(const [host,mount]of hosts){
+  if(!host.isConnected){hosts.delete(host);continue}
+  if(!owner||disposed){host.replaceChildren();continue}
+  const user=owner,version=epoch
   host.replaceChildren();host.setAttribute('aria-label','Coach message notifications');host.dataset.coachAlerts=''
   const title=document.createElement('h3');title.textContent='Coach & player alerts'
   const description=document.createElement('p');description.textContent=firstPartyBuild?'Choose '+(android?'Android':'iPhone')+' alerts for assignments, player check-ins and coach feedback. Enable app notifications on this '+phone+' first. Practice details stay private on your lock screen.':'Choose iPhone alerts for private Coach conversations. This account choice applies to iPhones where chat notifications are on. Message text stays private.'
@@ -26,10 +30,11 @@ export function createCoachAlerts(client:SupabaseClient,registered:()=>boolean,s
   const checking=uncertain||!value||!value.enabled&&!value.available
   const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=checking?'Check Coach alerts':value?.enabled?'Turn off Coach alerts':'Turn on Coach alerts'
   button.disabled=busy||Boolean(!checking&&value&&!value.enabled&&!registered())
-  button.onclick=()=>{void run(value&&!checking?!value.enabled:undefined)}
+  button.onclick=()=>{if(host.isConnected&&hosts.get(host)===mount&&valid(user,version))void run(value&&!checking?!value.enabled:undefined)}
   host.append(title,description,status,button)
   if(value&&!registered()){const hint=document.createElement('p');hint.textContent=firstPartyBuild?'Enable app notifications on this '+phone+' to receive coaching alerts here.':'Enable chat notifications on this iPhone to receive alerts here.';host.append(hint)}
   else if(value&&!value.available){const hint=document.createElement('p');hint.textContent=(android?'Android':'iPhone')+' delivery is temporarily unavailable. '+(value.enabled?'You can still turn Coach alerts off.':'Check Coach alerts to try again.');host.append(hint)}
+  }
  }
  const run=async(enabled?:boolean)=>{
   if(disposed||!owner||busy||enabled===true&&!registered())return
@@ -40,8 +45,13 @@ export function createCoachAlerts(client:SupabaseClient,registered:()=>boolean,s
  }
  return {
   // Reopening settings reads current capability without changing the saved opt-in.
-  mount(element:HTMLElement){if(disposed)return;const changed=host!==element;host=element;if(changed&&owner&&!busy)void run();else render()},
-  setOwner(next:string|null){if(disposed||next===owner)return;owner=next;epoch++;value=null;busy=false;notice='';uncertain=false;if(next)void run();else host?.replaceChildren()},
-  dispose(){disposed=true;epoch++;owner=null;host?.replaceChildren();host=null;value=null},
+  mount(element:HTMLElement){
+   if(disposed)return {dispose:()=>{}}
+   const changed=!hosts.has(element),mount={};hosts.set(element,mount)
+   if(changed&&owner&&!busy)void run();else render()
+   return {dispose:()=>{if(hosts.get(element)===mount){hosts.delete(element);element.replaceChildren()}}}
+  },
+  setOwner(next:string|null){if(disposed||next===owner)return;owner=next;epoch++;value=null;busy=false;notice='';uncertain=false;if(next)void run();else render()},
+  dispose(){disposed=true;epoch++;owner=null;for(const host of hosts.keys())host.replaceChildren();hosts.clear();value=null},
  }
 }
