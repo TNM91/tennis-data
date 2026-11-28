@@ -8,32 +8,41 @@ export function pushCoachDestination(data:unknown,owner:string):string|null{
 }
 /** Memory-only handoff; never closes another form or follows a supplied URL. */
 export function createCoachAlertHandoff(host:HTMLElement,client:SupabaseClient,owner:()=>string|null,revision:()=>number,blocked:()=>boolean,guard:(open:()=>void)=>void,open:(student:string,owner:string)=>void,resolve=resolveUpdateAction,now=()=>Date.now(),autoOpen=()=>false){
- let pending:{id:string;owner:string;at:number}|null=null,epoch=0,busy=false,notice='',disposed=false
- const valid=(version:number,user:string)=>!disposed&&epoch===version&&pending?.owner===user&&owner()===user
- const clear=()=>{epoch++;pending=null;busy=false;notice='';host.hidden=true;host.replaceChildren()}
+ const lifetime=600000
+ let pending:{id:string;owner:string;at:number}|null=null,epoch=0,busy=false,notice='',disposed=false,failed=false,attempted=false
+ let expiry:ReturnType<typeof setTimeout>|undefined
+ const clear=()=>{clearTimeout(expiry);expiry=undefined;epoch++;pending=null;busy=false;failed=false;attempted=false;notice='';host.hidden=true;host.replaceChildren()}
+ const valid=(version:number,user:string)=>{
+  if(disposed||epoch!==version||pending?.owner!==user)return false
+  if(owner()!==user||now()-pending.at>=lifetime){clear();return false}
+  return true
+ }
  const render=()=>{
   if(disposed||!pending)return
+  const item=pending,version=epoch
   host.hidden=false;host.replaceChildren();host.className='app-link-handoff';host.setAttribute('aria-label','Coach message alert')
   const status=document.createElement('p');status.setAttribute('role','status');status.textContent=notice||'New Coach message. Open your private conversation.'
-  const button=document.createElement('button');button.type='button';button.textContent='Open conversation';button.disabled=busy
+  const button=document.createElement('button');button.type='button';button.textContent=failed?'Retry conversation':'Open conversation';button.disabled=busy
   button.onclick=()=>{
-   const item=pending;if(!item||owner()!==item.owner||now()-item.at>600000){clear();return}
+   if(!button.isConnected||!valid(version,item.owner)||busy)return
    if(blocked()){notice='Close your current form to open this conversation.';render();return}
+   const visit=revision(),current=()=>valid(version,item.owner)&&revision()===visit
+   attempted=true
    guard(()=>{
-    const version=epoch,visit=revision(),current=()=>valid(version,item.owner)&&revision()===visit
     if(!current()||busy)return
-    busy=true;notice='Checking conversation…';render()
+    if(blocked()){notice='Close your current form to open this conversation.';render();return}
+    busy=true;failed=false;notice='Checking conversation…';render()
     void resolve(client,item.owner,current,{kind:'conversation',id:item.id,label:'Open Coach messages'}).then(action=>{
      if(!current())return
      if(blocked()){notice='Close your current form, then open this conversation.';return}
      if(action.kind!=='coach-message')throw Error('Conversation unavailable')
      clear();open(action.student,item.owner)
-    }).catch(()=>{if(valid(version,item.owner))notice='This conversation couldn’t open. Check your current connections in Chats.'}).finally(()=>{if(valid(version,item.owner)){if(revision()!==visit)notice='Ready to open your private conversation.';busy=false;render()}})
+    }).catch(()=>{if(current()){failed=true;notice='This conversation couldn’t open. Check your connection, then retry or open Chats.'}}).finally(()=>{if(valid(version,item.owner)){if(revision()!==visit)notice='Ready to open your private conversation.';busy=false;render()}})
    })
   }
-  const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='secondary';dismiss.textContent='×';dismiss.setAttribute('aria-label','Dismiss Coach alert');dismiss.onclick=clear
+  const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='secondary';dismiss.textContent='×';dismiss.setAttribute('aria-label','Dismiss Coach alert');dismiss.onclick=()=>{if(dismiss.isConnected&&valid(version,item.owner))clear()}
   host.append(status,button,dismiss)
  }
- const resume=()=>{if(!disposed&&pending&&!busy&&autoOpen()&&!blocked())host.querySelector<HTMLButtonElement>('button')?.click()}
- return {receive(id:string,recipient:string){if(disposed||!uuid(id)||recipient!==owner())return;epoch++;pending={id,owner:recipient,at:now()};busy=false;notice='';render();resume()},resume,syncOwner(){if(pending&&pending.owner!==owner())clear()},clear,dispose(){clear();disposed=true}}
+ const resume=()=>{if(pending&&valid(epoch,pending.owner)&&!busy&&!attempted&&autoOpen()&&!blocked())host.querySelector<HTMLButtonElement>('button')?.click()}
+ return {receive(id:string,recipient:string){if(disposed||!uuid(id)||recipient!==owner())return;clearTimeout(expiry);epoch++;pending={id,owner:recipient,at:now()};busy=false;failed=false;attempted=false;notice='';expiry=setTimeout(clear,lifetime);render();resume()},resume,syncOwner(){if(pending&&pending.owner!==owner())clear()},clear,dispose(){clear();disposed=true}}
 }

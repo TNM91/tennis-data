@@ -379,13 +379,13 @@ mark[data-chat-highlight] { padding:0;border-radius:2px;background:#bae86a;color
 }
 @media(prefers-reduced-motion:reduce) { body[data-screen] :is(button,input,textarea,select) { transition:none; } }
 /* Shared-link continuation and first-visit setup use the same quiet navy system. */
-.app-link-handoff{display:flex;align-items:center;gap:.65rem;margin:.5rem 0 1rem;padding:1rem;border:1px solid #37617f;border-radius:1.2rem;background:#102d43;min-width:0}
+.app-link-handoff{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.65rem;margin:.5rem 0 1rem;padding:1rem;border:1px solid var(--premium-line,#365785);border-radius:1.2rem;background:var(--premium-surface,#0d203e);min-width:0}
 .app-link-handoff[hidden]{display:none}
-.app-link-handoff p{flex:1;min-width:0;margin:0;font-size:.875rem;line-height:1.4}
+.app-link-handoff p{grid-column:1/-1;min-width:0;margin:0;font-size:.875rem;line-height:1.4;overflow-wrap:anywhere}
 .app-link-handoff strong,.app-link-handoff span{display:block;overflow-wrap:anywhere}
 .app-link-handoff span{color:#bad0e1;margin-top:.2rem}
-.app-link-handoff button{flex:none;width:auto;min-height:44px;padding:.6rem .8rem;font-size:.875rem;white-space:nowrap}
-@media(max-width:360px){.app-link-handoff{flex-wrap:wrap}.app-link-handoff p{flex-basis:100%}}
+.app-link-handoff button{width:auto;min-width:44px;max-width:100%;min-height:44px;padding:.6rem .8rem;font-size:.875rem;white-space:normal;overflow-wrap:anywhere}
+.app-link-handoff button:first-of-type{justify-self:start}
 .native-header-actions:not([hidden]) { display:flex; align-items:center; gap:6px; flex:none; }
 body:not(.native-chat-conversation) .app-header:has(.native-header-actions:not([hidden])) { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .app-header .native-header-actions button { position:relative; display:grid; place-items:center; inline-size:44px; block-size:44px; min-inline-size:44px; min-block-size:44px; max-inline-size:44px; margin:0; padding:8px; border:1px solid #426789; border-radius:50%; background:#0a2844; color:#dff1ff; }
