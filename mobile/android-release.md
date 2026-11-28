@@ -38,6 +38,8 @@ Android's real verifier now reports `www.tenaceiq.com: verified` for the Play-in
 
 Actual cold/warm invitation navigation is still pending. The read-only PackageManager resolver returned a chooser for the positive sample URLs, so those diagnostics are not accepted as proof that the app opened the correct screen. Dynamic-rule exclusion of practice links also needs a real tap check. Evidence is `output/android-activity-push-20261127/android-links-resolution.json` in the main checkout. Team invitations retain the existing browser sign-in/create-account path when the app is not installed.
 
+The owner returned control for the invitation-tap check. Build 5 was observed signed in on Chats, then backgrounded with Android's Home gesture. The local-only six-link fixture passed its HTTP check. Chrome reached its first-run Terms screen; the optional usage/crash-reporting switch was observed on. No agreement, account sign-in or reporting change was submitted. The owner was asked to approve setup without sign-in and with optional reporting off. Actual invitation taps remain untested until that approval/setup is complete.
+
 ## Local developer build
 
 Use Node 22, Java 21, Android SDK platform 36 and the Build Tools version selected by the locked Capacitor Android template. Install dependencies at the repository root and in `mobile/`. Set `ANDROID_HOME` to the installed SDK and `JAVA_HOME` to Java 21.
