@@ -16,6 +16,7 @@ import '../fixtures/mobile-coach-chats-cases'
 import '../fixtures/mobile-chat-catchup-cases'
 import '../fixtures/mobile-calendar-practices-cases'
 import '../fixtures/mobile-updates-finder-cases'
+import {registerInvitationRecoveryCases} from '../fixtures/mobile-invitation-recovery-cases'
 import {test,expect,type Page} from '@playwright/test'
 import '../fixtures/mobile-calendar-cases'
 import '../fixtures/mobile-chat-alert-cases'
@@ -55,6 +56,7 @@ async function useFirstPartyNavigation(page:Page) {
  const previewScript = preview.outputFiles.find(file => file.path.endsWith('.js'))!.text
  await page.route(origin+'/app.js',route=>route.fulfill({contentType:'text/javascript',body:previewScript}))
 }
+registerInvitationRecoveryCases(useFirstPartyNavigation)
 
 test('Notification settings support first-party Android registration from the account menu',async({page})=>{
  await useFirstPartyNavigation(page)

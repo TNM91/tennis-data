@@ -62,6 +62,7 @@ export function openPlayerChats(
   if (initial.className) dialog.classList.add(initial.className)
   dialog.setAttribute('aria-labelledby','player-chats-title')
   let disposed = false,busy = false,notice = '',draft = '',groupName = ''
+  let previewing = false,previewRevision = 0
   let page: 'inbox'|'room'|'invite'|'people'|ComposerPage = initial.token ? 'invite' : initial.room || initial.rematch ? 'room' : initial.compose ? 'new' : 'inbox'
   let inviteReturn: ComposerPage | null = null
   let contactQuery = ''
@@ -90,6 +91,7 @@ export function openPlayerChats(
 
   function dispose() {
     disposed = true
+    previewRevision++
     openConversations.delete(dialog)
     listeners.abort()
     void resumeHandle?.remove()
@@ -101,14 +103,15 @@ export function openPlayerChats(
     dialog.remove()
   }
   function close() {
-    if (busy || !active()) return
+    if ((busy && !previewing) || !active()) return
     dispose()
     onClose()
   }
   function back() {
     if (iconEditor?.isOpen()) { iconEditor.close(); return true }
     if (directions?.isOpen()) { directions.dispose(); return true }
-    if (busy || !active()) return true
+    if ((busy && !previewing) || !active()) return true
+    if (previewing) {previewRevision++; previewing=false; busy=false}
     if (page === 'people') {
       page='room'; notice=''; pending=null; contactQuery=''; selected.clear()
       if (room) watchRoom(room.id)
@@ -307,11 +310,17 @@ export function openPlayerChats(
     draft=''; room=null; shared=null; page='room'
     return run(()=>loadRoom(id))
   }
-  function preview(code: string) {
+  // Leaving a read-only preview must not let its late reply repaint newer work.
+  async function preview(code: string) {
+    if (!active() || busy) return
     if (!code) { notice='Paste a TenAceIQ chat invite link.'; render(true); return }
-    inviteReturn=page==='new'||page==='group'?page:null
+    if (page!=='invite') inviteReturn=page==='new'||page==='group'?page:null
     token=code; page='invite'; invitation=null
-    return run(async ()=>{ invitation = await transport.preview(code) })
+    const request=++previewRevision,valid=()=>active()&&previewRevision===request&&page==='invite'
+    contactRequest++; previewing=true; busy=true; notice=''; render()
+    try {const result=await transport.preview(code); if(valid())invitation=result}
+    catch(error) {if(valid())notice=message(error)}
+    finally {if(valid()){previewing=false; busy=false; render(true)}}
   }
 
   function act(input: PlayerChatAction) {
@@ -534,12 +543,14 @@ export function openPlayerChats(
     const title = page==='room' ? room?.title ?? 'Conversation' : page==='group' ? 'New group' : page==='new' ? 'New chat' : page==='people' ? 'Add people' : page==='invite' ? 'Chat invitation' : 'Players & groups'
     const contents = page==='inbox' ? inboxMarkup() : isComposing() ? composerMarkup(page==='group') : page==='people' ? peopleMarkup() : page==='room' && room ? roomMarkup(room) :
       page==='invite' && invitation ? `<p>${invitation.group?'Join':'Connect with'} <strong>${html(invitation.title)}</strong>.</p>
-      <button type="button" data-player-accept>${invitation.group?'Join group':'Save player'}</button>` : ''
-    const backLabel = page==='inbox'||(initial.compose||initial.closeToSource)&&page!=='invite'&&page!=='people'?'Close':'Back'
-    const backName = backLabel==='Close'?'Close':page==='people'?'Back to group':page==='invite'&&inviteReturn?'Back to new chat':'Back to players &amp; groups'
+      <button type="button" data-player-accept>${invitation.group?'Join group':'Save player'}</button>` :
+      page==='invite'&&token?`<p>Check who’s inviting you before joining a group or saving a player.</p><button type="button" data-player-preview-retry>${previewing?'Checking invite…':'Retry invite'}</button>`:''
+    const sourceExit=initial.closeToSource&&page!=='people'&&!(page==='invite'&&inviteReturn)
+    const backLabel = page==='inbox'||sourceExit||initial.compose&&page!=='invite'&&page!=='people'?'Close':'Back'
+    const backName = backLabel==='Close'?'Close':page==='people'?'Back to group':page==='invite'&&inviteReturn?inviteReturn==='group'?'Back to new group':'Back to new chat':'Back to players &amp; groups'
     dialog.innerHTML = `<header class="team-invite-heading"><h2 id="player-chats-title" tabindex="-1">${page==='room'&&room?.logo?teamChatAvatarHtml(title,room.logo):''}${html(title)}</h2>
       <div class="player-chat-header-actions">${page==='room'&&room?.manage&&!initial.browser?simpleButton('Add people','data-player-people'):''}
-      <button class="secondary" type="button" data-player-back aria-label="${backName}">${backLabel}</button></div></header>
+      <button class="secondary" type="button" data-player-back aria-label="${backName}"${busy&&!previewing?' disabled':''}>${backLabel}</button></div></header>
       <p tabindex="-1" role="status">${html(busy?'Working…':notice)}</p>
       ${pending&&!busy?simpleButton('Retry same action','data-player-retry'):''}
       <fieldset class="player-chat-content"${busy||pending?' disabled':''}>${contents}
@@ -561,6 +572,7 @@ export function openPlayerChats(
     bindTeamChatAvatars(dialog)
     bindChatIconSupport(dialog,active)
     click('[data-player-back]',()=>{back()})
+    click('[data-player-preview-retry]',()=>{if(token)void preview(token)})
     click('[data-player-retry]',()=>{if(pending)void act(pending)})
     click('[data-player-people]',openPeople)
     click('[data-player-refresh]',()=>{
@@ -794,5 +806,5 @@ export function openPlayerChats(
   })
   else if (initial.compose) void refreshContacts()
   else void openInbox()
-  return {isOpen:active,close:back,dispose,keepWhileHidden:true}
+  return {isOpen:active,close:back,back,dispose,keepWhileHidden:true}
 }

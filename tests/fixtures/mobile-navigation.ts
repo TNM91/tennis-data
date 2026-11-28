@@ -59,6 +59,10 @@ const inboxActivityFixture={
 }
 Object.assign(window,{inboxActivityFixture})
 const playerChatFixture={
+ invitePreviewFailures:new URL(location.href).searchParams.has('invite-preview-fail')?1:0,
+ inviteUnavailable:false,holdInvitePreview:false,invitePreviewPending:false,releaseInvitePreview:()=>{},
+ holdInviteJoin:false,inviteJoinPending:false,releaseInviteJoin:()=>{},
+ inviteCalls:[] as {action:string;token:string}[],
  enabled:new URL(location.href).searchParams.has('player-chat'),
  practices:new URL(location.href).searchParams.has('group-practice'),
  hitEnabled:new URL(location.href).searchParams.has('chat-hit'),
@@ -191,7 +195,7 @@ const namedChatsFixture=new URL(location.href).searchParams.has('team-channels')
 const namedChats=new Map<string,{name:string;messages:typeof firstPartyTeamMessages;logo?:string}>()
 const chatTeams=()=>chatUnreadFixture.empty?[]:[chatTeam,...(chatUnreadFixture.secondTeam?[{...chatTeam,leagueName:'Evening League',flight:'4.5'}]:[])]
 const canManage=(team:typeof chatTeam)=>chatUnreadFixture.captain&&team.leagueName===chatTeam.leagueName
-const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false,
+const firstPartyTeamFixture={requests:[] as string[],posts:[] as string[],integratedReads:0,unscoped:false,loseJoinReply:false,
  message:{reads:0,fail:false,removed:false,body:undefined as string|undefined,name:undefined as string|undefined,
   holdNextRead:false,releaseRead:undefined as (()=>void)|undefined},
  captainChatSetup:'needs-review',captainInviteTeams:undefined as (typeof chatTeam)[]|undefined}
@@ -337,7 +341,9 @@ window.fetch=async(input,init)=>{
   const contact={id:state.player,name:'Jamie'}
   const contacts=[contact,...(state.savedNewContact?[state.newContact]:[]),...(state.inviteGroup?[state.thirdContact]:[])]
   if(init?.method==='POST'){
-   const body=JSON.parse(String(init.body)) as {action:string;id?:string;text?:string;members?:string[];target?:string;startsAt?:string;court?:string;capacity?:number;response?:'in'|'out';request?:string}
+   const body=JSON.parse(String(init.body)) as {action:string;token?:string;id?:string;text?:string;members?:string[];target?:string;startsAt?:string;court?:string;capacity?:number;response?:'in'|'out';request?:string}
+   // Only synthetic invitation tokens are recorded by this browser fixture.
+   if((body.action==='preview'||body.action==='join')&&body.token)state.inviteCalls.push({action:body.action,token:body.token})
    if(state.hitEnabled){
     const action=parseChatHitAction(body)
     if(action?.action==='hit_propose'||action?.action==='hit_suggest'){
@@ -360,9 +366,16 @@ window.fetch=async(input,init)=>{
     return Response.json({...base,roomId:state.room})
    }
    if(body.action==='invite')return Response.json({...base,expiresAt:'2026-11-20T10:00:00Z'})
-   if(body.action==='preview')return Response.json({...base,invite:state.inviteGroup
-    ?{group:true,title:'Friday practice'}:{group:false,title:state.newContact.name}})
+   if(body.action==='preview'){
+    const unavailable=state.inviteUnavailable,fail=state.invitePreviewFailures>0
+    if(fail)state.invitePreviewFailures--
+    if(state.holdInvitePreview){state.holdInvitePreview=false;state.invitePreviewPending=true;await new Promise<void>(resolve=>{state.releaseInvitePreview=resolve});state.invitePreviewPending=false}
+    if(fail)return Response.json({...base,ok:false},{status:503})
+    if(unavailable)return Response.json({...base,ok:false,message:'This invitation is no longer available. Ask the sender for a new link.'},{status:404})
+    return Response.json({...base,invite:state.inviteGroup?{group:true,title:'Friday practice'}:{group:false,title:state.newContact.name}})
+   }
    if(body.action==='join'){
+    if(state.holdInviteJoin){state.holdInviteJoin=false;state.inviteJoinPending=true;await new Promise<void>(resolve=>{state.releaseInviteJoin=resolve});state.inviteJoinPending=false}
     if(state.inviteGroup){
      state.group=true
      state.title='Friday practice'
@@ -813,7 +826,10 @@ window.fetch=async(input,init)=>{
   if(command.action==='preview')return Response.json({ok:true,nativeTeamInvite:1,review:{...scope,expected,linkVersion:'v1',alreadyJoined:!!release.releaseScope&&firstPartyTeamJoined},...release})
   if(command.action!=='join'||JSON.stringify(command.expected)!==JSON.stringify({invite:expected,linkVersion:'v1'}))return Response.json({ok:false,message:'Invite changed.'},{status:409})
   chatUnreadFixture.detailed=true
-  if(release.releaseScope)firstPartyTeamJoined=true
+  if(release.releaseScope){
+   firstPartyTeamJoined=true;chatUnreadFixture.empty=false
+   if(firstPartyTeamFixture.loseJoinReply){firstPartyTeamFixture.loseJoinReply=false;return Response.json({...release,ok:false},{status:503})}
+  }
   return Response.json({ok:true,nativeTeamInvite:1,joined:true,roomId:scope.roomId,scope,...release})
  }
  if(url.pathname==='/api/mobile/coach/activity')return coachActivityPreview(url,currentNavigationOwner())
