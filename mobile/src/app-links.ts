@@ -42,19 +42,30 @@ export const appLinkTitle=(link:AppLink)=>({'coach-invite':'Coach invitation','t
 // One short-lived, memory-only handoff. Invitation tokens never reach device
 // storage, history, telemetry, or logs. A sign-out/account switch clears it.
 export function createAppLinkHandoff(changed:(link:AppLink|null,cold:boolean)=>void,source:Pick<typeof App,'addListener'|'getLaunchUrl'>=App,now=()=>Date.now()){
- let owner:string|null=null,pending:{link:AppLink;owner:string|null;at:number}|null=null,handle:PluginListenerHandle|null=null,disposed=false,arrivals=0,last='',lastAt=0
- const clear=()=>{pending=null;changed(null,false)}
- const peek=()=>{if(pending&&now()-pending.at>10*60*1000)clear();return pending?.link||null}
+ const lifetime=10*60*1000,duplicateWindow=1500
+ let owner:string|null=null,pending:{link:AppLink;owner:string|null;at:number}|null=null,handle:PluginListenerHandle|null=null,disposed=false,arrivals=0,last='',lastAt=0,ownerRevision=0,received=false
+ let pendingTimer:ReturnType<typeof setTimeout>|undefined,recentTimer:ReturnType<typeof setTimeout>|undefined
+ const forgetRecent=()=>{clearTimeout(recentTimer);recentTimer=undefined;last='';lastAt=0}
+ const discardPending=()=>{clearTimeout(pendingTimer);pendingTimer=undefined;pending=null}
+ const consume=()=>{discardPending();changed(null,false)}
+ const clear=()=>{forgetRecent();discardPending();if(!disposed)changed(null,false)}
+ const peek=()=>{if(pending&&now()-pending.at>=lifetime)clear();return pending?.link||null}
  const receive=(value:unknown,cold=false)=>{
   if(disposed)return false
   const link=readAppLink(value);if(!link)return false
-  const identity=JSON.stringify(link),at=now();if(identity===last&&at-lastAt<1500)return true
-  last=identity;lastAt=at;pending={link,owner,at};changed(link,cold)
+  received=true
+  const identity=JSON.stringify(link),at=now();if(identity===last&&at-lastAt<duplicateWindow)return true
+  forgetRecent();discardPending()
+  last=identity;lastAt=at;pending={link,owner,at}
+  recentTimer=setTimeout(forgetRecent,duplicateWindow)
+  pendingTimer=setTimeout(clear,lifetime)
+  changed(link,cold)
   return true
  }
+ const launchOwnerRevision=ownerRevision
  const ready=source.addListener('appUrlOpen',event=>{arrivals++;receive(event.url,arrivals===1)}).then(async listener=>{
   if(disposed){await listener.remove();return}handle=listener
-  try{const launch=await source.getLaunchUrl();if(!disposed&&arrivals===0)receive(launch?.url,true)}catch{/* Links can still arrive through appUrlOpen. */}
+  try{const launch=await source.getLaunchUrl();if(!disposed&&arrivals===0&&!received&&ownerRevision===launchOwnerRevision)receive(launch?.url,true)}catch{/* Links can still arrive through appUrlOpen. */}
  }).catch(()=>{})
- return {ready,receive,peek,clear,setOwner(next:string|null){if(owner&&owner!==next)clear();owner=next;if(pending&&pending.owner===null&&next)pending.owner=next},take(expectedOwner:string){const link=peek();if(!link||owner!==expectedOwner||pending?.owner!==expectedOwner)return null;clear();return link},dispose(){disposed=true;pending=null;void handle?.remove()}}
+ return {ready,receive,peek,clear,setOwner(next:string|null){if(owner&&owner!==next){ownerRevision++;clear()}owner=next;if(pending&&pending.owner===null&&next)pending.owner=next},take(expectedOwner:string){const link=peek();if(!link||owner!==expectedOwner||pending?.owner!==expectedOwner)return null;consume();return link},dispose(){if(disposed)return;disposed=true;owner=null;clear();void handle?.remove()}}
 }

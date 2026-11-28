@@ -39,6 +39,72 @@ function source(launch?:Promise<{url:string}|undefined>){
  return {remove,emit:(url:string)=>listener({url}),plugin:{addListener:vi.fn(async(_name:string,fn:(e:{url:string})=>void)=>{listener=fn;return {remove}}),getLaunchUrl:vi.fn(()=>launch||Promise.resolve(undefined))}}
 }
 describe('account-bound shared link handoff',()=>{
+ it('lets a dismissed invitation be reopened immediately',async()=>{
+  const s=source(),h=createAppLinkHandoff(vi.fn(),s.plugin as never);await h.ready
+  h.setOwner('A');h.receive(root+'/coach/invite/a');h.clear()
+  expect(h.receive(root+'/coach/invite/a')).toBe(true)
+  expect(h.peek()).toEqual({kind:'coach-invite',href:root+'/coach/invite/a'});h.dispose()
+ })
+ it('does not suppress a fresh tap of the same invitation after an account switch',async()=>{
+  const s=source(),h=createAppLinkHandoff(vi.fn(),s.plugin as never);await h.ready
+  h.setOwner('A');h.receive(root+'/tournaments/'+id);h.setOwner('B')
+  expect(h.peek()).toBeNull();h.receive(root+'/tournaments/'+id)
+  expect(h.take('B')).toEqual({kind:'tournament',id});h.dispose()
+ })
+ it('discards a delayed cold launch after sign-out or an established account switch',async()=>{
+  for(const next of [null,'B']){
+   let complete!:(value:{url:string})=>void
+   const s=source(new Promise(resolve=>{complete=resolve})),h=createAppLinkHandoff(vi.fn(),s.plugin as never)
+   h.setOwner('A');await Promise.resolve();expect(s.plugin.getLaunchUrl).toHaveBeenCalledOnce()
+   h.setOwner(next);complete({url:root+'/coach/invite/a'});await h.ready
+   expect(h.peek()).toBeNull();h.dispose()
+  }
+ })
+ it('retains a delayed cold invitation through the initial sign-in',async()=>{
+  let complete!:(value:{url:string})=>void
+  const s=source(new Promise(resolve=>{complete=resolve})),h=createAppLinkHandoff(vi.fn(),s.plugin as never)
+  await Promise.resolve();h.setOwner('A');complete({url:root+'/tournaments/'+id});await h.ready
+  expect(h.take('A')).toEqual({kind:'tournament',id});h.dispose()
+ })
+ it('does not replace a newer in-app link with a delayed launch lookup',async()=>{
+  let complete!:(value:{url:string})=>void
+  const s=source(new Promise(resolve=>{complete=resolve})),h=createAppLinkHandoff(vi.fn(),s.plugin as never)
+  await Promise.resolve();h.receive(root+'/tournaments/newest');complete({url:root+'/tournaments/old'});await h.ready
+  expect(h.peek()).toEqual({kind:'tournament',id:'newest'});h.dispose()
+ })
+ it('does not revive a dismissed in-app link when an older launch lookup finishes',async()=>{
+  let complete!:(value:{url:string})=>void
+  const s=source(new Promise(resolve=>{complete=resolve})),h=createAppLinkHandoff(vi.fn(),s.plugin as never)
+  await Promise.resolve();h.receive(root+'/coach/invite/new');h.clear();complete({url:root+'/coach/invite/old'});await h.ready
+  expect(h.peek()).toBeNull();h.dispose()
+ })
+ it('still suppresses duplicate native deliveries after consumption and then accepts a new tap',async()=>{
+  let time=10000;const s=source(),h=createAppLinkHandoff(vi.fn(),s.plugin as never,()=>time);await h.ready
+  h.setOwner('A');h.receive(root+'/tournaments/'+id);expect(h.take('A')).toEqual({kind:'tournament',id})
+  h.receive(root+'/tournaments/'+id);expect(h.peek()).toBeNull()
+  time+=1500;h.receive(root+'/tournaments/'+id);expect(h.take('A')).toEqual({kind:'tournament',id});h.dispose()
+ })
+ it('expires an idle pending invitation without another tap or poll',async()=>{
+  vi.useFakeTimers();const changed=vi.fn(),s=source(),h=createAppLinkHandoff(changed,s.plugin as never)
+  try{await h.ready;h.setOwner('A');h.receive(root+'/coach/invite/a')
+   vi.advanceTimersByTime(600000);expect(changed).toHaveBeenLastCalledWith(null,false)
+   expect(h.peek()).toBeNull();expect(vi.getTimerCount()).toBe(0)
+  }finally{h.dispose();vi.useRealTimers()}
+ })
+ it('keeps a newer invitation when the earlier invitation would have expired',async()=>{
+  vi.useFakeTimers();const s=source(),h=createAppLinkHandoff(vi.fn(),s.plugin as never)
+  try{await h.ready;h.setOwner('A');h.receive(root+'/coach/invite/old')
+   vi.advanceTimersByTime(400000);h.receive(root+'/coach/invite/new')
+   vi.advanceTimersByTime(200000);expect(h.peek()).toEqual({kind:'coach-invite',href:root+'/coach/invite/new'})
+   vi.advanceTimersByTime(400000);expect(h.peek()).toBeNull()
+  }finally{h.dispose();vi.useRealTimers()}
+ })
+ it('does not update a disposed handoff after its expiry time',async()=>{
+  vi.useFakeTimers();const changed=vi.fn(),s=source(),h=createAppLinkHandoff(changed,s.plugin as never)
+  try{await h.ready;h.receive(root+'/coach/invite/a');h.dispose()
+   vi.advanceTimersByTime(600001);expect(changed).toHaveBeenCalledOnce();expect(vi.getTimerCount()).toBe(0)
+  }finally{h.dispose();vi.useRealTimers()}
+ })
  it('continues a cold link after sign-in, consumes once and keeps no persistent copy',async()=>{
   const s=source(Promise.resolve({url:root+'/tournaments/'+id})),changed=vi.fn(),h=createAppLinkHandoff(changed,s.plugin as never)
   await h.ready;expect(h.take('owner')).toBeNull();h.setOwner('owner');expect(h.take('other')).toBeNull();expect(h.take('owner')).toEqual({kind:'tournament',id});expect(h.peek()).toBeNull();h.dispose();expect(s.remove).toHaveBeenCalledOnce()
