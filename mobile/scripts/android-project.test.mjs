@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {nativeBundleTarget} from './native-bundle-target.mjs'
-import {checkAndroidConfig,androidGradle} from './android-project.mjs'
+import {checkAndroidConfig,androidGradle,androidManifest} from './android-project.mjs'
 import {googleBillingJava,googleBillingGradle,googleBillingVersion} from './android-google-billing.mjs'
 
 test('Android packaging requires the full first-party app and a recognized distribution',()=>{
@@ -14,6 +14,17 @@ test('Android and iOS distribution settings stay independent',()=>{
   assert.equal(nativeBundleTarget(args,{TIQ_IOS_DISTRIBUTION:'internal',TIQ_ANDROID_DISTRIBUTION:'store'}).tournamentPractice,false)
   assert.equal(nativeBundleTarget(['--first-party-full'],{TIQ_ANDROID_DISTRIBUTION:'internal',TIQ_IOS_DISTRIBUTION:'app-store'}).tournamentPractice,false)
   assert.equal(nativeBundleTarget(['--first-party-full'],{TIQ_IOS_DISTRIBUTION:'internal'}).tournamentPractice,true)
+})
+
+test('Android verifies only the canonical HTTPS host and exact team/chat content pages',()=>{
+ const links=androidManifest.match(/<intent-filter android:autoVerify="true">([\s\S]*?)<\/intent-filter>/g)
+ assert.equal(links.length,1)
+ const filter=links[0]
+ assert.deepEqual([...filter.matchAll(/android:host="([^"]+)"/g)].map(match=>match[1]),['www.tenaceiq.com'])
+ assert.deepEqual([...filter.matchAll(/android:scheme="([^"]+)"/g)].map(match=>match[1]),['https'])
+ assert.deepEqual([...filter.matchAll(/android:path="([^"]+)"/g)].map(match=>match[1]),['/team-room','/team-room/join','/chats','/chats/join'])
+ assert.deepEqual([...filter.matchAll(/android:pathPrefix="([^"]+)"/g)].map(match=>match[1]),['/coach/invite/','/explore/leagues/tiq/','/tournaments/','/matches/'])
+ assert.doesNotMatch(filter,/auth|billing|account|android:pathPrefix="\/(?:team-room|chats)"/)
 })
 test('the iOS configuration remains the released prototype-shaped packaging input',()=>{
   assert.deepEqual(nativeBundleTarget(['--first-party-full'],{}).capacitorConfig,{appId:'com.tenaceiq.prototype',appName:'TenAceIQ Prototype',webDir:'bundled',loggingBehavior:'none',plugins:{PushNotifications:{presentationOptions:[]}}})

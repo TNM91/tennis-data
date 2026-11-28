@@ -3,13 +3,14 @@ import {readFile} from 'node:fs/promises'
 import {fileURLToPath} from 'node:url'
 import {resolve} from 'node:path'
 import {createHash} from 'node:crypto'
-import {checkAndroidConfig} from './android-project.mjs'
+import {checkAndroidConfig,androidManifest} from './android-project.mjs'
 import {googleBillingJava,googleBillingVersion} from './android-google-billing.mjs'
 import {checkAndroidFirebaseConfig} from './android-firebase.mjs'
 const mobile=fileURLToPath(new URL('../',import.meta.url)),project=resolve(mobile,'android'),read=name=>readFile(resolve(project,name),'utf8'),hash=data=>createHash('sha256').update(data).digest('hex')
 const config=JSON.parse(await read('app/src/main/assets/capacitor.config.json')),scope=JSON.parse(await read('app/src/main/assets/public/android-release.json'))
 checkAndroidConfig(config,scope)
 const manifest=await read('app/src/main/AndroidManifest.xml'),gradle=await read('app/build.gradle')
+assert.equal(manifest,androidManifest,'Reprepare the managed Android project to use the current link and permission declarations.')
 assert.match(manifest,/android:allowBackup="false"/);assert.match(manifest,/android:usesCleartextTraffic="false"/);assert.doesNotMatch(manifest,/MANAGE_EXTERNAL_STORAGE|QUERY_ALL_PACKAGES|READ_CONTACTS/)
 assert.match(gradle,/applicationId "com\.tenaceiq\.app"/);assert.match(gradle,/release \{\s+debuggable false/);assert.match(gradle,/applicationIdSuffix "\.dev"/)
 assert.match(await read('variables.gradle'),/targetSdkVersion = 36/)

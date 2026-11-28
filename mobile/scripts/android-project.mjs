@@ -45,8 +45,9 @@ export const androidManifest=`<?xml version="1.0" encoding="utf-8"?>
       <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
       <intent-filter android:autoVerify="true">
         <action android:name="android.intent.action.VIEW" /><category android:name="android.intent.category.DEFAULT" /><category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="https" /><data android:host="www.tenaceiq.com" /><data android:host="tenaceiq.com" />
-        <data android:pathPrefix="/coach/invite/" /><data android:pathPrefix="/team-room" /><data android:pathPrefix="/chats" />
+        <data android:scheme="https" /><data android:host="www.tenaceiq.com" />
+        <data android:pathPrefix="/coach/invite/" />
+        <data android:path="/team-room" /><data android:path="/team-room/join" /><data android:path="/chats" /><data android:path="/chats/join" />
         <data android:pathPrefix="/explore/leagues/tiq/" /><data android:pathPrefix="/tournaments/" /><data android:pathPrefix="/matches/" />
       </intent-filter>
     </activity>

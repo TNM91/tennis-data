@@ -2,10 +2,17 @@ import {describe,it,expect,vi} from 'vitest'
 import {readAppLink,createAppLinkHandoff} from '../../mobile/src/app-links'
 import {readLinkedMatch} from '../../mobile/src/shared-match-view'
 import {appleAppSiteAssociation} from '../apple-app-site-association'
+import {androidAppLinks} from '../android-app-links'
 
 const root='https://www.tenaceiq.com',id='12345678-1234-4234-8234-123456789012'
 const playerInvite='a'.repeat(64)
 describe('native content links',()=>{
+ it('opens each destination declared by the Android website association',()=>{
+  const rules=androidAppLinks[0].relation_extensions['delegate_permission/common.handle_all_urls'].dynamic_app_link_components
+  const paths=[['/coach/invite/*','/coach/invite/test-token'],['/team-room/join','/team-room/join?token='+id],['/team-room','/team-room?team=Baseline+Aces&league=City&flight=4.0'],['/chats/join','/chats/join?invite='+playerInvite],['/chats','/chats?room='+id],['/explore/leagues/tiq/*','/explore/leagues/tiq/'+id],['/tournaments/*','/tournaments/'+id],['/matches/*','/matches/'+id]]
+  expect(paths.map(([pattern])=>pattern)).toEqual(rules.filter(rule=>!rule.exclude).map(rule=>rule['/']))
+  for(const [,path]of paths)expect(readAppLink(root+path),path).not.toBeNull()
+ })
  it('opens only explicit supported content destinations',()=>{
   expect(readAppLink(root+'/coach/invite/test-token')).toEqual({kind:'coach-invite',href:root+'/coach/invite/test-token'})
   expect(readAppLink(root+'/team-room/join?token='+id)?.kind).toBe('team-invite')
